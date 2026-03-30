@@ -6,8 +6,7 @@
 // 기존 layer-view/BottomSheet의 13개 탭 콘텐츠 재사용
 // ============================================
 
-import { useEffect, useCallback, useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { X } from "lucide-react";
@@ -36,18 +35,24 @@ export function ContextTopSheet({ isOpen, onClose, studentGrade, initialSchoolYe
   const [animateIn, setAnimateIn] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("competency");
 
-  // 열기 애니메이션
+  // 열기/닫기 애니메이션 (렌더 중 상태 조정 + 비동기 transition)
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) setVisible(true);
+    else setAnimateIn(false);
+  }
+
   useEffect(() => {
     if (isOpen) {
-      setVisible(true);
-      requestAnimationFrame(() => {
+      const raf = requestAnimationFrame(() => {
         requestAnimationFrame(() => setAnimateIn(true));
       });
-    } else {
-      setAnimateIn(false);
-      const t = setTimeout(() => setVisible(false), 300);
-      return () => clearTimeout(t);
+      return () => cancelAnimationFrame(raf);
     }
+    // 닫기: CSS transition 후 DOM 제거
+    const t = setTimeout(() => setVisible(false), 300);
+    return () => clearTimeout(t);
   }, [isOpen]);
 
   // Escape로 닫기

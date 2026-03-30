@@ -96,14 +96,21 @@ export function PipelineSidebarWidget({
 
   const isActionPending = runMutation.isPending || resumeMutation.isPending || rerunTaskMutation.isPending;
 
-  // 완료 후 10초 → badge 축소
+  // 완료 후 10초 → badge 축소 (렌더 중 상태 조정 + 비동기 축소)
+  const pipelineStatus = pipeline?.status ?? null;
+  const [prevStatus, setPrevStatus] = useState(pipelineStatus);
+  if (pipelineStatus !== prevStatus) {
+    setPrevStatus(pipelineStatus);
+    if (pipelineStatus !== "completed" && pipelineStatus !== "failed") {
+      setCollapsed(false);
+    }
+  }
   useEffect(() => {
-    if (pipeline?.status === "completed" || pipeline?.status === "failed") {
+    if (pipelineStatus === "completed" || pipelineStatus === "failed") {
       const timer = setTimeout(() => setCollapsed(true), 10_000);
       return () => clearTimeout(timer);
     }
-    setCollapsed(false);
-  }, [pipeline?.status]);
+  }, [pipelineStatus]);
 
   // 완료 시 관련 쿼리 무효화
   useEffect(() => {
@@ -121,12 +128,32 @@ export function PipelineSidebarWidget({
   });
   const isPipelineStale = stalenessData?.isStale ?? false;
 
+  // ETA 계산 (폴링마다 갱신, 렌더 순수성 유지)
+  const [etaNow, setEtaNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (pipelineStatus !== "running") return;
+    // 즉시 1회 + 5초 간격
+    const interval = setInterval(() => setEtaNow(Date.now()), 5000);
+    const raf = requestAnimationFrame(() => setEtaNow(Date.now()));
+    return () => { clearInterval(interval); cancelAnimationFrame(raf); };
+  }, [pipelineStatus]);
+
   // 진로 미설정 → 표시 안 함 (CareerSetupBanner가 처리)
   if (!hasTargetMajor) return null;
 
   const completedCount = pipeline
     ? PIPELINE_TASK_KEYS.filter((k) => pipeline.tasks[k] === "completed").length
     : 0;
+
+  const estimatedMinutesLeft = completedCount >= 2 && pipeline?.startedAt
+    ? Math.ceil(
+        ((etaNow - new Date(pipeline.startedAt).getTime()) / completedCount
+          * (PIPELINE_TASK_KEYS.length - completedCount)) / 60000
+      )
+    : null;
+  const currentTaskLabel = pipeline?.status === "running"
+    ? (PIPELINE_TASK_LABELS[PIPELINE_TASK_KEYS.find((k) => pipeline.tasks[k] === "running") ?? ""] ?? "대기 중")
+    : null;
 
   // 파이프라인 없음 → CTA 표시
   if (!pipeline || pipeline.status === "cancelled") {
@@ -213,19 +240,9 @@ export function PipelineSidebarWidget({
             />
           </div>
           <div className="mt-1 flex items-center justify-between text-xs text-[var(--text-tertiary)]">
-            <span>
-              {(() => {
-                const currentTask = PIPELINE_TASK_KEYS.find((k) => pipeline.tasks[k] === "running");
-                return currentTask ? PIPELINE_TASK_LABELS[currentTask] : "대기 중";
-              })()}...
-            </span>
-            {completedCount >= 2 && pipeline.startedAt && (
-              <span>
-                약 {Math.ceil(
-                  ((Date.now() - new Date(pipeline.startedAt).getTime()) / completedCount
-                    * (PIPELINE_TASK_KEYS.length - completedCount)) / 60000
-                )}분 남음
-              </span>
+            <span>{currentTaskLabel ?? "대기 중"}...</span>
+            {estimatedMinutesLeft != null && (
+              <span>약 {estimatedMinutesLeft}분 남음</span>
             )}
           </div>
         </div>

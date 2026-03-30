@@ -6,7 +6,7 @@
 // SetekEditor, ChangcheEditor, HaengteukEditor 등에서 재사용
 // ============================================
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { ArrowDownToLine } from "lucide-react";
 import { CharacterCounter } from "../CharacterCounter";
@@ -59,7 +59,12 @@ export function DraftBlock({
   isImporting?: boolean;
 }) {
   const [value, setValue] = useState(content ?? "");
-  useEffect(() => { setValue(content ?? ""); }, [content]);
+  // prop → state 동기화 (렌더 중 상태 조정)
+  const [prevContent, setPrevContent] = useState(content);
+  if (content !== prevContent) {
+    setPrevContent(content);
+    setValue(content ?? "");
+  }
   const { status } = useAutoSave({
     data: value,
     onSave: async (d) => { onSave?.(d); return { success: true }; },
@@ -206,7 +211,11 @@ function DraftInlineEditor({
   textColor: string;
 }) {
   const [value, setValue] = useState(initialContent);
-  useEffect(() => { setValue(initialContent); }, [initialContent]);
+  const [prevInitial, setPrevInitial] = useState(initialContent);
+  if (initialContent !== prevInitial) {
+    setPrevInitial(initialContent);
+    setValue(initialContent);
+  }
   const { status } = useAutoSave({
     data: value,
     onSave: async (d) => { onSave(d); return { success: true }; },

@@ -109,59 +109,60 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
     },
   });
 
+  // data?.plans를 안정 변수로 추출 (React Compiler 메모이제이션 호환)
+  const plans = data?.plans ?? [];
+
   // 그룹핑: grade → semester → plans
   const plansByGradeSemester = useMemo(() => {
-    if (!data?.plans) return {};
+    if (plans.length === 0) return {};
     const map: Record<number, Record<number, CoursePlanWithSubject[]>> = {};
-    for (const plan of data.plans) {
+    for (const plan of plans) {
       if (!map[plan.grade]) map[plan.grade] = {};
       if (!map[plan.grade][plan.semester]) map[plan.grade][plan.semester] = [];
       map[plan.grade][plan.semester].push(plan);
     }
     return map;
-  }, [data?.plans]);
+  }, [plans]);
 
   // 통계
-  const stats = useMemo(() => {
-    const plans = data?.plans ?? [];
-    return {
-      total: plans.length,
-      recommended: plans.filter((p) => p.plan_status === "recommended").length,
-      confirmed: plans.filter((p) => p.plan_status === "confirmed").length,
-      completed: plans.filter((p) => p.plan_status === "completed").length,
-    };
-  }, [data?.plans]);
+  const stats = useMemo(() => ({
+    total: plans.length,
+    recommended: plans.filter((p) => p.plan_status === "recommended").length,
+    confirmed: plans.filter((p) => p.plan_status === "confirmed").length,
+    completed: plans.filter((p) => p.plan_status === "completed").length,
+  }), [plans]);
 
   // P2-A: 충돌 감지
   const conflicts = useMemo<PlanConflict[]>(() => {
-    if (!data?.plans || data.plans.length === 0) return [];
-    return detectPlanConflicts(data.plans);
-  }, [data?.plans]);
+    if (plans.length === 0) return [];
+    return detectPlanConflicts(plans);
+  }, [plans]);
 
   // 적합도 계산 (학교 개설 과목 + 교육과정 연도 반영)
+  const targetMajor = data?.targetMajor ?? null;
+  const offeredSubjectNames = data?.offeredSubjectNames ?? null;
+  const curriculumYear = data?.curriculumYear;
   const adequacy = useMemo(() => {
-    if (!data?.targetMajor || !data.plans) return null;
-    const offered = data.offeredSubjectNames ?? null;
-    const curYear = data.curriculumYear;
+    if (!targetMajor || plans.length === 0) return null;
 
     // 이수 과목만
-    const completedNames = data.plans
+    const completedNames = plans
       .filter((p) => p.plan_status === "completed")
       .map((p) => p.subject.name);
     const completedAdequacy = calculateCourseAdequacy(
-      data.targetMajor, completedNames, offered, curYear,
+      targetMajor, completedNames, offeredSubjectNames, curriculumYear,
     );
 
     // 이수 + 확정 합산
-    const plannedNames = data.plans
+    const plannedNames = plans
       .filter((p) => p.plan_status === "completed" || p.plan_status === "confirmed")
       .map((p) => p.subject.name);
     const plannedAdequacy = calculateCourseAdequacy(
-      data.targetMajor, plannedNames, offered, curYear,
+      targetMajor, plannedNames, offeredSubjectNames, curriculumYear,
     );
 
     return { completed: completedAdequacy, planned: plannedAdequacy };
-  }, [data]);
+  }, [targetMajor, plans, offeredSubjectNames, curriculumYear]);
 
   const toggleGrade = (grade: number) => {
     setExpandedGrades((prev) => ({ ...prev, [grade]: !prev[grade] }));
@@ -195,7 +196,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
   }
 
   // 2. 추천 미실행
-  if (data.plans.length === 0) {
+  if (plans.length === 0) {
     return (
       <div className="space-y-4">
         <CoursePlanHeader

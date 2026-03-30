@@ -29,6 +29,7 @@ export function useAutoSave<T>({
   const isFirstRender = useRef(true);
   const retryCountRef = useRef(0);
   const isDirtyRef = useRef(false);
+  const saveRef = useRef<() => Promise<void>>();
 
   useEffect(() => {
     latestDataRef.current = data;
@@ -51,7 +52,7 @@ export function useAutoSave<T>({
         // 지수 백오프 재시도
         retryCountRef.current++;
         const delay = Math.pow(2, retryCountRef.current) * 1000;
-        timerRef.current = setTimeout(() => { save(); }, delay);
+        timerRef.current = setTimeout(() => { saveRef.current?.(); }, delay);
       } else {
         retryCountRef.current = 0;
         setStatus("error");
@@ -61,7 +62,7 @@ export function useAutoSave<T>({
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current++;
         const delay = Math.pow(2, retryCountRef.current) * 1000;
-        timerRef.current = setTimeout(() => { save(); }, delay);
+        timerRef.current = setTimeout(() => { saveRef.current?.(); }, delay);
       } else {
         retryCountRef.current = 0;
         setStatus("error");
@@ -69,6 +70,8 @@ export function useAutoSave<T>({
       }
     }
   }, [onSave, maxRetries]);
+
+  useEffect(() => { saveRef.current = save; }, [save]);
 
   // 자동 저장 debounce
   useEffect(() => {

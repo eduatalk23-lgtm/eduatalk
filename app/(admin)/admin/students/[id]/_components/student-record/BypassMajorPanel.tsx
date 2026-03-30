@@ -302,7 +302,7 @@ export function BypassMajorPanel({
             </button>
           </div>
           <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
-            개별 클릭으로 목표 학과 설정 또는 "전체 일괄 분석"으로 모든 추천 학과를 한번에 분석합니다.
+            개별 클릭으로 목표 학과 설정 또는 &quot;전체 일괄 분석&quot;으로 모든 추천 학과를 한번에 분석합니다.
           </p>
         </div>
       )}

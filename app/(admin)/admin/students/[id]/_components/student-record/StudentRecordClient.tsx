@@ -519,21 +519,6 @@ export function StudentRecordClient({
     }
   }, [dispatchAgentAction]);
 
-  // 전체 치명적 에러 (모든 쿼리 실패) 시에만 페이지 차단
-  const allFailed = recordQueries.every((q) => !!q.error)
-    && supplementaryQueries.every((q) => !!q.error)
-    && !!storylineError && !!strategyError;
-  if (allFailed) {
-    const firstError = recordQueries[0]?.error ?? storylineError ?? strategyError;
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-400">
-          데이터를 불러오는 중 오류가 발생했습니다: {(firstError as Error)?.message ?? "알 수 없는 에러"}
-        </div>
-      </div>
-    );
-  }
-
   // ─── Sidebar Content ──────────────────────────────
 
   // 사이드바 스테이지 접기/펼치기
@@ -839,6 +824,21 @@ export function StudentRecordClient({
     };
     return computeWarnings(input);
   }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade]);
+
+  // 전체 치명적 에러 (모든 쿼리 실패) 시에만 페이지 차단
+  const allFailed = recordQueries.every((q) => !!q.error)
+    && supplementaryQueries.every((q) => !!q.error)
+    && !!storylineError && !!strategyError;
+  if (allFailed) {
+    const firstError = recordQueries[0]?.error ?? storylineError ?? strategyError;
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-400">
+          데이터를 불러오는 중 오류가 발생했습니다: {(firstError as Error)?.message ?? "알 수 없는 에러"}
+        </div>
+      </div>
+    );
+  }
 
   // 헤더 표시용 텍스트
   const headerSubtitle = viewMode === "all"
@@ -1636,10 +1636,12 @@ function DocSection({ id, number, title, children, isEmpty, emptyLabel }: {
 }) {
   const [collapsed, setCollapsed] = useState(!!isEmpty);
 
-  // 데이터 상태 변경 시 접기 동기화
-  useEffect(() => {
+  // 데이터 상태 변경 시 접기 동기화 (렌더 중 상태 조정 — useEffect 대신)
+  const [prevIsEmpty, setPrevIsEmpty] = useState(isEmpty);
+  if (isEmpty !== prevIsEmpty) {
+    setPrevIsEmpty(isEmpty);
     if (isEmpty) setCollapsed(true);
-  }, [isEmpty]);
+  }
 
   return (
     <section data-section-id={id} className="mb-6 scroll-mt-4">
@@ -1676,9 +1678,12 @@ function StrategySection({ id, title, children, isEmpty, emptyLabel }: {
 }) {
   const [collapsed, setCollapsed] = useState(!!isEmpty);
 
-  useEffect(() => {
+  // 데이터 상태 변경 시 접기 동기화 (렌더 중 상태 조정)
+  const [prevIsEmpty, setPrevIsEmpty] = useState(isEmpty);
+  if (isEmpty !== prevIsEmpty) {
+    setPrevIsEmpty(isEmpty);
     if (isEmpty) setCollapsed(true);
-  }, [isEmpty]);
+  }
 
   return (
     <section data-section-id={id} className="mb-8 scroll-mt-4">
