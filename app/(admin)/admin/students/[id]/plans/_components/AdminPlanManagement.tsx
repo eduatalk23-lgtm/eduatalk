@@ -26,7 +26,6 @@ import {
   ShortcutsHelpModal,
   AdminAIPlanModalV2,
   AdminPlanCreationWizard7Step,
-  AdminQuickPlanModal,
   UnifiedPlanAddModal,
   PlanOptimizationPanel,
   EditPlanModal,
@@ -191,8 +190,6 @@ function AdminPlanManagementContent({
     showAIPlanModal,
     showCreateWizard,
     showOptimizationPanel,
-    showQuickPlanModal,
-    setShowQuickPlanModal,
     showUnifiedAddModal,
     setShowUnifiedAddModal,
     unifiedModalMode,
@@ -841,21 +838,6 @@ function AdminPlanManagementContent({
                 setShowAIPlanModal(false);
                 setNewGroupIdForAI(null);
                 invalidateQueries();
-              }}
-            />
-          )}
-
-          {showQuickPlanModal && canCreatePlans && (
-            <AdminQuickPlanModal
-              studentId={studentId}
-              tenantId={tenantId}
-              studentName={studentName}
-              targetDate={selectedDate}
-              calendarId={selectedCalendarId ?? ''}
-              onClose={() => setShowQuickPlanModal(false)}
-              onSuccess={() => {
-                setShowQuickPlanModal(false);
-                refreshDaily();
               }}
             />
           )}

@@ -338,7 +338,7 @@ export function CalendarSidebar() {
                 >
                   <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
                   플랜 그룹
-                  <kbd className="ml-auto text-xs text-gray-400 dark:text-gray-500 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">G</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 dark:text-gray-500 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">C</kbd>
                 </button>
                 <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
                 <button

@@ -43,11 +43,6 @@ export const AdminPlanCreationWizard7Step = dynamic(
   { ssr: false }
 );
 
-export const AdminQuickPlanModal = dynamic(
-  () => import('./AdminQuickPlanModal').then((mod) => ({ default: mod.AdminQuickPlanModal })),
-  { ssr: false }
-);
-
 export const UnifiedPlanAddModal = dynamic(
   () => import('./UnifiedPlanAddModal').then((mod) => ({ default: mod.UnifiedPlanAddModal })),
   { ssr: false }
