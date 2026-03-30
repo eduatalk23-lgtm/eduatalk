@@ -195,6 +195,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // 랜딩 페이지 리소스는 캐싱하지 않음 (마케팅 페이지 — 수시 업데이트)
+  if (url.pathname.startsWith("/landing")) return;
+
   if (
     event.request.destination === "image" ||
     event.request.destination === "font" ||
