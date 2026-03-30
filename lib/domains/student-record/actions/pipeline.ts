@@ -27,7 +27,7 @@ import type {
   CachedHaengteuk,
   OfferedSubjectRow,
 } from "../pipeline-types";
-import { PIPELINE_TASK_KEYS, computeCascadeResetKeys } from "../pipeline-types";
+import { PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, computeCascadeResetKeys } from "../pipeline-types";
 import type { PersistedEdge } from "../edge-repository";
 import type { CrossRefEdge } from "../cross-reference";
 import * as competencyRepo from "../competency-repository";
@@ -66,6 +66,23 @@ async function runWithConcurrency<T>(
     },
   );
   await Promise.allSettled(workers);
+}
+
+/** Promise에 타임아웃을 적용. 초과 시 reject. */
+function withTaskTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  taskKey: PipelineTaskKey,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Task "${taskKey}" timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
 
 // ============================================
@@ -118,6 +135,37 @@ export async function fetchPipelineStatus(
 }
 
 // ============================================
+// 속도 제한 (학생당 1 running + 5/hour)
+// ============================================
+
+async function checkPipelineRateLimit(
+  studentId: string,
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<string | null> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data: recentPipelines, error } = await supabase
+    .from("student_record_analysis_pipelines")
+    .select("id, status")
+    .eq("student_id", studentId)
+    .gte("created_at", oneHourAgo)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    logActionError({ ...LOG_CTX, action: "checkPipelineRateLimit" }, error, { studentId });
+    return null; // fail-open
+  }
+
+  const rows = recentPipelines ?? [];
+  if (rows.some((r) => r.status === "pending" || r.status === "running")) {
+    return "이미 실행 중인 파이프라인이 있습니다. 완료 후 다시 시도해주세요.";
+  }
+  if (rows.length >= 5) {
+    return "1시간 내 최대 5회까지 파이프라인을 실행할 수 있습니다. 잠시 후 다시 시도해주세요.";
+  }
+  return null;
+}
+
+// ============================================
 // 파이프라인 실행
 // ============================================
 
@@ -130,17 +178,10 @@ export async function runInitialAnalysisPipeline(
     const { userId } = await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // 이미 running인 파이프라인이 있는지 체크 (중복 방지)
-    const { data: existing } = await supabase
-      .from("student_record_analysis_pipelines")
-      .select("id")
-      .eq("student_id", studentId)
-      .in("status", ["pending", "running"])
-      .limit(1)
-      .maybeSingle();
-
-    if (existing) {
-      return createSuccessResponse({ pipelineId: existing.id });
+    // 속도 제한: 학생당 1 running + 5/hour
+    const rateLimitError = await checkPipelineRateLimit(studentId, supabase);
+    if (rateLimitError) {
+      return createErrorResponse(rateLimitError);
     }
 
     // 학생 정보 스냅샷
@@ -1617,7 +1658,8 @@ async function executePipelineTasks(
 
     try {
       const runner = taskRunnerMap.get(key)!;
-      const output = await runner();
+      const timeoutMs = PIPELINE_TASK_TIMEOUTS[key];
+      const output = await withTaskTimeout(runner(), timeoutMs, key);
       tasks[key] = "completed";
       if (typeof output === "string") {
         previews[key] = output;

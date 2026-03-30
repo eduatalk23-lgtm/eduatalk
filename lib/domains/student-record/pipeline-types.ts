@@ -42,6 +42,22 @@ export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
   roadmap_generation: "로드맵 생성",
 };
 
+/** 태스크별 타임아웃 (ms). 초과 시 failed 전환. */
+export const PIPELINE_TASK_TIMEOUTS: Record<PipelineTaskKey, number> = {
+  competency_analysis: 180_000,   // 3분 (다건 배치)
+  storyline_generation: 120_000,
+  edge_computation: 60_000,       // CPU 기반
+  ai_diagnosis: 180_000,          // 3분 (복합 LLM)
+  course_recommendation: 120_000,
+  guide_matching: 60_000,         // DB 조회 위주
+  bypass_analysis: 120_000,
+  setek_guide: 120_000,
+  activity_summary: 120_000,
+  ai_strategy: 120_000,
+  interview_generation: 120_000,
+  roadmap_generation: 120_000,
+};
+
 export interface PipelineStatus {
   id: string;
   studentId: string;
