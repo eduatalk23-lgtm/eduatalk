@@ -23,6 +23,9 @@ export const LAYOUT_WIDTHS = {
   
   /** 대시보드 메인 페이지 (today, dashboard 등) */
   DASHBOARD: "max-w-[1536px]",
+
+  /** 2열 관리 페이지 (students 등) — 뷰포트 전폭 사용 */
+  FULL: "",
   
   /** 모달/다이얼로그 (작은 모달) */
   MODAL_SM: "max-w-2xl",

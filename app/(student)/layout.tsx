@@ -28,7 +28,7 @@ export default async function StudentLayout({ children }: { children: ReactNode 
   // is_active 체크 + 기관 정보 + 사용자 프로필 + 출석 기록을 병렬 조회
   const [student, tenantInfo, profile] = await Promise.all([
     supabase
-      .from("students")
+      .from("user_profiles")
       .select("is_active")
       .eq("id", userId)
       .maybeSingle()

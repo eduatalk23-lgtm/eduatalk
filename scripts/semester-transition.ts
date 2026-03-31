@@ -532,7 +532,11 @@ async function main(): Promise<void> {
     // H4: 실제 DB 변경은 dry-run 분기 이후에만 도달
     const { error } = await supabase
       .from("students")
-      .update({ status: "graduated" })
+      .update({
+        status: "not_enrolled",
+        withdrawn_at: new Date().toISOString(),
+        withdrawn_reason: "졸업",
+      })
       .in("id", graduationIds);
 
     if (error) {
@@ -541,6 +545,19 @@ async function main(): Promise<void> {
     } else {
       summary.graduated = graduationIds.length;
       log(`  졸업 처리: ${graduationIds.length}명 완료`);
+
+      // user_profiles.is_active=false 동기화
+      const { error: profileError } = await supabase
+        .from("user_profiles")
+        .update({ is_active: false })
+        .in("id", graduationIds);
+
+      if (profileError) {
+        log(`[WARN] 졸업생 비활성화 실패: ${profileError.message}`);
+        summary.errors.push(`graduation_deactivate: ${profileError.message}`);
+      } else {
+        log(`  졸업생 계정 비활성화: ${graduationIds.length}명 완료`);
+      }
     }
 
     // C2: 5명씩 병렬 처리 (M3)

@@ -82,8 +82,8 @@ export const ROLE_ALLOWED_PATHS: Record<string, readonly string[]> = {
     "/report",
     "/reports",
   ],
-  admin: ["/admin"],
-  consultant: ["/admin"],
+  admin: ["/admin", "/agent-popout"],
+  consultant: ["/admin", "/agent-popout"],
   parent: ["/parent"],
   superadmin: ["/superadmin", "/admin"],
 } as const;
