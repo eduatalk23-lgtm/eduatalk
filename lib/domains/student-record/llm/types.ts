@@ -83,6 +83,28 @@ export interface HighlightAnalysisInput {
   };
 }
 
+// ============================================
+// Phase QA: 콘텐츠 품질 평가
+// ============================================
+
+/** AI가 평가하는 텍스트 작성 품질 점수 */
+export interface ContentQualityScore {
+  /** 구체성 (0-5): 구체적 사례·근거·성과가 포함된 정도 */
+  specificity: number;
+  /** 연결성 (0-5): 활동→과정→결과→성장의 논리적 흐름 */
+  coherence: number;
+  /** 깊이 (0-5): 탐구·분석의 깊이, 교과 연계, 확장적 사고 */
+  depth: number;
+  /** 문법 (0-5): 문법·맞춤법·표현의 적절성 */
+  grammar: number;
+  /** 종합 점수 (0-100): specificity×30 + coherence×20 + depth×30 + grammar×20) / 5 */
+  overallScore: number;
+  /** 품질 문제 목록 (예: ["동어반복", "구체 사례 부족"]) */
+  issues: string[];
+  /** 개선 피드백 (1-2문장) */
+  feedback: string;
+}
+
 /** 세특 하이라이트 분석 출력 */
 export interface HighlightAnalysisResult {
   /** 구간별 분석 (학업태도/수행능력/탐구활동) */
@@ -101,6 +123,8 @@ export interface HighlightAnalysisResult {
   }[];
   /** 전체 요약 */
   summary: string;
+  /** Phase QA: 텍스트 작성 품질 평가 (옵션 — LLM이 누락 시 undefined) */
+  contentQuality?: ContentQualityScore;
 }
 
 // ============================================
@@ -287,6 +311,80 @@ export interface RoadmapGenerationInput {
   diagnosisWeaknesses?: string[];
   setekGuides?: Array<{ subjectName: string; direction: string; keywords: string[] }>;
   existingActivities?: Array<{ grade: number; area: string; content: string }>;
+}
+
+// ============================================
+// 창체 방향 가이드
+// ============================================
+
+/** generateChangcheGuide 액션의 입력 */
+export interface ChangcheGuideInput {
+  studentName: string;
+  grade: number;
+  targetMajor?: string;
+  targetSubClassificationName?: string;
+  targetMidName?: string;
+  targetGrades: number[];
+  recordDataByGrade: Record<
+    number,
+    {
+      changche: Array<{ activity_type: string; content: string }>;
+      seteks: Array<{ subject_name: string; content: string }>;
+      haengteuk: { content: string } | null;
+    }
+  >;
+  competencyScores?: Array<{ item: string; grade: string; narrative?: string }>;
+  storylines?: Array<{ title: string; keywords: string[] }>;
+  strengths?: string[];
+  weaknesses?: string[];
+  /** Phase E2: 영역간 연결 프롬프트 섹션 */
+  edgePromptSection?: string;
+  /** 세특 방향 컨텍스트 (setek_guide 결과 요약) */
+  setekGuideContext?: string;
+}
+
+/** generateChangcheGuide 액션의 출력 */
+export interface ChangcheGuideResult {
+  title: string;
+  guides: import("../types").ChangcheGuideItem[];
+  overallDirection: string;
+}
+
+// ============================================
+// 행특 방향 가이드
+// ============================================
+
+/** generateHaengteukGuide 액션의 입력 */
+export interface HaengteukGuideInput {
+  studentName: string;
+  grade: number;
+  targetMajor?: string;
+  targetSubClassificationName?: string;
+  targetMidName?: string;
+  targetGrades: number[];
+  recordDataByGrade: Record<
+    number,
+    {
+      haengteuk: { content: string } | null;
+      changche: Array<{ activity_type: string; content: string }>;
+      seteks: Array<{ subject_name: string; content: string }>;
+    }
+  >;
+  competencyScores?: Array<{ item: string; grade: string; narrative?: string }>;
+  storylines?: Array<{ title: string; keywords: string[] }>;
+  strengths?: string[];
+  weaknesses?: string[];
+  /** Phase E2: 영역간 연결 프롬프트 섹션 */
+  edgePromptSection?: string;
+  /** 창체 방향 컨텍스트 (changche_guide 결과 요약) */
+  changcheGuideContext?: string;
+}
+
+/** generateHaengteukGuide 액션의 출력 */
+export interface HaengteukGuideResult {
+  title: string;
+  guide: import("../types").HaengteukGuideItem;
+  overallDirection: string;
 }
 
 /** generateAiRoadmap LLM 출력 */

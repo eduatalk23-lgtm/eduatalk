@@ -86,3 +86,15 @@ export {
 export {
   calculateCourseAdequacy,
 } from "./course-adequacy";
+
+// 리포트 단계별 전환 (client-safe)
+export type { GradeStage, GradeStageConfig } from "./grade-stage";
+export {
+  GRADE_STAGE_CONFIG,
+  STAGE_ORDER,
+  STAGE_COMPLETION,
+  getStageIndex,
+  isStageAtLeast,
+  computeGradeStage,
+  computeRecordStage,
+} from "./grade-stage";

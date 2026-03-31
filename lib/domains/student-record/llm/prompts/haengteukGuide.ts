@@ -1,0 +1,214 @@
+// ============================================
+// 행특 방향 가이드 프롬프트
+// 컨설턴트 내부용, 7개 평가항목 + 키워드+방향+교사포인트 JSON
+// ============================================
+
+import type { HaengteukGuideInput, HaengteukGuideResult } from "../types";
+import type { HaengteukGuideItem } from "../../types";
+import { extractJson } from "../extractJson";
+
+// ============================================
+// 시스템 프롬프트
+// ============================================
+
+export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도우미입니다.
+
+## 문서 성격
+
+이 문서는 "행특 방향 가이드"입니다.
+- 컨설턴트가 학생의 행동특성 및 종합의견 기록 방향을 설계할 때 참고하는 내부 문서입니다.
+- 행특은 담임 교사의 관찰 기반 추천서 성격으로, 학생의 인성·생활태도·성장을 종합적으로 기술합니다.
+- 학생이나 학부모에게 직접 전달하지 않으므로 전문 용어를 자유롭게 사용합니다.
+
+## 7개 평가항목 (행특 핵심 평가 영역)
+
+1. **자기주도성**: 스스로 목표를 세우고 계획·실천하는 능력
+2. **갈등관리**: 갈등 상황에서 합리적으로 해결하는 능력
+3. **리더십**: 공동체를 이끌고 방향을 제시하는 능력
+4. **타인존중**: 다양성을 인정하고 타인을 배려하는 태도
+5. **배려나눔**: 타인을 위해 봉사하고 공감하는 마음
+6. **성실성**: 책임감을 갖고 꾸준히 노력하는 태도
+7. **규칙준수**: 공동체 규범을 지키고 질서를 유지하는 능력
+
+## 출력 형식 — JSON
+
+\`\`\`json
+{
+  "title": "행특 방향 가이드",
+  "guide": {
+    "keywords": ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"],
+    "competencyFocus": ["community_collaboration", "community_leadership"],
+    "direction": "행특 작성 방향 (3-5문장)",
+    "cautions": "주의사항 (1-2문장)",
+    "teacherPoints": ["교사 전달 포인트 1", "교사 전달 포인트 2"],
+    "evaluationItems": [
+      { "item": "자기주도성", "score": "상", "reasoning": "근거 1-2문장" },
+      { "item": "갈등관리", "score": "중", "reasoning": "근거 1-2문장" },
+      { "item": "리더십", "score": "상", "reasoning": "근거 1-2문장" },
+      { "item": "타인존중", "score": "상", "reasoning": "근거 1-2문장" },
+      { "item": "배려나눔", "score": "중", "reasoning": "근거 1-2문장" },
+      { "item": "성실성", "score": "상", "reasoning": "근거 1-2문장" },
+      { "item": "규칙준수", "score": "상", "reasoning": "근거 1-2문장" }
+    ]
+  },
+  "overallDirection": "전체적인 행특 방향 요약 (2-3문장)"
+}
+\`\`\`
+
+## 규칙
+
+1. competencyFocus는 다음 중에서 선택합니다 (행특 특성상 community 역량 중심):
+   - community_collaboration, community_caring, community_integrity, community_leadership
+   - academic_attitude (학습 태도가 두드러질 경우)
+   - career_exploration (진로 탐색 적극성이 두드러질 경우)
+2. evaluationItems의 score는 반드시 "상"/"중"/"하" 3단계로만 표기합니다.
+3. evaluationItems의 reasoning은 기록에서 관찰된 구체적 근거를 바탕으로 작성합니다. 기록이 없으면 "기록 없음, 담임 관찰 필요"로 기재합니다.
+4. direction은 교사가 행특 서술 시 강조할 포인트를 제시합니다.
+5. cautions에는 행특 작성 시 피해야 할 점을 명시합니다. 예: "단순 나열 지양", "피상적 칭찬 문구 주의".
+6. teacherPoints는 담임 교사에게 전달할 핵심 메시지 2-3개입니다.
+7. 창체 방향 컨텍스트가 있으면 창체 활동에서 관찰된 인성·태도를 행특에 연결합니다.
+8. 스토리라인이 있으면 일관된 성장 서사를 행특에 반영하도록 제안합니다.
+9. 역량 진단 결과가 있으면 커뮤니티 역량 부분을 참고합니다.
+10. 입력된 행특 데이터에 있는 내용만 기반으로 평가합니다. 없는 활동을 만들어내지 마세요.
+11. JSON으로만 응답합니다.`;
+
+// ============================================
+// 사용자 프롬프트 빌더
+// ============================================
+
+const CHANGCHE_TYPE_LABELS: Record<string, string> = {
+  autonomy: "자율",
+  club: "동아리",
+  career: "진로",
+};
+
+export function buildUserPrompt(input: HaengteukGuideInput): string {
+  let prompt = `## 학생 정보\n\n`;
+  prompt += `- 이름: ${input.studentName}\n`;
+  prompt += `- 현재 학년: ${input.grade}학년\n`;
+  if (input.targetMajor) prompt += `- 희망 전공 계열: ${input.targetMajor}\n`;
+  if (input.targetMidName || input.targetSubClassificationName) {
+    const parts = [input.targetMidName, input.targetSubClassificationName].filter(Boolean);
+    prompt += `- 목표 학과 분류: ${parts.join(" > ")}\n`;
+  }
+  prompt += `- 대상 학년: ${input.targetGrades.join(", ")}학년\n\n`;
+
+  // 스토리라인
+  if (input.storylines && input.storylines.length > 0) {
+    prompt += `## 스토리라인\n\n`;
+    for (const s of input.storylines) {
+      prompt += `- ${s.title} (키워드: ${s.keywords.join(", ")})\n`;
+    }
+    prompt += "\n";
+  }
+
+  // 역량 진단
+  if (input.competencyScores && input.competencyScores.length > 0) {
+    prompt += `## 역량 진단 결과\n\n`;
+    for (const cs of input.competencyScores) {
+      prompt += `- ${cs.item}: ${cs.grade}${cs.narrative ? ` — ${cs.narrative}` : ""}\n`;
+    }
+    prompt += "\n";
+  }
+
+  // 강점/약점
+  if (input.strengths && input.strengths.length > 0) {
+    prompt += `## 강점\n${input.strengths.map((s) => `- ${s}`).join("\n")}\n\n`;
+  }
+  if (input.weaknesses && input.weaknesses.length > 0) {
+    prompt += `## 약점 (보완 필요)\n${input.weaknesses.map((w) => `- ${w}`).join("\n")}\n\n`;
+  }
+
+  // 영역간 연결 (Phase E2)
+  if (input.edgePromptSection) {
+    prompt += input.edgePromptSection + "\n";
+  }
+
+  // 창체 방향 컨텍스트
+  if (input.changcheGuideContext) {
+    prompt += `## 창체 방향 컨텍스트\n\n${input.changcheGuideContext}\n\n`;
+  }
+
+  // 학년별 기록
+  const CONTENT_LIMIT = 600;
+
+  for (const grade of input.targetGrades) {
+    const data = input.recordDataByGrade[grade];
+    if (!data) continue;
+
+    prompt += `## ${grade}학년 기록\n\n`;
+
+    if (data.haengteuk?.content) {
+      const truncated = data.haengteuk.content.slice(0, CONTENT_LIMIT);
+      prompt += `### 행동특성 및 종합의견\n${truncated}${data.haengteuk.content.length > CONTENT_LIMIT ? "..." : ""}\n\n`;
+    }
+
+    if (data.changche.length > 0) {
+      prompt += `### 창의적 체험활동\n`;
+      for (const c of data.changche) {
+        const typeLabel = CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type;
+        const truncated = c.content.slice(0, 300);
+        prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > 300 ? "..." : ""}\n`;
+      }
+      prompt += "\n";
+    }
+
+    if (data.seteks.length > 0) {
+      prompt += `### 교과 세특 (참고용)\n`;
+      for (const s of data.seteks.slice(0, 4)) {
+        const truncated = s.content.slice(0, 200);
+        prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > 200 ? "..." : ""}\n`;
+      }
+      prompt += "\n";
+    }
+  }
+
+  prompt += `위 기록과 진단 결과를 바탕으로 행특 방향 가이드를 JSON으로 작성해주세요. 7개 평가항목 모두 반드시 포함해야 합니다.`;
+
+  return prompt;
+}
+
+// ============================================
+// 응답 파서
+// ============================================
+
+export function parseResponse(content: string): HaengteukGuideResult {
+  const parsed = extractJson(content);
+
+  const g = parsed.guide ?? {};
+
+  const evaluationItems = Array.isArray(g.evaluationItems)
+    ? g.evaluationItems
+        .filter(
+          (e: unknown) =>
+            typeof (e as Record<string, unknown>)?.item === "string" &&
+            typeof (e as Record<string, unknown>)?.score === "string",
+        )
+        .map((e: Record<string, unknown>) => ({
+          item: String(e.item),
+          score: String(e.score),
+          reasoning: typeof e.reasoning === "string" ? e.reasoning : "",
+        }))
+    : undefined;
+
+  const guide: HaengteukGuideItem = {
+    keywords: Array.isArray(g.keywords)
+      ? g.keywords.filter((k: unknown) => typeof k === "string")
+      : [],
+    competencyFocus: Array.isArray(g.competencyFocus)
+      ? g.competencyFocus.filter((c: unknown) => typeof c === "string")
+      : [],
+    direction: typeof g.direction === "string" ? g.direction : "",
+    cautions: typeof g.cautions === "string" ? g.cautions : "",
+    teacherPoints: Array.isArray(g.teacherPoints)
+      ? g.teacherPoints.filter((t: unknown) => typeof t === "string")
+      : [],
+    evaluationItems,
+  };
+
+  return {
+    title: String(parsed.title ?? "행특 방향 가이드"),
+    guide,
+    overallDirection: String(parsed.overallDirection ?? ""),
+  };
+}

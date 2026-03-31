@@ -390,3 +390,80 @@ export interface StudentRecordActionResult {
   error?: string;
   id?: string;
 }
+
+// ============================================
+// 창체 방향 가이드 (컨설턴트 내부용)
+// ============================================
+
+export interface ChangcheGuideItem {
+  /** 활동 유형 코드: autonomy | club | career */
+  activityType: string;
+  /** 활동 유형 레이블: 자율 | 동아리 | 진로 */
+  activityLabel: string;
+  keywords: string[];
+  competencyFocus: string[];
+  direction: string;
+  cautions: string;
+  teacherPoints: string[];
+}
+
+/** DB 영속화된 활동유형별 창체 방향 가이드 */
+export interface ChangcheGuideRow {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  school_year: number;
+  activity_type: string;
+  source: "ai" | "manual";
+  status: "draft" | "confirmed";
+  direction: string;
+  keywords: string[];
+  competency_focus: string[];
+  cautions: string | null;
+  teacher_points: string[];
+  overall_direction: string | null;
+  model_tier: string | null;
+  prompt_version: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
+// 행특 방향 가이드 (컨설턴트 내부용)
+// ============================================
+
+export interface HaengteukGuideItem {
+  keywords: string[];
+  competencyFocus: string[];
+  direction: string;
+  cautions: string;
+  teacherPoints: string[];
+  evaluationItems?: Array<{ item: string; score: string; reasoning: string }>;
+}
+
+/** DB 영속화된 행특 방향 가이드 */
+export interface HaengteukGuideRow {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  school_year: number;
+  source: "ai" | "manual";
+  status: "draft" | "confirmed";
+  direction: string;
+  keywords: string[];
+  competency_focus: string[];
+  cautions: string | null;
+  teacher_points: string[];
+  evaluation_items: Array<{ item: string; score: string; reasoning: string }> | null;
+  overall_direction: string | null;
+  model_tier: string | null;
+  prompt_version: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

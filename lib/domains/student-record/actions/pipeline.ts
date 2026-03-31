@@ -119,6 +119,7 @@ export async function fetchPipelineStatus(
       id: data.id,
       studentId: data.student_id,
       status: data.status,
+      mode: (data.mode as "analysis" | "prospective" | null) ?? null,
       tasks,
       taskPreviews: (data.task_previews ?? {}) as Record<string, string>,
       taskResults: (data.task_results ?? {}) as PipelineTaskResults,
@@ -425,6 +426,73 @@ async function executePipelineTasks(
   }
   const studentGrade = (snapshot?.grade as number) ?? 3;
 
+  // ── Phase V1: 파이프라인 모드 감지 ──
+  // 레코드 캐시를 조기 조회하여 content 유무로 모드 결정
+  {
+    const [sRes, cRes, hRes] = await Promise.all([
+      supabase
+        .from("student_record_seteks")
+        .select("id, content, grade, subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null),
+      supabase
+        .from("student_record_changche")
+        .select("id, content, grade, activity_type")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("student_record_haengteuk")
+        .select("id, content, grade")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+    ]);
+    cachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
+    cachedChangche = (cRes.data ?? []) as CachedChangche[];
+    cachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
+  }
+
+  const hasRecords =
+    cachedSeteks.some((s) => s.content?.trim()) ||
+    cachedChangche.some((c) => c.content?.trim()) ||
+    cachedHaengteuk.some((h) => h.content?.trim());
+
+  // 수강계획 조회 (prospective 여부 결정) — admin client 직접 사용 (fire-and-forget 컨텍스트)
+  let coursePlanData: import("../course-plan/types").CoursePlanTabData | null = null;
+  {
+    const { data: planRows } = await supabase
+      .from("student_course_plans")
+      .select(`
+        *,
+        subject:subject_id (
+          id, name,
+          subject_type:subject_type_id ( name ),
+          subject_group:subject_group_id ( name )
+        )
+      `)
+      .eq("student_id", studentId)
+      .order("grade")
+      .order("semester")
+      .order("priority", { ascending: false });
+    if (planRows) {
+      coursePlanData = { plans: planRows as unknown as import("../course-plan/types").CoursePlanWithSubject[] };
+    }
+  }
+  const hasCoursePlans = coursePlanData?.plans?.some(
+    (p) => p.plan_status === "confirmed" || p.plan_status === "recommended",
+  ) ?? false;
+
+  const pipelineMode: "analysis" | "prospective" = hasRecords ? "analysis" : "prospective";
+
+  // prospective인데 수강계획 없으면 → course_recommendation을 선행 실행하여 자동 세팅
+  // (진로 설정만 있어도 추천 과목을 수강계획에 저장 → 이후 태스크가 활용)
+
+  // DB에 모드 저장
+  await supabase
+    .from("student_record_analysis_pipelines")
+    .update({ mode: pipelineMode })
+    .eq("id", pipelineId);
+
   // 공유 변수: edge_computation에서 계산한 courseAdequacy를 ai_diagnosis에서 재사용
   let sharedCourseAdequacy: import("../types").CourseAdequacyResult | null = null;
 
@@ -433,6 +501,10 @@ async function executePipelineTasks(
     {
       key: "competency_analysis",
       run: async () => {
+        // Phase V1: prospective 모드 — 기록 없으므로 skip
+        if (pipelineMode === "prospective") {
+          return "신입생 모드 — 기록 입력 후 분석";
+        }
         const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
         const { calculateCourseAdequacy: calcAdequacy } = await import("../course-adequacy");
         const { computeRecordContentHash } = await import("../content-hash");
@@ -523,6 +595,36 @@ async function executePipelineTasks(
             analysis_result: data,
             content_hash: currentHash,
           });
+
+          // Phase QA: 품질 점수 저장 (fire-and-forget — 저장 실패가 파이프라인을 중단하지 않음)
+          if (data.contentQuality) {
+            const cq = data.contentQuality;
+            void supabase
+              .from("student_record_content_quality")
+              .upsert(
+                {
+                  tenant_id: tenantId,
+                  student_id: studentId,
+                  record_type: recordType,
+                  record_id: recordId,
+                  school_year: currentSchoolYear,
+                  specificity: cq.specificity,
+                  coherence: cq.coherence,
+                  depth: cq.depth,
+                  grammar: cq.grammar,
+                  overall_score: cq.overallScore,
+                  issues: cq.issues,
+                  feedback: cq.feedback,
+                  source: "ai",
+                },
+                { onConflict: "tenant_id,student_id,record_id,source" },
+              )
+              .then(({ error }) => {
+                if (error) {
+                  logActionDebug(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${error.message}`);
+                }
+              });
+          }
 
           allResults.set(recordId, data);
           succeeded++;
@@ -744,6 +846,10 @@ async function executePipelineTasks(
     {
       key: "storyline_generation",
       run: async () => {
+        // Phase V1: prospective 모드 — 기록 없으므로 skip
+        if (pipelineMode === "prospective") {
+          return "신입생 모드 — 기록 입력 후 감지";
+        }
         // 기록 수집 — competency_analysis에서 이미 조회한 캐시 재사용
         const records: RecordSummary[] = [];
         let idx = 0;
@@ -862,6 +968,10 @@ async function executePipelineTasks(
     {
       key: "edge_computation",
       run: async () => {
+        // Phase V1: prospective 모드 — 기록 없으므로 skip
+        if (pipelineMode === "prospective") {
+          return "신입생 모드 — 기록 입력 후 연결";
+        }
         const { buildConnectionGraph } = await import("../cross-reference");
         const { fetchCrossRefData } = await import("./diagnosis");
         const edgeRepo = await import("../edge-repository");
@@ -969,6 +1079,17 @@ async function executePipelineTasks(
     {
       key: "ai_diagnosis",
       run: async () => {
+        // Phase V1: prospective 모드 — 수강계획+진로 기반 예비 진단 생성
+        if (pipelineMode === "prospective") {
+          const { generateProspectiveDiagnosis } = await import("../llm/actions/generateDiagnosis");
+          const result = await generateProspectiveDiagnosis(studentId, tenantId, coursePlanData, snapshot);
+          if (!result.success) throw new Error(result.error);
+          return {
+            preview: `예비 진단 생성 (수강계획 기반, 방향: ${result.data.directionStrength})`,
+            result: { weaknesses: result.data.weaknesses, improvements: result.data.improvements },
+          };
+        }
+
         const currentSchoolYear = calculateSchoolYear();
 
         const [scores, tags] = await Promise.all([
@@ -1201,7 +1322,155 @@ async function executePipelineTasks(
       },
     },
 
-    // ── 8. 활동 요약서 (진단+엣지+가이드배정 활용, Phase 3 — 진단 후 실행) ──
+    // ── 8. 창체 방향 가이드 (세특방향 → 창체방향, Phase 3b) ──
+    {
+      key: "changche_guide",
+      run: async () => {
+        // Phase V1: prospective 모드 — 수강계획+진로 기반 창체 방향 생성
+        if (pipelineMode === "prospective") {
+          const { generateProspectiveChangcheGuide } = await import("../llm/actions/generateChangcheGuide");
+          const { fetchReportData } = await import("./report");
+          const reportResult = await fetchReportData(studentId);
+          if (!reportResult.success || !reportResult.data) {
+            throw new Error(reportResult.success === false ? reportResult.error : "데이터 수집 실패");
+          }
+          // 세특 방향 컨텍스트 (setek_guide prospective 결과 있으면 전달)
+          const currentYear = calculateSchoolYear();
+          let setekCtx: string | undefined;
+          const { data: setekRows } = await supabase
+            .from("student_record_setek_guides")
+            .select("direction, keywords")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId)
+            .eq("school_year", currentYear)
+            .eq("source", "ai")
+            .limit(4);
+          if (setekRows && setekRows.length > 0) {
+            const lines = setekRows.map((r) =>
+              `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
+            );
+            setekCtx = `## 세특 방향 요약\n${lines.join("\n")}`;
+          }
+          const result = await generateProspectiveChangcheGuide(
+            studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
+            reportResult.data, coursePlanData, undefined, setekCtx,
+          );
+          if (!result.success) throw new Error(result.error);
+          const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
+          return guides ? `${guides.length}개 활동유형 방향 생성 (예비)` : "창체 방향 생성 완료 (예비)";
+        }
+
+        const { generateChangcheGuide } = await import("../llm/actions/generateChangcheGuide");
+        // Phase E2: 엣지 데이터 → 창체 가이드 프롬프트에 투입
+        let guideEdgeSection: string | undefined;
+        if (computedEdges.length > 0) {
+          const { buildEdgePromptSection } = await import("../edge-summary");
+          guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
+        }
+
+        // 세특 방향 컨텍스트 — setek_guide DB 결과에서 요약 구성
+        let setekGuideContext: string | undefined;
+        const currentYear = calculateSchoolYear();
+        const { data: setekRows } = await supabase
+          .from("student_record_setek_guides")
+          .select("subject_id, direction, keywords, competency_focus")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId)
+          .eq("school_year", currentYear)
+          .eq("source", "ai")
+          .limit(6);
+        if (setekRows && setekRows.length > 0) {
+          // subject_id → 과목명 조회
+          const { data: subs } = await supabase
+            .from("subjects")
+            .select("id, name")
+            .in("id", setekRows.map((r) => r.subject_id));
+          const subMap = new Map((subs ?? []).map((s) => [s.id, s.name]));
+          const lines = setekRows.map((r) =>
+            `- ${subMap.get(r.subject_id) ?? r.subject_id}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
+          );
+          setekGuideContext = `## 세특 방향 요약\n${lines.join("\n")}`;
+        }
+
+        const result = await generateChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext);
+        if (!result.success) throw new Error(result.error);
+        const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
+        return guides ? `${guides.length}개 활동유형 방향 생성` : "창체 방향 생성 완료";
+      },
+    },
+
+    // ── 9. 행특 방향 가이드 (창체방향 → 행특방향, Phase 3c) ──
+    {
+      key: "haengteuk_guide",
+      run: async () => {
+        // Phase V1: prospective 모드 — 수강계획+진로 기반 행특 방향 생성
+        if (pipelineMode === "prospective") {
+          const { generateProspectiveHaengteukGuide } = await import("../llm/actions/generateHaengteukGuide");
+          const { fetchReportData } = await import("./report");
+          const reportResult = await fetchReportData(studentId);
+          if (!reportResult.success || !reportResult.data) {
+            throw new Error(reportResult.success === false ? reportResult.error : "데이터 수집 실패");
+          }
+          // 창체 방향 컨텍스트 (changche_guide prospective 결과 있으면 전달)
+          const currentYear = calculateSchoolYear();
+          let changcheCtx: string | undefined;
+          const { data: changcheRows } = await supabase
+            .from("student_record_changche_guides")
+            .select("activity_type, direction, keywords")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId)
+            .eq("school_year", currentYear)
+            .eq("source", "ai")
+            .limit(3);
+          if (changcheRows && changcheRows.length > 0) {
+            const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
+            const lines = changcheRows.map((r) =>
+              `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
+            );
+            changcheCtx = `## 창체 방향 요약\n${lines.join("\n")}`;
+          }
+          const result = await generateProspectiveHaengteukGuide(
+            studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
+            reportResult.data, coursePlanData, undefined, changcheCtx,
+          );
+          if (!result.success) throw new Error(result.error);
+          return "행특 방향 생성 완료 (예비)";
+        }
+
+        const { generateHaengteukGuide } = await import("../llm/actions/generateHaengteukGuide");
+        // Phase E2: 엣지 데이터 → 행특 가이드 프롬프트에 투입
+        let guideEdgeSection: string | undefined;
+        if (computedEdges.length > 0) {
+          const { buildEdgePromptSection } = await import("../edge-summary");
+          guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
+        }
+
+        // 창체 방향 컨텍스트 — changche_guide DB 결과에서 요약 구성
+        let changcheGuideContext: string | undefined;
+        const currentYear = calculateSchoolYear();
+        const { data: changcheRows } = await supabase
+          .from("student_record_changche_guides")
+          .select("activity_type, direction, keywords")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId)
+          .eq("school_year", currentYear)
+          .eq("source", "ai")
+          .limit(3);
+        if (changcheRows && changcheRows.length > 0) {
+          const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
+          const lines = changcheRows.map((r) =>
+            `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
+          );
+          changcheGuideContext = `## 창체 방향 요약\n${lines.join("\n")}`;
+        }
+
+        const result = await generateHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext);
+        if (!result.success) throw new Error(result.error);
+        return "행특 방향 생성 완료";
+      },
+    },
+
+    // ── 10. 활동 요약서 (진단+엣지+가이드배정 활용, Phase 3 — 진단 후 실행) ──
     {
       key: "activity_summary",
       run: async () => {
@@ -1732,32 +2001,145 @@ async function executePipelineTasks(
     }
   }
 
-  // Phase 2+3: 병렬 실행 (12태스크)
-  // Phase 2: 진단 + 독립 태스크 (수강, 가이드, 요약서, 우회학과)
-  // Phase 3: 진단 후 → 세특방향, 보완전략, 면접, 로드맵
-  const diagnosisPromise = runTaskWithState("ai_diagnosis");
+  // Phase 2+3: 병렬/순차 실행
+  // Prospective 모드: course_recommendation 선행 → coursePlanData 재조회 → 나머지 실행
+  // Analysis 모드: 기존 병렬 실행
 
-  const phase2Independent = [
-    runTaskWithState("course_recommendation"),
-    runTaskWithState("bypass_analysis"),
-  ];
+  if (pipelineMode === "prospective") {
+    // ── Prospective 실행 순서 ──
+    // Phase P0: 수강 추천 선행 (추천 과목 DB 저장 → 이후 태스크의 입력)
+    await runTaskWithState("course_recommendation");
 
-  // 진단 완료 대기 후 Phase 3 시작
-  // activity_summary는 진단 강점/약점을 활용하므로 Phase 3으로 이동
-  // roadmap_generation은 setek_guide의 DB 출력에 의존하므로 순차 실행
-  const phase3AfterDiagnosis = diagnosisPromise.then(async () => {
-    // Phase 3a: setek_guide + ai_strategy + interview + activity_summary (병렬)
+    // 추천 결과 반영: coursePlanData 재조회
+    const { data: refreshedPlans } = await supabase
+      .from("student_course_plans")
+      .select("*, subject:subject_id ( id, name, subject_type:subject_type_id ( name ), subject_group:subject_group_id ( name ) )")
+      .eq("student_id", studentId)
+      .order("grade").order("semester").order("priority", { ascending: false });
+    if (refreshedPlans) {
+      coursePlanData = { plans: refreshedPlans as unknown as import("../course-plan/types").CoursePlanWithSubject[] };
+    }
+
+    // Phase P1: 진단 + 가이드매칭 + 우회학과 (병렬)
     await Promise.allSettled([
-      runTaskWithState("setek_guide"),
+      runTaskWithState("ai_diagnosis"),
+      runTaskWithState("guide_matching"),
+      runTaskWithState("bypass_analysis"),
+    ]);
+
+    // Phase V2: 3년 school_year 배열 생성 (고1 신입생이면 현재 학년부터 3학년까지)
+    const prospectiveBaseYear = calculateSchoolYear();
+    const schoolYearsToGenerate: Array<{ grade: number; schoolYear: number }> = [];
+    for (let g = studentGrade; g <= 3; g++) {
+      schoolYearsToGenerate.push({ grade: g, schoolYear: prospectiveBaseYear - studentGrade + g });
+    }
+
+    // Phase P2-guides: 학년별 세특/창체/행특 방향 순차 생성 (LLM rate limit 고려)
+    try {
+      const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
+      const { userId: guideUserId } = await reqAuth();
+      const { fetchReportData: fetchReport } = await import("./report");
+
+      for (const { grade: tGrade, schoolYear: tYear } of schoolYearsToGenerate) {
+        // 세특 방향
+        const { generateSetekGuide } = await import("../llm/actions/generateSetekGuide");
+        await generateSetekGuide(studentId, [tGrade], undefined, tYear);
+
+        // 창체 방향 (세특 컨텍스트 전달)
+        const { generateProspectiveChangcheGuide } = await import("../llm/actions/generateChangcheGuide");
+        const reportForChangche = await fetchReport(studentId);
+        if (reportForChangche.success && reportForChangche.data) {
+          const { data: setekCtxRows } = await supabase
+            .from("student_record_setek_guides")
+            .select("direction, keywords")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId)
+            .eq("school_year", tYear)
+            .eq("source", "ai")
+            .limit(4);
+          const setekCtx = setekCtxRows && setekCtxRows.length > 0
+            ? `## 세특 방향 요약\n${setekCtxRows.map((r) => `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
+            : undefined;
+          await generateProspectiveChangcheGuide(
+            studentId, tenantId, guideUserId,
+            reportForChangche.data, coursePlanData, undefined, setekCtx, tYear,
+          );
+        }
+
+        // 행특 방향 (창체 컨텍스트 전달)
+        const { generateProspectiveHaengteukGuide } = await import("../llm/actions/generateHaengteukGuide");
+        const reportForHaengteuk = await fetchReport(studentId);
+        if (reportForHaengteuk.success && reportForHaengteuk.data) {
+          const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
+          const { data: changcheCtxRows } = await supabase
+            .from("student_record_changche_guides")
+            .select("activity_type, direction, keywords")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId)
+            .eq("school_year", tYear)
+            .eq("source", "ai")
+            .limit(3);
+          const changcheCtx = changcheCtxRows && changcheCtxRows.length > 0
+            ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
+            : undefined;
+          await generateProspectiveHaengteukGuide(
+            studentId, tenantId, guideUserId,
+            reportForHaengteuk.data, coursePlanData, undefined, changcheCtx, tYear,
+          );
+        }
+      }
+
+      tasks["setek_guide"] = "completed";
+      previews["setek_guide"] = `${schoolYearsToGenerate.length}개 학년 세특 방향 생성`;
+      tasks["changche_guide"] = "completed";
+      previews["changche_guide"] = `${schoolYearsToGenerate.length}개 학년 창체 방향 생성`;
+      tasks["haengteuk_guide"] = "completed";
+      previews["haengteuk_guide"] = `${schoolYearsToGenerate.length}개 학년 행특 방향 생성`;
+    } catch (guideErr) {
+      const guideMsg = guideErr instanceof Error ? guideErr.message : "가이드 생성 실패";
+      tasks["setek_guide"] = tasks["setek_guide"] === "completed" ? "completed" : "failed";
+      if (tasks["setek_guide"] === "failed") errors["setek_guide"] = guideMsg;
+      tasks["changche_guide"] = tasks["changche_guide"] === "completed" ? "completed" : "failed";
+      if (tasks["changche_guide"] === "failed") errors["changche_guide"] = guideMsg;
+      tasks["haengteuk_guide"] = tasks["haengteuk_guide"] === "completed" ? "completed" : "failed";
+      if (tasks["haengteuk_guide"] === "failed") errors["haengteuk_guide"] = guideMsg;
+    }
+
+    // Phase P2-나머지: 전략 + 면접 + 요약 (병렬)
+    await Promise.allSettled([
       runTaskWithState("ai_strategy"),
       runTaskWithState("interview_generation"),
       runTaskWithState("activity_summary"),
     ]);
-    // Phase 3b: roadmap (setek_guide DB 쓰기 완료 후)
-    await runTaskWithState("roadmap_generation");
-  });
 
-  await Promise.allSettled([diagnosisPromise, ...phase2Independent, phase3AfterDiagnosis]);
+    // Phase P3: 로드맵
+    await runTaskWithState("roadmap_generation");
+
+  } else {
+    // ── Analysis 실행 순서 (기존) ──
+    // Phase 2: 진단 + 독립 태스크 (수강, 가이드, 우회학과)
+    const diagnosisPromise = runTaskWithState("ai_diagnosis");
+
+    const phase2Independent = [
+      runTaskWithState("course_recommendation"),
+      runTaskWithState("bypass_analysis"),
+    ];
+
+    // Phase 3: 진단 후 → 방향, 전략, 면접, 요약, 로드맵
+    const phase3AfterDiagnosis = diagnosisPromise.then(async () => {
+      await Promise.allSettled([
+        runTaskWithState("setek_guide"),
+        runTaskWithState("ai_strategy"),
+        runTaskWithState("interview_generation"),
+        runTaskWithState("activity_summary"),
+      ]);
+      await runTaskWithState("changche_guide");
+      await runTaskWithState("haengteuk_guide");
+      await runTaskWithState("roadmap_generation");
+    });
+
+    await Promise.allSettled([diagnosisPromise, ...phase2Independent, phase3AfterDiagnosis]);
+  }
 
   // 최종 상태 결정
   const allCompleted = PIPELINE_TASK_KEYS.every((k) => tasks[k] === "completed");

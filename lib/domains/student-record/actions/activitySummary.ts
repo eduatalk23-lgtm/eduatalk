@@ -153,6 +153,95 @@ export async function editActivitySummary(
   }
 }
 
+/** 학생의 창체 방향 가이드 목록 조회 */
+export async function fetchChangcheGuides(
+  studentId: string,
+): Promise<ActionResponse<Array<{
+  id: string;
+  school_year: number;
+  activity_type: string;
+  source: string;
+  status: string;
+  direction: string;
+  keywords: string[];
+  competency_focus: string[];
+  cautions: string | null;
+  teacher_points: string[];
+  overall_direction: string | null;
+  prompt_version: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}>>> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+      .from("student_record_changche_guides")
+      .select(
+        "id, school_year, activity_type, source, status, direction, keywords, competency_focus, cautions, teacher_points, overall_direction, prompt_version, confirmed_at, created_at, updated_at",
+      )
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      logActionError(LOG_CTX, error);
+      return { success: false, error: "창체 가이드 조회 실패" };
+    }
+
+    return { success: true, data: data ?? [] };
+  } catch (error) {
+    logActionError(LOG_CTX, error);
+    return { success: false, error: error instanceof Error ? error.message : "창체 가이드 조회 실패" };
+  }
+}
+
+/** 학생의 행특 방향 가이드 목록 조회 (전 학년 — Phase V2: 다학년 가상본 지원) */
+export async function fetchHaengteukGuide(
+  studentId: string,
+): Promise<ActionResponse<Array<{
+  id: string;
+  school_year: number;
+  source: string;
+  status: string;
+  direction: string;
+  keywords: string[];
+  competency_focus: string[];
+  cautions: string | null;
+  teacher_points: string[];
+  evaluation_items: unknown;
+  overall_direction: string | null;
+  prompt_version: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}>> > {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+      .from("student_record_haengteuk_guides")
+      .select(
+        "id, school_year, source, status, direction, keywords, competency_focus, cautions, teacher_points, evaluation_items, overall_direction, prompt_version, confirmed_at, created_at, updated_at",
+      )
+      .eq("student_id", studentId)
+      .order("school_year", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      logActionError(LOG_CTX, error);
+      return { success: false, error: "행특 가이드 조회 실패" };
+    }
+
+    return { success: true, data: data ?? [] };
+  } catch (error) {
+    logActionError(LOG_CTX, error);
+    return { success: false, error: error instanceof Error ? error.message : "행특 가이드 조회 실패" };
+  }
+}
+
 /** 활동 요약서 삭제 */
 export async function deleteActivitySummary(id: string): Promise<ActionResponse> {
   try {
