@@ -17,5 +17,8 @@ export type StudentListRow = {
   is_active: boolean | null;
   gender: "남" | "여" | null;
   email: string | null;
+  status: "enrolled" | "not_enrolled" | null;
+  withdrawn_at: string | null;
+  withdrawn_reason: string | null;
 };
 

@@ -7,9 +7,11 @@
 
 import { requireAdmin } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
+import { syncAuthBanStatus } from "@/lib/auth/syncAuthBanStatus";
 
 const LOG_CTX = { domain: "student", action: "gradePromotion" };
 
@@ -30,18 +32,19 @@ export async function promoteAllStudentsAction(): Promise<ActionResponse<Promoti
     if (!tenantId) return createErrorResponse("테넌트 정보가 없습니다.");
 
     const supabase = await createSupabaseServerClient();
+    const adminClient = createSupabaseAdminClient();
     let promoted = 0;
     let graduated = 0;
     let skipped = 0;
     let recommendedCoursePlans = 0;
 
-    // 활성 학생 조회
+    // 활성 재원 학생 조회 (is_active는 user_profiles에서 JOIN)
     const { data: students, error } = await supabase
       .from("students")
-      .select("id, grade, status, target_major")
+      .select("id, grade, status, target_major, user_profiles!inner(is_active)")
       .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .in("status", ["enrolled"]);
+      .eq("user_profiles.is_active", true)
+      .eq("status", "enrolled");
 
     if (error) throw error;
     if (!students || students.length === 0) {
@@ -56,13 +59,25 @@ export async function promoteAllStudentsAction(): Promise<ActionResponse<Promoti
       }
 
       if (currentGrade === 3) {
-        // 3학년 → 졸업 처리
+        // 3학년 → 졸업 (비재원 전환)
         const { error: gradError } = await supabase
           .from("students")
-          .update({ grade: 3, status: "graduated", is_active: false })
+          .update({
+            grade: 3,
+            status: "not_enrolled",
+            withdrawn_at: new Date().toISOString(),
+            withdrawn_reason: "졸업",
+          })
           .eq("id", student.id);
-        if (!gradError) graduated++;
-        else {
+
+        if (!gradError) {
+          graduated++;
+          // user_profiles.is_active=false + Auth ban
+          if (adminClient) {
+            await adminClient.from("user_profiles").update({ is_active: false }).eq("id", student.id);
+          }
+          await syncAuthBanStatus(student.id, false);
+        } else {
           logActionError(LOG_CTX, gradError, { studentId: student.id });
           skipped++;
         }

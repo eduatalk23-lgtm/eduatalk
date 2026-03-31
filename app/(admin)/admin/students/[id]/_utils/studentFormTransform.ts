@@ -109,7 +109,7 @@ export function transformFormDataToUpdatePayload(
       school_id?: string | null;
       division?: "고등부" | "중등부" | "졸업" | null;
       memo?: string | null;
-      status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
+      status?: "enrolled" | "not_enrolled" | null;
       is_active?: boolean;
     };
     profile?: {
@@ -171,9 +171,7 @@ export function transformFormDataToUpdatePayload(
       payload.basic.status =
         (formData.status as
           | "enrolled"
-          | "on_leave"
-          | "graduated"
-          | "transferred"
+          | "not_enrolled"
           | null) || null;
     }
     if (shouldInclude("is_active")) {

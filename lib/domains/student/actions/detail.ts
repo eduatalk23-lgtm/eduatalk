@@ -38,7 +38,7 @@ export async function getStudentDetailAction(
       adminClient
         .from("students")
         .select(
-          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field"
+          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field,withdrawn_at,withdrawn_reason,withdrawn_memo"
         )
         .eq("id", studentId)
         .maybeSingle(),
@@ -104,10 +104,11 @@ export async function getStudentDetailAction(
       memo: student.memo ?? null,
       status: student.status as
         | "enrolled"
-        | "on_leave"
-        | "graduated"
-        | "transferred"
+        | "not_enrolled"
         | null,
+      withdrawn_at: student.withdrawn_at ?? null,
+      withdrawn_reason: student.withdrawn_reason ?? null,
+      withdrawn_memo: student.withdrawn_memo ?? null,
       is_active: student.is_active ?? true,
       // profile
       gender: (student.gender as "남" | "여" | null) ?? null,

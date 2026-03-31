@@ -14,7 +14,7 @@ export type AdminStudentFormData = BaseStudentFormData & {
   class?: string; // 반 정보
   division?: "고등부" | "중등부" | "졸업" | "";
   memo?: string;
-  status?: "enrolled" | "on_leave" | "graduated" | "transferred" | "";
+  status?: "enrolled" | "not_enrolled" | "";
   is_active?: boolean;
   // 프로필 확장 필드
   address?: string;
@@ -38,9 +38,12 @@ export type StudentInfoData = {
   school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
   division?: "고등부" | "중등부" | "졸업" | null;
   memo?: string | null;
-  status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
+  status?: "enrolled" | "not_enrolled" | null;
   is_active?: boolean | null;
   tenant_id?: string | null;
+  withdrawn_at?: string | null;
+  withdrawn_reason?: string | null;
+  withdrawn_memo?: string | null;
   // 프로필 필드
   gender?: "남" | "여" | null;
   phone?: string | null;

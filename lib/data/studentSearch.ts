@@ -17,7 +17,8 @@ export type StudentSearchParams = {
     class?: string;
     division?: StudentDivision | null;
     isActive?: boolean;
-    status?: string;
+    status?: "enrolled" | "not_enrolled";
+    withdrawnReason?: string;
   };
   limit?: number;
   offset?: number;

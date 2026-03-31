@@ -3,6 +3,31 @@
  */
 
 /**
+ * 학생 상태 (학원 등록 기준)
+ */
+export type StudentStatus = "enrolled" | "not_enrolled";
+
+export const STUDENT_STATUSES = [
+  { value: "enrolled" as const, label: "재원" },
+  { value: "not_enrolled" as const, label: "비재원" },
+] as const;
+
+/**
+ * 비재원 사유
+ */
+export type WithdrawnReason = "졸업" | "퇴원" | "이사" | "비용" | "프로그램종료" | "개인사유" | "기타";
+
+export const WITHDRAWN_REASONS = [
+  { value: "졸업" as const, label: "졸업" },
+  { value: "퇴원" as const, label: "퇴원" },
+  { value: "이사" as const, label: "이사" },
+  { value: "비용" as const, label: "비용" },
+  { value: "프로그램종료" as const, label: "프로그램 종료" },
+  { value: "개인사유" as const, label: "개인 사유" },
+  { value: "기타" as const, label: "기타" },
+] as const;
+
+/**
  * 학생 목록 페이지네이션 크기
  */
 export const STUDENT_LIST_PAGE_SIZE = 20;

@@ -65,6 +65,199 @@ export async function toggleStudentStatus(
 }
 
 /**
+ * 학생 비재원 처리 (재원 → 비재원)
+ * status를 not_enrolled로 변경하고, is_active=false + Auth ban 처리
+ */
+export async function withdrawStudentAction(
+  studentId: string,
+  reason: string,
+  memo?: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdminOrConsultant();
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
+
+  // 사유 검증
+  const validReasons = ["졸업", "퇴원", "이사", "비용", "프로그램종료", "개인사유", "기타"];
+  if (!validReasons.includes(reason)) {
+    return { success: false, error: "유효하지 않은 비재원 사유입니다." };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다." };
+  }
+
+  // 1. students 테이블: status 변경 + withdrawn 정보 기록
+  const { error: studentError } = await supabase
+    .from("students")
+    .update({
+      status: "not_enrolled",
+      withdrawn_at: new Date().toISOString(),
+      withdrawn_reason: reason,
+      withdrawn_memo: memo || null,
+    })
+    .eq("id", studentId)
+    .eq("tenant_id", tenantContext.tenantId);
+
+  if (studentError) {
+    logActionError({ domain: "student", action: "withdrawStudent" }, studentError, { studentId, reason });
+    return { success: false, error: "비재원 처리에 실패했습니다." };
+  }
+
+  // 2. user_profiles: is_active=false
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({ is_active: false })
+    .eq("id", studentId);
+
+  if (profileError) {
+    logActionError({ domain: "student", action: "withdrawStudent.profile" }, profileError, { studentId });
+  }
+
+  // 3. Auth ban 동기화
+  await syncAuthBanStatus(studentId, false);
+
+  // 4. 캐시 무효화
+  const { invalidateUserRoleCache } = await import("@/lib/auth/getCurrentUserRole");
+  invalidateUserRoleCache(studentId).catch(() => {});
+
+  revalidatePath("/admin/students");
+  revalidatePath(`/admin/students/${studentId}`);
+
+  return { success: true };
+}
+
+/**
+ * 학생 재등록 (비재원 → 재원)
+ * status를 enrolled로 변경하고, is_active=true + Auth ban 해제
+ */
+export async function reEnrollStudentAction(
+  studentId: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdminOrConsultant();
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다." };
+  }
+
+  // 1. students 테이블: status 변경 + withdrawn 정보 초기화
+  const { error: studentError } = await supabase
+    .from("students")
+    .update({
+      status: "enrolled",
+      withdrawn_at: null,
+      withdrawn_reason: null,
+      withdrawn_memo: null,
+    })
+    .eq("id", studentId)
+    .eq("tenant_id", tenantContext.tenantId);
+
+  if (studentError) {
+    logActionError({ domain: "student", action: "reEnrollStudent" }, studentError, { studentId });
+    return { success: false, error: "재등록 처리에 실패했습니다." };
+  }
+
+  // 2. user_profiles: is_active=true
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({ is_active: true })
+    .eq("id", studentId);
+
+  if (profileError) {
+    logActionError({ domain: "student", action: "reEnrollStudent.profile" }, profileError, { studentId });
+  }
+
+  // 3. Auth ban 해제
+  await syncAuthBanStatus(studentId, true);
+
+  // 4. 캐시 무효화
+  const { invalidateUserRoleCache } = await import("@/lib/auth/getCurrentUserRole");
+  invalidateUserRoleCache(studentId).catch(() => {});
+
+  revalidatePath("/admin/students");
+  revalidatePath(`/admin/students/${studentId}`);
+
+  return { success: true };
+}
+
+/**
+ * 여러 학생 일괄 비재원 처리
+ */
+export async function bulkWithdrawStudentsAction(
+  studentIds: string[],
+  reason: string,
+  memo?: string
+): Promise<{ success: boolean; error?: string; updatedCount?: number }> {
+  await requireAdminOrConsultant();
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
+
+  if (studentIds.length === 0) {
+    return { success: false, error: "선택된 학생이 없습니다." };
+  }
+
+  // 사유 검증
+  const validReasons = ["졸업", "퇴원", "이사", "비용", "프로그램종료", "개인사유", "기타"];
+  if (!validReasons.includes(reason)) {
+    return { success: false, error: "유효하지 않은 비재원 사유입니다." };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다." };
+  }
+
+  // 1. students 일괄 업데이트 (tenant_id 필터로 보안 강화)
+  const { data, error: studentError } = await supabase
+    .from("students")
+    .update({
+      status: "not_enrolled",
+      withdrawn_at: new Date().toISOString(),
+      withdrawn_reason: reason,
+      withdrawn_memo: memo || null,
+    })
+    .in("id", studentIds)
+    .eq("tenant_id", tenantContext.tenantId)
+    .select("id");
+
+  if (studentError) {
+    logActionError({ domain: "student", action: "bulkWithdrawStudents" }, studentError, { studentIds, reason });
+    return { success: false, error: "일괄 비재원 처리에 실패했습니다." };
+  }
+
+  const updatedIds = (data ?? []).map((d) => d.id);
+
+  // 2. user_profiles 일괄 비활성화
+  await supabase.from("user_profiles").update({ is_active: false }).in("id", updatedIds);
+
+  // 3. Auth ban 일괄 동기화
+  await bulkSyncAuthBanStatus(updatedIds, false);
+
+  // 4. 캐시 무효화
+  const { invalidateUserRoleCache } = await import("@/lib/auth/getCurrentUserRole");
+  for (const id of updatedIds) {
+    invalidateUserRoleCache(id).catch(() => {});
+  }
+
+  revalidatePath("/admin/students");
+
+  return { success: true, updatedCount: updatedIds.length };
+}
+
+/**
  * 학생 계정 삭제 (하드 삭제: 실제 DB에서 삭제)
  * NO ACTION 제약조건이 있는 테이블들을 먼저 삭제한 후 students 테이블 삭제
  */
@@ -570,7 +763,7 @@ export async function updateStudentInfo(
       school_id?: string | null;
       division?: "고등부" | "중등부" | "졸업" | null;
       memo?: string | null;
-      status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
+      status?: "enrolled" | "not_enrolled" | null;
       is_active?: boolean;
     };
     profile?: {

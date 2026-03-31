@@ -19,7 +19,10 @@ export type Student = {
   school_name?: string | null;
   student_number?: string | null;
   enrolled_at?: string | null;
-  status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
+  status?: "enrolled" | "not_enrolled" | null;
+  withdrawn_at?: string | null;
+  withdrawn_reason?: string | null;
+  withdrawn_memo?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -135,7 +138,7 @@ export async function upsertStudent(
     division?: StudentDivision | null;
     student_number?: string | null;
     enrolled_at?: string | null;
-    status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
+    status?: "enrolled" | "not_enrolled" | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();

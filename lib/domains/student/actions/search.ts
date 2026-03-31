@@ -16,16 +16,19 @@ export type StudentSearchItem = {
   school_name: string | null;
   gender: "남" | "여" | null;
   is_active: boolean;
-  status: string | null;
+  status: "enrolled" | "not_enrolled" | null;
   has_email: boolean;
   profile_image_url: string | null;
+  withdrawn_at: string | null;
+  withdrawn_reason: string | null;
 };
 
 export type StudentSearchFilters = {
   division?: "고등부" | "중등부" | "졸업";
   grade?: string;
-  status?: "enrolled" | "on_leave" | "graduated" | "transferred";
+  status?: "enrolled" | "not_enrolled";
   isActive?: boolean;
+  withdrawnReason?: string;
 };
 
 export type SearchStudentsResult = {
@@ -76,6 +79,7 @@ export async function searchStudentsAction(
       p_exclude_ids: undefined,
       p_limit: 50,
       p_offset: 0,
+      p_withdrawn_reason: filters?.withdrawnReason ?? undefined,
     });
 
     if (error) {
@@ -99,9 +103,11 @@ export async function searchStudentsAction(
       school_name: (r.school_name as string | null) ?? null,
       gender: (r.gender as "남" | "여" | null) ?? null,
       is_active: (r.is_active as boolean | null) ?? true,
-      status: (r.status as string | null) ?? null,
+      status: (r.status as "enrolled" | "not_enrolled" | null) ?? null,
       has_email: (r.has_email as boolean | null) ?? false,
       profile_image_url: (r.profile_image_url as string | null) ?? null,
+      withdrawn_at: (r.withdrawn_at as string | null) ?? null,
+      withdrawn_reason: (r.withdrawn_reason as string | null) ?? null,
     }));
 
     return { success: true, students, total };
