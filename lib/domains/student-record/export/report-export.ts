@@ -42,6 +42,8 @@ export interface ReportExportData {
   studentName: string;
   targetGrades: number[];
   createdAt: string;
+  /** Phase V1: 파이프라인 실행 모드 */
+  mode?: "analysis" | "prospective";
   /** AI 생성 섹션 */
   sections: ExportSection[];
   /** 수동 편집 텍스트 (있으면 sections 대신 사용) */
@@ -103,6 +105,38 @@ export interface ReportExportData {
     questionType: string;
     difficulty: string;
     suggestedAnswer: string | null;
+  }> | null;
+  // Part 6: 3년 구조 확장 필드
+  changcheGuides?: Array<{
+    activityType: string;
+    direction: string;
+    keywords: string[];
+    competencyFocus: string[];
+  }> | null;
+  haengteukGuide?: {
+    direction: string;
+    keywords: string[];
+    competencyFocus: string[];
+    evaluationItems?: Array<{ item: string; score: string; reasoning: string }>;
+  } | null;
+  coursePlansByGrade?: Record<number, Array<{
+    subjectName: string;
+    subjectType: string | null;
+    status: string;
+    reason: string | null;
+  }>> | null;
+  actionItems?: Array<{
+    area: string;
+    content: string;
+    status: string;
+    grade: number;
+    semester: number | null;
+  }> | null;
+  univStrategies?: Array<{
+    universityName: string;
+    admissionType: string;
+    evaluationFactors: Record<string, number> | null;
+    keyTips: string[] | null;
   }> | null;
 }
 
@@ -177,11 +211,15 @@ export function buildReportExportData(data: ReportData): ReportExportData {
     }
   }
 
+  // Phase V1: 파이프라인 mode 추출
+  const pipelineMode = data.pipelineMeta?.mode ?? undefined;
+
   return {
     title: "수시 종합 리포트",
     studentName: data.student.name ?? "학생",
     targetGrades: [1, 2, 3].filter((g) => g <= data.student.grade),
     createdAt: data.generatedAt,
+    mode: pipelineMode,
     sections,
     editedText: latestSummary?.edited_text ?? null,
     diagnosis: diag ? {
@@ -218,6 +256,73 @@ export function buildReportExportData(data: ReportData): ReportExportData {
           questionType: q.question_type,
           difficulty: q.difficulty,
           suggestedAnswer: q.suggested_answer,
+        }))
+      : null,
+    // Part 6: 3년 구조 확장 매핑
+    changcheGuides: data.changcheGuides.length > 0
+      ? data.changcheGuides.map((g) => ({
+          activityType: g.activity_type,
+          direction: g.direction,
+          keywords: g.keywords,
+          competencyFocus: g.competency_focus,
+        }))
+      : null,
+    haengteukGuide: data.haengteukGuides.length > 0
+      ? (() => {
+          const latest = data.haengteukGuides.sort(
+            (a, b) => b.created_at.localeCompare(a.created_at),
+          )[0];
+          const evalItems = Array.isArray(latest.evaluation_items)
+            ? (latest.evaluation_items as Array<{ item: string; score: string; reasoning: string }>)
+            : [];
+          return {
+            direction: latest.direction,
+            keywords: latest.keywords,
+            competencyFocus: latest.competency_focus,
+            evaluationItems: evalItems.length > 0 ? evalItems : undefined,
+          };
+        })()
+      : null,
+    coursePlansByGrade: data.coursePlans.length > 0
+      ? data.coursePlans.reduce<Record<number, Array<{ subjectName: string; subjectType: string | null; status: string; reason: string | null }>>>(
+          (acc, p) => {
+            if (!acc[p.grade]) acc[p.grade] = [];
+            acc[p.grade].push({
+              subjectName: p.subject?.name ?? p.subject_id,
+              subjectType: p.subject?.subject_type?.name ?? null,
+              status: p.plan_status,
+              reason: p.recommendation_reason,
+            });
+            return acc;
+          },
+          {},
+        )
+      : null,
+    actionItems: (() => {
+      const currentMonth = new Date().getMonth() + 1;
+      const currentSemester = currentMonth >= 3 && currentMonth <= 8 ? 1 : 2;
+      const thisTermItems = data.storylineData.roadmapItems.filter(
+        (item) =>
+          item.grade === data.student.grade &&
+          (item.semester === currentSemester || item.semester === null) &&
+          item.status !== "completed",
+      );
+      return thisTermItems.length > 0
+        ? thisTermItems.map((item) => ({
+            area: item.area,
+            content: item.plan_content,
+            status: item.status ?? "planning",
+            grade: item.grade,
+            semester: item.semester,
+          }))
+        : null;
+    })(),
+    univStrategies: data.univStrategies.length > 0
+      ? data.univStrategies.map((s) => ({
+          universityName: s.university_name,
+          admissionType: s.admission_type,
+          evaluationFactors: s.evaluation_factors,
+          keyTips: s.key_tips,
         }))
       : null,
   };
@@ -530,6 +635,7 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
 
 function buildReportHtml(data: ReportExportData): string {
   const dateStr = formatDate(data.createdAt);
+  const isProspective = data.mode === "prospective";
   let body = "";
 
   body += `<div style="text-align:center;border-bottom:2px solid #222;padding-bottom:16px;margin-bottom:24px;">`;
@@ -537,14 +643,22 @@ function buildReportHtml(data: ReportExportData): string {
   body += `<p style="font-size:12px;color:#666;margin-top:8px;">${escapeHtml(data.studentName)} · ${data.targetGrades.join(",")}학년 · ${dateStr}</p>`;
   body += `</div>`;
 
+  // Phase V1: prospective 모드 안내문
+  if (isProspective) {
+    body += `<div style="margin-bottom:20px;padding:12px 16px;background:#fffbe6;border:1px solid #ffe58f;border-radius:6px;">`;
+    body += `<p style="font-size:13px;color:#856404;margin:0;line-height:1.6;">이 리포트는 수강 계획 기반 가상본입니다. 실제 기록이 추가되면 분석 기반 리포트로 전환됩니다.</p>`;
+    body += `</div>`;
+  }
+
   if (data.editedText) {
     body += `<div style="font-size:13px;line-height:1.8;white-space:pre-wrap;">${escapeHtml(data.editedText)}</div>`;
   } else {
     // F4: 종합 진단 섹션
     if (data.diagnosis) {
       const d = data.diagnosis;
+      const diagTitle = isProspective ? "[예상] 활동 진단" : "종합 진단";
       body += `<div style="margin-bottom:20px;">`;
-      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">종합 진단</h2>`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">${escapeHtml(diagTitle)}</h2>`;
       const htmlGrade = d.directionStrength
         ? `${escapeHtml(d.overallGrade)} · ${escapeHtml(d.recordDirection)} (${escapeHtml(d.directionStrength)})`
         : `${escapeHtml(d.overallGrade)} · ${escapeHtml(d.recordDirection)}`;
@@ -610,8 +724,9 @@ function buildReportHtml(data: ReportExportData): string {
 
     // F4: 보완 전략 섹션
     if (data.strategies && data.strategies.length > 0) {
+      const stratTitle = isProspective ? "[예상] 보완 전략" : "보완 전략";
       body += `<div style="margin-bottom:20px;">`;
-      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">보완 전략</h2>`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">${escapeHtml(stratTitle)}</h2>`;
       for (const st of data.strategies) {
         const badge = st.priority === "critical" ? "🔴" : st.priority === "high" ? "🟠" : "🟡";
         body += `<p style="font-size:12px;margin-bottom:6px;">${badge} <strong>[${escapeHtml(st.targetArea)}]</strong> ${escapeHtml(st.content)}</p>`;
@@ -663,8 +778,9 @@ function buildReportHtml(data: ReportExportData): string {
 
     // 면접 예상 질문 섹션
     if (data.interviewQuestions && data.interviewQuestions.length > 0) {
+      const interviewTitle = isProspective ? "[예상] 면접 질문" : "면접 예상 질문";
       body += `<div style="margin-bottom:20px;">`;
-      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">면접 예상 질문</h2>`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">${escapeHtml(interviewTitle)}</h2>`;
       for (const q of data.interviewQuestions) {
         const diffBadge = q.difficulty === "hard" ? "🔴" : q.difficulty === "medium" ? "🟡" : "🟢";
         body += `<div style="margin-bottom:10px;">`;
@@ -679,7 +795,8 @@ function buildReportHtml(data: ReportExportData): string {
 
     // 활동 요약서 섹션
     for (const sec of data.sections) {
-      const label = SECTION_LABELS[sec.sectionType] ?? sec.title;
+      const baseLabel = SECTION_LABELS[sec.sectionType] ?? sec.title;
+      const label = isProspective ? `[예상] ${baseLabel}` : baseLabel;
       const subtitle =
         sec.relatedSubjects && sec.relatedSubjects.length > 0
           ? ` <span style="font-weight:normal;color:#999;">(${sec.relatedSubjects.join(", ")})</span>`

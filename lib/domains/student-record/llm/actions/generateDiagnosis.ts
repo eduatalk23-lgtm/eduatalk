@@ -663,4 +663,210 @@ function generateImprovementsFallback(
   return results;
 }
 
+// ============================================
+// Phase V1: Prospective 진단 — 수강계획 기반 예비 진단
+// ============================================
+
+export interface ProspectiveDiagnosisResult {
+  overallGrade: string;
+  recordDirection: string;
+  directionStrength: "strong" | "moderate" | "weak";
+  directionReasoning: string;
+  strengths: string[];
+  weaknesses: string[];
+  improvements: DiagnosisImprovement[];
+  recommendedMajors: string[];
+  strategyNotes: string;
+}
+
+/** 수강계획+진로 기반 예비 진단 생성 (기록 없는 신입생/1학년 대상) */
+export async function generateProspectiveDiagnosis(
+  studentId: string,
+  tenantId: string,
+  coursePlanData: import("../../course-plan/types").CoursePlanTabData | null,
+  snapshot: Record<string, unknown> | null,
+): Promise<{ success: true; data: ProspectiveDiagnosisResult } | { success: false; error: string }> {
+  try {
+    await requireAdminOrConsultant();
+
+    const plans = coursePlanData?.plans?.filter(
+      (p) => p.plan_status === "confirmed" || p.plan_status === "recommended",
+    ) ?? [];
+
+    if (plans.length === 0) {
+      return { success: false, error: "수강 계획이 없어 예비 진단을 생성할 수 없습니다." };
+    }
+
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+    const supabase = await createSupabaseServerClient();
+
+    const targetMajor = (snapshot?.target_major as string) ?? null;
+    const studentGrade = (snapshot?.grade as number) ?? 1;
+
+    // 수강계획 요약 텍스트 구성
+    const plansBySemester = new Map<string, string[]>();
+    for (const p of plans) {
+      const key = `${p.grade}학년 ${p.semester}학기`;
+      if (!plansBySemester.has(key)) plansBySemester.set(key, []);
+      const subjectName = (p.subject as { name?: string } | null)?.name ?? "과목 미정";
+      const subjectType = (p.subject as { subject_type?: { name?: string } } | null)?.subject_type?.name;
+      plansBySemester.get(key)!.push(subjectType ? `${subjectName}(${subjectType})` : subjectName);
+    }
+    const plansText = [...plansBySemester.entries()]
+      .map(([sem, subs]) => `- ${sem}: ${subs.join(", ")}`)
+      .join("\n");
+
+    // 추천 교과 적합성 사전 조회 (진로 있으면)
+    let courseAdequacyText = "";
+    if (targetMajor) {
+      try {
+        const { calculateCourseAdequacy } = await import("../../course-adequacy");
+        const { getCurriculumYear } = await import("@/lib/utils/schoolYear");
+        const enrollYear = calculateSchoolYear() - studentGrade + 1;
+        const curYear = getCurriculumYear(enrollYear);
+        const plannedNames = [
+          ...new Set(plans.map((p) => (p.subject as { name?: string } | null)?.name).filter((n): n is string => !!n)),
+        ];
+        const adequacy = calculateCourseAdequacy(targetMajor, plannedNames, null, curYear);
+        if (adequacy) {
+          const takenStr = adequacy.taken.length > 0 ? adequacy.taken.slice(0, 5).join(", ") : "없음";
+          const notTakenStr = adequacy.notTaken.length > 0 ? adequacy.notTaken.slice(0, 5).join(", ") : "없음";
+          courseAdequacyText = `\n\n## 전공 교과 적합도 (수강계획 기준)\n- 이수 예정: ${takenStr}\n- 미이수 예정: ${notTakenStr}\n- 일반교과 이수율: ${Math.round(adequacy.generalRate * 100)}%\n- 진로교과 이수율: ${Math.round(adequacy.careerRate * 100)}%`;
+        }
+      } catch (_e) {
+        // 적합도 계산 실패 시 무시
+      }
+    }
+
+    // 학생 스토리라인 조회 (있으면 진로 방향 보강)
+    let storylineText = "";
+    try {
+      const { data: storylines } = await supabase
+        .from("student_record_storylines")
+        .select("title, keywords, career_field")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .limit(3);
+      if (storylines && storylines.length > 0) {
+        const lines = storylines.map((sl) => `- ${sl.title} [${(sl.keywords ?? []).slice(0, 3).join(", ")}]`);
+        storylineText = `\n\n## 설정된 스토리라인\n${lines.join("\n")}`;
+      }
+    } catch (_e) {
+      // 스토리라인 조회 실패 시 무시
+    }
+
+    const userPrompt = `# 신입생 예비 진단 요청
+
+## 학생 정보
+- 학년: ${studentGrade}학년
+- 목표 전공: ${targetMajor ?? "미설정"}
+
+## 수강 계획
+${plansText}${courseAdequacyText}${storylineText}
+
+## 분석 요청
+
+이 학생은 아직 생기부 기록이 없는 신입생이거나 기록 입력 전입니다.
+수강 계획과 목표 전공을 바탕으로 **예비 진단**을 생성해주세요.
+
+다음 JSON 형식으로만 응답하세요:
+\`\`\`json
+{
+  "overallGrade": "B",
+  "recordDirection": "수강 계획 기반 준비 방향",
+  "directionStrength": "moderate",
+  "directionReasoning": "수강 계획이 진로와 연계된 이유 (1-2문장)",
+  "strengths": ["수강 계획에서 파악되는 강점 1", "강점 2"],
+  "weaknesses": ["준비가 필요한 영역 1", "영역 2"],
+  "improvements": [
+    {
+      "priority": "높음",
+      "area": "[역량영역] 항목명",
+      "gap": "현재 상태",
+      "action": "구체적 준비 행동",
+      "outcome": "기대 결과"
+    }
+  ],
+  "recommendedMajors": ["목표 전공과 유사한 추천 전공 1", "추천 전공 2"],
+  "strategyNotes": "전략 메모 (2-3문장)"
+}
+\`\`\`
+
+규칙:
+- overallGrade: A+/A/B+/B/C 중 선택 (기록 없으므로 B 또는 B+ 범위 권장)
+- directionStrength: "strong"/"moderate"/"weak" 중 선택
+- strengths: 2~4개, 수강 계획에서 관찰 가능한 진로 정합성 중심
+- weaknesses: 2~3개, 기록 공백 시 예상되는 보완 필요 영역
+- improvements: 1~3개, 당장 준비 가능한 구체적 행동 포함
+- recommendedMajors: 목표 전공과 연관된 인접 전공 1~3개
+- JSON으로만 응답합니다`;
+
+    const { generateTextWithRateLimit } = await import("@/lib/domains/plan/llm/ai-sdk");
+    const { extractJson: extractJsonFn } = await import("../extractJson");
+
+    const result = await generateTextWithRateLimit({
+      system: `당신은 입시 컨설턴트 내부 분석 도우미입니다. 학생의 수강 계획을 분석하여 예비 진단을 생성합니다. JSON으로만 응답합니다.`,
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier: "standard",
+      temperature: 0.3,
+      maxTokens: 4096,
+      responseFormat: "json",
+    });
+
+    if (!result.content) {
+      return { success: false, error: "AI 응답이 비어있습니다." };
+    }
+
+    const parsed = extractJsonFn(result.content) as Partial<ProspectiveDiagnosisResult> | null;
+    if (!parsed || !parsed.directionStrength) {
+      return { success: false, error: "AI 응답 파싱 실패" };
+    }
+
+    // DB 저장
+    const currentSchoolYear = calculateSchoolYear();
+    const { diagnosisRepo } = await import("../../diagnosis-repository").then(async (m) => ({
+      diagnosisRepo: m,
+    }));
+    await diagnosisRepo.upsertDiagnosis({
+      tenant_id: tenantId,
+      student_id: studentId,
+      school_year: currentSchoolYear,
+      overall_grade: parsed.overallGrade ?? "B",
+      record_direction: parsed.recordDirection ?? "수강 계획 기반",
+      direction_strength: (parsed.directionStrength ?? "moderate") as "strong" | "moderate" | "weak",
+      direction_reasoning: parsed.directionReasoning ?? null,
+      strengths: parsed.strengths ?? [],
+      weaknesses: parsed.weaknesses ?? [],
+      improvements: (parsed.improvements ?? []) as unknown as import("@/lib/supabase/database.types").Json,
+      recommended_majors: parsed.recommendedMajors ?? [],
+      strategy_notes: parsed.strategyNotes ?? "",
+      source: "ai",
+      status: "draft",
+    } as import("../../types").DiagnosisInsert);
+
+    return {
+      success: true,
+      data: {
+        overallGrade: parsed.overallGrade ?? "B",
+        recordDirection: parsed.recordDirection ?? "수강 계획 기반",
+        directionStrength: (parsed.directionStrength ?? "moderate") as "strong" | "moderate" | "weak",
+        directionReasoning: parsed.directionReasoning ?? "",
+        strengths: parsed.strengths ?? [],
+        weaknesses: parsed.weaknesses ?? [],
+        improvements: (parsed.improvements ?? []) as DiagnosisImprovement[],
+        recommendedMajors: parsed.recommendedMajors ?? [],
+        strategyNotes: parsed.strategyNotes ?? "",
+      },
+    };
+  } catch (error) {
+    logActionError(LOG_CTX, error);
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
+      return { success: false, error: "AI 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요." };
+    }
+    return { success: false, error: "예비 진단 생성 중 오류가 발생했습니다." };
+  }
+}
+
 // P1: buildEdgeSummaryForPrompt는 ../edge-summary.ts로 분리됨 ("use server" 비동기 제약)

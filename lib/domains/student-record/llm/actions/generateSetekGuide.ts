@@ -27,6 +27,8 @@ export async function generateSetekGuide(
   targetGrades?: number[],
   /** Phase E2: 파이프라인에서 전달되는 엣지 프롬프트 섹션 */
   edgePromptSection?: string,
+  /** Phase V2: 3년 가상본 — 저장 대상 school_year 명시 (미지정 시 calculateSchoolYear() 사용) */
+  targetSchoolYear?: number,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -93,7 +95,7 @@ export async function generateSetekGuide(
 
     // Phase R2: 기록 없으면 prospective 모드로 전환
     if (!hasAnyData) {
-      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection);
+      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear);
     }
 
     // 역량 진단 데이터 변환 (컨설턴트 진단 우선, 없으면 AI 진단)
@@ -154,7 +156,7 @@ export async function generateSetekGuide(
     }
 
     // DB 저장 — setek_guides 테이블에 과목별 행 삽입
-    const currentSchoolYear = calculateSchoolYear();
+    const currentSchoolYear = targetSchoolYear ?? calculateSchoolYear();
 
     // 과목명 → subject_id 역매핑
     const nameToSubjectId = new Map<string, string>();
@@ -242,12 +244,14 @@ async function generateProspectiveSetekGuide(
   report: import("../../actions/report").ReportData,
   grades: number[],
   edgePromptSection?: string,
+  /** Phase V2: 3년 가상본 — 저장 대상 school_year 명시 */
+  targetSchoolYear?: number,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
 
   const supabase = await createSupabaseServerClient();
-  const currentSchoolYear = calculateSchoolYear();
+  const currentSchoolYear = targetSchoolYear ?? calculateSchoolYear();
 
   // 수강 계획 조회
   const { fetchCoursePlanTabData } = await import("../../actions/coursePlan");
