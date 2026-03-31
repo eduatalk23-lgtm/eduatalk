@@ -9,10 +9,10 @@
  * recordTopic이 전달되면 토픽별 필터링 + 배너를 표시합니다.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, MessageSquarePlus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { ChatList } from "@/components/chat/organisms/ChatList";
 import { ChatRoom } from "@/components/chat/organisms/ChatRoom";
@@ -20,7 +20,8 @@ import { MemberList } from "@/components/chat/organisms/MemberList";
 import { ChatSidebarTabs } from "@/components/chat/atoms/ChatSidebarTabs";
 import type { ChatSidebarTab } from "@/components/chat/atoms/ChatSidebarTabs";
 import { chatRoomDetailQueryOptions } from "@/lib/query-options/chatRoom";
-import type { ChatUserType } from "@/lib/domains/chat/types";
+import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
+import type { ChatUserType, ChatRoomListItem } from "@/lib/domains/chat/types";
 import { CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record";
 
 const CreateChatModal = dynamic(
@@ -70,13 +71,43 @@ function topicLabel(topic: string): string {
 
 type PanelView = "list" | "room";
 
-export function ChatPanelApp({ recordTopic }: { recordTopic?: string | null }) {
+interface ChatPanelAppProps {
+  recordTopic?: string | null;
+  /** true면 토픽 방 1개 시 자동 진입, 0개 시 1클릭 생성 UI */
+  autoEnter?: boolean;
+  /** autoEnter 모드에서 표시할 과목명 */
+  subjectName?: string | null;
+  /** 채팅방 진입 시 roomId를 외부에 알림 (가이드 추천 패널 연동용) */
+  onRoomEnter?: (roomId: string) => void;
+}
+
+export function ChatPanelApp({ recordTopic, autoEnter = false, subjectName, onRoomEnter }: ChatPanelAppProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<PanelView>("list");
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<ChatSidebarTab>("chat");
+  const autoEnterDone = useRef(false);
+
+  // autoEnter: 토픽 방 자동 감지 + 진입
+  const { data: allRooms } = useQuery({
+    ...chatRoomsQueryOptions(user?.userId),
+    enabled: autoEnter && !!recordTopic && !!user?.userId,
+  });
+
+  useEffect(() => {
+    if (!autoEnter || !recordTopic || !allRooms || autoEnterDone.current) return;
+    const topicRooms = allRooms.filter((r: ChatRoomListItem) => r.topic === recordTopic);
+    if (topicRooms.length === 1) {
+      // 방 1개 → 바로 진입
+      autoEnterDone.current = true;
+      setSelectedRoomId(topicRooms[0].id);
+      setView("room");
+      onRoomEnter?.(topicRooms[0].id);
+    }
+    // 0개 또는 2개+는 기본 동작 (목록 또는 빈 상태)
+  }, [autoEnter, recordTopic, allRooms]);
 
   const userId = user?.userId ?? "";
   const chatUserType = user?.role ? toChatUserType(user.role) : null;
@@ -92,8 +123,9 @@ export function ChatPanelApp({ recordTopic }: { recordTopic?: string | null }) {
       void queryClient.prefetchQuery(chatRoomDetailQueryOptions(roomId));
       setSelectedRoomId(roomId);
       setView("room");
+      onRoomEnter?.(roomId);
     },
-    [queryClient]
+    [queryClient, onRoomEnter]
   );
 
   const handleBack = useCallback(() => {
@@ -122,10 +154,40 @@ export function ChatPanelApp({ recordTopic }: { recordTopic?: string | null }) {
         ? ParentCreateChatModal
         : CreateChatModal;
 
+  // autoEnter 모드: 토픽 방 0개일 때 빈 상태 감지
+  const topicRoomCount = autoEnter && recordTopic && allRooms
+    ? allRooms.filter((r: ChatRoomListItem) => r.topic === recordTopic).length
+    : null;
+
   return (
     <div className="flex flex-col h-full">
       {view === "list" ? (
         <>
+          {/* autoEnter + 토픽 방 0개: 1클릭 생성 UI */}
+          {autoEnter && topicRoomCount === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-900/30">
+                <MessageSquarePlus className="h-6 w-6 text-indigo-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                  {subjectName ? `"${subjectName}"` : "이 과목"}에 대한 논의가 없습니다
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                  논의를 시작하면 다른 컨설턴트와 함께 방향을 정할 수 있습니다
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+              >
+                <MessageSquarePlus className="h-4 w-4" />
+                논의 시작하기
+              </button>
+            </div>
+          ) : (
+          <>
           {/* 탭 (채팅 / 멤버) */}
           <ChatSidebarTabs
             activeTab={sidebarTab}
@@ -137,7 +199,7 @@ export function ChatPanelApp({ recordTopic }: { recordTopic?: string | null }) {
           {recordTopic && (
             <div className="border-b border-[var(--border-secondary)] px-3 py-2 bg-indigo-50 dark:bg-indigo-950/20">
               <span className="text-xs text-indigo-600 dark:text-indigo-400">
-                {topicLabel(recordTopic)}
+                {subjectName ?? topicLabel(recordTopic)}
               </span>
             </div>
           )}
@@ -163,6 +225,8 @@ export function ChatPanelApp({ recordTopic }: { recordTopic?: string | null }) {
               />
             )}
           </div>
+          </>
+          )}
         </>
       ) : selectedRoomId ? (
         <ChatRoom

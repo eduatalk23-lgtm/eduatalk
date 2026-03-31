@@ -211,6 +211,16 @@ export interface MentionInfo {
 /** 메시지 메타데이터 (JSONB) */
 export interface ChatMessageMetadata {
   mentions?: MentionInfo[];
+  /** 컨설턴트가 태깅한 관심사/활동 (논의→가이드 배정 연결용) */
+  interestTags?: InterestTag[];
+}
+
+/** 논의 중 도출된 관심사/활동 태그 */
+export interface InterestTag {
+  keyword: string;
+  category?: "interest" | "activity" | "topic" | "concern";
+  taggedBy?: string;
+  taggedAt?: string;
 }
 
 /** 메시지 기본 타입 */

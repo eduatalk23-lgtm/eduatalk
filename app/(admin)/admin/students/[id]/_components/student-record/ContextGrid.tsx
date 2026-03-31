@@ -8,9 +8,29 @@
 // ============================================
 
 import { Fragment, useMemo, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { cn } from "@/lib/cn";
+import { BookOpen, Compass } from "lucide-react";
+
+const InlineTopicChat = dynamic(
+  () =>
+    import("@/app/(admin)/admin/students/[id]/plans/_components/side-panel/apps/chat/ChatPanelApp").then(
+      (m) => ({ default: m.ChatPanelApp }),
+    ),
+  { ssr: false, loading: () => <div className="flex items-center justify-center py-8 text-sm text-[var(--text-tertiary)]">채팅 로딩 중...</div> },
+);
+const GuideRecommendationPanel = dynamic(
+  () =>
+    import("./GuideRecommendationPanel").then((m) => ({ default: m.GuideRecommendationPanel })),
+  { ssr: false },
+);
+const DirectionFromChatPanel = dynamic(
+  () =>
+    import("./DirectionFromChatPanel").then((m) => ({ default: m.DirectionFromChatPanel })),
+  { ssr: false },
+);
 import type { SetekLayerTab, MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
 import { AnalysisBlock } from "./shared/AnalysisBlocks";
@@ -76,7 +96,7 @@ const COL_LABELS: Record<SetekLayerTab, string> = {
   memo: "메모",
 };
 
-const SELECTABLE_COLUMNS: SetekLayerTab[] = ["guide", "direction", "draft", "neis", "analysis", "memo"];
+const SELECTABLE_COLUMNS: SetekLayerTab[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
 const MAX_COLS = 3;
 
 /** 3행 분리 열의 관점별 라벨 (열마다 다른 이름) */
@@ -242,6 +262,16 @@ function GridCell({
   subjectGuides: GuideAssignmentLike[];
   subjectDirection: SetekGuideItemLike[];
 }) {
+  // ── 논의 (rowSpan=3, 관점 무관 — 채팅 + 가이드 추천) ──
+  if (column === "chat") {
+    return (
+      <ChatWithGuideRecommendation
+        subjectId={row.subjectId}
+        subjectName={row.displayName}
+      />
+    );
+  }
+
   // ── NEIS (rowSpan=3, 관점 무관) ──
   if (column === "neis") {
     return (
@@ -635,5 +665,82 @@ function AnalysisGridCell({
       onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
       onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
     />
+  );
+}
+
+// ── 논의 + 가이드 추천 통합 컴포넌트 ──
+
+function ChatWithGuideRecommendation({
+  subjectId,
+  subjectName,
+}: {
+  subjectId: string;
+  subjectName: string;
+}) {
+  const [showGuidePanel, setShowGuidePanel] = useState(false);
+  const [showDirectionPanel, setShowDirectionPanel] = useState(false);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+
+  return (
+    <div className="flex h-full min-h-[300px] flex-col gap-2">
+      {/* 액션 버튼 */}
+      <div className="flex items-center justify-end gap-1">
+        <button
+          type="button"
+          onClick={() => { setShowDirectionPanel((v) => !v); if (!showDirectionPanel) setShowGuidePanel(false); }}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            showDirectionPanel
+              ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+              : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+          )}
+        >
+          <Compass className="h-3 w-3" />
+          방향 설정
+        </button>
+        <button
+          type="button"
+          onClick={() => { setShowGuidePanel((v) => !v); if (!showGuidePanel) setShowDirectionPanel(false); }}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            showGuidePanel
+              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+              : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+          )}
+        >
+          <BookOpen className="h-3 w-3" />
+          가이드 추천
+        </button>
+      </div>
+
+      {/* 방향 설정 패널 */}
+      {showDirectionPanel && (
+        <DirectionFromChatPanel
+          subjectId={subjectId}
+          subjectName={subjectName}
+          onClose={() => setShowDirectionPanel(false)}
+        />
+      )}
+
+      {/* 가이드 추천 패널 */}
+      {showGuidePanel && activeRoomId && (
+        <GuideRecommendationPanel
+          roomId={activeRoomId}
+          subjectId={subjectId}
+          subjectName={subjectName}
+          onClose={() => setShowGuidePanel(false)}
+        />
+      )}
+
+      {/* 채팅 */}
+      <div className="min-h-0 flex-1">
+        <InlineTopicChat
+          recordTopic={subjectId}
+          autoEnter
+          subjectName={subjectName}
+          onRoomEnter={setActiveRoomId}
+        />
+      </div>
+    </div>
   );
 }

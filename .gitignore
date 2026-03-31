@@ -3,6 +3,9 @@
 # data (import CSV/JSON — sensitive, large)
 /data/
 
+# simulation scratch (교차 시뮬레이션 중간 결과)
+/.sim/
+
 # dependencies
 /node_modules
 /.pnp
