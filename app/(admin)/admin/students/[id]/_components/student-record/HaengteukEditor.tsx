@@ -267,8 +267,21 @@ export function HaengteukEditor({
                           <button type="button" onClick={async () => {
                             if (!haengteuk) return;
                             const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+                            // E1: 기존 content 보호
                             const result = await acceptAiDraftAction(haengteuk.id, "haengteuk");
-                            if (result.success) { queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) }); }
+                            if (!result.success) {
+                              if ("error" in result && result.error === "CONTENT_EXISTS") {
+                                if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
+                                const forced = await acceptAiDraftAction(haengteuk.id, "haengteuk", true);
+                                if (!forced.success) return;
+                              } else if ("error" in result && result.error === "CONFLICT") {
+                                alert("다른 사용자가 이미 수정했습니다. 페이지를 새로고침하세요.");
+                                return;
+                              } else {
+                                return;
+                              }
+                            }
+                            queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
                           }} className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700">수용</button>
                         </div>
                         <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{haengteuk.ai_draft_content.slice(0, 200)}...</p>
@@ -610,11 +623,24 @@ function HaengteukDraftCell({
   if (haengteuk.content?.trim()) summaryParts.push("가안");
   if (haengteuk.confirmed_content?.trim()) summaryParts.push("확정");
 
+  // E1: content 보호, E4: 낙관적 잠금
   const acceptAiMutation = useMutation({
     mutationFn: async () => {
       const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
       const res = await acceptAiDraftAction(haengteuk.id, "haengteuk");
-      if (!res.success) throw new Error("error" in res ? res.error : "수용 실패");
+      if (!res.success) {
+        if ("error" in res && res.error === "CONTENT_EXISTS") {
+          if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
+          const forced = await acceptAiDraftAction(haengteuk.id, "haengteuk", true);
+          if (!forced.success && "error" in forced && forced.error === "CONFLICT") {
+            throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+          }
+        } else if ("error" in res && res.error === "CONFLICT") {
+          throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+        } else {
+          throw new Error("error" in res ? res.error : "수용 실패");
+        }
+      }
     },
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
   });
@@ -646,10 +672,17 @@ function HaengteukDraftCell({
           <DraftBlock label="AI 초안" style={DRAFT_BLOCK_STYLES.ai} content={haengteuk.ai_draft_content} />
           <DraftBlock label="컨설턴트 가안" style={DRAFT_BLOCK_STYLES.consultant} content={haengteuk.content} editable charLimit={charLimit} onSave={handleSaveContent}
             importAction={haengteuk.ai_draft_content && !haengteuk.content?.trim() ? () => acceptAiMutation.mutate() : undefined}
-            importLabel="AI 초안 수용" isImporting={acceptAiMutation.isPending} />
+            importLabel="AI 초안 수용" isImporting={acceptAiMutation.isPending}
+            neisHint />
           <DraftBlock label="확정본" style={DRAFT_BLOCK_STYLES.confirmed} content={haengteuk.confirmed_content}
             importAction={haengteuk.content?.trim() ? () => confirmMutation.mutate() : undefined}
-            importLabel="가안 확정" isImporting={confirmMutation.isPending} />
+            importLabel="가안 확정" isImporting={confirmMutation.isPending}
+            staleWarning={
+              // E5: 확정본이 있으나 현재 가안과 다르면 경고
+              haengteuk.confirmed_content?.trim() && haengteuk.content?.trim() && haengteuk.content !== haengteuk.confirmed_content
+                ? "가안과 다름" : undefined
+            }
+          />
         </div>
       )}
     </div>

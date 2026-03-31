@@ -16,10 +16,13 @@ import { cn } from "@/lib/cn";
 import { FileText, Search, BookOpen, Compass, MessageSquare, StickyNote, ChevronDown, PenLine } from "lucide-react";
 import { matchKeywordInText } from "@/lib/domains/student-record/keyword-match";
 import { DraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
+import { computeRecordStage, GRADE_STAGE_CONFIG } from "@/lib/domains/student-record/grade-stage";
 import { InlineAreaMemos } from "./InlineAreaMemos";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
 import { AnalysisBlock, COMPETENCY_LABELS, EVAL_COLORS } from "./shared/AnalysisBlocks";
 import type { SetekLayerTab } from "./SetekEditor";
+import { Badge } from "@/components/ui/Badge";
+import { Empty } from "@/components/ui/Empty";
 
 const ACTIVITY_TYPES: ChangcheActivityType[] = ["autonomy", "club", "career"];
 
@@ -207,6 +210,16 @@ export function ChangcheEditor({
                         </button>
                       </div>
                       {activeTab === "neis" && record && <RecordStatusBadge status={record.status} />}
+                      {/* B7: 단계 배지 */}
+                      {(() => {
+                        const stage = record ? computeRecordStage(record) : "prospective";
+                        const cfg = GRADE_STAGE_CONFIG[stage];
+                        return (
+                          <span className={cn("inline-block rounded-full px-1.5 py-0 text-xs font-medium", cfg.bgClass, cfg.textClass)}>
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </td>
                   {activeTab === "neis" && (
@@ -366,10 +379,21 @@ function ChangcheNEISCell({
   async function handleAcceptDraft() {
     if (!existing) return;
     const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+    // E1: 기존 content 보호
     const result = await acceptAiDraftAction(existing.id, "changche");
-    if (result.success) {
-      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
+    if (!result.success) {
+      if ("error" in result && result.error === "CONTENT_EXISTS") {
+        if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
+        const forced = await acceptAiDraftAction(existing.id, "changche", true);
+        if (!forced.success) return;
+      } else if ("error" in result && result.error === "CONFLICT") {
+        alert("다른 사용자가 이미 수정했습니다. 페이지를 새로고침하세요.");
+        return;
+      } else {
+        return;
+      }
     }
+    queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
   }
 
   async function handleGenerateDraft() {
@@ -536,13 +560,11 @@ function ChangcheAnalysisCell({
       >
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {typeTags.length > 0 ? typeTags.slice(0, 4).map((t, i) => (
-            <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
-              EVAL_COLORS[t.evaluation || "needs_review"],
-            )}>
+            <Badge key={i} className={EVAL_COLORS[t.evaluation || "needs_review"]} size="xs">
               {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
-            </span>
+            </Badge>
           )) : (
-            <span className="text-sm text-[var(--text-placeholder)]">태그 없음</span>
+            <Empty label="태그 없음" />
           )}
           {typeTags.length > 4 && (
             <span className="text-xs text-[var(--text-tertiary)]">+{typeTags.length - 4}</span>
@@ -620,12 +642,24 @@ function ChangcheDraftCell({
   if (record.content?.trim()) summaryParts.push("가안");
   if (record.confirmed_content?.trim()) summaryParts.push("확정");
 
+  // E1: content 보호, E4: 낙관적 잠금
   const acceptAiMutation = useMutation({
     mutationFn: async () => {
       const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
-      if (record.ai_draft_content && !record.content?.trim()) {
-        const res = await acceptAiDraftAction(record.id, "changche");
-        if (!res.success) throw new Error("error" in res ? res.error : "수용 실패");
+      if (!record.ai_draft_content) return;
+      const res = await acceptAiDraftAction(record.id, "changche");
+      if (!res.success) {
+        if ("error" in res && res.error === "CONTENT_EXISTS") {
+          if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
+          const forced = await acceptAiDraftAction(record.id, "changche", true);
+          if (!forced.success && "error" in forced && forced.error === "CONFLICT") {
+            throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+          }
+        } else if ("error" in res && res.error === "CONFLICT") {
+          throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+        } else {
+          throw new Error("error" in res ? res.error : "수용 실패");
+        }
       }
     },
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
@@ -673,6 +707,7 @@ function ChangcheDraftCell({
             onSave={handleSaveContent}
             importAction={record.ai_draft_content && !record.content?.trim() ? () => acceptAiMutation.mutate() : undefined}
             importLabel="AI 초안 수용" isImporting={acceptAiMutation.isPending}
+            neisHint
           />
           {/* 확정본 */}
           <DraftBlock
@@ -680,6 +715,11 @@ function ChangcheDraftCell({
             content={record.confirmed_content}
             importAction={record.content?.trim() ? () => confirmMutation.mutate() : undefined}
             importLabel="가안 확정" isImporting={confirmMutation.isPending}
+            staleWarning={
+              // E5: 확정본이 있으나 현재 가안과 다르면 경고
+              record.confirmed_content?.trim() && record.content?.trim() && record.content !== record.confirmed_content
+                ? "가안과 다름" : undefined
+            }
           />
         </div>
       )}

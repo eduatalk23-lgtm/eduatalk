@@ -74,7 +74,8 @@ export function mapSeteks(
       subject_id: subjectId,
       imported_content: comp.content,
       imported_at: new Date().toISOString(),
-      status: "draft" as const,
+      // B5: NEIS import → 최종본 단계
+      status: "final" as const,
     });
   }
 
@@ -114,7 +115,8 @@ export function mapChangche(
       hours: act.hours || null,
       imported_content: act.content,
       imported_at: new Date().toISOString(),
-      status: "draft" as const,
+      // B5: NEIS import → 최종본 단계
+      status: "final" as const,
     });
   }
 
@@ -141,7 +143,8 @@ export function mapHaengteuk(
       school_year: schoolYear,
       imported_content: beh.content,
       imported_at: new Date().toISOString(),
-      status: "draft" as const,
+      // B5: NEIS import → 최종본 단계
+      status: "final" as const,
     };
   });
 }

@@ -18,8 +18,8 @@ export const studentRecordKeys = {
   /** schoolYear 무관 prefix 매칭 — 진단 캐시 전체 무효화용 */
   diagnosisTabPrefix: (studentId: string) =>
     [...studentRecordKeys.all, "diagnosisTab", studentId] as const,
-  storylineTab: (studentId: string) =>
-    [...studentRecordKeys.all, "storylineTab", studentId] as const,
+  storylineTab: (studentId: string, schoolYear?: number) =>
+    [...studentRecordKeys.all, "storylineTab", studentId, ...(schoolYear != null ? [schoolYear] : [])] as const,
   supplementaryTab: (studentId: string, schoolYear: number) =>
     [...studentRecordKeys.all, "supplementaryTab", studentId, schoolYear] as const,
   strategyTab: (studentId: string, schoolYear: number) =>
@@ -152,7 +152,7 @@ export function diagnosisTabQueryOptions(
 
 export function storylineTabQueryOptions(studentId: string, schoolYear: number) {
   return queryOptions({
-    queryKey: studentRecordKeys.storylineTab(studentId),
+    queryKey: studentRecordKeys.storylineTab(studentId, schoolYear),
     queryFn: async () => {
       const result = await fetchStorylineTabData(studentId, schoolYear);
       if (!result.success) throw new Error(result.error);

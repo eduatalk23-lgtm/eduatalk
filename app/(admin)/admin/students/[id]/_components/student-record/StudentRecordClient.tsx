@@ -8,7 +8,7 @@ import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotCont
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
-import { Menu, User, ChevronDown, FileText, ClipboardList, Search, Compass, Target } from "lucide-react";
+import { Menu, User, ChevronDown, ChevronUp, FileText, ClipboardList, Search, Compass, Target } from "lucide-react";
 import type { RecordSetek, RecordPersonalSetek } from "@/lib/domains/student-record";
 import {
   recordTabQueryOptions,
@@ -482,6 +482,34 @@ export function StudentRecordClient({
 
   const toggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
 
+  // ─── 빠른 섹션 이동 (Alt+↑/↓) ─────────────────
+  const allSectionIds = useMemo(() => STAGES.flatMap((s) => s.sections.map((sec) => sec.id)), []);
+
+  const jumpPrev = useCallback(() => {
+    const idx = allSectionIds.indexOf(activeSection);
+    if (idx > 0) scrollToSection(allSectionIds[idx - 1]);
+  }, [activeSection, allSectionIds, scrollToSection]);
+
+  const jumpNext = useCallback(() => {
+    const idx = allSectionIds.indexOf(activeSection);
+    if (idx < allSectionIds.length - 1) scrollToSection(allSectionIds[idx + 1]);
+  }, [activeSection, allSectionIds, scrollToSection]);
+
+  // ─── 브레드크럼: 현재 스테이지 → 스테이지 첫 섹션으로 이동 ──
+  const scrollToStageFirst = useCallback((stageId: string) => {
+    const stage = STAGES.find((s) => s.id === stageId);
+    if (stage && stage.sections.length > 0) scrollToSection(stage.sections[0].id);
+  }, [scrollToSection]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === "ArrowUp") { e.preventDefault(); jumpPrev(); }
+      if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); jumpNext(); }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [jumpPrev, jumpNext]);
+
   // G1: 활성 과목 ID (세특 레이어 탭 ↔ 사이드 패널 연결)
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [activeSchoolYear, setActiveSchoolYear] = useState<number | null>(null);
@@ -637,6 +665,17 @@ export function StudentRecordClient({
 
     return { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled };
   }, [recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData, pipelineData]);
+
+  // ─── 스테이지 탭 진행률 (탭 하단 미니 바용) ─────────────
+  const stageCompletions = useMemo<Record<string, number>>(() => {
+    const { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled } = progressCounts;
+    return {
+      record: recordTotal > 0 ? Math.round((recordFilled / recordTotal) * 100) : 0,
+      diagnosis: Math.round((diagnosisFilled / 1) * 100),
+      design: Math.round((designFilled / 7) * 100),
+      strategy: Math.round((strategyFilled / 6) * 100),
+    };
+  }, [progressCounts]);
 
   const sidebarContent = (
     <div className="flex flex-col gap-0.5 p-3">
@@ -919,29 +958,88 @@ export function StudentRecordClient({
     >
       {/* ─── 스테이지 탭 바 (데스크톱) ────────────────── */}
       <div className="hidden shrink-0 border-b border-[var(--border-secondary)] bg-[var(--surface-secondary)] px-4 md:flex">
-        {STAGES.map((stage) => (
-          <button
-            key={stage.id}
-            type="button"
-            onClick={() => {
-              const firstSection = stage.sections[0]?.id;
-              if (firstSection) scrollToSection(firstSection);
-            }}
-            className={cn(
-              "inline-flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
-              activeStage === stage.id
-                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
-                : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
-            )}
-          >
-            <span>{stage.emoji}</span>
-            {stage.label}
-          </button>
-        ))}
+        {STAGES.map((stage) => {
+          const completion = stageCompletions[stage.id] ?? 0;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => {
+                const firstSection = stage.sections[0]?.id;
+                if (firstSection) scrollToSection(firstSection);
+              }}
+              className={cn(
+                "inline-flex flex-col items-center gap-0.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+                activeStage === stage.id
+                  ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                <span>{stage.emoji}</span>
+                {stage.label}
+              </span>
+              <div className="h-0.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+                <div
+                  className="h-full rounded-full bg-indigo-400 transition-all duration-500"
+                  style={{ width: `${completion}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* ─── 메인 문서 스크롤 영역 ────────────────── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        {/* 빠른 섹션 이동 — 브레드크럼 (데스크톱) */}
+        {(() => {
+          const currentStage = STAGES.find((s) => s.sections.some((sec) => sec.id === activeSection));
+          const sectionIndex = currentStage?.sections.findIndex((s) => s.id === activeSection) ?? 0;
+          const totalSections = currentStage?.sections.length ?? 0;
+          return (
+            <div className="sticky top-0 z-20 hidden items-center gap-1.5 border-b border-[var(--border-secondary)] bg-[var(--background)]/95 px-4 py-1 backdrop-blur md:flex">
+              {/* 스테이지 select */}
+              <select
+                value={currentStage?.id ?? "record"}
+                onChange={(e) => scrollToStageFirst(e.target.value)}
+                className="rounded border border-[var(--border-primary)] bg-transparent px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                {STAGES.map((s) => (
+                  <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>
+                ))}
+              </select>
+
+              <span className="text-[var(--text-tertiary)]">›</span>
+
+              {/* 섹션 select (현재 스테이지의 섹션만) */}
+              <select
+                value={activeSection}
+                onChange={(e) => scrollToSection(e.target.value)}
+                className="rounded border border-[var(--border-primary)] bg-transparent px-2 py-0.5 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                {currentStage?.sections.map((sec) => (
+                  <option key={sec.id} value={sec.id}>
+                    {sec.number ? `${sec.number}. ` : ""}{sec.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* 위치 표시 */}
+              <span className="text-xs text-[var(--text-placeholder)]">
+                ({sectionIndex + 1}/{totalSections})
+              </span>
+
+              <button type="button" onClick={jumpPrev} className="rounded p-0.5 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]" title="이전 섹션 (Alt+↑)">
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={jumpNext} className="rounded p-0.5 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]" title="다음 섹션 (Alt+↓)">
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              <span className="ml-auto text-xs text-[var(--text-placeholder)]">Alt+↑↓</span>
+            </div>
+          );
+        })()}
         {/* 모바일 상단 컨트롤 */}
         <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border-secondary)] bg-[var(--background)]/95 px-4 py-2 backdrop-blur md:hidden">
           <button
@@ -1387,6 +1485,9 @@ export function StudentRecordClient({
 
           {/* 동일과목 세특 비교 + 크로스레퍼런스 */}
           <StrategySection id="sec-diagnosis-crossref" title="교차 분석">
+            <p className="mb-3 text-xs text-[var(--text-tertiary)]">
+              AI가 세특·창체·행특 간 자동 감지한 연결입니다. 이를 바탕으로 설계 탭의 &ldquo;스토리라인&rdquo;을 구성할 수 있습니다.
+            </p>
             {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
               <div className="flex flex-col gap-4">
                 {/* 같은 학교 동일 과목 세특 참고 */}
@@ -1458,7 +1559,7 @@ export function StudentRecordClient({
           </StrategySection>
 
           {/* ─── 📐 설계 스테이지 구분선 ──────────── */}
-          <StageDivider emoji="📐" label="설계" />
+          <StageDivider emoji="📐" label="설계" hint="전체 학년 통합 뷰" />
 
           {/* Phase B: AI 초기 분석 결과 패널 */}
           <div data-section-id="sec-pipeline-results">
@@ -1477,6 +1578,9 @@ export function StudentRecordClient({
 
           {/* ─── 스토리라인 ───────────────────────── */}
           <StrategySection id="sec-storyline" title="스토리라인">
+            <p className="mb-3 text-xs text-[var(--text-tertiary)]">
+              학생의 3개년 성장 서사를 직접 구성합니다. AI가 감지한 활동 간 연결은 진단 탭의 &ldquo;교차 분석&rdquo;에서 확인할 수 있습니다.
+            </p>
             {storylineLoading ? <SectionSkeleton /> : storylineData ? (
               <div className="flex flex-col gap-6">
                 <StorylineManager storylines={storylineData.storylines} studentId={studentId} tenantId={tenantId} />
@@ -1583,7 +1687,7 @@ export function StudentRecordClient({
           </StrategySection>
 
           {/* ─── 🎯 전략 스테이지 구분선 ──────────── */}
-          <StageDivider emoji="🎯" label="전략" />
+          <StageDivider emoji="🎯" label="전략" hint="전체 학년 통합 뷰" />
 
           {/* ─── 지원현황 ────────────────────────── */}
           <StrategySection id="sec-applications" title="지원현황">
@@ -2032,12 +2136,17 @@ function SectionSkeleton() {
 
 // ─── 스테이지 구분선 ──────────────────────────────────
 
-function StageDivider({ emoji, label }: { emoji: string; label: string }) {
+function StageDivider({ emoji, label, hint }: { emoji: string; label: string; hint?: string }) {
   return (
     <div className="sticky top-0 z-10 -mx-4 my-8 border-y border-gray-200 bg-gray-50/90 px-4 py-2.5 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/90 sm:-mx-6 sm:px-6">
-      <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
-        {emoji} {label}
-      </span>
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
+          {emoji} {label}
+        </span>
+        {hint && (
+          <span className="text-xs text-[var(--text-tertiary)]">{hint}</span>
+        )}
+      </div>
     </div>
   );
 }

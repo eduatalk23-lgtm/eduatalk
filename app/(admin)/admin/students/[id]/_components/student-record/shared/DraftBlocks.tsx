@@ -47,6 +47,8 @@ export function DraftBlock({
   importAction,
   importLabel,
   isImporting,
+  staleWarning,
+  neisHint,
 }: {
   label: string;
   style: DraftBlockStyle;
@@ -57,6 +59,10 @@ export function DraftBlock({
   importAction?: () => void;
   importLabel?: string;
   isImporting?: boolean;
+  /** E5: 확정본이 가안과 달라졌을 때 표시할 경고 문구. truthy 면 헤더 옆에 경고 배지를 렌더. */
+  staleWarning?: string;
+  /** C10: NEIS 탭 편집 내용과 동일함을 알리는 힌트 표시 */
+  neisHint?: boolean;
 }) {
   const [value, setValue] = useState(content ?? "");
   // prop → state 동기화 (렌더 중 상태 조정)
@@ -75,7 +81,15 @@ export function DraftBlock({
     <div className={cn("rounded-lg border", style.border)}>
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5" style={{ borderColor: "inherit" }}>
-        <span className={cn("text-sm font-semibold", style.text)}>{label}</span>
+        <div className="flex items-center gap-2">
+          <span className={cn("text-sm font-semibold", style.text)}>{label}</span>
+          {/* E5: 확정본이 가안과 달라졌을 때 경고 배지 */}
+          {staleWarning && (
+            <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              {staleWarning}
+            </span>
+          )}
+        </div>
         {importAction && (
           <button
             type="button"
@@ -90,6 +104,12 @@ export function DraftBlock({
       </div>
       {/* 본문 */}
       <div className={cn("p-3", style.bg)}>
+        {/* C10: NEIS 탭 연결 안내 */}
+        {neisHint && (
+          <p className="mb-1.5 text-xs text-[var(--text-tertiary)]">
+            ※ NEIS 탭에서 편집하는 내용과 동일합니다
+          </p>
+        )}
         {editable && onSave ? (
           <div className="flex flex-col gap-1">
             <AutoResizeTextarea
@@ -134,6 +154,8 @@ export function MultiRecordDraftBlock<R extends DraftRecord>({
   importAction,
   importLabel,
   isImporting,
+  staleWarning,
+  neisHint,
 }: {
   label: string;
   style: DraftBlockStyle;
@@ -145,6 +167,10 @@ export function MultiRecordDraftBlock<R extends DraftRecord>({
   importAction?: () => void;
   importLabel?: string;
   isImporting?: boolean;
+  /** E5: 확정본이 가안과 달라졌을 때 표시할 경고 문구 */
+  staleWarning?: string;
+  /** C10: NEIS 탭 편집 내용과 동일함을 알리는 힌트 표시 */
+  neisHint?: boolean;
 }) {
   return (
     <div className={cn("rounded-lg border", style.border)}>
@@ -155,6 +181,12 @@ export function MultiRecordDraftBlock<R extends DraftRecord>({
           <span className="text-xs text-[var(--text-tertiary)]">
             {records.filter((r) => getContent(r)?.trim()).length}/{records.length}건
           </span>
+          {/* E5: 확정본이 가안과 달라졌을 때 경고 배지 */}
+          {staleWarning && (
+            <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              {staleWarning}
+            </span>
+          )}
         </div>
         {importAction && (
           <button
@@ -170,6 +202,12 @@ export function MultiRecordDraftBlock<R extends DraftRecord>({
       </div>
       {/* 본문 */}
       <div className={cn("flex flex-col gap-2 p-3", style.bg)}>
+        {/* C10: NEIS 탭 연결 안내 */}
+        {neisHint && (
+          <p className="text-xs text-[var(--text-tertiary)]">
+            ※ NEIS 탭에서 편집하는 내용과 동일합니다
+          </p>
+        )}
         {records.map((record, idx) => {
           const text = getContent(record);
           return (

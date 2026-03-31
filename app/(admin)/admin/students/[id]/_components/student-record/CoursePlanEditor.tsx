@@ -413,11 +413,37 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
         );
       })}
 
-      {/* 적합도 미리보기 */}
+      {/* 적합도 배너 (상시 표시) */}
       {adequacy && (
         <div className="rounded-lg border border-[var(--border-primary)] p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-sm font-medium text-[var(--text-primary)]">교과 이수 적합도</h4>
+          {/* 요약 배너 — 항상 표시 */}
+          <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-800 dark:bg-blue-950/20">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                교과 이수 적합도: {adequacy.completed?.score ?? 0}%
+              </span>
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-medium",
+                (adequacy.completed?.score ?? 0) >= 80
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  : (adequacy.completed?.score ?? 0) >= 60
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+              )}>
+                {(adequacy.completed?.score ?? 0) >= 80 ? "우수" : (adequacy.completed?.score ?? 0) >= 60 ? "보통" : "부족"}
+              </span>
+            </div>
+            {(adequacy.completed?.notTaken?.length ?? 0) > 0 && (
+              <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                미이수 추천 과목: {(adequacy.completed?.notTaken ?? []).slice(0, 3).join(", ")}
+                {(adequacy.completed?.notTaken?.length ?? 0) > 3 && ` 외 ${(adequacy.completed?.notTaken?.length ?? 0) - 3}개`}
+              </p>
+            )}
+          </div>
+
+          {/* 상세 바 */}
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-[var(--text-primary)]">상세</h4>
             <button
               onClick={() => setShowPlannedAdequacy(!showPlannedAdequacy)}
               className="text-xs text-blue-600 hover:underline dark:text-blue-400"
@@ -425,26 +451,28 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
               {showPlannedAdequacy ? "이수만 보기" : "확정 포함 보기"}
             </button>
           </div>
-          <AdequacyBar
-            label="현재 (이수 과목)"
-            score={adequacy.completed?.score ?? 0}
-            active={!showPlannedAdequacy}
-          />
-          {showPlannedAdequacy && (
-            <div className="mt-2">
-              <AdequacyBar
-                label="계획 반영 (이수 + 확정)"
-                score={adequacy.planned?.score ?? 0}
-                active
-              />
-              {adequacy.completed && adequacy.planned && (
-                <p className="mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                  <ArrowRight className="h-3 w-3" />
-                  +{(adequacy.planned.score ?? 0) - (adequacy.completed.score ?? 0)}%p 개선 예상
-                </p>
-              )}
-            </div>
-          )}
+          <div className="mt-2">
+            <AdequacyBar
+              label="현재 (이수 과목)"
+              score={adequacy.completed?.score ?? 0}
+              active={!showPlannedAdequacy}
+            />
+            {showPlannedAdequacy && (
+              <div className="mt-2">
+                <AdequacyBar
+                  label="계획 반영 (이수 + 확정)"
+                  score={adequacy.planned?.score ?? 0}
+                  active
+                />
+                {adequacy.completed && adequacy.planned && (
+                  <p className="mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                    <ArrowRight className="h-3 w-3" />
+                    +{(adequacy.planned.score ?? 0) - (adequacy.completed.score ?? 0)}%p 개선 예상
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

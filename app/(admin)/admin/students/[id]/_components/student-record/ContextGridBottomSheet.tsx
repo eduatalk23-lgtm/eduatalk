@@ -17,7 +17,7 @@ import { useStudentRecordContext } from "./StudentRecordContext";
 import { recordTabQueryOptions, diagnosisTabQueryOptions } from "@/lib/query-options/studentRecord";
 import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordSetek, RecordChangche, RecordHaengteuk } from "@/lib/domains/student-record";
-import type { SetekLayerTab, MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
+import type { MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
 import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
 import type { SubjectNavItem } from "./StudentRecordClient";
 
@@ -32,12 +32,14 @@ function detectIdKind(id: string | null | undefined): ActiveIdKind | null {
   return "setek";
 }
 
-// ─── 상수 ──
+// ─── ContextGrid 전용 열 타입 (에디터 탭과 별개) ──
 
-const DEFAULT_COLUMNS: SetekLayerTab[] = ["draft", "neis", "analysis"];
+export type GridColumnKey = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
+
+const DEFAULT_COLUMNS: GridColumnKey[] = ["draft", "neis", "analysis"];
 const MAX_COLUMNS = 3;
-const SELECTABLE_COLS: SetekLayerTab[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
-const COL_LABELS: Record<SetekLayerTab, string> = {
+const SELECTABLE_COLS: GridColumnKey[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
+const COL_LABELS: Record<GridColumnKey, string> = {
   chat: "논의", guide: "가이드", direction: "방향", draft: "가안", neis: "NEIS", analysis: "분석", memo: "메모",
 };
 
@@ -94,9 +96,9 @@ export function ContextGridBottomSheet({
 
   // ─── localStorage 영속 상태 ──
 
-  const [selectedColumns, setSelectedColumns] = useState<SetekLayerTab[]>(() =>
+  const [selectedColumns, setSelectedColumns] = useState<GridColumnKey[]>(() =>
     readLS(LS_KEY_COLUMNS, DEFAULT_COLUMNS, (v) => {
-      const parsed = JSON.parse(v) as SetekLayerTab[];
+      const parsed = JSON.parse(v) as GridColumnKey[];
       return Array.isArray(parsed) && parsed.length > 0 && parsed.length <= MAX_COLUMNS ? parsed : null;
     }),
   );
@@ -204,12 +206,12 @@ export function ContextGridBottomSheet({
 
   // ─── 열 선택 ──
 
-  const handleColumnsChange = useCallback((cols: SetekLayerTab[]) => {
+  const handleColumnsChange = useCallback((cols: GridColumnKey[]) => {
     if (cols.length > MAX_COLUMNS) return;
     setSelectedColumns(cols);
   }, []);
 
-  const handleColumnToggle = useCallback((col: SetekLayerTab) => {
+  const handleColumnToggle = useCallback((col: GridColumnKey) => {
     setSelectedColumns((prev) => {
       if (prev.includes(col)) {
         if (prev.length <= 1) return prev;
@@ -233,7 +235,7 @@ export function ContextGridBottomSheet({
 
   // ─── 열 선택: activeKind에 따라 사용 가능한 열 필터링 ──
 
-  const availableCols = useMemo<SetekLayerTab[]>(() => {
+  const availableCols = useMemo<GridColumnKey[]>(() => {
     if (activeKind === "setek") return SELECTABLE_COLS;
     // changche/haengteuk: direction 없음
     return SELECTABLE_COLS.filter((c) => c !== "direction");
@@ -327,52 +329,53 @@ export function ContextGridBottomSheet({
 
   return (
     <>
-      {/* 배경 오버레이 */}
+      {/* 전체화면 그리드 */}
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px] transition-opacity duration-300",
-          isOpen ? "opacity-100" : "opacity-0",
+          "fixed inset-0 z-50 flex flex-col bg-white transition-opacity duration-300 ease-out dark:bg-gray-900",
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
-        onClick={close}
-      />
-
-      {/* 바텀시트 */}
-      <div
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t border-gray-200 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-out dark:border-gray-700 dark:bg-gray-900",
-          isOpen ? "translate-y-0" : "translate-y-full",
-        )}
-        style={{ height: "80vh" }}
       >
-        {/* 헤더: 열 선택(좌~중앙) | 학생컨텍스트+닫기(우) */}
-        <div className="flex-shrink-0 border-b border-gray-100 px-5 pt-2 pb-2 dark:border-gray-800">
-          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+        {/* 헤더 */}
+        <div className="flex-shrink-0 border-b border-gray-200 px-5 py-2.5 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            {/* 열 선택 */}
-            <div className="flex flex-1 items-center gap-1.5">
-              {availableCols.map((col) => {
-                const active = selectedColumns.includes(col);
-                const disabled = !active && selectedColumns.length >= MAX_COLUMNS;
-                return (
-                  <button
-                    key={col}
-                    type="button"
-                    onClick={() => handleColumnToggle(col)}
-                    disabled={disabled}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded px-2.5 py-1 text-sm font-medium transition-colors",
-                      active
-                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                        : disabled
-                          ? "bg-gray-50 text-gray-300 cursor-not-allowed dark:bg-gray-900 dark:text-gray-600"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700",
-                    )}
-                  >
-                    {active && <Check className="h-3.5 w-3.5" />}
-                    {COL_LABELS[col]}
-                  </button>
-                );
-              })}
+            {/* 비교 열 선택 (GlobalLayerBar와 시각적 구분 — 체크박스 토글) */}
+            <div className="flex flex-1 items-center gap-2">
+              <span className="shrink-0 text-xs text-[var(--text-tertiary)]">비교 열</span>
+              <div className="flex items-center gap-1">
+                {availableCols.map((col) => {
+                  const active = selectedColumns.includes(col);
+                  const disabled = !active && selectedColumns.length >= MAX_COLUMNS;
+                  return (
+                    <button
+                      key={col}
+                      type="button"
+                      onClick={() => handleColumnToggle(col)}
+                      disabled={disabled}
+                      aria-pressed={active}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium transition-colors",
+                        active
+                          ? "border-gray-400 bg-white text-gray-900 dark:border-gray-500 dark:bg-gray-800 dark:text-gray-100"
+                          : disabled
+                            ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-gray-600"
+                            : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700",
+                      )}
+                    >
+                      <span className={cn(
+                        "inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border",
+                        active
+                          ? "border-indigo-500 bg-indigo-500 text-white dark:border-indigo-400 dark:bg-indigo-500"
+                          : "border-gray-300 dark:border-gray-600",
+                      )}>
+                        {active && <Check className="h-2.5 w-2.5" />}
+                      </span>
+                      {COL_LABELS[col]}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="shrink-0 text-xs text-[var(--text-placeholder)]">최대 {MAX_COLUMNS}개</span>
             </div>
 
             {/* 우: AI 어시스턴트 + 학생 컨텍스트 + 닫기 */}
@@ -485,7 +488,7 @@ function SimplifiedRecordView({
   content: string;
   tags: AnalysisTagLike[];
   charLimit: number;
-  selectedColumns: SetekLayerTab[];
+  selectedColumns: GridColumnKey[];
   draftContent: string | null;
   consultantContent: string | null;
   confirmedContent: string | null;

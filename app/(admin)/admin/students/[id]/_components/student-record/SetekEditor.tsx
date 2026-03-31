@@ -12,7 +12,7 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote, ChevronDown, Trash2, Check } from "lucide-react";
+import { FileText, Search, Compass, MessageSquare, ClipboardList, PenLine, ChevronDown, Trash2, Check } from "lucide-react";
 import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
 import { AnalysisBlock, toHighlightTags } from "./shared/AnalysisBlocks";
@@ -24,10 +24,11 @@ import type { CourseAdequacyResult } from "@/lib/domains/student-record";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import { InlineAreaMemos } from "./InlineAreaMemos";
 import { MultiRecordDraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
+import { computeRecordStage, GRADE_STAGE_CONFIG } from "@/lib/domains/student-record/grade-stage";
 
 type Subject = { id: string; name: string };
 
-export type SetekLayerTab = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
+export type SetekLayerTab = "neis" | "draft" | "direction" | "analysis";
 
 type ActivityTagLike = AnalysisTagLike;
 
@@ -108,18 +109,15 @@ function mergeSeteksBySemester(seteks: RecordSetek[], subjects: Subject[]): Merg
 // ─── 메인 컴포넌트 ──────────────────────────────────
 
 const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[] = [
-  { key: "chat", label: "논의", icon: MessageSquare },
-  { key: "guide", label: "가이드", icon: BookOpen },
-  { key: "direction", label: "방향", icon: Compass },
-  { key: "draft", label: "가안", icon: PenLine },
   { key: "neis", label: "NEIS", icon: FileText },
+  { key: "draft", label: "가안", icon: PenLine },
+  { key: "direction", label: "방향", icon: Compass },
   { key: "analysis", label: "분석", icon: Search },
-  { key: "memo", label: "메모", icon: StickyNote },
 ];
 
 const COL_HEADER_LABEL: Record<SetekLayerTab, string> = {
   neis: "세부능력 및 특기사항", draft: "세특 가안", direction: "작성 방향",
-  guide: "활동 가이드", analysis: "역량 분석", memo: "메모", chat: "논의",
+  analysis: "역량 분석",
 };
 
 const COMPETENCY_LABELS: Record<string, string> = {
@@ -218,9 +216,7 @@ export function SetekEditor({
           const hasData = tab.key === "neis" ? seteks.length > 0
             : tab.key === "draft" ? seteks.some((s) => s.content?.trim() || s.ai_draft_content || s.confirmed_content?.trim())
             : tab.key === "analysis" ? filteredTags.length > 0
-            : tab.key === "guide" ? (guideAssignments?.length ?? 0) > 0
             : tab.key === "direction" ? filteredGuideItems.length > 0
-            : tab.key === "memo" ? true
             : false;
           return (
             <button
@@ -369,54 +365,7 @@ export function SetekEditor({
         </div>
       )}
 
-      {/* ─── 📘 가이드 탭 ──────────────────────────── */}
-      {activeTab === "guide" && (
-        <div className="flex flex-col gap-2">
-          {!guideAssignments || guideAssignments.length === 0 ? (
-            <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
-              이 영역에 배정된 탐구 가이드가 없습니다
-            </p>
-          ) : (
-            guideAssignments.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 rounded-lg border border-[var(--border-secondary)] p-3">
-                <BookOpen className="h-4 w-4 shrink-0 text-indigo-500" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                    {a.exploration_guides?.title ?? "가이드"}
-                  </p>
-                  {a.exploration_guides?.guide_type && (
-                    <p className="text-xs text-[var(--text-tertiary)]">{a.exploration_guides.guide_type}</p>
-                  )}
-                </div>
-                <span className={cn(
-                  "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                  a.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                  a.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                  "bg-gray-100 text-gray-600",
-                )}>
-                  {a.status === "completed" ? "완료" : a.status === "in_progress" ? "진행중" : "배정됨"}
-                </span>
-              </div>
-            ))
-          )}
-
-          {/* G2-5: 추천 가이드 */}
-          <SetekGuideRecommendations
-            studentId={studentId}
-            schoolYear={schoolYear}
-            studentGrade={grade}
-            schoolName={schoolName ?? undefined}
-            classificationId={studentClassificationId}
-            subjectName={mergedRows[0]?.displayName}
-            assignedGuideIds={new Set(guideAssignments?.map((a) => a.guide_id) ?? [])}
-            onAssigned={() => {
-              // SetekGuideRecommendations 내부에서 이미 invalidation 처리
-            }}
-          />
-        </div>
-      )}
-
-      {/* ─── 📝 방향 탭 ──────────────────────────── */}
+      {/* ─── 📝 방향 탭 (+ 가이드 배정 목록 통합) ──────────────────────────── */}
       {activeTab === "direction" && (
         <div className="flex flex-col gap-3">
           {filteredGuideItems.length === 0 ? (
@@ -486,7 +435,22 @@ export function SetekEditor({
             ))
           )}
 
-          {/* 메모는 별도 📋메모 탭으로 분리됨 */}
+          {/* 가이드 배정 목록 */}
+          {guideAssignments && guideAssignments.length > 0 && (
+            <div className="flex flex-col gap-1.5 border-t border-[var(--border-secondary)] pt-3">
+              <p className="text-xs font-medium text-[var(--text-secondary)]">배정된 탐구 가이드</p>
+              {guideAssignments.map((a) => (
+                <div key={a.id} className="flex items-center gap-2 rounded border border-[var(--border-secondary)] px-2 py-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0",
+                    a.status === "completed" ? "bg-emerald-500" : a.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
+                  <span className="truncate text-xs text-[var(--text-primary)]">{a.exploration_guides?.title ?? "가이드"}</span>
+                  <span className="shrink-0 text-[11px] text-[var(--text-tertiary)]">
+                    {a.status === "completed" ? "완료" : a.status === "in_progress" ? "진행중" : "배정됨"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -627,10 +591,24 @@ function SetekTableRow({
     }
   };
 
+  // B7: 과목 기준 단계 계산 (가장 높은 단계 기준)
+  const rowStage = (() => {
+    const stages = row.records.map(computeRecordStage);
+    const order = ["final", "confirmed", "consultant", "ai_draft", "prospective"] as const;
+    for (const s of order) {
+      if (stages.includes(s)) return s;
+    }
+    return "prospective" as const;
+  })();
+  const stageConfig = GRADE_STAGE_CONFIG[rowStage];
+
   const subjectCell = (rowSpan?: number) => (
     <td rowSpan={rowSpan} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>
       <div className="flex flex-col items-center gap-0.5">
         <span>{row.displayName}</span>
+        <span className={cn("inline-block rounded-full px-1.5 py-0 text-xs font-medium", stageConfig.bgClass, stageConfig.textClass)}>
+          {stageConfig.label}
+        </span>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -733,20 +711,6 @@ function SetekTableRow({
             </div>
           )}
 
-          {activeTab === "chat" && (
-            <button
-              type="button"
-              onClick={() => {
-                ctx?.setActiveSubjectId?.(row.subjectId);
-                sidePanel?.openApp?.("chat");
-              }}
-              className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
-            >
-              <MessageSquare className="h-3 w-3" />
-              {row.displayName} 논의
-            </button>
-          )}
-
           {activeTab === "draft" && (
             <DraftExpandableCell
               records={row.records}
@@ -755,15 +719,6 @@ function SetekTableRow({
               tenantId={tenantId}
               grade={grade}
               charLimit={charLimit}
-            />
-          )}
-
-          {activeTab === "memo" && (
-            <InlineAreaMemos
-              studentId={studentId}
-              areaType="setek"
-              areaId={row.subjectId}
-              areaLabel={row.displayName}
             />
           )}
         </td>
@@ -857,10 +812,21 @@ function SetekInlineEditor({
     const { acceptAiDraftAction } = await import(
       "@/lib/domains/student-record/actions/confirm"
     );
+    // E1: 먼저 force=false 로 호출 — 기존 content 가 있으면 CONTENT_EXISTS 반환
     const result = await acceptAiDraftAction(setek.id, "setek");
-    if (result.success) {
-      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
+    if (!result.success) {
+      if ("error" in result && result.error === "CONTENT_EXISTS") {
+        if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
+        const forced = await acceptAiDraftAction(setek.id, "setek", true);
+        if (!forced.success) return;
+      } else if ("error" in result && result.error === "CONFLICT") {
+        alert("다른 사용자가 이미 수정했습니다. 페이지를 새로고침하세요.");
+        return;
+      } else {
+        return;
+      }
     }
+    queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
   }
 
   return (
@@ -1228,14 +1194,25 @@ function DraftExpandableCell({
   if (records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
   if (records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
 
-  // AI 초안 → 컨설턴트 가안 수용
+  // AI 초안 → 컨설턴트 가안 수용 (E1: content 보호, E4: 낙관적 잠금)
   const acceptAiMutation = useMutation({
     mutationFn: async () => {
       const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
       for (const r of records) {
-        if (r.ai_draft_content && !r.content?.trim()) {
-          const res = await acceptAiDraftAction(r.id, "setek");
-          if (!res.success) throw new Error("error" in res ? res.error : "수용 실패");
+        if (!r.ai_draft_content) continue;
+        const res = await acceptAiDraftAction(r.id, "setek");
+        if (!res.success) {
+          if ("error" in res && res.error === "CONTENT_EXISTS") {
+            if (!confirm(`${r.semester}학기 세특에 기존 가안이 있습니다. AI 초안으로 덮어쓰시겠습니까?`)) continue;
+            const forced = await acceptAiDraftAction(r.id, "setek", true);
+            if (!forced.success && "error" in forced && forced.error === "CONFLICT") {
+              throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+            }
+          } else if ("error" in res && res.error === "CONFLICT") {
+            throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+          } else {
+            throw new Error("error" in res ? res.error : "수용 실패");
+          }
         }
       }
     },
@@ -1301,8 +1278,13 @@ function DraftExpandableCell({
             onSave={handleSaveContent}
             charLimit={charLimit}
             importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
-            importLabel="AI 초안 수용"
+            importLabel={(() => {
+              // C9: 수용 대상 건수 표시
+              const acceptableCount = records.filter((r) => r.ai_draft_content && !r.content?.trim()).length;
+              return acceptableCount > 1 ? `AI 초안 수용 (${acceptableCount}건)` : "AI 초안 수용";
+            })()}
             isImporting={acceptAiMutation.isPending}
+            neisHint
           />
           <MultiRecordDraftBlock
             label="확정본"
@@ -1310,8 +1292,18 @@ function DraftExpandableCell({
             records={records}
             getContent={(r) => r.confirmed_content}
             importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
-            importLabel="가안 확정"
+            importLabel={(() => {
+              // C9: 확정 대상 건수 표시
+              const confirmableCount = records.filter((r) => r.content?.trim()).length;
+              return confirmableCount > 1 ? `가안 확정 (${confirmableCount}건)` : "가안 확정";
+            })()}
             isImporting={confirmMutation.isPending}
+            staleWarning={
+              // E5: 확정본이 있으나 현재 가안과 내용이 다른 레코드가 하나라도 있으면 경고
+              records.some(
+                (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
+              ) ? "가안과 다름" : undefined
+            }
           />
         </div>
       )}

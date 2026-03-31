@@ -15,6 +15,25 @@ import { Sparkles, Check, Loader2, AlertCircle, X, ChevronRight, TriangleAlert, 
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 
+// ─── Phase 그룹 정의 ─────────────────────────────────────
+const PHASES: Array<{ label: string; description: string; keys: PipelineTaskKey[] }> = [
+  {
+    label: "Phase 1",
+    description: "기록 분석",
+    keys: ["competency_analysis", "storyline_generation", "edge_computation", "guide_matching"],
+  },
+  {
+    label: "Phase 2",
+    description: "진단 + 추천",
+    keys: ["ai_diagnosis", "course_recommendation", "bypass_analysis"],
+  },
+  {
+    label: "Phase 3",
+    description: "방향 + 전략",
+    keys: ["setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  },
+];
+
 interface PipelineSidebarWidgetProps {
   studentId: string;
   tenantId: string;
@@ -96,7 +115,7 @@ export function PipelineSidebarWidget({
 
   const isActionPending = runMutation.isPending || resumeMutation.isPending || rerunTaskMutation.isPending;
 
-  // 완료 후 10초 → badge 축소 (렌더 중 상태 조정 + 비동기 축소)
+  // 완료 후 30초 → badge 축소 (렌더 중 상태 조정 + 비동기 축소)
   const pipelineStatus = pipeline?.status ?? null;
   const [prevStatus, setPrevStatus] = useState(pipelineStatus);
   if (pipelineStatus !== prevStatus) {
@@ -107,7 +126,7 @@ export function PipelineSidebarWidget({
   }
   useEffect(() => {
     if (pipelineStatus === "completed" || pipelineStatus === "failed") {
-      const timer = setTimeout(() => setCollapsed(true), 10_000);
+      const timer = setTimeout(() => setCollapsed(true), 30_000);
       return () => clearTimeout(timer);
     }
   }, [pipelineStatus]);
@@ -177,6 +196,11 @@ export function PipelineSidebarWidget({
 
   // 완료 후 축소 → badge
   if (collapsed && (pipeline.status === "completed" || pipeline.status === "failed")) {
+    const topPreviews = Object.entries(pipeline.taskPreviews)
+      .filter(([, v]) => v)
+      .slice(0, 3)
+      .map(([, v]) => (v.split("—").pop()?.trim() ?? v).slice(0, 10))
+      .join(" · ");
     return (
       <button
         type="button"
@@ -189,12 +213,15 @@ export function PipelineSidebarWidget({
         )}
       >
         {pipeline.status === "completed" ? (
-          <Check className="h-3 w-3" />
+          <Check className="h-3 w-3 shrink-0" />
         ) : (
-          <AlertCircle className="h-3 w-3" />
+          <AlertCircle className="h-3 w-3 shrink-0" />
         )}
-        AI 분석 {completedCount}/{PIPELINE_TASK_KEYS.length}
-        <ChevronRight className="ml-auto h-3 w-3" />
+        <span className="truncate">
+          AI 분석 {completedCount}/{PIPELINE_TASK_KEYS.length}
+          {topPreviews && <span className="ml-1 text-[var(--text-tertiary)]">— {topPreviews}</span>}
+        </span>
+        <ChevronRight className="ml-auto h-3 w-3 shrink-0" />
       </button>
     );
   }
@@ -248,48 +275,93 @@ export function PipelineSidebarWidget({
         </div>
       )}
 
-      <div className="mt-1.5 flex flex-col gap-1">
-        {PIPELINE_TASK_KEYS.map((key) => {
-          const status = pipeline.tasks[key] ?? "pending";
-          const preview = pipeline.taskPreviews[key];
-          const Icon = TASK_ICONS[status];
-
-          const canRerun = (status === "completed" || status === "failed") && pipeline.status !== "running";
+      <div className="mt-1.5 flex flex-col gap-2">
+        {PHASES.map((phase) => {
+          const phaseStatuses = phase.keys.map((k) => pipeline.tasks[k] ?? "pending");
+          const completedInPhase = phaseStatuses.filter((s) => s === "completed").length;
+          const allCompleted = completedInPhase === phase.keys.length;
+          const anyRunning = phaseStatuses.some((s) => s === "running");
+          const allPending = phaseStatuses.every((s) => s === "pending");
 
           return (
-            <div key={key} className="group flex items-center gap-1.5">
-              <Icon
-                className={cn(
-                  "h-3 w-3 shrink-0",
-                  status === "completed" && "text-emerald-500",
-                  status === "running" && "animate-spin text-indigo-500",
-                  status === "failed" && "text-red-500",
-                  status === "pending" && "text-[var(--text-tertiary)] opacity-30",
-                )}
-              />
-              <span className={cn(
-                "flex-1 truncate text-[10px]",
-                status === "pending" ? "text-[var(--text-tertiary)]" : "text-[var(--text-secondary)]",
-              )}>
-                {PIPELINE_TASK_LABELS[key]}
-                {preview && status === "completed" && (
-                  <span className="text-[var(--text-tertiary)]"> — {preview}</span>
-                )}
-              </span>
-              {canRerun && (
-                <button
-                  type="button"
-                  title={`${PIPELINE_TASK_LABELS[key]} 재실행`}
-                  onClick={() => rerunTaskMutation.mutate(key)}
-                  disabled={isActionPending}
-                  className="shrink-0 rounded p-0.5 text-[var(--text-tertiary)] opacity-0 hover:text-indigo-600 group-hover:opacity-100 disabled:opacity-30"
-                >
-                  {rerunningTask === key ? (
-                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-2.5 w-2.5" />
-                  )}
-                </button>
+            <div key={phase.label}>
+              {/* Phase 헤더 */}
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className={cn(
+                  "text-[10px] font-semibold shrink-0",
+                  allCompleted ? "text-emerald-600 dark:text-emerald-400" :
+                    anyRunning ? "text-indigo-600 dark:text-indigo-400" :
+                      "text-[var(--text-tertiary)]",
+                )}>
+                  {phase.label}
+                </span>
+                <div className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div
+                    className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+                    style={{ width: `${Math.round((completedInPhase / phase.keys.length) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[9px] text-[var(--text-placeholder)] shrink-0">{phase.description}</span>
+              </div>
+
+              {/* Phase 내 태스크 목록 */}
+              {allCompleted ? (
+                <div className="flex flex-wrap gap-x-2 gap-y-0.5 pl-1">
+                  {phase.keys.map((k) => (
+                    <span key={k} className="text-[9px] text-emerald-600 dark:text-emerald-400">
+                      ✓ {PIPELINE_TASK_LABELS[k]}
+                    </span>
+                  ))}
+                </div>
+              ) : allPending ? (
+                <p className="pl-1 text-[9px] text-[var(--text-placeholder)]">{phase.keys.length}개 대기</p>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  {phase.keys.map((k) => {
+                    const status = pipeline.tasks[k] ?? "pending";
+                    const preview = pipeline.taskPreviews[k];
+                    const Icon = TASK_ICONS[status];
+                    const canRerun = (status === "completed" || status === "failed") && pipeline.status !== "running";
+
+                    return (
+                      <div key={k} className="group flex items-center gap-1.5">
+                        <Icon
+                          className={cn(
+                            "h-3 w-3 shrink-0",
+                            status === "completed" && "text-emerald-500",
+                            status === "running" && "animate-spin text-indigo-500",
+                            status === "failed" && "text-red-500",
+                            status === "pending" && "text-[var(--text-tertiary)] opacity-30",
+                          )}
+                        />
+                        <span className={cn(
+                          "flex-1 truncate text-[10px]",
+                          status === "pending" ? "text-[var(--text-tertiary)]" : "text-[var(--text-secondary)]",
+                        )}>
+                          {PIPELINE_TASK_LABELS[k]}
+                          {preview && status === "completed" && (
+                            <span className="text-[var(--text-tertiary)]"> — {preview}</span>
+                          )}
+                        </span>
+                        {canRerun && (
+                          <button
+                            type="button"
+                            title={`${PIPELINE_TASK_LABELS[k]} 재실행`}
+                            onClick={() => rerunTaskMutation.mutate(k)}
+                            disabled={isActionPending}
+                            className="shrink-0 rounded p-0.5 text-[var(--text-tertiary)] opacity-0 hover:text-indigo-600 group-hover:opacity-100 disabled:opacity-30"
+                          >
+                            {rerunningTask === k ? (
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-2.5 w-2.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           );

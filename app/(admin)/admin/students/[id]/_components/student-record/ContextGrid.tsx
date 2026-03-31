@@ -31,7 +31,8 @@ const DirectionFromChatPanel = dynamic(
     import("./DirectionFromChatPanel").then((m) => ({ default: m.DirectionFromChatPanel })),
   { ssr: false },
 );
-import type { SetekLayerTab, MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
+import type { MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
+import type { GridColumnKey } from "./ContextGridBottomSheet";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
 import { AnalysisBlock } from "./shared/AnalysisBlocks";
 import { MultiRecordDraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
@@ -51,8 +52,8 @@ type GuideAssignmentLike = {
 
 export interface ContextGridProps {
   row: MergedSetekRow;
-  selectedColumns: SetekLayerTab[];
-  onColumnsChange: (cols: SetekLayerTab[]) => void;
+  selectedColumns: GridColumnKey[];
+  onColumnsChange: (cols: GridColumnKey[]) => void;
   charLimit: number;
   studentId: string;
   schoolYear: number;
@@ -76,7 +77,7 @@ const PERSPECTIVE_LABEL: Record<Perspective, string> = {
 };
 
 /** 열별 rowSpan: 관점 구분이 없는 열은 3, 3행 분리는 1 */
-const COL_ROW_SPAN: Record<SetekLayerTab, number> = {
+const COL_ROW_SPAN: Record<GridColumnKey, number> = {
   chat: 3,
   guide: 1,       // 3행 분리: AI=방향텍스트, 컨설턴트=배정목록, 확정=확정상태
   direction: 3,
@@ -86,7 +87,7 @@ const COL_ROW_SPAN: Record<SetekLayerTab, number> = {
   memo: 3,
 };
 
-const COL_LABELS: Record<SetekLayerTab, string> = {
+const COL_LABELS: Record<GridColumnKey, string> = {
   chat: "논의",
   guide: "가이드",
   direction: "방향",
@@ -96,11 +97,11 @@ const COL_LABELS: Record<SetekLayerTab, string> = {
   memo: "메모",
 };
 
-const SELECTABLE_COLUMNS: SetekLayerTab[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
+const SELECTABLE_COLUMNS: GridColumnKey[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
 const MAX_COLS = 3;
 
 /** 3행 분리 열의 관점별 라벨 (열마다 다른 이름) */
-const COL_PERSPECTIVE_LABELS: Partial<Record<SetekLayerTab, Record<Perspective, string>>> = {
+const COL_PERSPECTIVE_LABELS: Partial<Record<GridColumnKey, Record<Perspective, string>>> = {
   draft: { ai: "AI 초안", consultant: "컨설턴트 가안", confirmed: "확정본" },
   analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
   guide: { ai: "방향", consultant: "배정 목록", confirmed: "완료" },
@@ -133,7 +134,7 @@ export function ContextGrid({
     return init;
   });
 
-  const togglePerspective = useCallback((col: SetekLayerTab, p: Perspective) => {
+  const togglePerspective = useCallback((col: GridColumnKey, p: Perspective) => {
     setColumnPerspectives((prev) => {
       const current = prev[col] ?? new Set(PERSPECTIVES);
       const next = new Set(current);
@@ -249,7 +250,7 @@ function GridCell({
   subjectGuides,
   subjectDirection,
 }: {
-  column: SetekLayerTab;
+  column: GridColumnKey;
   perspective: Perspective;
   row: MergedSetekRow;
   charLimit: number;
@@ -434,14 +435,25 @@ function DraftGridCell({
   const queryClient = useQueryClient();
   const recordQk = ["studentRecord", "recordTab", studentId] as const;
 
-  // AI 초안 → 컨설턴트 가안 수용
+  // AI 초안 → 컨설턴트 가안 수용 (E1: content 보호, E4: 낙관적 잠금)
   const acceptAiMutation = useMutation({
     mutationFn: async () => {
       const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
       for (const r of records) {
-        if (r.ai_draft_content && !r.content?.trim()) {
-          const res = await acceptAiDraftAction(r.id, "setek");
-          if (!res.success) throw new Error("error" in res ? res.error : "수용 실패");
+        if (!r.ai_draft_content) continue;
+        const res = await acceptAiDraftAction(r.id, "setek");
+        if (!res.success) {
+          if ("error" in res && res.error === "CONTENT_EXISTS") {
+            if (!confirm(`${r.semester}학기 세특에 기존 가안이 있습니다. AI 초안으로 덮어쓰시겠습니까?`)) continue;
+            const forced = await acceptAiDraftAction(r.id, "setek", true);
+            if (!forced.success && "error" in forced && forced.error === "CONFLICT") {
+              throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+            }
+          } else if ("error" in res && res.error === "CONFLICT") {
+            throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+          } else {
+            throw new Error("error" in res ? res.error : "수용 실패");
+          }
         }
       }
     },
@@ -517,6 +529,12 @@ function DraftGridCell({
       importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
       importLabel="가안 확정"
       isImporting={confirmMutation.isPending}
+      staleWarning={
+        // E5: 확정본이 있으나 현재 가안과 다른 레코드가 하나라도 있으면 경고
+        records.some(
+          (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
+        ) ? "가안과 다름" : undefined
+      }
     />
   );
 }

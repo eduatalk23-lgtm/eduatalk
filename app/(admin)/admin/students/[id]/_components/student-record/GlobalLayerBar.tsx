@@ -1,17 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare, PenLine, StickyNote } from "lucide-react";
+import { FileText, Search, Compass, PenLine } from "lucide-react";
 import type { SetekLayerTab } from "./SetekEditor";
 
 const GLOBAL_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[] = [
-  { key: "chat", label: "논의", icon: MessageSquare },
-  { key: "guide", label: "가이드", icon: BookOpen },
-  { key: "direction", label: "방향", icon: Compass },
-  { key: "draft", label: "가안", icon: PenLine },
   { key: "neis", label: "NEIS", icon: FileText },
+  { key: "draft", label: "가안", icon: PenLine },
+  { key: "direction", label: "방향", icon: Compass },
   { key: "analysis", label: "분석", icon: Search },
-  { key: "memo", label: "메모", icon: StickyNote },
 ];
 
 interface GlobalLayerBarProps {

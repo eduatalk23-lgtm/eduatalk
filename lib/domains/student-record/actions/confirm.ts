@@ -46,20 +46,26 @@ export async function confirmAssignmentAction(
 
 // ── 2. 가안 확정 ──
 
-/** AI 초안 → 컨설턴트 가안으로 수용 (ai_draft_content → content 복사) */
+/** AI 초안 → 컨설턴트 가안으로 수용 (ai_draft_content → content 복사)
+ *
+ * @param force  true 이면 기존 content 가 있어도 덮어씀.
+ *               false(기본) 이면 기존 content 가 있을 때 CONTENT_EXISTS 에러를 반환하여
+ *               클라이언트가 확인 다이얼로그를 표시하도록 유도.
+ */
 export async function acceptAiDraftAction(
   recordId: string,
   recordType: "setek" | "changche" | "haengteuk" | "personal_setek",
+  force?: boolean,
 ): Promise<ActionResponse> {
   try {
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
     const table = TABLE_MAP[recordType];
 
-    // AI 초안 조회
+    // AI 초안 + 현재 content + updated_at 조회 (E1 보호, E4 낙관적 잠금용)
     const { data, error: fetchErr } = await supabase
       .from(table)
-      .select("ai_draft_content")
+      .select("ai_draft_content, content, updated_at")
       .eq("id", recordId)
       .single();
     if (fetchErr) throw fetchErr;
@@ -68,12 +74,42 @@ export async function acceptAiDraftAction(
       return createErrorResponse("AI 초안이 없습니다.");
     }
 
-    // content에 복사
-    const { error } = await supabase
+    // E1: 기존 content 보호 — force 없이 호출하면 클라이언트가 확인하도록 에러 반환
+    if (data.content?.trim() && !force) {
+      return { success: false, error: "CONTENT_EXISTS" };
+    }
+
+    // E4: 낙관적 잠금 — 조회 시점의 updated_at 이 변하지 않았는지 확인
+    const { error, count } = await supabase
       .from(table)
-      .update({ content: data.ai_draft_content })
-      .eq("id", recordId);
+      .update({
+        content: data.ai_draft_content,
+        // E2: 수용 후 AI 초안 초기화 (배너/버튼이 다시 노출되지 않도록)
+        ai_draft_content: null,
+        ai_draft_at: null,
+        // B5: AI 초안 수용 → 검토 중 단계로 전환
+        status: "review",
+      })
+      .eq("id", recordId)
+      .eq("updated_at", data.updated_at)
+      .select("id");
+
     if (error) throw error;
+    // count 가 0 이면 다른 사용자가 그 사이에 수정한 것
+    if (count === 0) {
+      return { success: false, error: "CONFLICT" };
+    }
+
+    // B6: 수용 후 side effects (fire-and-forget)
+    Promise.resolve().then(async () => {
+      try {
+        const { markRelatedEdgesStale, markRelatedAssignmentsStale } = await import("../stale-detection");
+        await markRelatedEdgesStale(recordId).catch(() => {});
+        await markRelatedAssignmentsStale(recordId).catch(() => {});
+      } catch {
+        // fire-and-forget
+      }
+    });
 
     return createSuccessResponse();
   } catch (error) {
@@ -92,10 +128,10 @@ export async function confirmDraftAction(
     const supabase = await createSupabaseServerClient();
     const table = TABLE_MAP[recordType];
 
-    // 현재 content 조회
+    // 현재 content + B6 side effect용 필드 조회
     const { data, error: fetchErr } = await supabase
       .from(table)
-      .select("content")
+      .select("content, student_id, subject_id, grade")
       .eq("id", recordId)
       .single();
     if (fetchErr) throw fetchErr;
@@ -110,9 +146,30 @@ export async function confirmDraftAction(
         confirmed_content: data.content,
         confirmed_at: new Date().toISOString(),
         confirmed_by: userId,
+        // B5: 가안 확정 → 확정 단계로 전환
+        status: "final",
       })
       .eq("id", recordId);
     if (error) throw error;
+
+    // B6: 확정 후 side effects (fire-and-forget)
+    Promise.resolve().then(async () => {
+      try {
+        const {
+          markRelatedEdgesStale,
+          markRelatedAssignmentsStale,
+          autoMatchRoadmapOnConfirm,
+        } = await import("../stale-detection");
+        await markRelatedEdgesStale(recordId).catch(() => {});
+        await markRelatedAssignmentsStale(recordId).catch(() => {});
+
+        if (recordType === "setek" && data.student_id && data.subject_id && typeof data.grade === "number") {
+          await autoMatchRoadmapOnConfirm(data.student_id, data.subject_id, data.grade).catch(() => {});
+        }
+      } catch {
+        // fire-and-forget: 실패해도 주요 흐름에 영향 없음
+      }
+    });
 
     return createSuccessResponse();
   } catch (error) {
@@ -121,7 +178,50 @@ export async function confirmDraftAction(
   }
 }
 
-// ── 3. 분석 태그 확정 ──
+// ── 3. 확정 되돌리기 ──
+
+/** 확정본 → 검토 중으로 되돌리기 (confirmed_content 초기화, status → "review") */
+export async function revertConfirmAction(
+  recordId: string,
+  recordType: "setek" | "changche" | "haengteuk" | "personal_setek",
+): Promise<ActionResponse> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+    const table = TABLE_MAP[recordType];
+
+    // 현재 confirmed_content 존재 여부 확인
+    const { data, error: fetchErr } = await supabase
+      .from(table)
+      .select("confirmed_content")
+      .eq("id", recordId)
+      .single();
+    if (fetchErr) throw fetchErr;
+
+    if (!data?.confirmed_content?.trim()) {
+      return createErrorResponse("확정된 내용이 없습니다.");
+    }
+
+    const { error } = await supabase
+      .from(table)
+      .update({
+        confirmed_content: null,
+        confirmed_at: null,
+        confirmed_by: null,
+        // 확정 취소 → 검토 중으로 되돌림
+        status: "review",
+      })
+      .eq("id", recordId);
+    if (error) throw error;
+
+    return createSuccessResponse();
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "revertConfirm" }, error, { recordId, recordType });
+    return createErrorResponse("확정 취소에 실패했습니다.");
+  }
+}
+
+// ── 4. 분석 태그 확정 ──
 
 /** 분석 태그 상태를 confirmed로 변경 */
 export async function confirmTagsAction(
