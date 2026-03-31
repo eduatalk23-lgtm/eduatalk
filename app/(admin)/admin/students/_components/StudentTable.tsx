@@ -66,7 +66,7 @@ export function StudentTable({
             <th className={tableHeaderBase}>모 연락처</th>
             <th className={tableHeaderBase}>부 연락처</th>
             <th className={tableHeaderBase}>계정</th>
-            <th className={tableHeaderBase}>상태</th>
+            <th className={tableHeaderBase}>재원</th>
           </tr>
         </thead>
         <tbody className={cn("divide-y", divideDefaultVar, bgSurface)}>
@@ -144,14 +144,14 @@ export function StudentTable({
                   {student.email ?? "-"}
                 </td>
                 <td className={cn(tableCellBase, textMuted)}>
-                  {student.is_active === false ? (
+                  {student.status === "not_enrolled" ? (
                     <span
                       className={cn(
                         "rounded-full px-2 py-1 text-xs font-semibold",
                         getStatusBadgeColorClasses("error")
                       )}
                     >
-                      비활성화
+                      비재원
                     </span>
                   ) : (
                     <span
@@ -160,7 +160,7 @@ export function StudentTable({
                         getStatusBadgeColorClasses("active")
                       )}
                     >
-                      활성
+                      재원
                     </span>
                   )}
                 </td>

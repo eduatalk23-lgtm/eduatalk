@@ -7,6 +7,7 @@ import {
   bulkToggleStudentStatus,
   bulkDeleteStudents,
 } from "@/lib/domains/student";
+import { bulkWithdrawStudentsAction, reEnrollStudentAction } from "@/lib/domains/student/actions/management";
 import {
   bgHover,
   textSecondary,
@@ -27,7 +28,7 @@ type StudentBulkActionsProps = {
   onOpenBulkFileRequest: () => void;
 };
 
-type ConfirmAction = "activate" | "deactivate" | "delete" | null;
+type ConfirmAction = "activate" | "deactivate" | "withdraw" | "reenroll" | "delete" | null;
 
 export function StudentBulkActions({
   selectedIds,
@@ -63,7 +64,25 @@ export function StudentBulkActions({
 
     startTransition(async () => {
       try {
-        if (confirmAction === "activate") {
+        if (confirmAction === "withdraw") {
+          const result = await bulkWithdrawStudentsAction(selectedIds, "퇴원");
+          if (result.success) {
+            showSuccess(`${selectedCount}명의 학생이 비재원 처리되었습니다.`);
+            onClearSelection();
+            router.refresh();
+          } else {
+            showError(result.error || "비재원 처리에 실패했습니다.");
+          }
+        } else if (confirmAction === "reenroll") {
+          let successCount = 0;
+          for (const id of selectedIds) {
+            const result = await reEnrollStudentAction(id);
+            if (result.success) successCount++;
+          }
+          showSuccess(`${successCount}명의 학생이 재등록되었습니다.`);
+          onClearSelection();
+          router.refresh();
+        } else if (confirmAction === "activate") {
           const result = await bulkToggleStudentStatus(selectedIds, true);
           if (result.success) {
             showSuccess(`${selectedCount}명의 학생이 활성화되었습니다.`);
@@ -99,6 +118,20 @@ export function StudentBulkActions({
 
   const getConfirmDialogProps = () => {
     switch (confirmAction) {
+      case "withdraw":
+        return {
+          title: "비재원 처리",
+          description: `선택한 ${selectedCount}명의 학생을 비재원 처리하시겠습니까?\n서비스 접근이 즉시 차단됩니다.`,
+          confirmLabel: "비재원 처리",
+          variant: "destructive" as const,
+        };
+      case "reenroll":
+        return {
+          title: "재등록",
+          description: `선택한 ${selectedCount}명의 학생을 재등록하시겠습니까?\n서비스 접근이 즉시 활성화됩니다.`,
+          confirmLabel: "재등록",
+          variant: "default" as const,
+        };
       case "activate":
         return {
           title: "학생 활성화",
@@ -147,25 +180,25 @@ export function StudentBulkActions({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setConfirmAction("activate")}
+            onClick={() => setConfirmAction("withdraw")}
+            disabled={isPending || selectedCount === 0}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
+              "bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            비재원 처리
+          </button>
+
+          <button
+            onClick={() => setConfirmAction("reenroll")}
             disabled={isPending || selectedCount === 0}
             className={cn(
               "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
               "bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            활성화
-          </button>
-
-          <button
-            onClick={() => setConfirmAction("deactivate")}
-            disabled={isPending || selectedCount === 0}
-            className={cn(
-              "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
-              "bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-          >
-            비활성화
+            재등록
           </button>
 
           <button

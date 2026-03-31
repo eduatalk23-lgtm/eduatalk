@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Search, Loader2, Users, Mail } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Avatar } from "@/components/atoms/Avatar";
+import { WITHDRAWN_REASONS } from "@/lib/constants/students";
 import type {
   StudentSearchItem,
   StudentSearchFilters,
@@ -11,6 +12,7 @@ import type {
 
 type EmailFilter = "" | "connected" | "disconnected";
 type SortBy = "created_at" | "name" | "grade";
+type StatusTab = "enrolled" | "not_enrolled" | "all";
 
 type StudentSearchPanelProps = {
   searchQuery: string;
@@ -24,18 +26,15 @@ type StudentSearchPanelProps = {
   onFiltersChange: (filters: StudentSearchFilters) => void;
 };
 
-function getActiveLabel(isActive: boolean): string {
-  return isActive ? "활성" : "비활성";
-}
-
-function getActiveColor(isActive: boolean): string {
-  return isActive
-    ? "bg-green-50 text-green-700"
-    : "bg-gray-100 text-gray-500";
-}
-
 const FILTER_SELECT_CLASS =
   "h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs text-gray-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200";
+
+const TAB_BASE =
+  "px-3 py-1.5 text-xs font-medium rounded-md transition-colors";
+const TAB_ACTIVE =
+  "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200";
+const TAB_INACTIVE =
+  "text-gray-500 hover:bg-gray-50 hover:text-gray-700";
 
 export function StudentSearchPanel({
   searchQuery,
@@ -50,6 +49,21 @@ export function StudentSearchPanel({
 }: StudentSearchPanelProps) {
   const [emailFilter, setEmailFilter] = useState<EmailFilter>("");
   const [sortBy, setSortBy] = useState<SortBy>("created_at");
+
+  // 현재 탭 상태 (filters.status에서 파생)
+  const currentTab: StatusTab = filters.status ?? "enrolled";
+
+  const handleTabChange = (tab: StatusTab) => {
+    const next = { ...filters };
+    if (tab === "all") {
+      delete next.status;
+    } else {
+      next.status = tab;
+    }
+    // 탭 전환 시 사유 필터 초기화
+    delete next.withdrawnReason;
+    onFiltersChange(next);
+  };
 
   // 클라이언트 사이드 이메일 필터 + 정렬
   const displayedStudents = useMemo(() => {
@@ -72,7 +86,6 @@ export function StudentSearchPanel({
         (a, b) => (a.grade ?? 99) - (b.grade ?? 99)
       );
     }
-    // "created_at" → 서버에서 이미 정렬된 순서 유지
 
     return result;
   }, [students, emailFilter, sortBy]);
@@ -85,13 +98,42 @@ export function StudentSearchPanel({
     if (!value) {
       delete next[key];
     } else {
-      (next as Record<string, unknown>)[key] = key === "isActive" ? value === "true" : value;
+      if (key === "isActive") {
+        (next as Record<string, unknown>)[key] = value === "true";
+      } else {
+        (next as Record<string, unknown>)[key] = value;
+      }
     }
     onFiltersChange(next);
   };
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      {/* 탭: 재원 / 비재원 / 전체 */}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => handleTabChange("enrolled")}
+          className={cn(TAB_BASE, currentTab === "enrolled" ? TAB_ACTIVE : TAB_INACTIVE)}
+        >
+          재원
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange("not_enrolled")}
+          className={cn(TAB_BASE, currentTab === "not_enrolled" ? TAB_ACTIVE : TAB_INACTIVE)}
+        >
+          비재원
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange("all")}
+          className={cn(TAB_BASE, currentTab === "all" ? TAB_ACTIVE : TAB_INACTIVE)}
+        >
+          전체
+        </button>
+      </div>
+
       {/* 검색 입력 */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -130,23 +172,27 @@ export function StudentSearchPanel({
 
         <select
           className={FILTER_SELECT_CLASS}
-          value={filters.isActive === undefined ? "" : String(filters.isActive)}
-          onChange={(e) => updateFilter("isActive", e.target.value)}
-        >
-          <option value="">상태</option>
-          <option value="true">활성</option>
-          <option value="false">비활성</option>
-        </select>
-
-        <select
-          className={FILTER_SELECT_CLASS}
           value={emailFilter}
           onChange={(e) => setEmailFilter(e.target.value as EmailFilter)}
         >
-          <option value="">이메일</option>
+          <option value="">계정</option>
           <option value="connected">연결됨</option>
           <option value="disconnected">미연결</option>
         </select>
+
+        {/* 비재원 탭에서만 사유 필터 표시 */}
+        {currentTab === "not_enrolled" && (
+          <select
+            className={FILTER_SELECT_CLASS}
+            value={filters.withdrawnReason ?? ""}
+            onChange={(e) => updateFilter("withdrawnReason", e.target.value)}
+          >
+            <option value="">사유 전체</option>
+            {WITHDRAWN_REASONS.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* 검색결과 카운트 + 정렬 */}
@@ -173,100 +219,101 @@ export function StudentSearchPanel({
             {searchQuery ? "검색 결과가 없습니다" : "등록된 학생이 없습니다"}
           </div>
         )}
-        {displayedStudents.map((student) => (
-          <button
-            key={student.id}
-            type="button"
-            onClick={() => onSelectStudent(student.id)}
-            className={cn(
-              "flex items-start gap-3 rounded-lg px-3 py-2.5 text-left transition",
-              selectedStudentId === student.id
-                ? "bg-indigo-50 ring-1 ring-indigo-200"
-                : "hover:bg-gray-50"
-            )}
-          >
-            {/* 아바타 */}
-            <Avatar
-              src={student.profile_image_url}
-              name={student.name ?? undefined}
-              size="sm"
-              className="mt-0.5 shrink-0"
-            />
-
-            {/* 정보 영역 */}
-            <div className="flex-1 min-w-0">
-              {/* Row 1: 이름 성별 학부 학년 */}
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "text-sm font-medium truncate",
-                    selectedStudentId === student.id
-                      ? "text-indigo-700"
-                      : "text-gray-900"
-                  )}
-                >
-                  {student.name ?? "이름 없음"}
-                </span>
-                {student.gender && (
-                  <span className="text-[11px] text-gray-400 shrink-0">
-                    {student.gender}
-                  </span>
-                )}
-                {student.division && (
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 shrink-0">
-                    {student.division}
-                  </span>
-                )}
-                {student.grade != null && (
-                  <span className="text-[11px] text-gray-500 shrink-0">
-                    {student.grade}학년
-                  </span>
-                )}
-              </div>
-
-              {/* Row 2: 연락처 */}
-              {student.phone && (
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {student.phone}
-                </div>
+        {displayedStudents.map((student) => {
+          const isNotEnrolled = student.status === "not_enrolled";
+          return (
+            <button
+              key={student.id}
+              type="button"
+              onClick={() => onSelectStudent(student.id)}
+              className={cn(
+                "flex items-start gap-3 rounded-lg px-3 py-2.5 text-left transition",
+                selectedStudentId === student.id
+                  ? "bg-indigo-50 ring-1 ring-indigo-200"
+                  : "hover:bg-gray-50",
+                isNotEnrolled && "opacity-50"
               )}
+            >
+              {/* 아바타 */}
+              <Avatar
+                src={student.profile_image_url}
+                name={student.name ?? undefined}
+                size="sm"
+                className="mt-0.5 shrink-0"
+              />
 
-              {/* Row 3: 학교 */}
-              {student.school_name && (
-                <div
-                  className="text-xs text-gray-500 mt-0.5 truncate"
-                  title={student.school_name}
-                >
-                  {student.school_name}
+              {/* 정보 영역 */}
+              <div className="flex-1 min-w-0">
+                {/* Row 1: 이름 성별 학부 학년 */}
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "text-sm font-medium truncate",
+                      selectedStudentId === student.id
+                        ? "text-indigo-700"
+                        : "text-gray-900"
+                    )}
+                  >
+                    {student.name ?? "이름 없음"}
+                  </span>
+                  {student.gender && (
+                    <span className="text-[11px] text-gray-400 shrink-0">
+                      {student.gender}
+                    </span>
+                  )}
+                  {student.division && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 shrink-0">
+                      {student.division}
+                    </span>
+                  )}
+                  {student.grade != null && (
+                    <span className="text-[11px] text-gray-500 shrink-0">
+                      {student.grade}학년
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {/* Row 4: 이메일 상태 · 활성 상태 */}
-              <div className="flex items-center gap-2 mt-1">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                    student.has_email
-                      ? "bg-emerald-50 text-emerald-600"
-                      : "bg-gray-50 text-gray-400"
-                  )}
-                >
-                  <Mail className="h-2.5 w-2.5" />
-                  {student.has_email ? "연결됨" : "미연결"}
-                </span>
+                {/* Row 2: 연락처 */}
+                {student.phone && (
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {student.phone}
+                  </div>
+                )}
 
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                    getActiveColor(student.is_active)
+                {/* Row 3: 학교 */}
+                {student.school_name && (
+                  <div
+                    className="text-xs text-gray-500 mt-0.5 truncate"
+                    title={student.school_name}
+                  >
+                    {student.school_name}
+                  </div>
+                )}
+
+                {/* Row 4: 상태 배지 */}
+                <div className="flex items-center gap-2 mt-1">
+                  {isNotEnrolled ? (
+                    <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-red-50 text-red-600">
+                      비재원{student.withdrawn_reason ? ` · ${student.withdrawn_reason}` : ""}
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                        student.has_email
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-gray-50 text-gray-400"
+                      )}
+                    >
+                      <Mail className="h-2.5 w-2.5" />
+                      {student.has_email ? "연결됨" : "미연결"}
+                    </span>
                   )}
-                >
-                  {getActiveLabel(student.is_active)}
-                </span>
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

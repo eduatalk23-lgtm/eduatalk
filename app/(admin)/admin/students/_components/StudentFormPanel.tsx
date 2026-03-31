@@ -12,8 +12,10 @@ import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/stude
 import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
 import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
-import { Plus, Trash2, ExternalLink, CalendarDays, ClipboardList, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock, Send } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CalendarDays, ClipboardList, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock, Send, UserX, UserCheck } from "lucide-react";
 import Link from "next/link";
+import { WithdrawStudentModal } from "./WithdrawStudentModal";
+import { ReEnrollStudentModal } from "./ReEnrollStudentModal";
 
 type FormMode = "register" | "selected";
 
@@ -58,6 +60,8 @@ export function StudentFormPanel({
   const { showSuccess, showError } = useToast();
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showReEnrollModal, setShowReEnrollModal] = useState(false);
 
   const [schoolType, setSchoolType] = useState<
     "중학교" | "고등학교" | undefined
@@ -134,7 +138,7 @@ export function StudentFormPanel({
               birth_date: formData.birth_date || "",
               school_id: formData.school_id || null,
               division: (formData.division as "고등부" | "중등부" | "졸업") || null,
-              status: (formData.status as "enrolled" | "on_leave" | "graduated" | "transferred") || null,
+              status: (formData.status as "enrolled" | "not_enrolled") || null,
             },
             profile: {
               gender: (formData.gender as "남" | "여") || null,
@@ -230,6 +234,26 @@ export function StudentFormPanel({
               <Plus className="h-4 w-4" />
               신규등록
             </button>
+            {isAdmin && studentData?.status === "enrolled" && (
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 px-3 py-2 text-sm font-medium text-orange-600 transition hover:bg-orange-50"
+              >
+                <UserX className="h-4 w-4" />
+                비재원 처리
+              </button>
+            )}
+            {isAdmin && studentData?.status === "not_enrolled" && (
+              <button
+                type="button"
+                onClick={() => setShowReEnrollModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 px-3 py-2 text-sm font-medium text-green-600 transition hover:bg-green-50"
+              >
+                <UserCheck className="h-4 w-4" />
+                재등록
+              </button>
+            )}
             {isAdmin && (
               <button
                 type="button"
@@ -409,6 +433,28 @@ export function StudentFormPanel({
         variant="destructive"
         isLoading={isPending}
       />
+
+      {/* 비재원 처리 모달 */}
+      {selectedStudentId && studentData && (
+        <WithdrawStudentModal
+          open={showWithdrawModal}
+          onOpenChange={setShowWithdrawModal}
+          studentId={selectedStudentId}
+          studentName={studentData.name ?? "학생"}
+        />
+      )}
+
+      {/* 재등록 모달 */}
+      {selectedStudentId && studentData && (
+        <ReEnrollStudentModal
+          open={showReEnrollModal}
+          onOpenChange={setShowReEnrollModal}
+          studentId={selectedStudentId}
+          studentName={studentData.name ?? "학생"}
+          previousReason={studentData.withdrawn_reason}
+          previousDate={studentData.withdrawn_at}
+        />
+      )}
     </div>
   );
 }

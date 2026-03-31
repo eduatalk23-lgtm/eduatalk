@@ -12,7 +12,7 @@ export default async function AdminStudentsPage() {
   }
 
   return (
-    <PageContainer widthType="DASHBOARD">
+    <PageContainer widthType="FULL">
       <StudentManageClient isAdmin={role === "admin"} />
     </PageContainer>
   );

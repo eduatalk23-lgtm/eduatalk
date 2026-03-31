@@ -25,7 +25,7 @@ type StudentManageClientProps = {
 
 export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState<StudentSearchFilters>({});
+  const [filters, setFilters] = useState<StudentSearchFilters>({ status: "enrolled" });
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     null
   );

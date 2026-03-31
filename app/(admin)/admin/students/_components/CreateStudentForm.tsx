@@ -23,10 +23,8 @@ type CreateStudentFormProps = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "enrolled", label: "재학" },
-  { value: "on_leave", label: "휴학" },
-  { value: "graduated", label: "졸업" },
-  { value: "transferred", label: "전학" },
+  { value: "enrolled", label: "재원" },
+  { value: "not_enrolled", label: "비재원" },
 ];
 
 export function CreateStudentForm({
