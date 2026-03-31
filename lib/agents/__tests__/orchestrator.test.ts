@@ -120,6 +120,18 @@ vi.mock("@/lib/domains/student-record/course-plan/recommendation", () => ({
 vi.mock("@/lib/domains/student-record/guide-context", () => ({
   buildGuideContextSection: vi.fn().mockResolvedValue(""),
 }));
+// Self-Evolving Agent mocks
+vi.mock("@/lib/agents/memory/search-service", () => ({
+  searchSimilarCases: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/agents/memory/correction-service", () => ({
+  searchSimilarCorrections: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/agents/memory/outcome-service", () => ({
+  getPredictionAccuracy: vi.fn().mockResolvedValue([]),
+  getOutcomesForUniversity: vi.fn().mockResolvedValue([]),
+  buildOutcomeCalibrationBlock: vi.fn().mockResolvedValue(""),
+}));
 
 import { createOrchestrator } from "../orchestrator";
 import type { AgentContext } from "../types";
@@ -239,9 +251,18 @@ describe("createOrchestrator", () => {
     expect(tools.crossSubjectAnalysis).toBeDefined();
   });
 
-  it("총 49개 도구가 등록된다", async () => {
+  it("Self-Evolving 도구 5개가 등록된다 (meta + memory)", async () => {
     const { tools } = await createOrchestrator(mockContext);
-    expect(Object.keys(tools)).toHaveLength(49);
+    expect(tools.think).toBeDefined();
+    expect(tools.recallSimilarCases).toBeDefined();
+    expect(tools.recallPastCorrections).toBeDefined();
+    expect(tools.getPredictionAccuracy).toBeDefined();
+    expect(tools.getUniversityOutcomes).toBeDefined();
+  });
+
+  it("총 54개 도구가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
+    expect(Object.keys(tools)).toHaveLength(54);
   });
 
   it("uiState가 있으면 시스템 프롬프트에 화면 상태가 포함된다", async () => {
@@ -284,6 +305,11 @@ describe("createOrchestrator", () => {
     expect(systemPrompt).toContain("집중기");
     expect(systemPrompt).toContain("일반고");
     expect(systemPrompt).toContain("컴퓨터공학");
+  });
+
+  it("시스템 프롬프트에 think 도구 사용 지침이 포함된다", async () => {
+    const { systemPrompt } = await createOrchestrator(mockContext);
+    expect(systemPrompt).toContain("사고 정리(think)");
   });
 
   it("학생 프로필이 없어도 기본 도메인 지식이 포함된다", async () => {

@@ -1,0 +1,97 @@
+name: Agent AI×AI Simulation
+
+on:
+  # 매일 새벽 5시 (KST) = UTC 20:00 (평가 완료 1시간 후)
+  schedule:
+    - cron: '0 20 * * *'
+
+  # 수동 실행
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: '시나리오 프리셋'
+        required: true
+        default: 'basic'
+        type: choice
+        options:
+          - basic
+          - edge-cases
+          - admission
+          - interview
+          - all
+      limit:
+        description: '최대 시나리오 수'
+        required: false
+        default: '5'
+        type: string
+      dry_run:
+        description: '드라이런 모드'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  SIMULATION_TENANT_ID: ${{ secrets.SIMULATION_TENANT_ID }}
+
+jobs:
+  simulate:
+    name: Run AI×AI Simulation
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run simulation (Scheduled)
+        if: github.event_name == 'schedule'
+        run: npx tsx scripts/agent-simulation.ts basic --limit=5 --delay=8000
+        env:
+          NODE_ENV: production
+
+      - name: Run simulation (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          PRESET="${{ github.event.inputs.preset }}"
+          LIMIT="${{ github.event.inputs.limit }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+          CMD="npx tsx scripts/agent-simulation.ts $PRESET --delay=8000"
+
+          if [ -n "$LIMIT" ] && [ "$LIMIT" != "0" ]; then
+            CMD="$CMD --limit=$LIMIT"
+          fi
+
+          if [ "$DRY_RUN" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "실행: $CMD"
+          eval $CMD
+        env:
+          NODE_ENV: production
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## AI×AI Simulation 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **실행 시간**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **트리거**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

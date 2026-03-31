@@ -1,0 +1,100 @@
+name: Agent Session Evaluation
+
+on:
+  # 매일 새벽 4시 (KST) = UTC 19:00 실행 (세션 수집 1시간 후)
+  schedule:
+    - cron: '0 19 * * *'
+
+  # 수동 실행
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '평가 대상 날짜 (YYYY-MM-DD, 기본: 어제)'
+        required: false
+        type: string
+      limit:
+        description: '최대 평가 건수'
+        required: false
+        default: '20'
+        type: string
+      dry_run:
+        description: '드라이런 모드'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+jobs:
+  evaluate:
+    name: Evaluate Agent Sessions
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 1. 케이스 임베딩 (pending 처리)
+      - name: Embed pending cases
+        run: npx tsx scripts/embed-cases.ts --limit=50
+        env:
+          NODE_ENV: production
+
+      # 2. 세션 평가
+      - name: Evaluate sessions (Scheduled)
+        if: github.event_name == 'schedule'
+        run: npx tsx scripts/eval-agent-sessions.ts --limit=20 --delay=5000
+        env:
+          NODE_ENV: production
+
+      - name: Evaluate sessions (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          CMD="npx tsx scripts/eval-agent-sessions.ts --delay=5000"
+
+          DATE="${{ github.event.inputs.date }}"
+          LIMIT="${{ github.event.inputs.limit }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+          if [ -n "$DATE" ]; then
+            CMD="$CMD --date=$DATE"
+          fi
+
+          if [ -n "$LIMIT" ]; then
+            CMD="$CMD --limit=$LIMIT"
+          fi
+
+          if [ "$DRY_RUN" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "실행: $CMD"
+          eval $CMD
+        env:
+          NODE_ENV: production
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Agent Evaluation 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **실행 시간**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **트리거**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

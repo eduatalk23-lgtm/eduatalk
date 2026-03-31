@@ -33,6 +33,7 @@ export function AgentChat({
 }: AgentChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [chatSessionId, setChatSessionId] = useState(() => crypto.randomUUID());
 
   // useRef로 getUIState 참조 → transport useMemo 재생성 방지
   const getUIStateRef = useRef(getUIState);
@@ -47,10 +48,11 @@ export function AgentChat({
         body: () => ({
           studentId,
           studentName,
+          chatSessionId,
           uiState: getUIStateRef.current?.() ?? null,
         }),
       }),
-    [studentId, studentName],
+    [studentId, studentName, chatSessionId],
   );
 
   const {
@@ -77,6 +79,7 @@ export function AgentChat({
     stop();
     setMessages([]);
     setInput("");
+    setChatSessionId(crypto.randomUUID());
   }, [studentId, stop, setMessages]);
 
   const handleSend = useCallback(async () => {
@@ -175,10 +178,12 @@ export function AgentChat({
           </div>
         )}
 
-        {messages.map((message) => (
+        {messages.map((message, idx) => (
           <AgentMessageBubble
             key={message.id}
             message={message}
+            messageIndex={idx}
+            sessionId={chatSessionId}
             onAgentAction={onAgentAction}
           />
         ))}

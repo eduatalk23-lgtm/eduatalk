@@ -12,7 +12,8 @@ import { geminiRateLimiter, geminiQuotaTracker } from "@/lib/domains/plan/llm/pr
 import { isRateLimitError, isOverloadError } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
-import { logAgentAudit } from "@/lib/agents/audit";
+import { logAgentSession, hashSystemPrompt, type StepTrace } from "@/lib/agents/session-logger";
+import { extractCaseFromTraces, saveCaseToDb } from "@/lib/agents/memory/case-extractor";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel Hobby 최대
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
 
     // 3. Body 파싱
     const body = await req.json();
-    const { messages, studentId, studentName, uiState } = body;
+    const { messages, studentId, studentName, chatSessionId, uiState } = body;
 
     if (!studentId || !studentName) {
       return new Response(
@@ -129,6 +130,10 @@ export async function POST(req: Request) {
     };
 
     const startTime = Date.now();
+    // 클라이언트가 제공한 세션 ID 사용 (교정 피드백 연결용), 없으면 서버 생성
+    const sessionId = (typeof chatSessionId === "string" && chatSessionId.length > 0)
+      ? chatSessionId
+      : crypto.randomUUID();
 
     logActionDebug(
       "agent.api",
@@ -141,17 +146,116 @@ export async function POST(req: Request) {
     // 7. UIMessages → ModelMessages 변환
     const modelMessages = await convertToModelMessages(messages);
 
-    // 8. Rate-limited streamText
+    // 8. 세션 트레이스 수집
+    const stepTraces: StepTrace[] = [];
+    let stepStartTime = Date.now();
+
+    // 9. 모델 fallback 체인 (Pro → Flash)
+    const AGENT_MODEL_CHAIN = [
+      { id: "gemini-3.1-pro-preview", maxSteps: 16, maxTokens: 16384, temp: 0.4 },
+      { id: "gemini-2.5-flash", maxSteps: 12, maxTokens: 8192, temp: 0.3 },
+    ] as const;
+
+    let selectedModel = AGENT_MODEL_CHAIN[0];
+
+    // Pre-flight: Pro 모델 가용성 확인 (503/overload 시 Flash로 fallback)
+    for (const candidate of AGENT_MODEL_CHAIN) {
+      try {
+        // 짧은 ping으로 모델 가용성 확인
+        await geminiRateLimiter.execute(async () => {
+          const testResult = await streamText({
+            model: google(candidate.id),
+            prompt: "ping",
+            maxTokens: 1,
+            abortSignal: AbortSignal.timeout(5000),
+          });
+          // 첫 토큰만 확인하고 중단
+          for await (const _ of testResult.textStream) { break; }
+        });
+        selectedModel = candidate;
+        break;
+      } catch (error) {
+        if (isOverloadError(error) || isRateLimitError(error)) {
+          logActionDebug("agent.api", `${candidate.id} 과부하, 다음 모델로 fallback`);
+          continue;
+        }
+        // 과부하가 아닌 에러는 그대로 throw
+        throw error;
+      }
+    }
+
+    logActionDebug("agent.api", `선택 모델: ${selectedModel.id}`);
+
+    // 10. Rate-limited streamText
     const result = await geminiRateLimiter.execute(async () => {
       return streamText({
-        model: google("gemini-2.5-flash"),
+        model: google(selectedModel.id),
         system: systemPrompt,
         messages: modelMessages,
         tools,
-        stopWhen: stepCountIs(12), // 49개 도구 기반 복잡 워크플로우(6-8단계) + 에러 복구 여유
-        maxOutputTokens: 8192,
-        temperature: 0.3,
+        stopWhen: stepCountIs(selectedModel.maxSteps),
+        maxOutputTokens: selectedModel.maxTokens,
+        temperature: selectedModel.temp,
         abortSignal: req.signal,
+        onStepFinish: ({ toolCalls, toolResults, text }) => {
+          const now = Date.now();
+          const elapsed = now - stepStartTime;
+          stepStartTime = now;
+
+          if (toolCalls && toolCalls.length > 0) {
+            for (let i = 0; i < toolCalls.length; i++) {
+              const call = toolCalls[i];
+              const toolResult = toolResults?.[i];
+              const isThink = call.toolName === "think";
+              stepTraces.push({
+                stepIndex: stepTraces.length,
+                stepType: isThink ? "think" : "tool-call",
+                toolName: call.toolName,
+                toolInput: call.args,
+                toolOutput: toolResult?.result,
+                reasoning: isThink ? (call.args as { analysis?: string })?.analysis : undefined,
+                durationMs: i === 0 ? elapsed : undefined,
+              });
+            }
+          } else if (text) {
+            stepTraces.push({
+              stepIndex: stepTraces.length,
+              stepType: "text",
+              textContent: text,
+              durationMs: elapsed,
+            });
+          }
+        },
+        onFinish: async ({ usage, finishReason }) => {
+          const promptHash = await hashSystemPrompt(systemPrompt).catch(() => undefined);
+          logAgentSession({
+            sessionId,
+            tenantId,
+            userId,
+            studentId,
+            modelId: selectedModel.id,
+            systemPromptHash: promptHash,
+            totalSteps: stepTraces.length,
+            totalInputTokens: usage?.promptTokens ?? 0,
+            totalOutputTokens: usage?.completionTokens ?? 0,
+            durationMs: Date.now() - startTime,
+            stopReason: finishReason,
+            stepTraces,
+          }).catch(() => {});
+
+          const extracted = extractCaseFromTraces(stepTraces);
+          if (extracted) {
+            saveCaseToDb({
+              tenantId,
+              sessionId,
+              studentGrade: studentGrade ?? undefined,
+              schoolCategory: schoolCategory ?? undefined,
+              targetMajor: targetMajor ?? undefined,
+              curriculumRevision: curriculumRevision ?? undefined,
+              ...extracted,
+            }).catch(() => {});
+          }
+        },
         onError: ({ error }) => {
           logActionError(
             "agent.stream",
@@ -167,15 +271,6 @@ export async function POST(req: Request) {
       "agent.api",
       `오케스트레이터 완료: userId=${userId}, studentId=${studentId}`,
     );
-
-    // 9. 감사 로그 (fire-and-forget)
-    logAgentAudit({
-      tenantId,
-      userId,
-      studentId,
-      messageCount: messages.length,
-      durationMs: Date.now() - startTime,
-    }).catch(() => {});
 
     // 10. AI SDK UI Message Stream 응답
     return result.toUIMessageStreamResponse();
