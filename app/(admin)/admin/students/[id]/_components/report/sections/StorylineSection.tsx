@@ -1,6 +1,7 @@
 "use client";
 
-import { GitBranch } from "lucide-react";
+import { GitBranch, Pin } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 import { useMemo } from "react";
 import {
@@ -9,16 +10,18 @@ import {
 import type { StorylineTabData, RecordTabData } from "@/lib/domains/student-record/types";
 import { STRENGTH_BADGE } from "../constants";
 import { ReportMarkdown } from "../ReportMarkdown";
+import { CHART_HEX, TYPO, PROGRESS } from "@/lib/design-tokens/report";
+import { matchKeywordInText } from "@/lib/domains/student-record/keyword-match";
 
-// 6색 팔레트: indigo 계열 + semantic
+// 6색 팔레트: indigo 계열 + semantic (CHART_HEX 사용)
 const RECORD_TYPE_COLORS: Record<string, string> = {
-  세특: "#4f46e5",      // indigo-600
-  개인세특: "#818cf8",   // indigo-400
-  창체: "#059669",      // emerald-600
-  독서: "#f59e0b",      // amber-500
-  행특: "#6b7280",      // gray-500
+  세특: CHART_HEX[0],      // indigo
+  개인세특: CHART_HEX[1],   // purple
+  창체: CHART_HEX[4],      // emerald
+  독서: CHART_HEX[3],      // amber
+  행특: "#6b7280",          // gray-500 (중립)
 };
-const GRADE_COLORS = ["#4f46e5", "#818cf8", "#a5b4fc"]; // indigo 600→400→300
+const GRADE_COLORS = [CHART_HEX[0], CHART_HEX[1], "#a5b4fc"]; // indigo 600→400→300
 
 const AREA_LABELS: Record<string, string> = {
   autonomy: "자율·자치",
@@ -29,6 +32,107 @@ const AREA_LABELS: Record<string, string> = {
   reading: "독서",
   course_selection: "교과선택",
 };
+
+interface EvidenceRecord {
+  type: string;
+  grade: number;
+  name: string;
+  content: string;
+  matchedKeywords: string[];
+}
+
+/** 스토리라인 키워드가 포함된 기록 추출 (최대 5건) */
+function extractEvidenceRecords(
+  keywords: string[],
+  recordDataByGrade: Record<number, RecordTabData>,
+  studentGrade: number,
+): EvidenceRecord[] {
+  if (keywords.length === 0 || Object.keys(recordDataByGrade).length === 0) return [];
+
+  const results: EvidenceRecord[] = [];
+
+  for (let g = 1; g <= studentGrade; g++) {
+    const gradeData = recordDataByGrade[g];
+    if (!gradeData) continue;
+
+    // 세특
+    for (const s of gradeData.seteks ?? []) {
+      const text = s.content || s.imported_content || "";
+      if (!text) continue;
+      const matched = keywords.filter((kw) => matchKeywordInText(kw, text));
+      if (matched.length > 0) {
+        results.push({
+          type: "세특",
+          grade: g,
+          name: s.subject?.name || "과목",
+          content: text,
+          matchedKeywords: matched,
+        });
+      }
+    }
+
+    // 개인세특
+    for (const s of gradeData.personalSeteks ?? []) {
+      const text = s.content || s.imported_content || "";
+      if (!text) continue;
+      const matched = keywords.filter((kw) => matchKeywordInText(kw, text));
+      if (matched.length > 0) {
+        results.push({
+          type: "개인세특",
+          grade: g,
+          name: s.subject?.name || "과목",
+          content: text,
+          matchedKeywords: matched,
+        });
+      }
+    }
+
+    // 창체
+    for (const c of gradeData.changche ?? []) {
+      const text = c.content || c.imported_content || "";
+      if (!text) continue;
+      const matched = keywords.filter((kw) => matchKeywordInText(kw, text));
+      if (matched.length > 0) {
+        results.push({
+          type: "창체",
+          grade: g,
+          name: c.activity_type,
+          content: text,
+          matchedKeywords: matched,
+        });
+      }
+    }
+
+    // 행특
+    if (gradeData.haengteuk) {
+      const text = gradeData.haengteuk.content || gradeData.haengteuk.imported_content || "";
+      if (text) {
+        const matched = keywords.filter((kw) => matchKeywordInText(kw, text));
+        if (matched.length > 0) {
+          results.push({
+            type: "행특",
+            grade: g,
+            name: "행동특성",
+            content: text,
+            matchedKeywords: matched,
+          });
+        }
+      }
+    }
+  }
+
+  // 매칭 키워드 수 내림차순 정렬 후 상위 5건
+  return results
+    .sort((a, b) => b.matchedKeywords.length - a.matchedKeywords.length)
+    .slice(0, 5);
+}
+
+/** content 앞 80자 추출 스니펫 */
+function buildSnippet(content: string): string {
+  const snippet = content.slice(0, 80).trim();
+  const suffix = content.length > 80 ? "..." : "";
+  return snippet + suffix;
+}
 
 interface StorylineSectionProps {
   storylineData: StorylineTabData;
@@ -83,9 +187,9 @@ export function StorylineSection({
     return (
       <section className="print-break-before">
         <ReportSectionHeader icon={GitBranch} title="스토리라인" subtitle="3년 성장 서사 · 활동 분포 · 로드맵" />
-        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
-          <p className="text-sm text-gray-500">스토리라인이 아직 등록되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-500">3년간 성장 서사를 구성하면 테마별 연결과 로드맵이 표시됩니다.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-[var(--border-secondary)] p-6 text-center">
+          <p className={TYPO.body}>스토리라인이 아직 등록되지 않았습니다.</p>
+          <p className={cn("mt-1", TYPO.caption)}>3년간 성장 서사를 구성하면 테마별 연결과 로드맵이 표시됩니다.</p>
         </div>
       </section>
     );
@@ -100,7 +204,7 @@ export function StorylineSection({
         <div className="mb-6 grid grid-cols-1 gap-4 print-avoid-break md:grid-cols-2">
           {/* 유형별 도넛 */}
           <div>
-            <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">활동 유형 분포</h3>
+            <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>활동 유형 분포</h3>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
@@ -120,7 +224,7 @@ export function StorylineSection({
             </ResponsiveContainer>
             <div className="flex flex-wrap justify-center gap-2">
               {typeDistribution.map((d) => (
-                <span key={d.name} className="flex items-center gap-1 text-xs text-gray-600">
+                <span key={d.name} className={cn("flex items-center gap-1", TYPO.caption)}>
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
                   {d.name} ({d.value})
                 </span>
@@ -130,7 +234,7 @@ export function StorylineSection({
 
           {/* 학년별 활동 건수 바 차트 */}
           <div>
-            <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">학년별 활동 건수</h3>
+            <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>학년별 활동 건수</h3>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={gradeDistribution} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -154,26 +258,29 @@ export function StorylineSection({
           const linkedItems = roadmapItems.filter(
             (r) => r.storyline_id === sl.id,
           );
+          const evidenceRecords = recordDataByGrade
+            ? extractEvidenceRecords(sl.keywords, recordDataByGrade, studentGrade)
+            : [];
 
           return (
             <div
               key={sl.id}
-              className="rounded-lg border border-gray-300 p-4 shadow-sm print-avoid-break"
+              className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-4 shadow-sm print-avoid-break"
             >
               {/* 제목 + 배지 */}
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-gray-900">
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">
                   {sl.title}
                 </h3>
                 {badge && (
                   <span
-                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${badge.color}`}
+                    className={cn("rounded px-1.5 py-0.5", TYPO.label, badge.color)}
                   >
                     {badge.label}
                   </span>
                 )}
                 {sl.career_field && (
-                  <span className="text-xs text-gray-500">
+                  <span className={TYPO.caption}>
                     {sl.career_field}
                   </span>
                 )}
@@ -185,7 +292,7 @@ export function StorylineSection({
                   {sl.keywords.map((kw: string, i: number) => (
                     <span
                       key={i}
-                      className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                      className={cn("rounded px-2 py-0.5", TYPO.caption, "bg-[var(--surface-secondary)]")}
                     >
                       {kw}
                     </span>
@@ -205,12 +312,12 @@ export function StorylineSection({
                     .map((t) => (
                       <div
                         key={t.grade}
-                        className="flex-1 rounded bg-gray-50 p-2"
+                        className="flex-1 rounded bg-[var(--surface-secondary)] p-2"
                       >
-                        <p className="text-xs font-medium text-gray-500">
+                        <p className={TYPO.caption}>
                           {t.grade}학년
                         </p>
-                        <p className="text-sm text-gray-800">
+                        <p className={TYPO.body}>
                           {t.theme || "-"}
                         </p>
                       </div>
@@ -223,6 +330,63 @@ export function StorylineSection({
                 <ReportMarkdown className="pt-3">{sl.narrative}</ReportMarkdown>
               )}
 
+              {/* 근거 기록 */}
+              <div className="pt-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Pin className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <p className={cn("font-medium", TYPO.caption)}>
+                    근거 기록
+                    {evidenceRecords.length > 0 && (
+                      <span className="ml-1 text-[var(--text-tertiary)]">
+                        ({evidenceRecords.length}건)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                {evidenceRecords.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {evidenceRecords.map((rec, idx) => (
+                      <li
+                        key={idx}
+                        className="rounded-md bg-[var(--surface-secondary)] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                          <span className={cn(
+                            "rounded px-1.5 py-0.5 font-medium",
+                            TYPO.label,
+                            rec.type === "세특" || rec.type === "개인세특"
+                              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                              : rec.type === "창체"
+                                ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                          )}>
+                            {rec.grade}학년 {rec.type}
+                          </span>
+                          <span className={TYPO.caption}>{rec.name}</span>
+                          <div className="flex flex-wrap gap-1 ml-auto">
+                            {rec.matchedKeywords.map((kw, ki) => (
+                              <span
+                                key={ki}
+                                className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                              >
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <p className={cn(TYPO.caption, "leading-relaxed text-[var(--text-secondary)]")}>
+                          {buildSnippet(rec.content)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={cn(TYPO.caption, "text-[var(--text-placeholder)]")}>
+                    관련 기록이 아직 없습니다
+                  </p>
+                )}
+              </div>
+
               {/* 연결된 로드맵 아이템 */}
               {linkedItems.length > 0 && (
                 <div className="pt-3">
@@ -232,35 +396,35 @@ export function StorylineSection({
                     const pct = Math.round((executed / linkedItems.length) * 100);
                     return (
                       <div className="mb-2 flex items-center gap-2">
-                        <p className="text-xs font-medium text-gray-500">
+                        <p className={cn("font-medium", TYPO.caption)}>
                           로드맵 ({executed}/{linkedItems.length})
                         </p>
-                        <div className="h-2 flex-1 rounded-full bg-gray-200">
+                        <div className={PROGRESS.track}>
                           <div
-                            className="h-2 rounded-full bg-indigo-500 transition-all"
+                            className={cn(PROGRESS.bar, "bg-indigo-500 dark:bg-indigo-400")}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="text-xs font-semibold text-indigo-600">{pct}%</span>
+                        <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{pct}%</span>
                       </div>
                     );
                   })()}
                   <table className="w-full border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="px-2 py-1 text-left text-gray-500">
+                      <tr className="border-b border-[var(--border-secondary)]">
+                        <th className="px-2 py-1 text-left text-[var(--text-secondary)]">
                           학년
                         </th>
-                        <th className="px-2 py-1 text-left text-gray-500">
+                        <th className="px-2 py-1 text-left text-[var(--text-secondary)]">
                           영역
                         </th>
-                        <th className="px-2 py-1 text-left text-gray-500">
+                        <th className="px-2 py-1 text-left text-[var(--text-secondary)]">
                           계획
                         </th>
-                        <th className="px-2 py-1 text-left text-gray-500">
+                        <th className="px-2 py-1 text-left text-[var(--text-secondary)]">
                           실행
                         </th>
-                        <th className="px-2 py-1 text-center text-gray-500">
+                        <th className="px-2 py-1 text-center text-[var(--text-secondary)]">
                           일치
                         </th>
                       </tr>
@@ -271,26 +435,26 @@ export function StorylineSection({
                         .map((item) => (
                           <tr
                             key={item.id}
-                            className="border-b border-gray-100"
+                            className="border-b border-[var(--border-primary)]"
                           >
-                            <td className="px-2 py-1">{item.grade}</td>
-                            <td className="px-2 py-1">
+                            <td className="px-2 py-1 text-[var(--text-primary)]">{item.grade}</td>
+                            <td className="px-2 py-1 text-[var(--text-primary)]">
                               {AREA_LABELS[item.area] ?? item.area}
                             </td>
-                            <td className="px-2 py-1">{item.plan_content}</td>
-                            <td className="px-2 py-1">
+                            <td className="px-2 py-1 text-[var(--text-primary)]">{item.plan_content}</td>
+                            <td className="px-2 py-1 text-[var(--text-primary)]">
                               {item.execution_content ?? "-"}
                             </td>
                             <td className="px-2 py-1 text-center">
                               {item.match_rate != null ? (
                                 <div className="flex items-center gap-1">
-                                  <div className="h-1 w-10 rounded-full bg-gray-200">
+                                  <div className={PROGRESS.track}>
                                     <div
-                                      className={`h-1 rounded-full ${item.match_rate >= 70 ? "bg-emerald-500" : item.match_rate >= 40 ? "bg-amber-500" : "bg-red-400"}`}
+                                      className={cn(PROGRESS.bar, PROGRESS.barColor(item.match_rate))}
                                       style={{ width: `${item.match_rate}%` }}
                                     />
                                   </div>
-                                  <span className="text-xs">{item.match_rate}%</span>
+                                  <span className="text-xs text-[var(--text-primary)]">{item.match_rate}%</span>
                                 </div>
                               ) : "-"}
                             </td>

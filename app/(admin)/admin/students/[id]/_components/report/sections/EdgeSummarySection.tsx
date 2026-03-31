@@ -7,17 +7,19 @@ import type { PersistedEdge } from "@/lib/domains/student-record/edge-repository
 import { EDGE_TYPE_META, type CrossRefEdgeType } from "@/lib/domains/student-record/cross-reference";
 import { EmptyState } from "../EmptyState";
 import { Link2 } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { ReportSectionHeader } from "../ReportSectionHeader";
+import { BADGE, TABLE, TYPO, CHART_HEX } from "@/lib/design-tokens/report";
 
-// 6색 팔레트 규율: indigo 계열 변형 + semantic (emerald/amber/red)
+// 엣지 유형별 색상: CHART_HEX 팔레트 사용
 const EDGE_BAR_COLORS: Record<CrossRefEdgeType, string> = {
-  COMPETENCY_SHARED: "#4f46e5",     // indigo-600 (brand)
-  CONTENT_REFERENCE: "#6366f1",     // indigo-500
-  TEMPORAL_GROWTH: "#059669",       // emerald-600 (positive/growth)
-  COURSE_SUPPORTS: "#818cf8",       // indigo-400
-  READING_ENRICHES: "#a5b4fc",      // indigo-300
-  THEME_CONVERGENCE: "#f59e0b",     // amber-500 (caution)
-  TEACHER_VALIDATION: "#dc2626",    // red-600 (validation)
+  COMPETENCY_SHARED: CHART_HEX[0],     // indigo
+  CONTENT_REFERENCE: CHART_HEX[5],     // blue
+  TEMPORAL_GROWTH: CHART_HEX[4],       // emerald
+  COURSE_SUPPORTS: CHART_HEX[1],       // purple
+  READING_ENRICHES: CHART_HEX[2],      // pink
+  THEME_CONVERGENCE: CHART_HEX[3],     // amber
+  TEACHER_VALIDATION: CHART_HEX[6],    // red
 };
 
 interface EdgeSummarySectionProps {
@@ -55,18 +57,18 @@ export function EdgeSummarySection({ edges }: EdgeSummarySectionProps) {
       {/* 요약 통계 */}
       <div className="mb-4 flex items-center gap-6">
         <div className="text-center">
-          <p className="text-2xl font-bold text-indigo-600">{edges.length}</p>
-          <p className="text-xs text-gray-500">총 연결</p>
+          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{edges.length}</p>
+          <p className={TYPO.caption}>총 연결</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-purple-600">{sortedTypes.length}</p>
-          <p className="text-xs text-gray-500">연결 유형</p>
+          <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{sortedTypes.length}</p>
+          <p className={TYPO.caption}>연결 유형</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-indigo-600">
+          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
             {new Set(edges.map((e) => e.source_record_id)).size}
           </p>
-          <p className="text-xs text-gray-500">관련 영역</p>
+          <p className={TYPO.caption}>관련 영역</p>
         </div>
       </div>
 
@@ -101,12 +103,12 @@ export function EdgeSummarySection({ edges }: EdgeSummarySectionProps) {
       )}
 
       {/* 타입별 상세 테이블 */}
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-gray-300 bg-gray-50">
-            <th className="px-3 py-2 text-left font-medium text-gray-700">연결 유형</th>
-            <th className="w-16 px-2 py-2 text-center font-medium text-gray-700">건수</th>
-            <th className="px-3 py-2 text-left font-medium text-gray-700">대표 연결</th>
+      <table className={TABLE.wrapper}>
+        <thead className={TABLE.thead}>
+          <tr>
+            <th className={TABLE.th}>연결 유형</th>
+            <th className={cn(TABLE.th, "w-16 text-center")}>건수</th>
+            <th className={TABLE.th}>대표 연결</th>
           </tr>
         </thead>
         <tbody>
@@ -116,36 +118,38 @@ export function EdgeSummarySection({ edges }: EdgeSummarySectionProps) {
             const examples = typeEdges.slice(0, 2);
 
             return (
-              <tr key={type} className="border-b border-gray-200 print-avoid-break">
-                <td className="px-3 py-2">
+              <tr key={type} className={cn(TABLE.trHover, "print-avoid-break")}>
+                <td className={TABLE.td}>
                   <span className={`inline-block rounded border px-2 py-0.5 text-xs font-semibold ${meta.bgColor} ${meta.color}`}>
                     {meta.label}
                   </span>
                 </td>
-                <td className="px-2 py-2 text-center font-semibold">{typeEdges.length}</td>
-                <td className="px-3 py-2">
+                <td className={cn(TABLE.td, "text-center font-semibold")}>{typeEdges.length}</td>
+                <td className={TABLE.td}>
                   <div className="space-y-1">
                     {examples.map((ex) => (
-                      <div key={ex.id} className={`text-xs ${ex.confidence >= 0.7 ? "text-gray-700" : "text-gray-500"}`}>
-                        <span className="font-medium text-gray-800">{ex.source_label}</span>
-                        <span className="mx-1 text-gray-500">→</span>
-                        <span className="font-medium text-gray-800">{ex.target_label}</span>
+                      <div key={ex.id} className={cn("text-xs", ex.confidence >= 0.7 ? TYPO.body : TYPO.caption)}>
+                        <span className="font-medium text-[var(--text-primary)]">{ex.source_label}</span>
+                        <span className="mx-1 text-[var(--text-tertiary)]">→</span>
+                        <span className="font-medium text-[var(--text-primary)]">{ex.target_label}</span>
                         {ex.confidence > 0 && (
-                          <span className={`ml-1 rounded px-1 py-0.5 text-xs font-medium ${
-                            ex.confidence >= 0.8 ? "bg-emerald-50 text-emerald-700" :
-                            ex.confidence >= 0.5 ? "bg-amber-50 text-amber-700" :
-                            "bg-gray-100 text-gray-500"
-                          }`}>
+                          <span className={cn(
+                            "ml-1 rounded px-1 py-0.5",
+                            TYPO.label,
+                            ex.confidence >= 0.8 ? BADGE.emerald :
+                            ex.confidence >= 0.5 ? BADGE.amber :
+                            BADGE.gray,
+                          )}>
                             {Math.round(ex.confidence * 100)}%
                           </span>
                         )}
                         {ex.reason && (
-                          <span className="ml-1 text-gray-500">({ex.reason.slice(0, 60)}{ex.reason.length > 60 ? "…" : ""})</span>
+                          <span className={cn("ml-1", TYPO.caption)}>({ex.reason.slice(0, 60)}{ex.reason.length > 60 ? "…" : ""})</span>
                         )}
                       </div>
                     ))}
                     {typeEdges.length > 2 && (
-                      <p className="text-xs text-gray-500">외 {typeEdges.length - 2}건</p>
+                      <p className={TYPO.caption}>외 {typeEdges.length - 2}건</p>
                     )}
                   </div>
                 </td>

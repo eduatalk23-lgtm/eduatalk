@@ -1,7 +1,9 @@
+import { cn } from "@/lib/cn";
 import type { StrategyTabData } from "@/lib/domains/student-record/types";
 import { APPLICATION_ROUND_LABELS } from "@/lib/domains/student-record/constants";
 import { Building2 } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
+import { BADGE, TABLE, TYPO } from "@/lib/design-tokens/report";
 
 const RESULT_LABELS: Record<string, string> = {
   pending: "대기",
@@ -38,82 +40,70 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
       {/* 지원 요약 카드 */}
       {totalApps > 0 && (
         <div className="mt-4 mb-4 grid grid-cols-4 gap-3 print-avoid-break">
-          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
-            <p className="text-2xl font-bold text-gray-900">{totalApps}</p>
-            <p className="text-xs text-gray-500">총 지원</p>
+          <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-[var(--text-primary)]">{totalApps}</p>
+            <p className={TYPO.caption}>총 지원</p>
           </div>
-          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
-            <p className="text-2xl font-bold text-indigo-600">{suApps}</p>
-            <p className="text-xs text-gray-500">수시</p>
+          <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{suApps}</p>
+            <p className={TYPO.caption}>수시</p>
           </div>
-          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
-            <p className="text-2xl font-bold text-blue-600">{jungApps}</p>
-            <p className="text-xs text-gray-500">정시</p>
+          <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{jungApps}</p>
+            <p className={TYPO.caption}>정시</p>
           </div>
-          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
-            <p className={`text-2xl font-bold ${notMetCount > 0 ? "text-red-600" : metCount > 0 ? "text-emerald-600" : "text-gray-500"}`}>
+          <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 shadow-sm text-center">
+            <p className={`text-2xl font-bold ${notMetCount > 0 ? "text-red-600 dark:text-red-400" : metCount > 0 ? "text-emerald-600 dark:text-emerald-400" : TYPO.caption}`}>
               {metCount}/{metCount + notMetCount}
             </p>
-            <p className="text-xs text-gray-500">최저 충족</p>
+            <p className={TYPO.caption}>최저 충족</p>
           </div>
         </div>
       )}
 
       {/* 지원 리스트 */}
       {applications.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
-          <p className="text-sm text-gray-500">지원 현황이 아직 등록되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-500">수시/정시 지원 대학을 등록하면 수능최저 충족 분석과 면접 일정이 표시됩니다.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-[var(--border-secondary)] p-6 text-center">
+          <p className={TYPO.body}>지원 현황이 아직 등록되지 않았습니다.</p>
+          <p className={cn("mt-1", TYPO.caption)}>수시/정시 지원 대학을 등록하면 수능최저 충족 분석과 면접 일정이 표시됩니다.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-        <table className="w-full border-collapse pt-4 text-sm">
-          <thead>
-            <tr className="border-b border-gray-300 bg-gray-50">
-              <th className="px-2 py-2 text-left font-medium text-gray-700">
-                전형
-              </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-700">
-                대학
-              </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-700">
-                학과
-              </th>
-              <th className="px-2 py-2 text-center font-medium text-gray-700">
-                경쟁률
-              </th>
-              <th className="px-2 py-2 text-center font-medium text-gray-700">
-                면접일
-              </th>
-              <th className="px-2 py-2 text-center font-medium text-gray-700">
-                결과
-              </th>
+        <table className={cn(TABLE.wrapper, "pt-4")}>
+          <thead className={TABLE.thead}>
+            <tr>
+              <th className={TABLE.th}>전형</th>
+              <th className={TABLE.th}>대학</th>
+              <th className={TABLE.th}>학과</th>
+              <th className={cn(TABLE.th, "text-center")}>경쟁률</th>
+              <th className={cn(TABLE.th, "text-center")}>면접일</th>
+              <th className={cn(TABLE.th, "text-center")}>결과</th>
             </tr>
           </thead>
           <tbody>
             {applications.map((app) => (
-              <tr key={app.id} className="border-b border-gray-200">
-                <td className="px-2 py-2 text-xs">
+              <tr key={app.id} className={TABLE.tr}>
+                <td className={cn(TABLE.td, "text-xs")}>
                   {APPLICATION_ROUND_LABELS[app.round] ?? app.round}
                 </td>
-                <td className="px-2 py-2">{app.university_name}</td>
-                <td className="px-2 py-2">{app.department}</td>
-                <td className="px-2 py-2 text-center text-xs">
+                <td className={TABLE.td}>{app.university_name}</td>
+                <td className={TABLE.td}>{app.department}</td>
+                <td className={cn(TABLE.td, "text-center text-xs")}>
                   {app.current_competition_rate != null
                     ? `${app.current_competition_rate}:1`
                     : "-"}
                 </td>
-                <td className="px-2 py-2 text-center text-xs">
+                <td className={cn(TABLE.td, "text-center text-xs")}>
                   {app.interview_date ?? "-"}
                 </td>
-                <td className="px-2 py-2 text-center">
+                <td className={cn(TABLE.td, "text-center")}>
                   <span
                     className={
                       app.result === "accepted"
-                        ? "font-semibold text-emerald-700"
+                        ? "font-semibold text-emerald-700 dark:text-emerald-400"
                         : app.result === "rejected"
-                          ? "text-red-600"
-                          : "text-gray-600"
+                          ? "text-red-600 dark:text-red-400"
+                          : TYPO.caption
                     }
                   >
                     {RESULT_LABELS[app.result] ?? app.result}
@@ -129,11 +119,11 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
       {/* 면접 일정 충돌 */}
       {interviewConflicts.length > 0 && (
         <div className="pt-4 print-avoid-break">
-          <p className="text-xs font-medium text-red-600">
+          <p className={cn("font-medium text-red-600 dark:text-red-400", TYPO.caption)}>
             면접 일정 충돌 ({interviewConflicts.length}건)
           </p>
           {interviewConflicts.map((c, i) => (
-            <p key={i} className="text-xs text-red-500">
+            <p key={i} className="text-xs text-red-500 dark:text-red-400">
               {c.conflictDate}: {c.university1} vs {c.university2}
             </p>
           ))}
@@ -143,65 +133,53 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
       {/* 수능최저 시뮬레이션 */}
       {minScoreTargets.length > 0 && (
         <div className="pt-6 print-avoid-break">
-          <h3 className="text-sm font-semibold text-gray-700">
+          <h3 className={cn("mb-2", TYPO.subsectionTitle)}>
             수능최저 충족 현황
           </h3>
-          <table className="w-full border-collapse pt-2 text-xs">
-            <thead>
-              <tr className="border-b border-gray-300 bg-gray-50">
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  대학
-                </th>
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  학과
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  충족
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  등급합
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  갭
-                </th>
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  병목
-                </th>
+          <table className={cn(TABLE.wrapper, "text-xs")}>
+            <thead className={TABLE.thead}>
+              <tr>
+                <th className={TABLE.th}>대학</th>
+                <th className={TABLE.th}>학과</th>
+                <th className={cn(TABLE.th, "text-center")}>충족</th>
+                <th className={cn(TABLE.th, "text-center")}>등급합</th>
+                <th className={cn(TABLE.th, "text-center")}>갭</th>
+                <th className={TABLE.th}>병목</th>
               </tr>
             </thead>
             <tbody>
               {minScoreTargets.map((target) => {
                 const sim = simByTarget.get(target.id);
                 return (
-                  <tr key={target.id} className="border-b border-gray-200">
-                    <td className="px-2 py-1.5">{target.university_name}</td>
-                    <td className="px-2 py-1.5">{target.department}</td>
-                    <td className="px-2 py-1.5 text-center">
+                  <tr key={target.id} className={TABLE.tr}>
+                    <td className={TABLE.td}>{target.university_name}</td>
+                    <td className={TABLE.td}>{target.department}</td>
+                    <td className={cn(TABLE.td, "text-center")}>
                       {sim ? (
                         <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            sim.is_met
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
+                          className={cn(
+                            "inline-block rounded-full px-2 py-0.5",
+                            TYPO.label,
+                            sim.is_met ? BADGE.emerald : BADGE.red,
+                          )}
                         >
                           {sim.is_met ? "충족" : "미충족"}
                         </span>
                       ) : (
-                        <span className="text-gray-500">-</span>
+                        <span className={TYPO.caption}>-</span>
                       )}
                     </td>
-                    <td className="px-2 py-1.5 text-center">
+                    <td className={cn(TABLE.td, "text-center")}>
                       {sim?.grade_sum ?? "-"}
                     </td>
-                    <td className="px-2 py-1.5 text-center">
+                    <td className={cn(TABLE.td, "text-center")}>
                       {sim?.gap != null
                         ? sim.gap > 0
                           ? `+${sim.gap}`
                           : String(sim.gap)
                         : "-"}
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-gray-600">
+                    <td className={cn(TABLE.td, TYPO.caption)}>
                       {sim?.bottleneck_subjects?.join(", ") ?? "-"}
                     </td>
                   </tr>

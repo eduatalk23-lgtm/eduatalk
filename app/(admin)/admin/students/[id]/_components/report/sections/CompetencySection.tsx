@@ -16,13 +16,26 @@ import {
   COMPETENCY_AREA_LABELS,
   COMPETENCY_RUBRIC_QUESTIONS,
 } from "@/lib/domains/student-record/constants";
+
+// 역량 항목 코드 → 레이블 빠른 조회
+const COMPETENCY_ITEM_LABEL: Record<string, string> = Object.fromEntries(
+  COMPETENCY_ITEMS.map((i) => [i.code, i.label]),
+);
 import type { RubricScoreEntry } from "@/lib/domains/student-record/types";
 import { aggregateTagsByQuestion, gradeToNum } from "@/lib/domains/student-record/rubric-matcher";
 import { buildSingleRadarData, buildGrowthData } from "@/lib/domains/student-record/chart-data";
 import { Brain } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 import { CollapsibleDetail } from "../CollapsibleDetail";
-const AREA_COLORS: Record<string, string> = { academic: "#4f46e5", career: "#818cf8", community: "#059669" };
+import { BADGE, TABLE, SPACING, TYPO, CHART_HEX } from "@/lib/design-tokens/report";
+import { SectionActionSummary } from "./SectionActionSummary";
+
+const AREA_COLORS: Record<string, string> = {
+  academic: CHART_HEX[0],   // indigo
+  career: CHART_HEX[1],     // purple
+  community: CHART_HEX[4],  // emerald
+};
 
 function parseRubricScores(raw: unknown): RubricScoreEntry[] {
   if (!raw || !Array.isArray(raw)) return [];
@@ -123,9 +136,9 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
       <ReportSectionHeader icon={Brain} title="역량 분석" subtitle="10항목 역량 프로필 + 성장 추이" />
 
       {!hasAnyData ? (
-        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
-          <p className="text-sm text-gray-500">역량 평가 데이터가 입력되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-500">AI 역량 분석을 실행하면 레이더 차트와 역량별 상세 분석이 생성됩니다.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-[var(--border-secondary)] p-6 text-center">
+          <p className={TYPO.body}>역량 평가 데이터가 입력되지 않았습니다.</p>
+          <p className={cn("mt-1", TYPO.caption)}>AI 역량 분석을 실행하면 레이더 차트와 역량별 상세 분석이 생성됩니다.</p>
         </div>
       ) : (
         <div className="space-y-6 pt-4">
@@ -146,15 +159,15 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
               const grade = areaAvg >= 4 ? "A" : areaAvg >= 3 ? "B+" : areaAvg >= 2 ? "B" : "C";
 
               return (
-                <div key={area} className="rounded-lg border border-gray-200 p-3 text-center">
-                  <p className="text-xs font-semibold text-gray-800">{COMPETENCY_AREA_LABELS[area]}</p>
-                  <p className="text-lg font-bold text-indigo-600">{grade}</p>
+                <div key={area} className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 text-center">
+                  <p className={TYPO.subsectionTitle}>{COMPETENCY_AREA_LABELS[area]}</p>
+                  <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{grade}</p>
                   <ResponsiveContainer width="100%" height={140}>
                     <RadarChart data={areaRadar} cx="50%" cy="50%" outerRadius="65%">
                       <PolarGrid stroke="#e5e7eb" />
                       <PolarAngleAxis dataKey="item" tick={{ fontSize: 8 }} />
                       <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} axisLine={false} />
-                      <Radar dataKey="점수" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.2} strokeWidth={2} />
+                      <Radar dataKey="점수" stroke={CHART_HEX[0]} fill={CHART_HEX[0]} fillOpacity={0.2} strokeWidth={2} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
@@ -166,7 +179,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
           <div className="grid grid-cols-1 gap-4 print-avoid-break md:grid-cols-2">
             {/* 영역별 도넛 차트 */}
             <div>
-              <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">영역별 평균</h3>
+              <h3 className={cn("mb-1 text-center", TYPO.caption, "font-semibold")}>영역별 평균</h3>
               <ResponsiveContainer width="100%" height={220} minHeight={180}>
                 <PieChart>
                   <Pie
@@ -186,7 +199,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
               </ResponsiveContainer>
               <div className="flex justify-center gap-3">
                 {donutData.map((d) => (
-                  <span key={d.name} className="flex items-center gap-1 text-xs text-gray-600 sm:text-xs">
+                  <span key={d.name} className={cn("flex items-center gap-1", TYPO.caption)}>
                     <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
                     {d.name}
                   </span>
@@ -198,7 +211,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
           {/* P1-1: 역량 성장 추이 라인 차트 */}
           {growthData && growthData.length >= 2 && growthLines.length > 0 && (
             <div className="print-avoid-break">
-              <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">역량 성장 추이</h3>
+              <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>역량 성장 추이</h3>
               <ResponsiveContainer width="100%" height={220} minHeight={180}>
                 <LineChart data={growthData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -230,8 +243,8 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                 <div className="mt-1 grid gap-1" style={{ gridTemplateColumns: `repeat(${growthAnnotations.length}, 1fr)` }}>
                   {growthAnnotations.map((ga) => (
                     <div key={ga.grade} className="text-center">
-                      <span className="text-xs font-medium text-gray-500">{ga.grade}학년: </span>
-                      <span className="text-xs text-gray-600">{ga.annotations.join(" · ")}</span>
+                      <span className={cn("font-medium", TYPO.caption)}>{ga.grade}학년: </span>
+                      <span className={TYPO.caption}>{ga.annotations.join(" · ")}</span>
                     </div>
                   ))}
                 </div>
@@ -243,13 +256,13 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
           <CollapsibleDetail title="10항목 상세 분석">
             {/* 10항목 레이더 */}
             <div className="mb-6 print-avoid-break">
-              <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">10항목 역량 프로필</h3>
+              <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>10항목 역량 프로필</h3>
               <ResponsiveContainer width="100%" height={250} minHeight={200}>
                 <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
                   <PolarGrid stroke="#e5e7eb" />
                   <PolarAngleAxis dataKey="item" tick={{ fontSize: 10 }} />
                   <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{ fontSize: 9 }} tickCount={6} />
-                  <Radar dataKey="점수" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.25} strokeWidth={2} />
+                  <Radar dataKey="점수" stroke={CHART_HEX[0]} fill={CHART_HEX[0]} fillOpacity={0.25} strokeWidth={2} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -257,7 +270,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
           {/* 등급 요약 테이블 */}
           <div className="print-avoid-break">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-gray-800">
+              <h3 className={TYPO.subsectionTitle}>
                 10항목 등급 요약
               </h3>
               {(() => {
@@ -267,30 +280,20 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                   return a && c && a !== c;
                 }).length;
                 return mismatchCount > 0 ? (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                  <span className={cn("rounded px-1.5 py-0.5", TYPO.label, BADGE.amber)}>
                     AI↔컨설턴트 불일치 {mismatchCount}건
                   </span>
                 ) : null;
               })()}
             </div>
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-gray-300 bg-gray-50">
-                  <th className="whitespace-nowrap px-3 py-1.5 text-left font-medium text-gray-700">
-                    영역
-                  </th>
-                  <th className="px-3 py-1.5 text-left font-medium text-gray-700">
-                    항목
-                  </th>
-                  <th className="w-12 whitespace-nowrap px-2 py-1.5 text-center font-medium text-gray-700">
-                    AI
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-1.5 text-center font-medium text-gray-700">
-                    컨설턴트
-                  </th>
-                  <th className="w-20 whitespace-nowrap px-2 py-1.5 text-center font-medium text-gray-700">
-                    근거
-                  </th>
+            <table className={TABLE.wrapper}>
+              <thead className={TABLE.thead}>
+                <tr>
+                  <th className={cn(TABLE.th, "whitespace-nowrap")}>영역</th>
+                  <th className={TABLE.th}>항목</th>
+                  <th className={cn(TABLE.th, "w-12 whitespace-nowrap text-center")}>AI</th>
+                  <th className={cn(TABLE.th, "whitespace-nowrap text-center")}>컨설턴트</th>
+                  <th className={cn(TABLE.th, "w-20 whitespace-nowrap text-center")}>근거</th>
                 </tr>
               </thead>
               <tbody>
@@ -312,22 +315,22 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                       <tr
                         key={item.code}
                         className={`${
-                          hasMismatch ? "bg-amber-50/60 " : ""
+                          hasMismatch ? "bg-amber-50/60 dark:bg-amber-950/20 " : ""
                         }${
                           idx === items.length - 1
-                            ? "border-b border-gray-300"
-                            : "border-b border-gray-100"
+                            ? "border-b border-[var(--border-secondary)]"
+                            : "border-b border-[var(--border-primary)]"
                         }`}
                       >
                         {idx === 0 && (
                           <td
                             rowSpan={items.length}
-                            className="px-3 py-1.5 align-top text-xs font-semibold text-gray-800"
+                            className="px-3 py-1.5 align-top text-xs font-semibold text-[var(--text-primary)]"
                           >
                             {COMPETENCY_AREA_LABELS[area]}
                           </td>
                         )}
-                        <td className="px-3 py-1.5 text-xs">{item.label}</td>
+                        <td className={cn(TABLE.td, "text-xs")}>{item.label}</td>
                         <td className="px-2 py-1.5 text-center">
                           <GradeBadge grade={ai?.grade_value} />
                         </td>
@@ -337,18 +340,18 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                         <td className="px-2 py-1.5 text-center text-xs">
                           {hasEvidence ? (
                             <span>
-                              <span className="text-emerald-600">
+                              <span className="text-emerald-600 dark:text-emerald-400">
                                 +{tagInfo!.positive}
                               </span>
                               {tagInfo!.negative > 0 && (
-                                <span className="text-red-500">
+                                <span className="text-red-500 dark:text-red-400">
                                   {" "}
                                   -{tagInfo!.negative}
                                 </span>
                               )}
                             </span>
                           ) : (
-                            <span className="text-gray-300">-</span>
+                            <span className="text-[var(--text-placeholder)]">-</span>
                           )}
                         </td>
                       </tr>
@@ -364,7 +367,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
             const items = COMPETENCY_ITEMS.filter((i) => i.area === area);
             return (
               <div key={area} className="print-break-before">
-                <h3 className="border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
+                <h3 className="border-b border-[var(--border-secondary)] pb-1 text-sm font-semibold text-[var(--text-primary)]">
                   {COMPETENCY_AREA_LABELS[area]} 상세
                 </h3>
 
@@ -396,11 +399,11 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                   return (
                     <div
                       key={item.code}
-                      className="border-b border-gray-100 py-3 print-avoid-break"
+                      className="border-b border-[var(--border-primary)] py-3 print-avoid-break"
                     >
                       {/* 항목명 + 등급 */}
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className={cn("font-medium", TYPO.body)}>
                           {item.label}
                         </span>
                         {grade && (
@@ -412,7 +415,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
 
                       {/* narrative 해석 서술 */}
                       {narrative && (
-                        <p className="pt-1 text-xs leading-relaxed text-gray-700">
+                        <p className={cn("pt-1 leading-relaxed", TYPO.caption)}>
                           {narrative}
                         </p>
                       )}
@@ -422,28 +425,28 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                         <div className="overflow-x-auto">
                         <table className="w-full border-collapse pt-2 text-xs sm:text-[11px]">
                           <thead>
-                            <tr className="border-b border-gray-200 bg-gray-50">
-                              <th className="px-2 py-1 text-left font-medium text-gray-500">
+                            <tr className="border-b border-[var(--border-secondary)] bg-[var(--surface-secondary)]">
+                              <th className="px-2 py-1 text-left font-medium text-[var(--text-secondary)]">
                                 평가 기준
                               </th>
                               {hasRubricGrades && (
                                 <>
-                                  <th className="w-12 px-1 py-1 text-center font-medium text-blue-600">
+                                  <th className="w-12 px-1 py-1 text-center font-medium text-blue-600 dark:text-blue-400">
                                     AI
                                   </th>
-                                  <th className="w-12 px-1 py-1 text-center font-medium text-amber-600">
+                                  <th className="w-12 px-1 py-1 text-center font-medium text-amber-600 dark:text-amber-400">
                                     컨설턴트
                                   </th>
                                 </>
                               )}
-                              <th className="w-10 px-1 py-1 text-center font-medium text-emerald-600">
+                              <th className="w-10 px-1 py-1 text-center font-medium text-emerald-600 dark:text-emerald-400">
                                 +
                               </th>
-                              <th className="w-10 px-1 py-1 text-center font-medium text-red-500">
+                              <th className="w-10 px-1 py-1 text-center font-medium text-red-500 dark:text-red-400">
                                 -
                               </th>
                               {hasAnyStats && (
-                                <th className="px-2 py-1 text-left font-medium text-gray-500">
+                                <th className="px-2 py-1 text-left font-medium text-[var(--text-secondary)]">
                                   근거
                                 </th>
                               )}
@@ -457,51 +460,51 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                               return (
                               <tr
                                 key={stat.questionIndex}
-                                className="border-b border-gray-50"
+                                className="border-b border-[var(--border-primary)]"
                               >
-                                <td className="px-2 py-1 leading-snug text-gray-600">
+                                <td className="px-2 py-1 leading-snug text-[var(--text-secondary)]">
                                   {stat.questionText}
                                 </td>
                                 {hasRubricGrades && (
                                   <>
                                     <td className="px-1 py-1 text-center">
                                       {aiR ? (
-                                        <span className="text-xs font-semibold text-blue-600">{aiR.grade}</span>
+                                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{aiR.grade}</span>
                                       ) : (
-                                        <span className="text-gray-200">-</span>
+                                        <span className="text-[var(--text-placeholder)]">-</span>
                                       )}
                                     </td>
                                     <td className="px-1 py-1 text-center">
                                       {conR ? (
-                                        <span className={`text-xs font-semibold ${match ? "text-green-600" : "text-amber-600"}`}>
+                                        <span className={`text-xs font-semibold ${match ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
                                           {conR.grade}
                                         </span>
                                       ) : (
-                                        <span className="text-gray-200">-</span>
+                                        <span className="text-[var(--text-placeholder)]">-</span>
                                       )}
                                     </td>
                                   </>
                                 )}
                                 <td className="px-1 py-1 text-center">
                                   {stat.positive > 0 ? (
-                                    <span className="text-emerald-600">
+                                    <span className="text-emerald-600 dark:text-emerald-400">
                                       {stat.positive}
                                     </span>
                                   ) : (
-                                    <span className="text-gray-200">-</span>
+                                    <span className="text-[var(--text-placeholder)]">-</span>
                                   )}
                                 </td>
                                 <td className="px-1 py-1 text-center">
                                   {stat.negative > 0 ? (
-                                    <span className="text-red-500">
+                                    <span className="text-red-500 dark:text-red-400">
                                       {stat.negative}
                                     </span>
                                   ) : (
-                                    <span className="text-gray-200">-</span>
+                                    <span className="text-[var(--text-placeholder)]">-</span>
                                   )}
                                 </td>
                                 {hasAnyStats && (
-                                  <td className="px-2 py-1 text-gray-500">
+                                  <td className="px-2 py-1 text-[var(--text-tertiary)]">
                                     {stat.evidences.length > 0
                                       ? stat.evidences[0].split("\n")[0].slice(0, 60) +
                                         (stat.evidences[0].length > 60 ? "…" : "")
@@ -522,6 +525,21 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
             );
           })}
           </CollapsibleDetail>
+
+          {/* 가장 낮은 역량 기반 다음 단계 */}
+          {(() => {
+            const scores = [...(consultantScores.length > 0 ? consultantScores : aiScores)];
+            const weakCompetencies = scores
+              .filter((s) => s.grade_value)
+              .sort((a, b) => gradeToNum(a.grade_value ?? "") - gradeToNum(b.grade_value ?? ""))
+              .slice(0, 2)
+              .map((c) => {
+                const itemLabel = COMPETENCY_ITEM_LABEL[c.competency_item] ?? c.competency_item;
+                const areaLabel = COMPETENCY_AREA_LABELS[c.competency_area as keyof typeof COMPETENCY_AREA_LABELS] ?? "";
+                return `${areaLabel ? `[${areaLabel}] ` : ""}${itemLabel}(현재 ${c.grade_value ?? "-"}등급) → 관련 활동 기록에서 구체적 사례를 추가하세요`;
+              });
+            return weakCompetencies.length > 0 ? <SectionActionSummary actions={weakCompetencies} /> : null;
+          })()}
         </div>
       )}
     </section>
@@ -529,20 +547,20 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
 }
 
 function GradeBadge({ grade }: { grade?: string | null }) {
-  if (!grade) return <span className="text-gray-300">-</span>;
+  if (!grade) return <span className="text-[var(--text-placeholder)]">-</span>;
 
   const styleMap: Record<string, { cls: string; icon: string }> = {
-    "A+": { cls: "text-emerald-700 font-bold", icon: "◆" },
-    "A-": { cls: "text-emerald-600 font-semibold", icon: "◇" },
-    "B+": { cls: "text-blue-700 font-semibold", icon: "●" },
-    B: { cls: "text-blue-600", icon: "○" },
-    "B-": { cls: "text-blue-500", icon: "▪" },
-    C: { cls: "text-amber-600", icon: "▫" },
+    "A+": { cls: "text-emerald-700 dark:text-emerald-400 font-bold", icon: "◆" },
+    "A-": { cls: "text-emerald-600 dark:text-emerald-500 font-semibold", icon: "◇" },
+    "B+": { cls: "text-blue-700 dark:text-blue-400 font-semibold", icon: "●" },
+    B: { cls: "text-blue-600 dark:text-blue-500", icon: "○" },
+    "B-": { cls: "text-blue-500 dark:text-blue-600", icon: "▪" },
+    C: { cls: "text-amber-600 dark:text-amber-400", icon: "▫" },
   };
 
   const style = styleMap[grade];
   return (
-    <span className={style?.cls ?? "text-gray-700"}>
+    <span className={style?.cls ?? "text-[var(--text-primary)]"}>
       {style && <span className="mr-0.5 text-[8px] leading-none" aria-hidden="true">{style.icon}</span>}
       {grade}
     </span>

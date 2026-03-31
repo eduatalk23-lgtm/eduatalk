@@ -1364,3 +1364,27 @@ input[type="number"] {
   }
 }
 
+/* ─── P2-2: 추가 인쇄 규칙 ─── */
+@media print {
+  /* 학년별 수강계획 섹션 시작 전 페이지 브레이크 */
+  [data-section-id^="grade-"][data-section-id$="-plan"] {
+    break-before: page;
+  }
+
+  /* 카드 내부 분리 방지 */
+  .report-card-no-break {
+    break-inside: avoid;
+  }
+
+  /* 배경색 인쇄 허용 (배지, 강조 박스 등) */
+  .print-colors {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 모바일 TOC select 인쇄 제외 (nav 이미 hidden이지만 select도 보장) */
+  select[aria-label="섹션으로 이동"] {
+    display: none !important;
+  }
+}
+
