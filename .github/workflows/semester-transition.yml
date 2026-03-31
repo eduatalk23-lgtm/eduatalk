@@ -1,0 +1,56 @@
+name: Semester Transition (학기 전환)
+
+on:
+  # 매년 3월 1일 08:00 KST = 2월 28일 23:00 UTC
+  schedule:
+    - cron: '0 23 28 2 *'
+
+  # 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '드라이런 모드 (실제 DB 변경 없음)'
+        required: false
+        default: true
+        type: boolean
+      tenant_id:
+        description: '특정 테넌트 ID (비워두면 전체)'
+        required: false
+        type: string
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+jobs:
+  transition:
+    name: Run Semester Transition
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run semester transition
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run || 'false' }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ inputs.tenant_id }}" ]; then
+            ARGS="$ARGS --tenant=${{ inputs.tenant_id }}"
+          fi
+          npx tsx scripts/semester-transition.ts $ARGS

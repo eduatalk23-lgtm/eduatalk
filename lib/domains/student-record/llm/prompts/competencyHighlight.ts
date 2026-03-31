@@ -4,7 +4,7 @@
 // ============================================
 
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "../../constants";
-import type { HighlightAnalysisInput, HighlightAnalysisResult, AnalyzedSection, HighlightTag, BatchHighlightInput } from "../types";
+import type { HighlightAnalysisInput, HighlightAnalysisResult, AnalyzedSection, HighlightTag, BatchHighlightInput, ContentQualityScore } from "../types";
 import type { CompetencyItemCode, CompetencyGrade } from "../../types";
 import { extractJson } from "../extractJson";
 
@@ -108,8 +108,46 @@ ${COMPETENCY_SCHEMA}
       ]
     }
   ],
-  "summary": "학업 탐구력이 두드러지며 진로 연결이 우수함"
+  "summary": "학업 탐구력이 두드러지며 진로 연결이 우수함",
+  "contentQuality": {
+    "specificity": 3,
+    "coherence": 4,
+    "depth": 3,
+    "grammar": 5,
+    "overallScore": 66,
+    "issues": ["구체적 성과 수치 부족"],
+    "feedback": "탐구 과정은 잘 드러나나 결과와 배운 점을 구체적 수치나 사례로 보완하면 좋겠습니다."
+  }
 }
+\`\`\`
+
+## 추가: 텍스트 품질 평가
+
+역량 분석과 함께, 이 텍스트의 **작성 품질**도 평가하세요:
+
+- **specificity** (0-5): 구체적 사례·근거·성과가 포함된 정도
+  - 0: "수업에 참여함" 수준의 모호한 기술
+  - 3: 활동 내용이 있으나 구체적 성과 부족
+  - 5: 구체적 탐구 과정, 결과, 배운 점이 명확
+
+- **coherence** (0-5): 활동→과정→결과→성장의 논리적 흐름
+  - 0: 나열식, 연결 없음
+  - 3: 부분적 연결
+  - 5: 자연스러운 서사 흐름
+
+- **depth** (0-5): 탐구·분석의 깊이
+  - 0: 표면적 기술만
+  - 3: 탐구 시도는 있으나 피상적
+  - 5: 심층 분석, 교과 연계, 확장적 사고
+
+- **grammar** (0-5): 문법·맞춤법·표현의 적절성
+  - 5: 완벽
+  - 3: 약간의 어색함
+  - 0: 심각한 문법 오류
+
+- **overallScore** (0-100): 종합 = (specificity×30 + coherence×20 + depth×30 + grammar×20) / 5
+- **issues**: 발견된 품질 문제 목록 (예: "동어반복", "구체 사례 부족", "나열식 기술")
+- **feedback**: 개선을 위한 1-2문장 피드백
 \`\`\``;
 
 // ============================================
@@ -188,6 +226,27 @@ const VALID_GRADES = new Set(["A+", "A-", "B+", "B", "B-", "C"]);
 
 const EMPTY_RESULT: HighlightAnalysisResult = { sections: [], competencyGrades: [], summary: "" };
 
+/** 숫자 범위 클램프 헬퍼 */
+function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}
+
+/** raw 응답에서 contentQuality 안전 추출 (undefined = LLM이 제공 안 함) */
+function extractContentQuality(raw: Record<string, unknown>): ContentQualityScore | undefined {
+  const cq = raw.contentQuality;
+  if (!cq || typeof cq !== "object") return undefined;
+  const c = cq as Record<string, unknown>;
+  return {
+    specificity: clamp(Number(c.specificity) || 0, 0, 5),
+    coherence: clamp(Number(c.coherence) || 0, 0, 5),
+    depth: clamp(Number(c.depth) || 0, 0, 5),
+    grammar: clamp(Number(c.grammar) || 0, 0, 5),
+    overallScore: clamp(Number(c.overallScore) || 0, 0, 100),
+    issues: Array.isArray(c.issues) ? c.issues.filter((i: unknown) => typeof i === "string") : [],
+    feedback: typeof c.feedback === "string" ? c.feedback : "",
+  };
+}
+
 /**
  * 파싱된 JSON 객체를 HighlightAnalysisResult로 검증/변환
  * parseHighlightResponse와 parseBatchHighlightResponse 양쪽에서 재사용
@@ -254,10 +313,12 @@ export function validateHighlightResult(parsed: Record<string, unknown>): Highli
       };
     });
 
+  const contentQuality = extractContentQuality(parsed);
   return {
     sections,
     competencyGrades,
     summary: typeof parsed.summary === "string" ? parsed.summary : "",
+    ...(contentQuality !== undefined ? { contentQuality } : {}),
   };
 }
 
@@ -346,10 +407,11 @@ export function buildBatchHighlightUserPrompt(
   prompt += `    "<record_id>": {\n`;
   prompt += `      "sections": [...],\n`;
   prompt += `      "competencyGrades": [...],\n`;
-  prompt += `      "summary": "..."\n`;
+  prompt += `      "summary": "...",\n`;
+  prompt += `      "contentQuality": { "specificity": 0-5, "coherence": 0-5, "depth": 0-5, "grammar": 0-5, "overallScore": 0-100, "issues": [...], "feedback": "..." }\n`;
   prompt += `    }\n`;
   prompt += `  }\n}\n\`\`\`\n\n`;
-  prompt += `각 record_id의 값은 단건 분석과 동일한 구조(sections, competencyGrades, summary)입니다.\n`;
+  prompt += `각 record_id의 값은 단건 분석과 동일한 구조(sections, competencyGrades, summary, contentQuality)입니다.\n`;
   prompt += `**모든 ${records.length}건의 기록을 빠짐없이 분석하세요.**`;
 
   return prompt;

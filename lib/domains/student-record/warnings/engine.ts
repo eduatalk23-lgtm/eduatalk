@@ -10,6 +10,7 @@ import type {
   DiagnosisTabData,
   StrategyTabData,
   Storyline,
+  RoadmapItem,
 } from "../types";
 import { MAJOR_RECOMMENDED_COURSES } from "../constants";
 
@@ -19,6 +20,15 @@ export interface GradeEntry {
   grade: number; // 학년
   semester: number;
   rankGrade: number | null; // 등급 (1~9)
+}
+
+/** 품질 점수 경고 엔진용 경량 타입 */
+export interface ContentQualityRow {
+  record_type: "setek" | "changche" | "haengteuk" | "personal_setek";
+  record_id: string;
+  overall_score: number;
+  issues: string[];
+  feedback: string | null;
 }
 
 /** 경고 엔진에 전달할 데이터 */
@@ -37,6 +47,10 @@ export interface WarningCheckInput {
   scores?: GradeEntry[];
   /** 목표 전공 계열 → MAJOR_RECOMMENDED_COURSES key (optional) */
   targetMajorField?: string | null;
+  /** Phase QA: 콘텐츠 품질 점수 (optional) */
+  qualityScores?: ContentQualityRow[];
+  /** 로드맵 항목 (미완료 이전 학년 경고용, optional) */
+  roadmapItems?: RoadmapItem[];
 }
 
 const MIN_READINGS_PER_GRADE = 2;
@@ -70,6 +84,16 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
 
   // ─── 전략 관련 ───
   pushAll(checkStrategyWarnings(input));
+
+  // ─── 품질 관련 ───
+  if (input.qualityScores && input.qualityScores.length > 0) {
+    pushAll(checkContentQuality(input.qualityScores));
+  }
+
+  // ─── 로드맵 관련 ───
+  if (input.roadmapItems && input.roadmapItems.length > 0) {
+    pushAll(checkUnfinishedRoadmap(input.roadmapItems, input.currentGrade));
+  }
 
   return warnings;
 }
@@ -421,4 +445,82 @@ function checkStrategyWarnings(input: WarningCheckInput): RecordWarning[] {
   }
 
   return warnings;
+}
+
+// ─── 품질 경고 ──────────────────────────────────
+
+const RECORD_TYPE_LABELS: Record<ContentQualityRow["record_type"], string> = {
+  setek: "교과 세특",
+  personal_setek: "개인 세특",
+  changche: "창체",
+  haengteuk: "행특",
+};
+
+/**
+ * Phase QA: 콘텐츠 품질 점수 기반 경고
+ * - overall_score < 40: severity "high" (content_quality_critical)
+ * - overall_score < 60: severity "medium" (content_quality_low)
+ */
+function checkContentQuality(qualityScores: ContentQualityRow[]): RecordWarning[] {
+  const warnings: RecordWarning[] = [];
+
+  for (const q of qualityScores) {
+    if (q.overall_score < 40) {
+      warnings.push({
+        ruleId: "content_quality_critical",
+        severity: "high",
+        category: "quality",
+        title: `${RECORD_TYPE_LABELS[q.record_type]} 품질 부족 (${q.overall_score}점)`,
+        message: q.issues.length > 0 ? q.issues.join(", ") : "구체적 사례와 근거가 부족합니다",
+        suggestion: q.feedback ?? "활동 성과, 배운 점, 발전 과정을 구체적으로 기술하세요",
+      });
+    } else if (q.overall_score < 60) {
+      warnings.push({
+        ruleId: "content_quality_low",
+        severity: "medium",
+        category: "quality",
+        title: `${RECORD_TYPE_LABELS[q.record_type]} 품질 개선 권장 (${q.overall_score}점)`,
+        message: q.issues.length > 0 ? q.issues.join(", ") : "작성 품질을 높이면 평가에 유리합니다",
+        suggestion: q.feedback ?? "구체적 성과와 성장 과정을 보강해주세요",
+      });
+    }
+  }
+
+  return warnings;
+}
+
+// ─── 로드맵 경고 ──────────────────────────────
+
+/**
+ * 이전 학년 미완료 로드맵 경고
+ *
+ * 현재 학년이 2학년 이상일 때, 이전 학년(currentGrade - 1)의
+ * planning/in_progress 상태 로드맵 항목이 남아있으면 경고를 발행한다.
+ */
+function checkUnfinishedRoadmap(roadmapItems: RoadmapItem[], currentGrade: number): RecordWarning[] {
+  const prevGrade = currentGrade - 1;
+  if (prevGrade < 1) return [];
+
+  const unfinished = roadmapItems.filter(
+    (r) => r.grade === prevGrade && (r.status === "planning" || r.status === "in_progress"),
+  );
+
+  if (unfinished.length === 0) return [];
+
+  const preview = unfinished
+    .slice(0, 3)
+    .map((r) => r.plan_content)
+    .join(", ");
+  const suffix = unfinished.length > 3 ? ` 외 ${unfinished.length - 3}건` : "";
+
+  return [
+    {
+      ruleId: "roadmap_unfinished_prev_grade",
+      severity: "medium",
+      category: "roadmap",
+      title: `이전 학년(${prevGrade}학년) 미완료 로드맵 ${unfinished.length}건`,
+      message: preview + suffix,
+      suggestion: "미완료 항목을 검토하고 새 학년 로드맵에 반영하세요",
+    },
+  ];
 }

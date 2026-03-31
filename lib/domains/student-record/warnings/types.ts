@@ -16,11 +16,14 @@ export type RecordWarningRuleId =
   | "min_score_bottleneck"
   | "min_score_trend_down"
   | "no_applications"
-  | "strategy_incomplete";
+  | "strategy_incomplete"
+  | "content_quality_critical"
+  | "content_quality_low"
+  | "roadmap_unfinished_prev_grade";
 
 export type RecordWarningSeverity = "critical" | "high" | "medium" | "low";
 
-export type RecordWarningCategory = "record" | "course" | "storyline" | "min_score" | "strategy";
+export type RecordWarningCategory = "record" | "course" | "storyline" | "min_score" | "strategy" | "quality" | "roadmap";
 
 export interface RecordWarning {
   ruleId: RecordWarningRuleId;
@@ -46,4 +49,7 @@ export const WARNING_LABELS: Record<RecordWarningRuleId, string> = {
   min_score_trend_down: "최저 추이 하락",
   no_applications: "지원 현황 미등록",
   strategy_incomplete: "보완전략 미수립",
+  content_quality_critical: "콘텐츠 품질 부족",
+  content_quality_low: "콘텐츠 품질 개선 권장",
+  roadmap_unfinished_prev_grade: "이전 학년 미완료 로드맵",
 };

@@ -4,8 +4,9 @@
 // ============================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { computeContentHash } from "./content-hash";
-import { markEdgesStale } from "./edge-repository";
+import { markEdgesStale, markAllStudentEdgesStale } from "./edge-repository";
 
 /**
  * 레코드 저장 후 관련 엣지를 stale로 마킹 (fire-and-forget safe)
@@ -108,6 +109,99 @@ export async function autoMatchRoadmapOnSetekSave(
   } catch {
     // fire-and-forget
   }
+}
+
+/**
+ * 세특 확정 시 관련 로드맵 항목을 in_progress → completed 전환 (fire-and-forget)
+ * confirmDraftAction 호출 후 실행
+ */
+export async function autoMatchRoadmapOnConfirm(
+  studentId: string,
+  subjectId: string,
+  grade: number,
+): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 과목명 조회
+    const { data: subject } = await supabase
+      .from("subjects")
+      .select("name")
+      .eq("id", subjectId)
+      .maybeSingle();
+    if (!subject?.name) return;
+
+    // 해당 학년의 setek 영역 in_progress 로드맵 항목 검색
+    const { data: roadmapItems } = await supabase
+      .from("student_record_roadmap_items")
+      .select("id, plan_content, status")
+      .eq("student_id", studentId)
+      .eq("grade", grade)
+      .eq("area", "setek")
+      .eq("status", "in_progress");
+
+    if (!roadmapItems || roadmapItems.length === 0) return;
+
+    // plan_content에 과목명이 포함된 항목 찾기
+    const normalizedName = subject.name.replace(/\s/g, "").toLowerCase();
+    const matched = roadmapItems.filter((item) => {
+      const normalizedPlan = item.plan_content.replace(/\s/g, "").toLowerCase();
+      return normalizedPlan.includes(normalizedName);
+    });
+
+    if (matched.length === 0) return;
+
+    // in_progress → completed 전환
+    await Promise.allSettled(
+      matched.map((item) =>
+        supabase
+          .from("student_record_roadmap_items")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", item.id)
+          .eq("status", "in_progress"), // 동시 업데이트 방지
+      ),
+    );
+  } catch {
+    // fire-and-forget
+  }
+}
+
+/**
+ * 학년 승급 시 모든 분석 결과를 stale 처리
+ *
+ * 배치 스크립트(semester-transition.ts)에서 호출.
+ * Admin 클라이언트를 사용하므로 서버 사이드 전용.
+ * 각 단계는 fire-and-forget — 실패해도 다른 단계에 영향 없음.
+ */
+export async function onGradeAdvanced(
+  studentId: string,
+  _newGrade: number,
+  tenantId: string,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return;
+
+  // 1. 가이드 할당 stale 마킹 (새 학년 재평가 필요)
+  // tenant_id 필터를 추가하여 다른 테넌트 데이터에 영향을 주지 않도록 보호
+  await supabase
+    .from("exploration_guide_assignments")
+    .update({ is_stale: true, stale_reason: "grade_advanced" })
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("is_stale", false)
+    .then(() => {})
+    .catch(() => {});
+
+  // 2. 엣지 stale 마킹 (fire-and-forget)
+  await markAllStudentEdgesStale(studentId, "grade_advanced").catch(() => {});
+
+  // 3. 파이프라인 content_hash → null (다음 실행 시 무조건 재분석)
+  await supabase
+    .from("student_record_analysis_pipelines")
+    .update({ content_hash: null })
+    .eq("student_id", studentId)
+    .then(() => {})
+    .catch(() => {});
 }
 
 /**

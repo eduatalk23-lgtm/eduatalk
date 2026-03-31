@@ -1,0 +1,115 @@
+name: Cohort Benchmark Refresh
+
+on:
+  # 매주 월요일 04:00 KST (= UTC 일요일 19:00)
+  schedule:
+    - cron: '0 19 * * 0'
+
+  # 수동 실행
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '드라이런 모드 (실제 저장 없음)'
+        required: false
+        default: false
+        type: boolean
+      tenant_id:
+        description: '특정 Tenant ID (없으면 전체)'
+        required: false
+        default: ''
+        type: string
+      major:
+        description: '특정 진로 (없으면 전체)'
+        required: false
+        default: ''
+        type: string
+      year:
+        description: '특정 학년도 (없으면 현재 기준 ±1)'
+        required: false
+        default: ''
+        type: string
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+jobs:
+  refresh:
+    name: Refresh Cohort Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Cohort Benchmark Refresh (Scheduled)
+        if: github.event_name == 'schedule'
+        run: |
+          echo "스케줄 배치 실행: 전체 tenant"
+          npx tsx scripts/cohort-benchmark-refresh.ts
+        env:
+          NODE_ENV: production
+
+      - name: Run Cohort Benchmark Refresh (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+          TENANT_ID="${{ github.event.inputs.tenant_id }}"
+          MAJOR="${{ github.event.inputs.major }}"
+          YEAR="${{ github.event.inputs.year }}"
+
+          echo "수동 배치 실행"
+          echo "  - 드라이런: $DRY_RUN"
+          echo "  - Tenant: ${TENANT_ID:-전체}"
+          echo "  - Major: ${MAJOR:-전체}"
+          echo "  - Year: ${YEAR:-현재 기준}"
+
+          CMD="npx tsx scripts/cohort-benchmark-refresh.ts"
+
+          if [ "$DRY_RUN" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          if [ -n "$TENANT_ID" ]; then
+            CMD="$CMD --tenant=$TENANT_ID"
+          fi
+
+          if [ -n "$MAJOR" ]; then
+            CMD="$CMD --major=$MAJOR"
+          fi
+
+          if [ -n "$YEAR" ]; then
+            CMD="$CMD --year=$YEAR"
+          fi
+
+          echo "실행 명령: $CMD"
+          eval $CMD
+        env:
+          NODE_ENV: production
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Cohort Benchmark Refresh 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **실행 시간**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **트리거**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "- **드라이런**: ${{ github.event.inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Tenant**: ${{ github.event.inputs.tenant_id || '전체' }}" >> $GITHUB_STEP_SUMMARY
+          fi
