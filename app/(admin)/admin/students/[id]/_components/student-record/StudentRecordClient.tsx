@@ -302,6 +302,47 @@ export function StudentRecordClient({
     return items.length > 0 ? items : undefined;
   }, [setekGuidesRes, subjects]);
 
+  // ─── 창체/행특 방향 가이드 ──
+  const { data: changcheGuidesRes } = useQuery({
+    queryKey: ["studentRecord", "changcheGuides", studentId],
+    queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchChangcheGuides(studentId)),
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+  const { data: haengteukGuideRes } = useQuery({
+    queryKey: ["studentRecord", "haengteukGuide", studentId],
+    queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchHaengteukGuide(studentId)),
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+  const transformedChangcheGuideItems = useMemo(() => {
+    if (!changcheGuidesRes?.success || !changcheGuidesRes.data) return undefined;
+    const LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
+    const items = changcheGuidesRes.data.map((row) => ({
+      activityType: row.activity_type,
+      activityLabel: LABELS[row.activity_type] ?? row.activity_type,
+      keywords: row.keywords ?? [],
+      direction: row.direction,
+      competencyFocus: row.competency_focus,
+      cautions: row.cautions ?? undefined,
+      teacherPoints: row.teacher_points,
+    }));
+    return items.length > 0 ? items : undefined;
+  }, [changcheGuidesRes]);
+  const transformedHaengteukGuideItem = useMemo(() => {
+    if (!haengteukGuideRes?.success || !haengteukGuideRes.data) return undefined;
+    const row = Array.isArray(haengteukGuideRes.data) ? haengteukGuideRes.data[0] : haengteukGuideRes.data;
+    if (!row) return undefined;
+    return {
+      keywords: row.keywords ?? [],
+      direction: row.direction,
+      competencyFocus: row.competency_focus,
+      cautions: row.cautions ?? undefined,
+      teacherPoints: row.teacher_points,
+      evaluationItems: row.evaluation_items as Array<{ item: string; score: string; reasoning: string }> | undefined,
+    };
+  }, [haengteukGuideRes]);
+
   const assignmentIds = useMemo(
     () => (guideAssignmentsRes?.success && guideAssignmentsRes.data ? guideAssignmentsRes.data.map((a) => a.id) : []),
     [guideAssignmentsRes],
@@ -1191,6 +1232,9 @@ export function StudentRecordClient({
                         grade={p.grade}
                         diagnosisActivityTags={diagnosisData?.activityTags}
                         guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
+                        changcheGuideItems={transformedChangcheGuideItems}
+                        activeTab={globalSetekTab}
+                        onTabChange={setGlobalSetekTab}
                       />
                     </div>
                   );
@@ -1310,6 +1354,10 @@ export function StudentRecordClient({
                         tenantId={tenantId}
                         grade={p.grade}
                         diagnosisActivityTags={diagnosisData?.activityTags}
+                        guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
+                        haengteukGuideItem={transformedHaengteukGuideItem}
+                        activeTab={globalSetekTab}
+                        onTabChange={setGlobalSetekTab}
                       />
                     </div>
                   );

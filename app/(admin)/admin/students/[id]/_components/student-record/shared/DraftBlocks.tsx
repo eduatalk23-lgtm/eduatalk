@@ -6,7 +6,7 @@
 // SetekEditor, ChangcheEditor, HaengteukEditor 등에서 재사용
 // ============================================
 
-import { Fragment, useCallback, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { ArrowDownToLine } from "lucide-react";
 import { CharacterCounter } from "../CharacterCounter";

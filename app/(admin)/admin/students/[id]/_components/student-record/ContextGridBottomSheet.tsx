@@ -16,16 +16,27 @@ import { SubjectNavStrip } from "./SubjectNavStrip";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { recordTabQueryOptions, diagnosisTabQueryOptions } from "@/lib/query-options/studentRecord";
 import { getCharLimit } from "@/lib/domains/student-record";
-import type { RecordSetek } from "@/lib/domains/student-record";
+import type { RecordSetek, RecordChangche, RecordHaengteuk } from "@/lib/domains/student-record";
 import type { SetekLayerTab, MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
 import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
 import type { SubjectNavItem } from "./StudentRecordClient";
+
+// ─── ID 종류 감지 ──
+
+type ActiveIdKind = "setek" | "changche" | "haengteuk";
+
+function detectIdKind(id: string | null | undefined): ActiveIdKind | null {
+  if (!id) return null;
+  if (id === "haengteuk") return "haengteuk";
+  if (id.startsWith("changche:")) return "changche";
+  return "setek";
+}
 
 // ─── 상수 ──
 
 const DEFAULT_COLUMNS: SetekLayerTab[] = ["draft", "neis", "analysis"];
 const MAX_COLUMNS = 3;
-const SELECTABLE_COLS: SetekLayerTab[] = ["guide", "direction", "draft", "neis", "analysis", "memo"];
+const SELECTABLE_COLS: SetekLayerTab[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
 const COL_LABELS: Record<SetekLayerTab, string> = {
   chat: "논의", guide: "가이드", direction: "방향", draft: "가안", neis: "NEIS", analysis: "분석", memo: "메모",
 };
@@ -75,6 +86,7 @@ export function ContextGridBottomSheet({
 }: ContextGridBottomSheetProps) {
   const ctx = useStudentRecordContext();
   const { activeSubjectId, activeSchoolYear, activeSubjectName, studentId, tenantId } = ctx;
+  const activeKind = detectIdKind(activeSubjectId);
 
   // 시트 표시 여부 (DOM 유지) vs 열림 상태 (애니메이션)
   const [visible, setVisible] = useState(false);
@@ -219,13 +231,22 @@ export function ContextGridBottomSheet({
     diagnosisTabQueryOptions(studentId, activeSchoolYear ?? 0, tenantId),
   );
 
-  // 선택된 과목의 세특 레코드
+  // ─── 열 선택: activeKind에 따라 사용 가능한 열 필터링 ──
+
+  const availableCols = useMemo<SetekLayerTab[]>(() => {
+    if (activeKind === "setek") return SELECTABLE_COLS;
+    // changche/haengteuk: direction 없음
+    return SELECTABLE_COLS.filter((c) => c !== "direction");
+  }, [activeKind]);
+
+  // ─── Setek 데이터 ──
+
   const subjectRecords = useMemo(() => {
-    if (!recordData?.seteks || !activeSubjectId) return [];
+    if (activeKind !== "setek" || !recordData?.seteks || !activeSubjectId) return [];
     return (recordData.seteks as RecordSetek[])
       .filter((s) => s.subject_id === activeSubjectId)
       .sort((a, b) => a.semester - b.semester);
-  }, [recordData?.seteks, activeSubjectId]);
+  }, [recordData?.seteks, activeSubjectId, activeKind]);
 
   const mergedRow: MergedSetekRow | null = useMemo(() => {
     if (subjectRecords.length === 0) return null;
@@ -257,6 +278,51 @@ export function ContextGridBottomSheet({
   const charLimit = getCharLimit("setek", activeSchoolYear ?? 0);
   const grade = subjectRecords[0]?.grade ?? 1;
 
+  // ─── Changche / Haengteuk 데이터 ──
+
+  const changcheRecord = useMemo<RecordChangche | null>(() => {
+    if (activeKind !== "changche" || !recordData?.changche || !activeSubjectId) return null;
+    const activityType = activeSubjectId.replace("changche:", "");
+    return (recordData.changche as RecordChangche[]).find((c) => c.activity_type === activityType) ?? null;
+  }, [recordData?.changche, activeSubjectId, activeKind]);
+
+  const haengteukRecord = useMemo<RecordHaengteuk | null>(() => {
+    if (activeKind !== "haengteuk" || !recordData?.haengteuk) return null;
+    return recordData.haengteuk as RecordHaengteuk;
+  }, [recordData?.haengteuk, activeKind]);
+
+  const nonSetekTags = useMemo(() => {
+    if (!diagnosisData?.activityTags || !activeKind || activeKind === "setek") return [];
+    const tags = diagnosisData.activityTags as AnalysisTagLike[];
+    if (activeKind === "changche" && changcheRecord) {
+      return tags.filter((t) => t.record_type === "changche" && t.record_id === changcheRecord.id);
+    }
+    if (activeKind === "haengteuk" && haengteukRecord) {
+      return tags.filter((t) => t.record_type === "haengteuk" && t.record_id === haengteukRecord.id);
+    }
+    return [];
+  }, [diagnosisData?.activityTags, activeKind, changcheRecord, haengteukRecord]);
+
+  const nonSetekContent = useMemo(() => {
+    if (activeKind === "changche" && changcheRecord) {
+      return changcheRecord.content?.trim() || changcheRecord.imported_content || "";
+    }
+    if (activeKind === "haengteuk" && haengteukRecord) {
+      return haengteukRecord.content?.trim() || haengteukRecord.imported_content || "";
+    }
+    return "";
+  }, [activeKind, changcheRecord, haengteukRecord]);
+
+  const nonSetekCharLimit = useMemo(() => {
+    if (activeKind === "changche" && changcheRecord) {
+      return getCharLimit(changcheRecord.activity_type as "autonomy" | "club" | "career", activeSchoolYear ?? 0);
+    }
+    if (activeKind === "haengteuk") {
+      return getCharLimit("haengteuk", activeSchoolYear ?? 0);
+    }
+    return 0;
+  }, [activeKind, changcheRecord, activeSchoolYear]);
+
   if (!visible) return null;
 
   return (
@@ -284,7 +350,7 @@ export function ContextGridBottomSheet({
           <div className="flex items-center gap-2">
             {/* 열 선택 */}
             <div className="flex flex-1 items-center gap-1.5">
-              {SELECTABLE_COLS.map((col) => {
+              {availableCols.map((col) => {
                 const active = selectedColumns.includes(col);
                 const disabled = !active && selectedColumns.length >= MAX_COLUMNS;
                 return (
@@ -318,7 +384,7 @@ export function ContextGridBottomSheet({
                   params.set("studentId", studentId);
                   if (ctx.studentName) params.set("studentName", ctx.studentName);
                   window.open(
-                    `/admin/agent-popout?${params.toString()}`,
+                    `/agent-popout?${params.toString()}`,
                     "agent-popout",
                     "width=480,height=700",
                   );
@@ -345,8 +411,8 @@ export function ContextGridBottomSheet({
           </div>
         </div>
 
-        {/* 과목 네비게이션 스트립 */}
-        {subjectNavList && subjectNavList.length > 0 && (
+        {/* 과목 네비게이션 스트립 (세특 전용) */}
+        {activeKind === "setek" && subjectNavList && subjectNavList.length > 0 && (
           <SubjectNavStrip
             items={filteredSubjects}
             activeSubjectId={activeSubjectId ?? null}
@@ -367,7 +433,7 @@ export function ContextGridBottomSheet({
 
         {/* 그리드 콘텐츠 */}
         <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
-          {mergedRow ? (
+          {activeKind === "setek" && mergedRow ? (
             <ContextGrid
               row={mergedRow}
               selectedColumns={selectedColumns}
@@ -381,6 +447,17 @@ export function ContextGridBottomSheet({
               subjectGuides={filteredGuides}
               subjectDirection={filteredDirection}
             />
+          ) : (activeKind === "changche" || activeKind === "haengteuk") ? (
+            <SimplifiedRecordView
+              title={activeSubjectName ?? ""}
+              content={nonSetekContent}
+              tags={nonSetekTags}
+              charLimit={nonSetekCharLimit}
+              selectedColumns={selectedColumns}
+              draftContent={(activeKind === "changche" ? changcheRecord : haengteukRecord)?.ai_draft_content ?? null}
+              consultantContent={(activeKind === "changche" ? changcheRecord : haengteukRecord)?.content ?? null}
+              confirmedContent={(activeKind === "changche" ? changcheRecord : haengteukRecord)?.confirmed_content ?? null}
+            />
           ) : (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-gray-400">데이터를 불러오는 중...</p>
@@ -389,5 +466,94 @@ export function ContextGridBottomSheet({
         </div>
       </div>
     </>
+  );
+}
+
+// ─── 간소화 레코드 뷰 (창체/행특용) ──
+
+function SimplifiedRecordView({
+  title,
+  content,
+  tags,
+  charLimit,
+  selectedColumns,
+  draftContent,
+  consultantContent,
+  confirmedContent,
+}: {
+  title: string;
+  content: string;
+  tags: AnalysisTagLike[];
+  charLimit: number;
+  selectedColumns: SetekLayerTab[];
+  draftContent: string | null;
+  consultantContent: string | null;
+  confirmedContent: string | null;
+}) {
+  return (
+    <div className="flex h-full flex-col gap-4 overflow-y-auto">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
+      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${selectedColumns.length}, 1fr)` }}>
+        {selectedColumns.map((col) => (
+          <div key={col} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">{COL_LABELS[col]}</span>
+            {col === "neis" && (
+              <div className="text-sm text-[var(--text-primary)] whitespace-pre-wrap">
+                {content || <span className="text-[var(--text-placeholder)]">기록 없음</span>}
+                {content && charLimit > 0 && (
+                  <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                    {content.length}자 / {charLimit}자
+                  </p>
+                )}
+              </div>
+            )}
+            {col === "draft" && (
+              <div className="flex flex-col gap-2 text-sm">
+                {draftContent && (
+                  <div className="rounded bg-violet-50 p-2 dark:bg-violet-900/20">
+                    <span className="text-xs font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
+                    <p className="mt-0.5 text-violet-600 dark:text-violet-300 line-clamp-4">{draftContent}</p>
+                  </div>
+                )}
+                {consultantContent?.trim() && (
+                  <div className="rounded bg-blue-50 p-2 dark:bg-blue-900/20">
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">컨설턴트 가안</span>
+                    <p className="mt-0.5 text-blue-600 dark:text-blue-300 line-clamp-4">{consultantContent}</p>
+                  </div>
+                )}
+                {confirmedContent?.trim() && (
+                  <div className="rounded bg-emerald-50 p-2 dark:bg-emerald-900/20">
+                    <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">확정본</span>
+                    <p className="mt-0.5 text-emerald-600 dark:text-emerald-300 line-clamp-4">{confirmedContent}</p>
+                  </div>
+                )}
+                {!draftContent && !consultantContent?.trim() && !confirmedContent?.trim() && (
+                  <span className="text-[var(--text-placeholder)]">가안 없음</span>
+                )}
+              </div>
+            )}
+            {col === "analysis" && (
+              <div className="flex flex-wrap gap-1">
+                {tags.length > 0 ? tags.map((t, i) => (
+                  <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
+                    t.evaluation === "positive" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : t.evaluation === "negative" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                  )}>
+                    {t.competency_item}
+                  </span>
+                )) : <span className="text-[var(--text-placeholder)]">태그 없음</span>}
+              </div>
+            )}
+            {col === "guide" && (
+              <span className="text-sm text-[var(--text-placeholder)]">가이드 데이터 없음</span>
+            )}
+            {col === "memo" && (
+              <span className="text-sm text-[var(--text-placeholder)]">메모는 에디터에서 확인</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
