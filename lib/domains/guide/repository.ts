@@ -2,6 +2,7 @@ import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   GuideListFilter,
   GuideUpsertInput,
@@ -352,8 +353,9 @@ export async function upsertGuideByLegacyId(
 export async function upsertGuideContent(
   guideId: string,
   input: GuideContentInput,
+  client?: SupabaseAdminClient,
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
   const { error } = await supabase.from("exploration_guide_content").upsert({
     guide_id: guideId,
     motivation: input.motivation ?? null,
@@ -379,8 +381,9 @@ export async function upsertGuideContent(
 export async function replaceSubjectMappings(
   guideId: string,
   mappings: Array<{ subjectId: string; curriculumRevisionId?: string }>,
+  client?: SupabaseAdminClient,
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
 
   const subjectIds = mappings.map((m) => m.subjectId);
   const revisionIds = mappings.map((m) => m.curriculumRevisionId ?? null);
@@ -398,8 +401,9 @@ export async function replaceSubjectMappings(
 export async function replaceCareerMappings(
   guideId: string,
   careerFieldIds: number[],
+  client?: SupabaseAdminClient,
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).rpc("replace_guide_career_mappings", {
@@ -413,8 +417,9 @@ export async function replaceCareerMappings(
 export async function replaceClassificationMappings(
   guideId: string,
   classificationIds: number[],
+  client?: SupabaseAdminClient,
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).rpc("replace_guide_classification_mappings", {
@@ -605,8 +610,8 @@ export async function getCompletionRate(
 // ============================================================
 
 /** 전체 계열 목록 */
-export async function findAllCareerFields(): Promise<CareerField[]> {
-  const supabase = await createSupabaseServerClient();
+export async function findAllCareerFields(client?: SupabaseAdminClient): Promise<CareerField[]> {
+  const supabase = client ?? await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("exploration_guide_career_fields")
     .select("*")
@@ -684,8 +689,9 @@ export async function createNewVersion(
   sourceGuideId: string,
   userId: string,
   versionMessage?: string,
+  client?: SupabaseAdminClient,
 ): Promise<ExplorationGuide> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
 
   // 1. 원본 가이드 조회
   const source = await findGuideById(sourceGuideId);
@@ -796,10 +802,10 @@ export async function revertToVersion(
 // ============================================================
 
 /** 전체 소분류 목록 (department_classification, sub_name IS NOT NULL) */
-export async function findAllClassifications(): Promise<
+export async function findAllClassifications(client?: SupabaseAdminClient): Promise<
   Array<{ id: number; mid_name: string; sub_name: string }>
 > {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("department_classification")
     .select("id, mid_name, sub_name")
@@ -811,10 +817,10 @@ export async function findAllClassifications(): Promise<
 }
 
 /** 전체 과목 목록 (subjects 테이블) */
-export async function findAllSubjects(): Promise<
+export async function findAllSubjects(client?: SupabaseAdminClient): Promise<
   Array<{ id: string; name: string }>
 > {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("subjects")
     .select("id, name")

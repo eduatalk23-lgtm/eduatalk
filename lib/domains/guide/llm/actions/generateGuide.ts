@@ -119,10 +119,11 @@ async function executeGuideGeneration(
     const { preview: generated } = result;
 
     // 과목/계열/소분류 이름 → ID 매핑
+    const adminClient = admin ?? undefined;
     const [allSubjects, allCareerFields, allClassifications] = await Promise.all([
-      findAllSubjects(),
-      findAllCareerFields(),
-      findAllClassifications(),
+      findAllSubjects(adminClient),
+      findAllCareerFields(adminClient),
+      findAllClassifications(adminClient),
     ]);
 
     const subjectMatcher = new SubjectMatcher(allSubjects);
@@ -212,14 +213,15 @@ async function executeGuideGeneration(
             outline: s.outline,
           };
         }),
-      }),
+      }, adminClient),
       replaceSubjectMappings(
         guideId,
         matchedSubjectIds.map((id) => ({ subjectId: id })),
+        adminClient,
       ),
-      replaceCareerMappings(guideId, [...new Set(matchedCareerFieldIds)]),
+      replaceCareerMappings(guideId, [...new Set(matchedCareerFieldIds)], adminClient),
       matchedClassificationIds.length > 0
-        ? replaceClassificationMappings(guideId, matchedClassificationIds)
+        ? replaceClassificationMappings(guideId, matchedClassificationIds, adminClient)
         : Promise.resolve(),
     ]);
 

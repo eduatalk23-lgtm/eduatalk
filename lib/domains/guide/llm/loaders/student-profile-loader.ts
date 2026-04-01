@@ -111,14 +111,14 @@ async function loadProfileInternal(
 
   // 5. 내신 평균 등급 기반 난이도 추론
   let suggestedDifficulty: "basic" | "intermediate" | "advanced" | undefined;
-  const { data: scoreAvg } = await supabase
+  const { data: gradeRecords } = await supabase
     .from("student_internal_scores")
     .select("rank_grade")
     .eq("student_id", studentId)
     .not("rank_grade", "is", null);
-  if (scoreAvg && scoreAvg.length > 0) {
-    const avg = scoreAvg.reduce((sum, s) => sum + (s.rank_grade ?? 0), 0) / scoreAvg.length;
-    suggestedDifficulty = avg <= 2.5 ? "advanced" : avg <= 4.5 ? "intermediate" : "basic";
+  if (gradeRecords && gradeRecords.length > 0) {
+    const averageGrade = gradeRecords.reduce((sum, score) => sum + (score.rank_grade ?? 0), 0) / gradeRecords.length;
+    suggestedDifficulty = averageGrade <= 2.5 ? "advanced" : averageGrade <= 4.5 ? "intermediate" : "basic";
   }
 
   // 6. 스토리라인 키워드 (있으면)

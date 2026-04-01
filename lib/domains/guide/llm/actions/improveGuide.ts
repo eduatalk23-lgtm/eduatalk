@@ -116,14 +116,14 @@ async function executeGuideImprovement(
   sourceGuideId: string,
   _userId: string,
 ): Promise<void> {
-  const admin = createSupabaseAdminClient();
+  const adminClient = createSupabaseAdminClient() ?? undefined;
 
   try {
     // 원본 가이드 재로드 (admin client — request context 만료 후에도 안전)
     const { findGuideByIdPublic } = await import("../../repository");
     const guide = await findGuideByIdPublic(sourceGuideId);
     if (!guide || !guide.content || !guide.review_result) {
-      await admin
+      await adminClient!
         .from("exploration_guides")
         .update({ status: "ai_failed" })
         .eq("id", newGuideId);
@@ -209,7 +209,7 @@ async function executeGuideImprovement(
 
     // 개선 결과 검증
     if (improved.sections.length === 0) {
-      await admin
+      await adminClient!
         .from("exploration_guides")
         .update({ status: "ai_failed" })
         .eq("id", newGuideId);
@@ -332,7 +332,7 @@ async function executeGuideImprovement(
         order: s.order,
         outline: s.outline,
       })),
-    });
+    }, adminClient);
 
     // 새 버전 메타 업데이트 (status=draft, 리뷰 상속 방지)
     await admin
@@ -356,7 +356,7 @@ async function executeGuideImprovement(
 
     // 오류 발생 시 ai_failed 상태로 업데이트
     try {
-      await admin
+      await adminClient!
         .from("exploration_guides")
         .update({ status: "ai_failed" })
         .eq("id", newGuideId);
