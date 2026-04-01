@@ -119,8 +119,9 @@ async function executeGuideImprovement(
   const admin = createSupabaseAdminClient();
 
   try {
-    // 원본 가이드 재로드 (admin client로)
-    const guide = await findGuideById(sourceGuideId);
+    // 원본 가이드 재로드 (admin client — request context 만료 후에도 안전)
+    const { findGuideByIdPublic } = await import("../../repository");
+    const guide = await findGuideByIdPublic(sourceGuideId);
     if (!guide || !guide.content || !guide.review_result) {
       await admin
         .from("exploration_guides")

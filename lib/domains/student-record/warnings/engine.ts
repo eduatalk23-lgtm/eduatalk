@@ -170,14 +170,26 @@ function checkReadingInsufficient(input: WarningCheckInput): RecordWarning[] {
   const results: RecordWarning[] = [];
   for (const [grade, data] of input.recordsByGrade) {
     if (grade > input.currentGrade) continue;
-    if (data.readings.length < MIN_READINGS_PER_GRADE) {
+
+    // 독서 0건이면 경고 (최소한의 기준)
+    if (data.readings.length === 0) {
       results.push({
         ruleId: "reading_insufficient",
         severity: "medium",
         category: "record",
-        title: "독서 부족",
-        message: `${grade}학년 독서활동이 ${data.readings.length}건입니다 (권장: ${MIN_READINGS_PER_GRADE}권 이상).`,
-        suggestion: "전공 관련 독서를 추가로 기록해주세요.",
+        title: "독서활동 미기록",
+        message: `${grade}학년 독서활동이 기록되지 않았습니다.`,
+        suggestion: "독서 권수보다 중요한 것은 '읽은 책을 탐구에 어떻게 활용했는가'입니다. 세특에서 독서 기반 탐구가 드러나도록 교과 단원과 연계한 독서를 기록하세요.",
+      });
+    } else if (data.readings.length < MIN_READINGS_PER_GRADE) {
+      // 1건은 있으나 권장 미달 — severity를 low로 격하
+      results.push({
+        ruleId: "reading_insufficient",
+        severity: "low",
+        category: "record",
+        title: "독서활동 참고",
+        message: `${grade}학년 독서활동 ${data.readings.length}건 (참고: 권장 ${MIN_READINGS_PER_GRADE}권 이상). 권수보다 세특 내 독서 기반 탐구 활용이 더 중요합니다.`,
+        suggestion: "독서를 통해 지적 호기심을 해결하는 과정이 세특에 드러나면 좋은 평가를 받습니다. 학년이 올라갈수록 난도 있는 독서로 심화하세요.",
       });
     }
   }

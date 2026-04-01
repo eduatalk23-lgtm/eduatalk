@@ -14,7 +14,7 @@ import {
   replaceSubjectMappings,
   replaceCareerMappings,
   replaceClassificationMappings,
-  findGuideById,
+  findGuideByIdPublic,
   findAllSubjects,
   findAllCareerFields,
   findAllClassifications,
@@ -546,7 +546,7 @@ async function buildPrompt(
       if (!input.clone?.sourceGuideId) {
         return { ok: false, error: "원본 가이드를 선택해주세요." };
       }
-      const sourceGuide = await findGuideById(input.clone.sourceGuideId);
+      const sourceGuide = await findGuideByIdPublic(input.clone.sourceGuideId);
       if (!sourceGuide) {
         return { ok: false, error: "원본 가이드를 찾을 수 없습니다." };
       }

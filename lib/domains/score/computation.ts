@@ -709,21 +709,28 @@ export function computeScoreAnalysis(
 /**
  * subjectCategory 판별
  *
- * 엑셀 R열 조건과 동일:
- * - isAchievementOnly (과학탐구실험 등) → "experiment"
- * - 표준편차 없음 (ISBLANK(표준편차)) → "career" (진로선택/융합선택)
- * - 그 외 → "regular"
+ * 우선순위:
+ * 1. isAchievementOnly (과학탐구실험 등) → "experiment"
+ * 2. selectionType이 명시적으로 주어진 경우 → "career" 또는 "regular"
+ * 3. 표준편차 없음 (ISBLANK(표준편차)) → "career" (진로선택/융합선택 추정)
+ * 4. 그 외 → "regular"
  *
  * @param isAchievementOnly - subject_types.is_achievement_only 값
  * @param _rankGrade - 석차등급 (현재 미사용, 하위 호환용)
  * @param stdDev - 표준편차
+ * @param selectionType - 과목 선택 유형 ("일반"|"진로"|"융합"). 있으면 stdDev보다 우선.
  */
 export function determineSubjectCategory(
   isAchievementOnly: boolean,
   _rankGrade: number | null,
-  stdDev: number | null
+  stdDev: number | null,
+  selectionType?: "일반" | "진로" | "융합" | string | null,
 ): "regular" | "career" | "experiment" {
   if (isAchievementOnly) return "experiment";
+  // 과목 유형 정보가 있으면 우선 사용 (2022 개정에서 stdDev NULL인 일반선택 오분류 방지)
+  if (selectionType === "진로" || selectionType === "융합") return "career";
+  if (selectionType === "일반") return stdDev === null ? "regular" : "regular";
+  // 과목 유형 없으면 기존 휴리스틱
   if (stdDev === null) return "career";
   return "regular";
 }

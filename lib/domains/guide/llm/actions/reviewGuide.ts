@@ -91,8 +91,9 @@ async function executeGuideReview(guideId: string): Promise<void> {
   const admin = createSupabaseAdminClient();
 
   try {
-    // 가이드 재로드 (admin client로)
-    const guide = await findGuideById(guideId);
+    // 가이드 재로드 (admin client — request context 만료 후에도 안전)
+    const { findGuideByIdPublic } = await import("../../repository");
+    const guide = await findGuideByIdPublic(guideId);
     if (!guide || !guide.content) {
       await admin
         .from("exploration_guides")
