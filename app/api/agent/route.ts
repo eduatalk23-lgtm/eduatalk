@@ -18,6 +18,14 @@ import { extractCaseFromTraces, saveCaseToDb } from "@/lib/agents/memory/case-ex
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel Hobby 최대
 
+// 디버그: 모듈 로딩 성공 확인용 GET 핸들러
+export function GET() {
+  return new Response(
+    JSON.stringify({ ok: true, ts: Date.now() }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
 // ── 사용자별 Rate Limit (인메모리, 1분 10회) ──
 // ⚠️ Vercel 서버리스 환경에서는 인스턴스별 독립 카운터.
 // Pro 플랜(복수 인스턴스) 전환 시 Redis(Upstash) 기반 분산 Rate Limit 필요.
@@ -38,6 +46,17 @@ function checkUserRateLimit(userId: string): boolean {
 }
 
 export async function POST(req: Request) {
+  // 최외곽 안전망: 어떤 에러도 HTML 500이 아닌 JSON으로 반환
+  try { return await _handlePost(req); } catch (outerError) {
+    console.error("[agent.api] UNCAUGHT:", outerError);
+    return new Response(
+      JSON.stringify({ error: "서버 내부 오류가 발생했습니다.", detail: outerError instanceof Error ? outerError.message : String(outerError) }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
+
+async function _handlePost(req: Request) {
   try {
     // 1. Auth
     const { userId, role, tenantId } = await requireAdminOrConsultant();
