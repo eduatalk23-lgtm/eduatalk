@@ -4,12 +4,41 @@
 // ============================================
 
 import { logActionError } from "@/lib/logging/actionLogger";
+import { splitSetekExamplesBlob } from "../../section-config";
+
+/**
+ * setekExamples가 1개짜리 blob(여러 예시가 합쳐진 긴 문자열)이면 분리 시도.
+ * 정상 배열이면 그대로 반환.
+ */
+function normalizeSetekExamples(items: string[] | undefined): string[] | undefined {
+  if (!items || items.length === 0) return items;
+  // 2개 이상이면 정상
+  if (items.length >= 2) return items;
+  // 1개인데 짧으면 (500자 미만) 단일 예시로 판단
+  if (items[0].length < 500) return items;
+  // 1개인데 길면 → blob일 가능성 높음, 분리 시도
+  return splitSetekExamplesBlob(items[0]) ?? items;
+}
 import { generateObjectWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
 import { zodSchema } from "ai";
 import {
+  createGuide,
+  upsertGuideContent,
+  replaceSubjectMappings,
+  replaceCareerMappings,
+  replaceClassificationMappings,
   findGuideByIdPublic,
+  findAllSubjects,
+  findAllCareerFields,
+  findAllClassifications,
 } from "../../repository";
+import { embedSingleGuide } from "../../vector/embedding-service";
+import {
+  SubjectMatcher,
+  CareerFieldMatcher,
+  ClassificationMatcher,
+} from "../../import/subject-matcher";
 import {
   generatedGuideSchema,
   type GuideGenerationInput,
@@ -41,12 +70,10 @@ export type GenerateProgressCallback = (
   detail?: string,
 ) => void;
 
-/** generateGuideCore 성공 결과 (AI 생성 결과만 반환, DB 저장 안 함) */
+/** generateGuideCore 성공 결과 */
 export interface GenerateGuideCoreSuccess {
+  guideId: string;
   preview: GeneratedGuideOutput;
-  modelId: string;
-  sourceType: GuideSourceType;
-  parentGuideId?: string;
 }
 
 /** generateGuideCore 실패 결과 */
@@ -337,8 +364,147 @@ export async function generateGuideCore(
       });
     }
 
-    // AI 결과 + 메타데이터만 반환 (DB 저장은 호출부에서 처리)
-    return { ok: true, preview: generated, modelId, sourceType, parentGuideId };
+    // 과목/계열/소분류 이름 → ID 매핑
+    onProgress?.("saving", "DB에 저장 중");
+    const [allSubjects, allCareerFields, allClassifications] =
+      await Promise.all([
+        findAllSubjects(),
+        findAllCareerFields(),
+        findAllClassifications(),
+      ]);
+
+    const subjectMatcher = new SubjectMatcher(allSubjects);
+    const careerFieldMatcher = new CareerFieldMatcher(allCareerFields);
+    const classificationMatcher = new ClassificationMatcher(allClassifications);
+
+    const matchedSubjectIds = generated.suggestedSubjects
+      .map((name) => subjectMatcher.match(name))
+      .filter((r) => r.matched && r.subjectId)
+      .map((r) => r.subjectId!);
+
+    const matchedCareerFieldIds = generated.suggestedCareerFields.flatMap(
+      (name) => careerFieldMatcher.match(name),
+    );
+
+    const matchedClassificationIds = classificationMatcher.matchAll(
+      generated.suggestedClassifications ?? [],
+    );
+
+    // DB 저장
+    const guide = await createGuide({
+      guideType: generated.guideType,
+      title: generated.title,
+      bookTitle: generated.bookTitle,
+      bookAuthor: generated.bookAuthor,
+      bookPublisher: generated.bookPublisher,
+      curriculumYear: input.curriculumYear ?? undefined,
+      subjectArea: input.subjectArea ?? undefined,
+      subjectSelect: input.subjectSelect ?? undefined,
+      unitMajor: input.unitMajor ?? undefined,
+      unitMinor: input.unitMinor ?? undefined,
+      status: "draft",
+      sourceType,
+      parentGuideId,
+      contentFormat: "html",
+      qualityTier: "ai_draft",
+      aiModelVersion: modelId,
+      aiPromptVersion: AI_PROMPT_VERSION,
+      registeredBy: userId,
+      difficultyLevel: generated.difficultyLevel ?? undefined,
+      difficultyAuto: true,
+    });
+
+    // sections → 레거시 필드 역변환 (하위 호환 이중 저장)
+    const legacy = sectionsToLegacy(generated.sections, generated.guideType);
+
+    await Promise.all([
+      upsertGuideContent(guide.id, {
+        motivation: legacy.motivation ?? generated.motivation ?? "",
+        theorySections:
+          legacy.theorySections.length > 0
+            ? legacy.theorySections
+            : (generated.theorySections ?? []).map((s) => ({
+                ...s,
+                content_format: "html" as const,
+              })),
+        reflection: legacy.reflection ?? generated.reflection ?? "",
+        impression: legacy.impression ?? generated.impression ?? "",
+        summary: legacy.summary ?? generated.summary ?? "",
+        followUp: legacy.followUp ?? generated.followUp ?? "",
+        bookDescription:
+          legacy.bookDescription ?? generated.bookDescription,
+        relatedPapers: generated.relatedPapers,
+        setekExamples: normalizeSetekExamples(
+          legacy.setekExamples.length > 0
+            ? legacy.setekExamples
+            : generated.setekExamples,
+        ),
+        contentSections: generated.sections.map((s) => {
+          let items = s.items;
+          if (s.key === "setek_examples") {
+            // items가 있어도 1개짜리 blob일 수 있으므로 정규화
+            items = normalizeSetekExamples(
+              s.items?.length
+                ? s.items
+                : s.content
+                  ? splitSetekExamplesBlob(s.content) ?? generated.setekExamples ?? [s.content]
+                  : generated.setekExamples,
+            );
+          }
+          return {
+            key: s.key,
+            label: s.label,
+            content: s.content,
+            content_format: "html" as const,
+            items,
+            order: s.order,
+            outline: s.outline,
+          };
+        }),
+      }),
+      replaceSubjectMappings(
+        guide.id,
+        matchedSubjectIds.map((id) => ({ subjectId: id })),
+      ),
+      replaceCareerMappings(guide.id, [...new Set(matchedCareerFieldIds)]),
+      matchedClassificationIds.length > 0
+        ? replaceClassificationMappings(guide.id, matchedClassificationIds)
+        : Promise.resolve(),
+    ]);
+
+    // 임베딩 (비동기, 실패 무시)
+    embedSingleGuide(guide.id).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "generateGuide.embedding" }, err, {
+        guideId: guide.id,
+      });
+    });
+
+    // guide_created_count + used_count 증가 (키워드 소스 + 비동기, 실패 무시)
+    if (input.source === "keyword" && input.keyword?.keyword) {
+      import("../../repository")
+        .then(
+          async ({
+            findTopicsByTitle,
+            incrementTopicGuideCreatedCount,
+            incrementTopicUsedCount,
+          }) => {
+            const matchingTopics = await findTopicsByTitle(
+              input.keyword!.keyword,
+            );
+            for (const topic of matchingTopics) {
+              await Promise.all([
+                incrementTopicGuideCreatedCount(topic.id),
+                incrementTopicUsedCount(topic.id),
+              ]);
+            }
+          },
+        )
+        .catch((err) => {
+          console.error("[generateGuide] topic count increment failed:", err);
+        });
+    }
+
+    return { ok: true, guideId: guide.id, preview: generated };
   } catch (error) {
     logActionError(LOG_CTX, error, { source: input.source });
 
@@ -473,3 +639,87 @@ async function buildPrompt(
   }
 }
 
+// ============================================
+// 내부: sections → 레거시 필드 역변환
+// ============================================
+
+interface LegacyBackfill {
+  motivation: string | undefined;
+  theorySections: Array<{
+    order: number;
+    title: string;
+    content: string;
+    content_format: "html";
+    outline?: import("../../types").OutlineItem[];
+  }>;
+  reflection: string | undefined;
+  impression: string | undefined;
+  summary: string | undefined;
+  followUp: string | undefined;
+  bookDescription: string | undefined;
+  setekExamples: string[];
+}
+
+function sectionsToLegacy(
+  sections: Array<{
+    key: string;
+    label: string;
+    content: string;
+    items?: string[];
+    order?: number;
+    outline?: import("../../types").OutlineItem[];
+  }>,
+  _guideType: string,
+): LegacyBackfill {
+  const result: LegacyBackfill = {
+    motivation: undefined,
+    theorySections: [],
+    reflection: undefined,
+    impression: undefined,
+    summary: undefined,
+    followUp: undefined,
+    bookDescription: undefined,
+    setekExamples: [],
+  };
+
+  for (const s of sections) {
+    switch (s.key) {
+      case "motivation":
+        result.motivation = s.content;
+        break;
+      case "content_sections":
+        result.theorySections.push({
+          order: s.order ?? result.theorySections.length + 1,
+          title: s.label,
+          content: s.content,
+          content_format: "html",
+          outline: s.outline,
+        });
+        break;
+      case "reflection":
+        result.reflection = s.content;
+        break;
+      case "impression":
+        result.impression = s.content;
+        break;
+      case "summary":
+        result.summary = s.content;
+        break;
+      case "follow_up":
+        result.followUp = s.content;
+        break;
+      case "book_description":
+        result.bookDescription = s.content;
+        break;
+      case "setek_examples":
+        if (s.items?.length) {
+          result.setekExamples = normalizeSetekExamples(s.items) ?? s.items;
+        } else if (s.content) {
+          result.setekExamples = normalizeSetekExamples([s.content]) ?? [s.content];
+        }
+        break;
+    }
+  }
+
+  return result;
+}

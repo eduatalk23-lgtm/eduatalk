@@ -116,7 +116,7 @@ async function executeGuideGeneration(
       return;
     }
 
-    const { preview: generated, modelId, sourceType, parentGuideId } = result;
+    const { preview: generated } = result;
 
     // 과목/계열/소분류 이름 → ID 매핑
     const adminClient = admin ?? undefined;
@@ -143,6 +143,15 @@ async function executeGuideGeneration(
       generated.suggestedClassifications ?? [],
     );
 
+    // sourceType 결정
+    const sourceTypeMap = {
+      keyword: "ai_keyword",
+      clone_variant: "ai_clone_variant",
+      pdf_extract: "ai_pdf_extract",
+      url_extract: "ai_url_extract",
+    } as const;
+    const sourceType = sourceTypeMap[input.source] ?? "ai_keyword";
+
     // 가이드 메타 업데이트 (title, status, 생성 결과 반영)
     await admin
       .from("exploration_guides")
@@ -154,9 +163,7 @@ async function executeGuideGeneration(
         book_publisher: generated.bookPublisher ?? null,
         status: "draft",
         source_type: sourceType,
-        parent_guide_id: parentGuideId ?? null,
         quality_tier: "ai_draft",
-        ai_model_version: modelId,
         ai_prompt_version: AI_PROMPT_VERSION,
         difficulty_level: generated.difficultyLevel ?? null,
         difficulty_auto: true,
