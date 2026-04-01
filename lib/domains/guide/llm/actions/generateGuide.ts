@@ -49,6 +49,7 @@ import {
 } from "../prompts/extraction-guide";
 import { extractTextFromPdfUrl } from "../extract/pdf-extractor";
 import { extractTextFromUrl } from "../extract/url-extractor";
+import { enrichGuideResources } from "../services/enrich-sources";
 
 const LOG_CTX = { domain: "guide", action: "generateGuide" };
 const AI_PROMPT_VERSION = "c3.1-v1";
@@ -143,6 +144,38 @@ export async function generateGuideAction(
       );
     }
 
+    // 독서탐구 도서 실존 검증
+    if (generated.guideType === "reading") {
+      // confidence 누락 시 기본값 "medium" 적용
+      if (!generated.bookConfidence && generated.bookTitle) {
+        generated.bookConfidence = "medium";
+        if (!generated.bookVerificationNote) {
+          generated.bookVerificationNote = "AI 생성 시 confidence 미지정 — 컨설턴트 검수 필요";
+        }
+      }
+
+      const { logActionWarn: logBookWarn } = await import("@/lib/logging/actionLogger");
+
+      if (generated.bookConfidence === "low") {
+        logBookWarn(LOG_CTX, `도서 신뢰도 low — 할루시네이션 위험: "${generated.bookTitle}" (${generated.bookAuthor})`, {
+          bookTitle: generated.bookTitle,
+          bookAuthor: generated.bookAuthor,
+          bookConfidence: generated.bookConfidence,
+          bookVerificationNote: generated.bookVerificationNote,
+        });
+      } else if (generated.bookConfidence === "medium") {
+        logBookWarn(LOG_CTX, `도서 신뢰도 medium — 검수 필요: "${generated.bookTitle}" (${generated.bookAuthor})`, {
+          bookTitle: generated.bookTitle,
+          bookConfidence: generated.bookConfidence,
+          bookVerificationNote: generated.bookVerificationNote,
+        });
+      }
+
+      if (!generated.bookTitle?.trim()) {
+        logBookWarn(LOG_CTX, "독서탐구인데 bookTitle이 비어 있음", { source: input.source });
+      }
+    }
+
     // outline 밀도 검증 (경고 로그)
     const contentOutlines = generated.sections
       .filter((s) => s.key === "content_sections" && s.outline?.length)
@@ -158,6 +191,73 @@ export async function generateGuideAction(
       logActionWarn(LOG_CTX, `Outline 밀도 미달: total=${outlineStats.total}/40, depth0=${outlineStats.depth0}/5, tips=${outlineStats.tips}/6, resources=${outlineStats.resources}/5`, {
         source: input.source,
         outlineStats,
+      });
+    }
+
+    // 논문 실존 검증 — confidence 기본값 적용 + low 자동 제거
+    if (generated.relatedPapers?.length) {
+      // confidence 누락 시 기본값 "medium" 적용 (Gemini가 optional enum을 생략하는 경우 대비)
+      for (const paper of generated.relatedPapers) {
+        if (!paper.confidence) {
+          paper.confidence = "medium";
+          if (!paper.verificationNote) {
+            paper.verificationNote = "AI 생성 시 confidence 미지정 — 컨설턴트 검수 필요";
+          }
+        }
+      }
+
+      const lowPapers = generated.relatedPapers.filter((p) => p.confidence === "low");
+      if (lowPapers.length > 0) {
+        const { logActionWarn: logPaperWarn } = await import("@/lib/logging/actionLogger");
+        logPaperWarn(LOG_CTX, `논문 ${lowPapers.length}건 low confidence 제거: ${lowPapers.map((p) => p.title).join(", ")}`, {
+          removed: lowPapers.map((p) => ({ title: p.title, verificationNote: p.verificationNote })),
+        });
+        generated.relatedPapers = generated.relatedPapers.filter((p) => p.confidence !== "low");
+      }
+
+      const mediumPapers = generated.relatedPapers.filter((p) => p.confidence === "medium");
+      if (mediumPapers.length > 0) {
+        const { logActionWarn: logPaperMedWarn } = await import("@/lib/logging/actionLogger");
+        logPaperMedWarn(LOG_CTX, `논문 ${mediumPapers.length}건 medium confidence — 검수 필요: ${mediumPapers.map((p) => p.title).join(", ")}`, {
+          papers: mediumPapers.map((p) => ({ title: p.title, verificationNote: p.verificationNote })),
+        });
+      }
+    }
+
+    // === 출처 수집 (Claude Web Search, non-fatal) ===
+    try {
+      const enrichResult = await enrichGuideResources(
+        generated.sections.map((s) => ({
+          key: s.key,
+          label: s.label,
+          content: s.content,
+          content_format: "html" as const,
+          items: s.items,
+          order: s.order,
+          outline: s.outline,
+        })),
+        generated.relatedPapers ?? [],
+        generated.title,
+        { maxResources: 8, validateUrls: true },
+      );
+
+      // enriched 데이터 병합
+      for (let i = 0; i < generated.sections.length; i++) {
+        const enrichedOutline = enrichResult.enrichedSections[i]?.outline;
+        if (enrichedOutline) {
+          generated.sections[i].outline = enrichedOutline;
+        }
+      }
+      if (enrichResult.enrichedPapers.length > 0) {
+        generated.relatedPapers = enrichResult.enrichedPapers;
+      }
+
+      const { logActionDebug: logDebug } = await import("@/lib/logging/actionLogger");
+      logDebug(LOG_CTX, `Source enrichment: ${enrichResult.stats.urlsValidated}/${enrichResult.stats.totalResources} URLs`, enrichResult.stats);
+    } catch (enrichError) {
+      const { logActionWarn: logWarn } = await import("@/lib/logging/actionLogger");
+      logWarn(LOG_CTX, "Source enrichment failed (non-fatal)", {
+        error: enrichError instanceof Error ? enrichError.message : String(enrichError),
       });
     }
 

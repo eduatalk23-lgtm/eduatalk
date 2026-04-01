@@ -82,6 +82,8 @@ function buildRelatedPapers(row: AccessGuideRow): RelatedPaper[] {
       title: paper1,
       ...(url1 ? { url: url1 } : {}),
       ...(summary1 ? { summary: summary1 } : {}),
+      confidence: "medium" as const,
+      verificationNote: "Access DB에서 임포트된 논문 — 컨설턴트가 사전 입력",
     });
   }
 
@@ -91,6 +93,8 @@ function buildRelatedPapers(row: AccessGuideRow): RelatedPaper[] {
     papers.push({
       title: paper2,
       ...(url2 ? { url: url2 } : {}),
+      confidence: "medium" as const,
+      verificationNote: "Access DB에서 임포트된 논문 — 컨설턴트가 사전 입력",
     });
   }
 

@@ -190,6 +190,8 @@ export interface ResourceItem {
   url?: string | null;
   /** 컨설턴트에게 보이는 검색/등록 안내 */
   consultantHint?: string;
+  /** Claude Web Search로 검증된 출처 발췌 텍스트 */
+  citedText?: string;
 }
 
 /** 목차형 아웃라인 항목 (3-level hierarchy) */
@@ -232,6 +234,12 @@ export interface RelatedPaper {
   title: string;
   url?: string;
   summary?: string;
+  /** Claude Web Search로 검증된 출처 발췌 텍스트 */
+  citedText?: string;
+  /** 논문 실존 신뢰도: high=확실, medium=불확실, low=존재 의심 */
+  confidence?: "high" | "medium" | "low";
+  /** 논문이 실존한다고 판단한 근거 */
+  verificationNote?: string;
 }
 
 /** 유형별 섹션 데이터 (content_sections JSONB) */

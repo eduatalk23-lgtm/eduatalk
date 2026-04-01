@@ -2,10 +2,11 @@
 
 // ============================================
 // C3 — AI 가이드 품질 리뷰 Server Action
+// Claude Sonnet 4 우선, Gemini fallback
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -13,6 +14,8 @@ import {
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { generateObjectWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
+import { generateObject } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { zodSchema } from "ai";
 import { findGuideById, updateGuide } from "../../repository";
 import {
@@ -39,14 +42,6 @@ export async function reviewGuideAction(
   try {
     await requireAdminOrConsultant();
 
-    // 할당량 확인
-    const quota = geminiQuotaTracker.getQuotaStatus();
-    if (quota.isExceeded) {
-      return createErrorResponse(
-        "오늘의 AI 사용 할당량이 초과되었습니다. 내일 다시 시도해주세요.",
-      );
-    }
-
     const guide = await findGuideById(guideId);
     if (!guide) {
       return createErrorResponse("가이드를 찾을 수 없습니다.");
@@ -59,24 +54,56 @@ export async function reviewGuideAction(
     // 상태를 ai_reviewing으로 전환
     await updateGuide(guideId, { status: "ai_reviewing" });
 
-    // AI 리뷰 실행
-    const { object: review, modelId } = await generateObjectWithRateLimit({
-      system: buildReviewSystemPrompt(guide.guide_type as GuideType),
-      messages: [{ role: "user", content: buildReviewUserPrompt(guide) }],
-      schema: zodSchema(guideReviewSchema),
-      // 모델 고정: 리뷰는 항상 advanced (2.5-pro) — 깊은 추론 필요
-      modelTier: "advanced",
-      temperature: 0.2,
-      maxTokens: 8192,
-    });
+    const systemPrompt = buildReviewSystemPrompt(guide.guide_type as GuideType);
+    const userPrompt = buildReviewUserPrompt(guide);
 
-    const tier = scoreToQualityTier(review.overallScore);
-    const status = scoreToStatus(review.overallScore);
+    // Claude 우선 리뷰
+    let review: GuideReviewOutput;
+    let modelId: string;
 
-    // 리뷰 결과 저장 (세부 점수 + 피드백 포함)
+    try {
+      const result = await generateObject({
+        model: anthropic("claude-sonnet-4-20250514"),
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        schema: zodSchema(guideReviewSchema),
+        maxOutputTokens: 8192,
+        temperature: 0.2,
+      });
+      review = result.object as GuideReviewOutput;
+      modelId = `claude:claude-sonnet-4-20250514`;
+    } catch (claudeError) {
+      // Claude 실패 → Gemini fallback
+      logActionWarn(LOG_CTX, "Claude 리뷰 실패 → Gemini fallback", {
+        error: claudeError instanceof Error ? claudeError.message : String(claudeError),
+      });
+
+      // Gemini 할당량 확인
+      const quota = geminiQuotaTracker.getQuotaStatus();
+      if (quota.isExceeded) {
+        throw new Error("Claude 리뷰 실패 + Gemini 할당량 초과");
+      }
+
+      const geminiResult = await generateObjectWithRateLimit({
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        schema: zodSchema(guideReviewSchema),
+        modelTier: "advanced",
+        temperature: 0.2,
+        maxTokens: 8192,
+      });
+      review = geminiResult.object;
+      modelId = `gemini:${geminiResult.modelId} (fallback)`;
+    }
+
+    const score = Number(review.overallScore);
+    const tier = scoreToQualityTier(score);
+    const status = scoreToStatus(score);
+
+    // 리뷰 결과 저장
     await updateGuide(guideId, {
       status,
-      qualityScore: review.overallScore,
+      qualityScore: score,
       qualityTier: tier,
       reviewResult: {
         dimensions: review.dimensions,
@@ -88,7 +115,7 @@ export async function reviewGuideAction(
     });
 
     return createSuccessResponse({
-      score: review.overallScore,
+      score,
       tier,
       status,
       review,

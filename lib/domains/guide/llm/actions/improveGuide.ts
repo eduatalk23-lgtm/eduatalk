@@ -154,6 +154,43 @@ export async function improveGuideAction(
       });
     }
 
+    // 독서탐구 도서 실존 검증
+    if (improved.guideType === "reading") {
+      if (!improved.bookConfidence && improved.bookTitle) {
+        improved.bookConfidence = "medium";
+        if (!improved.bookVerificationNote) {
+          improved.bookVerificationNote = "AI 개선 시 confidence 미지정 — 컨설턴트 검수 필요";
+        }
+      }
+      if (improved.bookConfidence === "low" || improved.bookConfidence === "medium") {
+        const { logActionWarn: logBookWarn } = await import("@/lib/logging/actionLogger");
+        logBookWarn(LOG_CTX, `[improve] 도서 신뢰도 ${improved.bookConfidence}: "${improved.bookTitle}"`, {
+          bookTitle: improved.bookTitle, bookConfidence: improved.bookConfidence,
+          bookVerificationNote: improved.bookVerificationNote,
+        });
+      }
+    }
+
+    // 논문 실존 검증 — confidence 기본값 + low 자동 제거
+    if (improved.relatedPapers?.length) {
+      for (const paper of improved.relatedPapers) {
+        if (!paper.confidence) {
+          paper.confidence = "medium";
+          if (!paper.verificationNote) {
+            paper.verificationNote = "AI 개선 시 confidence 미지정 — 컨설턴트 검수 필요";
+          }
+        }
+      }
+      const lowPapers = improved.relatedPapers.filter((p) => p.confidence === "low");
+      if (lowPapers.length > 0) {
+        const { logActionWarn: logPaperWarn } = await import("@/lib/logging/actionLogger");
+        logPaperWarn(LOG_CTX, `[improve] 논문 ${lowPapers.length}건 low confidence 제거`, {
+          removed: lowPapers.map((p) => ({ title: p.title, verificationNote: p.verificationNote })),
+        });
+        improved.relatedPapers = improved.relatedPapers.filter((p) => p.confidence !== "low");
+      }
+    }
+
     // 새 버전 생성
     const newGuide = await createNewVersion(guideId, user.id);
 

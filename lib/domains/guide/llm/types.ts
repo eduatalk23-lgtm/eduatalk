@@ -120,6 +120,8 @@ const resourceItemSchema = z.object({
     .describe(
       "컨설턴트용 검색 안내 (30자 이내). 예: 'RISS: 니켈 촉매 메탄화 활성 온도'",
     ),
+  url: z.string().optional().describe("검증된 참고 자료 URL (후처리에서 자동 채움, AI 생성 시 비워둘 것)"),
+  citedText: z.string().optional().describe("출처에서 발췌한 관련 텍스트 (후처리에서 자동 채움)"),
 });
 
 /** 목차형 아웃라인 항목 */
@@ -154,9 +156,22 @@ const theorySectionSchema = z.object({
 });
 
 const relatedPaperSchema = z.object({
-  title: z.string().describe("논문 제목"),
+  title: z.string().describe("논문 제목 (학술 DB에서 확인 가능한 정확한 제목)"),
   url: z.string().optional().describe("논문 URL"),
   summary: z.string().optional().describe("논문 요약 (1~2문장)"),
+  citedText: z.string().optional().describe("출처에서 발췌한 관련 텍스트 (후처리에서 자동 채움)"),
+  confidence: z
+    .enum(["high", "medium", "low"])
+    .optional()
+    .describe(
+      "논문 실존 신뢰도. high=제목/저자/게재지 확실, medium=존재할 것 같지만 세부정보 불확실, low=존재 여부 불확실 (low는 포함 금지)",
+    ),
+  verificationNote: z
+    .string()
+    .optional()
+    .describe(
+      "논문이 실존한다고 판단한 근거. 예: 'RISS에서 검색 가능한 KCI 등재 논문', 'Nature 2020년 게재'",
+    ),
 });
 
 /** AI가 생성하는 개별 섹션 */
@@ -192,9 +207,21 @@ export const generatedGuideSchema = z.object({
   bookTitle: z
     .string()
     .optional()
-    .describe("관련 도서명 (독서탐구인 경우 필수)"),
-  bookAuthor: z.string().optional().describe("도서 저자"),
-  bookPublisher: z.string().optional().describe("출판사"),
+    .describe("관련 도서명 (독서탐구인 경우 필수). 실제 출판된 도서의 공식 제목을 정확히 기재"),
+  bookAuthor: z.string().optional().describe("도서 저자 (실명)"),
+  bookPublisher: z.string().optional().describe("출판사명"),
+  bookConfidence: z
+    .enum(["high", "medium", "low"])
+    .optional()
+    .describe(
+      "도서 실존 신뢰도 (독서탐구 필수). high=제목/저자/출판사 확실, medium=존재할 것 같지만 세부정보 불확실, low=존재 여부 불확실",
+    ),
+  bookVerificationNote: z
+    .string()
+    .optional()
+    .describe(
+      "도서가 실존한다고 판단한 근거 (독서탐구 필수). 예: '교보문고 수학 분야 베스트셀러', '2015년 출간 이후 개정판 다수'",
+    ),
 
   // 레거시 필드 (하위 호환 — Phase 2 이후 점진 폐기)
   motivation: z.string().optional().describe("레거시: 탐구 동기 (HTML 형식)"),
