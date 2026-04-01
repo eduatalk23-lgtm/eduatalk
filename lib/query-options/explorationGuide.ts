@@ -219,9 +219,16 @@ export function popularGuidesQueryOptions(targetMajor: string) {
 export function groupedSubjectsQueryOptions(revisionId?: string) {
   return queryOptions({
     queryKey: explorationGuideKeys.groupedSubjects(revisionId),
-    queryFn: () => fetchGroupedSubjectsAction(revisionId),
+    queryFn: async () => {
+      const res = await fetchGroupedSubjectsAction(revisionId);
+      if (!res.success) {
+        throw new Error(res.error ?? "교과 목록 로드 실패");
+      }
+      return res;
+    },
     staleTime: Infinity,
     gcTime: 60 * 60_000,
+    retry: 2,
   });
 }
 

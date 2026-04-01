@@ -548,8 +548,10 @@ export async function fetchGroupedSubjectsAction(
 
     return createSuccessResponse(result);
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("[fetchGroupedSubjectsAction] 실패:", errMsg, { curriculumRevisionId });
     logActionError({ ...LOG_CTX, action: "fetchGroupedSubjects" }, error);
-    return createErrorResponse("과목 목록을 불러올 수 없습니다.");
+    return createErrorResponse(`과목 목록을 불러올 수 없습니다: ${errMsg}`);
   }
 }
 

@@ -267,21 +267,64 @@ export async function getSubjectsByGroupName(
 
 /**
  * 모든 교과와 과목을 함께 조회 (계층 구조, 전역 관리)
+ * 단일 쿼리로 교과 + 과목을 한 번에 가져옴 (N+1 문제 해결)
  * @param curriculumRevisionId 개정교육과정 ID (선택사항)
  */
 export async function getSubjectGroupsWithSubjects(
   curriculumRevisionId?: string
 ): Promise<(SubjectGroup & { subjects: Subject[] })[]> {
-  const groups = await getSubjectGroups(curriculumRevisionId);
+  const supabase = await getSupabaseClientForRLSBypass();
 
-  const groupsWithSubjects = await Promise.all(
-    groups.map(async (group) => {
-      const subjects = await getSubjectsByGroup(group.id);
-      return { ...group, subjects };
-    })
+  type GroupWithSubjects = SubjectGroup & {
+    subjects: Array<{
+      id: string;
+      name: string;
+      subject_group_id: string;
+      subject_type_id: string | null;
+      created_at: string | null;
+      updated_at: string | null;
+      subject_types: { name: string } | null;
+    }>;
+  };
+
+  const result = await createTypedQuery<GroupWithSubjects[]>(
+    async () => {
+      let query = supabase
+        .from("subject_groups")
+        .select(`
+          *,
+          subjects (
+            id, name, subject_group_id, subject_type_id, created_at, updated_at,
+            subject_types:subject_type_id ( name )
+          )
+        `)
+        .order("name", { ascending: true });
+
+      if (curriculumRevisionId) {
+        query = query.eq("curriculum_revision_id", curriculumRevisionId);
+      }
+
+      const queryResult = await query;
+      return {
+        data: queryResult.data as GroupWithSubjects[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectGroupsWithSubjects",
+      defaultValue: [],
+    }
   );
 
-  return groupsWithSubjects;
+  return (result ?? []).map((group) => ({
+    ...group,
+    subjects: (group.subjects ?? [])
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((s) => ({
+        ...s,
+        subject_type: s.subject_types?.name || null,
+      })) as Subject[],
+  }));
 }
 
 /**

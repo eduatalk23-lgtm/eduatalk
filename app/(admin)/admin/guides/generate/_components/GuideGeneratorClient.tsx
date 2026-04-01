@@ -87,7 +87,7 @@ export function GuideGeneratorClient() {
   const curriculumRevisionId =
     CURRICULUM_REVISION_IDS[String(curriculumYear)] ?? "";
 
-  const { data: groupedSubjectsRes } = useQuery(
+  const { data: groupedSubjectsRes, isError: isSubjectsError, error: subjectsError } = useQuery(
     groupedSubjectsQueryOptions(curriculumRevisionId),
   );
   const groupedSubjects = groupedSubjectsRes?.success
@@ -604,6 +604,12 @@ export function GuideGeneratorClient() {
                 {/* ── 교육과정 체계 (캐스케이드) ── */}
                 <div className="rounded-lg border border-secondary-200 dark:border-secondary-700 bg-secondary-50/50 dark:bg-secondary-800/20 p-4 space-y-3">
                   <p className="text-xs font-semibold text-[var(--text-heading)]">교육과정 체계</p>
+                  {isSubjectsError && (
+                    <p className="text-xs text-danger-600 dark:text-danger-400">
+                      교과 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.
+                      {subjectsError instanceof Error && ` (${subjectsError.message})`}
+                    </p>
+                  )}
                   <CurriculumCascadeSelect
                     placeholderStyle="form"
                     showSeparators
