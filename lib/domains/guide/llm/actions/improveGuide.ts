@@ -335,7 +335,7 @@ async function executeGuideImprovement(
     }, adminClient);
 
     // 새 버전 메타 업데이트 (status=draft, 리뷰 상속 방지)
-    await admin
+    await adminClient!
       .from("exploration_guides")
       .update({
         status: "draft",

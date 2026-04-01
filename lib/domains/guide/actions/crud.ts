@@ -47,7 +47,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 /** 임베딩은 무거운 AI SDK를 로드하므로 동적 import 사용 (모듈 초기화 실패 방지) */
 async function lazyEmbedSingleGuide(guideId: string) {
   const { embedSingleGuide } = await import("../vector/embedding-service");
-  return lazyEmbedSingleGuide(guideId);
+  return embedSingleGuide(guideId);
 }
 
 const LOG_CTX = { domain: "guide", action: "crud" };
