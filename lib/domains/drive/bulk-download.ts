@@ -43,7 +43,7 @@ export async function downloadFilesAsZip(
     onProgress?.({ total: files.length, completed, failed, currentFile: file.original_name });
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
 

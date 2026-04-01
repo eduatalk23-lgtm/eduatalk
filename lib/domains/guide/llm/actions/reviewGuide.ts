@@ -69,6 +69,7 @@ export async function reviewGuideAction(
         schema: zodSchema(guideReviewSchema),
         maxOutputTokens: 8192,
         temperature: 0.2,
+        abortSignal: AbortSignal.timeout(55_000),
       });
       review = result.object as GuideReviewOutput;
       modelId = `claude:claude-sonnet-4-20250514`;

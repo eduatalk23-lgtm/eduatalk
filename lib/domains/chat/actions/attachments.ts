@@ -131,6 +131,7 @@ export async function registerChatAttachmentAction(
       if (tempUrlData?.signedUrl) {
         const headResponse = await fetch(tempUrlData.signedUrl, {
           headers: { Range: `bytes=0-${HEADER_SIZE - 1}` },
+          signal: AbortSignal.timeout(10_000),
         });
 
         if (headResponse.ok || headResponse.status === 206) {
