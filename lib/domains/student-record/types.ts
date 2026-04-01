@@ -13,6 +13,8 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database
 interface ContentSeparationFields {
   ai_draft_content?: string | null;
   ai_draft_at?: string | null;
+  /** fire-and-forget AI 초안 생성 상태: null=미생성, 'generating'=생성중, 'done'=완료, 'failed'=실패 */
+  ai_draft_status?: "generating" | "done" | "failed" | null;
   confirmed_content?: string | null;
   confirmed_at?: string | null;
   confirmed_by?: string | null;
@@ -111,9 +113,13 @@ export type CompetencyScoreUpdate = TablesUpdate<"student_record_competency_scor
 export type ActivityTag = Tables<"student_record_activity_tags">;
 export type ActivityTagInsert = TablesInsert<"student_record_activity_tags">;
 
-export type Diagnosis = Tables<"student_record_diagnosis">;
-export type DiagnosisInsert = TablesInsert<"student_record_diagnosis">;
-export type DiagnosisUpdate = TablesUpdate<"student_record_diagnosis">;
+/** ai_generating: fire-and-forget 진단 생성 상태 추적 (마이그레이션 적용 후 gen types 재생성 시 제거) */
+interface DiagnosisExtFields {
+  ai_generating?: boolean | null;
+}
+export type Diagnosis = Tables<"student_record_diagnosis"> & DiagnosisExtFields;
+export type DiagnosisInsert = TablesInsert<"student_record_diagnosis"> & DiagnosisExtFields;
+export type DiagnosisUpdate = TablesUpdate<"student_record_diagnosis"> & DiagnosisExtFields;
 
 export type Strategy = Tables<"student_record_strategies">;
 export type StrategyInsert = TablesInsert<"student_record_strategies">;

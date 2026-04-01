@@ -4,11 +4,17 @@
 // 창체 AI 초안 생성 Server Action
 // 창체 방향 가이드(direction, keywords) + 활동유형별 역량 포커스로
 // NEIS 글자수 이내의 창체 초안을 생성하여 ai_draft_content에 저장
+//
+// fire-and-forget 패턴: Vercel 60초 타임아웃 방지
+// 1. ai_draft_status = 'generating' 으로 설정 후 즉시 반환
+// 2. AI 생성 + DB 저장을 비동기로 처리
+// 3. 완료 시 ai_draft_status = 'done', 실패 시 'failed'
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCharLimit } from "@/lib/domains/student-record/constants";
 import type { ActionResponse } from "@/lib/types/actionResponse";
@@ -75,24 +81,14 @@ const ACTIVITY_LABELS: Record<"autonomy" | "club" | "career", string> = {
   career: "진로활동",
 };
 
-// ─── Server Action ────────────────────────────────────────────
+// ─── 내부 AI 생성 로직 (fire-and-forget 내부에서 호출) ────
 
-export async function generateChangcheDraftAction(
+async function _executeChangcheDraftGeneration(
   recordId: string,
-  input: {
-    activityType: "autonomy" | "club" | "career";
-    grade: number;
-    schoolYear: number;
-    direction?: string;
-    keywords?: string[];
-    teacherPoints?: string[];
-    existingContent?: string;
-  },
-): Promise<ActionResponse<{ draftContent: string }>> {
+  input: Parameters<typeof generateChangcheDraftAction>[1],
+): Promise<void> {
+  const adminClient = createSupabaseAdminClient();
   try {
-    const { tenantId } = await requireAdminOrConsultant();
-    if (!tenantId) return { success: false, error: "테넌트 정보가 없습니다." };
-
     const charLimit = getCharLimit(input.activityType, input.schoolYear);
     const activityLabel = ACTIVITY_LABELS[input.activityType];
     const systemPrompt = SYSTEM_PROMPTS[input.activityType];
@@ -127,33 +123,87 @@ export async function generateChangcheDraftAction(
     });
 
     if (!result.content) {
-      return { success: false, error: "AI 응답이 비어있습니다." };
+      await adminClient
+        .from("student_record_changche")
+        .update({ ai_draft_status: "failed" })
+        .eq("id", recordId);
+      return;
     }
 
     const draftContent = result.content.trim();
 
-    const supabase = await createSupabaseServerClient();
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await adminClient
       .from("student_record_changche")
       .update({
         ai_draft_content: draftContent,
         ai_draft_at: new Date().toISOString(),
+        ai_draft_status: "done",
       })
       .eq("id", recordId);
 
     if (updateErr) {
       logActionError(LOG_CTX, updateErr, { recordId });
-      return { success: false, error: "AI 초안 저장에 실패했습니다." };
+      await adminClient
+        .from("student_record_changche")
+        .update({ ai_draft_status: "failed" })
+        .eq("id", recordId);
+      return;
     }
 
     logActionDebug(LOG_CTX, `창체 AI 초안 생성 완료: ${draftContent.length}자 (${activityLabel})`, { recordId });
-    return { success: true, data: { draftContent } };
+  } catch (error) {
+    logActionError(LOG_CTX, error, { recordId });
+    await adminClient
+      .from("student_record_changche")
+      .update({ ai_draft_status: "failed" })
+      .eq("id", recordId)
+      .catch(() => {});
+  }
+}
+
+// ─── Public Server Action ────────────────────────────────────────────
+
+export async function generateChangcheDraftAction(
+  recordId: string,
+  input: {
+    activityType: "autonomy" | "club" | "career";
+    grade: number;
+    schoolYear: number;
+    direction?: string;
+    keywords?: string[];
+    teacherPoints?: string[];
+    existingContent?: string;
+  },
+): Promise<ActionResponse<{ generating: true }>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    if (!tenantId) return { success: false, error: "테넌트 정보가 없습니다." };
+
+    // 1. 상태를 'generating'으로 설정
+    const supabase = await createSupabaseServerClient();
+    const { error: statusErr } = await supabase
+      .from("student_record_changche")
+      .update({ ai_draft_status: "generating" })
+      .eq("id", recordId);
+
+    if (statusErr) {
+      logActionError(LOG_CTX, statusErr, { recordId });
+      return { success: false, error: "상태 업데이트에 실패했습니다." };
+    }
+
+    // 2. AI 생성을 fire-and-forget으로 실행
+    _executeChangcheDraftGeneration(recordId, input).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "generateChangcheDraft_fireAndForget" }, err, { recordId });
+    });
+
+    // 3. 즉시 반환
+    return { success: true, data: { generating: true } };
   } catch (error) {
     logActionError(LOG_CTX, error);
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
       return { success: false, error: "AI 요청 한도에 도달했습니다." };
     }
-    return { success: false, error: "창체 초안 생성 중 오류가 발생했습니다." };
+    return { success: false, error: "창체 초안 생성 시작에 실패했습니다." };
   }
 }

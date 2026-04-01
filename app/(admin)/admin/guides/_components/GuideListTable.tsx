@@ -19,6 +19,9 @@ interface GuideListTableProps {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+  ai_generating: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  ai_improving: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+  ai_failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
   ai_reviewing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   review_failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
   pending_approval: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",

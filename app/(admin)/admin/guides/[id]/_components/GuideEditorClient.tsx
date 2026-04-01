@@ -638,27 +638,49 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     );
   }
 
-  // AI 생성 중/실패 상태 — 자동 갱신 (3초 폴링)
+  // AI 처리 중 상태 — 자동 갱신 (3초 폴링)
   const isAiGenerating = guide?.status === "ai_generating";
+  const isAiImproving = guide?.status === "ai_improving";
+  const isAiReviewing = guide?.status === "ai_reviewing";
   const isAiFailed = guide?.status === "ai_failed";
 
+  const isAiInProgress = isAiGenerating || isAiImproving || isAiReviewing;
+
   useEffect(() => {
-    if (!isAiGenerating) return;
+    if (!isAiInProgress) return;
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ["cms-guide-detail", guideId] });
     }, 3000);
     return () => clearInterval(interval);
-  }, [isAiGenerating, queryClient, guideId]);
+  }, [isAiInProgress, queryClient, guideId]);
 
   return (
     <div className="space-y-6">
-      {/* AI 생성 상태 배너 */}
+      {/* AI 처리 중 상태 배너 */}
       {isAiGenerating && (
         <div className="flex items-center gap-3 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 p-4">
           <Loader2 className="w-5 h-5 animate-spin text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">AI 가이드 생성 중...</p>
             <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">보통 1~3분 소요됩니다. 이 페이지를 닫아도 생성은 계속 진행됩니다.</p>
+          </div>
+        </div>
+      )}
+      {isAiImproving && (
+        <div className="flex items-center gap-3 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 p-4">
+          <Loader2 className="w-5 h-5 animate-spin text-violet-600 dark:text-violet-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-violet-900 dark:text-violet-200">AI 리뷰 피드백 반영하여 개선 중...</p>
+            <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">보통 1~2분 소요됩니다. 이 페이지를 닫아도 개선은 계속 진행됩니다.</p>
+          </div>
+        </div>
+      )}
+      {isAiReviewing && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-4">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">AI 품질 리뷰 진행 중...</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">보통 30~60초 소요됩니다. 이 페이지를 닫아도 리뷰는 계속 진행됩니다.</p>
           </div>
         </div>
       )}
@@ -993,8 +1015,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         </div>
       )}
 
-      {/* AI 리뷰 실행 (리뷰 결과 없을 때 + 최신 버전만) */}
-      {!isNew && guide && !guide.review_result && guide.is_latest && (
+      {/* AI 리뷰 실행 (리뷰 결과 없을 때 + 최신 버전만 + 리뷰 진행 중이 아닐 때) */}
+      {!isNew && guide && !guide.review_result && guide.is_latest && !isAiReviewing && (
         <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5">
           <button
             type="button"
@@ -1007,12 +1029,12 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 );
                 const result = await reviewGuideAction(guideId);
                 if (result.success) {
-                  toast.showSuccess(`AI 리뷰 완료: ${result.data?.score}점`);
+                  toast.showSuccess("AI 리뷰가 시작되었습니다. 완료되면 자동으로 반영됩니다.");
                   queryClient.invalidateQueries({
                     queryKey: explorationGuideKeys.cmsDetail(guideId),
                   });
                 } else {
-                  toast.showError(!result.success ? result.error ?? "리뷰 실패" : "리뷰 실패");
+                  toast.showError(!result.success ? result.error ?? "리뷰 요청 실패" : "리뷰 요청 실패");
                 }
               } catch {
                 toast.showError("AI 리뷰 중 오류가 발생했습니다.");
@@ -1026,7 +1048,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             {improving ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                AI 리뷰 중... (10~20초)
+                리뷰 시작 중...
               </>
             ) : (
               <>
@@ -1109,8 +1131,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             </div>
           )}
 
-          {/* AI 개선 액션 버튼 (최신 버전만) */}
-          {guide.is_latest && (
+          {/* AI 개선 액션 버튼 (최신 버전만 + 개선 진행 중이 아닐 때) */}
+          {guide.is_latest && !isAiImproving && (
           <div className="border-t border-secondary-200 dark:border-secondary-700 pt-4 space-y-2">
             <button
               type="button"
@@ -1120,13 +1142,10 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 try {
                   const result = await improveGuideAction(guideId);
                   if (result.success && result.data?.guideId) {
-                    toast.showSuccess("개선된 가이드가 새 버전으로 생성되었습니다.");
-                    queryClient.invalidateQueries({
-                      queryKey: explorationGuideKeys.cmsDetail(result.data.guideId),
-                    });
+                    toast.showSuccess("AI 개선이 시작되었습니다. 완료되면 자동으로 반영됩니다.");
                     router.push(`/admin/guides/${result.data.guideId}`);
                   } else {
-                    toast.showError(!result.success ? result.error ?? "개선 실패" : "개선 실패");
+                    toast.showError(!result.success ? result.error ?? "개선 요청 실패" : "개선 요청 실패");
                   }
                 } catch (error) {
                   const msg = error instanceof Error ? error.message : "";
@@ -1145,7 +1164,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               {improving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  리뷰 반영 개선 + URL 검증 중... (60~90초)
+                  개선 시작 중...
                 </>
               ) : (
                 <>

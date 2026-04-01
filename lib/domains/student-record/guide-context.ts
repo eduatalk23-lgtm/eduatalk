@@ -32,7 +32,7 @@ export async function buildGuideContextSection(
       target_subject_id,
       target_activity_type,
       ai_recommendation_reason,
-      exploration_guides!inner ( title, guide_type )
+      exploration_guides!inner ( title, guide_type, quality_tier, quality_score )
     `)
     .eq("student_id", studentId)
     .is("deleted_at", null)
@@ -57,14 +57,15 @@ export async function buildGuideContextSection(
 
   // 배정 목록 텍스트 생성
   const lines = assignments.map((a) => {
-    const guide = a.exploration_guides as unknown as { title: string; guide_type: string | null };
+    const guide = a.exploration_guides as unknown as { title: string; guide_type: string | null; quality_tier: string | null; quality_score: number | null };
     const subjectName = a.target_subject_id ? subjectMap.get(a.target_subject_id) : null;
     const area = subjectName
       ? `세특-${subjectName}`
       : a.target_activity_type
         ? `창체-${a.target_activity_type}`
         : "미지정";
-    return `- [${a.status}] "${guide.title}" → ${area}${a.ai_recommendation_reason ? ` (${a.ai_recommendation_reason})` : ""}`;
+    const quality = guide.quality_score ? ` [품질:${guide.quality_score}점/${guide.quality_tier ?? "미평가"}]` : "";
+    return `- [${a.status}] "${guide.title}" → ${area}${quality}${a.ai_recommendation_reason ? ` (${a.ai_recommendation_reason})` : ""}`;
   });
 
   const instruction = context === "guide"

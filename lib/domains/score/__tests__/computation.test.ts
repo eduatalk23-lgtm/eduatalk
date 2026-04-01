@@ -550,3 +550,71 @@ describe("estimateStdDev", () => {
     expect(result).toBeNull();
   });
 });
+
+// ============================================
+// computeAdjustedGrade — 5등급 체계 (2022 개정)
+// ============================================
+describe("computeAdjustedGrade — gradeSystem=5", () => {
+  const baseRegular = {
+    subjectCategory: "regular" as const,
+    achievementLevel: null,
+    ratioA: null, ratioB: null, ratioC: null, ratioD: null, ratioE: null,
+  };
+
+  it("5등급 regular + 석차1등급 + Z점수 유리 → 1등급", () => {
+    const result = computeAdjustedGrade({
+      ...baseRegular,
+      rawScore: 98, avgScore: 75, stdDev: 10,
+      rankGrade: 1,
+      gradeSystem: 5,
+    });
+    expect(result).toBe(1);
+  });
+
+  it("5등급 regular + 석차2등급 + Z점수가 1등급 → MIN(2,1) = 1", () => {
+    const result = computeAdjustedGrade({
+      ...baseRegular,
+      rawScore: 98, avgScore: 70, stdDev: 8,
+      rankGrade: 2,
+      gradeSystem: 5,
+    });
+    expect(result).toBe(1);
+  });
+
+  it("5등급 regular + 석차3등급 + Z점수가 4등급 → MIN(3,4) = 3", () => {
+    const result = computeAdjustedGrade({
+      ...baseRegular,
+      rawScore: 72, avgScore: 70, stdDev: 10,
+      rankGrade: 3,
+      gradeSystem: 5,
+    });
+    expect(result).toBeLessThanOrEqual(3);
+  });
+
+  it("gradeSystem 미전달(기본9) → 기존 9등급 동작과 동일", () => {
+    const with9 = computeAdjustedGrade({
+      ...baseRegular,
+      rawScore: 90, avgScore: 75, stdDev: 10,
+      rankGrade: 2,
+      gradeSystem: 9,
+    });
+    const withDefault = computeAdjustedGrade({
+      ...baseRegular,
+      rawScore: 90, avgScore: 75, stdDev: 10,
+      rankGrade: 2,
+    });
+    expect(with9).toBe(withDefault);
+  });
+
+  it("career 경로는 gradeSystem 무관 (성취도 기반)", () => {
+    const result = computeAdjustedGrade({
+      subjectCategory: "career",
+      rawScore: 90, avgScore: 80, stdDev: null,
+      rankGrade: null,
+      achievementLevel: "A",
+      ratioA: 30, ratioB: 40, ratioC: 30, ratioD: null, ratioE: null,
+      gradeSystem: 5,
+    });
+    expect(result).toBe(1); // A = 1 (gradeSystem 무관)
+  });
+});

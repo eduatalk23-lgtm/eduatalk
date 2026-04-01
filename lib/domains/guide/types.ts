@@ -18,6 +18,7 @@ export type GuideType = (typeof GUIDE_TYPES)[number];
 export const GUIDE_STATUSES = [
   "draft",
   "ai_generating",
+  "ai_improving",
   "ai_failed",
   "ai_reviewing",
   "review_failed",
@@ -103,6 +104,7 @@ export const GUIDE_TYPE_LABELS: Record<GuideType, string> = {
 export const GUIDE_STATUS_LABELS: Record<GuideStatus, string> = {
   draft: "초안",
   ai_generating: "AI 생성 중",
+  ai_improving: "AI 개선 중",
   ai_failed: "AI 생성 실패",
   ai_reviewing: "AI 검토중",
   review_failed: "검토 실패",

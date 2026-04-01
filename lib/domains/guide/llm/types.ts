@@ -72,6 +72,8 @@ export interface StudentProfileContext {
     career: string[];
     fusion?: string[];
   };
+  /** 내신 평균 기반 자동 추론 난이도 — avg≤2.5=advanced, ≤4.5=intermediate, else=basic */
+  suggestedDifficulty?: "basic" | "intermediate" | "advanced";
 }
 
 /** AI 가이드 생성 통합 입력 */

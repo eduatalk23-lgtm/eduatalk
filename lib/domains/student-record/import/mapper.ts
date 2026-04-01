@@ -321,6 +321,8 @@ export interface GradeMapperContext extends MapperContext {
   curriculumRevisionId: string;
   /** 기본 subject_type_id (subject_type_id가 null인 과목용) */
   defaultSubjectTypeId: string;
+  /** 교육과정 연도 (2015 또는 2022) — grade_system 자동 설정용 */
+  curriculumYear?: number;
 }
 
 export function mapGrades(
@@ -368,6 +370,7 @@ export function mapGrades(
       subject_group_id: detail.subject_group_id,
       subject_type_id: detail.subject_type_id ?? ctx.defaultSubjectTypeId,
       curriculum_revision_id: ctx.curriculumRevisionId,
+      grade_system: (ctx.curriculumYear ?? 2015) >= 2022 ? 5 : 9,
     });
   }
 

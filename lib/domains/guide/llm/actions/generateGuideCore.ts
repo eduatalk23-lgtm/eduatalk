@@ -101,6 +101,11 @@ export async function generateGuideCore(
       }
     }
 
+    // 난이도 자동 차등: difficultyLevel 미지정 시 학생 내신 기반 추론값 사용
+    if (!input.difficultyLevel && input.studentProfile?.suggestedDifficulty) {
+      input.difficultyLevel = input.studentProfile.suggestedDifficulty;
+    }
+
     // 입력 검증 + 프롬프트 빌드
     onProgress?.("preparing", "프롬프트 생성 중");
     const promptResult = await buildPrompt(input);

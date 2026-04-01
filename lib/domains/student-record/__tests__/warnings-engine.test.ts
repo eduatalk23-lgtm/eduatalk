@@ -256,3 +256,118 @@ describe("빈 입력", () => {
     expect(warnings.every((w) => w.ruleId === "storyline_gap")).toBe(true);
   });
 });
+
+// ─── 콘텐츠 품질 패턴 경고 (Phase B) ────────────────
+
+describe("checkContentQualityPatterns", () => {
+  it("P1_나열식 → setek_enumeration 경고", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 45,
+        issues: ["P1_나열식"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.ruleId === "setek_enumeration")).toBe(true);
+  });
+
+  it("P2_추상적_복붙 → setek_abstract_generic 경고 (severity high)", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 50,
+        issues: ["P2_추상적_복붙"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    const w = warnings.find((w) => w.ruleId === "setek_abstract_generic");
+    expect(w).toBeDefined();
+    expect(w?.severity).toBe("high");
+  });
+
+  it("P4_내신탐구불일치 → grade_inquiry_mismatch 경고", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 55,
+        issues: ["P4_내신탐구불일치"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.ruleId === "grade_inquiry_mismatch")).toBe(true);
+  });
+
+  it("prefix 매칭 — 'P1 나열식' 변형도 setek_enumeration으로 매핑", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 40,
+        issues: ["P1 나열식"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.ruleId === "setek_enumeration")).toBe(true);
+  });
+
+  it("prefix 매칭 — 'P2:추상적' 변형도 매핑", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 40,
+        issues: ["P2:추상적"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.ruleId === "setek_abstract_generic")).toBe(true);
+  });
+
+  it("F1~F6 패턴 → content_quality_scientific 통합 경고", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 30,
+        issues: ["F2_인과단절", "F5_비교군오류"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    const w = warnings.find((w) => w.ruleId === "content_quality_scientific");
+    expect(w).toBeDefined();
+    expect(w?.severity).toBe("high"); // 2건 이상이면 high
+  });
+
+  it("F10_성장부재 → content_quality_low 경고", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 50,
+        issues: ["F10_성장부재"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.title === "학년 간 성장 곡선 부재")).toBe(true);
+  });
+
+  it("F16_진로과잉도배 → content_quality_low 경고", () => {
+    const input = makeInput({
+      qualityScores: [{
+        record_type: "setek", record_id: "r1", overall_score: 55,
+        issues: ["F16_진로과잉도배"], feedback: null,
+      }],
+    });
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.title === "진로 키워드 과잉 도배")).toBe(true);
+  });
+
+  it("동일 ruleId 중복 방지", () => {
+    const input = makeInput({
+      qualityScores: [
+        { record_type: "setek", record_id: "r1", overall_score: 40, issues: ["P1_나열식"], feedback: null },
+        { record_type: "setek", record_id: "r2", overall_score: 35, issues: ["P1_나열식"], feedback: null },
+      ],
+    });
+    const warnings = computeWarnings(input);
+    const p1Warnings = warnings.filter((w) => w.ruleId === "setek_enumeration");
+    expect(p1Warnings.length).toBe(1); // 중복 X
+  });
+
+  it("qualityScores 미전달 → 패턴 경고 없음", () => {
+    const input = makeInput();
+    const warnings = computeWarnings(input);
+    expect(warnings.some((w) => w.ruleId === "setek_enumeration")).toBe(false);
+    expect(warnings.some((w) => w.ruleId === "content_quality_scientific")).toBe(false);
+  });
+});
