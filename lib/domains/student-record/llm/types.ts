@@ -76,10 +76,10 @@ export interface HighlightAnalysisInput {
   careerContext?: {
     targetMajor: string;
     takenSubjects: string[];
-    /** 전공 관련 과목 성적 (과목명 → 석차등급) */
-    relevantScores: Array<{ subjectName: string; rankGrade: number }>;
-    /** 학기별 성적 추이 (학업성취도 Q3 평가용) */
-    gradeTrend?: Array<{ grade: number; semester: number; subjectName: string; rankGrade: number }>;
+    /** 전공 관련 과목 성적 (과목명 → 석차등급/성취도). 9등급: 숫자, 5등급: 숫자 또는 "A"~"E" */
+    relevantScores: Array<{ subjectName: string; rankGrade: number | string }>;
+    /** 학기별 성적 추이 (학업성취도 Q3 평가용). 9등급: 숫자, 5등급: 숫자 또는 "A"~"E" */
+    gradeTrend?: Array<{ grade: number; semester: number; subjectName: string; rankGrade: number | string }>;
   };
 }
 
@@ -97,9 +97,11 @@ export interface ContentQualityScore {
   depth: number;
   /** 문법 (0-5): 문법·맞춤법·표현의 적절성 */
   grammar: number;
-  /** 종합 점수 (0-100): specificity×30 + coherence×20 + depth×30 + grammar×20) / 5 */
+  /** 과학적 정합성 (0-5): 개념 정확성, 논리적 비약 유무, 실험설계 타당성 */
+  scientificValidity: number;
+  /** 종합 점수 (0-100): specificity×25 + coherence×15 + depth×25 + grammar×10 + scientificValidity×25) / 5 */
   overallScore: number;
-  /** 품질 문제 목록 (예: ["동어반복", "구체 사례 부족"]) */
+  /** 품질 문제 목록 (예: ["동어반복", "구체 사례 부족", "비교군 설계 오류"]) */
   issues: string[];
   /** 개선 피드백 (1-2문장) */
   feedback: string;

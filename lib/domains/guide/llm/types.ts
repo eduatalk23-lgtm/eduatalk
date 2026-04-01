@@ -284,6 +284,7 @@ export const guideReviewSchema = z.object({
   overallScore: z.number().min(0).max(100).describe("전체 점수 (0~100)"),
   dimensions: z.object({
     academicDepth: z.number().min(0).max(100).describe("학술적 깊이"),
+    scientificAccuracy: z.number().min(0).max(100).describe("과학적 정합성 — 개념 정확성, 논리적 비약 유무, 실험설계 타당성, 결론 비자명성"),
     studentAccessibility: z.number().min(0).max(100).describe("학생 접근성"),
     structuralCompleteness: z.number().min(0).max(100).describe("구조적 완성도"),
     practicalRelevance: z.number().min(0).max(100).describe("실용적 연관성"),

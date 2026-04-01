@@ -420,13 +420,13 @@ export const GRADE_9_TO_5_MAP: Record<number, string> = {
   9: "E",
 };
 
-/** 5등급 → 9등급 범위 환산 */
+/** 5등급 → 9등급 범위 환산 (백분위 기준, 경계 겹침 없이) */
 export const GRADE_5_TO_9_MAP: Record<string, { min: number; max: number; typical: number }> = {
-  A: { min: 1, max: 2, typical: 2 },
-  B: { min: 3, max: 4, typical: 3 },
-  C: { min: 4, max: 6, typical: 5 },
-  D: { min: 7, max: 8, typical: 7 },
-  E: { min: 8, max: 9, typical: 9 },
+  A: { min: 1, max: 2, typical: 2 },   // ~10% → 9등급 1~2
+  B: { min: 3, max: 4, typical: 3 },   // ~34% → 9등급 3~4
+  C: { min: 5, max: 6, typical: 5 },   // ~66% → 9등급 5~6
+  D: { min: 7, max: 8, typical: 7 },   // ~90% → 9등급 7~8
+  E: { min: 9, max: 9, typical: 9 },   // ~100% → 9등급 9
 };
 
 // ============================================

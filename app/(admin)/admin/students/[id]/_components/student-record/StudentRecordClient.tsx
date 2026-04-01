@@ -901,6 +901,7 @@ export function StudentRecordClient({
       diagnosisData: diagnosisData ?? null,
       strategyData: strategyData ?? null,
       currentGrade: studentGrade,
+      qualityScores: diagnosisData?.qualityScores,
     };
     return computeWarnings(input);
   }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade]);

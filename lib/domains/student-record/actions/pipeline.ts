@@ -597,6 +597,10 @@ async function executePipelineTasks(
           });
 
           // Phase QA: 품질 점수 저장 (fire-and-forget — 저장 실패가 파이프라인을 중단하지 않음)
+          // NOTE: overall_score 가중치가 버전에 따라 다름:
+          //   - scientific_validity IS NULL (구버전): specificity×30 + coherence×20 + depth×30 + grammar×20
+          //   - scientific_validity IS NOT NULL (신버전): specificity×25 + coherence×15 + depth×25 + grammar×10 + scientificValidity×25
+          // 비교 시 scientific_validity NULL 여부로 버전을 구분하세요.
           if (data.contentQuality) {
             const cq = data.contentQuality;
             void supabase
@@ -612,6 +616,7 @@ async function executePipelineTasks(
                   coherence: cq.coherence,
                   depth: cq.depth,
                   grammar: cq.grammar,
+                  scientific_validity: cq.scientificValidity ?? null,
                   overall_score: cq.overallScore,
                   issues: cq.issues,
                   feedback: cq.feedback,

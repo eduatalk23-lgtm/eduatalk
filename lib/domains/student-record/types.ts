@@ -295,6 +295,14 @@ export interface DiagnosisTabData {
   targetMajor: string | null;
   targetSubClassificationId: number | null;
   targetSubClassificationName: string | null;
+  /** 콘텐츠 품질 점수 (경고 엔진용, optional) */
+  qualityScores?: Array<{
+    record_type: "setek" | "changche" | "haengteuk" | "personal_setek";
+    record_id: string;
+    overall_score: number;
+    issues: string[];
+    feedback: string | null;
+  }>;
 }
 
 /** 교과 이수 적합도 결과 */

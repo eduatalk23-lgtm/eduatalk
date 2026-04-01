@@ -212,7 +212,7 @@ async function enrichSingleResource(
   try {
     const dbResults = await searchAcademicSources(
       `${resource.description} ${guideContext}`,
-      { subjectAreas, matchCount: 1, similarityThreshold: 0.7 },
+      { subjectAreas, matchCount: 1, similarityThreshold: 0.78 },
     );
     if (dbResults.length > 0) {
       const hit = dbResults[0];
@@ -292,7 +292,7 @@ async function enrichPaper(
   try {
     const dbResults = await searchAcademicSources(
       `${paper.title} ${paper.summary ?? ""}`,
-      { matchCount: 1, similarityThreshold: 0.75 },
+      { matchCount: 1, similarityThreshold: 0.82 },
     );
     if (dbResults.length > 0) {
       const hit = dbResults[0];

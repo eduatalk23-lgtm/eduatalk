@@ -590,7 +590,8 @@ export function buildBaseSystemPrompt(
 10. [ ] summary(탐구 요약) 섹션이 포함되어 있고 200자 이상
 11. [ ] (독서탐구) bookTitle/bookAuthor/bookPublisher가 실존 도서이며, bookConfidence가 "high" 또는 "medium"
 12. [ ] (독서탐구) bookVerificationNote에 도서 실존 판단 근거가 기재되어 있음
-13. [ ] relatedPapers의 각 논문에 confidence가 "high" 또는 "medium"이고, verificationNote가 기재되어 있음`);
+13. [ ] relatedPapers의 각 논문에 confidence가 "high" 또는 "medium"이고, verificationNote가 기재되어 있음
+14. [ ] **과학적 정합성**: 사용된 개념/용어가 정확한가, 탐구 전제와 결론이 논리적으로 연결되는가, 실험 설계(비교군/대조군)가 타당한가, 당연한 결론을 발견처럼 포장하지 않았는가, 참고 도서 내용과 실제 주장이 일치하는가`);
 
   return parts.join("\n\n");
 }

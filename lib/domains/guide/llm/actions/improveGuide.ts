@@ -95,7 +95,11 @@ export async function improveGuideAction(
       bookDescription: guide.content.book_description ?? undefined,
       setekExamples: guide.content.setek_examples,
       reviewResult: {
-        dimensions: guide.review_result.dimensions,
+        dimensions: {
+          ...guide.review_result.dimensions,
+          // 이전 리뷰(5축)에는 scientificAccuracy가 없을 수 있으므로 기본값 보장
+          scientificAccuracy: guide.review_result.dimensions?.scientificAccuracy ?? 0,
+        },
         feedback: guide.review_result.feedback,
         strengths: guide.review_result.strengths,
       },

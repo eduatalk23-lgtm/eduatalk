@@ -19,6 +19,11 @@ export type RecordWarningRuleId =
   | "strategy_incomplete"
   | "content_quality_critical"
   | "content_quality_low"
+  | "content_quality_scientific"
+  | "setek_enumeration"
+  | "setek_abstract_generic"
+  | "inquiry_keyword_only"
+  | "grade_inquiry_mismatch"
   | "roadmap_unfinished_prev_grade";
 
 export type RecordWarningSeverity = "critical" | "high" | "medium" | "low";
@@ -51,5 +56,10 @@ export const WARNING_LABELS: Record<RecordWarningRuleId, string> = {
   strategy_incomplete: "보완전략 미수립",
   content_quality_critical: "콘텐츠 품질 부족",
   content_quality_low: "콘텐츠 품질 개선 권장",
+  content_quality_scientific: "과학적 정합성 문제",
+  setek_enumeration: "세특 나열식 기술",
+  setek_abstract_generic: "세특 추상적/복붙 의심",
+  inquiry_keyword_only: "탐구 키워드만 존재",
+  grade_inquiry_mismatch: "내신↔탐구 심화도 불일치",
   roadmap_unfinished_prev_grade: "이전 학년 미완료 로드맵",
 };

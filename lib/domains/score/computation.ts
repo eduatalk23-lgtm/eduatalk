@@ -324,6 +324,8 @@ export function computeAdjustedGrade(input: {
   ratioC: number | null;
   ratioD: number | null;
   ratioE: number | null;
+  /** 등급 체계 (5 또는 9). 미전달 시 9등급 기본. */
+  gradeSystem?: 5 | 9;
 }): number | null {
   const {
     subjectCategory,
@@ -374,9 +376,12 @@ export function computeAdjustedGrade(input: {
 
   const z = (rawScore - avgScore) / stdDev;
   const percentile = 1 - normalCdf(z);
-  const zGrade = percentileToGrade9(percentile);
 
-  // 석차등급과 Z점수 등급 중 유리한 값 (낮을수록 유리)
+  // 등급 체계에 맞는 Z등급 변환
+  const gs = input.gradeSystem ?? 9;
+  const zGrade = gs === 5 ? percentileToGrade5(percentile) : percentileToGrade9(percentile);
+
+  // 석차등급과 Z점수 등급 중 유리한 값 (낮을수록 유리, 동일 스케일 내 비교)
   return Math.min(rankGrade, zGrade);
 }
 
@@ -674,6 +679,7 @@ export function computeScoreAnalysis(
     ratioC,
     ratioD,
     ratioE,
+    gradeSystem,
   });
 
   // --- meta 구성 ---
@@ -727,9 +733,6 @@ export function determineSubjectCategory(
  *
  * @param curriculumYear - curriculum_revisions.year
  */
-export function determineGradeSystem(
-  curriculumYear: number | null | undefined
-): 5 | 9 {
-  if (curriculumYear !== null && curriculumYear !== undefined && curriculumYear >= 2022) return 5;
-  return 9;
-}
+// 정본: lib/domains/student-record/grade-normalizer.ts
+// 하위 호환을 위해 재수출
+export { determineGradeSystem } from "@/lib/domains/student-record/grade-normalizer";

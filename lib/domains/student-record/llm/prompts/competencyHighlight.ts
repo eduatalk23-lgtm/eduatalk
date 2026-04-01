@@ -7,6 +7,19 @@ import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "../../constants";
 import type { HighlightAnalysisInput, HighlightAnalysisResult, AnalyzedSection, HighlightTag, BatchHighlightInput, ContentQualityScore } from "../types";
 import type { CompetencyItemCode, CompetencyGrade } from "../../types";
 import { extractJson } from "../extractJson";
+import { grade5To9 } from "../../grade-normalizer";
+
+/** rankGrade(number|string) → 9등급 숫자로 정규화 */
+function toGrade9(rg: number | string): number {
+  if (typeof rg === "string") return grade5To9(rg);
+  return rg;
+}
+
+/** rankGrade 표시 라벨 */
+function gradeLabel(rg: number | string): string {
+  if (typeof rg === "string") return `${rg}(≈${grade5To9(rg)}등급)`;
+  return `${rg}등급`;
+}
 
 const COMPETENCY_SCHEMA = COMPETENCY_ITEMS.map((item) => {
   const questions = COMPETENCY_RUBRIC_QUESTIONS[item.code];
@@ -114,7 +127,8 @@ ${COMPETENCY_SCHEMA}
     "coherence": 4,
     "depth": 3,
     "grammar": 5,
-    "overallScore": 66,
+    "scientificValidity": 4,
+    "overallScore": 70,
     "issues": ["구체적 성과 수치 부족"],
     "feedback": "탐구 과정은 잘 드러나나 결과와 배운 점을 구체적 수치나 사례로 보완하면 좋겠습니다."
   }
@@ -123,30 +137,81 @@ ${COMPETENCY_SCHEMA}
 
 ## 추가: 텍스트 품질 평가
 
-역량 분석과 함께, 이 텍스트의 **작성 품질**도 평가하세요:
+역량 분석과 함께, 이 텍스트의 **작성 품질**도 평가하세요.
+
+### 좋은 세특의 8단계 흐름 (평가 기준)
+
+아래 흐름이 얼마나 충족되는지를 specificity/coherence/depth/scientificValidity 평가에 반영하세요:
+1. **지적호기심/의문**: 수업에서 배운 개념에서 구체적 질문이 출발했는가 (막연한 "관심을 가짐" ≠ 좋은 출발)
+2. **주제 선정**: 교과 내용에서 자연스럽게 확장된 주제인가, 학생 수준에 적합한가
+3. **탐구 내용/이론**: 교과 이론을 정확하게 적용했는가, 단계적이고 논리적인가
+4. **참고문헌/독서**: 출처가 탐구와 실제로 연결되는가 (제목만 언급 ≠ 연결)
+5. **결론→행동**: 한계 인식 + 선행연구/최신기술 동향을 바탕으로 해결방안/창의적 고안/정책 제언까지 이어지는 복합 결론이 최고 평가. 단순 "알게 되었다"는 최하 평가
+6. **교사 관찰**: 구체적 관찰 근거가 있는가 ("성실히 참여" 같은 상투적 표현 ≠ 관찰)
+7. **성장 서사**: 성취과정/발전가능성/잠재력이 드러나는가
+8. **오류→재탐구**: 한계를 인식하고 추가 탐구를 수행했는가 (있으면 큰 가산)
+
+### 합격률 낮은 세특 패턴 감지 (issues에 반영)
+
+아래 패턴이 발견되면 issues 배열에 해당 코드를 포함하세요:
+- **P1_나열식**: 수행평가 내용을 연결 없이 나열만 한 경우
+- **P2_추상적_복붙**: "적극적으로 참여", "성실한 태도" 등 모든 학생에게 쓸 수 있는 상투적 표현. 예: 진로적성검사 참여하여 적합 계열을 단순 나열, 전공멘토링에서 "~참여함. 진로를 구체화 함"으로만 기록
+- **P3_키워드만**: 전문용어/키워드는 있으나 구체적 탐구 방향이나 내용을 알 수 없는 경우
+- **P4_내신탐구불일치**: (진로교과인 경우) 학생 수준을 크게 벗어나는 대학원급 내용이 기술된 경우
+- **F1_별개활동포장**: 서로 다른 원리의 활동을 하나의 연속 탐구처럼 서술
+- **F2_인과단절**: 실험결과와 무관한 결론으로 갑자기 전환 (예: 강도비교→환경문제)
+- **F3_출처불일치**: 참고 도서/자료의 실제 내용과 학생 주장이 맞지 않는 경우
+- **F4_전제불일치**: 탐구 전제(질문)와 실험 방법의 개념이 불일치 (예: "좋은 성분" → 항산화 실험)
+- **F5_비교군오류**: 비교군/대조군 설계가 잘못된 경우 (예: 천연 두 가지끼리만 비교)
+- **F6_자명한결론**: 화학적/과학적으로 당연한 결론을 발견처럼 포장
+- **F10_성장부재**: 학년 간 내용 깊이가 동일하여 성장 곡선이 없는 경우
+- **F12_자기주도성부재**: 모든 활동이 교사 과제 중심이며 학생 스스로 질문을 만든 흔적 없음
+- **F16_진로과잉도배**: 모든 교과에 동일 진로 키워드를 강제 삽입하여 해당 교과 역량 불명확
+
+### 진로교과 세특 가중 평가
+
+진로(계열) 관련 교과의 세특인 경우 (목표 전공이 제공된 경우):
+- **depth 기대치 상향**: 진로교과에서는 depth 3점이 비진로교과의 4점에 해당. 진로교과인데 depth ≤ 2이면 issues에 "진로교과_탐구부족" 추가
+- **8단계 흐름 엄격 적용**: 진로교과 세특은 최소 ①②③⑤ 단계가 충족되어야 함
+- 반대로, 비진로교과(국어/체육/음악 등)에서는 교과 역량 중심 평가가 정상이며 진로 연결 없어도 감점하지 않음
+
+### 5축 점수 기준
 
 - **specificity** (0-5): 구체적 사례·근거·성과가 포함된 정도
   - 0: "수업에 참여함" 수준의 모호한 기술
   - 3: 활동 내용이 있으나 구체적 성과 부족
   - 5: 구체적 탐구 과정, 결과, 배운 점이 명확
 
-- **coherence** (0-5): 활동→과정→결과→성장의 논리적 흐름
-  - 0: 나열식, 연결 없음
-  - 3: 부분적 연결
-  - 5: 자연스러운 서사 흐름
+- **coherence** (0-5): 8단계 흐름의 논리적 연결 + 학년별 성장 구조
+  - 0: 나열식, 연결 없음 (P1_나열식)
+  - 2: 활동은 있으나 결론과 인과 단절 (F2_인과단절)
+  - 3: 부분적 연결 (일부 단계 누락)
+  - 4: 호기심→탐구→결론→성장의 자연스러운 서사 흐름
+  - 5: 위 흐름 + 오류→재탐구 순환 + 학년별 성장 구조 충족
+  - **학년별 성장 구조 기준** (여러 학년 데이터가 있는 경우 반영):
+    - 고1: 넓은 씨앗 뿌리기 (기술/사회동향 파악, 진로에 대한 다양한 분야 관심)
+    - 고2: 1학년 중 관심 주제를 선별하여 발전/심화학습 (실험 보완, 깊이 있는 탐구)
+    - 고3: 2학년 핵심 내용을 기술/원리/정책/산출물로 더 심화 + 사회적 확장 범위까지 제언
+    - 학년 간 깊이가 동일하면(F10_성장부재) coherence 감점
 
 - **depth** (0-5): 탐구·분석의 깊이
   - 0: 표면적 기술만
   - 3: 탐구 시도는 있으나 피상적
-  - 5: 심층 분석, 교과 연계, 확장적 사고
+  - 5: 심층 분석, 교과 연계, 확장적 사고, 자기만의 해석
 
 - **grammar** (0-5): 문법·맞춤법·표현의 적절성
   - 5: 완벽
   - 3: 약간의 어색함
   - 0: 심각한 문법 오류
 
-- **overallScore** (0-100): 종합 = (specificity×30 + coherence×20 + depth×30 + grammar×20) / 5
-- **issues**: 발견된 품질 문제 목록 (예: "동어반복", "구체 사례 부족", "나열식 기술")
+- **scientificValidity** (0-5): 과학적/개념적 정합성
+  - 0: 심각한 사실 오류 또는 논리적 비약 (F4/F5/F6 해당)
+  - 2: 개념 혼동이 있으나 치명적이지 않음
+  - 3: 대체로 정확하나 일부 비약 또는 비교군 부적절
+  - 5: 개념 정확, 실험설계 타당, 결론 비자명, 가설-결론 정합
+
+- **overallScore** (0-100): 종합 = (specificity×25 + coherence×15 + depth×25 + grammar×10 + scientificValidity×25) / 5
+- **issues**: 발견된 품질 문제 목록. 위 패턴 코드(P1~F16) + 자유 기술 (예: "동어반복", "구체 사례 부족") 혼용 가능
 - **feedback**: 개선을 위한 1-2문장 피드백
 \`\`\``;
 
@@ -183,7 +248,7 @@ export function buildHighlightUserPrompt(input: HighlightAnalysisInput): string 
     if (relevantScores.length > 0) {
       prompt += `- 전공 관련 과목 성적:\n`;
       for (const s of relevantScores) {
-        prompt += `  · ${s.subjectName}: ${s.rankGrade}등급\n`;
+        prompt += `  · ${s.subjectName}: ${gradeLabel(s.rankGrade)}\n`;
       }
     }
 
@@ -194,9 +259,9 @@ export function buildHighlightUserPrompt(input: HighlightAnalysisInput): string 
       for (const s of gradeTrend) {
         const key = `${s.grade}학년 ${s.semester}학기`;
         const entry = termMap.get(key) ?? { sum: 0, count: 0, subjects: [] };
-        entry.sum += s.rankGrade;
+        entry.sum += toGrade9(s.rankGrade);
         entry.count++;
-        entry.subjects.push(`${s.subjectName}(${s.rankGrade})`);
+        entry.subjects.push(`${s.subjectName}(${gradeLabel(s.rankGrade)})`);
         termMap.set(key, entry);
       }
       prompt += `\n- **학기별 성적 추이** (academic_achievement Q3 "학기별/학년별 성적 추이" 평가에 활용):\n`;
@@ -236,12 +301,28 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   const cq = raw.contentQuality;
   if (!cq || typeof cq !== "object") return undefined;
   const c = cq as Record<string, unknown>;
+
+  const sp = clamp(Number(c.specificity) || 0, 0, 5);
+  const co = clamp(Number(c.coherence) || 0, 0, 5);
+  const dp = clamp(Number(c.depth) || 0, 0, 5);
+  const gm = clamp(Number(c.grammar) || 0, 0, 5);
+  const sv = c.scientificValidity != null ? clamp(Number(c.scientificValidity) || 0, 0, 5) : 0;
+  const hasSV = c.scientificValidity != null;
+
+  // overallScore: LLM 제공값 우선, 없으면 가중치 기반 재계산
+  // scientificValidity 누락 시 4축 가중치(구버전), 존재 시 5축 가중치(신버전)
+  const fallbackScore = hasSV
+    ? (sp * 25 + co * 15 + dp * 25 + gm * 10 + sv * 25) / 5
+    : (sp * 30 + co * 20 + dp * 30 + gm * 20) / 5;
+  const overall = Number(c.overallScore) > 0 ? clamp(Number(c.overallScore), 0, 100) : Math.round(fallbackScore);
+
   return {
-    specificity: clamp(Number(c.specificity) || 0, 0, 5),
-    coherence: clamp(Number(c.coherence) || 0, 0, 5),
-    depth: clamp(Number(c.depth) || 0, 0, 5),
-    grammar: clamp(Number(c.grammar) || 0, 0, 5),
-    overallScore: clamp(Number(c.overallScore) || 0, 0, 100),
+    specificity: sp,
+    coherence: co,
+    depth: dp,
+    grammar: gm,
+    scientificValidity: sv,
+    overallScore: overall,
     issues: Array.isArray(c.issues) ? c.issues.filter((i: unknown) => typeof i === "string") : [],
     feedback: typeof c.feedback === "string" ? c.feedback : "",
   };
@@ -360,7 +441,7 @@ export function buildBatchHighlightUserPrompt(
     if (relevantScores.length > 0) {
       prompt += `- 전공 관련 과목 성적:\n`;
       for (const s of relevantScores) {
-        prompt += `  · ${s.subjectName}: ${s.rankGrade}등급\n`;
+        prompt += `  · ${s.subjectName}: ${gradeLabel(s.rankGrade)}\n`;
       }
     }
     if (gradeTrend && gradeTrend.length > 0) {
@@ -368,9 +449,9 @@ export function buildBatchHighlightUserPrompt(
       for (const s of gradeTrend) {
         const key = `${s.grade}학년 ${s.semester}학기`;
         const entry = termMap.get(key) ?? { sum: 0, count: 0, subjects: [] };
-        entry.sum += s.rankGrade;
+        entry.sum += toGrade9(s.rankGrade);
         entry.count++;
-        entry.subjects.push(`${s.subjectName}(${s.rankGrade})`);
+        entry.subjects.push(`${s.subjectName}(${gradeLabel(s.rankGrade)})`);
         termMap.set(key, entry);
       }
       prompt += `\n- **학기별 성적 추이**:\n`;

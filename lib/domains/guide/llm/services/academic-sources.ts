@@ -79,7 +79,7 @@ export async function searchAcademicSources(
   },
 ): Promise<AcademicSourceSearchResult[]> {
   const matchCount = options?.matchCount ?? 3;
-  const threshold = options?.similarityThreshold ?? 0.7;
+  const threshold = options?.similarityThreshold ?? 0.78;
 
   try {
     // 쿼리 임베딩 생성

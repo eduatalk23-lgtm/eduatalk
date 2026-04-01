@@ -60,8 +60,8 @@ describe("grade5To9Range", () => {
   it("A → min:1, max:2", () => {
     expect(grade5To9Range("A")).toEqual({ min: 1, max: 2 });
   });
-  it("C → min:4, max:6", () => {
-    expect(grade5To9Range("C")).toEqual({ min: 4, max: 6 });
+  it("C → min:5, max:6", () => {
+    expect(grade5To9Range("C")).toEqual({ min: 5, max: 6 });
   });
   it("잘못된 값 → null", () => {
     expect(grade5To9Range("X")).toBeNull();

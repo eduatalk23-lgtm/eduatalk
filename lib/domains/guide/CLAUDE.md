@@ -29,6 +29,28 @@ guide/
 5. **Import 파이프라인**: parse → subject match → transform → bulk insert. admission과 유사한 다단계 구조.
 6. **품질 티어**: 가이드별 품질 티어 존재. 추천에 영향. 기존 티어 로직 준수.
 
+## 가이드 품질 — 세특 활용도 및 과학적 정합성
+
+### 리뷰 6축 평가 (guideReviewSchema)
+1. **academicDepth**: 학술적 깊이, 개념 정확성, 이론 전개
+2. **scientificAccuracy**: 과학적 정합성 — 개념 혼동/논리적 비약/실험설계 타당성/결론 비자명성/출처 일치성
+3. **studentAccessibility**: 고등학생 수준 적합성, AI 의존도
+4. **structuralCompleteness**: 필수 섹션, 분량, 습니다 체 일관성
+5. **practicalRelevance**: 생기부 세특/창체 활용 가능성, 교과 연계, 후속 탐구
+6. **outlineQuality**: 목차형 아웃라인, depth 계층, tip, resources
+
+### scientificAccuracy 감점 패턴 (F1~F6)
+- 별개 원리의 활동을 하나로 포장 (F1)
+- 실험결과→결론 인과 단절 (F2)
+- 참고 도서 내용과 주장 불일치 (F3)
+- 탐구 전제와 실험 방법의 개념 불일치 (F4)
+- 비교군/대조군 설계 오류 (F5)
+- 자명한 결론을 발견처럼 포장 (F6)
+
+### 세특 기재 예시 — 8단계 흐름 기반
+가이드의 세특 예시(setek_examples)는 아래 흐름을 반영해야 함:
+호기심→주제→탐구→참고문헌→결론/제언→교사관찰→성장→오류→재탐구
+
 ## Tests
 ```bash
 pnpm test lib/domains/guide

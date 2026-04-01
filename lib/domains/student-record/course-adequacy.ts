@@ -6,7 +6,7 @@
 // 출력: 적합도 점수 + 이수/미이수 분류 + 안내 메시지
 // ============================================
 
-import { getMajorRecommendedCourses, MAJOR_RECOMMENDED_COURSES } from "./constants";
+import { getMajorRecommendedCourses } from "./constants";
 import type { CourseAdequacyResult } from "./types";
 import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 
@@ -29,9 +29,8 @@ export function calculateCourseAdequacy(
   offeredSubjects: string[] | null,
   curriculumYear?: number,
 ): CourseAdequacyResult | null {
-  const recommended = curriculumYear
-    ? getMajorRecommendedCourses(majorCategory, curriculumYear)
-    : MAJOR_RECOMMENDED_COURSES[majorCategory];
+  // 항상 getMajorRecommendedCourses 사용 (curriculumYear 미전달 시 내부에서 2015 기본)
+  const recommended = getMajorRecommendedCourses(majorCategory, curriculumYear);
   if (!recommended) return null;
 
   const takenSet = buildNameSet(takenSubjects);

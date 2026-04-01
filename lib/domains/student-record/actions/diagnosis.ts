@@ -112,6 +112,21 @@ export async function fetchDiagnosisTabData(
       ? calculateCourseAdequacy(targetMajor, takenSubjects, offeredSubjects, curriculumYear)
       : null;
 
+    // 콘텐츠 품질 점수 조회 (경고 엔진용)
+    const { data: qualityRows } = await supabase
+      .from("student_record_content_quality")
+      .select("record_type, record_id, overall_score, issues, feedback")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId);
+
+    const qualityScores = (qualityRows ?? []).map((r) => ({
+      record_type: r.record_type as "setek" | "changche" | "haengteuk" | "personal_setek",
+      record_id: r.record_id as string,
+      overall_score: r.overall_score as number,
+      issues: (r.issues ?? []) as string[],
+      feedback: (r.feedback as string) ?? null,
+    }));
+
     return {
       competencyScores: { ai: aiScores, consultant: consultantScores },
       activityTags,
@@ -119,6 +134,7 @@ export async function fetchDiagnosisTabData(
       consultantDiagnosis: diagnosisPair.consultant,
       strategies, courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
       targetSubClassificationId, targetSubClassificationName,
+      qualityScores,
     };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchDiagnosisTabData" }, error, { studentId, schoolYear });

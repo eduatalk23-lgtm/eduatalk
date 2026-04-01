@@ -378,14 +378,16 @@ export function GuideGeneratorClient() {
                   },
                 };
 
+      // Server Action 직접 호출 — 즉시 guideId 반환 (fire-and-forget)
       const result = await generateGuideAction(generationInput);
 
-      if (result.success && result.data) {
-        toast.showSuccess("가이드가 생성되었습니다. 목록에서 확인하세요.");
-        router.push("/admin/guides");
-      } else {
-        toast.showError(!result.success ? result.error ?? "생성 실패" : "생성 실패");
+      if (!result.success) {
+        toast.showError(result.error ?? "가이드 생성 요청에 실패했습니다.");
+        return;
       }
+
+      toast.showSuccess("AI 생성이 시작되었습니다. 가이드 페이지에서 진행 상황을 확인하세요.");
+      router.push(`/admin/guides/${result.data.guideId}`);
     } catch {
       toast.showError("AI 가이드 생성에 실패했습니다.");
     } finally {
@@ -394,7 +396,7 @@ export function GuideGeneratorClient() {
   }, [
     sourceMode, keyword, guideType, targetSubject, targetCareerField,
     additionalContext, sourceGuideId, cloneTargetSubject, cloneTargetCareer,
-    variationNote, extractUrl, toast, difficultyLevel, modelTier, curriculumYear,
+    variationNote, extractUrl, toast, router, difficultyLevel, modelTier, curriculumYear,
     targetSubjectGroup, targetMajorUnit, targetMinorUnit, selectedStudentId, selectedSectionKeys,
   ]);
 
@@ -1243,7 +1245,7 @@ export function GuideGeneratorClient() {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  생성 중... (30~60초)
+                  요청 중...
                 </>
               ) : (
                 <>

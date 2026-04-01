@@ -638,8 +638,39 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     );
   }
 
+  // AI 생성 중/실패 상태 — 자동 갱신 (3초 폴링)
+  const isAiGenerating = guide?.status === "ai_generating";
+  const isAiFailed = guide?.status === "ai_failed";
+
+  useEffect(() => {
+    if (!isAiGenerating) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["cms-guide-detail", guideId] });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isAiGenerating, queryClient, guideId]);
+
   return (
     <div className="space-y-6">
+      {/* AI 생성 상태 배너 */}
+      {isAiGenerating && (
+        <div className="flex items-center gap-3 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 p-4">
+          <Loader2 className="w-5 h-5 animate-spin text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">AI 가이드 생성 중...</p>
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">보통 1~3분 소요됩니다. 이 페이지를 닫아도 생성은 계속 진행됩니다.</p>
+          </div>
+        </div>
+      )}
+      {isAiFailed && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-4">
+          <div>
+            <p className="text-sm font-medium text-red-900 dark:text-red-200">AI 생성 실패</p>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">가이드 생성 중 오류가 발생했습니다. 다시 시도해 주세요.</p>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 — sticky */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-white/95 dark:bg-secondary-950/95 backdrop-blur-sm border-b border-transparent [&:not(:first-child)]:border-secondary-200 dark:[&:not(:first-child)]:border-secondary-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
