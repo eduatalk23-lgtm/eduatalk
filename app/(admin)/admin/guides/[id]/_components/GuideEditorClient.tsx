@@ -270,6 +270,23 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     setIsDirty(true);
   }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // AI 처리 중 상태 — 자동 갱신 (3초 폴링)
+  // ⚠️ 조건부 early return 앞에 위치해야 React Hooks 규칙 준수
+  const isAiInProgress =
+    guide?.status === "ai_generating" ||
+    guide?.status === "ai_improving" ||
+    guide?.status === "ai_reviewing";
+
+  useEffect(() => {
+    if (!isAiInProgress) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({
+        queryKey: explorationGuideKeys.cmsDetail(guideId ?? ""),
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isAiInProgress, guideId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // plain text → html 변환 (기존 imported 콘텐츠)
   const toHtml = useCallback((text: string, format?: string) => {
     if (!text) return "";
@@ -638,21 +655,10 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     );
   }
 
-  // AI 처리 중 상태 — 자동 갱신 (3초 폴링)
   const isAiGenerating = guide?.status === "ai_generating";
   const isAiImproving = guide?.status === "ai_improving";
   const isAiReviewing = guide?.status === "ai_reviewing";
   const isAiFailed = guide?.status === "ai_failed";
-
-  const isAiInProgress = isAiGenerating || isAiImproving || isAiReviewing;
-
-  useEffect(() => {
-    if (!isAiInProgress) return;
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["cms-guide-detail", guideId] });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [isAiInProgress, queryClient, guideId]);
 
   return (
     <div className="space-y-6">
