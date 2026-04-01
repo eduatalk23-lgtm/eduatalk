@@ -10,7 +10,6 @@ import {
   listGuidesAction,
   getGuideDetailAction,
   fetchAllSubjectsAction,
-  fetchCurriculumUnitsAction,
   searchGuideTitlesAction,
   countSimilarGuidesAction,
   fetchStudentCareerInfoAction,
@@ -170,10 +169,16 @@ export function allCurriculumUnitsQueryOptions() {
 export function curriculumUnitsQueryOptions(subjectName: string) {
   return queryOptions({
     queryKey: explorationGuideKeys.curriculumUnits(subjectName),
-    queryFn: () => fetchCurriculumUnitsAction(subjectName),
+    queryFn: async () => {
+      const res = await fetch(`/api/subjects/curriculum-units?subjectName=${encodeURIComponent(subjectName)}`);
+      if (!res.ok) throw new Error(`단원 로드 실패 (${res.status})`);
+      const json = await res.json();
+      return { success: true as const, data: json.data };
+    },
     staleTime: Infinity,
     gcTime: 60 * 60_000,
     enabled: !!subjectName,
+    retry: 2,
   });
 }
 

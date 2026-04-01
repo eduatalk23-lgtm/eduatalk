@@ -43,7 +43,12 @@ import {
   findLatestVersionId,
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { embedSingleGuide } from "../vector/embedding-service";
+
+/** 임베딩은 무거운 AI SDK를 로드하므로 동적 import 사용 (모듈 초기화 실패 방지) */
+async function lazyEmbedSingleGuide(guideId: string) {
+  const { embedSingleGuide } = await import("../vector/embedding-service");
+  return lazyEmbedSingleGuide(guideId);
+}
 
 const LOG_CTX = { domain: "guide", action: "crud" };
 
@@ -116,7 +121,7 @@ export async function createGuideAction(input: {
     ]);
 
     // 임베딩 생성 (실패해도 저장은 유지)
-    embedSingleGuide(guide.id).catch((err) => {
+    lazyEmbedSingleGuide(guide.id).catch((err) => {
       logActionError({ ...LOG_CTX, action: "createGuide.embedding" }, err, {
         guideId: guide.id,
       });
@@ -161,7 +166,7 @@ export async function updateGuideAction(input: {
     ]);
 
     // 임베딩 갱신 (실패해도 저장은 유지)
-    embedSingleGuide(input.guideId).catch((err) => {
+    lazyEmbedSingleGuide(input.guideId).catch((err) => {
       logActionError({ ...LOG_CTX, action: "updateGuide.embedding" }, err, {
         guideId: input.guideId,
       });
@@ -278,7 +283,7 @@ export async function saveAsNewVersionAction(
     });
 
     // 임베딩 생성
-    embedSingleGuide(newGuide.id).catch((err) => {
+    lazyEmbedSingleGuide(newGuide.id).catch((err) => {
       logActionError({ ...LOG_CTX, action: "saveAsNewVersion.embedding" }, err, {
         guideId: newGuide.id,
       });
@@ -329,7 +334,7 @@ export async function saveWithNewVersionAction(input: {
     ]);
 
     // 4. 임베딩 갱신
-    embedSingleGuide(newGuide.id).catch((err) => {
+    lazyEmbedSingleGuide(newGuide.id).catch((err) => {
       logActionError({ ...LOG_CTX, action: "saveWithNewVersion.embedding" }, err, {
         guideId: newGuide.id,
       });
@@ -352,7 +357,7 @@ export async function revertToVersionAction(
     const { userId } = await requireAdminOrConsultant();
     const newGuide = await revertToVersion(targetVersionId, userId);
 
-    embedSingleGuide(newGuide.id).catch((err) => {
+    lazyEmbedSingleGuide(newGuide.id).catch((err) => {
       logActionError({ ...LOG_CTX, action: "revertToVersion.embedding" }, err, {
         guideId: newGuide.id,
       });
