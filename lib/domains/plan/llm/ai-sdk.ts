@@ -48,7 +48,7 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 const MODEL_ID_MAP: Record<ModelTier, string> = {
   fast: "gemini-2.5-flash",
   standard: "gemini-2.5-flash",
-  advanced: "gemini-3.1-pro-preview",
+  advanced: "gemini-2.5-pro",
 };
 
 // 과부하(503) 시 순차적으로 다음 모델 시도
@@ -56,9 +56,8 @@ const MODEL_FALLBACK_CHAIN: Record<ModelTier, string[]> = {
   fast: ["gemini-2.5-flash"],
   standard: ["gemini-2.5-flash"],
   advanced: [
-    "gemini-3.1-pro-preview",
-    "gemini-3-pro-preview",
     "gemini-2.5-pro",
+    "gemini-2.5-flash",
   ],
 };
 
@@ -87,8 +86,10 @@ export interface AiSdkOptions {
   grounding?: GroundingConfig;
   /** "json" 설정 시 Gemini JSON 모드 강제 — 유효한 JSON 출력 보장 */
   responseFormat?: "json" | "text";
-  /** 전체 호출 안전 타임아웃 (ms). 서버리스 maxDuration 내에서 완료 보장용 */
+  /** 모델별 타임아웃 (ms). 각 모델이 독립적으로 이 시간만큼 사용 */
   timeoutMs?: number;
+  /** 폴백 체인에서 시작할 모델 인덱스 (체이닝 재시도 시 이미 시도한 모델 건너뛰기) */
+  modelStartIndex?: number;
 }
 
 export interface AiSdkResult {
@@ -473,18 +474,23 @@ export async function generateObjectWithRateLimit<T>(
   const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
-  const maxRetries = 1; // 서버리스 환경: 재시도 1회로 제한 (기존 3 → 타임아웃 방지)
-  const abortSignal = options.timeoutMs
-    ? AbortSignal.timeout(options.timeoutMs)
-    : undefined;
+  const maxRetries = 1;
+  // 시도할 모델 범위 (체이닝 재시도 시 이미 시도한 모델 건너뛰기용)
+  const startIndex = options.modelStartIndex ?? 0;
 
   let lastError: Error | null = null;
 
-  for (const currentModelId of fallbackChain) {
+  for (let i = startIndex; i < fallbackChain.length; i++) {
+    const currentModelId = fallbackChain[i];
     if (isCircuitOpen(currentModelId)) {
       logActionDebug("ai-sdk.generateObject", `${currentModelId} circuit open, skip`);
       continue;
     }
+
+    // 모델마다 독립 AbortSignal — 각 모델이 전체 타임아웃을 사용
+    const abortSignal = options.timeoutMs
+      ? AbortSignal.timeout(options.timeoutMs)
+      : undefined;
 
     logActionDebug(
       "ai-sdk.generateObject",
@@ -550,14 +556,26 @@ export async function generateObjectWithRateLimit<T>(
           continue;
         }
 
-        // 과부하 또는 타임아웃 → 다음 모델로 전환
-        if (isOverloadError(error) || isTimeoutError(error)) {
+        // 과부하 → 다음 모델로 전환 (빠른 실패, 같은 함수 내에서 재시도 가치 있음)
+        if (isOverloadError(error)) {
           logActionWarn(
             "ai-sdk.generateObject",
-            `${currentModelId} ${isTimeoutError(error) ? "타임아웃" : "과부하"} → 다음 모델로 전환`
+            `${currentModelId} 과부하 → 다음 모델로 전환`
           );
           recordCircuitFailure(currentModelId);
           break;
+        }
+
+        // 타임아웃 → 즉시 throw (함수 시간 소진, 같은 함수 내 재시도 무의미)
+        if (isTimeoutError(error)) {
+          logActionWarn(
+            "ai-sdk.generateObject",
+            `${currentModelId} 타임아웃 → 함수 종료 (modelIndex=${i})`
+          );
+          recordCircuitFailure(currentModelId);
+          const timeoutErr = new Error(`[AI SDK] ${currentModelId} 타임아웃 (modelIndex=${i})`);
+          (timeoutErr as Error & { modelIndex: number }).modelIndex = i;
+          throw timeoutErr;
         }
 
         recordCircuitFailure(currentModelId);

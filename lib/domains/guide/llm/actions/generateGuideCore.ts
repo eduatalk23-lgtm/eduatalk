@@ -66,6 +66,7 @@ export async function generateGuideCore(
   input: GuideGenerationInput,
   userId: string,
   onProgress?: GenerateProgressCallback,
+  options?: { modelStartIndex?: number },
 ): Promise<GenerateGuideCoreResult> {
   try {
     // 할당량 확인
@@ -116,6 +117,7 @@ export async function generateGuideCore(
         temperature: 0.5,
         maxTokens: 65536,
         timeoutMs: 300_000, // API Route maxDuration=300 (5분)
+        modelStartIndex: options?.modelStartIndex,
       });
       generated = result.object;
       modelId = result.modelId;
