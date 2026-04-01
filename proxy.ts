@@ -406,6 +406,41 @@ export async function proxy(request: NextRequest) {
     return rebuildResponseWithAuthHeaders(request, getResponse());
   }
 
+  // ─── 2.5. Server Action 요청 처리 ───
+  // Server Action은 POST + Next-Action 헤더로 식별
+  // 리다이렉트하면 클라이언트에서 RSC 파싱 실패 → "Server Components render" 에러 발생
+  // API 경로와 동일하게 처리: 인증 실패 시 JSON 에러 응답 반환
+  const isServerAction = request.method === "POST" && request.headers.has("Next-Action");
+
+  if (isServerAction) {
+    if (!hasAuthCookies(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const saParsed = parseTokenFromCookies(request);
+
+    if (!saParsed.needsRefresh && saParsed.user) {
+      injectAuthHeaders(request, saParsed.user);
+      return NextResponse.next({ request: { headers: request.headers } });
+    }
+
+    // 토큰 갱신 필요 → getUser()로 리프레시
+    const { user: saUser, error: saError, getResponse: saGetResponse } =
+      await deduplicatedGetUser(request);
+
+    if (saError || !saUser) {
+      const jsonResponse = NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 },
+      );
+      clearAuthCookies(request, jsonResponse);
+      return jsonResponse;
+    }
+
+    injectAuthHeaders(request, saUser);
+    return rebuildResponseWithAuthHeaders(request, saGetResponse());
+  }
+
   // ─── 3. 페이지 경로 처리 ───
   const isPublicPath = isPublicPagePath(pathname);
   const isRSCRequest = request.headers.get("RSC") === "1";
