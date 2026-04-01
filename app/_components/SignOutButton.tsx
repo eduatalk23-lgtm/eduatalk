@@ -20,6 +20,7 @@ export function SignOutButton({
   const handleSignOut = () => {
     startTransition(async () => {
       await signOut();
+      window.location.href = "/login";
     });
   };
 

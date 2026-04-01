@@ -798,7 +798,9 @@ async function _signOut(): Promise<void> {
     cookieStore.delete(cookie.name);
   }
 
-  redirect("/login");
+  // redirect()를 Server Action 내에서 호출하면 Next.js가 flight response 생성 시
+  // 현재 페이지의 RSC를 재렌더링하는데, 쿠키가 이미 삭제된 상태이므로 500 발생.
+  // 클라이언트에서 네비게이션하도록 변경.
 }
 
 export const signOut = withErrorHandling(_signOut);

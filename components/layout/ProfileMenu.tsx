@@ -71,6 +71,7 @@ export function ProfileMenu({
   const handleSignOut = () => {
     startTransition(async () => {
       await signOut();
+      window.location.href = "/login";
     });
   };
 
