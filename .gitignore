@@ -103,6 +103,6 @@ test-results/
 .serena/
 
 # Claude Code memory (auto-generated)
-memory/
+/memory/
 # Database dumps
 dump_*.sql
