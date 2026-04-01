@@ -186,7 +186,9 @@ async function _handlePost(req: Request) {
             maxOutputTokens: candidate.maxTokens,
             temperature: candidate.temp,
             maxRetries: 1, // 재시도 1회로 제한 (기본 3회 → 타임아웃 방지)
-            abortSignal: req.signal,
+            // 클라이언트 중단(req.signal) + 55초 안전 타임아웃 결합
+            // Vercel maxDuration 60초 전에 정리되도록 5초 여유
+            abortSignal: AbortSignal.any([req.signal, AbortSignal.timeout(55_000)]),
             onStepFinish: ({ toolCalls, toolResults, text }) => {
               const now = Date.now();
               const elapsed = now - stepStartTime;

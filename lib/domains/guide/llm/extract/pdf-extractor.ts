@@ -1,8 +1,9 @@
 // ============================================
 // C3.1 — PDF 텍스트 추출 (pdf-parse v2 API)
+// ⚠ pdf-parse → @napi-rs/canvas → DOMMatrix (브라우저 전용)
+// 서버리스 cold start crash 방지를 위해 동적 import 사용
 // ============================================
 
-import { PDFParse } from "pdf-parse";
 import { logActionDebug } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "guide", action: "pdf-extractor" };
@@ -55,6 +56,7 @@ export async function extractTextFromPdfUrl(
 export async function extractTextFromBuffer(
   data: Uint8Array,
 ): Promise<PDFExtractionResult> {
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data });
 
   // 텍스트 추출 (최대 MAX_PAGES 페이지)
