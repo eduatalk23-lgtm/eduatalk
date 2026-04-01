@@ -22,6 +22,13 @@ describe("PIPELINE_TASK_KEYS", () => {
     expect(idx("edge_computation")).toBeLessThan(idx("ai_diagnosis"));
     expect(idx("edge_computation")).toBeLessThan(idx("course_recommendation"));
   });
+
+  it("Phase 3 순서: setek → changche → haengteuk → roadmap", () => {
+    const idx = (k: PipelineTaskKey) => PIPELINE_TASK_KEYS.indexOf(k);
+    expect(idx("setek_guide")).toBeLessThan(idx("changche_guide"));
+    expect(idx("changche_guide")).toBeLessThan(idx("haengteuk_guide"));
+    expect(idx("haengteuk_guide")).toBeLessThan(idx("roadmap_generation"));
+  });
 });
 
 describe("PIPELINE_TASK_DEPENDENTS", () => {
@@ -75,10 +82,26 @@ describe("PIPELINE_TASK_DEPENDENTS", () => {
     expect(PIPELINE_TASK_DEPENDENTS.bypass_analysis).toBeUndefined();
   });
 
-  it("guide_matching 재실행 시 setek_guide, activity_summary, roadmap 리셋", () => {
+  it("guide_matching 재실행 시 하류 5개 리셋 (setek→changche→haengteuk 포함)", () => {
     const deps = PIPELINE_TASK_DEPENDENTS.guide_matching!;
+    expect(deps).toHaveLength(5);
     expect(deps).toContain("setek_guide");
+    expect(deps).toContain("changche_guide");
+    expect(deps).toContain("haengteuk_guide");
     expect(deps).toContain("activity_summary");
+    expect(deps).toContain("roadmap_generation");
+  });
+
+  it("changche_guide 재실행 시 haengteuk_guide + roadmap 리셋", () => {
+    const deps = PIPELINE_TASK_DEPENDENTS.changche_guide!;
+    expect(deps).toHaveLength(2);
+    expect(deps).toContain("haengteuk_guide");
+    expect(deps).toContain("roadmap_generation");
+  });
+
+  it("haengteuk_guide 재실행 시 roadmap만 리셋", () => {
+    const deps = PIPELINE_TASK_DEPENDENTS.haengteuk_guide!;
+    expect(deps).toHaveLength(1);
     expect(deps).toContain("roadmap_generation");
   });
 
@@ -166,6 +189,21 @@ describe("computeCascadeResetKeys", () => {
     expect(result.size).toBe(4);
     expect(result.has("setek_guide")).toBe(true);
     expect(result.has("changche_guide")).toBe(true);
+    expect(result.has("haengteuk_guide")).toBe(true);
+    expect(result.has("roadmap_generation")).toBe(true);
+  });
+
+  it("changche_guide 재실행 → 본인 + haengteuk_guide + roadmap = 3개", () => {
+    const result = computeCascadeResetKeys(["changche_guide"]);
+    expect(result.size).toBe(3);
+    expect(result.has("changche_guide")).toBe(true);
+    expect(result.has("haengteuk_guide")).toBe(true);
+    expect(result.has("roadmap_generation")).toBe(true);
+  });
+
+  it("haengteuk_guide 재실행 → 본인 + roadmap = 2개", () => {
+    const result = computeCascadeResetKeys(["haengteuk_guide"]);
+    expect(result.size).toBe(2);
     expect(result.has("haengteuk_guide")).toBe(true);
     expect(result.has("roadmap_generation")).toBe(true);
   });
