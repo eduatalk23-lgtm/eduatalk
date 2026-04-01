@@ -519,7 +519,7 @@ export async function generateGuideCore(
       return { ok: false, error: msg };
     }
 
-    return { ok: false, error: "AI 가이드 생성에 실패했습니다." };
+    return { ok: false, error: `AI 가이드 생성 실패: ${msg.slice(0, 500)}` };
   }
 }
 

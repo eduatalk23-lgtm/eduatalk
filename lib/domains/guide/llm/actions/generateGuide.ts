@@ -264,7 +264,7 @@ async function executeGuideGeneration(
         .from("exploration_guides")
         .update({
           status: "ai_failed",
-          ai_model_version: msg.slice(0, 200),
+          ai_model_version: msg.slice(0, 500),
         })
         .eq("id", guideId);
     } catch (updateError) {
