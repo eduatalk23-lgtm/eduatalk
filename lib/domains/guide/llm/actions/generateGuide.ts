@@ -98,6 +98,7 @@ export async function generateGuideAction(
         modelTier: "advanced",
         temperature: 0.5,
         maxTokens: 65536,
+        timeoutMs: 45_000, // Vercel 60초 한도 내 DB 저장 여유 확보
       });
       generated = result.object;
       modelId = result.modelId;
@@ -114,6 +115,7 @@ export async function generateGuideAction(
           modelTier: "fast",
           temperature: 0.5,
           maxTokens: 40960,
+          timeoutMs: 40_000,
         });
         generated = result.object;
         modelId = result.modelId + " (fallback)";

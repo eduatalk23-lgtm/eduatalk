@@ -87,6 +87,8 @@ export interface AiSdkOptions {
   grounding?: GroundingConfig;
   /** "json" 설정 시 Gemini JSON 모드 강제 — 유효한 JSON 출력 보장 */
   responseFormat?: "json" | "text";
+  /** 전체 호출 안전 타임아웃 (ms). 서버리스 maxDuration 내에서 완료 보장용 */
+  timeoutMs?: number;
 }
 
 export interface AiSdkResult {
@@ -338,7 +340,10 @@ export async function generateTextWithRateLimit(
   const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
-  const maxRetries = 3;
+  const maxRetries = 1; // 서버리스 환경: 재시도 1회로 제한
+  const abortSignal = options.timeoutMs
+    ? AbortSignal.timeout(options.timeoutMs)
+    : undefined;
 
   // Grounding 도구 설정
   const tools =
@@ -378,6 +383,8 @@ export async function generateTextWithRateLimit(
             })),
             maxOutputTokens: maxTokens,
             temperature,
+            maxRetries: 1,
+            ...(abortSignal ? { abortSignal } : {}),
             ...(tools && { tools }),
             ...(options.responseFormat === "json" && {
               output: jsonModeOutput,
@@ -426,11 +433,11 @@ export async function generateTextWithRateLimit(
           continue;
         }
 
-        // 503 과부하 → 다음 폴백 모델로 전환
-        if (isOverloadError(error)) {
+        // 과부하 또는 타임아웃 → 다음 폴백 모델로 전환
+        if (isOverloadError(error) || isTimeoutError(error)) {
           logActionWarn(
             "ai-sdk.generateText",
-            `${currentModelId} 과부하 → 다음 모델로 전환`
+            `${currentModelId} ${isTimeoutError(error) ? "타임아웃" : "과부하"} → 다음 모델로 전환`
           );
           recordCircuitFailure(currentModelId);
           break;
@@ -466,7 +473,10 @@ export async function generateObjectWithRateLimit<T>(
   const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
-  const maxRetries = 3;
+  const maxRetries = 1; // 서버리스 환경: 재시도 1회로 제한 (기존 3 → 타임아웃 방지)
+  const abortSignal = options.timeoutMs
+    ? AbortSignal.timeout(options.timeoutMs)
+    : undefined;
 
   let lastError: Error | null = null;
 
@@ -502,6 +512,8 @@ export async function generateObjectWithRateLimit<T>(
             schema: options.schema,
             maxOutputTokens: maxTokens,
             temperature,
+            maxRetries: 1,
+            ...(abortSignal ? { abortSignal } : {}),
             providerOptions: {
               google: {
                 thinkingConfig: {
@@ -538,10 +550,11 @@ export async function generateObjectWithRateLimit<T>(
           continue;
         }
 
-        if (isOverloadError(error)) {
+        // 과부하 또는 타임아웃 → 다음 모델로 전환
+        if (isOverloadError(error) || isTimeoutError(error)) {
           logActionWarn(
             "ai-sdk.generateObject",
-            `${currentModelId} 과부하 → 다음 모델로 전환`
+            `${currentModelId} ${isTimeoutError(error) ? "타임아웃" : "과부하"} → 다음 모델로 전환`
           );
           recordCircuitFailure(currentModelId);
           break;
