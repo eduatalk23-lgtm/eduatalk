@@ -157,7 +157,7 @@ async function _executeChangcheDraftGeneration(
       .from("student_record_changche")
       .update({ ai_draft_status: "failed" })
       .eq("id", recordId)
-      .catch(() => {});
+      .catch((e) => logActionError({ ...LOG_CTX, action: "generateChangcheDraft_statusUpdate" }, e, { recordId }));
   }
 }
 

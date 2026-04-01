@@ -6,7 +6,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
@@ -165,7 +165,9 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
     return { success: false, error: "가이드 저장 실패" };
   }
 
-  syncPipelineTaskStatus(studentId, "haengteuk_guide").catch(() => {});
+  syncPipelineTaskStatus(studentId, "haengteuk_guide").catch((err) =>
+      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "haengteuk_guide", error: String(err) }),
+    );
 
   return {
     success: true,
@@ -344,7 +346,9 @@ export async function generateHaengteukGuide(
     }
 
     // 파이프라인 상태 동기화 (fire-and-forget)
-    syncPipelineTaskStatus(studentId, "haengteuk_guide").catch(() => {});
+    syncPipelineTaskStatus(studentId, "haengteuk_guide").catch((err) =>
+      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "haengteuk_guide", error: String(err) }),
+    );
 
     return {
       success: true,

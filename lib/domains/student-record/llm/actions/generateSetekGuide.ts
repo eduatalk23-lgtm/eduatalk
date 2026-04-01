@@ -6,7 +6,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
@@ -212,7 +212,9 @@ export async function generateSetekGuide(
     }
 
     // 파이프라인 상태 동기화 (fire-and-forget)
-    syncPipelineTaskStatus(studentId, "setek_guide").catch(() => {});
+    syncPipelineTaskStatus(studentId, "setek_guide").catch((err) =>
+      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "setek_guide", error: String(err) }),
+    );
 
     return {
       success: true,
@@ -374,7 +376,9 @@ async function generateProspectiveSetekGuide(
     return { success: false, error: "가이드 저장 실패" };
   }
 
-  syncPipelineTaskStatus(studentId, "setek_guide").catch(() => {});
+  syncPipelineTaskStatus(studentId, "setek_guide").catch((err) =>
+      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "setek_guide", error: String(err) }),
+    );
 
   return {
     success: true,

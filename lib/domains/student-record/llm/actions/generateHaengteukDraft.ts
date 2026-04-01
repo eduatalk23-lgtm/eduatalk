@@ -147,7 +147,7 @@ async function _executeHaengteukDraftGeneration(
       .from("student_record_haengteuk")
       .update({ ai_draft_status: "failed" })
       .eq("id", recordId)
-      .catch(() => {});
+      .catch((e) => logActionError({ ...LOG_CTX, action: "generateHaengteukDraft_statusUpdate" }, e, { recordId }));
   }
 }
 

@@ -147,7 +147,7 @@ async function _executeSetekDraftGeneration(
       .from("student_record_seteks")
       .update({ ai_draft_status: "failed" })
       .eq("id", recordId)
-      .catch(() => {});
+      .catch((e) => logActionError({ ...LOG_CTX, action: "generateSetekDraft_statusUpdate" }, e, { recordId }));
   }
 }
 

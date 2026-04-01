@@ -5,7 +5,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
@@ -194,7 +194,9 @@ export async function generateActivitySummary(
     }
 
     // 파이프라인 상태 동기화 (fire-and-forget)
-    syncPipelineTaskStatus(studentId, "activity_summary").catch(() => {});
+    syncPipelineTaskStatus(studentId, "activity_summary").catch((err) =>
+      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "activity_summary", error: String(err) }),
+    );
 
     return {
       success: true,
