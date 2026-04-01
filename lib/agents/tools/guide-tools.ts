@@ -233,15 +233,26 @@ export function createGuideTools(ctx: AgentContext) {
             return TOOL_ERRORS.AI_EMPTY;
           }
 
-          const { guideId, preview } = result.data;
+          const { guideId } = result.data;
+
+          // API Route로 AI 생성 트리거 (maxDuration=300)
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : "http://localhost:3000";
+          fetch(`${baseUrl}/api/admin/guides/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guideId, input: generationInput }),
+          }).catch(() => {});
+
           return {
             success: true,
             data: {
               guideId,
-              title: preview.title,
-              guideType: preview.guideType,
-              subjects: preview.suggestedSubjects,
-              careerFields: preview.suggestedCareerFields,
+              title: generationInput.keyword?.keyword ?? "생성 중",
+              guideType: generationInput.keyword?.guideType ?? "topic_exploration",
+              subjects: [],
+              careerFields: [],
               theorySectionCount: preview.sections.length,
               message: `가이드 "${preview.title}"가 생성되었습니다. /admin/guides/${guideId} 에서 편집할 수 있습니다.`,
             },

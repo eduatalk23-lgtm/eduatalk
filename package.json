@@ -33,7 +33,6 @@
     "@tosspayments/tosspayments-sdk": "^2.5.0",
     "@types/react-virtualized-auto-sizer": "^1.0.8",
     "@types/react-window": "^1.8.5",
-    "@vercel/functions": "^3.4.3",
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.116",
     "class-variance-authority": "^0.7.1",

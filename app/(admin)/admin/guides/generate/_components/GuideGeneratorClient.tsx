@@ -378,7 +378,7 @@ export function GuideGeneratorClient() {
                   },
                 };
 
-      // Server Action 직접 호출 — 즉시 guideId 반환 (fire-and-forget)
+      // 1. Server Action — placeholder 생성 + guideId 반환
       const result = await generateGuideAction(generationInput);
 
       if (!result.success) {
@@ -386,8 +386,19 @@ export function GuideGeneratorClient() {
         return;
       }
 
+      const { guideId } = result.data;
+
+      // 2. API Route — AI 생성 트리거 (maxDuration=300, fire-and-forget)
+      fetch("/api/admin/guides/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guideId, input: generationInput }),
+      }).catch(() => {
+        // API 호출 실패 시에도 페이지 이동은 진행 (폴링에서 상태 확인)
+      });
+
       toast.showSuccess("AI 생성이 시작되었습니다. 가이드 페이지에서 진행 상황을 확인하세요.");
-      router.push(`/admin/guides/${result.data.guideId}`);
+      router.push(`/admin/guides/${guideId}`);
     } catch {
       toast.showError("AI 가이드 생성에 실패했습니다.");
     } finally {
