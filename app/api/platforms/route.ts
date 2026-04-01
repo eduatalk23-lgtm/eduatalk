@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getPlatformsForFilter } from "@/lib/data/contentMasters";
 import { CACHE_STATIC } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const platforms = await getPlatformsForFilter();

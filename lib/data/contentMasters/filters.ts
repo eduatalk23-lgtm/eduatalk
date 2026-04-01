@@ -3,7 +3,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import {
   getSubjectGroups,
   getSubjectsByGroup,
@@ -21,7 +21,7 @@ export async function getCurriculumRevisions(): Promise<
   Array<{ id: string; name: string }>
 > {
   // Admin 클라이언트 우선 사용 (RLS 우회), 없으면 일반 서버 클라이언트 사용
-  const supabase = await getClientForRLSBypass();
+  const supabase = await getSupabaseClientForRLSBypass();
 
   if (!supabase) {
     handleQueryError(null, {
@@ -191,7 +191,7 @@ export async function getSemesterList(): Promise<string[]> {
 export async function getPublishersForFilter(
   tenantId?: string | null
 ): Promise<Array<{ id: string; name: string }>> {
-  const supabase = await getClientForRLSBypass();
+  const supabase = await getSupabaseClientForRLSBypass();
   if (!supabase) return [];
 
   // master_books에서 실제로 사용된 publisher_id 조회
@@ -261,7 +261,7 @@ export async function getPublishersForFilter(
 export async function getPlatformsForFilter(
   tenantId?: string | null
 ): Promise<Array<{ id: string; name: string }>> {
-  const supabase = await getClientForRLSBypass();
+  const supabase = await getSupabaseClientForRLSBypass();
   if (!supabase) return [];
 
   // master_lectures에서 실제로 사용된 platform_id 조회
@@ -329,7 +329,7 @@ export async function getPlatformsForFilter(
 export async function getDifficultiesForMasterBooks(
   tenantId?: string | null
 ): Promise<string[]> {
-  const supabase = await getClientForRLSBypass();
+  const supabase = await getSupabaseClientForRLSBypass();
 
   if (!supabase) return [];
   let query = supabase
@@ -370,7 +370,7 @@ export async function getDifficultiesForMasterBooks(
 export async function getDifficultiesForMasterLectures(
   tenantId?: string | null
 ): Promise<string[]> {
-  const supabase = await getClientForRLSBypass();
+  const supabase = await getSupabaseClientForRLSBypass();
 
   if (!supabase) return [];
   let query = supabase
