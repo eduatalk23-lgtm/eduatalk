@@ -13,6 +13,10 @@ import type {
   RoadmapItem,
 } from "../types";
 import { MAJOR_RECOMMENDED_COURSES, getMajorRecommendedCourses } from "../constants";
+import {
+  SCIENTIFIC_PATTERN_CODES,
+  WARNING_THRESHOLDS,
+} from "../evaluation-criteria/defaults";
 
 /** 학기별 성적 (경보 엔진용 경량 타입) */
 export interface GradeEntry {
@@ -56,8 +60,8 @@ export interface WarningCheckInput {
   roadmapItems?: RoadmapItem[];
 }
 
-const MIN_READINGS_PER_GRADE = 2;
-const COURSE_ADEQUACY_THRESHOLD = 50;
+const MIN_READINGS_PER_GRADE = WARNING_THRESHOLDS.minReadingsPerGrade;
+const COURSE_ADEQUACY_THRESHOLD = WARNING_THRESHOLDS.courseAdequacyThreshold;
 
 /** 전체 경고 계산 */
 export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
@@ -596,10 +600,16 @@ function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): Record
       title: "진로 키워드 과잉 도배",
       suggestion: "모든 교과에 동일 진로 키워드를 삽입하면 교과 고유 역량이 불명확해집니다. 진로 연결은 2~3과목으로 제한하세요",
     },
+    F9_창체참여기록형: {
+      ruleId: "changche_participation_only",
+      severity: "medium",
+      title: "창체 참여 기록형",
+      suggestion: '"즐겁게 참여함" 수준의 기록은 변별력이 없습니다. 구체적 역할, 탐구 과정, 결과물을 명시하세요',
+    },
   };
 
-  // 과학적 정합성 패턴 (F1~F6)
-  const SCIENTIFIC_PATTERNS = ["F1_별개활동포장", "F2_인과단절", "F3_출처불일치", "F4_전제불일치", "F5_비교군오류", "F6_자명한결론"];
+  // 과학적 정합성 패턴 (F1~F6) — 상수에서 import
+  const SCIENTIFIC_PATTERNS = SCIENTIFIC_PATTERN_CODES;
 
   const seenRules = new Set<string>();
   const scientificIssues: string[] = [];

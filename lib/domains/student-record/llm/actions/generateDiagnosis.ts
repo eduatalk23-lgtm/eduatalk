@@ -12,6 +12,10 @@ import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { extractJson } from "../extractJson";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, COMPETENCY_RUBRIC_QUESTIONS, MAJOR_RECOMMENDED_COURSES } from "../../constants";
 import type { CompetencyScore, ActivityTag, CompetencyItemCode } from "../../types";
+import {
+  formatDiagnosisCareerWeakPatterns,
+  formatDiagnosisMacroPatterns,
+} from "../../evaluation-criteria/defaults";
 
 const LOG_CTX = { domain: "student-record", action: "generateDiagnosis" };
 
@@ -272,19 +276,13 @@ improvements의 각 항목 형식:
 - needs_review 태그 비율이 높은 항목 (긍정 대비 30% 이상이면 깊이 부족)
 - 성적 하락 추세가 있으면 반드시 약점에 포함
 - **진로교과 세특 품질 약점 (중요)**: 희망 전공 관련 교과의 세특에서 아래 패턴이 발견되면 **별도 약점으로 반드시 추출**하세요:
-  - 진로교과인데 탐구 활동이 피상적 (수행평가 나열식, 구체적 탐구 없음)
-  - 진로교과인데 세특 내용이 상투적/추상적 (복붙 의심)
-  - 진로교과 성적은 낮은데(B 이하) 세특에 대학원급 심화 내용 (내신↔탐구 불일치 = 대리작성 의심)
-  - 진로교과에서 탐구 결론이 자명하거나, 실험설계 오류, 인과 단절이 있는 경우
+${formatDiagnosisCareerWeakPatterns()}
   형식: "[진로역량] 진로교과 세특 품질 부족 — {과목명}. 근거: {구체적 문제}. 개선: {방향}"
 - 반드시 2개 이상 작성할 것. 데이터가 있으면 빈 배열은 절대 불가.
 
 ## 합격률 낮은 생기부 패턴 감지
 아래 패턴이 전체 기록에서 발견되면 약점 또는 strategyNotes에 반영하세요:
-- **성장 곡선 부재**: 학년 간 탐구 깊이가 동일 → "학년별 심화 과정이 드러나지 않음"
-- **전공 스토리라인 단절**: 교과/창체/동아리가 각각 다른 방향 → "진로 일관성 약함"
-- **자기주도성 부재**: 모든 활동이 교사 과제 중심, 학생 주도 탐구 흔적 없음
-- **진로 과잉 도배**: 모든 교과에 동일 키워드 강제 삽입, 각 교과 고유 역량 불명확
+${formatDiagnosisMacroPatterns()}
 
 ## 기타 규칙
 - **루브릭 질문별 등급**을 최우선 근거로 활용하세요. 항목 종합 등급만이 아닌 질문 단위로 강점/약점을 판단합니다.

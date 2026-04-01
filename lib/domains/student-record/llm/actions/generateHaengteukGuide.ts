@@ -19,6 +19,7 @@ import {
 import type { HaengteukGuideInput, HaengteukGuideResult } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { syncPipelineTaskStatus } from "../../actions/pipeline";
+import { formatHaengteukItemNames } from "../../evaluation-criteria/defaults";
 
 const LOG_CTX = { domain: "student-record", action: "generateHaengteukGuide" };
 
@@ -102,7 +103,7 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
 
 이 학생은 아직 행특 기록이 없습니다. 수강 계획과 진로를 바탕으로 **앞으로 작성할 행특 방향**을 제안해주세요.
 - 수강 예정 과목에서 관찰될 수 있는 인성·태도·성장을 중심으로 방향을 제시합니다
-- 7개 평가항목(자기주도성/갈등관리/리더십/타인존중/배려나눔/성실성/규칙준수)을 예상 수준으로 평가합니다
+- 7개 평가항목(${formatHaengteukItemNames()})을 예상 수준으로 평가합니다
 - 기록이 없으므로 evaluationItems의 reasoning에는 "수강 계획 및 진로 방향 기반 예측"으로 기재합니다
 - 진로 적합성과 자기주도적 학습 태도가 드러나도록 방향을 설계합니다
 - prompt_version: "haengteuk_guide_v1_prospective"`;

@@ -68,7 +68,7 @@ describe("mapSeteks", () => {
       semester: 1,
       subject_id: "subj-kor",
       imported_content: "뛰어난 작문 능력...",
-      status: "draft",
+      status: "final",
     });
 
     expect(result.items[1]).toMatchObject({
@@ -169,7 +169,7 @@ describe("mapHaengteuk", () => {
     expect(result).toHaveLength(2);
     expect(result[0].grade).toBe(1);
     expect(result[0].school_year).toBe(2024);
-    expect(result[0].status).toBe("draft");
+    expect(result[0].status).toBe("final");
     expect(result[1].grade).toBe(2);
     expect(result[1].school_year).toBe(2025);
   });

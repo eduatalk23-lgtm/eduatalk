@@ -6,6 +6,15 @@
 import type { SetekGuideInput, SetekGuideResult } from "../types";
 import type { SetekGuideItem } from "../../types";
 import { extractJson } from "../extractJson";
+import {
+  formatSetekFlowArrow,
+  CAREER_DIFFERENTIAL,
+  formatGradeDiffTable,
+  CAREER_SUBJECT_MIN_STAGES,
+  CAREER_SUBJECT_ACHIEVEMENT_MAP,
+  formatBannedExpressions,
+  formatScientificCautions,
+} from "../../evaluation-criteria/defaults";
 
 // ============================================
 // 시스템 프롬프트
@@ -48,28 +57,22 @@ export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도
 ## 좋은 세특의 8단계 흐름 (방향 제안 시 반드시 고려)
 
 direction 작성 시 아래 흐름이 자연스럽게 달성되는 방향을 제안하세요:
-1. 지적호기심/의문 → 2. 주제 선정(진로 연결) → 3. 탐구 내용/이론 → 4. 참고문헌/독서
-→ 5. 결론(해결방안/제언/창의적 고안) → 6. 교사 관찰(구체적 근거)
-→ 7. 성장 서사 → 8. 오류→재탐구 순환 (있으면 큰 가산)
+${formatSetekFlowArrow()} (8단계 오류→재탐구 있으면 큰 가산)
 
 ## 진로교과 vs 비진로교과 차등 기준
 
-- **진로(계열) 관련 교과**: 8단계 흐름 중 최소 ①②③⑤를 충족하는 방향 제안. 교과목 단원과 진로관련 호기심을 연결하여 해결하는 사례를 보여주는 방향이 좋음. 탐구 깊이 기대치 높음.
-- **비진로교과(국어/체육/음악 등)**: 해당 교과 역량 중심이 정상. 교과목 학습목표에 맞는 순수 호기심으로 탐구하는 것이 더 좋은 평가. 진로 연결 없어도 됨.
-- **주의**: 모든 교과에 동일 진로 키워드를 강제 삽입하지 마세요 (진로 과잉 도배 = 입학사정관 감점). 실전 권장 비율: 진로 적극 연결 2~3과목, 교과 역량만 4~5과목.
+- **진로(계열) 관련 교과**: 8단계 흐름 중 최소 ${CAREER_SUBJECT_MIN_STAGES.map((s) => `${"①②③④⑤⑥⑦⑧"[s - 1]}`).join("")}를 충족하는 방향 제안. ${CAREER_DIFFERENTIAL.careerNote}
+- **비진로교과(국어/체육/음악 등)**: ${CAREER_DIFFERENTIAL.nonCareerNote}
+- **주의**: ${CAREER_DIFFERENTIAL.overloadWarning} 실전 권장 비율: 진로 적극 연결 ${CAREER_DIFFERENTIAL.recommendedRatio.careerLinked}, 교과 역량만 ${CAREER_DIFFERENTIAL.recommendedRatio.subjectOnly}.
 
 ## 내신 등급별 탐구 난이도 차등 (필수)
 
 학생의 해당 교과 내신 등급에 따라 탐구 주제/방향의 난이도를 차등 조절하세요.
 **9등급제(2015 개정)와 5등급제(2022 개정)** 모두 동일 기준 적용:
 
-| 9등급 | 5등급 | 난이도 | 기대 수준 |
-|---|---|---|---|
-| 1~2등급 | A (1등급) | **심화+확장** | 교과 심화 이론, 선행연구 참고, 실험 설계, 사회적 확장. 목표학과 커리큘럼 기초 이론 연결 가능 |
-| 3~4등급 | B~C (2~3등급) | **발전** | 교과 기반 자연스러운 확장. 단계적 탐구 + 명확한 결론. 전공 개론서 이하 |
-| 5등급 이하 | D~E (4~5등급) | **기본** | 교과 핵심 개념 이해·적용. 교과 성취 기반 태도·노력 중심 |
+${formatGradeDiffTable()}
 
-- **진로선택 과목(성취도 A/B/C)**: A=심화+확장, B=발전, C=기본으로 적용.
+- **진로선택 과목(성취도 A/B/C)**: ${Object.entries(CAREER_SUBJECT_ACHIEVEMENT_MAP).map(([k, v]) => `${k}=${v}`).join(", ")}으로 적용.
 - **학년별 심화 허용**: 2~3학년으로 올라갈수록 진로교과 선택이 늘어나므로 내용이 조금씩 심화되어도 정상. 단, 고교 수준에서 이해·설명할 수 있는 범위 내.
 - **주의**: 내신 하위권인데 대학원급 심화 탐구를 제안하면 대리작성 의심(P4 패턴). 학생 수준에 맞는 현실적 방향을 제안하세요.
 
@@ -82,8 +85,8 @@ direction 작성 시 아래 흐름이 자연스럽게 달성되는 방향을 제
 2. direction은 구체적인 서술 방향을 제시합니다. "~를 강조", "~와 연결" 등 실행 가능한 지시.
 3. cautions에는 세특 작성 시 피해야 할 점을 명시합니다. 아래 유형을 포함하세요:
    - 형식적 문제: "단순 나열 지양", "활동 근거 없는 추상적 서술 주의", "상투적 복붙 표현 금지"
-   - 내용 오류 (F1~F6): "별개 원리의 활동을 하나로 포장하지 말 것", "실험결과와 무관한 결론 전환 금지", "참고 도서 내용과 주장이 실제로 일치하는지 확인", "탐구 전제와 실험 방법의 개념 정합성 확인", "비교군/대조군 설계의 타당성 검토", "자명한 결론을 발견처럼 포장하지 말 것"
-   - 교사 관찰: "교사가 관찰 불가능한 표현(~다짐함, ~생각함, ~깨닫게 됨) 사용 금지"
+   - 내용 오류 (F1~F6): ${formatScientificCautions()}
+   - 교사 관찰: "교사가 관찰 불가능한 표현(${formatBannedExpressions()}) 사용 금지"
 4. teacherPoints는 담임/교과 교사에게 전달할 핵심 메시지 2-3개입니다.
 5. 스토리라인이 있으면 해당 키워드와 자연스럽게 연결합니다.
 6. 역량 진단 결과가 있으면 약한 역량을 보완할 수 있는 방향도 포함합니다.

@@ -6,6 +6,7 @@
 import type { HaengteukGuideInput, HaengteukGuideResult } from "../types";
 import type { HaengteukGuideItem } from "../../types";
 import { extractJson } from "../extractJson";
+import { formatHaengteukItemsDetailed } from "../../evaluation-criteria/defaults";
 
 // ============================================
 // 시스템 프롬프트
@@ -22,13 +23,7 @@ export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도
 
 ## 7개 평가항목 (행특 핵심 평가 영역)
 
-1. **자기주도성**: 스스로 목표를 세우고 계획·실천하는 능력
-2. **갈등관리**: 갈등 상황에서 합리적으로 해결하는 능력
-3. **리더십**: 공동체를 이끌고 방향을 제시하는 능력
-4. **타인존중**: 다양성을 인정하고 타인을 배려하는 태도
-5. **배려나눔**: 타인을 위해 봉사하고 공감하는 마음
-6. **성실성**: 책임감을 갖고 꾸준히 노력하는 태도
-7. **규칙준수**: 공동체 규범을 지키고 질서를 유지하는 능력
+${formatHaengteukItemsDetailed()}
 
 ## 출력 형식 — JSON
 
