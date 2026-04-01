@@ -9,7 +9,7 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createOrchestrator } from "@/lib/agents/orchestrator";
 import type { AgentContext } from "@/lib/agents/types";
 import { geminiRateLimiter, geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
-import { isRateLimitError, isOverloadError } from "@/lib/domains/plan/llm/ai-sdk";
+import { isRateLimitError, isOverloadError, isRetryableError } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
 import { logAgentSession, hashSystemPrompt, type StepTrace } from "@/lib/agents/session-logger";
@@ -151,119 +151,115 @@ export async function POST(req: Request) {
     let stepStartTime = Date.now();
 
     // 9. 모델 fallback 체인 (Pro → Flash)
+    // Pre-flight ping 제거: 실제 호출에서 바로 fallback 처리
+    // 이유: ping 자체가 재시도×타임아웃으로 30초+ 소모 → Vercel 60초 한도 초과
     const AGENT_MODEL_CHAIN = [
       { id: "gemini-3.1-pro-preview", maxSteps: 16, maxTokens: 16384, temp: 0.4 },
       { id: "gemini-2.5-flash", maxSteps: 12, maxTokens: 8192, temp: 0.3 },
     ] as const;
 
+    // 10. 모델 fallback + Rate-limited streamText
+    let result: Awaited<ReturnType<typeof streamText>> | null = null;
     let selectedModel = AGENT_MODEL_CHAIN[0];
 
-    // Pre-flight: Pro 모델 가용성 확인 (503/overload 시 Flash로 fallback)
     for (const candidate of AGENT_MODEL_CHAIN) {
       try {
-        // 짧은 ping으로 모델 가용성 확인
-        await geminiRateLimiter.execute(async () => {
-          const testResult = await streamText({
+        result = await geminiRateLimiter.execute(async () => {
+          return streamText({
             model: google(candidate.id),
-            prompt: "ping",
-            maxTokens: 1,
-            abortSignal: AbortSignal.timeout(5000),
+            system: systemPrompt,
+            messages: modelMessages,
+            tools,
+            stopWhen: stepCountIs(candidate.maxSteps),
+            maxOutputTokens: candidate.maxTokens,
+            temperature: candidate.temp,
+            maxRetries: 1, // 재시도 1회로 제한 (기본 3회 → 타임아웃 방지)
+            abortSignal: req.signal,
+            onStepFinish: ({ toolCalls, toolResults, text }) => {
+              const now = Date.now();
+              const elapsed = now - stepStartTime;
+              stepStartTime = now;
+
+              if (toolCalls && toolCalls.length > 0) {
+                for (let i = 0; i < toolCalls.length; i++) {
+                  const call = toolCalls[i];
+                  const toolResult = toolResults?.[i];
+                  const isThink = call.toolName === "think";
+                  stepTraces.push({
+                    stepIndex: stepTraces.length,
+                    stepType: isThink ? "think" : "tool-call",
+                    toolName: call.toolName,
+                    toolInput: call.args,
+                    toolOutput: toolResult?.result,
+                    reasoning: isThink ? (call.args as { analysis?: string })?.analysis : undefined,
+                    durationMs: i === 0 ? elapsed : undefined,
+                  });
+                }
+              } else if (text) {
+                stepTraces.push({
+                  stepIndex: stepTraces.length,
+                  stepType: "text",
+                  textContent: text,
+                  durationMs: elapsed,
+                });
+              }
+            },
+            onFinish: async ({ usage, finishReason }) => {
+              const promptHash = await hashSystemPrompt(systemPrompt).catch(() => undefined);
+              logAgentSession({
+                sessionId,
+                tenantId,
+                userId,
+                studentId,
+                modelId: candidate.id,
+                systemPromptHash: promptHash,
+                totalSteps: stepTraces.length,
+                totalInputTokens: usage?.promptTokens ?? 0,
+                totalOutputTokens: usage?.completionTokens ?? 0,
+                durationMs: Date.now() - startTime,
+                stopReason: finishReason,
+                stepTraces,
+              }).catch(() => {});
+
+              const extracted = extractCaseFromTraces(stepTraces);
+              if (extracted) {
+                saveCaseToDb({
+                  tenantId,
+                  sessionId,
+                  studentGrade: studentGrade ?? undefined,
+                  schoolCategory: schoolCategory ?? undefined,
+                  targetMajor: targetMajor ?? undefined,
+                  curriculumRevision: curriculumRevision ?? undefined,
+                  ...extracted,
+                }).catch(() => {});
+              }
+            },
+            onError: ({ error }) => {
+              logActionError(
+                "agent.stream",
+                error instanceof Error ? error.message : String(error),
+              );
+            },
           });
-          // 첫 토큰만 확인하고 중단
-          for await (const _ of testResult.textStream) { break; }
         });
         selectedModel = candidate;
+        logActionDebug("agent.api", `선택 모델: ${candidate.id}`);
         break;
       } catch (error) {
-        if (isOverloadError(error) || isRateLimitError(error)) {
-          logActionDebug("agent.api", `${candidate.id} 과부하, 다음 모델로 fallback`);
+        if (isRetryableError(error)) {
+          logActionDebug("agent.api", `${candidate.id} 실패(${error instanceof Error ? error.message : "unknown"}), 다음 모델로 fallback`);
           continue;
         }
-        // 과부하가 아닌 에러는 그대로 throw
         throw error;
       }
     }
 
-    logActionDebug("agent.api", `선택 모델: ${selectedModel.id}`);
-
-    // 10. Rate-limited streamText
-    const result = await geminiRateLimiter.execute(async () => {
-      return streamText({
-        model: google(selectedModel.id),
-        system: systemPrompt,
-        messages: modelMessages,
-        tools,
-        stopWhen: stepCountIs(selectedModel.maxSteps),
-        maxOutputTokens: selectedModel.maxTokens,
-        temperature: selectedModel.temp,
-        abortSignal: req.signal,
-        onStepFinish: ({ toolCalls, toolResults, text }) => {
-          const now = Date.now();
-          const elapsed = now - stepStartTime;
-          stepStartTime = now;
-
-          if (toolCalls && toolCalls.length > 0) {
-            for (let i = 0; i < toolCalls.length; i++) {
-              const call = toolCalls[i];
-              const toolResult = toolResults?.[i];
-              const isThink = call.toolName === "think";
-              stepTraces.push({
-                stepIndex: stepTraces.length,
-                stepType: isThink ? "think" : "tool-call",
-                toolName: call.toolName,
-                toolInput: call.args,
-                toolOutput: toolResult?.result,
-                reasoning: isThink ? (call.args as { analysis?: string })?.analysis : undefined,
-                durationMs: i === 0 ? elapsed : undefined,
-              });
-            }
-          } else if (text) {
-            stepTraces.push({
-              stepIndex: stepTraces.length,
-              stepType: "text",
-              textContent: text,
-              durationMs: elapsed,
-            });
-          }
-        },
-        onFinish: async ({ usage, finishReason }) => {
-          const promptHash = await hashSystemPrompt(systemPrompt).catch(() => undefined);
-          logAgentSession({
-            sessionId,
-            tenantId,
-            userId,
-            studentId,
-            modelId: selectedModel.id,
-            systemPromptHash: promptHash,
-            totalSteps: stepTraces.length,
-            totalInputTokens: usage?.promptTokens ?? 0,
-            totalOutputTokens: usage?.completionTokens ?? 0,
-            durationMs: Date.now() - startTime,
-            stopReason: finishReason,
-            stepTraces,
-          }).catch(() => {});
-
-          const extracted = extractCaseFromTraces(stepTraces);
-          if (extracted) {
-            saveCaseToDb({
-              tenantId,
-              sessionId,
-              studentGrade: studentGrade ?? undefined,
-              schoolCategory: schoolCategory ?? undefined,
-              targetMajor: targetMajor ?? undefined,
-              curriculumRevision: curriculumRevision ?? undefined,
-              ...extracted,
-            }).catch(() => {});
-          }
-        },
-        onError: ({ error }) => {
-          logActionError(
-            "agent.stream",
-            error instanceof Error ? error.message : String(error),
-          );
-        },
-      });
-    });
+    if (!result) {
+      return new Response(
+        JSON.stringify({ error: "AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요." }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
     geminiQuotaTracker.recordRequest();
 
@@ -278,15 +274,14 @@ export async function POST(req: Request) {
     logActionError("agent.api", error instanceof Error ? error.message : String(error));
 
     // Gemini API 에러 분류
-    if (isRateLimitError(error)) {
+    if (isRetryableError(error)) {
+      const isTimeout = error instanceof Error && error.message.toLowerCase().includes("timeout");
       return new Response(
-        JSON.stringify({ error: "AI 서비스가 일시적으로 바쁩니다. 잠시 후 다시 시도해주세요." }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    if (isOverloadError(error)) {
-      return new Response(
-        JSON.stringify({ error: "AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요." }),
+        JSON.stringify({
+          error: isTimeout
+            ? "AI 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요."
+            : "AI 서비스가 일시적으로 바쁩니다. 잠시 후 다시 시도해주세요.",
+        }),
         { status: 503, headers: { "Content-Type": "application/json" } },
       );
     }

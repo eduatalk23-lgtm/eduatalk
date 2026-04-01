@@ -211,6 +211,25 @@ export function isOverloadError(error: unknown): boolean {
   return false;
 }
 
+/** 네트워크/연결 타임아웃 에러 감지 — 폴백 모델 전환 트리거 */
+export function isTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("timeout") ||
+    msg.includes("timed out") ||
+    msg.includes("cannot connect to api") ||
+    msg.includes("econnreset") ||
+    msg.includes("econnrefused") ||
+    msg.includes("fetch failed")
+  );
+}
+
+/** 폴백 가능한 일시적 에러인지 판별 (rate limit / overload / timeout) */
+export function isRetryableError(error: unknown): boolean {
+  return isRateLimitError(error) || isOverloadError(error) || isTimeoutError(error);
+}
+
 function extractRetryDelay(error: unknown, attempt: number): number {
   const baseDelay = 1000;
   const maxDelay = 60000;
