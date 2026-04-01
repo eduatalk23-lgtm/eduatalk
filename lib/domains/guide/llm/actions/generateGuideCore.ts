@@ -5,6 +5,20 @@
 
 import { logActionError } from "@/lib/logging/actionLogger";
 import { splitSetekExamplesBlob } from "../../section-config";
+
+/**
+ * setekExamples가 1개짜리 blob(여러 예시가 합쳐진 긴 문자열)이면 분리 시도.
+ * 정상 배열이면 그대로 반환.
+ */
+function normalizeSetekExamples(items: string[] | undefined): string[] | undefined {
+  if (!items || items.length === 0) return items;
+  // 2개 이상이면 정상
+  if (items.length >= 2) return items;
+  // 1개인데 짧으면 (500자 미만) 단일 예시로 판단
+  if (items[0].length < 500) return items;
+  // 1개인데 길면 → blob일 가능성 높음, 분리 시도
+  return splitSetekExamplesBlob(items[0]) ?? items;
+}
 import { generateObjectWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
 import { zodSchema } from "ai";
@@ -420,20 +434,22 @@ export async function generateGuideCore(
         bookDescription:
           legacy.bookDescription ?? generated.bookDescription,
         relatedPapers: generated.relatedPapers,
-        setekExamples:
+        setekExamples: normalizeSetekExamples(
           legacy.setekExamples.length > 0
             ? legacy.setekExamples
             : generated.setekExamples,
+        ),
         contentSections: generated.sections.map((s) => {
           let items = s.items;
-          if (s.key === "setek_examples" && !s.items?.length) {
-            const split = s.content
-              ? splitSetekExamplesBlob(s.content)
-              : null;
-            items =
-              split ??
-              generated.setekExamples ??
-              (s.content ? [s.content] : undefined);
+          if (s.key === "setek_examples") {
+            // items가 있어도 1개짜리 blob일 수 있으므로 정규화
+            items = normalizeSetekExamples(
+              s.items?.length
+                ? s.items
+                : s.content
+                  ? splitSetekExamplesBlob(s.content) ?? generated.setekExamples ?? [s.content]
+                  : generated.setekExamples,
+            );
           }
           return {
             key: s.key,
@@ -697,9 +713,9 @@ function sectionsToLegacy(
         break;
       case "setek_examples":
         if (s.items?.length) {
-          result.setekExamples = s.items;
+          result.setekExamples = normalizeSetekExamples(s.items) ?? s.items;
         } else if (s.content) {
-          result.setekExamples = [s.content];
+          result.setekExamples = normalizeSetekExamples([s.content]) ?? [s.content];
         }
         break;
     }

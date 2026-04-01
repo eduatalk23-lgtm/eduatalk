@@ -821,21 +821,52 @@ export function legacyToContentSections(
 /**
  * AI가 세특 예시 3개를 1개 HTML 덩어리로 생성했을 때 개별 items로 분리.
  * 분리 불가능하면 null 반환 (기존 동작 유지).
+ *
+ * 6단계 패턴 매칭 (순서대로 시도, 첫 성공 시 반환):
+ * 1. "예시 N" 패턴 (가장 흔함)
+ * 2. <p><strong>N. / N) 패턴
+ * 3. 기호 패턴 (■, ●, ★, ◆)
+ * 4. <li> 태그 기반
+ * 5. <br><br> 또는 <p></p> 이중 줄바꿈
+ * 6. "첫 번째/두 번째/세 번째" 한글 서수
  */
 export function splitSetekExamplesBlob(content: string): string[] | null {
   if (!content || content.length < 50) return null;
 
-  // 패턴: <p><strong>예시 N, <strong>예시 N, 예시 N:, 예시 N(, [예시 N]
-  const pattern = /(?=<p>\s*<strong>\s*예시\s*\d)|(?=<strong>\s*예시\s*\d)|(?=예시\s*\d\s*[\(:：])/gi;
-  const parts = content.split(pattern).filter((p) => p.trim().length > 20);
+  const MIN_PART_LENGTH = 20;
+  const filter = (parts: string[]) =>
+    parts.map((p) => p.trim()).filter((p) => p.length >= MIN_PART_LENGTH);
 
-  if (parts.length >= 2) return parts.map((p) => p.trim());
+  // 1. "예시 N" 패턴 (가장 흔함)
+  const examplePattern = /(?=<p>\s*<strong>\s*예시\s*\d)|(?=<strong>\s*예시\s*\d)|(?=예시\s*\d\s*[\(:：.)])/gi;
+  const exParts = filter(content.split(examplePattern));
+  if (exParts.length >= 2) return exParts;
 
-  // 패턴 2: <p><strong>N. 또는 <p><strong>N)
-  const numPattern = /(?=<p>\s*<strong>\s*\d+[\.\)]\s)/g;
-  const numParts = content.split(numPattern).filter((p) => p.trim().length > 20);
+  // 2. <p><strong>N. 또는 N) 패턴
+  const numPattern = /(?=<p>\s*<strong>\s*\d+[\.\)]\s)|(?=<strong>\s*\d+[\.\)]\s)/g;
+  const numParts = filter(content.split(numPattern));
+  if (numParts.length >= 2) return numParts;
 
-  if (numParts.length >= 2) return numParts.map((p) => p.trim());
+  // 3. 기호 패턴 (■, ●, ★, ◆, ▶)
+  const symbolPattern = /(?=<p>\s*[■●★◆▶])|(?=[■●★◆▶]\s)/g;
+  const symParts = filter(content.split(symbolPattern));
+  if (symParts.length >= 2) return symParts;
+
+  // 4. <li> 태그 기반 (AI가 <ul><li>로 묶은 경우)
+  const liMatches = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi);
+  if (liMatches && liMatches.length >= 2) {
+    const liParts = filter(liMatches.map((m) => m.replace(/<\/?li[^>]*>/gi, "")));
+    if (liParts.length >= 2) return liParts;
+  }
+
+  // 5. 이중 줄바꿈 분리 (<br><br> 또는 빈 <p></p>)
+  const brParts = filter(content.split(/<br\s*\/?>\s*<br\s*\/?>|<p>\s*<\/p>/gi));
+  if (brParts.length >= 2 && brParts.length <= 5) return brParts;
+
+  // 6. 한글 서수 패턴 ("첫 번째", "두 번째", "세 번째")
+  const ordinalPattern = /(?=(?:첫|두|세|네)\s*번째)/g;
+  const ordParts = filter(content.split(ordinalPattern));
+  if (ordParts.length >= 2) return ordParts;
 
   return null;
 }

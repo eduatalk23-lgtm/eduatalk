@@ -262,6 +262,34 @@ describe("splitSetekExamplesBlob", () => {
     expect(result!.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("기호 패턴(■/●)으로 분리", () => {
+    const blob = `■ 수학 세특: 함수의 연속성 개념을 활용한 실생활 탐구를 수행함■ 물리 세특: 뉴턴 역학을 적용한 투사체 운동 분석을 실시함■ 화학 세특: 산화환원 반응의 원리를 탐구하여 보고서를 작성함`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBe(3);
+  });
+
+  it("<li> 태그 기반 분리", () => {
+    const blob = `<ul><li>삼투압 원리를 활용한 식물 세포 실험을 수행하고 보고서를 작성함</li><li>뉴턴 냉각 법칙을 적용한 온도 변화 탐구를 진행함</li></ul>`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBe(2);
+  });
+
+  it("이중 줄바꿈(<br><br>)으로 분리", () => {
+    const blob = `수학 세특: 미적분 개념을 활용한 최적화 문제 탐구를 수행함<br><br>물리 세특: 전자기 유도 법칙을 실험으로 검증하고 보고서 작성함<br><br>화학 세특: 화학 평형 이동 원리를 산업 공정에 적용하여 분석함`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBe(3);
+  });
+
+  it("한글 서수(첫 번째/두 번째) 패턴으로 분리", () => {
+    const blob = `첫 번째 세특은 생명과학 교과에서 유전자 발현 조절 메커니즘을 탐구한 내용이다두 번째 세특은 화학 교과에서 반응 속도론을 실험적으로 검증한 내용이다세 번째 세특은 물리학 교과에서 파동의 간섭 현상을 분석한 내용이다`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBe(3);
+  });
+
   it("resolveContentSections에서 단일 레거시 항목 자동 분리", () => {
     const blob = `<p><strong>예시 1:</strong> 첫 번째 충분히 긴 예시</p><p><strong>예시 2:</strong> 두 번째 충분히 긴 예시</p>`;
     const content = makeLegacyContent({
