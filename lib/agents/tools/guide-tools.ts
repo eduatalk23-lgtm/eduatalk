@@ -11,7 +11,8 @@ import { findGuideById, findAssignmentsWithGuides } from "@/lib/domains/guide/re
 import { calculateReflectionSummary } from "@/lib/domains/student-record/keyword-match";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { searchGuidesByVector } from "@/lib/domains/guide/vector/search-service";
-import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
+// generateGuideAction은 pdf-parse → @napi-rs/canvas → DOMMatrix 의존성이 있어
+// 서버리스 환경에서 모듈 로딩 시 crash 방지를 위해 동적 import 사용
 import { resolveContentSections } from "@/lib/domains/guide/section-config";
 import { loadStudentProfileForGuide } from "@/lib/domains/guide/llm/loaders/student-profile-loader";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
@@ -224,6 +225,7 @@ export function createGuideTools(ctx: AgentContext) {
             generationInput.selectedSectionKeys = selectedSectionKeys;
           }
 
+          const { generateGuideAction } = await import("@/lib/domains/guide/llm/actions/generateGuide");
           const result = await generateGuideAction(generationInput);
 
           if (!result.success) {

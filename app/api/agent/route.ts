@@ -18,13 +18,6 @@ import { extractCaseFromTraces, saveCaseToDb } from "@/lib/agents/memory/case-ex
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel Hobby 최대
 
-// 디버그: 모듈 로딩 성공 확인용 GET 핸들러
-export function GET() {
-  return new Response(
-    JSON.stringify({ ok: true, ts: Date.now() }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
-}
 
 // ── 사용자별 Rate Limit (인메모리, 1분 10회) ──
 // ⚠️ Vercel 서버리스 환경에서는 인스턴스별 독립 카운터.
