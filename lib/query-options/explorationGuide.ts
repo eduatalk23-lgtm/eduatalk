@@ -15,7 +15,6 @@ import {
   countSimilarGuidesAction,
   fetchStudentCareerInfoAction,
   fetchPopularGuidesAction,
-  fetchGroupedSubjectsAction,
   fetchAllCurriculumUnitsAction,
   recommendByFiltersAction,
   listTopicsAction,
@@ -220,11 +219,13 @@ export function groupedSubjectsQueryOptions(revisionId?: string) {
   return queryOptions({
     queryKey: explorationGuideKeys.groupedSubjects(revisionId),
     queryFn: async () => {
-      const res = await fetchGroupedSubjectsAction(revisionId);
-      if (!res.success) {
-        throw new Error(res.error ?? "교과 목록 로드 실패");
+      const params = revisionId ? `?revisionId=${revisionId}` : "";
+      const res = await fetch(`/api/subjects/grouped${params}`);
+      if (!res.ok) {
+        throw new Error(`교과 목록 로드 실패 (${res.status})`);
       }
-      return res;
+      const json = await res.json();
+      return { success: true as const, data: json.data as Array<{ groupName: string; subjects: Array<{ id: string; name: string }> }> };
     },
     staleTime: Infinity,
     gcTime: 60 * 60_000,
