@@ -1,5 +1,3 @@
-"use server";
-
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
