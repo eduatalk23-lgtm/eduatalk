@@ -13,6 +13,8 @@ import {
   listCalendars,
 } from "@/lib/domains/googleCalendar";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const { userId, role } = await getCachedUserRole();

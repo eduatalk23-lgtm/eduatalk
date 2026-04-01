@@ -10,6 +10,8 @@ import {
   handleApiError,
 } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 type Tenant = {
   id: string;
   name: string;

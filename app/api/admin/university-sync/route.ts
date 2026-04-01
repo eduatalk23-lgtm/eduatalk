@@ -4,6 +4,8 @@ import { apiSuccess, apiUnauthorized, handleApiError } from "@/lib/api";
 import { syncUniversities } from "@/lib/domains/school/sync";
 import { testConnection } from "@/lib/services/dataGoKrApi";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 대학 DB 동기화 (data.go.kr API)
  *

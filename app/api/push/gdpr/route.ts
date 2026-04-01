@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GDPR / 개인정보보호법 대응 API
  *

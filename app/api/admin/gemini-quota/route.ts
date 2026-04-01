@@ -10,6 +10,8 @@ import {
   resetGeminiQuotaTracker,
 } from "@/lib/domains/plan/llm/providers/gemini";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Gemini API 할당량 상태 조회 (관리자용)
  *

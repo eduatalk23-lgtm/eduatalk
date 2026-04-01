@@ -1,6 +1,8 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { apiSuccess } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 type CheckSuperAdminResponse = {
   isSuperAdmin: boolean;
 };

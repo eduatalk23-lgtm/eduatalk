@@ -8,6 +8,8 @@ import {
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getGoalsForStudent } from "@/lib/data/studentGoals";
 
+export const dynamic = "force-dynamic";
+
 type Goal = {
   id: string;
   title: string;

@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 푸시 구독 진단 API (임시 디버깅용)
  * GET /api/push/debug
