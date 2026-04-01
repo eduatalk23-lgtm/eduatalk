@@ -162,12 +162,12 @@ async function _handlePost(req: Request) {
     const stepTraces: StepTrace[] = [];
     let stepStartTime = Date.now();
 
-    // 9. 모델 fallback 체인 (Pro → Flash)
-    // Pre-flight ping 제거: 실제 호출에서 바로 fallback 처리
-    // 이유: ping 자체가 재시도×타임아웃으로 30초+ 소모 → Vercel 60초 한도 초과
+    // 9. 모델 fallback 체인 (Flash → Pro)
+    // Flash 1순위: 안정적이고 빠름. Pro는 preview 모델이라 응답 없이 hang 가능.
+    // streamText는 즉시 반환 → 스트림 hang 시 fallback 불가하므로 안정 모델 우선.
     const AGENT_MODEL_CHAIN = [
-      { id: "gemini-3.1-pro-preview", maxSteps: 16, maxTokens: 16384, temp: 0.4 },
       { id: "gemini-2.5-flash", maxSteps: 12, maxTokens: 8192, temp: 0.3 },
+      { id: "gemini-3.1-pro-preview", maxSteps: 16, maxTokens: 16384, temp: 0.4 },
     ] as const;
 
     // 10. 모델 fallback + Rate-limited streamText
