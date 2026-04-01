@@ -115,7 +115,7 @@ export async function generateGuideCore(
         modelTier: "advanced",
         temperature: 0.5,
         maxTokens: 65536,
-        timeoutMs: 180_000, // API Route는 5분이므로 여유롭게 설정
+        timeoutMs: 300_000, // API Route maxDuration=300 (5분)
       });
       generated = result.object;
       modelId = result.modelId;
@@ -137,7 +137,7 @@ export async function generateGuideCore(
           modelTier: "fast",
           temperature: 0.5,
           maxTokens: 40960,
-          timeoutMs: 120_000,
+          timeoutMs: 300_000, // API Route maxDuration=300 (5분)
         });
         generated = result.object;
         modelId = result.modelId + " (fallback)";

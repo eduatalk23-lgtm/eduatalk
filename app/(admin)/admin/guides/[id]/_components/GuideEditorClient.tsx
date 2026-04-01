@@ -277,9 +277,29 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     guide?.status === "ai_improving" ||
     guide?.status === "ai_reviewing";
 
+  const aiPollingStartRef = useRef<number | null>(null);
+  const AI_POLLING_TIMEOUT = 5 * 60 * 1000; // 5분
+
   useEffect(() => {
-    if (!isAiInProgress) return;
+    if (!isAiInProgress) {
+      aiPollingStartRef.current = null;
+      return;
+    }
+    if (!aiPollingStartRef.current) {
+      aiPollingStartRef.current = Date.now();
+    }
     const interval = setInterval(() => {
+      if (
+        aiPollingStartRef.current &&
+        Date.now() - aiPollingStartRef.current > AI_POLLING_TIMEOUT
+      ) {
+        clearInterval(interval);
+        aiPollingStartRef.current = null;
+        toast.showError(
+          "AI 생성이 5분 내에 완료되지 않았습니다. 페이지를 새로고침하거나 다시 시도해주세요.",
+        );
+        return;
+      }
       queryClient.invalidateQueries({
         queryKey: explorationGuideKeys.cmsDetail(guideId ?? ""),
       });
