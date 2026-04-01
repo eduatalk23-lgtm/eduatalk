@@ -19,6 +19,7 @@ import {
 } from "@/lib/types/actionResponse";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { waitUntil } from "@vercel/functions";
 import { generateGuideCore } from "./generateGuideCore";
 import {
   createGuide,
@@ -72,12 +73,14 @@ export async function generateGuideAction(
       registeredBy: userId,
     });
 
-    // fire-and-forget — request context 만료 후에도 계속 실행
-    executeGuideGeneration(guide.id, input, userId).catch((err) => {
-      logActionError({ ...LOG_CTX, action: "executeGuideGeneration" }, err, {
-        guideId: guide.id,
-      });
-    });
+    // waitUntil — Vercel 서버리스에서 응답 후에도 백그라운드 실행 보장
+    waitUntil(
+      executeGuideGeneration(guide.id, input, userId).catch((err) => {
+        logActionError({ ...LOG_CTX, action: "executeGuideGeneration" }, err, {
+          guideId: guide.id,
+        });
+      }),
+    );
 
     return createSuccessResponse({ guideId: guide.id });
   } catch (error) {
