@@ -42,22 +42,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 백그라운드 실행 — 응답은 즉시 반환
+    // 동기 실행 — 생성 완료까지 응답을 보내지 않음
+    // Vercel은 응답 전이므로 maxDuration(300초)까지 함수를 유지
+    // 클라이언트는 fetch를 fire-and-forget으로 호출하므로 응답을 기다리지 않음
     const admin = createSupabaseAdminClient();
+    await executeGeneration(guideId, input, admin);
 
-    // 즉시 202 반환 후 생성 작업 계속 진행
-    const generationPromise = executeGeneration(guideId, input, admin);
-
-    // waitUntil 대신 maxDuration=300으로 함수 수명 보장
-    generationPromise.catch((err) => {
-      logActionError({ ...LOG_CTX, action: "apiGenerateGuide" }, err, {
-        guideId,
-      });
-    });
-
-    // Vercel에서 응답 반환 후에도 maxDuration까지 함수 유지
-    // (API route는 Server Action과 달리 응답 후에도 동작)
-    return NextResponse.json({ started: true }, { status: 202 });
+    return NextResponse.json({ completed: true });
   } catch (error) {
     logActionError(LOG_CTX, error);
     return NextResponse.json(
