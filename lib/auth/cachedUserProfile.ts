@@ -15,12 +15,16 @@ interface UserProfileData {
  */
 export const getCachedUserProfile = cache(
   async (userId: string): Promise<UserProfileData | null> => {
-    const supabase = await createSupabaseServerClient();
-    const { data } = await supabase
-      .from("user_profiles")
-      .select("name, is_active, profile_image_url")
-      .eq("id", userId)
-      .maybeSingle();
-    return data;
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("name, is_active, profile_image_url")
+        .eq("id", userId)
+        .maybeSingle();
+      return data;
+    } catch {
+      return null;
+    }
   },
 );

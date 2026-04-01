@@ -429,8 +429,6 @@ export async function updateProgress(formData: FormData): Promise<void> {
       progress,
       plan_id: planIdInput,
     });
-
-    redirect("/plan/calendar");
   } catch (error) {
     logActionError(
       { domain: "plan", action: "updateProgress" },
@@ -440,6 +438,8 @@ export async function updateProgress(formData: FormData): Promise<void> {
     if (error instanceof Error) throw error;
     throw new Error("진행률 업데이트 중 오류가 발생했습니다.");
   }
+
+  redirect("/plan/calendar");
 }
 
 /**
