@@ -40,6 +40,7 @@ import {
   Receipt,
   Link2,
   Compass,
+  Library,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -325,6 +326,12 @@ export const adminCategories: NavigationCategory[] = [
         label: "AI 추천 주제",
         href: "/admin/guides/topics",
         icon: <Sparkles className="w-4 h-4" />,
+      },
+      {
+        id: "admin-academic-sources",
+        label: "학술 출처 DB",
+        href: "/admin/academic-sources",
+        icon: <Library className="w-4 h-4" />,
       },
     ],
   },
