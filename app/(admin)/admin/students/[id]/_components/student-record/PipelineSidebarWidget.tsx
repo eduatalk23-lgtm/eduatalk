@@ -107,7 +107,7 @@ export function PipelineSidebarWidget({
     const nextPhase = getNextPhaseFromTasks(tasks);
     if (nextPhase === 0) return; // 전부 완료 → 서버에서 상태 갱신됨
 
-    // 이미 이 Phase를 호출했으면 중복 방지
+    // 이미 이 Phase를 호출 중이면 중복 방지
     if (runningPhaseRef.current === nextPhase) return;
     runningPhaseRef.current = nextPhase;
 
@@ -116,7 +116,14 @@ export function PipelineSidebarWidget({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pipelineId: pipeline.id }),
-    }).catch(() => {});
+    })
+      .then(() => {
+        // Phase route 응답 완료 → ref 리셋하여 다음 폴링에서 재판단
+        runningPhaseRef.current = null;
+      })
+      .catch(() => {
+        runningPhaseRef.current = null;
+      });
   }, [phaseDriverStatus, tasksJson, pipeline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 실행 mutation — Server Action(placeholder) + API route(실행)
