@@ -207,11 +207,9 @@ export async function generateSetekGuide(
     const { data: inserted, error: insertError } = await supabase
       .from("student_record_setek_guides")
       .insert(rows)
-      .select("id")
-      .limit(1)
-      .single();
+      .select("id");
 
-    if (insertError || !inserted) {
+    if (insertError || !inserted?.length) {
       logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length });
       return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
     }
@@ -223,7 +221,7 @@ export async function generateSetekGuide(
 
     return {
       success: true,
-      data: { ...parsed, summaryId: inserted.id },
+      data: { ...parsed, summaryId: inserted[0].id },
     };
   } catch (error) {
     logActionError(LOG_CTX, error);
@@ -377,11 +375,9 @@ async function generateProspectiveSetekGuide(
   const { data: inserted, error: insertError } = await supabase
     .from("student_record_setek_guides")
     .insert(rows)
-    .select("id")
-    .limit(1)
-    .single();
+    .select("id");
 
-  if (insertError || !inserted) {
+  if (insertError || !inserted?.length) {
     logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length, mode: "prospective" });
     return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
   }
@@ -392,6 +388,6 @@ async function generateProspectiveSetekGuide(
 
   return {
     success: true,
-    data: { ...parsed, summaryId: inserted.id },
+    data: { ...parsed, summaryId: inserted[0].id },
   };
 }

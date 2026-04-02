@@ -159,11 +159,9 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
   const { data: inserted, error: insertError } = await supabase
     .from("student_record_changche_guides")
     .insert(rows)
-    .select("id")
-    .limit(1)
-    .single();
+    .select("id");
 
-  if (insertError || !inserted) {
+  if (insertError || !inserted?.length) {
     logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length, mode: "prospective" });
     return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
   }
@@ -174,7 +172,7 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
 
   return {
     success: true,
-    data: { ...parsed, summaryId: inserted.id },
+    data: { ...parsed, summaryId: inserted[0].id },
   };
 }
 
@@ -345,11 +343,9 @@ export async function generateChangcheGuide(
     const { data: inserted, error: insertError } = await supabase
       .from("student_record_changche_guides")
       .insert(rows)
-      .select("id")
-      .limit(1)
-      .single();
+      .select("id");
 
-    if (insertError || !inserted) {
+    if (insertError || !inserted?.length) {
       logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length });
       return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
     }
@@ -361,7 +357,7 @@ export async function generateChangcheGuide(
 
     return {
       success: true,
-      data: { ...parsed, summaryId: inserted.id },
+      data: { ...parsed, summaryId: inserted[0].id },
     };
   } catch (error) {
     logActionError(LOG_CTX, error);
