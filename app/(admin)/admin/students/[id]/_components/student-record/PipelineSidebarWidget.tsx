@@ -66,10 +66,10 @@ export function PipelineSidebarWidget({
   const [showRerunConfirm, setShowRerunConfirm] = useState(false);
 
   // ─── 클라이언트 주도 Phase 순차 실행 ─────────────────────────
-  // 폴링 콜백에서 Phase 완료 감지 → 다음 Phase API 호출
   const pollingStartRef = useRef<number | null>(null);
-  const runningPhaseRef = useRef<number | null>(null);
   const PIPELINE_POLLING_TIMEOUT = 40 * 60 * 1000;
+  const [pendingPhase, setPendingPhase] = useState<number | null>(null);
+  const [pendingPipelineId, setPendingPipelineId] = useState<string | null>(null);
 
   const { data: pipeline } = useQuery({
     ...pipelineStatusQueryOptions(studentId),
@@ -79,42 +79,61 @@ export function PipelineSidebarWidget({
 
       if (status !== "running") {
         pollingStartRef.current = null;
-        runningPhaseRef.current = null;
         return false;
       }
 
-      // 40분 타임아웃
       if (!pollingStartRef.current) pollingStartRef.current = Date.now();
       if (Date.now() - pollingStartRef.current > PIPELINE_POLLING_TIMEOUT) {
         pollingStartRef.current = null;
         return false;
       }
 
-      // Phase 자동 진행: running task가 없고 pending task가 있으면 다음 Phase 호출
-      if (data?.tasks) {
-        const tasks = data.tasks;
-        const hasRunningTask = Object.values(tasks).some((s) => s === "running");
-        if (!hasRunningTask) {
-          const nextPhase = getNextPhaseFromTasks(tasks);
-          if (nextPhase > 0 && runningPhaseRef.current !== nextPhase) {
-            runningPhaseRef.current = nextPhase;
-            const route = nextPhase === 1
-              ? "/api/admin/pipeline/run"
-              : `/api/admin/pipeline/phase-${nextPhase}`;
-            fetch(route, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pipelineId: data.id }),
-            })
-              .then(() => { runningPhaseRef.current = null; })
-              .catch(() => { runningPhaseRef.current = null; });
-          }
-        }
-      }
-
       return 3000;
     },
   });
+
+  // 폴링 데이터 변경 시 다음 Phase 판별 → state 설정
+  const pipelineTasks = pipeline?.tasks;
+  const pipelineId = pipeline?.id;
+  const isRunning = pipeline?.status === "running";
+
+  useEffect(() => {
+    if (!isRunning || !pipelineTasks || !pipelineId) {
+      setPendingPhase(null);
+      return;
+    }
+    const hasRunningTask = Object.values(pipelineTasks).some((s) => s === "running");
+    if (hasRunningTask) {
+      setPendingPhase(null);
+      return;
+    }
+    const next = getNextPhaseFromTasks(pipelineTasks);
+    if (next > 0) {
+      setPendingPhase(next);
+      setPendingPipelineId(pipelineId);
+    } else {
+      setPendingPhase(null);
+    }
+  }, [isRunning, pipelineTasks, pipelineId]);
+
+  // pendingPhase가 설정되면 API 호출
+  const calledPhaseRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (pendingPhase === null || !pendingPipelineId) return;
+    if (calledPhaseRef.current === pendingPhase) return;
+    calledPhaseRef.current = pendingPhase;
+
+    const route = pendingPhase === 1
+      ? "/api/admin/pipeline/run"
+      : `/api/admin/pipeline/phase-${pendingPhase}`;
+    fetch(route, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipelineId: pendingPipelineId }),
+    })
+      .then(() => { calledPhaseRef.current = null; setPendingPhase(null); })
+      .catch(() => { calledPhaseRef.current = null; setPendingPhase(null); });
+  }, [pendingPhase, pendingPipelineId]);
 
   // 실행 mutation — Server Action(placeholder) + API route(실행)
   const runMutation = useMutation({
