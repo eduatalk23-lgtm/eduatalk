@@ -109,7 +109,7 @@ const COL_LABELS: Record<GridColumnKey, string> = {
 const COL_PERSPECTIVE_LABELS: Partial<Record<GridColumnKey, Record<Perspective, string>>> = {
   draft: { ai: "AI 초안", consultant: "컨설턴트 가안", confirmed: "확정본" },
   analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
-  guide: { ai: "방향", consultant: "배정 목록", confirmed: "완료" },
+  guide: { ai: "AI 추천", consultant: "배정 목록", confirmed: "완료" },
 };
 
 // ─── 메인 컴포넌트 ──
@@ -338,15 +338,24 @@ function ChangcheGridCell({
     );
   }
 
-  // ── 가이드 (3행 분리) ──
+  // ── 가이드 (3행 분리: AI=추천배정/산문가이드, 컨설턴트=배정목록, 확정=완료) ──
   if (column === "guide") {
     if (perspective === "ai") {
-      if (!guideItem) {
-        return <span className="text-sm text-[var(--text-placeholder)]">방향 없음</span>;
+      // AI 추천 가이드 배정 (CMS 탐구가이드 또는 산문형 활동 가이드)
+      const aiRecommended = guideAssignments.filter((g) => g.ai_recommendation_reason);
+      if (aiRecommended.length > 0) {
+        return (
+          <div className="flex flex-col gap-1">
+            {aiRecommended.map((g) => (
+              <div key={g.id} className="flex items-center gap-1.5">
+                <span className="h-3 w-3 shrink-0 text-violet-500">🤖</span>
+                <span className="truncate text-sm text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
+              </div>
+            ))}
+          </div>
+        );
       }
-      return (
-        <p className="text-sm text-[var(--text-primary)] line-clamp-3">{guideItem.direction}</p>
-      );
+      return <span className="text-sm text-[var(--text-placeholder)]">AI 추천 가이드 없음</span>;
     }
     if (perspective === "consultant") {
       const assigned = guideAssignments.filter((g) => g.status !== "completed");

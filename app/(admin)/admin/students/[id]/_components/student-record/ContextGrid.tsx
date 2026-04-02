@@ -104,7 +104,7 @@ const MAX_COLS = 3;
 const COL_PERSPECTIVE_LABELS: Partial<Record<GridColumnKey, Record<Perspective, string>>> = {
   draft: { ai: "AI 초안", consultant: "컨설턴트 가안", confirmed: "확정본" },
   analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
-  guide: { ai: "방향", consultant: "배정 목록", confirmed: "완료" },
+  guide: { ai: "AI 추천", consultant: "배정 목록", confirmed: "완료" },
 };
 
 // ─── 메인 컴포넌트 ──
@@ -306,20 +306,24 @@ function GridCell({
     );
   }
 
-  // ── 가이드 (3행 분리: AI=방향텍스트, 컨설턴트=배정목록, 확정=확정상태) ──
+  // ── 가이드 (3행 분리: AI=추천배정/산문가이드, 컨설턴트=배정목록, 확정=완료) ──
   if (column === "guide") {
     if (perspective === "ai") {
-      // 방향 텍스트 (읽기 전용)
-      if (subjectDirection.length === 0) {
-        return <span className="text-sm text-[var(--text-placeholder)]">방향 없음</span>;
+      // AI 추천 가이드 배정 (CMS 탐구가이드 또는 산문형 활동 가이드)
+      const aiRecommended = subjectGuides.filter((g) => g.ai_recommendation_reason);
+      if (aiRecommended.length > 0) {
+        return (
+          <div className="flex flex-col gap-1">
+            {aiRecommended.map((g) => (
+              <div key={g.id} className="flex items-center gap-1.5">
+                <Bot className="h-3 w-3 shrink-0 text-violet-500" />
+                <span className="truncate text-sm text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
+              </div>
+            ))}
+          </div>
+        );
       }
-      return (
-        <div className="flex flex-col gap-1">
-          {subjectDirection.map((d, i) => (
-            <p key={i} className="text-sm text-[var(--text-primary)] line-clamp-3">{d.direction}</p>
-          ))}
-        </div>
-      );
+      return <span className="text-sm text-[var(--text-placeholder)]">AI 추천 가이드 없음</span>;
     }
     if (perspective === "consultant") {
       // 배정 가이드 목록
