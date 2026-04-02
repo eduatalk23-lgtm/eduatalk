@@ -49,11 +49,11 @@ async function runWithConcurrency<T>(
 // ============================================
 
 export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskRunnerOutput> {
-  const { supabase, studentId, tenantId, pipelineMode, studentGrade, snapshot } = ctx;
+  const { supabase, studentId, tenantId, studentGrade, snapshot } = ctx;
 
-  // Phase V1: prospective 모드 — 기록 없으므로 skip
-  if (pipelineMode === "prospective") {
-    return "신입생 모드 — 기록 입력 후 분석";
+  // NEIS 레코드가 하나도 없으면 분석 대상 없음 — skip
+  if (!ctx.neisGrades || ctx.neisGrades.length === 0) {
+    return "NEIS 기록 없음 — 기록 임포트 후 분석 가능";
   }
   const { analyzeSetekWithHighlight } = await import("./llm/actions/analyzeWithHighlight");
   const { calculateCourseAdequacy: calcAdequacy } = await import("./course-adequacy");
@@ -191,7 +191,7 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
       if (!ctx.cachedSeteks) {
         const { data } = await supabase
           .from("student_record_seteks")
-          .select("id, content, grade, subject:subject_id(name)")
+          .select("id, content, imported_content, grade, subject:subject_id(name)")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId)
           .is("deleted_at", null);
@@ -202,7 +202,7 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
       if (!ctx.cachedChangche) {
         const { data } = await supabase
           .from("student_record_changche")
-          .select("id, content, grade, activity_type")
+          .select("id, content, imported_content, grade, activity_type")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId);
         ctx.cachedChangche = (data ?? []) as import("./pipeline-types").CachedChangche[];
@@ -212,7 +212,7 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
       if (!ctx.cachedHaengteuk) {
         const { data } = await supabase
           .from("student_record_haengteuk")
-          .select("id, content, grade")
+          .select("id, content, imported_content, grade")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId);
         ctx.cachedHaengteuk = (data ?? []) as import("./pipeline-types").CachedHaengteuk[];
@@ -220,20 +220,24 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
     })(),
   ]);
 
-  // 전체 레코드를 하나의 배열로 구성
+  // NEIS 레코드만 분석 대상으로 필터링 (imported_content 있는 레코드)
+  // NEIS = 실제 생기부 = 절대적 사실. imported_content가 없으면 분석 스킵.
   type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
   const analysisRecords: AnalysisRecord[] = [];
   for (const s of ctx.cachedSeteks!) {
-    if (!s.content || s.content.trim().length < 20) continue;
-    analysisRecords.push({ type: "setek", id: s.id, content: s.content, grade: s.grade, subjectName: s.subject?.name });
+    const effectiveContent = s.imported_content?.trim() ? s.imported_content : null;
+    if (!effectiveContent || effectiveContent.length < 20) continue;
+    analysisRecords.push({ type: "setek", id: s.id, content: effectiveContent, grade: s.grade, subjectName: s.subject?.name });
   }
   for (const c of ctx.cachedChangche!) {
-    if (!c.content || c.content.trim().length < 20) continue;
-    analysisRecords.push({ type: "changche", id: c.id, content: c.content, grade: c.grade });
+    const effectiveContent = c.imported_content?.trim() ? c.imported_content : null;
+    if (!effectiveContent || effectiveContent.length < 20) continue;
+    analysisRecords.push({ type: "changche", id: c.id, content: effectiveContent, grade: c.grade });
   }
   for (const h of ctx.cachedHaengteuk!) {
-    if (!h.content || h.content.trim().length < 20) continue;
-    analysisRecords.push({ type: "haengteuk", id: h.id, content: h.content, grade: h.grade });
+    const effectiveContent = h.imported_content?.trim() ? h.imported_content : null;
+    if (!effectiveContent || effectiveContent.length < 20) continue;
+    analysisRecords.push({ type: "haengteuk", id: h.id, content: effectiveContent, grade: h.grade });
   }
 
   // 증분 분석: 배치 캐시 조회 (1회 DB 호출)
@@ -401,20 +405,22 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
 // ============================================
 
 export async function runStorylineGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
-  const { supabase, studentId, tenantId, pipelineMode } = ctx;
+  const { supabase, studentId, tenantId } = ctx;
 
-  // Phase V1: prospective 모드 — 기록 없으므로 skip
-  if (pipelineMode === "prospective") {
-    return "신입생 모드 — 기록 입력 후 감지";
+  // NEIS 레코드가 하나도 없으면 스토리라인 추출 대상 없음 — skip
+  if (!ctx.neisGrades || ctx.neisGrades.length === 0) {
+    return "NEIS 기록 없음 — 기록 임포트 후 감지 가능";
   }
+
   // 기록 수집 — competency_analysis에서 이미 조회한 캐시 재사용
+  // NEIS 레코드만 스토리라인 입력으로 사용 (imported_content 있는 레코드)
   const records: RecordSummary[] = [];
   let idx = 0;
 
   if (!ctx.cachedSeteks) {
     const { data } = await supabase
       .from("student_record_seteks")
-      .select("id, content, grade, subject:subject_id(name)")
+      .select("id, content, imported_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null);
@@ -423,22 +429,24 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   // grade 기준 정렬 (원래 order("grade") 대체)
   const sortedSeteks = [...ctx.cachedSeteks].sort((a, b) => a.grade - b.grade);
   for (const s of sortedSeteks) {
-    if (!s.content || s.content.trim().length < 20) continue;
-    records.push({ index: idx++, id: s.id, grade: s.grade, subject: s.subject?.name ?? "과목 미정", type: "setek", content: s.content });
+    const effectiveContent = s.imported_content?.trim() ? s.imported_content : null;
+    if (!effectiveContent || effectiveContent.length < 20) continue;
+    records.push({ index: idx++, id: s.id, grade: s.grade, subject: s.subject?.name ?? "과목 미정", type: "setek", content: effectiveContent });
   }
 
   if (!ctx.cachedChangche) {
     const { data } = await supabase
       .from("student_record_changche")
-      .select("id, content, grade, activity_type")
+      .select("id, content, imported_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
     ctx.cachedChangche = (data ?? []) as import("./pipeline-types").CachedChangche[];
   }
   const sortedChangche = [...ctx.cachedChangche].sort((a, b) => a.grade - b.grade);
   for (const c of sortedChangche) {
-    if (!c.content || c.content.trim().length < 20) continue;
-    records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: c.content });
+    const effectiveContent = c.imported_content?.trim() ? c.imported_content : null;
+    if (!effectiveContent || effectiveContent.length < 20) continue;
+    records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: effectiveContent });
   }
 
   if (records.length < 2) {
@@ -525,11 +533,11 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
 // ============================================
 
 export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunnerOutput & { computedEdges?: PersistedEdge[] | CrossRefEdge[]; sharedCourseAdequacy?: CourseAdequacyResult | null }> {
-  const { supabase, studentId, tenantId, pipelineId, pipelineMode, studentGrade, snapshot } = ctx;
+  const { supabase, studentId, tenantId, pipelineId, studentGrade, snapshot } = ctx;
 
-  // Phase V1: prospective 모드 — 기록 없으므로 skip
-  if (pipelineMode === "prospective") {
-    return "신입생 모드 — 기록 입력 후 연결";
+  // NEIS 레코드가 하나도 없으면 연결 계산 대상 없음 — skip
+  if (!ctx.neisGrades || ctx.neisGrades.length === 0) {
+    return "NEIS 기록 없음 — 기록 임포트 후 연결 분석 가능";
   }
   const { buildConnectionGraph } = await import("./cross-reference");
   const { fetchCrossRefData } = await import("./actions/diagnosis");
