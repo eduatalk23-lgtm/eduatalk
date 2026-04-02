@@ -12,6 +12,10 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { Bot, Check, ChevronUp, X } from "lucide-react";
 import { ContextGrid } from "./ContextGrid";
+import { ContextGridChangche } from "./ContextGridChangche";
+import { ContextGridHaengteuk } from "./ContextGridHaengteuk";
+import type { ChangcheGuideItemLike } from "./ContextGridChangche";
+import type { HaengteukGuideItemLike } from "./ContextGridHaengteuk";
 import { SubjectNavStrip } from "./SubjectNavStrip";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { recordTabQueryOptions, diagnosisTabQueryOptions } from "@/lib/query-options/studentRecord";
@@ -76,6 +80,8 @@ interface ContextGridBottomSheetProps {
   }>;
   setekGuideItems?: SetekGuideItemLike[];
   subjectNavList?: SubjectNavItem[];
+  changcheGuideItems?: ChangcheGuideItemLike[];
+  haengteukGuideItem?: HaengteukGuideItemLike;
 }
 
 // ─── 메인 컴포넌트 ──
@@ -85,6 +91,8 @@ export function ContextGridBottomSheet({
   guideAssignments,
   setekGuideItems,
   subjectNavList,
+  changcheGuideItems,
+  haengteukGuideItem,
 }: ContextGridBottomSheetProps) {
   const ctx = useStudentRecordContext();
   const { activeSubjectId, activeSchoolYear, activeSubjectName, studentId, tenantId } = ctx;
@@ -450,16 +458,34 @@ export function ContextGridBottomSheet({
               subjectGuides={filteredGuides}
               subjectDirection={filteredDirection}
             />
-          ) : (activeKind === "changche" || activeKind === "haengteuk") ? (
-            <SimplifiedRecordView
-              title={activeSubjectName ?? ""}
-              content={nonSetekContent}
-              tags={nonSetekTags}
-              charLimit={nonSetekCharLimit}
+          ) : activeKind === "changche" && changcheRecord ? (
+            <ContextGridChangche
+              record={changcheRecord}
+              activityType={changcheRecord.activity_type}
               selectedColumns={selectedColumns}
-              draftContent={(activeKind === "changche" ? changcheRecord : haengteukRecord)?.ai_draft_content ?? null}
-              consultantContent={(activeKind === "changche" ? changcheRecord : haengteukRecord)?.content ?? null}
-              confirmedContent={(activeKind === "changche" ? changcheRecord : haengteukRecord)?.confirmed_content ?? null}
+              onColumnsChange={handleColumnsChange}
+              charLimit={nonSetekCharLimit}
+              studentId={studentId}
+              schoolYear={activeSchoolYear ?? 0}
+              tenantId={tenantId}
+              grade={changcheRecord.grade ?? 1}
+              tags={nonSetekTags}
+              guideAssignments={guideAssignments ?? []}
+              guideItem={changcheGuideItems?.find((g) => g.activityType === changcheRecord.activity_type)}
+            />
+          ) : activeKind === "haengteuk" ? (
+            <ContextGridHaengteuk
+              record={haengteukRecord}
+              selectedColumns={selectedColumns}
+              onColumnsChange={handleColumnsChange}
+              charLimit={nonSetekCharLimit}
+              studentId={studentId}
+              schoolYear={activeSchoolYear ?? 0}
+              tenantId={tenantId}
+              grade={haengteukRecord?.grade ?? 1}
+              tags={nonSetekTags}
+              guideAssignments={guideAssignments ?? []}
+              guideItem={haengteukGuideItem}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

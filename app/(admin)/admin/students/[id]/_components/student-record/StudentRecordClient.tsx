@@ -1755,6 +1755,8 @@ export function StudentRecordClient({
       guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
       setekGuideItems={transformedSetekGuideItems}
       subjectNavList={subjectNavList}
+      changcheGuideItems={transformedChangcheGuideItems}
+      haengteukGuideItem={transformedHaengteukGuideItem}
     />
     <ContextTopSheet
       isOpen={topSheetOpen}
