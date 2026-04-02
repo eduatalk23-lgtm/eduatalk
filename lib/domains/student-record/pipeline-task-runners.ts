@@ -911,17 +911,18 @@ export async function runChangcheGuide(
   ctx: PipelineContext,
   computedEdges: PersistedEdge[] | CrossRefEdge[],
 ): Promise<TaskRunnerOutput> {
-  const { supabase, studentId, tenantId, pipelineMode, coursePlanData } = ctx;
+  const { supabase, studentId, tenantId, coursePlanData } = ctx;
 
-  // Phase V1: prospective 모드 — 수강계획+진로 기반 창체 방향 생성
-  if (pipelineMode === "prospective") {
+  // NEIS 없음 → 수강계획 기반 방향 생성 (기존 prospective 로직)
+  const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
+  if (!hasNeisData) {
     const { generateProspectiveChangcheGuide } = await import("./llm/actions/generateChangcheGuide");
     const { fetchReportData } = await import("./actions/report");
     const reportResult = await fetchReportData(studentId);
     if (!reportResult.success || !reportResult.data) {
       throw new Error(reportResult.success === false ? reportResult.error : "데이터 수집 실패");
     }
-    // 세특 방향 컨텍스트 (setek_guide prospective 결과 있으면 전달)
+    // 세특 방향 컨텍스트 (setek_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let setekCtx: string | undefined;
     const { data: setekRows } = await supabase
@@ -947,6 +948,7 @@ export async function runChangcheGuide(
     return guides ? `${guides.length}개 활동유형 방향 생성 (예비)` : "창체 방향 생성 완료 (예비)";
   }
 
+  // NEIS 있음 → 기존 분석 로직
   const { generateChangcheGuide } = await import("./llm/actions/generateChangcheGuide");
   // Phase E2: 엣지 데이터 → 창체 가이드 프롬프트에 투입
   let guideEdgeSection: string | undefined;
@@ -993,17 +995,18 @@ export async function runHaengteukGuide(
   ctx: PipelineContext,
   computedEdges: PersistedEdge[] | CrossRefEdge[],
 ): Promise<TaskRunnerOutput> {
-  const { supabase, studentId, tenantId, pipelineMode, coursePlanData } = ctx;
+  const { supabase, studentId, tenantId, coursePlanData } = ctx;
 
-  // Phase V1: prospective 모드 — 수강계획+진로 기반 행특 방향 생성
-  if (pipelineMode === "prospective") {
+  // NEIS 없음 → 수강계획 기반 방향 생성 (기존 prospective 로직)
+  const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
+  if (!hasNeisData) {
     const { generateProspectiveHaengteukGuide } = await import("./llm/actions/generateHaengteukGuide");
     const { fetchReportData } = await import("./actions/report");
     const reportResult = await fetchReportData(studentId);
     if (!reportResult.success || !reportResult.data) {
       throw new Error(reportResult.success === false ? reportResult.error : "데이터 수집 실패");
     }
-    // 창체 방향 컨텍스트 (changche_guide prospective 결과 있으면 전달)
+    // 창체 방향 컨텍스트 (changche_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let changcheCtx: string | undefined;
     const { data: changcheRows } = await supabase
@@ -1029,6 +1032,7 @@ export async function runHaengteukGuide(
     return "행특 방향 생성 완료 (예비)";
   }
 
+  // NEIS 있음 → 기존 분석 로직
   const { generateHaengteukGuide } = await import("./llm/actions/generateHaengteukGuide");
   // Phase E2: 엣지 데이터 → 행특 가이드 프롬프트에 투입
   let guideEdgeSection: string | undefined;

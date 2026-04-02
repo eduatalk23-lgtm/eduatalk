@@ -245,22 +245,26 @@ export async function executePhase5(ctx: PipelineContext): Promise<void> {
 }
 
 // ============================================
-// Phase 6: 창체 + 행특 (+ prospective 학년별 루프)
+// Phase 6: 창체 + 행특 — NEIS 기반 통합 루프
 // ============================================
 
 export async function executePhase6(ctx: PipelineContext): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  if (ctx.pipelineMode === "prospective") {
-    // prospective: 학년별 setek→changche→haengteuk 순차 루프
-    // pipeline.ts line 2022-2098 로직
-    const prospectiveBaseYear = calculateSchoolYear();
+  const hasConsultingGrades =
+    ctx.consultingGrades && ctx.consultingGrades.length > 0;
+  const hasNeisGrades = ctx.neisGrades && ctx.neisGrades.length > 0;
+
+  // 컨설팅 학년 → 수강계획 기반 방향 생성 (학년별 루프)
+  // 참고: setek_guide는 Phase 5에서 이미 처리 완료 — Phase 6에서는 changche/haengteuk만 담당
+  if (hasConsultingGrades) {
+    const baseYear = calculateSchoolYear();
     const schoolYearsToGenerate: Array<{ grade: number; schoolYear: number }> =
       [];
-    for (let g = ctx.studentGrade; g <= 3; g++) {
+    for (const grade of ctx.consultingGrades!) {
       schoolYearsToGenerate.push({
-        grade: g,
-        schoolYear: prospectiveBaseYear - ctx.studentGrade + g,
+        grade,
+        schoolYear: baseYear - ctx.studentGrade + grade,
       });
     }
 
@@ -271,12 +275,8 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
       const { userId: guideUserId } = await reqAuth();
       const { fetchReportData: fetchReport } = await import("./report");
 
-      for (const { grade: tGrade, schoolYear: tYear } of schoolYearsToGenerate) {
-        // 세특 방향
-        const { generateSetekGuide } = await import(
-          "./llm/actions/generateSetekGuide"
-        );
-        await generateSetekGuide(ctx.studentId, [tGrade], undefined, tYear);
+      for (const { schoolYear: tYear } of schoolYearsToGenerate) {
+        if (await checkCancelled(ctx)) break;
 
         // 창체 방향 (세특 컨텍스트 전달)
         const { generateProspectiveChangcheGuide } = await import(
@@ -312,6 +312,8 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
             tYear,
           );
         }
+
+        if (await checkCancelled(ctx)) break;
 
         // 행특 방향 (창체 컨텍스트 전달)
         const { generateProspectiveHaengteukGuide } = await import(
@@ -354,8 +356,6 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
         }
       }
 
-      ctx.tasks["setek_guide"] = "completed";
-      ctx.previews["setek_guide"] = `${schoolYearsToGenerate.length}개 학년 세특 방향 생성`;
       ctx.tasks["changche_guide"] = "completed";
       ctx.previews["changche_guide"] = `${schoolYearsToGenerate.length}개 학년 창체 방향 생성`;
       ctx.tasks["haengteuk_guide"] = "completed";
@@ -363,10 +363,6 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
     } catch (guideErr) {
       const guideMsg =
         guideErr instanceof Error ? guideErr.message : "가이드 생성 실패";
-      ctx.tasks["setek_guide"] =
-        ctx.tasks["setek_guide"] === "completed" ? "completed" : "failed";
-      if (ctx.tasks["setek_guide"] === "failed")
-        ctx.errors["setek_guide"] = guideMsg;
       ctx.tasks["changche_guide"] =
         ctx.tasks["changche_guide"] === "completed" ? "completed" : "failed";
       if (ctx.tasks["changche_guide"] === "failed")
@@ -387,8 +383,24 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
       ctx.results,
       ctx.errors,
     );
-  } else {
-    // analysis: changche → haengteuk 순차
+  }
+
+  // NEIS 학년 → 분석형 changche/haengteuk 처리
+  if (hasNeisGrades) {
+    if (await checkCancelled(ctx)) return;
+    const edges = await loadComputedEdges(ctx);
+    await runTaskWithState(ctx, "changche_guide", () =>
+      runChangcheGuide(ctx, edges),
+    );
+    if (await checkCancelled(ctx)) return;
+    await runTaskWithState(ctx, "haengteuk_guide", () =>
+      runHaengteukGuide(ctx, edges),
+    );
+  }
+
+  // NEIS/컨설팅 모두 없음 → 단순 순차 실행 (runChangcheGuide 내부가 수강계획 기반으로 동작)
+  if (!hasConsultingGrades && !hasNeisGrades) {
+    if (await checkCancelled(ctx)) return;
     const edges = await loadComputedEdges(ctx);
     await runTaskWithState(ctx, "changche_guide", () =>
       runChangcheGuide(ctx, edges),

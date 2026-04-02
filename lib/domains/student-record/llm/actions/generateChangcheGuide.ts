@@ -230,19 +230,19 @@ export async function generateChangcheGuide(
 
       recordDataByGrade[grade] = {
         changche: data.changche
-          .filter((c) => c.content)
+          .filter((c) => c.content || c.imported_content)
           .map((c) => ({
             activity_type: c.activity_type,
-            content: c.content,
+            content: c.imported_content?.trim() ? c.imported_content : (c.content || ""),
           })),
         seteks: data.seteks
-          .filter((s) => s.content)
+          .filter((s) => s.content || s.imported_content)
           .map((s) => ({
             subject_name: subjectMap.get(s.subject_id) ?? "과목 미정",
-            content: s.content,
+            content: s.imported_content?.trim() ? s.imported_content : (s.content || ""),
           })),
-        haengteuk: data.haengteuk?.content
-          ? { content: data.haengteuk.content }
+        haengteuk: (data.haengteuk?.imported_content?.trim() || data.haengteuk?.content)
+          ? { content: data.haengteuk?.imported_content?.trim() ? data.haengteuk.imported_content : (data.haengteuk?.content ?? "") }
           : null,
       };
     }
