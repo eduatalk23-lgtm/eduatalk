@@ -218,12 +218,8 @@ export async function runInitialAnalysisPipeline(
 
     const pipelineId = pipeline.id;
 
-    // 비동기로 태스크 실행 (서버에서 계속 실행됨)
-    executePipelineTasks(pipelineId, studentId, tenantId, student).catch((err) => {
-      logActionError({ ...LOG_CTX, action: "executePipelineTasks" }, err, { pipelineId });
-    });
-
-    return createSuccessResponse({ pipelineId });
+    // API route에서 실행 트리거 (클라이언트가 호출)
+    return createSuccessResponse({ pipelineId, studentId, tenantId, studentSnapshot: student });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "runInitialAnalysisPipeline" }, error, { studentId });
     return createErrorResponse("파이프라인 시작 실패");
@@ -270,18 +266,13 @@ export async function resumePipeline(
       errors: (pipeline.error_details ?? {}) as Record<string, string>,
     };
 
-    // 비동기로 태스크 이어서 실행
-    executePipelineTasks(
+    return createSuccessResponse({
       pipelineId,
-      pipeline.student_id,
-      pipeline.tenant_id,
-      pipeline.input_snapshot as Record<string, unknown> | null,
+      studentId: pipeline.student_id,
+      tenantId: pipeline.tenant_id,
+      studentSnapshot: pipeline.input_snapshot as Record<string, unknown> | null,
       existingState,
-    ).catch((err) => {
-      logActionError({ ...LOG_CTX, action: "resumePipelineTasks" }, err, { pipelineId });
     });
-
-    return createSuccessResponse({ pipelineId });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "resumePipeline" }, error, { pipelineId });
     return createErrorResponse("파이프라인 이어서 실행 실패");
@@ -334,17 +325,13 @@ export async function rerunPipelineTasks(
       errors: (pipeline.error_details ?? {}) as Record<string, string>,
     };
 
-    executePipelineTasks(
+    return createSuccessResponse({
       pipelineId,
-      pipeline.student_id,
-      pipeline.tenant_id,
-      pipeline.input_snapshot as Record<string, unknown> | null,
+      studentId: pipeline.student_id,
+      tenantId: pipeline.tenant_id,
+      studentSnapshot: pipeline.input_snapshot as Record<string, unknown> | null,
       existingState,
-    ).catch((err) => {
-      logActionError({ ...LOG_CTX, action: "rerunPipelineTasks" }, err, { pipelineId });
     });
-
-    return createSuccessResponse({ pipelineId });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "rerunPipelineTasks" }, error, { pipelineId });
     return createErrorResponse("태스크 재실행 실패");
@@ -363,7 +350,7 @@ interface ExistingPipelineState {
   errors: Record<string, string>;
 }
 
-async function executePipelineTasks(
+export async function executePipelineTasks(
   pipelineId: string,
   studentId: string,
   tenantId: string,

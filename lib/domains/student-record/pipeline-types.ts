@@ -84,11 +84,40 @@ export interface PipelineStatus {
 }
 
 // ============================================
-// 파이프라인 내부 타입 (pipeline.ts 전용)
+// 파이프라인 내부 타입
 // ============================================
 
 /** taskResults 타입 (JSON-serializable) */
 export type PipelineTaskResults = Record<string, unknown>;
+
+/** Phase 분할 실행을 위한 파이프라인 실행 컨텍스트 */
+export interface PipelineContext {
+  pipelineId: string;
+  studentId: string;
+  tenantId: string;
+  supabase: import("@supabase/supabase-js").SupabaseClient;
+  pipelineMode: "analysis" | "prospective";
+  studentGrade: number;
+  snapshot: Record<string, unknown> | null;
+  // 태스크 상태 (매 태스크 완료 시 DB 저장)
+  tasks: Record<string, PipelineTaskStatus>;
+  previews: Record<string, string>;
+  results: PipelineTaskResults;
+  errors: Record<string, string>;
+  // 캐시 (Phase 간 DB 재조회)
+  cachedSeteks?: CachedSetek[] | null;
+  cachedChangche?: CachedChangche[] | null;
+  cachedHaengteuk?: CachedHaengteuk[] | null;
+  coursePlanData?: import("./types").CoursePlanTabData | null;
+}
+
+/** 이어서 실행 시 복원할 상태 */
+export interface ExistingPipelineState {
+  tasks: Record<string, PipelineTaskStatus>;
+  previews: Record<string, string>;
+  results: Record<string, unknown>;
+  errors: Record<string, string>;
+}
 
 /** 태스크 러너 반환 타입 */
 export type TaskRunnerOutput = string | { preview: string; result: unknown };

@@ -89,7 +89,18 @@ export function DesignPipelineResultsPanel({
   });
 
   const resumeMutation = useMutation({
-    mutationFn: () => resumePipeline(pipeline?.id ?? ""),
+    mutationFn: async () => {
+      const result = await resumePipeline(pipeline?.id ?? "");
+      if (result.success && result.data) {
+        const { pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState } = result.data;
+        fetch("/api/admin/pipeline/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState }),
+        }).catch(() => {});
+      }
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studentRecordKeys.pipeline(studentId),

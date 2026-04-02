@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { pipelineStatusQueryOptions, studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { runInitialAnalysisPipeline, cancelPipeline, resumePipeline, rerunPipelineTasks } from "@/lib/domains/student-record/actions/pipeline";
@@ -15,23 +15,16 @@ import { Sparkles, Check, Loader2, AlertCircle, X, ChevronRight, TriangleAlert, 
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 
-// ─── Phase 그룹 정의 ─────────────────────────────────────
+// ─── Phase 그룹 정의 (8-Phase 분할) ─────────────────────────────────────
 const PHASES: Array<{ label: string; description: string; keys: PipelineTaskKey[] }> = [
-  {
-    label: "Phase 1",
-    description: "기록 분석",
-    keys: ["competency_analysis", "storyline_generation", "edge_computation", "guide_matching"],
-  },
-  {
-    label: "Phase 2",
-    description: "진단 + 추천",
-    keys: ["ai_diagnosis", "course_recommendation", "bypass_analysis"],
-  },
-  {
-    label: "Phase 3",
-    description: "방향 + 전략",
-    keys: ["setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-  },
+  { label: "Phase 1", description: "역량 분석", keys: ["competency_analysis"] },
+  { label: "Phase 2", description: "스토리라인", keys: ["storyline_generation"] },
+  { label: "Phase 3", description: "연결 그래프", keys: ["edge_computation", "guide_matching"] },
+  { label: "Phase 4", description: "진단 + 매칭", keys: ["ai_diagnosis", "course_recommendation"] },
+  { label: "Phase 5", description: "진로 추천 + 세특", keys: ["bypass_analysis", "setek_guide"] },
+  { label: "Phase 6", description: "창체 + 행특", keys: ["changche_guide", "haengteuk_guide"] },
+  { label: "Phase 7", description: "요약 + 전략", keys: ["activity_summary", "ai_strategy"] },
+  { label: "Phase 8", description: "면접 + 로드맵", keys: ["interview_generation", "roadmap_generation"] },
 ];
 
 interface PipelineSidebarWidgetProps {
@@ -59,18 +52,41 @@ export function PipelineSidebarWidget({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showRerunConfirm, setShowRerunConfirm] = useState(false);
 
-  // 파이프라인 상태 폴링
+  // 파이프라인 상태 폴링 (40분 타임아웃 — 8 Phase × 5분)
+  const pollingStartRef = useRef<number | null>(null);
+  const PIPELINE_POLLING_TIMEOUT = 40 * 60 * 1000;
+
   const { data: pipeline } = useQuery({
     ...pipelineStatusQueryOptions(studentId),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "running" ? 3000 : false;
+      if (status !== "running") {
+        pollingStartRef.current = null;
+        return false;
+      }
+      if (!pollingStartRef.current) pollingStartRef.current = Date.now();
+      if (Date.now() - pollingStartRef.current > PIPELINE_POLLING_TIMEOUT) {
+        pollingStartRef.current = null;
+        return false; // 40분 초과 → 폴링 중단
+      }
+      return 3000;
     },
   });
 
-  // 실행 mutation
+  // 실행 mutation — Server Action(placeholder) + API route(실행)
   const runMutation = useMutation({
-    mutationFn: () => runInitialAnalysisPipeline(studentId, tenantId),
+    mutationFn: async () => {
+      const result = await runInitialAnalysisPipeline(studentId, tenantId);
+      if (result.success && result.data) {
+        const { pipelineId, studentId: sid, tenantId: tid, studentSnapshot } = result.data;
+        fetch("/api/admin/pipeline/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pipelineId, studentId: sid, tenantId: tid, studentSnapshot }),
+        }).catch(() => {});
+      }
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studentRecordKeys.pipeline(studentId),
@@ -90,7 +106,18 @@ export function PipelineSidebarWidget({
 
   // 이어서 분석 mutation (실패 파이프라인 재개)
   const resumeMutation = useMutation({
-    mutationFn: () => resumePipeline(pipeline?.id ?? ""),
+    mutationFn: async () => {
+      const result = await resumePipeline(pipeline?.id ?? "");
+      if (result.success && result.data) {
+        const { pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState } = result.data;
+        fetch("/api/admin/pipeline/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState }),
+        }).catch(() => {});
+      }
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studentRecordKeys.pipeline(studentId),
@@ -101,9 +128,18 @@ export function PipelineSidebarWidget({
   // P2-3: 개별 태스크 재실행 mutation
   const [rerunningTask, setRerunningTask] = useState<string | null>(null);
   const rerunTaskMutation = useMutation({
-    mutationFn: (taskKey: PipelineTaskKey) => {
+    mutationFn: async (taskKey: PipelineTaskKey) => {
       setRerunningTask(taskKey);
-      return rerunPipelineTasks(pipeline?.id ?? "", [taskKey]);
+      const result = await rerunPipelineTasks(pipeline?.id ?? "", [taskKey]);
+      if (result.success && result.data) {
+        const { pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState } = result.data;
+        fetch("/api/admin/pipeline/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState }),
+        }).catch(() => {});
+      }
+      return result;
     },
     onSettled: () => setRerunningTask(null),
     onSuccess: () => {

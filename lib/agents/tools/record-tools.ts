@@ -788,14 +788,33 @@ ${tagsSummary}
               taskKeys as PipelineTaskKey[],
             );
             if (!result.success) return toolError(result.error ?? "파이프라인 재실행 실패.", { retryable: true, actionHint: "다시 시도하세요." });
+
+            // API route로 실행 트리거
+            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+            const { pipelineId: pid, studentId: sid, tenantId: tid, studentSnapshot, existingState } = result.data!;
+            fetch(`${baseUrl}/api/admin/pipeline/run`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pipelineId: pid, studentId: sid, tenantId: tid, studentSnapshot, existingState }),
+            }).catch(() => {});
+
             return {
               success: true,
-              data: { pipelineId: result.data!.pipelineId, mode: "rerun", tasks: taskKeys },
+              data: { pipelineId: pid, mode: "rerun", tasks: taskKeys },
             };
           }
 
           const result = await runInitialAnalysisPipeline(ctx.studentId, ctx.tenantId);
           if (!result.success) return toolError(result.error ?? "파이프라인 실행 실패.", { retryable: true, actionHint: "다시 시도하세요." });
+
+          // API route로 실행 트리거
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+          const { pipelineId: pid2, studentId: sid2, tenantId: tid2, studentSnapshot: snap } = result.data!;
+          fetch(`${baseUrl}/api/admin/pipeline/run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pipelineId: pid2, studentId: sid2, tenantId: tid2, studentSnapshot: snap }),
+          }).catch(() => {});
           return {
             success: true,
             data: {
