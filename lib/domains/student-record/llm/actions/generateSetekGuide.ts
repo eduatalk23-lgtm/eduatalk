@@ -163,13 +163,18 @@ export async function generateSetekGuide(
     for (const [id, name] of subjectMap) nameToSubjectId.set(name, id);
 
     // 기존 AI 가이드 삭제 (재생성 시 중복 방지)
-    await supabase
+    const { error: deleteError } = await supabase
       .from("student_record_setek_guides")
       .delete()
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("school_year", currentSchoolYear)
       .eq("source", "ai");
+
+    if (deleteError) {
+      logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert" });
+      return { success: false, error: `기존 가이드 삭제 실패: ${deleteError.message}` };
+    }
 
     const rows = parsed.guides
       .map((g, i) => {
@@ -207,8 +212,8 @@ export async function generateSetekGuide(
       .single();
 
     if (insertError || !inserted) {
-      logActionError(LOG_CTX, insertError);
-      return { success: false, error: "가이드 저장 실패" };
+      logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length });
+      return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
     }
 
     // 파이프라인 상태 동기화 (fire-and-forget)
@@ -328,13 +333,18 @@ async function generateProspectiveSetekGuide(
   }
 
   // 기존 AI 가이드 삭제
-  await supabase
+  const { error: deleteError } = await supabase
     .from("student_record_setek_guides")
     .delete()
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("school_year", currentSchoolYear)
     .eq("source", "ai");
+
+  if (deleteError) {
+    logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert_prospective" });
+    return { success: false, error: `기존 가이드 삭제 실패: ${deleteError.message}` };
+  }
 
   const rows = parsed.guides
     .map((g, i) => {
@@ -372,8 +382,8 @@ async function generateProspectiveSetekGuide(
     .single();
 
   if (insertError || !inserted) {
-    logActionError(LOG_CTX, insertError);
-    return { success: false, error: "가이드 저장 실패" };
+    logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length, mode: "prospective" });
+    return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
   }
 
   syncPipelineTaskStatus(studentId, "setek_guide").catch((err) =>
