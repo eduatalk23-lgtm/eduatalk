@@ -651,18 +651,6 @@ export async function runAiDiagnosis(
 ): Promise<TaskRunnerOutput> {
   const { supabase, studentId, tenantId, pipelineId, studentGrade, snapshot, tasks, coursePlanData, neisGrades } = ctx;
 
-  // NEIS 학년이 전혀 없으면 수강계획 기반 예비 진단 생성 (기존 prospective 동작 유지)
-  const hasNeisData = neisGrades && neisGrades.length > 0;
-  if (!hasNeisData) {
-    const { generateProspectiveDiagnosis } = await import("./llm/actions/generateDiagnosis");
-    const result = await generateProspectiveDiagnosis(studentId, tenantId, coursePlanData ?? null, snapshot);
-    if (!result.success) throw new Error(result.error);
-    return {
-      preview: `예비 진단 생성 (수강계획 기반, 방향: ${result.data.directionStrength})`,
-      result: { weaknesses: result.data.weaknesses, improvements: result.data.improvements },
-    };
-  }
-
   const currentSchoolYear = calculateSchoolYear();
 
   const [scores, tags] = await Promise.all([
@@ -670,9 +658,18 @@ export async function runAiDiagnosis(
     competencyRepo.findActivityTags(studentId, tenantId),
   ]);
 
-  if (scores.length === 0 && tags.length === 0) {
+  // NEIS 학년이 없어 역량 데이터가 0건이면 수강계획 기반 예비 진단으로 전환.
+  // generateAiDiagnosis 내부에서 coursePlanContext가 있으면 자동으로 수강계획 경로를 탄다.
+  const hasNeisData = neisGrades && neisGrades.length > 0;
+
+  // NEIS가 있는데 역량 데이터까지 0건이면 역량 분석이 아직 실행되지 않은 것 → 건너뜀
+  if (hasNeisData && scores.length === 0 && tags.length === 0) {
     return "역량 데이터 없음 — 건너뜀";
   }
+
+  const coursePlanContext = !hasNeisData
+    ? { studentId, tenantId, coursePlanData: coursePlanData ?? null, snapshot }
+    : undefined;
 
   const { generateAiDiagnosis } = await import("./llm/actions/generateDiagnosis");
   // Phase E2: 엣지 데이터 → 진단 프롬프트에 투입
@@ -753,7 +750,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq);
+  }, edgeCompetencyFreq, coursePlanContext);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({
@@ -774,8 +771,9 @@ export async function runAiDiagnosis(
   } as DiagnosisInsert);
 
   const warnSuffix = result.data.warnings?.length ? ` ⚠️ ${result.data.warnings.join(", ")}` : "";
+  const diagLabel = hasNeisData ? "종합진단" : "예비진단(수강계획 기반)";
   return {
-    preview: `종합진단 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
+    preview: `${diagLabel} 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
     result: { weaknesses: result.data.weaknesses, improvements: result.data.improvements },
   };
 }

@@ -1072,17 +1072,6 @@ export async function executePipelineTasks(
     {
       key: "ai_diagnosis",
       run: async () => {
-        // NEIS 없음 → 수강계획+진로 기반 예비 진단 생성
-        if (!hasNeisData) {
-          const { generateProspectiveDiagnosis } = await import("../llm/actions/generateDiagnosis");
-          const result = await generateProspectiveDiagnosis(studentId, tenantId, coursePlanData, snapshot);
-          if (!result.success) throw new Error(result.error);
-          return {
-            preview: `예비 진단 생성 (수강계획 기반, 방향: ${result.data.directionStrength})`,
-            result: { weaknesses: result.data.weaknesses, improvements: result.data.improvements },
-          };
-        }
-
         const currentSchoolYear = calculateSchoolYear();
 
         const [scores, tags] = await Promise.all([
@@ -1090,7 +1079,9 @@ export async function executePipelineTasks(
           competencyRepo.findActivityTags(studentId, tenantId),
         ]);
 
-        if (scores.length === 0 && tags.length === 0) {
+        // NEIS 없고 역량 데이터도 없으면 수강계획 기반 진단으로 전환
+        // generateAiDiagnosis가 coursePlanContext를 받으면 내부에서 수강계획 기반 진단 생성
+        if (scores.length === 0 && tags.length === 0 && !coursePlanData?.plans?.length) {
           return "역량 데이터 없음 — 건너뜀";
         }
 
@@ -1158,6 +1149,19 @@ export async function executePipelineTasks(
           }
         }
 
+        // 수강계획 컨텍스트 (NEIS 없는 학생 또는 혼합 케이스에서 활용)
+        const coursePlanContext = coursePlanData?.plans?.length ? {
+          plans: coursePlanData.plans
+            .filter((p) => p.plan_status === "confirmed" || p.plan_status === "recommended")
+            .map((p) => ({
+              grade: p.grade,
+              semester: p.semester,
+              subjectName: p.subject?.name ?? "과목 미정",
+              subjectType: p.subject?.subject_type?.name ?? undefined,
+            })),
+          targetMajor: (snapshot?.target_major as string) ?? undefined,
+        } : undefined;
+
         const result = await generateAiDiagnosis(scores, tags, {
           targetMajor: (snapshot?.target_major as string) ?? undefined,
           schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -1173,7 +1177,7 @@ export async function executePipelineTasks(
             careerRate: diagCourseAdequacy.careerRate,
             fusionRate: diagCourseAdequacy.fusionRate,
           } : null,
-        }, edgeCompetencyFreq);
+        }, edgeCompetencyFreq, coursePlanContext);
         if (!result.success) throw new Error(result.error);
 
         await diagnosisRepo.upsertDiagnosis({
