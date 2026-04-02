@@ -649,10 +649,11 @@ export async function runAiDiagnosis(
   computedEdges: PersistedEdge[] | CrossRefEdge[],
   sharedCourseAdequacy: CourseAdequacyResult | null,
 ): Promise<TaskRunnerOutput> {
-  const { supabase, studentId, tenantId, pipelineId, pipelineMode, studentGrade, snapshot, tasks, coursePlanData } = ctx;
+  const { supabase, studentId, tenantId, pipelineId, pipelineMode, studentGrade, snapshot, tasks, coursePlanData, neisGrades } = ctx;
 
-  // Phase V1: prospective 모드 — 수강계획+진로 기반 예비 진단 생성
-  if (pipelineMode === "prospective") {
+  // NEIS 학년이 전혀 없으면 수강계획 기반 예비 진단 생성 (기존 prospective 동작 유지)
+  const hasNeisData = neisGrades && neisGrades.length > 0;
+  if (!hasNeisData) {
     const { generateProspectiveDiagnosis } = await import("./llm/actions/generateDiagnosis");
     const result = await generateProspectiveDiagnosis(studentId, tenantId, coursePlanData ?? null, snapshot);
     if (!result.success) throw new Error(result.error);
