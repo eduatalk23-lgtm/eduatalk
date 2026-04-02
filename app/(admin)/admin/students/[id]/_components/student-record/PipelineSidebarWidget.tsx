@@ -116,12 +116,15 @@ export function PipelineSidebarWidget({
     }
   }, [isRunning, pipelineTasks, pipelineId]);
 
-  // pendingPhase가 설정되면 API 호출
+  // pendingPhase가 설정되면 API 호출 (중복 방지 + 재시도 쿨다운)
   const calledPhaseRef = useRef<number | null>(null);
+  const phaseFetchingRef = useRef(false);
   useEffect(() => {
     if (pendingPhase === null || !pendingPipelineId) return;
     if (calledPhaseRef.current === pendingPhase) return;
+    if (phaseFetchingRef.current) return; // 이전 fetch 진행 중 → 대기
     calledPhaseRef.current = pendingPhase;
+    phaseFetchingRef.current = true;
 
     const route = pendingPhase === 1
       ? "/api/admin/pipeline/run"
@@ -131,8 +134,16 @@ export function PipelineSidebarWidget({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pipelineId: pendingPipelineId }),
     })
-      .then(() => { calledPhaseRef.current = null; setPendingPhase(null); })
-      .catch(() => { calledPhaseRef.current = null; setPendingPhase(null); });
+      .then(() => {
+        phaseFetchingRef.current = false;
+        calledPhaseRef.current = null;
+        setPendingPhase(null);
+      })
+      .catch(() => {
+        phaseFetchingRef.current = false;
+        // 에러 시 30초 쿨다운 후 재시도 허용
+        setTimeout(() => { calledPhaseRef.current = null; setPendingPhase(null); }, 30_000);
+      });
   }, [pendingPhase, pendingPipelineId]);
 
   // 실행 mutation — Server Action(placeholder) + API route(실행)
