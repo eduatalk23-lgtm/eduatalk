@@ -89,9 +89,11 @@ export function PipelineSidebarWidget({
   // ─── 클라이언트 주도 Phase 순차 실행 ─────────────────────────
   // 폴링에서 현재 Phase 완료를 감지하면 다음 Phase API를 호출
   const runningPhaseRef = useRef<number | null>(null);
+  const phaseDriverStatus = pipeline?.status ?? null;
+  const tasksJson = pipeline ? JSON.stringify(pipeline.tasks) : "";
 
   useEffect(() => {
-    if (!pipeline || pipeline.status !== "running") {
+    if (!pipeline || phaseDriverStatus !== "running") {
       runningPhaseRef.current = null;
       return;
     }
@@ -115,7 +117,7 @@ export function PipelineSidebarWidget({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pipelineId: pipeline.id }),
     }).catch(() => {});
-  }, [pipeline]);
+  }, [phaseDriverStatus, tasksJson, pipeline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 실행 mutation — Server Action(placeholder) + API route(실행)
   const runMutation = useMutation({
