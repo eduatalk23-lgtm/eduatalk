@@ -34,6 +34,7 @@ type ActivityTagLike = AnalysisTagLike;
 
 export interface SetekGuideItemLike {
   subjectName: string;
+  schoolYear: number;
   keywords: string[];
   direction: string;
   competencyFocus?: string[];

@@ -52,6 +52,7 @@ type GuideAssignmentLike = {
 export interface ChangcheGuideItemLike {
   activityType: string;
   activityLabel: string;
+  schoolYear: number;
   keywords: string[];
   direction: string;
   competencyFocus?: string[];

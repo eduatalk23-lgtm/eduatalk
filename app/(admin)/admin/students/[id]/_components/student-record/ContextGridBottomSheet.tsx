@@ -81,7 +81,7 @@ interface ContextGridBottomSheetProps {
   setekGuideItems?: SetekGuideItemLike[];
   subjectNavList?: SubjectNavItem[];
   changcheGuideItems?: ChangcheGuideItemLike[];
-  haengteukGuideItem?: HaengteukGuideItemLike;
+  haengteukGuideItems?: HaengteukGuideItemLike[];
 }
 
 // ─── 메인 컴포넌트 ──
@@ -92,7 +92,7 @@ export function ContextGridBottomSheet({
   setekGuideItems,
   subjectNavList,
   changcheGuideItems,
-  haengteukGuideItem,
+  haengteukGuideItems,
 }: ContextGridBottomSheetProps) {
   const ctx = useStudentRecordContext();
   const { activeSubjectId, activeSchoolYear, activeSubjectName, studentId, tenantId } = ctx;
@@ -282,8 +282,10 @@ export function ContextGridBottomSheet({
 
   const filteredDirection = useMemo(() => {
     if (!setekGuideItems || !activeSubjectName) return [];
-    return setekGuideItems.filter((g) => g.subjectName === activeSubjectName);
-  }, [setekGuideItems, activeSubjectName]);
+    return setekGuideItems.filter(
+      (g) => g.subjectName === activeSubjectName && g.schoolYear === activeSchoolYear,
+    );
+  }, [setekGuideItems, activeSubjectName, activeSchoolYear]);
 
   const charLimit = getCharLimit("setek", activeSchoolYear ?? 0);
   const grade = subjectRecords[0]?.grade ?? 1;
@@ -471,7 +473,9 @@ export function ContextGridBottomSheet({
               grade={changcheRecord.grade ?? 1}
               tags={nonSetekTags}
               guideAssignments={guideAssignments ?? []}
-              guideItem={changcheGuideItems?.find((g) => g.activityType === changcheRecord.activity_type)}
+              guideItem={changcheGuideItems?.find(
+                (g) => g.activityType === changcheRecord.activity_type && g.schoolYear === activeSchoolYear,
+              )}
             />
           ) : activeKind === "haengteuk" ? (
             <ContextGridHaengteuk
@@ -485,7 +489,7 @@ export function ContextGridBottomSheet({
               grade={haengteukRecord?.grade ?? 1}
               tags={nonSetekTags}
               guideAssignments={guideAssignments ?? []}
-              guideItem={haengteukGuideItem}
+              guideItem={haengteukGuideItems?.find((g) => g.schoolYear === activeSchoolYear)}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

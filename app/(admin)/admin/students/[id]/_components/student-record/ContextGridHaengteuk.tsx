@@ -49,6 +49,7 @@ type GuideAssignmentLike = {
 };
 
 export interface HaengteukGuideItemLike {
+  schoolYear: number;
   keywords: string[];
   direction: string;
   competencyFocus?: string[];

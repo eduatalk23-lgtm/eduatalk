@@ -293,6 +293,7 @@ export function StudentRecordClient({
     const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
     const items = setekGuidesRes.data.map((row) => ({
       subjectName: subjectMap.get(row.subject_id) ?? row.subject_id,
+      schoolYear: row.school_year,
       keywords: row.keywords ?? [],
       direction: row.direction,
       competencyFocus: row.competency_focus,
@@ -321,6 +322,7 @@ export function StudentRecordClient({
     const items = changcheGuidesRes.data.map((row) => ({
       activityType: row.activity_type,
       activityLabel: LABELS[row.activity_type] ?? row.activity_type,
+      schoolYear: row.school_year,
       keywords: row.keywords ?? [],
       direction: row.direction,
       competencyFocus: row.competency_focus,
@@ -329,18 +331,19 @@ export function StudentRecordClient({
     }));
     return items.length > 0 ? items : undefined;
   }, [changcheGuidesRes]);
-  const transformedHaengteukGuideItem = useMemo(() => {
+  const transformedHaengteukGuideItems = useMemo(() => {
     if (!haengteukGuideRes?.success || !haengteukGuideRes.data) return undefined;
-    const row = Array.isArray(haengteukGuideRes.data) ? haengteukGuideRes.data[0] : haengteukGuideRes.data;
-    if (!row) return undefined;
-    return {
+    const rows = Array.isArray(haengteukGuideRes.data) ? haengteukGuideRes.data : [haengteukGuideRes.data];
+    const items = rows.map((row) => ({
+      schoolYear: row.school_year,
       keywords: row.keywords ?? [],
       direction: row.direction,
       competencyFocus: row.competency_focus,
       cautions: row.cautions ?? undefined,
       teacherPoints: row.teacher_points,
       evaluationItems: row.evaluation_items as Array<{ item: string; score: string; reasoning: string }> | undefined,
-    };
+    }));
+    return items.length > 0 ? items : undefined;
   }, [haengteukGuideRes]);
 
   const assignmentIds = useMemo(
@@ -1454,7 +1457,7 @@ export function StudentRecordClient({
                         grade={p.grade}
                         diagnosisActivityTags={diagnosisData?.activityTags}
                         guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
-                        haengteukGuideItem={transformedHaengteukGuideItem}
+                        haengteukGuideItem={transformedHaengteukGuideItems?.find((g) => g.schoolYear === p.schoolYear)}
                         activeTab={globalSetekTab}
                         onTabChange={setGlobalSetekTab}
                       />
@@ -1756,7 +1759,7 @@ export function StudentRecordClient({
       setekGuideItems={transformedSetekGuideItems}
       subjectNavList={subjectNavList}
       changcheGuideItems={transformedChangcheGuideItems}
-      haengteukGuideItem={transformedHaengteukGuideItem}
+      haengteukGuideItems={transformedHaengteukGuideItems}
     />
     <ContextTopSheet
       isOpen={topSheetOpen}
