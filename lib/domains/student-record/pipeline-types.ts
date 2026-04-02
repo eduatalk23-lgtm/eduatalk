@@ -19,6 +19,7 @@ export const PIPELINE_TASK_KEYS = [
   "edge_computation",        // 3rd: 태그+스토리라인 → 7종 엣지 영속화
   "ai_diagnosis",            // 4th: 역량+엣지 → 종합진단(강점/약점)
   "course_recommendation",   // 5th: 수강 추천 (독립)
+  "slot_generation",         // 5.5th: NEIS 없는 학년의 세특/창체/행특 슬롯 자동 생성
   "guide_matching",          // 6th: 가이드 배정 (독립)
   "bypass_analysis",         // 7th: 우회학과 분석 (독립, Phase 2)
   "setek_guide",             // 8th: 진단+엣지 → 세특 방향
@@ -38,6 +39,7 @@ export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
   edge_computation: "연결 분석",
   ai_diagnosis: "종합 진단",
   course_recommendation: "수강 추천",
+  slot_generation: "슬롯 생성",
   guide_matching: "가이드 매칭",
   bypass_analysis: "우회학과 분석",
   setek_guide: "세특 방향",
@@ -56,6 +58,7 @@ export const PIPELINE_TASK_TIMEOUTS: Record<PipelineTaskKey, number> = {
   edge_computation: 60_000,       // CPU 기반
   ai_diagnosis: 180_000,          // 3분 (복합 LLM)
   course_recommendation: 120_000,
+  slot_generation: 30_000,        // 30초 (DB upsert 위주)
   guide_matching: 60_000,         // DB 조회 위주
   bypass_analysis: 120_000,
   setek_guide: 120_000,

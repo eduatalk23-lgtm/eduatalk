@@ -18,6 +18,7 @@ import {
   runGuideMatching,
   runAiDiagnosis,
   runCourseRecommendation,
+  runSlotGeneration,
   runBypassAnalysis,
   runSetekGuide,
   runChangcheGuide,
@@ -113,6 +114,7 @@ async function checkIncrementalCacheOptimization(
   const phase23Keys = [
     "ai_diagnosis",
     "course_recommendation",
+    "slot_generation",
     "guide_matching",
     "bypass_analysis",
     "setek_guide",
@@ -224,7 +226,14 @@ export async function executePhase4(ctx: PipelineContext): Promise<boolean> {
         runCourseRecommendation(ctx),
       ),
     ]);
+    // NEIS 학년 있는 경우: course_recommendation 완료 후 coursePlanData 재조회
+    await refreshCoursePlanData(ctx);
   }
+
+  // 슬롯 생성: consultingGrades (NEIS 없는 학년)에 세특/창체/행특 빈 슬롯 확보
+  // course_recommendation 이후 실행하여 추천 과목을 coursePlanData에 반영한 후 슬롯 생성
+  if (await checkCancelled(ctx)) return false;
+  await runTaskWithState(ctx, "slot_generation", () => runSlotGeneration(ctx));
 
   return false;
 }

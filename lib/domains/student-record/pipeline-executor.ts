@@ -166,8 +166,8 @@ export function getNextPhase(tasks: Record<string, string>): number {
   if (tasks.storyline_generation !== "completed") return 2;
   // Phase 3: edge_computation, guide_matching
   if (tasks.edge_computation !== "completed" || tasks.guide_matching !== "completed") return 3;
-  // Phase 4: ai_diagnosis, course_recommendation
-  if (tasks.ai_diagnosis !== "completed" || tasks.course_recommendation !== "completed") return 4;
+  // Phase 4: ai_diagnosis, course_recommendation, slot_generation
+  if (tasks.ai_diagnosis !== "completed" || tasks.course_recommendation !== "completed" || tasks.slot_generation !== "completed") return 4;
   // Phase 5: bypass_analysis, setek_guide
   if (tasks.bypass_analysis !== "completed" || tasks.setek_guide !== "completed") return 5;
   // Phase 6: changche_guide, haengteuk_guide

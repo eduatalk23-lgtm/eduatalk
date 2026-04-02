@@ -795,6 +795,30 @@ export async function runCourseRecommendation(ctx: PipelineContext): Promise<Tas
 }
 
 // ============================================
+// 5-b. 슬롯 생성 (NEIS 없는 컨설팅 학년)
+// ============================================
+
+export async function runSlotGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  const { studentId, tenantId, studentGrade, consultingGrades, coursePlanData, supabase } = ctx;
+
+  if (!consultingGrades || consultingGrades.length === 0) {
+    return "NEIS 미확보 학년 없음 — 슬롯 생성 불필요";
+  }
+
+  const { ensureConsultingGradeSlots } = await import("./pipeline-slot-generator");
+  const result = await ensureConsultingGradeSlots({
+    studentId,
+    tenantId,
+    studentGrade,
+    consultingGrades,
+    coursePlanData: coursePlanData ?? null,
+    supabase,
+  });
+
+  return `슬롯 생성: 세특 ${result.setekCount}과목, 창체 ${result.changcheCount}영역, 행특 ${result.haengteukCount}건`;
+}
+
+// ============================================
 // 6. 가이드 매칭 + 배정
 // ============================================
 
