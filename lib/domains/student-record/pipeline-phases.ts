@@ -236,19 +236,12 @@ export async function executePhase4(ctx: PipelineContext): Promise<boolean> {
 export async function executePhase5(ctx: PipelineContext): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  if (ctx.pipelineMode === "prospective") {
-    // prospective: bypass만 (setek은 Phase 6에서 학년별 루프)
-    await runTaskWithState(ctx, "bypass_analysis", () =>
-      runBypassAnalysis(ctx),
-    );
-  } else {
-    // analysis: bypass + setek 병렬
-    const edges = await loadComputedEdges(ctx);
-    await Promise.allSettled([
-      runTaskWithState(ctx, "bypass_analysis", () => runBypassAnalysis(ctx)),
-      runTaskWithState(ctx, "setek_guide", () => runSetekGuide(ctx, edges)),
-    ]);
-  }
+  // bypass + setek 병렬 (prospective에서도 setek 실행 — Phase 6 학년별 루프와 별개)
+  const edges = await loadComputedEdges(ctx);
+  await Promise.allSettled([
+    runTaskWithState(ctx, "bypass_analysis", () => runBypassAnalysis(ctx)),
+    runTaskWithState(ctx, "setek_guide", () => runSetekGuide(ctx, edges)),
+  ]);
 }
 
 // ============================================
