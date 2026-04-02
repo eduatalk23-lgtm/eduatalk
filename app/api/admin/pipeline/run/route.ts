@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { loadPipelineContext, chainToNextPhase } from "@/lib/domains/student-record/pipeline-executor";
+import { loadPipelineContext } from "@/lib/domains/student-record/pipeline-executor";
 import { executePhase1 } from "@/lib/domains/student-record/pipeline-phases";
 import type { ExistingPipelineState } from "@/lib/domains/student-record/pipeline-types";
 import { PIPELINE_TASK_KEYS } from "@/lib/domains/student-record/pipeline-types";
@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
     await executePhase1(ctx);
 
     // Phase 2로 체이닝 (fetch 요청이 보내질 때까지 대기)
-    await chainToNextPhase(2, pipelineId);
 
     return NextResponse.json({ phase: 1, completed: true });
   } catch (error) {

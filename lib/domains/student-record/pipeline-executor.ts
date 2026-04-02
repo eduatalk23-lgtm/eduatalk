@@ -154,44 +154,28 @@ export async function runTaskWithState(
 }
 
 // ============================================
-// chainToNextPhase
+// Phase 판별 (클라이언트 주도 순차 실행용)
 // ============================================
 
-/**
- * 다음 Phase API route를 fire-and-forget으로 호출한다.
- * 체이닝 실패 시 에러를 무시 — 사용자가 resume으로 이어서 실행 가능.
- */
-export async function chainToNextPhase(
-  nextPhase: number,
-  pipelineId: string,
-): Promise<void> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-
-  const url = `${baseUrl}/api/admin/pipeline/phase-${nextPhase}`;
-
-  // fetch를 await — 다음 Phase route가 응답할 때까지 현재 함수 유지
-  // 다음 Phase의 응답(200)은 즉시 반환되지 않지만,
-  // Vercel에서 요청이 수락되면 독립 함수로 실행됨
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipelineId }),
-    });
-    logActionDebug(
-      LOG_CTX,
-      `Phase ${nextPhase} chain: ${res.status}`,
-      { pipelineId },
-    );
-  } catch (err) {
-    logActionWarn(
-      LOG_CTX,
-      `Phase ${nextPhase} chain call failed — user can resume manually`,
-      { pipelineId, error: String(err) },
-    );
-  }
+/** 현재 태스크 상태에서 다음 실행할 Phase 번호 반환. 모두 완료면 0. */
+export function getNextPhase(tasks: Record<string, string>): number {
+  // Phase 1: competency_analysis
+  if (tasks.competency_analysis !== "completed") return 1;
+  // Phase 2: storyline_generation
+  if (tasks.storyline_generation !== "completed") return 2;
+  // Phase 3: edge_computation, guide_matching
+  if (tasks.edge_computation !== "completed" || tasks.guide_matching !== "completed") return 3;
+  // Phase 4: ai_diagnosis, course_recommendation
+  if (tasks.ai_diagnosis !== "completed" || tasks.course_recommendation !== "completed") return 4;
+  // Phase 5: bypass_analysis, setek_guide
+  if (tasks.bypass_analysis !== "completed" || tasks.setek_guide !== "completed") return 5;
+  // Phase 6: changche_guide, haengteuk_guide
+  if (tasks.changche_guide !== "completed" || tasks.haengteuk_guide !== "completed") return 6;
+  // Phase 7: activity_summary, ai_strategy
+  if (tasks.activity_summary !== "completed" || tasks.ai_strategy !== "completed") return 7;
+  // Phase 8: interview_generation, roadmap_generation
+  if (tasks.interview_generation !== "completed" || tasks.roadmap_generation !== "completed") return 8;
+  return 0; // 전부 완료
 }
 
 // ============================================

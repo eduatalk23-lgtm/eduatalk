@@ -10,7 +10,6 @@ import {
   runTaskWithState,
   checkCancelled,
   updatePipelineState,
-  chainToNextPhase,
 } from "./pipeline-executor";
 import {
   runCompetencyAnalysis,
@@ -455,5 +454,3 @@ export async function executePhase8(ctx: PipelineContext): Promise<void> {
   );
 }
 
-// chainToNextPhase는 pipeline-executor에서 re-export (편의용)
-export { chainToNextPhase };

@@ -27,6 +27,19 @@ const PHASES: Array<{ label: string; description: string; keys: PipelineTaskKey[
   { label: "Phase 8", description: "면접 + 로드맵", keys: ["interview_generation", "roadmap_generation"] },
 ];
 
+/** 현재 태스크 상태에서 다음 실행할 Phase 번호 반환. 모두 완료면 0. */
+function getNextPhaseFromTasks(tasks: Record<string, PipelineTaskStatus>): number {
+  if (tasks.competency_analysis !== "completed") return 1;
+  if (tasks.storyline_generation !== "completed") return 2;
+  if (tasks.edge_computation !== "completed" || tasks.guide_matching !== "completed") return 3;
+  if (tasks.ai_diagnosis !== "completed" || tasks.course_recommendation !== "completed") return 4;
+  if (tasks.bypass_analysis !== "completed" || tasks.setek_guide !== "completed") return 5;
+  if (tasks.changche_guide !== "completed" || tasks.haengteuk_guide !== "completed") return 6;
+  if (tasks.activity_summary !== "completed" || tasks.ai_strategy !== "completed") return 7;
+  if (tasks.interview_generation !== "completed" || tasks.roadmap_generation !== "completed") return 8;
+  return 0;
+}
+
 interface PipelineSidebarWidgetProps {
   studentId: string;
   tenantId: string;
@@ -72,6 +85,37 @@ export function PipelineSidebarWidget({
       return 3000;
     },
   });
+
+  // ─── 클라이언트 주도 Phase 순차 실행 ─────────────────────────
+  // 폴링에서 현재 Phase 완료를 감지하면 다음 Phase API를 호출
+  const runningPhaseRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!pipeline || pipeline.status !== "running") {
+      runningPhaseRef.current = null;
+      return;
+    }
+
+    const tasks = pipeline.tasks;
+    // 모든 태스크 중 하나라도 "running"이면 현재 Phase 실행 중 → 대기
+    const hasRunningTask = Object.values(tasks).some((s) => s === "running");
+    if (hasRunningTask) return;
+
+    // 다음 실행할 Phase 판별
+    const nextPhase = getNextPhaseFromTasks(tasks);
+    if (nextPhase === 0) return; // 전부 완료 → 서버에서 상태 갱신됨
+
+    // 이미 이 Phase를 호출했으면 중복 방지
+    if (runningPhaseRef.current === nextPhase) return;
+    runningPhaseRef.current = nextPhase;
+
+    const phaseRoute = nextPhase === 1 ? "/api/admin/pipeline/run" : `/api/admin/pipeline/phase-${nextPhase}`;
+    fetch(phaseRoute, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipelineId: pipeline.id }),
+    }).catch(() => {});
+  }, [pipeline]);
 
   // 실행 mutation — Server Action(placeholder) + API route(실행)
   const runMutation = useMutation({

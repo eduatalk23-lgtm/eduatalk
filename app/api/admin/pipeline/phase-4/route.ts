@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import {
   loadPipelineContext,
-  chainToNextPhase,
 } from "@/lib/domains/student-record/pipeline-executor";
 import { executePhase4 } from "@/lib/domains/student-record/pipeline-phases";
 
@@ -23,7 +22,6 @@ export async function POST(request: NextRequest) {
 
     // 캐시 최적화로 완료된 경우 체이닝 불필요
     if (!cacheCompleted) {
-      await chainToNextPhase(5, pipelineId);
     }
 
     return NextResponse.json({ phase: 4, completed: true, cacheCompleted });

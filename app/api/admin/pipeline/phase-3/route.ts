@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import {
   loadPipelineContext,
-  chainToNextPhase,
 } from "@/lib/domains/student-record/pipeline-executor";
 import { executePhase3 } from "@/lib/domains/student-record/pipeline-phases";
 
@@ -21,7 +20,6 @@ export async function POST(request: NextRequest) {
     const ctx = await loadPipelineContext(pipelineId);
     await executePhase3(ctx);
 
-    await chainToNextPhase(4, pipelineId);
     return NextResponse.json({ phase: 3, completed: true });
   } catch (error) {
     logActionError(
