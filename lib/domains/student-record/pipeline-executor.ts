@@ -171,19 +171,26 @@ export async function chainToNextPhase(
 
   const url = `${baseUrl}/api/admin/pipeline/phase-${nextPhase}`;
 
-  // fetch를 보내되 응답은 기다리지 않음 (다음 Phase가 독립 5분을 사용)
-  // AbortController로 1초 후 연결을 끊어 현재 함수가 빠르게 종료되게 함
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(), 5000); // 5초 여유
+  // fetch를 await — 다음 Phase route가 응답할 때까지 현재 함수 유지
+  // 다음 Phase의 응답(200)은 즉시 반환되지 않지만,
+  // Vercel에서 요청이 수락되면 독립 함수로 실행됨
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pipelineId }),
-      signal: controller.signal,
     });
-  } catch {
-    // AbortError 또는 네트워크 에러 — 요청은 이미 서버에 도달했을 가능성 높음
+    logActionDebug(
+      LOG_CTX,
+      `Phase ${nextPhase} chain: ${res.status}`,
+      { pipelineId },
+    );
+  } catch (err) {
+    logActionWarn(
+      LOG_CTX,
+      `Phase ${nextPhase} chain call failed — user can resume manually`,
+      { pipelineId, error: String(err) },
+    );
   }
 }
 
