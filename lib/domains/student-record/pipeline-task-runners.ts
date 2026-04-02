@@ -875,19 +875,18 @@ export async function runSetekGuide(
   computedEdges: PersistedEdge[] | CrossRefEdge[],
 ): Promise<TaskRunnerOutput> {
   const { studentId, tenantId } = ctx;
+  const hasNeisGrades = ctx.neisGrades && ctx.neisGrades.length > 0;
+  const hasConsultingGrades = ctx.consultingGrades && ctx.consultingGrades.length > 0;
 
-  const { generateSetekGuide } = await import("./llm/actions/generateSetekGuide");
-  // Phase E2: 엣지 데이터 → 가이드 프롬프트에 투입
+  // 공통 컨텍스트 준비
   let guideEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
     const { buildEdgePromptSection } = await import("./edge-summary");
     guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
   }
-  // Phase 6: 가이드 배정 컨텍스트 → 방향 프롬프트에 투입
   const { buildGuideContextSection } = await import("./guide-context");
   const guideContextSection = await buildGuideContextSection(studentId, "guide");
 
-  // 진단 improvements → 세특 방향에 보완 우선순위 컨텍스트 제공
   let improvementsSection: string | undefined;
   const currentYear = calculateSchoolYear();
   const diagForGuide = await diagnosisRepo.findDiagnosis(studentId, currentYear, tenantId, "ai");
@@ -897,10 +896,33 @@ export async function runSetekGuide(
   }
 
   const extraSections = [guideEdgeSection, guideContextSection, improvementsSection].filter(Boolean).join("\n") || undefined;
-  const result = await generateSetekGuide(studentId, undefined, extraSections);
-  if (!result.success) throw new Error(result.error);
-  const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
-  return guides ? `${guides.length}과목 방향 생성` : "세특 방향 생성 완료";
+  const results: string[] = [];
+
+  // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
+  if (hasNeisGrades) {
+    const { generateSetekGuide } = await import("./llm/actions/generateSetekGuide");
+    const result = await generateSetekGuide(studentId, ctx.neisGrades!, extraSections);
+    if (!result.success) throw new Error(result.error);
+    const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
+    if (guides) results.push(`NEIS ${guides.length}과목`);
+  }
+
+  // 컨설팅 학년 → 수강계획 기반 세특 방향 (학년별 개별 호출 — 타임아웃 안전)
+  if (hasConsultingGrades) {
+    const { generateSetekGuide } = await import("./llm/actions/generateSetekGuide");
+    for (const grade of ctx.consultingGrades!) {
+      const targetSchoolYear = currentYear - ctx.studentGrade + grade;
+      const result = await generateSetekGuide(studentId, [grade], extraSections, targetSchoolYear);
+      if (!result.success) {
+        logActionWarn(LOG_CTX, `세특 방향 생성 실패 (grade ${grade})`, { studentId, error: result.error });
+        continue;
+      }
+      const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
+      if (guides) results.push(`${grade}학년 방향 ${guides.length}과목`);
+    }
+  }
+
+  return results.length > 0 ? results.join(", ") : "세특 방향 생성 완료";
 }
 
 // ============================================

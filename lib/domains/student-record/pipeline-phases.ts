@@ -255,33 +255,43 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
     ctx.consultingGrades && ctx.consultingGrades.length > 0;
   const hasNeisGrades = ctx.neisGrades && ctx.neisGrades.length > 0;
 
-  // 컨설팅 학년 → 수강계획 기반 방향 생성 (학년별 루프)
-  // 참고: setek_guide는 Phase 5에서 이미 처리 완료 — Phase 6에서는 changche/haengteuk만 담당
-  if (hasConsultingGrades) {
-    const baseYear = calculateSchoolYear();
-    const schoolYearsToGenerate: Array<{ grade: number; schoolYear: number }> =
-      [];
-    for (const grade of ctx.consultingGrades!) {
-      schoolYearsToGenerate.push({
-        grade,
-        schoolYear: baseYear - ctx.studentGrade + grade,
-      });
+  // 통합 플로우: NEIS 학년(분석) + 컨설팅 학년(방향)을 하나의 흐름에서 처리
+  // changche_guide/haengteuk_guide 태스크 상태는 전체 완료 후 마킹
+
+  try {
+    // 1. NEIS 학년 → 분석형 changche/haengteuk (NEIS 데이터 기반)
+    if (hasNeisGrades) {
+      if (await checkCancelled(ctx)) return;
+      const edges = await loadComputedEdges(ctx);
+
+      const { generateChangcheGuide } = await import("./llm/actions/generateChangcheGuide");
+      const changcheResult = await generateChangcheGuide(ctx.studentId, ctx.neisGrades);
+      if (!changcheResult.success) {
+        logActionWarn(LOG_CTX, `NEIS 창체 가이드 생성 실패: ${changcheResult.error}`, { studentId: ctx.studentId });
+      }
+
+      if (await checkCancelled(ctx)) return;
+
+      const { generateHaengteukGuide } = await import("./llm/actions/generateHaengteukGuide");
+      const haengteukResult = await generateHaengteukGuide(ctx.studentId);
+      if (!haengteukResult.success) {
+        logActionWarn(LOG_CTX, `NEIS 행특 가이드 생성 실패: ${haengteukResult.error}`, { studentId: ctx.studentId });
+      }
     }
 
-    try {
-      const { requireAdminOrConsultant: reqAuth } = await import(
-        "@/lib/auth/guards"
-      );
+    // 2. 컨설팅 학년 → 수강계획 기반 changche/haengteuk 방향 (학년별 루프)
+    if (hasConsultingGrades) {
+      const baseYear = calculateSchoolYear();
+      const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
       const { userId: guideUserId } = await reqAuth();
       const { fetchReportData: fetchReport } = await import("./report");
 
-      for (const { schoolYear: tYear } of schoolYearsToGenerate) {
+      for (const grade of ctx.consultingGrades!) {
         if (await checkCancelled(ctx)) break;
+        const tYear = baseYear - ctx.studentGrade + grade;
 
         // 창체 방향 (세특 컨텍스트 전달)
-        const { generateProspectiveChangcheGuide } = await import(
-          "./llm/actions/generateChangcheGuide"
-        );
+        const { generateProspectiveChangcheGuide } = await import("./llm/actions/generateChangcheGuide");
         const reportForChangche = await fetchReport(ctx.studentId);
         if (reportForChangche.success && reportForChangche.data) {
           const { data: setekCtxRows } = await ctx.supabase
@@ -292,40 +302,19 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
             .eq("school_year", tYear)
             .eq("source", "ai")
             .limit(4);
-          const setekCtx =
-            setekCtxRows && setekCtxRows.length > 0
-              ? `## 세특 방향 요약\n${setekCtxRows
-                  .map(
-                    (r) =>
-                      `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
-                  )
-                  .join("\n")}`
-              : undefined;
-          await generateProspectiveChangcheGuide(
-            ctx.studentId,
-            ctx.tenantId,
-            guideUserId,
-            reportForChangche.data,
-            ctx.coursePlanData,
-            undefined,
-            setekCtx,
-            tYear,
-          );
+          const setekCtx = setekCtxRows?.length
+            ? `## 세특 방향 요약\n${setekCtxRows.map((r) => `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
+            : undefined;
+          await generateProspectiveChangcheGuide(ctx.studentId, ctx.tenantId, guideUserId, reportForChangche.data, ctx.coursePlanData, undefined, setekCtx, tYear);
         }
 
         if (await checkCancelled(ctx)) break;
 
         // 행특 방향 (창체 컨텍스트 전달)
-        const { generateProspectiveHaengteukGuide } = await import(
-          "./llm/actions/generateHaengteukGuide"
-        );
+        const { generateProspectiveHaengteukGuide } = await import("./llm/actions/generateHaengteukGuide");
         const reportForHaengteuk = await fetchReport(ctx.studentId);
         if (reportForHaengteuk.success && reportForHaengteuk.data) {
-          const ACTIVITY_LABELS: Record<string, string> = {
-            autonomy: "자율",
-            club: "동아리",
-            career: "진로",
-          };
+          const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
           const { data: changcheCtxRows } = await ctx.supabase
             .from("student_record_changche_guides")
             .select("activity_type, direction, keywords")
@@ -334,82 +323,47 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
             .eq("school_year", tYear)
             .eq("source", "ai")
             .limit(3);
-          const changcheCtx =
-            changcheCtxRows && changcheCtxRows.length > 0
-              ? `## 창체 방향 요약\n${changcheCtxRows
-                  .map(
-                    (r) =>
-                      `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
-                  )
-                  .join("\n")}`
-              : undefined;
-          await generateProspectiveHaengteukGuide(
-            ctx.studentId,
-            ctx.tenantId,
-            guideUserId,
-            reportForHaengteuk.data,
-            ctx.coursePlanData,
-            undefined,
-            changcheCtx,
-            tYear,
-          );
+          const changcheCtx = changcheCtxRows?.length
+            ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
+            : undefined;
+          await generateProspectiveHaengteukGuide(ctx.studentId, ctx.tenantId, guideUserId, reportForHaengteuk.data, ctx.coursePlanData, undefined, changcheCtx, tYear);
         }
       }
-
-      ctx.tasks["changche_guide"] = "completed";
-      ctx.previews["changche_guide"] = `${schoolYearsToGenerate.length}개 학년 창체 방향 생성`;
-      ctx.tasks["haengteuk_guide"] = "completed";
-      ctx.previews["haengteuk_guide"] = `${schoolYearsToGenerate.length}개 학년 행특 방향 생성`;
-    } catch (guideErr) {
-      const guideMsg =
-        guideErr instanceof Error ? guideErr.message : "가이드 생성 실패";
-      ctx.tasks["changche_guide"] =
-        ctx.tasks["changche_guide"] === "completed" ? "completed" : "failed";
-      if (ctx.tasks["changche_guide"] === "failed")
-        ctx.errors["changche_guide"] = guideMsg;
-      ctx.tasks["haengteuk_guide"] =
-        ctx.tasks["haengteuk_guide"] === "completed" ? "completed" : "failed";
-      if (ctx.tasks["haengteuk_guide"] === "failed")
-        ctx.errors["haengteuk_guide"] = guideMsg;
     }
 
-    // 상태 DB 저장
-    await updatePipelineState(
-      ctx.supabase as import("@/lib/supabase/admin").SupabaseAdminClient,
-      ctx.pipelineId,
-      "running",
-      ctx.tasks,
-      ctx.previews,
-      ctx.results,
-      ctx.errors,
-    );
+    // 전체 완료 후 태스크 상태 마킹
+    ctx.tasks["changche_guide"] = "completed";
+    ctx.previews["changche_guide"] = [
+      hasNeisGrades ? `NEIS ${ctx.neisGrades!.length}개 학년 분석` : "",
+      hasConsultingGrades ? `${ctx.consultingGrades!.length}개 학년 방향 생성` : "",
+    ].filter(Boolean).join(" + ") || "창체 가이드 완료";
+    ctx.tasks["haengteuk_guide"] = "completed";
+    ctx.previews["haengteuk_guide"] = [
+      hasNeisGrades ? `NEIS ${ctx.neisGrades!.length}개 학년 분석` : "",
+      hasConsultingGrades ? `${ctx.consultingGrades!.length}개 학년 방향 생성` : "",
+    ].filter(Boolean).join(" + ") || "행특 가이드 완료";
+  } catch (guideErr) {
+    const guideMsg = guideErr instanceof Error ? guideErr.message : "가이드 생성 실패";
+    if (ctx.tasks["changche_guide"] !== "completed") {
+      ctx.tasks["changche_guide"] = "failed";
+      ctx.errors["changche_guide"] = guideMsg;
+    }
+    if (ctx.tasks["haengteuk_guide"] !== "completed") {
+      ctx.tasks["haengteuk_guide"] = "failed";
+      ctx.errors["haengteuk_guide"] = guideMsg;
+    }
   }
 
-  // NEIS 학년 → 분석형 changche/haengteuk 처리
-  if (hasNeisGrades) {
-    if (await checkCancelled(ctx)) return;
-    const edges = await loadComputedEdges(ctx);
-    await runTaskWithState(ctx, "changche_guide", () =>
-      runChangcheGuide(ctx, edges),
-    );
-    if (await checkCancelled(ctx)) return;
-    await runTaskWithState(ctx, "haengteuk_guide", () =>
-      runHaengteukGuide(ctx, edges),
-    );
-  }
-
-  // NEIS/컨설팅 모두 없음 → 단순 순차 실행 (runChangcheGuide 내부가 수강계획 기반으로 동작)
-  if (!hasConsultingGrades && !hasNeisGrades) {
-    if (await checkCancelled(ctx)) return;
-    const edges = await loadComputedEdges(ctx);
-    await runTaskWithState(ctx, "changche_guide", () =>
-      runChangcheGuide(ctx, edges),
-    );
-    if (await checkCancelled(ctx)) return;
-    await runTaskWithState(ctx, "haengteuk_guide", () =>
-      runHaengteukGuide(ctx, edges),
-    );
-  }
+  // 상태 DB 저장
+  await updatePipelineState(
+    ctx.supabase as import("@/lib/supabase/admin").SupabaseAdminClient,
+    ctx.pipelineId,
+    "running",
+    ctx.tasks,
+    ctx.previews,
+    ctx.results,
+    ctx.errors,
+  );
 }
 
 // ============================================
