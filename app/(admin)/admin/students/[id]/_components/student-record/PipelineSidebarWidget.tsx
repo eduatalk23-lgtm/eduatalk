@@ -65,66 +65,56 @@ export function PipelineSidebarWidget({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showRerunConfirm, setShowRerunConfirm] = useState(false);
 
-  // 파이프라인 상태 폴링 (40분 타임아웃 — 8 Phase × 5분)
+  // ─── 클라이언트 주도 Phase 순차 실행 ─────────────────────────
+  // 폴링 콜백에서 Phase 완료 감지 → 다음 Phase API 호출
   const pollingStartRef = useRef<number | null>(null);
+  const runningPhaseRef = useRef<number | null>(null);
   const PIPELINE_POLLING_TIMEOUT = 40 * 60 * 1000;
 
   const { data: pipeline } = useQuery({
     ...pipelineStatusQueryOptions(studentId),
     refetchInterval: (query) => {
-      const status = query.state.data?.status;
+      const data = query.state.data;
+      const status = data?.status;
+
       if (status !== "running") {
         pollingStartRef.current = null;
+        runningPhaseRef.current = null;
         return false;
       }
+
+      // 40분 타임아웃
       if (!pollingStartRef.current) pollingStartRef.current = Date.now();
       if (Date.now() - pollingStartRef.current > PIPELINE_POLLING_TIMEOUT) {
         pollingStartRef.current = null;
-        return false; // 40분 초과 → 폴링 중단
+        return false;
       }
+
+      // Phase 자동 진행: running task가 없고 pending task가 있으면 다음 Phase 호출
+      if (data?.tasks) {
+        const tasks = data.tasks;
+        const hasRunningTask = Object.values(tasks).some((s) => s === "running");
+        if (!hasRunningTask) {
+          const nextPhase = getNextPhaseFromTasks(tasks);
+          if (nextPhase > 0 && runningPhaseRef.current !== nextPhase) {
+            runningPhaseRef.current = nextPhase;
+            const route = nextPhase === 1
+              ? "/api/admin/pipeline/run"
+              : `/api/admin/pipeline/phase-${nextPhase}`;
+            fetch(route, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pipelineId: data.id }),
+            })
+              .then(() => { runningPhaseRef.current = null; })
+              .catch(() => { runningPhaseRef.current = null; });
+          }
+        }
+      }
+
       return 3000;
     },
   });
-
-  // ─── 클라이언트 주도 Phase 순차 실행 ─────────────────────────
-  // 폴링에서 현재 Phase 완료를 감지하면 다음 Phase API를 호출
-  const runningPhaseRef = useRef<number | null>(null);
-  const phaseDriverStatus = pipeline?.status ?? null;
-  const tasksJson = pipeline ? JSON.stringify(pipeline.tasks) : "";
-
-  useEffect(() => {
-    if (!pipeline || phaseDriverStatus !== "running") {
-      runningPhaseRef.current = null;
-      return;
-    }
-
-    const tasks = pipeline.tasks;
-    // 모든 태스크 중 하나라도 "running"이면 현재 Phase 실행 중 → 대기
-    const hasRunningTask = Object.values(tasks).some((s) => s === "running");
-    if (hasRunningTask) return;
-
-    // 다음 실행할 Phase 판별
-    const nextPhase = getNextPhaseFromTasks(tasks);
-    if (nextPhase === 0) return; // 전부 완료 → 서버에서 상태 갱신됨
-
-    // 이미 이 Phase를 호출 중이면 중복 방지
-    if (runningPhaseRef.current === nextPhase) return;
-    runningPhaseRef.current = nextPhase;
-
-    const phaseRoute = nextPhase === 1 ? "/api/admin/pipeline/run" : `/api/admin/pipeline/phase-${nextPhase}`;
-    fetch(phaseRoute, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipelineId: pipeline.id }),
-    })
-      .then(() => {
-        // Phase route 응답 완료 → ref 리셋하여 다음 폴링에서 재판단
-        runningPhaseRef.current = null;
-      })
-      .catch(() => {
-        runningPhaseRef.current = null;
-      });
-  }, [phaseDriverStatus, tasksJson, pipeline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 실행 mutation — Server Action(placeholder) + API route(실행)
   const runMutation = useMutation({
