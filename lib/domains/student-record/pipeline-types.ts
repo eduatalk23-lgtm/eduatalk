@@ -53,7 +53,7 @@ export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
 
 /** 태스크별 타임아웃 (ms). 초과 시 failed 전환. */
 export const PIPELINE_TASK_TIMEOUTS: Record<PipelineTaskKey, number> = {
-  competency_analysis: 180_000,   // 3분 (다건 배치)
+  competency_analysis: 280_000,   // 4분 40초 (다건 배치 — Vercel 5분 제한 내 여유)
   storyline_generation: 120_000,
   edge_computation: 60_000,       // CPU 기반
   ai_diagnosis: 180_000,          // 3분 (복합 LLM)
