@@ -649,7 +649,7 @@ export async function runAiDiagnosis(
   computedEdges: PersistedEdge[] | CrossRefEdge[],
   sharedCourseAdequacy: CourseAdequacyResult | null,
 ): Promise<TaskRunnerOutput> {
-  const { supabase, studentId, tenantId, pipelineId, pipelineMode, studentGrade, snapshot, tasks, coursePlanData, neisGrades } = ctx;
+  const { supabase, studentId, tenantId, pipelineId, studentGrade, snapshot, tasks, coursePlanData, neisGrades } = ctx;
 
   // NEIS 학년이 전혀 없으면 수강계획 기반 예비 진단 생성 (기존 prospective 동작 유지)
   const hasNeisData = neisGrades && neisGrades.length > 0;
@@ -1428,8 +1428,8 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
 
   // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)
   const { generateAiRoadmap } = await import("./llm/actions/generateRoadmap");
-  const hasRecords = ctx.cachedSeteks && ctx.cachedSeteks.filter((s) => s.content && s.content.trim().length >= 20).length > 0;
-  const llmMode = hasRecords ? "analysis" : "planning";
+  // NEIS 기반 모드 판정: neisGrades가 있으면 실 데이터 분석 모드, 없으면 수강계획 기반 계획 모드
+  const llmMode = (ctx.neisGrades && ctx.neisGrades.length > 0) ? "analysis" : "planning";
 
   const llmResult = await generateAiRoadmap(studentId, llmMode);
   if (llmResult.success && llmResult.data) {

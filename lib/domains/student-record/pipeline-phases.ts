@@ -203,8 +203,8 @@ export async function executePhase4(ctx: PipelineContext): Promise<boolean> {
   const skipRemaining = await checkIncrementalCacheOptimization(ctx);
   if (skipRemaining) return true;
 
-  if (ctx.pipelineMode === "prospective") {
-    // Prospective: course_recommendation 선행 → coursePlanData 재조회 → diagnosis
+  if (!ctx.neisGrades?.length) {
+    // NEIS 학년 없음(전체 수강계획 기반): course_recommendation 선행 → coursePlanData 재조회 → diagnosis
     await runTaskWithState(ctx, "course_recommendation", () =>
       runCourseRecommendation(ctx),
     );
@@ -214,7 +214,7 @@ export async function executePhase4(ctx: PipelineContext): Promise<boolean> {
       runAiDiagnosis(ctx, edges, null),
     );
   } else {
-    // Analysis: diagnosis + course_recommendation 병렬
+    // NEIS 학년 있음(분석형): diagnosis + course_recommendation 병렬
     const edges = await loadComputedEdges(ctx);
     await Promise.allSettled([
       runTaskWithState(ctx, "ai_diagnosis", () =>
