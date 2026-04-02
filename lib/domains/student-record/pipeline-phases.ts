@@ -264,16 +264,16 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
       if (await checkCancelled(ctx)) return;
       const edges = await loadComputedEdges(ctx);
 
-      const { generateChangcheGuide } = await import("./llm/actions/generateChangcheGuide");
-      const changcheResult = await generateChangcheGuide(ctx.studentId, ctx.neisGrades);
+      const { analyzeChangcheGuide } = await import("./llm/actions/guide-modules");
+      const changcheResult = await analyzeChangcheGuide(ctx.studentId, ctx.neisGrades);
       if (!changcheResult.success) {
         logActionWarn(LOG_CTX, `NEIS 창체 가이드 생성 실패: ${changcheResult.error}`, { studentId: ctx.studentId });
       }
 
       if (await checkCancelled(ctx)) return;
 
-      const { generateHaengteukGuide } = await import("./llm/actions/generateHaengteukGuide");
-      const haengteukResult = await generateHaengteukGuide(ctx.studentId);
+      const { analyzeHaengteukGuide } = await import("./llm/actions/guide-modules");
+      const haengteukResult = await analyzeHaengteukGuide(ctx.studentId);
       if (!haengteukResult.success) {
         logActionWarn(LOG_CTX, `NEIS 행특 가이드 생성 실패: ${haengteukResult.error}`, { studentId: ctx.studentId });
       }
@@ -291,7 +291,7 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
         const tYear = baseYear - ctx.studentGrade + grade;
 
         // 창체 방향 (세특 컨텍스트 전달)
-        const { generateProspectiveChangcheGuide } = await import("./llm/actions/generateChangcheGuide");
+        const { generateChangcheDirection } = await import("./llm/actions/guide-modules");
         const reportForChangche = await fetchReport(ctx.studentId);
         if (reportForChangche.success && reportForChangche.data) {
           const { data: setekCtxRows } = await ctx.supabase
@@ -305,13 +305,13 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
           const setekCtx = setekCtxRows?.length
             ? `## 세특 방향 요약\n${setekCtxRows.map((r) => `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
             : undefined;
-          await generateProspectiveChangcheGuide(ctx.studentId, ctx.tenantId, guideUserId, reportForChangche.data, ctx.coursePlanData, undefined, setekCtx, tYear);
+          await generateChangcheDirection(ctx.studentId, ctx.tenantId, guideUserId, reportForChangche.data, ctx.coursePlanData, undefined, setekCtx, tYear);
         }
 
         if (await checkCancelled(ctx)) break;
 
         // 행특 방향 (창체 컨텍스트 전달)
-        const { generateProspectiveHaengteukGuide } = await import("./llm/actions/generateHaengteukGuide");
+        const { generateHaengteukDirection } = await import("./llm/actions/guide-modules");
         const reportForHaengteuk = await fetchReport(ctx.studentId);
         if (reportForHaengteuk.success && reportForHaengteuk.data) {
           const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
@@ -326,7 +326,7 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
           const changcheCtx = changcheCtxRows?.length
             ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
             : undefined;
-          await generateProspectiveHaengteukGuide(ctx.studentId, ctx.tenantId, guideUserId, reportForHaengteuk.data, ctx.coursePlanData, undefined, changcheCtx, tYear);
+          await generateHaengteukDirection(ctx.studentId, ctx.tenantId, guideUserId, reportForHaengteuk.data, ctx.coursePlanData, undefined, changcheCtx, tYear);
         }
       }
     }

@@ -242,7 +242,7 @@ export async function generateSetekGuide(
 // Phase R2: Prospective 모드 — 기록 없이 계획 과목 기반
 // ============================================
 
-async function generateProspectiveSetekGuide(
+export async function generateProspectiveSetekGuide(
   studentId: string,
   tenantId: string,
   userId: string,
