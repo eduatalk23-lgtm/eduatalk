@@ -90,12 +90,44 @@ export interface PipelineStatus {
 /** taskResults 타입 (JSON-serializable) */
 export type PipelineTaskResults = Record<string, unknown>;
 
+// ============================================
+// NEIS 기반 레코드 해소 타입 (Step 1: pipeline-neis-driven-redesign)
+// ============================================
+
+/**
+ * 단일 레코드의 NEIS 유무 판정 결과.
+ * hasNeis = !!imported_content?.trim()
+ * effectiveContent = NEIS 있으면 imported_content, 없으면 content(가안)
+ */
+export interface ResolvedRecord {
+  id: string;
+  grade: number;
+  semester?: number;
+  subjectId?: string;
+  activityType?: string;      // changche only
+  hasNeis: boolean;
+  effectiveContent: string;
+  subjectName?: string;
+}
+
+/** 학년별 해소 결과 */
+export interface ResolvedRecordsByGrade {
+  [grade: number]: {
+    seteks: ResolvedRecord[];
+    changche: ResolvedRecord[];
+    haengteuk: ResolvedRecord | null;
+    /** 해당 학년에 세특/창체/행특 중 하나라도 NEIS가 있는지 */
+    hasAnyNeis: boolean;
+  };
+}
+
 /** Phase 분할 실행을 위한 파이프라인 실행 컨텍스트 */
 export interface PipelineContext {
   pipelineId: string;
   studentId: string;
   tenantId: string;
   supabase: import("@supabase/supabase-js").SupabaseClient;
+  /** @deprecated NEIS 기반 resolvedRecords/neisGrades 사용 권장. 하위 호환 유지. */
   pipelineMode: "analysis" | "prospective";
   studentGrade: number;
   snapshot: Record<string, unknown> | null;
@@ -109,6 +141,10 @@ export interface PipelineContext {
   cachedChangche?: CachedChangche[] | null;
   cachedHaengteuk?: CachedHaengteuk[] | null;
   coursePlanData?: import("./types").CoursePlanTabData | null;
+  // NEIS 기반 해소 데이터 (Step 1 이후 항상 세팅)
+  resolvedRecords?: ResolvedRecordsByGrade;
+  neisGrades?: number[];
+  consultingGrades?: number[];
 }
 
 /** 이어서 실행 시 복원할 상태 */
@@ -134,6 +170,7 @@ export interface ScoreRowWithSubject {
 export interface CachedSetek {
   id: string;
   content: string;
+  imported_content: string | null;
   grade: number;
   subject: { name: string } | null;
 }
@@ -142,6 +179,7 @@ export interface CachedSetek {
 export interface CachedChangche {
   id: string;
   content: string;
+  imported_content: string | null;
   grade: number;
   activity_type: string | null;
 }
@@ -150,6 +188,7 @@ export interface CachedChangche {
 export interface CachedHaengteuk {
   id: string;
   content: string;
+  imported_content: string | null;
   grade: number;
 }
 

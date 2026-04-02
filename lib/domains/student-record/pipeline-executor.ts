@@ -13,6 +13,7 @@ import type {
   CachedChangche,
   CachedHaengteuk,
 } from "./pipeline-types";
+import { resolveRecordData, deriveGradeCategories } from "./pipeline-data-resolver";
 import { PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS } from "./pipeline-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
@@ -236,44 +237,43 @@ export async function loadPipelineContext(
     studentGrade = (fresh?.grade as number) ?? 3;
   }
 
+  // 레코드 조회 — NEIS 기반 해소를 위해 항상 실행
+  const [sRes, cRes, hRes] = await Promise.all([
+    admin
+      .from("student_record_seteks")
+      .select("id, content, imported_content, grade, subject:subject_id(name)")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+    admin
+      .from("student_record_changche")
+      .select("id, content, imported_content, grade, activity_type")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId),
+    admin
+      .from("student_record_haengteuk")
+      .select("id, content, imported_content, grade")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId),
+  ]);
+
+  const cachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
+  const cachedChangche = (cRes.data ?? []) as CachedChangche[];
+  const cachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
+
+  const resolvedRecords = resolveRecordData(cachedSeteks, cachedChangche, cachedHaengteuk);
+  const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
+
   // pipelineMode 복원
   // DB에 저장된 mode가 있으면 그대로 사용,
-  // null이면 레코드 유무로 analysis/prospective 판단
+  // null이면 NEIS 기반으로 판단 (신규 파이프라인 또는 구버전 호환)
   let pipelineMode: "analysis" | "prospective";
 
   if (row.mode === "analysis" || row.mode === "prospective") {
     pipelineMode = row.mode;
   } else {
-    // mode 컬럼이 null — 레코드 유무로 판단 (신규 파이프라인 또는 구버전 호환)
-    const [sRes, cRes, hRes] = await Promise.all([
-      admin
-        .from("student_record_seteks")
-        .select("id, content, grade, subject:subject_id(name)")
-        .eq("student_id", studentId)
-        .eq("tenant_id", tenantId)
-        .is("deleted_at", null),
-      admin
-        .from("student_record_changche")
-        .select("id, content, grade, activity_type")
-        .eq("student_id", studentId)
-        .eq("tenant_id", tenantId),
-      admin
-        .from("student_record_haengteuk")
-        .select("id, content, grade")
-        .eq("student_id", studentId)
-        .eq("tenant_id", tenantId),
-    ]);
-
-    const cachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
-    const cachedChangche = (cRes.data ?? []) as CachedChangche[];
-    const cachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
-
-    const hasRecords =
-      cachedSeteks.some((s) => s.content?.trim()) ||
-      cachedChangche.some((c) => c.content?.trim()) ||
-      cachedHaengteuk.some((h) => h.content?.trim());
-
-    pipelineMode = hasRecords ? "analysis" : "prospective";
+    // mode 컬럼이 null — NEIS 유무로 판단 (하위 호환)
+    pipelineMode = neisGrades.length > 0 ? "analysis" : "prospective";
 
     // 판단 결과를 DB에 저장 (이후 Phase에서 재판단 방지)
     await admin
@@ -283,8 +283,8 @@ export async function loadPipelineContext(
 
     logActionWarn(
       LOG_CTX,
-      `Pipeline ${pipelineId}: mode was null — determined as "${pipelineMode}" from record presence`,
-      { studentId },
+      `Pipeline ${pipelineId}: mode was null — determined as "${pipelineMode}" from NEIS presence`,
+      { studentId, neisGrades, consultingGrades },
     );
   }
 
@@ -324,6 +324,12 @@ export async function loadPipelineContext(
     previews,
     results,
     errors,
+    cachedSeteks,
+    cachedChangche,
+    cachedHaengteuk,
     coursePlanData,
+    resolvedRecords,
+    neisGrades,
+    consultingGrades,
   };
 }
