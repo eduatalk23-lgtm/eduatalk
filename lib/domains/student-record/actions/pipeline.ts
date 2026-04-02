@@ -36,6 +36,7 @@ import * as repository from "../repository";
 import type { ActivityTagInsert, CompetencyScoreInsert, DiagnosisInsert } from "../types";
 import type { HighlightAnalysisInput, HighlightAnalysisResult } from "../llm/types";
 import type { RecordSummary } from "../llm/prompts/inquiryLinking";
+import { resolveRecordData, deriveGradeCategories } from "../pipeline-data-resolver";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
@@ -419,18 +420,18 @@ export async function executePipelineTasks(
     const [sRes, cRes, hRes] = await Promise.all([
       supabase
         .from("student_record_seteks")
-        .select("id, content, grade, subject:subject_id(name)")
+        .select("id, content, imported_content, grade, subject:subject_id(name)")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId)
         .is("deleted_at", null),
       supabase
         .from("student_record_changche")
-        .select("id, content, grade, activity_type")
+        .select("id, content, imported_content, grade, activity_type")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId),
       supabase
         .from("student_record_haengteuk")
-        .select("id, content, grade")
+        .select("id, content, imported_content, grade")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId),
     ]);
@@ -439,10 +440,9 @@ export async function executePipelineTasks(
     cachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
   }
 
-  const hasRecords =
-    cachedSeteks.some((s) => s.content?.trim()) ||
-    cachedChangche.some((c) => c.content?.trim()) ||
-    cachedHaengteuk.some((h) => h.content?.trim());
+  const resolvedRecords = resolveRecordData(cachedSeteks, cachedChangche, cachedHaengteuk);
+  const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
+  const hasNeisData = neisGrades.length > 0;
 
   // 수강계획 조회 (prospective 여부 결정) — admin client 직접 사용 (fire-and-forget 컨텍스트)
   let coursePlanData: import("../course-plan/types").CoursePlanTabData | null = null;
@@ -469,7 +469,8 @@ export async function executePipelineTasks(
     (p) => p.plan_status === "confirmed" || p.plan_status === "recommended",
   ) ?? false;
 
-  const pipelineMode: "analysis" | "prospective" = hasRecords ? "analysis" : "prospective";
+  // 하위 호환: DB mode 저장용 (판정 기준은 neisGrades 사용)
+  const pipelineMode: "analysis" | "prospective" = hasNeisData ? "analysis" : "prospective";
 
   // prospective인데 수강계획 없으면 → course_recommendation을 선행 실행하여 자동 세팅
   // (진로 설정만 있어도 추천 과목을 수강계획에 저장 → 이후 태스크가 활용)
@@ -488,8 +489,8 @@ export async function executePipelineTasks(
     {
       key: "competency_analysis",
       run: async () => {
-        // Phase V1: prospective 모드 — 기록 없으므로 skip
-        if (pipelineMode === "prospective") {
+        // NEIS 없음 → 실 기록 없으므로 skip
+        if (!hasNeisData) {
           return "신입생 모드 — 기록 입력 후 분석";
         }
         const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
@@ -838,8 +839,8 @@ export async function executePipelineTasks(
     {
       key: "storyline_generation",
       run: async () => {
-        // Phase V1: prospective 모드 — 기록 없으므로 skip
-        if (pipelineMode === "prospective") {
+        // NEIS 없음 → 실 기록 없으므로 skip
+        if (!hasNeisData) {
           return "신입생 모드 — 기록 입력 후 감지";
         }
         // 기록 수집 — competency_analysis에서 이미 조회한 캐시 재사용
@@ -960,8 +961,8 @@ export async function executePipelineTasks(
     {
       key: "edge_computation",
       run: async () => {
-        // Phase V1: prospective 모드 — 기록 없으므로 skip
-        if (pipelineMode === "prospective") {
+        // NEIS 없음 → 실 기록 없으므로 skip
+        if (!hasNeisData) {
           return "신입생 모드 — 기록 입력 후 연결";
         }
         const { buildConnectionGraph } = await import("../cross-reference");
@@ -1071,8 +1072,8 @@ export async function executePipelineTasks(
     {
       key: "ai_diagnosis",
       run: async () => {
-        // Phase V1: prospective 모드 — 수강계획+진로 기반 예비 진단 생성
-        if (pipelineMode === "prospective") {
+        // NEIS 없음 → 수강계획+진로 기반 예비 진단 생성
+        if (!hasNeisData) {
           const { generateProspectiveDiagnosis } = await import("../llm/actions/generateDiagnosis");
           const result = await generateProspectiveDiagnosis(studentId, tenantId, coursePlanData, snapshot);
           if (!result.success) throw new Error(result.error);
@@ -1318,8 +1319,8 @@ export async function executePipelineTasks(
     {
       key: "changche_guide",
       run: async () => {
-        // Phase V1: prospective 모드 — 수강계획+진로 기반 창체 방향 생성
-        if (pipelineMode === "prospective") {
+        // NEIS 없음 → 수강계획+진로 기반 창체 방향 생성
+        if (!hasNeisData) {
           const { generateProspectiveChangcheGuide } = await import("../llm/actions/generateChangcheGuide");
           const { fetchReportData } = await import("./report");
           const reportResult = await fetchReportData(studentId);
@@ -1395,8 +1396,8 @@ export async function executePipelineTasks(
     {
       key: "haengteuk_guide",
       run: async () => {
-        // Phase V1: prospective 모드 — 수강계획+진로 기반 행특 방향 생성
-        if (pipelineMode === "prospective") {
+        // NEIS 없음 → 수강계획+진로 기반 행특 방향 생성
+        if (!hasNeisData) {
           const { generateProspectiveHaengteukGuide } = await import("../llm/actions/generateHaengteukGuide");
           const { fetchReportData } = await import("./report");
           const reportResult = await fetchReportData(studentId);
@@ -1811,8 +1812,7 @@ export async function executePipelineTasks(
       run: async () => {
         // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)
         const { generateAiRoadmap } = await import("../llm/actions/generateRoadmap");
-        const hasRecords = cachedSeteks && cachedSeteks.filter((s) => s.content && s.content.trim().length >= 20).length > 0;
-        const llmMode = hasRecords ? "analysis" : "planning";
+        const llmMode = hasNeisData ? "analysis" : "planning";
 
         const llmResult = await generateAiRoadmap(studentId, llmMode);
         if (llmResult.success && llmResult.data) {
@@ -1997,8 +1997,8 @@ export async function executePipelineTasks(
   // Prospective 모드: course_recommendation 선행 → coursePlanData 재조회 → 나머지 실행
   // Analysis 모드: 기존 병렬 실행
 
-  if (pipelineMode === "prospective") {
-    // ── Prospective 실행 순서 ──
+  if (!hasNeisData) {
+    // ── NEIS 없음: Prospective 실행 순서 ──
     // Phase P0: 수강 추천 선행 (추천 과목 DB 저장 → 이후 태스크의 입력)
     await runTaskWithState("course_recommendation");
 
