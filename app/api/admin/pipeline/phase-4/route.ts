@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // 캐시 최적화로 완료된 경우 체이닝 불필요
     if (!cacheCompleted) {
-      chainToNextPhase(5, pipelineId);
+      await chainToNextPhase(5, pipelineId);
     }
 
     return NextResponse.json({ phase: 4, completed: true, cacheCompleted });

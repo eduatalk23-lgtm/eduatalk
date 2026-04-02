@@ -171,17 +171,20 @@ export async function chainToNextPhase(
 
   const url = `${baseUrl}/api/admin/pipeline/phase-${nextPhase}`;
 
-  fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pipelineId }),
-  }).catch((err) => {
-    logActionWarn(
-      LOG_CTX,
-      `Phase ${nextPhase} chain call failed — user can resume manually`,
-      { pipelineId, error: String(err) },
-    );
-  });
+  // fetch를 보내되 응답은 기다리지 않음 (다음 Phase가 독립 5분을 사용)
+  // AbortController로 1초 후 연결을 끊어 현재 함수가 빠르게 종료되게 함
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 5000); // 5초 여유
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipelineId }),
+      signal: controller.signal,
+    });
+  } catch {
+    // AbortError 또는 네트워크 에러 — 요청은 이미 서버에 도달했을 가능성 높음
+  }
 }
 
 // ============================================

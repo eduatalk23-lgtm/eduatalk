@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     // Phase 1: 역량 분석
     await executePhase1(ctx);
 
-    // Phase 2로 체이닝
-    chainToNextPhase(2, pipelineId);
+    // Phase 2로 체이닝 (fetch 요청이 보내질 때까지 대기)
+    await chainToNextPhase(2, pipelineId);
 
     return NextResponse.json({ phase: 1, completed: true });
   } catch (error) {

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const ctx = await loadPipelineContext(pipelineId);
     await executePhase5(ctx);
 
-    chainToNextPhase(6, pipelineId);
+    await chainToNextPhase(6, pipelineId);
     return NextResponse.json({ phase: 5, completed: true });
   } catch (error) {
     logActionError(
