@@ -33,6 +33,12 @@ export async function searchSimilarCorrections(
     similarityThreshold = 0.5,
   } = options;
 
+  // 테넌트 격리 가드: tenantId 없이 검색 불가
+  if (!tenantId) {
+    logActionError(LOG_CTX, "tenantId 누락 — 테넌트 격리 위반 방지를 위해 검색 차단");
+    return [];
+  }
+
   logActionDebug(LOG_CTX, `searchCorrections: query="${query.slice(0, 50)}"`);
 
   // 캐시 확인
@@ -63,7 +69,7 @@ export async function searchSimilarCorrections(
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("search_similar_corrections", {
     query_embedding: JSON.stringify(queryEmbedding),
-    tenant_filter: tenantId ?? null,
+    tenant_filter: tenantId,
     correction_type_filter: correctionTypeFilter ?? null,
     match_count: matchCount,
     similarity_threshold: similarityThreshold,

@@ -33,7 +33,8 @@ export interface CaseSearchResult {
 
 export interface SearchCasesOptions {
   query: string;
-  tenantId?: string | null;
+  /** 테넌트 격리 필수 — 다른 테넌트 케이스 노출 방지 */
+  tenantId: string;
   gradeFilter?: number | null;
   majorFilter?: string | null;
   matchCount?: number;
@@ -67,7 +68,8 @@ export interface CorrectionSearchResult {
 
 export interface SearchCorrectionsOptions {
   query: string;
-  tenantId?: string | null;
+  /** 테넌트 격리 필수 — 다른 테넌트 교정 노출 방지 */
+  tenantId: string;
   correctionTypeFilter?: CorrectionType | null;
   matchCount?: number;
   similarityThreshold?: number;

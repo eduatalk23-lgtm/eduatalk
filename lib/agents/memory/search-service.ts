@@ -54,6 +54,12 @@ export async function searchSimilarCases(
     similarityThreshold = 0.5,
   } = options;
 
+  // 테넌트 격리 가드: tenantId 없이 검색 불가
+  if (!tenantId) {
+    logActionError(LOG_CTX, "tenantId 누락 — 테넌트 격리 위반 방지를 위해 검색 차단");
+    return [];
+  }
+
   logActionDebug(LOG_CTX, `searchSimilarCases: query="${query.slice(0, 50)}"`);
 
   // 1. 쿼리 임베딩 생성 (캐시 우선)
@@ -80,7 +86,7 @@ export async function searchSimilarCases(
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("search_similar_cases", {
     query_embedding: JSON.stringify(queryEmbedding),
-    tenant_filter: tenantId ?? null,
+    tenant_filter: tenantId,
     grade_filter: gradeFilter ?? null,
     major_filter: majorFilter ?? null,
     match_count: matchCount,

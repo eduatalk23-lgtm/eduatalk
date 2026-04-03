@@ -45,6 +45,7 @@ export function createMemoryTools(ctx: AgentContext) {
         majorFilter,
         limit,
       }): Promise<AgentToolResult<{ cases: CaseSearchResult[]; total: number }>> => {
+        if (!ctx.tenantId) return TOOL_ERRORS.NO_TENANT;
         try {
           const results = await searchSimilarCases({
             query,
@@ -96,6 +97,7 @@ export function createMemoryTools(ctx: AgentContext) {
         correctionType,
         limit,
       }): Promise<AgentToolResult<{ corrections: CorrectionSearchResult[]; total: number }>> => {
+        if (!ctx.tenantId) return TOOL_ERRORS.NO_TENANT;
         try {
           const results = await searchSimilarCorrections({
             query,

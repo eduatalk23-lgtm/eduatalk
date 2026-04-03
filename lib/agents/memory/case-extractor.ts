@@ -6,6 +6,7 @@
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { StepTrace } from "../session-logger";
 import type { CaseInsertParams } from "./types";
+import { maskCaseFields } from "../utils/pii-mask";
 
 const LOG_CTX = { domain: "agent", action: "case-extract" };
 
@@ -91,6 +92,13 @@ export async function saveCaseToDb(params: CaseInsertParams): Promise<void> {
   if (!url || !key) return;
 
   try {
+    // PII 마스킹: 벡터 DB에 저장되는 텍스트에서 민감정보 제거
+    const masked = maskCaseFields({
+      diagnosisSummary: params.diagnosisSummary,
+      strategySummary: params.strategySummary,
+      keyInsights: params.keyInsights ?? [],
+    });
+
     const res = await fetch(`${url}/rest/v1/consulting_cases`, {
       method: "POST",
       headers: {
@@ -106,9 +114,9 @@ export async function saveCaseToDb(params: CaseInsertParams): Promise<void> {
         school_category: params.schoolCategory ?? null,
         target_major: params.targetMajor ?? null,
         curriculum_revision: params.curriculumRevision ?? null,
-        diagnosis_summary: params.diagnosisSummary,
-        strategy_summary: params.strategySummary,
-        key_insights: params.keyInsights ?? [],
+        diagnosis_summary: masked.diagnosisSummary,
+        strategy_summary: masked.strategySummary,
+        key_insights: masked.keyInsights,
       }),
     });
     if (res.ok) {
