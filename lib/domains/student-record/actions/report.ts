@@ -253,16 +253,62 @@ async function fetchAnalysisData(
   supabase: SupabaseServerClient,
   diagnosisTargetSubClassificationId?: number | null,
 ) {
-  const [diagnosisData, storylineData, strategyData, edges, setekGuidesRes, actSummariesRes, coursePlanRes, changcheGuidesRes, haengteukGuidesRes, contentQualityRes, competencyScoresRes] = await Promise.all([
+  // Tier 1: 필수 — 실패 시 전체 에러 (이것 없으면 리포트 렌더링 불가)
+  const [diagnosisData, strategyData, edges] = await Promise.all([
     fetchDiagnosisTabData(studentId, initialSchoolYear, tenantId),
-    service.getStorylineTabData(studentId, initialSchoolYear, tenantId),
     service.getStrategyTabData(studentId, initialSchoolYear, tenantId),
-    edgeRepo.findEdges(studentId, tenantId).catch(() => [] as PersistedEdge[]),
-    fetchSetekGuides(studentId).catch(() => ({ success: false as const, error: "" })),
-    fetchActivitySummaries(studentId).catch(() => ({ success: false as const, error: "" })),
-    fetchCoursePlanTabData(studentId).catch(() => ({ success: false as const, error: "" })),
-    fetchChangcheGuides(studentId).catch(() => ({ success: false as const, data: [] as Awaited<ReturnType<typeof fetchChangcheGuides>>["data"] })),
-    fetchHaengteukGuide(studentId).catch(() => ({ success: false as const, data: [] as Awaited<ReturnType<typeof fetchHaengteukGuide>>["data"] })),
+    edgeRepo.findEdges(studentId, tenantId),
+  ]);
+
+  // Tier 2: 부가 — 실패 시 빈 값 fallback (있으면 풍부해지지만 없어도 렌더 가능)
+  const [
+    storylineResult,
+    setekGuidesResult,
+    changcheGuidesResult,
+    haengteukGuidesResult,
+    coursePlanResult,
+    actSummariesResult,
+  ] = await Promise.allSettled([
+    service.getStorylineTabData(studentId, initialSchoolYear, tenantId),
+    fetchSetekGuides(studentId),
+    fetchChangcheGuides(studentId),
+    fetchHaengteukGuide(studentId),
+    fetchCoursePlanTabData(studentId),
+    fetchActivitySummaries(studentId),
+  ]);
+
+  const storylineData = storylineResult.status === "fulfilled"
+    ? storylineResult.value
+    : ({ storylines: [], roadmapItems: [] } as Awaited<ReturnType<typeof service.getStorylineTabData>>);
+
+  const setekGuidesRes = setekGuidesResult.status === "fulfilled"
+    ? setekGuidesResult.value
+    : ({ success: false as const, error: "" });
+
+  const changcheGuidesRes = changcheGuidesResult.status === "fulfilled"
+    ? changcheGuidesResult.value
+    : ({ success: false as const, data: [] as Awaited<ReturnType<typeof fetchChangcheGuides>>["data"] });
+
+  const haengteukGuidesRes = haengteukGuidesResult.status === "fulfilled"
+    ? haengteukGuidesResult.value
+    : ({ success: false as const, data: [] as Awaited<ReturnType<typeof fetchHaengteukGuide>>["data"] });
+
+  const coursePlanRes = coursePlanResult.status === "fulfilled"
+    ? coursePlanResult.value
+    : ({ success: false as const, error: "" });
+
+  const actSummariesRes = actSummariesResult.status === "fulfilled"
+    ? actSummariesResult.value
+    : ({ success: false as const, error: "" });
+
+  for (const [i, r] of [storylineResult, setekGuidesResult, changcheGuidesResult, haengteukGuidesResult, coursePlanResult, actSummariesResult].entries()) {
+    if (r.status === "rejected") {
+      logActionError({ ...LOG_CTX, action: `report.tier2[${i}]` }, r.reason, { studentId });
+    }
+  }
+
+  // Tier 3: 선택 — 실패 시 null (없어도 리포트 기본 구조에 영향 없음)
+  const [contentQualityResult, competencyScoresResult] = await Promise.allSettled([
     // D단계: 콘텐츠 품질 점수 (issues/feedback 포함)
     supabase
       .from("student_record_content_quality")
@@ -270,8 +316,7 @@ async function fetchAnalysisData(
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("source", "ai")
-      .order("overall_score", { ascending: true })
-      .catch(() => ({ data: null, error: null })),
+      .order("overall_score", { ascending: true }),
     // D단계: 역량 등급 (rubric_scores 포함 — B- 이하 항목만 가이드 프롬프트에 주입)
     supabase
       .from("student_record_competency_scores")
@@ -279,9 +324,22 @@ async function fetchAnalysisData(
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("school_year", initialSchoolYear)
-      .eq("source", "ai")
-      .catch(() => ({ data: null, error: null })),
+      .eq("source", "ai"),
   ]);
+
+  const contentQualityRes = contentQualityResult.status === "fulfilled"
+    ? contentQualityResult.value
+    : { data: null, error: null };
+
+  const competencyScoresRes = competencyScoresResult.status === "fulfilled"
+    ? competencyScoresResult.value
+    : { data: null, error: null };
+
+  for (const [i, r] of [contentQualityResult, competencyScoresResult].entries()) {
+    if (r.status === "rejected") {
+      logActionError({ ...LOG_CTX, action: `report.tier3[${i}]` }, r.reason, { studentId });
+    }
+  }
 
   // 소분류/중분류 이름 조회
   const targetSubClassificationName = diagnosisData.targetSubClassificationName ?? null;
