@@ -21,10 +21,13 @@ export type RecordWarningRuleId =
   | "content_quality_critical"
   | "content_quality_low"
   | "content_quality_scientific"
-  | "setek_enumeration"
-  | "setek_abstract_generic"
-  | "inquiry_keyword_only"
-  | "grade_inquiry_mismatch"
+  | "setek_enumeration"        // P1_나열식
+  | "setek_abstract_generic"   // F12_자기주도성부재
+  | "inquiry_keyword_only"     // P3_키워드만
+  | "grade_inquiry_mismatch"   // P4_내신탐구불일치
+  | "setek_no_growth_curve"    // F10_성장부재 (학년 간 성장 곡선 부재)
+  | "setek_career_overdose"    // F16_진로과잉도배 (모든 교과 진로 키워드 도배)
+  | "setek_teacher_unobservable" // M1_교사관찰불가 (교사가 관찰 불가한 내면 상태 기술)
   | "roadmap_unfinished_prev_grade";
 
 export type RecordWarningSeverity = "critical" | "high" | "medium" | "low";
@@ -63,5 +66,8 @@ export const WARNING_LABELS: Record<RecordWarningRuleId, string> = {
   setek_abstract_generic: "세특 추상적/복붙 의심",
   inquiry_keyword_only: "탐구 키워드만 존재",
   grade_inquiry_mismatch: "내신↔탐구 심화도 불일치",
+  setek_no_growth_curve: "학년 간 성장 곡선 부재",
+  setek_career_overdose: "진로 키워드 과잉 도배",
+  setek_teacher_unobservable: "교사 관찰 불가 표현",
   roadmap_unfinished_prev_grade: "이전 학년 미완료 로드맵",
 };

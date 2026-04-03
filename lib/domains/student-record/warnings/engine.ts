@@ -2,6 +2,35 @@
 // Phase 6.5 — 조기 경보 엔진 (순수 함수)
 // 기존 React Query 데이터로 클라이언트에서 계산
 // ============================================
+//
+// ============================================
+// 합격률 낮은 패턴 14개 ↔ 경고 엔진 매핑
+// ============================================
+//
+// [구조적 문제 — structural]
+// P1  나열식              → checkContentQualityPatterns (PATTERN_MAP["P1_나열식"])    → ruleId: "setek_enumeration"
+// P3  키워드만            → checkContentQualityPatterns (PATTERN_MAP["P3_키워드만"])  → ruleId: "inquiry_keyword_only"
+// P4  내신↔탐구불일치     → checkContentQualityPatterns (PATTERN_MAP["P4_내신탐구불일치"]) → ruleId: "grade_inquiry_mismatch"
+//
+// [과학적/논리적 정합성 — scientific (F1~F6)]
+// F1  별개활동포장        → checkContentQualityPatterns (SCIENTIFIC_PATTERN_CODES 통합 감지) → ruleId: "content_quality_scientific"
+// F2  인과단절            → checkContentQualityPatterns (SCIENTIFIC_PATTERN_CODES 통합 감지) → ruleId: "content_quality_scientific"
+// F3  출처불일치          → checkContentQualityPatterns (SCIENTIFIC_PATTERN_CODES 통합 감지) → ruleId: "content_quality_scientific"
+// F4  전제불일치          → checkContentQualityPatterns (SCIENTIFIC_PATTERN_CODES 통합 감지) → ruleId: "content_quality_scientific"
+// F5  비교군오류          → checkContentQualityPatterns (SCIENTIFIC_PATTERN_CODES 통합 감지) → ruleId: "content_quality_scientific"
+// F6  자명한결론          → checkContentQualityPatterns (SCIENTIFIC_PATTERN_CODES 통합 감지) → ruleId: "content_quality_scientific"
+// 참고: F1~F6는 각각 별도 ruleId를 두지 않고 "content_quality_scientific"으로 통합.
+//       issues 배열에 세부 코드(F1~F6)가 보존되어 message로 노출됨.
+//
+// [거시적 패턴 — macro]
+// F10 성장부재            → checkContentQualityPatterns (PATTERN_MAP["F10_성장부재"])      → ruleId: "setek_no_growth_curve"
+// F12 자기주도성부재       → checkContentQualityPatterns (PATTERN_MAP["F12_자기주도성부재"]) → ruleId: "setek_abstract_generic"
+// F16 진로과잉도배         → checkContentQualityPatterns (PATTERN_MAP["F16_진로과잉도배"])   → ruleId: "setek_career_overdose"
+//
+// [메타 패턴 — meta]
+// M1  교사관찰불가         → checkContentQualityPatterns (PATTERN_MAP["M1_교사관찰불가"])    → ruleId: "setek_teacher_unobservable"
+//
+// ============================================
 
 import type { RecordWarning } from "./types";
 import type {
@@ -622,7 +651,7 @@ function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): Record
       suggestion: "학생 수준에 맞는 탐구 내용으로 조정하거나, 탐구 과정의 근거를 보강하세요",
     },
     F10_성장부재: {
-      ruleId: "content_quality_low",
+      ruleId: "setek_no_growth_curve",
       severity: "medium",
       title: "학년 간 성장 곡선 부재",
       suggestion: "학년이 올라갈수록 탐구 깊이가 심화되어야 합니다 (고1 넓은→고2 심화→고3 확장+제언)",
@@ -634,10 +663,16 @@ function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): Record
       suggestion: "교사 과제 수행만이 아닌, 학생이 스스로 질문을 만들고 탐구한 흔적이 필요합니다",
     },
     F16_진로과잉도배: {
-      ruleId: "content_quality_low",
+      ruleId: "setek_career_overdose",
       severity: "high",
       title: "진로 키워드 과잉 도배",
       suggestion: "모든 교과에 동일 진로 키워드를 삽입하면 교과 고유 역량이 불명확해집니다. 진로 연결은 2~3과목으로 제한하세요",
+    },
+    M1_교사관찰불가: {
+      ruleId: "setek_teacher_unobservable",
+      severity: "medium",
+      title: "교사 관찰 불가 표현",
+      suggestion: '"~다짐함", "~생각함", "~깨닫게 됨" 등 교사가 직접 관찰할 수 없는 내면 상태 표현을 제거하고, 행동·결과 중심으로 기술하세요',
     },
     // F9_창체참여기록형 삭제 — P2와 동일 패턴으로 통합 삭제
   };

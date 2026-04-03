@@ -612,7 +612,8 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   }));
 
   const preview = `${savedCount}건 스토리라인 생성 (${connections.length}건 연결)`;
-  return { preview, result: result.data };
+  // 전체 LLM 응답은 DB(student_record_storylines)에 이미 저장됨 → ctx에는 카운트만 유지
+  return { preview, result: { storylineCount: savedCount, connectionCount: connections.length } };
 }
 
 // ============================================
@@ -871,7 +872,12 @@ export async function runAiDiagnosis(
   const diagLabel = hasNeisData ? "종합진단" : "예비진단(수강계획 기반)";
   return {
     preview: `${diagLabel} 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
-    result: { weaknesses: result.data.weaknesses, improvements: result.data.improvements },
+    // 진단 상세(weaknesses/improvements)는 DB(student_record_diagnosis)에 저장됨 → ctx에는 카운트만 유지
+    result: {
+      overallGrade: result.data.overallGrade,
+      weaknessCount: Array.isArray(result.data.weaknesses) ? result.data.weaknesses.length : 0,
+      improvementCount: Array.isArray(result.data.improvements) ? (result.data.improvements as unknown[]).length : 0,
+    },
   };
 }
 
@@ -1334,7 +1340,8 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
   if (llmResult.success && llmResult.data) {
     return {
       preview: `${llmResult.data.items.length}건 AI 로드맵 (${llmMode})`,
-      result: { mode: llmMode, ...llmResult.data },
+      // 전체 LLM 응답은 DB(student_record_roadmap_items)에 이미 저장됨 → ctx에는 카운트만 유지
+      result: { mode: llmMode, itemCount: llmResult.data.items.length },
     };
   }
 
