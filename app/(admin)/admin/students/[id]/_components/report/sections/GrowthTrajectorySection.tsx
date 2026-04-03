@@ -102,6 +102,45 @@ function calcGrowthRate(
   return `${rate >= 0 ? "+" : ""}${rate.toFixed(0)}%`;
 }
 
+/** 이전 학년 대비 delta 계산 및 추이 배지 생성 */
+function buildDeltaBadge(
+  scoresByGrade: ReturnType<typeof buildScoresByGrade>,
+  currentGrade: number,
+): { label: string; classes: string } | null {
+  const currentIdx = scoresByGrade.findIndex((d) => d.grade === currentGrade);
+  if (currentIdx <= 0) return null;
+
+  const prev = scoresByGrade[currentIdx - 1];
+  const curr = scoresByGrade[currentIdx];
+
+  // 이전/현재 학년 유효 점수 평균
+  const areas = ["academic", "career", "community"] as const;
+  const prevValues = areas.map((a) => prev[a]).filter((v): v is number => v !== null);
+  const currValues = areas.map((a) => curr[a]).filter((v): v is number => v !== null);
+  if (prevValues.length === 0 || currValues.length === 0) return null;
+
+  const prevAvg = prevValues.reduce((s, v) => s + v, 0) / prevValues.length;
+  const currAvg = currValues.reduce((s, v) => s + v, 0) / currValues.length;
+  const delta = currAvg - prevAvg;
+
+  if (delta >= 0.5) {
+    return {
+      label: `↑ 상승 (+${delta.toFixed(1)})`,
+      classes: "bg-emerald-100 text-emerald-700",
+    };
+  }
+  if (delta <= -0.5) {
+    return {
+      label: `↓ 하강 (${delta.toFixed(1)})`,
+      classes: "bg-red-100 text-red-600",
+    };
+  }
+  return {
+    label: `→ 유지 (${delta >= 0 ? "+" : ""}${delta.toFixed(1)})`,
+    classes: "bg-gray-100 text-gray-500",
+  };
+}
+
 export function GrowthTrajectorySection({
   competencyScores,
   activityTags,
@@ -201,6 +240,8 @@ export function GrowthTrajectorySection({
                 const config = GRADE_STAGE_CONFIG[stage];
                 const gradeData = scoresByGrade.find((d) => d.grade === grade);
 
+                const deltaBadge = buildDeltaBadge(scoresByGrade, grade);
+
                 return (
                   <div key={grade} className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-2 text-center">
                     <p className={cn("font-semibold", TYPO.body)}>{grade}학년</p>
@@ -213,6 +254,17 @@ export function GrowthTrajectorySection({
                     >
                       {config.label}
                     </span>
+                    {/* 추이 annotation 배지 */}
+                    {deltaBadge && (
+                      <span
+                        className={cn(
+                          "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+                          deltaBadge.classes,
+                        )}
+                      >
+                        {deltaBadge.label}
+                      </span>
+                    )}
                     {/* 영역별 성장률 */}
                     {grade > 1 && gradeData && (
                       <div className="mt-1 flex flex-col gap-0.5">

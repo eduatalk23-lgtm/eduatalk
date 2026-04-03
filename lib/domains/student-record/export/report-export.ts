@@ -381,9 +381,11 @@ export async function exportReportAsPdf(data: ReportExportData): Promise<void> {
   ]);
 
   // 렌더링용 임시 DOM 생성
+  // font-family: CSS 변수 --font-noto-serif(Noto Serif KR)를 우선 적용하여 한글 깨짐 방지.
+  // Next.js가 Noto_Serif_KR을 이미 로드하므로 별도 CDN link 불필요.
   const container = document.createElement("div");
   container.style.cssText =
-    "position:absolute;left:-9999px;top:0;width:794px;padding:48px;background:white;font-family:sans-serif;color:#111;";
+    "position:absolute;left:-9999px;top:0;width:794px;padding:48px;background:white;font-family:var(--font-noto-serif),'Noto Serif KR','Noto Sans KR',sans-serif;color:#111;";
   container.innerHTML = buildReportHtml(data);
   document.body.appendChild(container);
 

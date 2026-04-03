@@ -135,9 +135,17 @@ export async function createOrchestrator(ctx: AgentContext) {
     // graceful
   }
 
+  // S6-4: 활성 경고 자동 주입 (실패 시 빈 문자열)
+  let activeWarningsBlock = "";
+  try {
+    activeWarningsBlock = await buildActiveWarningsBlock(ctx.studentId);
+  } catch {
+    // graceful — 경고 조회 실패 시 시스템 프롬프트에서 생략
+  }
+
   return {
     tools,
-    systemPrompt: buildSystemPrompt(ctx) + guideContextBlock + caseContextBlock + correctionContextBlock + outcomeCalibrationBlock,
+    systemPrompt: buildSystemPrompt(ctx) + guideContextBlock + caseContextBlock + correctionContextBlock + outcomeCalibrationBlock + activeWarningsBlock,
   };
 }
 
@@ -176,6 +184,33 @@ async function buildCaseContextSection(ctx: AgentContext): Promise<string> {
 
   const result = lines.join("\n");
   return result.slice(0, MAX_CHARS);
+}
+
+/**
+ * S6-4: 활성 경고 상위 5건을 시스템 프롬프트에 주입 (500자 상한).
+ * critical/high 우선 정렬 후 최대 5건. 0건이면 빈 문자열 반환.
+ */
+async function buildActiveWarningsBlock(studentId: string): Promise<string> {
+  const { fetchActiveWarnings } = await import(
+    "@/lib/domains/student-record/actions/report"
+  );
+  const warnings = await fetchActiveWarnings(studentId);
+  if (warnings.length === 0) return "";
+
+  const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const sorted = [...warnings].sort(
+    (a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9),
+  );
+
+  const top5 = sorted.slice(0, 5);
+  const lines = ["\n\n## 현재 활성 경고"];
+  for (const w of top5) {
+    lines.push(`- [${w.severity}] ${w.title}: ${w.message}`);
+  }
+
+  const result = lines.join("\n");
+  // 500자 상한 (프롬프트 길이 보호)
+  return result.slice(0, 500);
 }
 
 /** 관련 교정 피드백 3건을 시스템 프롬프트에 주입 (1000자 상한) */

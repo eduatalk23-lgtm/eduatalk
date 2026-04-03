@@ -336,6 +336,8 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
       fetchingRef.current = false;
       setRunningCell(null);
       invalidate();
+      // S6-3: Grade Phase 완료 시 진단/리포트 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
     }
   };
 

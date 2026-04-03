@@ -37,6 +37,8 @@ import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { ContentQualityRow } from "../warnings/engine";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import type { CompetencyAnalysisContext } from "../pipeline-types";
+import { computeWarnings } from "../warnings/engine";
+import type { RecordWarning } from "../warnings/types";
 
 const LOG_CTX = { domain: "student-record", action: "report" };
 
@@ -646,5 +648,80 @@ export async function fetchReportData(
       success: false,
       error: error instanceof Error ? error.message : "Report 데이터 수집 실패",
     };
+  }
+}
+
+// ============================================
+// S6-4: 에이전트용 경량 경고 조회
+// 전체 Report 조회 없이 핵심 데이터만으로 computeWarnings 실행
+// ============================================
+
+/**
+ * 특정 학생의 활성 경고를 서버에서 계산하여 반환.
+ * 에이전트 시스템 프롬프트 주입에 사용. 인증 포함.
+ */
+export async function fetchActiveWarnings(
+  studentId: string,
+): Promise<RecordWarning[]> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
+    const supabase = await createSupabaseServerClient();
+
+    // 학생 학년 조회
+    const { data: student } = await supabase
+      .from("students")
+      .select("grade")
+      .eq("id", studentId)
+      .eq("tenant_id", tenantId!)
+      .maybeSingle();
+    if (!student) return [];
+
+    const studentGrade = student.grade ?? 3;
+    const currentSchoolYear = calculateSchoolYear();
+
+    // 학년별 기록 데이터 (병렬 조회)
+    const grades = [1, 2, 3].filter((g) => g <= studentGrade);
+    const recordResults = await Promise.allSettled(
+      grades.map((g) =>
+        service.getRecordTabData(studentId, currentSchoolYear - (studentGrade - g), tenantId!),
+      ),
+    );
+
+    const recordsByGrade = new Map<number, RecordTabData>();
+    for (const [i, r] of recordResults.entries()) {
+      if (r.status === "fulfilled") {
+        recordsByGrade.set(grades[i], r.value as RecordTabData);
+      }
+    }
+
+    // 진단/전략 데이터 (경고 계산에 필요한 핵심 데이터)
+    const [diagnosisData, strategyData, storylineData, contentQualityRes] = await Promise.allSettled([
+      fetchDiagnosisTabData(studentId, currentSchoolYear, tenantId!),
+      service.getStrategyTabData(studentId, currentSchoolYear, tenantId!),
+      service.getStorylineTabData(studentId, currentSchoolYear, tenantId!),
+      supabase
+        .from("student_record_content_quality")
+        .select("record_type, record_id, overall_score, issues, feedback")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId!)
+        .eq("source", "ai"),
+    ]);
+
+    const contentQuality =
+      contentQualityRes.status === "fulfilled"
+        ? (contentQualityRes.value.data ?? [])
+        : [];
+
+    return computeWarnings({
+      recordsByGrade,
+      storylineData: storylineData.status === "fulfilled" ? storylineData.value : null,
+      diagnosisData: diagnosisData.status === "fulfilled" ? diagnosisData.value : null,
+      strategyData: strategyData.status === "fulfilled" ? strategyData.value : null,
+      currentGrade: studentGrade,
+      qualityScores: contentQuality as import("../warnings/engine").ContentQualityRow[],
+    });
+  } catch {
+    // graceful degradation — 경고 조회 실패 시 빈 배열 반환
+    return [];
   }
 }
