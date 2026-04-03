@@ -20,6 +20,14 @@ export async function POST(request: NextRequest) {
     }
 
     const ctx = await loadPipelineContext(pipelineId);
+
+    if (ctx.targetGrade == null) {
+      return NextResponse.json(
+        { error: "Grade 파이프라인에 targetGrade가 설정되지 않음" },
+        { status: 400 },
+      );
+    }
+
     await executeGradePhase6(ctx);
 
     // 다음 학년 파이프라인 확인 (phase-6이 최종 phase)
@@ -31,7 +39,7 @@ export async function POST(request: NextRequest) {
       .eq("pipeline_type", "grade")
       .order("grade", { ascending: true });
 
-    const currentGrade = ctx.targetGrade ?? 0;
+    const currentGrade = ctx.targetGrade;
     const nextPipeline = siblingPipelines?.find(
       (p) => (p.grade as number) > currentGrade && p.status === "pending",
     );

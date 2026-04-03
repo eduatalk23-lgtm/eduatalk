@@ -1,13 +1,17 @@
 // ============================================
-// AI 초기 분석 파이프라인 타입
-// Phase B+E1+F3: DB 상태 추적 + 3초 폴링
-// 3-Phase 병렬 실행 (14 태스크):
-//   Phase 1 (순차): 역량→스토리라인→엣지→가이드배정
-//   Phase 2 (병렬): 진단, 수강, 우회학과
-//   Phase 3a (병렬, 진단 후): 세특방향, 보완전략, 면접질문, 요약서
-//   Phase 3b (순차): 창체방향 (세특방향 후)
-//   Phase 3c (순차): 행특방향 (창체방향 후)
-//   Phase 3d (순차): 로드맵 (창체/행특방향 후)
+// AI 생기부 분석 파이프라인 타입
+// 3-Tier 구조: Grade Pipeline → Synthesis Pipeline (+ Legacy 단일 파이프라인)
+//
+// Grade Pipeline (학년별 7태스크×6Phase):
+//   GP1: competency_setek → GP2: competency_changche → GP3: competency_haengteuk
+//   GP4: setek_guide + slot_generation → GP5: changche_guide → GP6: haengteuk_guide
+//
+// Synthesis Pipeline (종합 10태스크×6Phase):
+//   SP1: storyline → SP2: edge + guide_matching
+//   SP3: diagnosis + course_rec → SP4: bypass
+//   SP5: summary + strategy → SP6: interview + roadmap
+//
+// Legacy (PIPELINE_TASK_KEYS): 하위 호환용 단일 15태스크 파이프라인
 // ============================================
 
 export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -19,7 +23,7 @@ export const PIPELINE_TASK_KEYS = [
   "edge_computation",        // 3rd: 태그+스토리라인 → 7종 엣지 영속화
   "ai_diagnosis",            // 4th: 역량+엣지 → 종합진단(강점/약점)
   "course_recommendation",   // 5th: 수강 추천 (독립)
-  "slot_generation",         // 5.5th: NEIS 없는 학년의 세특/창체/행특 슬롯 자동 생성
+  "slot_generation",         // NEIS 없는 학년의 세특/창체/행특 슬롯 자동 생성 (Grade GP4에서도 실행)
   "guide_matching",          // 6th: 가이드 배정 (독립)
   "bypass_analysis",         // 7th: 우회학과 분석 (독립, Phase 2)
   "setek_guide",             // 8th: 진단+엣지 → 세특 방향

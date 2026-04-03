@@ -533,6 +533,17 @@ describe("POST /api/admin/pipeline/grade/phase-6", () => {
     expect(json.error).toBe("pipelineId 필수");
   });
 
+  it("targetGrade null → 400", async () => {
+    const ctx = makeMockCtx({ targetGrade: undefined });
+    mockLoadPipelineContext.mockResolvedValue(ctx);
+
+    const res = await callRoute({ pipelineId: "pipeline-abc" });
+
+    expect(res.status).toBe(400);
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("Grade 파이프라인에 targetGrade가 설정되지 않음");
+  });
+
   it("executeGradePhase6 성공 — 다음 학년 있음 → 200 + nextGradePipelineId", async () => {
     const siblings = [
       { id: "p1", grade: 1, status: "completed" },
