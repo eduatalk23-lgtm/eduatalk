@@ -37,8 +37,8 @@ import { upsertCompetencyScore } from "@/lib/domains/student-record/competency-r
 import { insertStrategy } from "@/lib/domains/student-record/diagnosis-repository";
 import {
   fetchPipelineStatus,
-  runInitialAnalysisPipeline,
   rerunPipelineTasks,
+  runGradeAwarePipeline,
 } from "@/lib/domains/student-record/actions/pipeline";
 import { calculateCourseAdequacy } from "@/lib/domains/student-record/course-adequacy";
 import { generateRecommendationsAction } from "@/lib/domains/student-record/actions/coursePlan";
@@ -789,14 +789,14 @@ ${tagsSummary}
             );
             if (!result.success) return toolError(result.error ?? "파이프라인 재실행 실패.", { retryable: true, actionHint: "다시 시도하세요." });
 
-            // API route로 실행 트리거
+            // 레거시 파이프라인 재실행 트리거 (await — fire-and-forget 금지)
             const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
             const { pipelineId: pid, studentId: sid, tenantId: tid, studentSnapshot, existingState } = result.data!;
-            fetch(`${baseUrl}/api/admin/pipeline/run`, {
+            await fetch(`${baseUrl}/api/admin/pipeline/run`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pipelineId: pid, studentId: sid, tenantId: tid, studentSnapshot, existingState }),
-            }).catch(() => {});
+            });
 
             return {
               success: true,
@@ -804,23 +804,17 @@ ${tagsSummary}
             };
           }
 
-          const result = await runInitialAnalysisPipeline(ctx.studentId, ctx.tenantId);
+          // Grade/Synthesis 2-Tier 파이프라인 실행 (레거시 단일 파이프라인 대체)
+          const result = await runGradeAwarePipeline(ctx.studentId, ctx.tenantId);
           if (!result.success) return toolError(result.error ?? "파이프라인 실행 실패.", { retryable: true, actionHint: "다시 시도하세요." });
 
-          // API route로 실행 트리거
-          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-          const { pipelineId: pid2, studentId: sid2, tenantId: tid2, studentSnapshot: snap } = result.data!;
-          fetch(`${baseUrl}/api/admin/pipeline/run`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pipelineId: pid2, studentId: sid2, tenantId: tid2, studentSnapshot: snap }),
-          }).catch(() => {});
           return {
             success: true,
             data: {
-              pipelineId: result.data!.pipelineId,
+              pipelineId: result.data!.firstPipelineId,
+              gradePipelines: result.data!.gradePipelines,
               mode: "full",
-              message: "파이프라인 실행 시작 (30-120초 소요). getPipelineStatus로 상태를 확인하세요.",
+              message: "Grade 파이프라인 생성 완료. PipelinePanelApp에서 Phase별 실행이 진행됩니다. getPipelineStatus로 상태를 확인하세요.",
             },
           };
         } catch (error) {
