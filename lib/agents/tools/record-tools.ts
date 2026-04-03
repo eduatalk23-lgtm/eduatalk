@@ -42,6 +42,10 @@ import {
 } from "@/lib/domains/student-record/actions/pipeline";
 import { calculateCourseAdequacy } from "@/lib/domains/student-record/course-adequacy";
 import { generateRecommendationsAction } from "@/lib/domains/student-record/actions/coursePlan";
+import {
+  formatSetekFlowDetailed,
+  formatDraftBannedPatterns,
+} from "@/lib/domains/student-record/evaluation-criteria/defaults";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
@@ -620,6 +624,96 @@ ${tagsSummary}
         } catch (error) {
           logActionError(LOG_CTX, error);
           return toolError("세특 초안 생성 실패.", { retryable: true, actionHint: "다시 시도하세요." });
+        }
+      },
+    }),
+
+    /**
+     * 세특 초안 피드백 기반 반복 개선
+     */
+    improveSetekDraft: tool({
+      description:
+        "기존 세특 초안을 피드백 기반으로 개선합니다. 최대 3회 반복. generateSetekDraft로 초안 생성 후 사용하세요.",
+      inputSchema: z.object({
+        recordId: z.string().describe("세특 레코드 ID"),
+        feedback: z.string().max(1000).describe("개선 요청 사항 (예: '탐구 깊이를 더 심화', '참고문헌 추가')"),
+        currentDraft: z.string().max(2000).describe("현재 초안 텍스트"),
+        iterationCount: z.number().default(1).describe("현재 반복 횟수 (최대 3)"),
+      }),
+      execute: async ({ recordId, feedback, currentDraft, iterationCount }) => {
+        logActionDebug(LOG_CTX, `improveSetekDraft: recordId=${recordId}, iteration=${iterationCount}`);
+        try {
+          if (iterationCount > 3) {
+            return toolError("최대 3회 반복 가능합니다. 현재 초안을 확정하거나 새로 생성하세요.", {
+              actionHint: "generateSetekDraft로 새 초안을 생성하세요.",
+            });
+          }
+
+          if (currentDraft.trim().length < 30) {
+            return TOOL_ERRORS.INVALID_INPUT("현재 초안이 너무 짧습니다 (30자 이상 필요)");
+          }
+
+          if (feedback.trim().length < 5) {
+            return TOOL_ERRORS.INVALID_INPUT("피드백이 너무 짧습니다 (5자 이상 필요)");
+          }
+
+          const systemPrompt = `당신은 고등학교 세특(세부능력 및 특기사항) 작성 보조 도우미입니다.
+
+## 역할
+- 컨설턴트가 작성한 초안을 피드백 기반으로 개선합니다.
+- 세특은 학생의 수업 참여, 탐구 과정, 성장을 기술하는 공식 문서입니다.
+- 이 개선본은 컨설턴트가 확인 후 확정하는 **수정안**입니다.
+
+## 좋은 세특의 8단계 흐름 (반드시 준수)
+${formatSetekFlowDetailed()}
+
+## 개선 규칙
+1. 피드백에서 요청한 부분만 수정하고, 나머지는 최대한 유지합니다.
+2. 습니다체(~했다, ~보였다, ~성장했다)를 사용합니다.
+3. NEIS 기준 500자(한글 500자, 1,500바이트) 이내로 유지합니다.
+4. 개선 시 구체적 탐구 내용, 참고문헌, 성장 서사를 강화합니다.
+5. 개선 전후 변화가 명확하도록 합니다.
+6. plain text로만 응답합니다 (JSON이 아닌 일반 텍스트).
+
+## 절대 금지 — 합격률 낮은 세특 패턴
+${formatDraftBannedPatterns()}`;
+
+          const userPrompt = `## 현재 초안 (${iterationCount}차 반복)
+${currentDraft}
+
+## 개선 요청
+${feedback}
+
+위 피드백을 반영하여 개선된 세특 초안을 작성해주세요. NEIS 500자 이내로 유지하세요.`;
+
+          const result = await generateTextWithRateLimit({
+            system: systemPrompt,
+            messages: [{ role: "user", content: userPrompt }],
+            modelTier: "standard",
+            temperature: 0.5,
+            maxTokens: 2000,
+          });
+
+          if (!result.content) {
+            return TOOL_ERRORS.AI_EMPTY;
+          }
+
+          const improvedDraft = result.content.trim();
+
+          return {
+            success: true,
+            data: {
+              improvedDraft,
+              iterationCount,
+              remainingIterations: 3 - iterationCount,
+              message: iterationCount >= 3
+                ? "최대 반복 횟수에 도달했습니다. 이 초안을 최종본으로 확정하세요."
+                : `${iterationCount}차 개선 완료. 추가 수정이 필요하면 iterationCount를 ${iterationCount + 1}로 설정하여 다시 호출하세요.`,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return toolError("세특 초안 개선 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),

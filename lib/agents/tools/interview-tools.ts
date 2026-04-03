@@ -246,6 +246,132 @@ export function createInterviewTools(ctx: AgentContext) {
     }),
 
     /**
+     * 면접 실전 연습 (multi-turn)
+     */
+    conductMockInterview: tool({
+      description:
+        "면접 실전 연습을 진행합니다. 질문에 대한 답변을 평가하고, 피드백과 후속 질문을 생성합니다. previousExchanges로 이전 대화 맥락을 유지하여 다회차 연습이 가능합니다.",
+      inputSchema: z.object({
+        question: z.string().max(500).describe("현재 면접 질문"),
+        answer: z.string().max(2000).describe("학생의 답변"),
+        previousExchanges: z
+          .array(
+            z.object({
+              question: z.string(),
+              answer: z.string(),
+              feedback: z.string(),
+            }),
+          )
+          .default([])
+          .describe("이전 질의응답 기록"),
+      }),
+      execute: async ({ question, answer, previousExchanges }) => {
+        logActionDebug(LOG_CTX, `conductMockInterview: exchanges=${previousExchanges.length}`);
+        try {
+          if (!ctx.tenantId) {
+            return TOOL_ERRORS.NO_TENANT;
+          }
+
+          if (answer.trim().length < 10) {
+            return TOOL_ERRORS.INVALID_INPUT("답변이 너무 짧습니다 (10자 이상 필요)");
+          }
+
+          // 이전 대화 맥락 구성
+          let contextSection = "";
+          if (previousExchanges.length > 0) {
+            const exchanges = previousExchanges.slice(-5); // 최근 5개만
+            contextSection = "\n## 이전 면접 대화\n";
+            for (const ex of exchanges) {
+              contextSection += `Q: ${truncateWithMarker(ex.question, 200)}\nA: ${truncateWithMarker(ex.answer, 300)}\n피드백: ${truncateWithMarker(ex.feedback, 200)}\n\n`;
+            }
+          }
+
+          const systemPrompt = `당신은 대입 면접 코치입니다. 학생의 면접 답변을 평가하고, 개선 피드백과 후속 질문을 생성합니다.
+
+## 역할
+1. 학생의 답변을 5점 척도로 평가합니다.
+2. 구체적인 강점과 개선점을 피드백합니다.
+3. 이전 대화 맥락을 고려하여 심화된 후속 질문을 생성합니다.
+4. 후속 질문은 학생의 약점을 보완하거나 깊이를 확인하는 방향으로 설계합니다.
+
+## 평가 기준 (1-5점)
+- 5점: 모범 답변 수준, 구체적 근거 + 논리적 전개
+- 4점: 양호, 핵심 포인트 대부분 포함
+- 3점: 보통, 개선 여지 있음
+- 2점: 부족, 핵심 포인트 누락
+- 1점: 매우 부족, 답변 방향이 잘못됨
+
+## 후속 질문 생성 원칙
+- 답변에서 언급한 내용의 세부 사항을 파고드는 질문
+- 논리적 약점이나 빈틈을 확인하는 질문
+- 실제 면접관이 할 법한 자연스러운 질문
+- 이전 대화에서 아직 다루지 않은 관점의 질문
+
+## JSON 출력 형식
+\`\`\`json
+{
+  "score": 3,
+  "feedback": "구체적 피드백 내용...",
+  "strengths": ["강점1", "강점2"],
+  "weaknesses": ["약점1", "약점2"],
+  "followUpQuestion": "후속 면접 질문...",
+  "tips": ["실전 팁1", "실전 팁2"]
+}
+\`\`\``;
+
+          let userPrompt = "";
+          if (contextSection) {
+            userPrompt += contextSection;
+          }
+          userPrompt += `## 현재 질문\n${question}\n\n## 학생 답변\n${answer}\n\n위 답변을 평가하고, 피드백과 후속 질문을 JSON으로 제공해주세요.`;
+
+          const result = await generateTextWithRateLimit({
+            system: systemPrompt,
+            messages: [{ role: "user", content: userPrompt }],
+            modelTier: "fast",
+            temperature: 0.4,
+            maxTokens: 2000,
+          });
+
+          if (!result.content) {
+            return TOOL_ERRORS.AI_EMPTY;
+          }
+
+          // JSON 파싱
+          let jsonStr = result.content.trim();
+          const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (jsonMatch) jsonStr = jsonMatch[1].trim();
+
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(jsonStr);
+          } catch {
+            logActionError(LOG_CTX, `conductMockInterview JSON 파싱 실패: ${jsonStr.slice(0, 200)}`);
+            return TOOL_ERRORS.AI_FORMAT;
+          }
+
+          const score = Math.max(1, Math.min(5, Math.round(Number(parsed.score) || 3)));
+
+          return {
+            success: true,
+            data: {
+              feedback: String(parsed.feedback ?? ""),
+              score,
+              strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
+              weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(String) : [],
+              followUpQuestion: String(parsed.followUpQuestion ?? ""),
+              tips: Array.isArray(parsed.tips) ? parsed.tips.map(String) : [],
+              exchangeCount: previousExchanges.length + 1,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return toolError("면접 실전 연습 처리에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
+        }
+      },
+    }),
+
+    /**
      * 면접 준비 현황 조회
      */
     getInterviewPrep: tool({
