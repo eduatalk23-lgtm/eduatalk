@@ -39,16 +39,17 @@ export const COMPETENCY_ITEMS: {
   label: string;
   evalTarget: string;
 }[] = [
-  { area: "academic", code: "academic_achievement", label: "학업성취도", evalTarget: "성적 추이, 전공 관련 교과 성취" },
+  // [2026-04-03 컨설턴트 2차 피드백 반영 — evalTarget 수정]
+  { area: "academic", code: "academic_achievement", label: "학업성취도", evalTarget: "전체교과평균내신, 주요교과평균내신, 성적 추이, 전공 관련 교과 성취" },
   { area: "academic", code: "academic_attitude", label: "학업태도", evalTarget: "수업 참여, 과제 성실성, 질문 태도" },
-  { area: "academic", code: "academic_inquiry", label: "탐구력", evalTarget: "교과 심화 탐구, 보고서, 발표" },
+  { area: "academic", code: "academic_inquiry", label: "탐구력", evalTarget: "진로연계보고서 및 발표, 실험을 통한 이론학습, 오류분석 후 재검증" },
   { area: "career", code: "career_course_effort", label: "전공 관련 교과 이수 노력", evalTarget: "과목 선택의 적합성" },
-  { area: "career", code: "career_course_achievement", label: "전공 관련 교과 성취도", evalTarget: "전공 관련 과목 성적" },
-  { area: "career", code: "career_exploration", label: "진로 탐색 활동과 경험", evalTarget: "진로 관련 창체·세특 활동" },
-  { area: "community", code: "community_collaboration", label: "협업과 소통능력", evalTarget: "팀 프로젝트, 발표, 토론" },
-  { area: "community", code: "community_caring", label: "나눔과 배려", evalTarget: "멘토링, 봉사, 동료 지원" },
+  { area: "career", code: "career_course_achievement", label: "전공 관련 교과 성취도", evalTarget: "전공 관련 과목 성적, 전공과목 성적 추이" },
+  { area: "career", code: "career_exploration", label: "진로 탐색 활동과 경험", evalTarget: "진로탐색을 위한 창의적체험활동과 교과활동" },
+  { area: "community", code: "community_collaboration", label: "협업과 소통능력", evalTarget: "팀원과 역할분담 및 토론, 지식을 시각화·데이터화하여 이해하기 쉽게 발표하는 능력" },
+  { area: "community", code: "community_caring", label: "나눔과 배려", evalTarget: "멘토멘티활동, 봉사, 동료 지원, 과목부장·학습부장으로서 학습자료 지원" },
   { area: "community", code: "community_integrity", label: "성실성과 규칙준수", evalTarget: "출결, 과제, 기타과목 관리" },
-  { area: "community", code: "community_leadership", label: "리더십", evalTarget: "임원, 부장, 자치활동" },
+  { area: "community", code: "community_leadership", label: "리더십", evalTarget: "임원, 교과목 부장, 자치활동, 임원이 아니더라도 스스로 주도하여 친구들을 이끈 경험" },
 ];
 
 // ============================================
@@ -65,7 +66,7 @@ export const COMPETENCY_RUBRIC_QUESTIONS: Record<CompetencyItemCode, string[]> =
   academic_attitude: [
     "성취동기와 목표의식을 가지고 자발적으로 학습하려는 의지가 있는가?",
     "새로운 지식 획득을 위해 자기주도적으로 노력하고 있는가?",
-    "교과 수업에 적극 참여하여 이해하려는 태도와 열정이 있는가?",
+    "수업 중 발표·질문·토론 등 적극적 참여 행동이 구체적으로 관찰되는가?",
   ],
   academic_inquiry: [
     "교과와 각종 탐구활동 등을 통해 지식을 확장하려고 노력하고 있는가?",
@@ -80,10 +81,12 @@ export const COMPETENCY_RUBRIC_QUESTIONS: Record<CompetencyItemCode, string[]> =
   career_course_achievement: [
     "전공 관련 과목의 성취수준은 적절한가?",
     "동일 교과 내 일반선택 대비 진로선택 성취수준은?",
+    "전공 관련 과목 성적이 학기별로 향상/유지되고 있는가?",
   ],
   career_exploration: [
     "자신의 관심 분야나 흥미와 관련한 다양한 활동에 참여하여 노력한 경험이 있는가?",
     "교과 활동이나 창체에서 전공에 대한 관심을 가지고 탐색한 경험이 있는가?",
+    "목표희망학과 또는 전공을 지원하고자 하는 동기가 생기부에 드러나는가?",
   ],
   community_collaboration: [
     "단체 활동에서 서로 돕고 함께 행동하는 모습이 보이는가?",
@@ -102,6 +105,7 @@ export const COMPETENCY_RUBRIC_QUESTIONS: Record<CompetencyItemCode, string[]> =
   community_leadership: [
     "공동체의 목표를 달성하기 위해 계획하고 실행을 주도한 경험이 있는가?",
     "구성원들의 인정과 신뢰를 바탕으로 참여를 이끌어내고 조율한 경험이 있는가?",
+    "공식적 직책 없이도 스스로 나서서 친구들을 이끌어 소통과 협업과정을 유도하여 토론, 발표, 실험, 프로젝트, 연구, 보고서를 진행한 경험이 있는가?",
   ],
 };
 

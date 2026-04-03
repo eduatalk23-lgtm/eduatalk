@@ -315,6 +315,22 @@ export async function findAnalysisCacheByStudent(
   return data ?? [];
 }
 
+/** 학생의 AI 분석 캐시 전체 삭제 — 재실행 시 LLM 강제 재호출용 */
+export async function deleteAnalysisCacheByStudentId(
+  studentId: string,
+  tenantId: string,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("student_record_analysis_cache")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("source", "ai");
+
+  if (error) throw error;
+}
+
 /** 배치 캐시 조회 — 증분 분석용 (record_id 목록 → content_hash 포함 캐시 Map) */
 export async function findAnalysisCacheByRecordIds(
   recordIds: string[],

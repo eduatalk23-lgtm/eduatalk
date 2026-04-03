@@ -36,6 +36,7 @@ import type {
 import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { ContentQualityRow } from "../warnings/engine";
 import type { ActionResponse } from "@/lib/types/actionResponse";
+import type { CompetencyAnalysisContext } from "../pipeline-types";
 
 const LOG_CTX = { domain: "student-record", action: "report" };
 
@@ -121,6 +122,11 @@ export interface ReportData {
     candidateUniv: string;
     compositeScore: number | null;
     rationale: string | null;
+    curriculumSimilarity: number | null;
+    competencyFit: number | null;
+    competencyRationale: string | null;
+    curriculumRationale: string | null;
+    placementRationale: string | null;
   }>;
   interviewQuestions: Array<{
     question: string;
@@ -148,6 +154,16 @@ export interface ReportData {
     edited_text: string | null;
     created_at: string;
   }>;
+  /**
+   * D단계: 콘텐츠 품질 점수 (student_record_content_quality).
+   * issues/feedback 포함. 가이드 프롬프트에 약점 맥락 주입에 활용.
+   */
+  contentQuality: ContentQualityRow[];
+  /**
+   * D단계: B- 이하 역량 항목의 rubric_scores 포함 맥락.
+   * 가이드 프롬프트에서 약점 역량 reasoning 주입에 활용.
+   */
+  weakCompetencyContexts: CompetencyAnalysisContext[];
 }
 
 // ============================================
@@ -226,6 +242,9 @@ async function fetchStudentInfoAndScores(
 // Group B: AI 분석 데이터
 // ============================================
 
+// 약한 등급 기준 (B- 이하를 약점으로 판단)
+const WEAK_GRADE_THRESHOLD = new Set(["B-", "C+", "C", "C-", "D+", "D", "D-"]);
+
 async function fetchAnalysisData(
   studentId: string,
   tenantId: string,
@@ -233,7 +252,7 @@ async function fetchAnalysisData(
   supabase: SupabaseServerClient,
   diagnosisTargetSubClassificationId?: number | null,
 ) {
-  const [diagnosisData, storylineData, strategyData, edges, setekGuidesRes, actSummariesRes, coursePlanRes, changcheGuidesRes, haengteukGuidesRes] = await Promise.all([
+  const [diagnosisData, storylineData, strategyData, edges, setekGuidesRes, actSummariesRes, coursePlanRes, changcheGuidesRes, haengteukGuidesRes, contentQualityRes, competencyScoresRes] = await Promise.all([
     fetchDiagnosisTabData(studentId, initialSchoolYear, tenantId),
     service.getStorylineTabData(studentId, initialSchoolYear, tenantId),
     service.getStrategyTabData(studentId, initialSchoolYear, tenantId),
@@ -243,6 +262,24 @@ async function fetchAnalysisData(
     fetchCoursePlanTabData(studentId).catch(() => ({ success: false as const, error: "" })),
     fetchChangcheGuides(studentId).catch(() => ({ success: false as const, data: [] as Awaited<ReturnType<typeof fetchChangcheGuides>>["data"] })),
     fetchHaengteukGuide(studentId).catch(() => ({ success: false as const, data: [] as Awaited<ReturnType<typeof fetchHaengteukGuide>>["data"] })),
+    // D단계: 콘텐츠 품질 점수 (issues/feedback 포함)
+    supabase
+      .from("student_record_content_quality")
+      .select("record_type, record_id, overall_score, issues, feedback")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("source", "ai")
+      .order("overall_score", { ascending: true })
+      .catch(() => ({ data: null, error: null })),
+    // D단계: 역량 등급 (rubric_scores 포함 — B- 이하 항목만 가이드 프롬프트에 주입)
+    supabase
+      .from("student_record_competency_scores")
+      .select("competency_item, grade_value, narrative, rubric_scores")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", initialSchoolYear)
+      .eq("source", "ai")
+      .catch(() => ({ data: null, error: null })),
   ]);
 
   // 소분류/중분류 이름 조회
@@ -258,6 +295,32 @@ async function fetchAnalysisData(
   }
 
   const coursePlansRaw = coursePlanRes.success && coursePlanRes.data ? coursePlanRes.data.plans : [];
+
+  // D단계: 콘텐츠 품질 점수 정규화
+  const contentQualityRaw = (contentQualityRes as { data: Array<Record<string, unknown>> | null }).data ?? [];
+  const contentQuality: ContentQualityRow[] = contentQualityRaw.map((r) => ({
+    record_type: r.record_type as ContentQualityRow["record_type"],
+    record_id: r.record_id as string,
+    overall_score: r.overall_score as number,
+    issues: Array.isArray(r.issues) ? (r.issues as string[]) : [],
+    feedback: typeof r.feedback === "string" ? r.feedback : null,
+  }));
+
+  // D단계: B- 이하 역량 항목만 추출 (rubric_scores 포함)
+  const competencyScoresRaw = (competencyScoresRes as { data: Array<Record<string, unknown>> | null }).data ?? [];
+  const weakCompetencyContexts: CompetencyAnalysisContext[] = competencyScoresRaw
+    .filter((s) => WEAK_GRADE_THRESHOLD.has(s.grade_value as string))
+    .map((s) => {
+      const rubricScoresRaw = s.rubric_scores as Array<{ questionIndex: number; grade: string; reasoning: string }> | null;
+      return {
+        item: s.competency_item as string,
+        grade: s.grade_value as string,
+        reasoning: typeof s.narrative === "string" ? s.narrative : null,
+        rubricScores: Array.isArray(rubricScoresRaw)
+          ? rubricScoresRaw.filter((rs) => WEAK_GRADE_THRESHOLD.has(rs.grade))
+          : undefined,
+      };
+    });
 
   return {
     diagnosisData, storylineData, strategyData, edges,
@@ -288,6 +351,8 @@ async function fetchAnalysisData(
       summary_text: s.summary_text, status: s.status, target_grades: s.target_grades,
       edited_text: s.edited_text, created_at: s.created_at,
     })),
+    contentQuality,
+    weakCompetencyContexts,
   };
 }
 
@@ -333,10 +398,12 @@ async function fetchSupplementaryData(
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId),
     // 대학별 지원 전략 (university_eval_criteria — 전역 참조 테이블, tenant 무관)
+    // limit: 대학 수 증가 대비 성능 보호 (상위 300개 충분)
     supabase
       .from("university_eval_criteria")
       .select("university_name, admission_type, admission_name, ideal_student, evaluation_factors, interview_format, interview_details, min_score_criteria, key_tips")
-      .order("university_name"),
+      .order("university_name")
+      .limit(300),
   ]);
 
   // 우회학과
@@ -465,8 +532,8 @@ export async function fetchReportData(
       info.initialSchoolYear,
     ).catch(() => null);
 
-    // E-6: 감사 로그 (fire-and-forget)
-    void supabase.from("audit_logs").insert({
+    // E-6: 감사 로그
+    await supabase.from("audit_logs").insert({
       tenant_id: tenantId,
       user_id: userId,
       resource_type: "student_record_report",
@@ -507,6 +574,8 @@ export async function fetchReportData(
       interviewQuestions: supplementary.interviewQuestions,
       pipelineMeta: supplementary.pipelineMeta,
       cohortBenchmark: cohortBenchmark ?? null,
+      contentQuality: analysis.contentQuality,
+      weakCompetencyContexts: analysis.weakCompetencyContexts,
     };
 
     return { success: true, data: reportData };

@@ -105,6 +105,16 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += "\n\n";
   }
 
+  // 전 학년 세특 품질 반복 패턴
+  if (input.qualityPatterns && input.qualityPatterns.length > 0) {
+    prompt += `## 세특 품질 반복 패턴 (전 학년 종합 — 습관적 약점)\n\n`;
+    for (const p of input.qualityPatterns) {
+      const subjectList = p.subjects.length > 0 ? p.subjects.join(", ") : "복수 기록";
+      prompt += `- ${p.pattern} (${p.count}건: ${subjectList}) — 학생의 반복 패턴으로 보완전략에 우선 반영\n`;
+    }
+    prompt += "\n";
+  }
+
   prompt += `위 진단 결과를 바탕으로 구체적인 보완전략을 JSON으로 제안해주세요. "AI 진단 개선 전략"이 있다면 이를 기반으로 구체적 활동/일정/방법을 보강하세요. 루브릭 질문별 약점이 있다면 해당 질문을 보완하는 구체적 활동을 포함하세요. 최신 대입 트렌드를 반영하여 실현 가능한 활동을 제안하세요. 미이수 과목이 있다면 해당 과목 이수를 우선적으로 포함하세요.`;
 
   return prompt;

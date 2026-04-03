@@ -115,6 +115,10 @@ export async function generateSetekGuide(
     const strengths = diagnosis?.strengths as string[] | undefined;
     const weaknesses = diagnosis?.weaknesses as string[] | undefined;
 
+    // D→B단계: fetchReportData 결과에서 역량 분석 맥락 구성
+    const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
+    const analysisContext = buildGuideAnalysisContextFromReport(report);
+
     const input: SetekGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -131,6 +135,7 @@ export async function generateSetekGuide(
       strengths: strengths && strengths.length > 0 ? strengths : undefined,
       weaknesses: weaknesses && weaknesses.length > 0 ? weaknesses : undefined,
       edgePromptSection,
+      analysisContext,
     };
 
     // AI SDK 호출

@@ -213,12 +213,13 @@ export async function checkPipelineStaleness(
 ): Promise<{ isStale: boolean; savedHash: string | null; currentHash: string }> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 최신 파이프라인의 content_hash 조회
+  // 1. 최신 완료 파이프라인의 content_hash 조회 (grade 또는 legacy)
   const { data: pipeline } = await supabase
     .from("student_record_analysis_pipelines")
     .select("content_hash")
     .eq("student_id", studentId)
-    .order("created_at", { ascending: false })
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 

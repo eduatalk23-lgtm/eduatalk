@@ -62,8 +62,15 @@ ${formatSetekFlowArrow()} (8단계 오류→재탐구 있으면 큰 가산)
 ## 진로교과 vs 비진로교과 차등 기준
 
 - **진로(계열) 관련 교과**: 8단계 흐름 중 최소 ${CAREER_SUBJECT_MIN_STAGES.map((s) => `${"①②③④⑤⑥⑦⑧"[s - 1]}`).join("")}를 충족하는 방향 제안. ${CAREER_DIFFERENTIAL.careerNote}
+  - **SKY카+ 상위권**: 최소 ①②③④⑤(참고문헌 포함 5단계) 충족 필수. 가능한 모든 진로 관련 교과에서 진로 연결.
+  - **서울 15대학 이하**: ①②③⑤(4단계)로 충분. 진로 연결 3~4과목 권장.
 - **비진로교과(국어/체육/음악 등)**: ${CAREER_DIFFERENTIAL.nonCareerNote}
-- **주의**: ${CAREER_DIFFERENTIAL.overloadWarning} 실전 권장 비율: 진로 적극 연결 ${CAREER_DIFFERENTIAL.recommendedRatio.careerLinked}, 교과 역량만 ${CAREER_DIFFERENTIAL.recommendedRatio.subjectOnly}.
+  - **국어-문학**: 독자적 해석, 작품 간 비교(심경변화·상황 종합), 현대사회 기준 재해석, 함축적 의미 창의적 해석, 비판적 사고
+  - **국어-독서/작문**: 자료해석능력, 독해능력, 비판적 사고, 논리추론능력
+  - **국어-화법/언어**: 품사·문장 구조 활용, 담화 구성, 공적 의사소통(토의·토론·연설·협상)
+  - **영어**: 독해(세부정보·요지·추론·어휘구문) + 읽기·쓰기·듣기·말하기 종합
+  - ⑧ 오류→재탐구는 비진로교과에서 필수 아니나, 있으면 학업역량에서 좋은 평가
+- **주의**: ${CAREER_DIFFERENTIAL.overloadWarning}
 
 ## 내신 등급별 탐구 난이도 차등 (필수)
 
@@ -87,25 +94,28 @@ ${formatGradeDiffTable()}
    - 형식적 문제: "단순 나열 지양", "활동 근거 없는 추상적 서술 주의", "상투적 복붙 표현 금지"
    - 내용 오류 (F1~F6): ${formatScientificCautions()}
    - 교사 관찰: "교사가 관찰 불가능한 표현(${formatBannedExpressions()}) 사용 금지"
+   - 인문·사회계열 교과: 사회문제 연구방법(문제정의→질문설정→연구설계→자료수집→자료분석→결론·제언)의 논리적 전개가 드러나도록 방향 제시. 양적연구(질문지법, 통계분석)와 질적연구(면접법, 참여관찰법, 문헌연구법) 중 적합한 접근을 안내.
 4. teacherPoints는 담임/교과 교사에게 전달할 핵심 메시지 2-3개입니다.
 5. 스토리라인이 있으면 해당 키워드와 자연스럽게 연결합니다.
 6. 역량 진단 결과가 있으면 약한 역량을 보완할 수 있는 방향도 포함합니다.
 7. 학생의 목표 학과 분류(소분류)가 있으면, 해당 전공 분야에 특화된 세특 방향을 제시합니다.
 8. JSON으로만 응답합니다.
 
-## 규칙 (retrospective 전용)
+## 규칙 (retrospective 전용 — 현재 기록 평가)
 
 9. 입력된 세특/창체 데이터에 있는 활동만 기반으로 작성합니다. 없는 활동을 만들어내지 마세요.
 10. 과목별로 5-7개의 핵심 키워드를 기존 기록에서 추출합니다.
 11. 세특 데이터가 있는 과목만 가이드를 생성합니다. 데이터 없는 과목은 생략합니다.
+12. **관용적 평가 원칙**: 학생부는 선생님마다 기재 스타일이 다름. 탐구 폭과 방향이 맞으면 인정. "~임을 설명함" 종결도 앞 맥락에서 수행 추론 가능하면 면접 검증 포인트로 분류하되, 현재 기록 자체는 긍정적으로 해석.
 
-## 규칙 (prospective 전용)
+## 규칙 (prospective 전용 — 다음 학기 방향 설계)
 
-12. 계획 과목 목록을 기반으로, 해당 과목에서 수행할 수 있는 탐구 주제와 방향을 제안합니다.
-13. keywords는 해당 과목에서 세특에 녹일 수 있는 탐구적 키워드 5-7개를 제안합니다 (추출이 아닌 제안).
-14. 배정된 탐구 가이드가 있으면, 해당 가이드의 주제를 키워드와 방향에 반영합니다.
-15. 목표 전공과 연결되는 교차 과목 탐구 방향도 포함합니다.
-16. 계획 과목 전체에 대해 가이드를 생성합니다.`;
+13. **엄격한 8단계 이상향 적용**: 각 탐구의 결론·방법론이 구체적이도록 가이드. 상위권 대학일수록 깊이(결론·방법론) 중시.
+14. 계획 과목 목록을 기반으로, 해당 과목에서 수행할 수 있는 탐구 주제와 방향을 제안합니다.
+15. keywords는 해당 과목에서 세특에 녹일 수 있는 탐구적 키워드 5-7개를 제안합니다 (추출이 아닌 제안).
+16. 배정된 탐구 가이드가 있으면, 해당 가이드의 주제를 키워드와 방향에 반영합니다.
+17. 목표 전공과 연결되는 교차 과목 탐구 방향도 포함합니다.
+18. 계획 과목 전체에 대해 가이드를 생성합니다.`;
 
 // ============================================
 // 사용자 프롬프트 빌더
@@ -160,6 +170,47 @@ export function buildUserPrompt(input: SetekGuideInput): string {
   // 영역간 연결 (Phase E2)
   if (input.edgePromptSection) {
     prompt += input.edgePromptSection + "\n";
+  }
+
+  // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
+  if (input.analysisContext) {
+    const { qualityIssues, weakCompetencies } = input.analysisContext;
+    const hasIssues = qualityIssues.some((qi) => qi.issues.length > 0);
+    const hasWeakComp = weakCompetencies.length > 0;
+
+    if (hasIssues || hasWeakComp) {
+      prompt += `## 역량 분석 결과 (이 학생의 구체적 약점)\n\n`;
+      prompt += `→ 아래 약점을 보완하는 방향으로 가이드를 작성하세요.\n\n`;
+
+      if (hasIssues) {
+        const allIssues = [...new Set(qualityIssues.flatMap((qi) => qi.issues))];
+        prompt += `### 감지된 패턴\n`;
+        prompt += allIssues.map((i) => `- ${i}`).join("\n") + "\n\n";
+
+        // issues가 있는 레코드 중 feedback 있는 것만 최대 3개
+        const feedbacks = qualityIssues
+          .filter((qi) => qi.issues.length > 0 && qi.feedback)
+          .slice(0, 3);
+        if (feedbacks.length > 0) {
+          prompt += `### 품질 피드백\n`;
+          for (const qi of feedbacks) {
+            const label = qi.recordType === "setek" ? "세특" : qi.recordType === "changche" ? "창체" : "행특";
+            prompt += `- [${label}] ${qi.feedback}\n`;
+          }
+          prompt += "\n";
+        }
+      }
+
+      if (hasWeakComp) {
+        prompt += `### 약점 역량 (B- 이하)\n`;
+        for (const wc of weakCompetencies.slice(0, 5)) {
+          prompt += `- ${wc.item} ${wc.grade}`;
+          if (wc.reasoning) prompt += ` — ${wc.reasoning.slice(0, 120)}`;
+          prompt += "\n";
+        }
+        prompt += "\n";
+      }
+    }
   }
 
   // 가이드 배정 (Phase R2, prospective 특히 유용)

@@ -268,6 +268,10 @@ export async function generateHaengteukGuide(
     const strengths = diagnosis?.strengths as string[] | undefined;
     const weaknesses = diagnosis?.weaknesses as string[] | undefined;
 
+    // D→B단계: fetchReportData 결과에서 역량 분석 맥락 구성
+    const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
+    const analysisContext = buildGuideAnalysisContextFromReport(report, undefined, "haengteuk");
+
     const input: HaengteukGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -285,6 +289,7 @@ export async function generateHaengteukGuide(
       weaknesses: weaknesses && weaknesses.length > 0 ? weaknesses : undefined,
       edgePromptSection,
       changcheGuideContext,
+      analysisContext,
     };
 
     // AI SDK 호출

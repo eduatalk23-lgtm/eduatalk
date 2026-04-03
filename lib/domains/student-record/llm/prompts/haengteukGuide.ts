@@ -18,7 +18,8 @@ export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도
 
 이 문서는 "행특 방향 가이드"입니다.
 - 컨설턴트가 학생의 행동특성 및 종합의견 기록 방향을 설계할 때 참고하는 내부 문서입니다.
-- 행특은 담임 교사의 관찰 기반 추천서 성격으로, 학생의 인성·생활태도·성장을 종합적으로 기술합니다.
+- 행특은 담임 교사가 1년간 학생을 관찰하여 **발전가능성과 잠재력**을 보여주는 추천서 성격입니다.
+- 평가 키워드가 **구체적 사례**로 쓰여 자연스럽게 장면이 상상되면 가장 좋은 행특입니다.
 - 학생이나 학부모에게 직접 전달하지 않으므로 전문 용어를 자유롭게 사용합니다.
 
 ## 7개 평가항목 (행특 핵심 평가 영역)
@@ -37,13 +38,14 @@ ${formatHaengteukItemsDetailed()}
     "cautions": "주의사항 (1-2문장)",
     "teacherPoints": ["교사 전달 포인트 1", "교사 전달 포인트 2"],
     "evaluationItems": [
-      { "item": "자기주도성", "score": "상", "reasoning": "근거 1-2문장" },
-      { "item": "갈등관리", "score": "중", "reasoning": "근거 1-2문장" },
-      { "item": "리더십", "score": "상", "reasoning": "근거 1-2문장" },
-      { "item": "타인존중", "score": "상", "reasoning": "근거 1-2문장" },
-      { "item": "배려나눔", "score": "중", "reasoning": "근거 1-2문장" },
-      { "item": "성실성", "score": "상", "reasoning": "근거 1-2문장" },
-      { "item": "규칙준수", "score": "상", "reasoning": "근거 1-2문장" }
+      { "item": "자기주도성", "score": "우수", "reasoning": "근거 1-2문장" },
+      { "item": "갈등관리", "score": "보통", "reasoning": "근거 1-2문장" },
+      { "item": "리더십", "score": "매우 우수", "reasoning": "근거 1-2문장" },
+      { "item": "타인존중·배려", "score": "우수", "reasoning": "근거 1-2문장" },
+      { "item": "성실성", "score": "우수", "reasoning": "근거 1-2문장" },
+      { "item": "규칙준수", "score": "우수", "reasoning": "근거 1-2문장" },
+      { "item": "회복탄력성", "score": "보통", "reasoning": "근거 1-2문장" },
+      { "item": "지적호기심", "score": "우수", "reasoning": "근거 1-2문장" }
     ]
   },
   "overallDirection": "전체적인 행특 방향 요약 (2-3문장)"
@@ -56,7 +58,7 @@ ${formatHaengteukItemsDetailed()}
    - community_collaboration, community_caring, community_integrity, community_leadership
    - academic_attitude (학습 태도가 두드러질 경우)
    - career_exploration (진로 탐색 적극성이 두드러질 경우)
-2. evaluationItems의 score는 반드시 "상"/"중"/"하" 3단계로만 표기합니다.
+2. evaluationItems의 score는 반드시 "매우 우수"/"우수"/"보통"/"미흡"/"매우 미흡" 5단계로만 표기합니다.
 3. evaluationItems의 reasoning은 기록에서 관찰된 구체적 근거를 바탕으로 작성합니다. 기록이 없으면 "기록 없음, 담임 관찰 필요"로 기재합니다.
 4. direction은 교사가 행특 서술 시 강조할 포인트를 제시합니다.
 5. cautions에는 행특 작성 시 피해야 할 점을 명시합니다. 예: "단순 나열 지양", "피상적 칭찬 문구 주의".
@@ -117,6 +119,53 @@ export function buildUserPrompt(input: HaengteukGuideInput): string {
   // 영역간 연결 (Phase E2)
   if (input.edgePromptSection) {
     prompt += input.edgePromptSection + "\n";
+  }
+
+  // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
+  if (input.analysisContext) {
+    const { qualityIssues, weakCompetencies } = input.analysisContext;
+    // 행특 관련 이슈 우선 (없으면 창체도 포함)
+    const haengteukIssues = qualityIssues.filter(
+      (qi) => qi.issues.length > 0 && qi.recordType === "haengteuk",
+    );
+    const relevantIssues = haengteukIssues.length > 0
+      ? haengteukIssues
+      : qualityIssues.filter((qi) => qi.issues.length > 0 && qi.recordType === "changche");
+    const hasIssues = relevantIssues.length > 0;
+    // community 역량 약점만 (행특은 community 역량 핵심)
+    const communityWeak = weakCompetencies.filter((wc) => wc.item.startsWith("community_"));
+    const hasWeakComp = communityWeak.length > 0;
+
+    if (hasIssues || hasWeakComp) {
+      prompt += `## 역량 분석 결과 (이 학생의 구체적 약점)\n\n`;
+      prompt += `→ 아래 약점을 보완하는 행특 방향을 제안하세요.\n\n`;
+
+      if (hasIssues) {
+        const allIssues = [...new Set(relevantIssues.flatMap((qi) => qi.issues))];
+        prompt += `### 감지된 패턴\n`;
+        prompt += allIssues.map((i) => `- ${i}`).join("\n") + "\n\n";
+
+        const feedbacks = relevantIssues.filter((qi) => qi.feedback).slice(0, 2);
+        if (feedbacks.length > 0) {
+          prompt += `### 품질 피드백\n`;
+          for (const qi of feedbacks) {
+            const label = qi.recordType === "haengteuk" ? "행특" : "창체";
+            prompt += `- [${label}] ${qi.feedback}\n`;
+          }
+          prompt += "\n";
+        }
+      }
+
+      if (hasWeakComp) {
+        prompt += `### 약점 역량 (B- 이하, community 영역)\n`;
+        for (const wc of communityWeak.slice(0, 4)) {
+          prompt += `- ${wc.item} ${wc.grade}`;
+          if (wc.reasoning) prompt += ` — ${wc.reasoning.slice(0, 120)}`;
+          prompt += "\n";
+        }
+        prompt += "\n";
+      }
+    }
   }
 
   // 창체 방향 컨텍스트

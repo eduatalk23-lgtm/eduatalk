@@ -82,6 +82,11 @@ export async function generateAiDiagnosis(
    * 제공하지 않으면 기존대로 "역량 데이터 없음" 에러 반환.
    */
   coursePlanContext?: CoursePlanContext,
+  /**
+   * 전 학년 세특/창체/행특 품질 패턴 집계 섹션 (마크다운 문자열).
+   * aggregateQualityPatterns()가 생성한 섹션을 그대로 전달. 없으면 생략.
+   */
+  qualityPatternSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -328,8 +333,8 @@ ${gradesSummary}
 ## 활동 태그 (총 ${activityTags.length}건)
 ${tagsSummary}
 ${trendSection}${adequacySection}${gapSection}
-${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}
-위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요.`;
+${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}
+위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요.`;
 
     // Q2: 입력 복잡도 기반 모델 선택 — 태그 20개+ 또는 점수 8개+ → standard, 그 외 fast
     const inputComplexity = competencyScores.length + activityTags.length;

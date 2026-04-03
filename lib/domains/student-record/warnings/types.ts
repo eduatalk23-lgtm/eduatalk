@@ -8,6 +8,7 @@ export type RecordWarningRuleId =
   | "changche_empty"
   | "haengteuk_draft"
   | "reading_insufficient"
+  | "reading_not_connected"
   | "course_inadequacy"
   | "storyline_weak"
   | "storyline_gap"
@@ -45,6 +46,7 @@ export const WARNING_LABELS: Record<RecordWarningRuleId, string> = {
   changche_empty: "창체 미작성",
   haengteuk_draft: "행특 미확정",
   reading_insufficient: "독서 부족",
+  reading_not_connected: "독서-탐구 미연결",
   course_inadequacy: "교과이수 부적합",
   storyline_weak: "스토리라인 약함",
   storyline_gap: "스토리라인 공백",

@@ -4,6 +4,30 @@
 // ============================================
 
 import type { CompetencyItemCode, CompetencyGrade, StrategyTargetArea, StrategyPriority } from "../types";
+import type { CompetencyAnalysisContext } from "../pipeline-types";
+
+// ============================================
+// 역량 분석 맥락 주입 타입 (가이드 프롬프트용)
+// ============================================
+
+/**
+ * 가이드 프롬프트에 주입할 분석 맥락.
+ * Phase 1-3(역량 분석) 결과에서 추출한 약점/이슈 정보.
+ * 데이터가 없으면 undefined를 전달하고, 가이드 프롬프트에서 해당 섹션 자체를 생략.
+ */
+export interface GuideAnalysisContext {
+  /**
+   * 품질 이슈 목록 (예: "P1_나열식", "F10_성장부재").
+   * 하나라도 있는 레코드의 issues만 포함.
+   */
+  qualityIssues: Array<{
+    recordType: "setek" | "changche" | "haengteuk";
+    issues: string[];
+    feedback: string;
+  }>;
+  /** B- 이하 역량 항목 */
+  weakCompetencies: CompetencyAnalysisContext[];
+}
 
 /** AI가 제안하는 개별 태그 */
 export interface TagSuggestion {
@@ -190,6 +214,12 @@ export interface SuggestStrategiesInput {
   existingStrategies?: string[];
   /** 미이수 추천 과목 (교과이수적합도 기반) */
   notTakenSubjects?: string[];
+  /**
+   * 전 학년 세특/창체/행특 품질 패턴 집계.
+   * aggregateQualityPatterns()가 반환한 반복 패턴 목록.
+   * 데이터가 없으면 undefined (전략 프롬프트에서 섹션 자체를 생략).
+   */
+  qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
 }
 
 /** suggestStrategies 액션의 출력 */
@@ -264,6 +294,12 @@ export interface SetekGuideInput {
   plannedSubjects?: Array<{ subjectName: string; grade: number; semester: number; subjectType?: string }>;
   /** Phase R2: prospective 모드에서 사용 — 가이드 배정 컨텍스트 */
   guideAssignments?: string;
+  /**
+   * D→B단계: 역량 분석 맥락 (Phase 1-3 결과).
+   * issues/feedback/weakCompetencies를 포함하여 프롬프트에 약점 맥락 주입.
+   * 없으면 해당 섹션 자체를 프롬프트에서 생략.
+   */
+  analysisContext?: GuideAnalysisContext;
 }
 
 /** generateSetekGuide 액션의 출력 */
@@ -343,6 +379,11 @@ export interface ChangcheGuideInput {
   edgePromptSection?: string;
   /** 세특 방향 컨텍스트 (setek_guide 결과 요약) */
   setekGuideContext?: string;
+  /**
+   * D→B단계: 역량 분석 맥락 (Phase 1-3 결과).
+   * issues/feedback/weakCompetencies를 포함하여 프롬프트에 약점 맥락 주입.
+   */
+  analysisContext?: GuideAnalysisContext;
 }
 
 /** generateChangcheGuide 액션의 출력 */
@@ -380,6 +421,11 @@ export interface HaengteukGuideInput {
   edgePromptSection?: string;
   /** 창체 방향 컨텍스트 (changche_guide 결과 요약) */
   changcheGuideContext?: string;
+  /**
+   * D→B단계: 역량 분석 맥락 (Phase 1-3 결과).
+   * issues/feedback/weakCompetencies를 포함하여 프롬프트에 약점 맥락 주입.
+   */
+  analysisContext?: GuideAnalysisContext;
 }
 
 /** generateHaengteukGuide 액션의 출력 */

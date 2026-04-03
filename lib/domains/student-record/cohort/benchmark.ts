@@ -136,7 +136,7 @@ export async function computeCohortBenchmark(
     // 4. 콘텐츠 품질
     supabase
       .from("student_record_content_quality")
-      .select("student_id, quality_score")
+      .select("student_id, overall_score")
       .in("student_id", studentIds),
     // 5. 수강 계획 (과목별 이수 학생 수)
     supabase
@@ -181,7 +181,7 @@ export async function computeCohortBenchmark(
   // ── 품질 점수 평균 ──
   const qualityRows = qualityRes.status === "fulfilled" ? (qualityRes.value.data ?? []) : [];
   const qualityVals = qualityRows
-    .map((r: { quality_score?: number | null }) => r.quality_score)
+    .map((r: { overall_score?: number | null }) => r.overall_score)
     .filter((v): v is number => v != null);
   const avgQualityScore = round1(average(qualityVals));
 

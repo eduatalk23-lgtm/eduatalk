@@ -75,6 +75,7 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
   pushAll(checkChangcheEmpty(input));
   pushAll(checkHaengteukDraft(input));
   pushAll(checkReadingInsufficient(input));
+  pushAll(checkReadingNotConnected(input));
 
   // ─── 이수 관련 ───
   push(checkCourseInadequacy(input));
@@ -194,6 +195,49 @@ function checkReadingInsufficient(input: WarningCheckInput): RecordWarning[] {
         title: "독서활동 참고",
         message: `${grade}학년 독서활동 ${data.readings.length}건 (참고: 권장 ${MIN_READINGS_PER_GRADE}권 이상). 권수보다 세특 내 독서 기반 탐구 활용이 더 중요합니다.`,
         suggestion: "독서를 통해 지적 호기심을 해결하는 과정이 세특에 드러나면 좋은 평가를 받습니다. 학년이 올라갈수록 난도 있는 독서로 심화하세요.",
+      });
+    }
+  }
+  return results;
+}
+
+/**
+ * 독서-세특 미연결 경고
+ * [2026-04-03 컨설턴트 피드백]
+ * 독서 기록은 있지만 세특에서 활용되지 않으면:
+ * 1) 면접에서 압박질문 리스크 (양 채우기로 보임)
+ * 2) 다음 학년에서 독서→심화탐구로 이어가도록 유도 필요
+ */
+function checkReadingNotConnected(input: WarningCheckInput): RecordWarning[] {
+  const results: RecordWarning[] = [];
+  for (const [grade, data] of input.recordsByGrade) {
+    if (grade > input.currentGrade) continue;
+    if (data.readings.length === 0) continue; // 독서 없으면 reading_insufficient가 처리
+
+    // 세특 content에서 독서 제목이 한 번이라도 언급되는지 확인
+    const allSetekContent = [
+      ...data.seteks.map((s) => s.content ?? ""),
+      ...data.personalSeteks.map((s) => s.content ?? ""),
+    ].join(" ");
+
+    const connectedCount = data.readings.filter((r) => {
+      const title = (r.book_title ?? "").trim();
+      if (title.length < 2) return false; // 너무 짧은 제목은 skip
+      return allSetekContent.includes(title);
+    }).length;
+
+    const totalReadings = data.readings.length;
+    const disconnectedCount = totalReadings - connectedCount;
+
+    // 독서 기록이 2개 이상이면서, 절반 이상이 세특과 미연결
+    if (totalReadings >= 2 && disconnectedCount > totalReadings / 2) {
+      results.push({
+        ruleId: "reading_not_connected",
+        severity: "medium",
+        category: "record",
+        title: "독서-탐구 미연결",
+        message: `${grade}학년 독서 ${totalReadings}건 중 ${disconnectedCount}건이 세특에서 활용되지 않았습니다. 독서 나열만으로는 면접에서 압박질문 리스크가 있습니다.`,
+        suggestion: "다음 학년 활동 설계 시, 기존 독서 중 관심 주제를 선별하여 심화탐구로 이어가세요. 독서 → 탐구 질문 → 실험/조사 → 결론의 흐름이 세특에 드러나면 좋은 평가를 받습니다.",
       });
     }
   }
@@ -564,12 +608,7 @@ function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): Record
       title: "세특 나열식 기술",
       suggestion: "활동을 나열하지 말고, 호기심→탐구→결론→성장의 흐름으로 연결하세요",
     },
-    P2_추상적_복붙: {
-      ruleId: "setek_abstract_generic",
-      severity: "high",
-      title: "세특 추상적/복붙 의심",
-      suggestion: "모든 학생에게 쓸 수 있는 상투적 표현을 구체적 사례와 근거로 대체하세요",
-    },
+    // P2_추상적_복붙 삭제 — 수업태도 추상적 표현은 실패 아님 (F12로 포착)
     P3_키워드만: {
       ruleId: "inquiry_keyword_only",
       severity: "medium",
@@ -600,12 +639,7 @@ function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): Record
       title: "진로 키워드 과잉 도배",
       suggestion: "모든 교과에 동일 진로 키워드를 삽입하면 교과 고유 역량이 불명확해집니다. 진로 연결은 2~3과목으로 제한하세요",
     },
-    F9_창체참여기록형: {
-      ruleId: "changche_participation_only",
-      severity: "medium",
-      title: "창체 참여 기록형",
-      suggestion: '"즐겁게 참여함" 수준의 기록은 변별력이 없습니다. 구체적 역할, 탐구 과정, 결과물을 명시하세요',
-    },
+    // F9_창체참여기록형 삭제 — P2와 동일 패턴으로 통합 삭제
   };
 
   // 과학적 정합성 패턴 (F1~F6) — 상수에서 import

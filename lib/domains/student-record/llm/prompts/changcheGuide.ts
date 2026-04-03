@@ -61,7 +61,7 @@ export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도
 
 ## 활동유형별 평가 가중치 (입학사정관 리서치 기반)
 
-**중요도 순위**: ${CHANGCHE_ACTIVITY_CONFIGS.slice().sort((a, b) => b.weight - a.weight).map((c) => `${c.label}(${c.weight}, ${c.rank}위)`).join(" > ")}
+**중요도 순위**: 동아리 = 진로 (동등, 가장 중요) > 자율
 동아리/진로 활동은 자율 대비 **변별력이 높으므로** 더 구체적이고 심층적인 방향을 제안하세요.
 
 ${CHANGCHE_ACTIVITY_CONFIGS.map((c) => {
@@ -144,6 +144,51 @@ export function buildUserPrompt(input: ChangcheGuideInput): string {
   // 영역간 연결 (Phase E2)
   if (input.edgePromptSection) {
     prompt += input.edgePromptSection + "\n";
+  }
+
+  // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
+  if (input.analysisContext) {
+    const { qualityIssues, weakCompetencies } = input.analysisContext;
+    // 창체/행특 관련 이슈만 필터 (창체 가이드이므로)
+    const relevantIssues = qualityIssues.filter(
+      (qi) => qi.issues.length > 0 && (qi.recordType === "changche" || qi.recordType === "haengteuk"),
+    );
+    const hasIssues = relevantIssues.length > 0;
+    // community 역량 약점 우선 (창체는 community 역량 중심)
+    const communityWeak = weakCompetencies.filter((wc) => wc.item.startsWith("community_"));
+    const otherWeak = weakCompetencies.filter((wc) => !wc.item.startsWith("community_"));
+    const hasWeakComp = weakCompetencies.length > 0;
+
+    if (hasIssues || hasWeakComp) {
+      prompt += `## 역량 분석 결과 (이 학생의 구체적 약점)\n\n`;
+      prompt += `→ 아래 약점을 보완하는 창체 방향을 제안하세요.\n\n`;
+
+      if (hasIssues) {
+        const allIssues = [...new Set(relevantIssues.flatMap((qi) => qi.issues))];
+        prompt += `### 감지된 패턴\n`;
+        prompt += allIssues.map((i) => `- ${i}`).join("\n") + "\n\n";
+
+        const feedbacks = relevantIssues.filter((qi) => qi.feedback).slice(0, 2);
+        if (feedbacks.length > 0) {
+          prompt += `### 품질 피드백\n`;
+          for (const qi of feedbacks) {
+            const label = qi.recordType === "changche" ? "창체" : "행특";
+            prompt += `- [${label}] ${qi.feedback}\n`;
+          }
+          prompt += "\n";
+        }
+      }
+
+      if (hasWeakComp) {
+        prompt += `### 약점 역량 (B- 이하)\n`;
+        for (const wc of [...communityWeak, ...otherWeak].slice(0, 5)) {
+          prompt += `- ${wc.item} ${wc.grade}`;
+          if (wc.reasoning) prompt += ` — ${wc.reasoning.slice(0, 120)}`;
+          prompt += "\n";
+        }
+        prompt += "\n";
+      }
+    }
   }
 
   // 세특 방향 컨텍스트

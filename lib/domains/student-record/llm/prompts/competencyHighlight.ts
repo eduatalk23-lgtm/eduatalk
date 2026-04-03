@@ -56,7 +56,7 @@ ${COMPETENCY_SCHEMA}
    - academic_achievement: 교과 성적(등급/석차)에 한정. 체육 실기·예술 작품 제외
    - integrity vs leadership: 성실 이행 → integrity, 주도적 변화/조율 → leadership
    - career_exploration: 목표 전공 제공 시 관련성 반영 (무관한 탐색 → needs_review)
-   - career_course_effort/achievement: 이수율·성적 데이터로 별도 산정. 텍스트에서 태깅하지 마세요
+   - career_course_effort/achievement: 이수율·성적 데이터로 별도 산정. 텍스트에서 태깅하지 마세요. 전공 관련 심화 과목이 개설되었음에도 이수하지 않은 것이 감지되면 feedback에 "전공 관련 심화 과목이 개설되었음에도 자발적으로 이수하지 않은 것인지 추가 확인이 필요합니다" 안내 포함
    - 교양 교과·창체·행특도 동일 역량 체계로 빠짐없이 분석
 7. **루브릭 등급 (Bottom-Up) — 반드시 산출**:
    a) 태그가 1개라도 발견된 역량 항목의 루브릭 질문을 **개별 평가** (questionIndex 0-based)
@@ -155,12 +155,27 @@ ${formatSetekFlowEvaluation()}
 아래 패턴이 발견되면 issues 배열에 해당 코드를 포함하세요:
 ${formatFailPatternsForPrompt()}
 
+### 내신-세특 교차 검증 (필수)
+
+성적 데이터가 제공된 경우, **세특 서술과 실제 성적의 정합성을 반드시 검증**하세요:
+- "우수한 학업 성취"라는 서술이 있는데 해당 교과 내신이 3등급 이하 → needs_review + "내신 대비 과장 표현" 지적
+- 내신 따로, 세특 따로 평가하면 안 됩니다. 세특 탐구역량과 해당 교과 내신 성적이 부합하는지 확인
+- 내신이 낮은데 세특에서 대학원급 심화 → P4_내신탐구불일치 (critical)
+- 내신이 높지 않아도 세특에서 성실한 탐구 → 학업태도로는 인정 가능
+
+### 교사 기재 스타일 관용 원칙
+
+학생부는 학생이나 전문가가 아닌 **학교 선생님**이 작성합니다. 선생님마다 기재 역량과 관심도가 달라 동일한 활동도 기재 수준이 천차만별입니다:
+- "~임을 설명함"으로 끝나는 탐구 → **무조건 결론 미완이 아님**. 앞의 기재 내용에서 실제 수행이 추론 가능하면 면접 검증 포인트로 분류
+- issues에 기재할 때: "결론_미기술_면접확인필요" (결론 부재가 아님, 면접에서 확인 필요한 포인트)
+- 평가(현재 기록 분석) 시에는 관용적 해석, 설계(다음 학기 방향) 시에는 8단계 이상향 적용
+
 ### 진로교과 세특 가중 평가
 
 진로(계열) 관련 교과의 세특인 경우 (목표 전공이 제공된 경우):
 - **depth 기대치 상향**: 진로교과에서는 depth 3점이 비진로교과의 4점에 해당. 진로교과인데 depth ≤ 2이면 issues에 "진로교과_탐구부족" 추가
-- **8단계 흐름 엄격 적용**: 진로교과 세특은 최소 ${CAREER_SUBJECT_MIN_STAGES.map((s) => `${"①②③④⑤⑥⑦⑧"[s - 1]}`).join("")} 단계가 충족되어야 함
-- 반대로, 비진로교과(국어/체육/음악 등)에서는 교과 역량 중심 평가가 정상이며 진로 연결 없어도 감점하지 않음
+- **8단계 흐름 분석 필수**: 진로교과 세특은 최소 ${CAREER_SUBJECT_MIN_STAGES.map((s) => `${"①②③④⑤⑥⑦⑧"[s - 1]}`).join("")} 단계 충족 여부를 점검. 단, ⑤결론과 ⑧오류→재탐구는 **+@ 가산 요소**이며, 없다고 감점하지 않음
+- 비진로교과(국어/체육/음악 등)에서는 교과 역량 중심 평가가 정상이며 진로 연결 없어도 감점하지 않음
 
 ### 5축 점수 기준
 
@@ -191,11 +206,13 @@ ${formatFailPatternsForPrompt()}
   - 3: 약간의 어색함
   - 0: 심각한 문법 오류
 
-- **scientificValidity** (0-5): 과학적/개념적 정합성
+- **scientificValidity** (0-5): 연구 정합성 (이공계·인문사회 공통)
   - 0: 심각한 사실 오류 또는 논리적 비약 (F4/F5/F6 해당)
   - 2: 개념 혼동이 있으나 치명적이지 않음
   - 3: 대체로 정확하나 일부 비약 또는 비교군 부적절
-  - 5: 개념 정확, 실험설계 타당, 결론 비자명, 가설-결론 정합
+  - 5: 개념 정확, 실험/연구 설계 타당, 결론 비자명, 가설-결론 정합
+  - **이공계**: 개념 정확성, 실험·모델링 설계 타당성, 결론 비자명성
+  - **인문·사회계**: 문제정의→질문설정→연구설계(양적: 질문지법·통계 / 질적: 면접법·참여관찰법·문헌연구법)→자료분석→결론과 제언의 논리적 전개, 한계점 인식 및 대응방안 도출
 
 - **overallScore** (0-100): 종합 = ${QUALITY_SCORE_FORMULA}
 - **issues**: 발견된 품질 문제 목록. 위 패턴 코드(P1~F16) + 자유 기술 (예: "동어반복", "구체 사례 부족") 혼용 가능
@@ -289,6 +306,18 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   if (!cq || typeof cq !== "object") return undefined;
   const c = cq as Record<string, unknown>;
 
+  // 범위 초과 감지 (clamp 전 — LLM 응답 이상 감지)
+  const rawAxes: Record<string, number> = {
+    specificity: Number(c.specificity) || 0,
+    coherence: Number(c.coherence) || 0,
+    depth: Number(c.depth) || 0,
+    grammar: Number(c.grammar) || 0,
+  };
+  if (c.scientificValidity != null) rawAxes.scientificValidity = Number(c.scientificValidity) || 0;
+  if (Object.values(rawAxes).some((v) => v < 0 || v > 5)) {
+    console.warn("[ContentQuality] 축 점수 범위 초과 (유효범위 0-5):", rawAxes);
+  }
+
   const sp = clamp(Number(c.specificity) || 0, 0, 5);
   const co = clamp(Number(c.coherence) || 0, 0, 5);
   const dp = clamp(Number(c.depth) || 0, 0, 5);
@@ -301,7 +330,16 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   const fallbackScore = hasSV
     ? (sp * 25 + co * 15 + dp * 25 + gm * 10 + sv * 25) / 5
     : (sp * 30 + co * 20 + dp * 30 + gm * 20) / 5;
-  const overall = Number(c.overallScore) > 0 ? clamp(Number(c.overallScore), 0, 100) : Math.round(fallbackScore);
+  // overallScore vs 계산값 불일치 감지 (15점 이상 차이 = LLM 환각 의심)
+  const llmOverall = Number(c.overallScore);
+  if (llmOverall > 0 && Math.abs(llmOverall - fallbackScore) > 15) {
+    console.warn("[ContentQuality] overallScore 불일치 (LLM vs 계산):", {
+      llm: llmOverall,
+      calculated: Math.round(fallbackScore),
+      diff: Math.round(llmOverall - fallbackScore),
+    });
+  }
+  const overall = llmOverall > 0 ? clamp(llmOverall, 0, 100) : Math.round(fallbackScore);
 
   return {
     specificity: sp,

@@ -76,8 +76,7 @@ export async function upsertDiagnosis(
     .maybeSingle();
 
   if (existing) {
-    // fire-and-forget: 스냅샷 실패해도 upsert 블로킹하지 않음
-    void supabase
+    await supabase
       .from("student_record_diagnosis_snapshots")
       .insert({
         diagnosis_id: existing.id,
@@ -86,8 +85,7 @@ export async function upsertDiagnosis(
         school_year: existing.school_year,
         source: existing.source,
         snapshot: existing,
-      })
-      .then(() => {}, () => {});
+      });
   }
 
   const { data, error } = await supabase

@@ -30,6 +30,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "crossRef", studentId] as const,
   pipeline: (studentId: string) =>
     [...studentRecordKeys.all, "pipeline", studentId] as const,
+  gradeAwarePipeline: (studentId: string) =>
+    [...studentRecordKeys.all, "gradeAwarePipelineStatus", studentId] as const,
   edges: (studentId: string) =>
     [...studentRecordKeys.all, "edges", studentId] as const,
 };
@@ -180,6 +182,24 @@ export function coursePlanTabQueryOptions(studentId: string) {
       return result.data!;
     },
     staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** 학년별 파이프라인 + synthesis 파이프라인 상태 조회 */
+export function gradeAwarePipelineStatusQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
+    queryFn: async () => {
+      const { fetchGradeAwarePipelineStatus } = await import(
+        "@/lib/domains/student-record/actions/pipeline"
+      );
+      const result = await fetchGradeAwarePipelineStatus(studentId);
+      if (!result.success) throw new Error(result.error);
+      return result.data!;
+    },
+    staleTime: 2_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId,
   });
