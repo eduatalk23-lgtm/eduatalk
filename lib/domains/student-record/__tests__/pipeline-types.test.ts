@@ -32,9 +32,9 @@ describe("PIPELINE_TASK_KEYS", () => {
 });
 
 describe("PIPELINE_TASK_DEPENDENTS", () => {
-  it("competency_analysis 재실행 시 하류 11개 태스크 리셋", () => {
+  it("competency_analysis 재실행 시 하류 12개 태스크 리셋", () => {
     const deps = PIPELINE_TASK_DEPENDENTS.competency_analysis!;
-    expect(deps).toHaveLength(11);
+    expect(deps).toHaveLength(12);
     expect(deps).toContain("storyline_generation");
     expect(deps).toContain("guide_matching");
     expect(deps).toContain("changche_guide");
@@ -137,9 +137,9 @@ describe("computeCascadeResetKeys", () => {
     expect(result).toEqual(new Set(["course_recommendation"]));
   });
 
-  it("competency_analysis → 전체 11+1=12개 리셋", () => {
+  it("competency_analysis → 전체 12+1=13개 리셋", () => {
     const result = computeCascadeResetKeys(["competency_analysis"]);
-    expect(result.size).toBe(12);
+    expect(result.size).toBe(13);
     expect(result.has("competency_analysis")).toBe(true);
     expect(result.has("guide_matching")).toBe(true);
     expect(result.has("changche_guide")).toBe(true);

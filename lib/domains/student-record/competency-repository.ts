@@ -185,56 +185,6 @@ export async function deleteActivityTagsByRecord(
   if (error) throw error;
 }
 
-/** 고아 태그 정리 — 삭제된 record를 참조하는 태그 제거 */
-export async function cleanupOrphanedTags(
-  studentId: string,
-  tenantId: string,
-): Promise<number> {
-  const supabase = await createSupabaseServerClient();
-
-  // 학생의 모든 태그 조회
-  const { data: tags } = await supabase
-    .from("student_record_activity_tags")
-    .select("id, record_type, record_id")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
-  if (!tags || tags.length === 0) return 0;
-
-  // 각 record_type 별 존재하는 record_id 조회
-  const tableMap: Record<string, string> = {
-    setek: "student_record_seteks",
-    personal_setek: "student_record_seteks",
-    changche: "student_record_changche",
-    haengteuk: "student_record_haengteuk",
-    reading: "student_record_reading",
-  };
-
-  const existingIds = new Set<string>();
-  for (const table of new Set(Object.values(tableMap))) {
-    const { data: records } = await supabase
-      .from(table)
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId);
-    for (const r of records ?? []) existingIds.add(r.id);
-  }
-
-  // 존재하지 않는 record를 참조하는 태그 삭제
-  const orphanIds = tags
-    .filter((t) => !existingIds.has(t.record_id))
-    .map((t) => t.id);
-
-  if (orphanIds.length === 0) return 0;
-
-  const { error } = await supabase
-    .from("student_record_activity_tags")
-    .delete()
-    .in("id", orphanIds);
-
-  if (error) throw error;
-  return orphanIds.length;
-}
-
 /** 특정 레코드의 AI 생성 태그만 삭제 (재분석 전 정리용) */
 /** 학생의 특정 레코드 ID 목록에 대한 AI 태그 일괄 삭제 (배치) */
 export async function deleteAiActivityTagsByRecordIds(
