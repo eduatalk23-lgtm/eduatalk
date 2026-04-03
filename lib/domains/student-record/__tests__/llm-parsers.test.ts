@@ -261,3 +261,87 @@ describe("parseBatchHighlightResponse", () => {
     expect(result.succeeded.size).toBe(1);
   });
 });
+
+// ============================================
+// contentQuality 점수 추출 테스트
+// ============================================
+
+describe("contentQuality 가중치 재계산", () => {
+  function makeResponse(quality: Record<string, unknown>): string {
+    return JSON.stringify({ sections: [], competencyGrades: [], summary: "", contentQuality: quality });
+  }
+
+  it("5축 가중치 — scientificValidity 포함, overallScore 미제공 → 재계산", () => {
+    // (4×25 + 3×15 + 4×25 + 5×10 + 3×25) / 5 = 370/5 = 74
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 4, coherence: 3, depth: 4, grammar: 5, scientificValidity: 3,
+      issues: [], feedback: "",
+    }));
+    expect(result.contentQuality?.overallScore).toBe(74);
+    expect(result.contentQuality?.scientificValidity).toBe(3);
+  });
+
+  it("4축 가중치 — scientificValidity 없음, overallScore 미제공 → 재계산", () => {
+    // (4×30 + 3×20 + 4×30 + 5×20) / 5 = 400/5 = 80
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 4, coherence: 3, depth: 4, grammar: 5,
+      issues: [], feedback: "",
+    }));
+    expect(result.contentQuality?.overallScore).toBe(80);
+    expect(result.contentQuality?.scientificValidity).toBe(0); // null → 0 기본값
+  });
+
+  it("LLM 제공 overallScore 우선 사용", () => {
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 3, coherence: 3, depth: 3, grammar: 3, scientificValidity: 3,
+      overallScore: 55, issues: [], feedback: "",
+    }));
+    // 계산값: (3×25+3×15+3×25+3×10+3×25)/5 = 60, LLM=55 → 차이 5 → 경고 없음
+    expect(result.contentQuality?.overallScore).toBe(55);
+  });
+
+  it("전체 만점 (5축, 5/5/5/5/5) → overallScore 100", () => {
+    // (5×25 + 5×15 + 5×25 + 5×10 + 5×25) / 5 = 500/5 = 100
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 5, coherence: 5, depth: 5, grammar: 5, scientificValidity: 5,
+      issues: [], feedback: "",
+    }));
+    expect(result.contentQuality?.overallScore).toBe(100);
+  });
+
+  it("축 점수 범위 초과 → clamp 후 재계산", () => {
+    // sp=clamp(10,0,5)=5, co=clamp(-1,0,5)=0, dp=3, gm=3, sv=3
+    // (5×25 + 0×15 + 3×25 + 3×10 + 3×25) / 5 = 305/5 = 61
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 10, coherence: -1, depth: 3, grammar: 3, scientificValidity: 3,
+      issues: [], feedback: "",
+    }));
+    expect(result.contentQuality?.specificity).toBe(5);
+    expect(result.contentQuality?.coherence).toBe(0);
+    expect(result.contentQuality?.overallScore).toBe(61);
+  });
+
+  it("contentQuality 없으면 undefined", () => {
+    const result = parseHighlightResponse(JSON.stringify({ sections: [], competencyGrades: [], summary: "" }));
+    expect(result.contentQuality).toBeUndefined();
+  });
+
+  it("issues/feedback 파싱", () => {
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 3, coherence: 3, depth: 3, grammar: 3,
+      issues: ["P1_나열식", "F10_성장부재"],
+      feedback: "탐구 결론이 명확하지 않습니다.",
+    }));
+    expect(result.contentQuality?.issues).toEqual(["P1_나열식", "F10_성장부재"]);
+    expect(result.contentQuality?.feedback).toBe("탐구 결론이 명확하지 않습니다.");
+  });
+
+  it("issues 중 문자열 아닌 값 → 필터링", () => {
+    const result = parseHighlightResponse(makeResponse({
+      specificity: 3, coherence: 3, depth: 3, grammar: 3,
+      issues: ["P1_나열식", 42, null, "F10_성장부재"],
+      feedback: "",
+    }));
+    expect(result.contentQuality?.issues).toEqual(["P1_나열식", "F10_성장부재"]);
+  });
+});

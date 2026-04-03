@@ -7,8 +7,8 @@ import {
 } from "../pipeline-types";
 
 describe("PIPELINE_TASK_KEYS", () => {
-  it("14개 태스크가 정의되어 있어야 한다", () => {
-    expect(PIPELINE_TASK_KEYS).toHaveLength(14);
+  it("15개 태스크가 정의되어 있어야 한다", () => {
+    expect(PIPELINE_TASK_KEYS).toHaveLength(15);
   });
 
   it("Phase 1 순서: competency → storyline → edge", () => {

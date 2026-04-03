@@ -271,7 +271,7 @@ describe("checkContentQualityPatterns", () => {
     expect(warnings.some((w) => w.ruleId === "setek_enumeration")).toBe(true);
   });
 
-  it("P2_추상적_복붙 → setek_abstract_generic 경고 (severity high)", () => {
+  it("P2_추상적_복붙은 삭제된 패턴 — 경고 발생하지 않음", () => {
     const input = makeInput({
       qualityScores: [{
         record_type: "setek", record_id: "r1", overall_score: 50,
@@ -280,8 +280,7 @@ describe("checkContentQualityPatterns", () => {
     });
     const warnings = computeWarnings(input);
     const w = warnings.find((w) => w.ruleId === "setek_abstract_generic");
-    expect(w).toBeDefined();
-    expect(w?.severity).toBe("high");
+    expect(w).toBeUndefined();
   });
 
   it("P4_내신탐구불일치 → grade_inquiry_mismatch 경고", () => {
@@ -306,7 +305,7 @@ describe("checkContentQualityPatterns", () => {
     expect(warnings.some((w) => w.ruleId === "setek_enumeration")).toBe(true);
   });
 
-  it("prefix 매칭 — 'P2:추상적' 변형도 매핑", () => {
+  it("prefix 매칭 — 'P2:추상적' 변형은 삭제된 패턴 — 무시됨", () => {
     const input = makeInput({
       qualityScores: [{
         record_type: "setek", record_id: "r1", overall_score: 40,
@@ -314,7 +313,7 @@ describe("checkContentQualityPatterns", () => {
       }],
     });
     const warnings = computeWarnings(input);
-    expect(warnings.some((w) => w.ruleId === "setek_abstract_generic")).toBe(true);
+    expect(warnings.some((w) => w.ruleId === "setek_abstract_generic")).toBe(false);
   });
 
   it("F1~F6 패턴 → content_quality_scientific 통합 경고", () => {

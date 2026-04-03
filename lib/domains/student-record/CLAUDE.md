@@ -54,19 +54,137 @@ student-record/
 → ⑧오류분석→재탐구 (→①순환)
 ```
 
-### 진로교과 vs 비진로교과 차등
-- **진로교과**: 8단계 중 최소 ①②③⑤ 충족 필수. depth 기대치 높음
+### 진로교과 vs 비진로교과 차등 (대학 수준별)
+- **진로교과**: 최소 ①②③⑤ 충족 필수. SKY카+는 ①②③④⑤(참고문헌 포함)
 - **비진로교과**: 교과 역량 중심이 정상. 진로 연결 없어도 감점 없음
-- **주의**: 모든 교과에 진로 도배하면 역효과 (입학사정관 감점)
+- **진로 연결 비율**: 상위권=가능한 모든 진로교과, 중하위=3~4과목
+- **주의**: 모든 교과에 진로 도배하면 역효과 (입학사정관 감점, F16=major)
 
-### 창체 가중치: 동아리(상) > 진로(중상) > 자율(하)
+### 창체 가중치: 동아리 = 진로 (동등) > 자율
 
-### 합격률 낮은 패턴 (경고 엔진 반영)
-- P1 나열식 / P2 추상적복붙 / P3 키워드만 / P4 내신↔탐구불일치 / P5 내용오류포장
-- F1~F6: 별개활동포장, 인과단절, 출처불일치, 전제불일치, 비교군오류, 자명한결론
+### 합격률 낮은 패턴 14개 (경고 엔진 반영)
+- P1 나열식 / P3 키워드만 / P4 내신↔탐구불일치(critical)
+- F1~F6: 별개활동포장, 인과단절(critical), 출처불일치, 전제불일치, 비교군오류, 자명한결론
+- F10 성장부재(minor) / F12 자기주도성부재 / F16 진로과잉도배(major) / M1 교사관찰불가(minor)
 
 ### 품질 5축 평가 (ContentQualityScore)
-specificity(25) + coherence(15) + depth(25) + grammar(10) + scientificValidity(25) = overallScore
+specificity(25) + coherence(15) + depth(25) + grammar(10) + scientificValidity/연구정합성(25) = overallScore
+- 이공계: 과학·수리적 정합성 / 인문·사회계: 사회연구방법론 정합성
+
+## Pipeline Architecture (청사진)
+
+### 3-Tier 파이프라인 구조
+
+```
+Grade Pipeline (학년별, 7태스크×6Phase)
+  P1: competency_setek        → ctx.analysisContext에 축적
+  P2: competency_changche     → ctx.analysisContext에 축적
+  P3: competency_haengteuk    → ctx.analysisContext에 축적 + 집계
+  P4: setek_guide + slot_generation  ← analysisContext 주입 (issues/feedback/약점)
+  P5: changche_guide                 ← analysisContext 주입 (community 우선)
+  P6: haengteuk_guide                ← analysisContext 주입 (community만)
+
+Synthesis Pipeline (종합, 10태스크×6Phase)
+  S1: storyline_generation
+  S2: edge_computation + guide_matching
+  S3: ai_diagnosis + course_recommendation  ← aggregateQualityPatterns 주입
+  S4: bypass_analysis
+  S5: activity_summary + ai_strategy       ← qualityPatterns 주입
+  S6: interview_generation + roadmap_generation
+```
+
+### Phase 간 데이터 흐름 (핵심)
+
+```
+Phase 1-3 (역량 분석)
+  ├─ DB: analysis_cache(전체 JSON), activity_tags, competency_scores, content_quality
+  ├─ ctx.analysisContext: 가공된 요약만 (issues있는 레코드 + B-이하 역량)
+  │
+  ├──→ Phase 4-6: toGuideAnalysisContext() → 프롬프트에 감지 패턴+피드백+약점 주입
+  │     (세특: 전체, 창체: changche+community, 행특: haengteuk+community만)
+  │
+  └──→ Synthesis: aggregateQualityPatterns() → 전 학년 반복 패턴 집계
+       (진단: qualityPatternSection, 전략: qualityPatterns[])
+```
+
+**원본 LLM 응답 전체는 DB에만 저장. Phase 간 전달과 프롬프트 주입은 가공된 요약만.**
+
+### 핵심 헬퍼 함수 (pipeline-task-runners.ts)
+
+| 함수 | 역할 | 호출 위치 |
+|------|------|----------|
+| `collectAnalysisContext()` | P1-3 결과에서 issues/약점 추출 → ctx 축적 | 세특/창체/행특 역량 분석 완료 시 (5곳) |
+| `toGuideAnalysisContext()` | ctx → GuideAnalysisContext 변환 | 파이프라인 경로 가이드 호출 시 |
+| `buildGuideAnalysisContextFromReport()` | reportData → GuideAnalysisContext 변환 | 비파이프라인 경로 (수동 재생성) |
+| `aggregateQualityPatterns()` | 전 학년 DB 조회 → 반복 패턴 집계 | Synthesis 진단/전략 |
+
+### DB 테이블 (핵심)
+
+| 테이블 | 역할 | 파이프라인 연관 |
+|--------|------|---------------|
+| `student_record_seteks` | 세특 원본/NEIS | 입력 |
+| `student_record_changche` | 창체 원본/NEIS | 입력 |
+| `student_record_haengteuk` | 행특 원본/NEIS | 입력 |
+| `student_record_analysis_cache` | LLM 응답 전체 JSON + content_hash | 증분 캐시 |
+| `student_record_activity_tags` | 역량 태그 (reasoning+highlight) | P1-3 출력, UI 표시 |
+| `student_record_competency_scores` | 등급 + rubric_scores JSONB | P1-3 출력, 가이드/진단 참조 |
+| `student_record_content_quality` | 5축 점수 + issues + feedback | P1-3 출력, 가이드 주입, UI 표시 |
+| `student_record_diagnosis` | 종합진단 (강점/약점) | S3 출력 |
+| `student_record_setek_guides` | 세특 방향 가이드 | P4 출력 |
+| `student_record_changche_guides` | 창체 방향 가이드 | P5 출력 |
+| `student_record_haengteuk_guides` | 행특 방향 가이드 | P6 출력 |
+| `student_record_edges` | 레코드 간 연결 그래프 | S2 출력 |
+| `student_record_strategies` | 보완전략 | S5 출력 |
+| `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
+
+### LLM Actions (llm/actions/)
+
+| 파일 | 주요 함수 | 모델 | 용도 |
+|------|----------|------|------|
+| `analyzeWithHighlight.ts` | `analyzeSetekWithHighlight()` | advanced (Gemini 2.5 Pro) | 역량 태깅 + 품질 점수 |
+| `generateSetekGuide.ts` | `generateSetekGuide()`, `generateProspectiveSetekGuide()` | standard | 세특 방향 가이드 |
+| `generateChangcheGuide.ts` | `generateChangcheGuide()`, `generateProspectiveChangcheGuide()` | standard | 창체 방향 가이드 |
+| `generateHaengteukGuide.ts` | `generateHaengteukGuide()`, `generateProspectiveHaengteukGuide()` | standard | 행특 방향 가이드 |
+| `generateDiagnosis.ts` | `generateAiDiagnosis()` | standard | 종합진단 |
+| `suggestStrategies.ts` | `suggestStrategies()` | standard | 보완전략 |
+| `generateInterviewQuestions.ts` | `generateInterviewQuestions()` | standard | 면접 예상질문 |
+| `generateRoadmap.ts` | `generateAiRoadmap()` | standard | 학기별 로드맵 |
+| `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |
+
+### UI 4단계 탭 구조
+
+```
+1. RECORD (기록)     — SetekEditor, ChangcheEditor, HaengteukEditor, ReadingEditor
+2. DIAGNOSIS (진단)  — CompetencyAnalysisSection, ContextGrid, QualityScoreBadge
+3. DESIGN (설계)     — SetekGuidePanel, CoursePlanEditor, RoadmapEditor
+4. STRATEGY (전략)   — StrategyEditor, InterviewQuestionPanel, MinScorePanel
+```
+
+### 새 AI 태스크 추가 체크리스트
+
+1. `pipeline-types.ts` — task key + 의존 관계 + 타임아웃
+2. `pipeline-task-runners.ts` — export async function 구현
+3. `llm/actions/` — LLM 호출 함수 + 프롬프트
+4. `pipeline-grade-phases.ts` 또는 `pipeline-synthesis-phases.ts` — Phase 배치
+5. DB 테이블 + repository 메서드
+6. UI 컴포넌트 + query options
+
+## 파이프라인 변경 시 문서 동기화 (필수)
+
+파이프라인 구조를 변경할 때 **반드시** 아래 문서도 함께 업데이트:
+
+| 변경 대상 | 업데이트할 문서 | 업데이트 내용 |
+|-----------|---------------|-------------|
+| 태스크 추가/삭제/이름변경 | 이 파일 (CLAUDE.md) "Pipeline Architecture" 섹션 | 3-Tier 구조, 태스크 목록, LLM Actions 테이블 |
+| Phase 순서 변경 | 이 파일 + `docs/student-record-blueprint.md` 다이어그램 1, 3 | Phase 흐름도, Gantt 차트 |
+| Phase 간 데이터 전달 변경 | 이 파일 "Phase 간 데이터 흐름" + blueprint 다이어그램 2 | 핵심 헬퍼 함수 테이블, 데이터 전달 상세 |
+| DB 테이블 추가/변경 | 이 파일 "DB 테이블" + blueprint 다이어그램 4 | 테이블 역할, ER 다이어그램 |
+| LLM 액션 추가/모델 변경 | 이 파일 "LLM Actions" + blueprint 다이어그램 6 | 파일-함수-모델-용도 테이블 |
+| UI 탭/컴포넌트 구조 변경 | blueprint 다이어그램 5 | 4단계 탭 구조 |
+
+**문서 위치:**
+- 규칙/코드 참조: `lib/domains/student-record/CLAUDE.md` (서브에이전트 자동 참조)
+- 시각화 청사진: `docs/student-record-blueprint.md` (Mermaid 다이어그램 8개)
 
 ## Tests
 ```bash
