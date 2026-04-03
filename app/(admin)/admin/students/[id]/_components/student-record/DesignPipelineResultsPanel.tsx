@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { pipelineStatusQueryOptions } from "@/lib/query-options/studentRecord";
 import {
   PIPELINE_TASK_KEYS,
