@@ -137,9 +137,9 @@ export function ReportClient({ studentId }: ReportClientProps) {
     // 모두 prospective이면 첫 학년은 펼침
     if (expanded.size === 0) expanded.add(yearGradePairs[0].grade);
     setExpandedGrades(expanded);
-  // 의존성: data 변경 시에만 재설정 (gradeStages는 data에 종속)
+  // 의존성: data 또는 studentId 변경 시 재설정 (학생 전환 대응)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, studentId]);
 
   function toggleGrade(grade: number) {
     setExpandedGrades((prev) => {

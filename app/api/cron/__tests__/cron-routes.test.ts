@@ -86,6 +86,12 @@ vi.mock("@/lib/domains/chat/scheduled/processScheduledMessages", () => ({
   processScheduledMessages: vi.fn(),
 }));
 
+vi.mock("@/lib/logging/actionLogger", () => ({
+  logActionWarn: vi.fn(),
+  logActionError: vi.fn(),
+  logActionDebug: vi.fn(),
+}));
+
 // ============================================
 // Imports (after mocks)
 // ============================================
@@ -877,5 +883,128 @@ describe("GET /api/cron/send-scheduled-messages", () => {
     expect(res.status).toBe(500);
     const json = await res.json() as { error: string };
     expect(json.error).toBe("스케줄 처리 실패");
+  });
+});
+
+// ============================================
+// /api/cron/pipeline-timeout
+// ============================================
+
+describe("GET /api/cron/pipeline-timeout", () => {
+  async function callRoute(req: import("next/server").NextRequest) {
+    const { GET } = await import("../pipeline-timeout/route");
+    return GET(req);
+  }
+
+  it("인증 헤더 없음 → 401", async () => {
+    const res = await callRoute(makeNoAuthNextRequest());
+    expect(res.status).toBe(401);
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("Unauthorized");
+  });
+
+  it("CRON_SECRET 불일치 → 401", async () => {
+    const res = await callRoute(makeCronNextRequest("wrong-secret"));
+    expect(res.status).toBe(401);
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("Unauthorized");
+  });
+
+  it("admin client 없음 → 500", async () => {
+    mockCreateSupabaseAdminClient.mockReturnValue(null as unknown as ReturnType<typeof createSupabaseAdminClient>);
+
+    const res = await callRoute(makeCronNextRequest());
+    expect(res.status).toBe(500);
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("Server configuration error");
+  });
+
+  it("stuck 파이프라인 없음 → processed: 0", async () => {
+    const adminMock = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            lt: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+        update: vi.fn(),
+      }),
+    };
+    mockCreateSupabaseAdminClient.mockReturnValue(adminMock as unknown as ReturnType<typeof createSupabaseAdminClient>);
+
+    const res = await callRoute(makeCronNextRequest());
+    expect(res.status).toBe(200);
+    const json = await res.json() as { processed: number; pipelineIds: string[] };
+    expect(json.processed).toBe(0);
+    expect(json.pipelineIds).toEqual([]);
+  });
+
+  it("stuck 파이프라인 2건 → timeout 처리 후 processed: 2", async () => {
+    const stuckRows = [
+      { id: "pipe-aaa" },
+      { id: "pipe-bbb" },
+    ];
+    const updateChain = {
+      in: vi.fn().mockResolvedValue({ error: null }),
+    };
+    const adminMock = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            lt: vi.fn().mockResolvedValue({ data: stuckRows, error: null }),
+          }),
+        }),
+        update: vi.fn().mockReturnValue(updateChain),
+      }),
+    };
+    mockCreateSupabaseAdminClient.mockReturnValue(adminMock as unknown as ReturnType<typeof createSupabaseAdminClient>);
+
+    const res = await callRoute(makeCronNextRequest());
+    expect(res.status).toBe(200);
+    const json = await res.json() as { processed: number; pipelineIds: string[] };
+    expect(json.processed).toBe(2);
+    expect(json.pipelineIds).toEqual(["pipe-aaa", "pipe-bbb"]);
+  });
+
+  it("조회 오류 → 500", async () => {
+    const adminMock = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            lt: vi.fn().mockResolvedValue({ data: null, error: { message: "DB 조회 실패" } }),
+          }),
+        }),
+        update: vi.fn(),
+      }),
+    };
+    mockCreateSupabaseAdminClient.mockReturnValue(adminMock as unknown as ReturnType<typeof createSupabaseAdminClient>);
+
+    const res = await callRoute(makeCronNextRequest());
+    expect(res.status).toBe(500);
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("DB 조회 실패");
+  });
+
+  it("업데이트 오류 → 500", async () => {
+    const stuckRows = [{ id: "pipe-ccc" }];
+    const updateChain = {
+      in: vi.fn().mockResolvedValue({ error: { message: "업데이트 실패" } }),
+    };
+    const adminMock = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            lt: vi.fn().mockResolvedValue({ data: stuckRows, error: null }),
+          }),
+        }),
+        update: vi.fn().mockReturnValue(updateChain),
+      }),
+    };
+    mockCreateSupabaseAdminClient.mockReturnValue(adminMock as unknown as ReturnType<typeof createSupabaseAdminClient>);
+
+    const res = await callRoute(makeCronNextRequest());
+    expect(res.status).toBe(500);
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("업데이트 실패");
   });
 });

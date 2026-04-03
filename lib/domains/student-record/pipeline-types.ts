@@ -14,7 +14,7 @@
 // Legacy (PIPELINE_TASK_KEYS): 하위 호환용 단일 15태스크 파이프라인
 // ============================================
 
-export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "timeout";
 export type PipelineTaskStatus = "pending" | "running" | "completed" | "failed";
 
 export const PIPELINE_TASK_KEYS = [

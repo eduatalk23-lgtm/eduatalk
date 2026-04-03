@@ -66,6 +66,7 @@ export interface ReportData {
   edges: PersistedEdge[];
   setekGuides: Array<{
     id: string;
+    school_year: number;
     subject_id: string;
     source: string;
     status: string;
@@ -325,11 +326,13 @@ async function fetchAnalysisData(
   return {
     diagnosisData, storylineData, strategyData, edges,
     targetSubClassificationName, targetMidName,
-    setekGuides: (setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : []).map((g) => ({
-      id: g.id, subject_id: g.subject_id, source: g.source,
-      status: g.status, direction: g.direction, keywords: g.keywords,
-      overall_direction: g.overall_direction, created_at: g.created_at,
-    })),
+    setekGuides: (setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : [])
+      .filter((g) => g.school_year >= initialSchoolYear && g.school_year < initialSchoolYear + 3)
+      .map((g) => ({
+        id: g.id, school_year: g.school_year, subject_id: g.subject_id, source: g.source,
+        status: g.status, direction: g.direction, keywords: g.keywords,
+        overall_direction: g.overall_direction, created_at: g.created_at,
+      })),
     changcheGuides: (changcheGuidesRes.success && changcheGuidesRes.data ? changcheGuidesRes.data : []).map((g) => ({
       id: g.id, school_year: g.school_year, activity_type: g.activity_type,
       source: g.source, status: g.status, direction: g.direction,

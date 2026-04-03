@@ -42,7 +42,7 @@ export function resolveRecordData(
     const grade = s.grade;
     ensureGrade(result, grade);
 
-    const hasNeis = !!(s.imported_content?.trim());
+    const hasNeis = (s.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (s.imported_content ?? "")
       : (s.content ?? "");
@@ -64,7 +64,7 @@ export function resolveRecordData(
     const grade = c.grade;
     ensureGrade(result, grade);
 
-    const hasNeis = !!(c.imported_content?.trim());
+    const hasNeis = (c.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (c.imported_content ?? "")
       : (c.content ?? "");
@@ -86,7 +86,7 @@ export function resolveRecordData(
     const grade = h.grade;
     ensureGrade(result, grade);
 
-    const hasNeis = !!(h.imported_content?.trim());
+    const hasNeis = (h.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (h.imported_content ?? "")
       : (h.content ?? "");

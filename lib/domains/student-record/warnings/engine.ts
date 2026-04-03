@@ -635,7 +635,7 @@ function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): Record
     },
     F16_진로과잉도배: {
       ruleId: "content_quality_low",
-      severity: "medium",
+      severity: "high",
       title: "진로 키워드 과잉 도배",
       suggestion: "모든 교과에 동일 진로 키워드를 삽입하면 교과 고유 역량이 불명확해집니다. 진로 연결은 2~3과목으로 제한하세요",
     },
