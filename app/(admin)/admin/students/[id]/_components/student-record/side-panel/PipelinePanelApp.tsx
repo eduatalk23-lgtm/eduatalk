@@ -19,6 +19,7 @@ import {
   type SynthesisPipelineTaskKey,
 } from "@/lib/domains/student-record/pipeline-types";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
+import { cancelPipeline } from "@/lib/domains/student-record/actions/pipeline";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
 import {
@@ -387,10 +388,26 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
       if (!json.gradePipelines) throw new Error(json.error ?? "시작 실패");
       invalidate();
 
-      for (const gp of json.gradePipelines) {
+      // 캐시된 파이프라인 상태를 가져와서 완료된 Phase 스킵 (이어서 실행)
+      await queryClient.invalidateQueries({ queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey });
+      const cachedStatus = queryClient.getQueryData<typeof gradeStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+
+      for (const gpItem of json.gradePipelines) {
+        // 이미 완료된 학년은 스킵
+        const cachedGrade = cachedStatus?.gradePipelines?.[gpItem.grade as number];
+        if (cachedGrade?.status === "completed") continue;
+
         for (let phase = 1; phase <= 6; phase++) {
           if (fullRunAbortRef.current) return;
-          setRunningCell(`g-${gp.grade}-${phase}`);
+
+          // 이미 완료된 Phase 스킵
+          const cachedTasks = cachedGrade?.tasks ?? {};
+          const phaseKeys = GRADE_PHASE_GROUPS[phase - 1]?.keys ?? [];
+          if (phaseKeys.length > 0 && phaseKeys.every((k) => cachedTasks[k] === "completed")) continue;
+
+          setRunningCell(`g-${gpItem.grade}-${phase}`);
           setRunningStartMs(Date.now());
 
           const MAX_RETRIES = 2;
@@ -403,7 +420,7 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
                 const phaseRes = await fetch(`/api/admin/pipeline/grade/phase-${phase}`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ pipelineId: gp.pipelineId, chunkSize: 4 }),
+                  body: JSON.stringify({ pipelineId: gpItem.pipelineId, chunkSize: 4 }),
                 });
                 if (!phaseRes.ok) throw new Error(`HTTP ${phaseRes.status}`);
                 const phaseJson = (await phaseRes.json()) as { hasMore?: boolean };
@@ -423,7 +440,7 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
                 const phaseRes = await fetch(`/api/admin/pipeline/grade/phase-${phase}`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ pipelineId: gp.pipelineId }),
+                  body: JSON.stringify({ pipelineId: gpItem.pipelineId }),
                 });
                 if (!phaseRes.ok) throw new Error(`HTTP ${phaseRes.status}`);
                 invalidate();
@@ -447,8 +464,19 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
       if (!sJson.pipelineId) throw new Error("Synthesis 생성 실패");
       invalidate();
 
+      // Synthesis 태스크 상태를 새로 가져와서 완료된 Phase 스킵
+      const freshStatus = queryClient.getQueryData<typeof gradeStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+      const synthTasks = freshStatus?.synthesisPipeline?.tasks ?? {};
+
       for (let phase = 1; phase <= 6; phase++) {
         if (fullRunAbortRef.current) return;
+
+        // 이미 완료된 Synthesis Phase 스킵
+        const synthPhaseKeys = SYNTHESIS_PHASE_GROUPS[phase - 1]?.keys ?? [];
+        if (synthPhaseKeys.length > 0 && synthPhaseKeys.every((k) => synthTasks[k] === "completed")) continue;
+
         setRunningCell(`s-${phase}`);
         setRunningStartMs(Date.now());
         for (let retry = 0; retry <= 2; retry++) {
@@ -578,7 +606,18 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
           {isFullRunning && (
             <button
               type="button"
-              onClick={() => { fullRunAbortRef.current = true; }}
+              onClick={async () => {
+                fullRunAbortRef.current = true;
+                // running 상태인 모든 파이프라인을 cancelled로 업데이트
+                const allPipelineIds: string[] = [];
+                for (const g of Object.keys(gp).map(Number)) {
+                  const pid = gp[g]?.pipelineId;
+                  if (pid && gp[g]?.status === "running") allPipelineIds.push(pid);
+                }
+                if (sp?.pipelineId && sp.status === "running") allPipelineIds.push(sp.pipelineId);
+                await Promise.all(allPipelineIds.map((pid) => cancelPipeline(pid)));
+                invalidate();
+              }}
               className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
             >
               <X className="inline h-3 w-3 mr-1" />중단
