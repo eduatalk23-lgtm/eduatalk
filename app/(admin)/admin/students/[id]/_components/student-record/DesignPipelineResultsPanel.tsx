@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { pipelineStatusQueryOptions, studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { resumePipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { useQuery } from "@tanstack/react-query";
+import { pipelineStatusQueryOptions } from "@/lib/query-options/studentRecord";
 import {
   PIPELINE_TASK_KEYS,
   PIPELINE_TASK_LABELS,
@@ -11,7 +10,7 @@ import {
 } from "@/lib/domains/student-record/pipeline-types";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
 import { cn } from "@/lib/cn";
-import { Check, AlertCircle, RotateCcw, ChevronRight, Play, Circle } from "lucide-react";
+import { Check, AlertCircle, ChevronRight, Circle } from "lucide-react";
 
 /** P2-2: 태스크 결과에서 관련 역량 항목 추출 */
 function extractTaskCompetencies(
@@ -85,26 +84,6 @@ export function DesignPipelineResultsPanel({
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "running" ? 3000 : false;
-    },
-  });
-
-  const resumeMutation = useMutation({
-    mutationFn: async () => {
-      const result = await resumePipeline(pipeline?.id ?? "");
-      if (result.success && result.data) {
-        const { pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState } = result.data;
-        fetch("/api/admin/pipeline/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pipelineId, studentId: sid, tenantId: tid, studentSnapshot, existingState }),
-        }).catch(() => {});
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: studentRecordKeys.pipeline(studentId),
-      });
     },
   });
 
@@ -191,15 +170,9 @@ export function DesignPipelineResultsPanel({
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-[var(--text-primary)]">AI 초기 분석 결과</h4>
         {pipeline.status === "failed" ? (
-          <button
-            type="button"
-            onClick={() => resumeMutation.mutate()}
-            disabled={resumeMutation.isPending}
-            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Play className="h-3 w-3" />
-            {resumeMutation.isPending ? "재시작 중..." : "이어서 분석"}
-          </button>
+          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+            사이드바 파이프라인 패널에서 재실행하세요
+          </span>
         ) : (
           <span className="text-[10px] text-[var(--text-tertiary)]">
             내부 분석용 — 확정 전까지 초안 상태
@@ -295,14 +268,9 @@ export function DesignPipelineResultsPanel({
                 </button>
               )}
               {isFailed && (
-                <button
-                  type="button"
-                  onClick={() => resumeMutation.mutate()}
-                  disabled={resumeMutation.isPending}
-                  className="shrink-0 text-[10px] font-medium text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400"
-                >
-                  {resumeMutation.isPending ? "재시작 중..." : "재시도"}
-                </button>
+                <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">
+                  사이드바에서 재실행
+                </span>
               )}
             </div>
           );

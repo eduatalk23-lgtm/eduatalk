@@ -5,7 +5,7 @@ import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import type { AdminStudentFormData } from "../../_types/studentFormTypes";
 import { STUDENT_DIVISIONS } from "@/lib/constants/students";
-import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
+import { cn } from "@/lib/cn";
 
 type BasicInfoSectionProps = {
   control: Control<AdminStudentFormData>;
@@ -115,19 +115,30 @@ export default function BasicInfoSection({
               disabled={disabled}
               error={nameField.fieldState.error?.message}
             />
-            <FormSelect
-              {...genderField.field}
-              label="성별"
-              disabled={disabled}
-              options={[
-                { value: "", label: "선택 안 함" },
-                ...GENDER_OPTIONS.map((g) => ({
-                  value: g.value,
-                  label: g.label,
-                })),
-              ]}
-              error={genderField.fieldState.error?.message}
-            />
+            <div className="flex flex-col gap-1.5">
+              <label className="block text-sm font-medium text-gray-700">성별</label>
+              <div className="flex gap-2">
+                {(["남", "여"] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => genderField.field.onChange(g)}
+                    className={cn(
+                      "rounded-lg border px-5 py-2 text-sm font-semibold transition",
+                      genderField.field.value === g
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    )}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+              {genderField.fieldState.error?.message && (
+                <p className="text-xs text-red-500">{genderField.fieldState.error.message}</p>
+              )}
+            </div>
             <FormField
               {...birthDateField.field}
               label="생년월일"

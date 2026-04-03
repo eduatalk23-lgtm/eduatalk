@@ -19,6 +19,10 @@ interface StudentRecordContextValue {
   setActiveSchoolYear?: (year: number | null) => void;
   activeSubjectName?: string | null;
   setActiveSubjectName?: (name: string | null) => void;
+  /** 메인 스크롤 컨테이너 섹션 이동 (사이드 패널 → 메인 연결) */
+  scrollToSection?: (sectionId: string) => void;
+  /** 진로 설정 여부 (PipelinePanelApp 빈 상태 처리용) */
+  hasTargetMajor?: boolean;
 }
 
 const StudentRecordContext = createContext<StudentRecordContextValue | null>(null);

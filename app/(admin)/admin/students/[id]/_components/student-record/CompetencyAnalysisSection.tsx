@@ -20,6 +20,8 @@ import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/t
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { HighlightedSetekView, CompetencyBadge } from "./HighlightedSetekView";
 import { HighlightComparisonView } from "./HighlightComparisonView";
+import { QualityScoreBadge, QualitySummaryCard } from "./QualityScoreBadge";
+import type { QualityScoreEntry } from "./QualityScoreBadge";
 
 import { Sparkles, ArrowDown, Check, X, ChevronRight, Loader2, GitCompare } from "lucide-react";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
@@ -46,6 +48,8 @@ type Props = {
   /** 증분 분석 캐시 키에 포함 — 변경 시 캐시 자동 무효화 */
   targetMajor?: string | null;
   takenSubjects?: string[];
+  /** Phase 1-3 역량 분석에서 생성된 콘텐츠 품질 점수 */
+  qualityScores?: QualityScoreEntry[];
 };
 
 const GRADES: CompetencyGrade[] = ["A+", "A-", "B+", "B", "B-", "C"];
@@ -125,6 +129,7 @@ export function CompetencyAnalysisSection({
   isPipelineRunning,
   targetMajor,
   takenSubjects,
+  qualityScores,
 }: Props) {
   const queryClient = useQueryClient();
   const [highlightResults, setHighlightResults] = useState<Map<string, HighlightAnalysisResult>>(new Map());
@@ -655,6 +660,14 @@ export function CompetencyAnalysisSection({
         )}
       </div>
 
+      {/* ─── 콘텐츠 품질 요약 카드 ── */}
+      {qualityScores && qualityScores.length > 0 && (
+        <QualitySummaryCard
+          qualityScores={qualityScores}
+          recordLabelMap={recordLabelMap}
+        />
+      )}
+
       {/* ─── 활동별 역량 분석: 학년 탭 + 유형 섹션 ── */}
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -726,6 +739,10 @@ export function CompetencyAnalysisSection({
             const conResult = consultantResults.get(rec.id);
             const isAnalyzing = analyzingId === rec.id;
             const wasCached = batchCachedIds.has(rec.id);
+            const qualityEntry = qualityScores?.find((q) => q.record_id === rec.id);
+            const qualityBadgeNode = qualityEntry
+              ? <QualityScoreBadge entry={qualityEntry} />
+              : null;
 
             if (result && comparisonMode) {
               return (
@@ -749,6 +766,7 @@ export function CompetencyAnalysisSection({
                   defaultExpanded={true}
                   onReanalyze={() => analyzeRecord(rec)}
                   isReanalyzing={isAnalyzing}
+                  qualityBadge={qualityBadgeNode}
                 />
               );
             }
@@ -758,6 +776,7 @@ export function CompetencyAnalysisSection({
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
+                    {qualityBadgeNode}
                     {wasCached && batchMutation.isSuccess && (
                       <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">캐시</span>
                     )}

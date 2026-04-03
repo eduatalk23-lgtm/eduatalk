@@ -29,9 +29,14 @@ const ConnectionsPanelApp = dynamic(
   { ssr: false },
 );
 
+const PipelinePanelApp = dynamic(
+  () => import("./PipelinePanelApp").then((m) => ({ default: m.PipelinePanelApp })),
+  { ssr: false },
+);
+
 export function RecordSidePanelContainer() {
   const { activeApp } = useSidePanel();
-  const { studentId, tenantId, studentName, activeSubjectId } = useStudentRecordContext();
+  const { studentId, tenantId, studentName, activeSubjectId, scrollToSection, hasTargetMajor } = useStudentRecordContext();
 
   const openAgentPopout = useCallback(() => {
     const params = new URLSearchParams();
@@ -47,6 +52,14 @@ export function RecordSidePanelContainer() {
         {activeApp === "chat" && <ChatPanelApp recordTopic={activeSubjectId} />}
         {activeApp === "connections" && (
           <ConnectionsPanelApp studentId={studentId} tenantId={tenantId} />
+        )}
+        {activeApp === "pipeline" && (
+          <PipelinePanelApp
+            studentId={studentId}
+            tenantId={tenantId}
+            hasTargetMajor={hasTargetMajor ?? false}
+            onReview={scrollToSection ? () => scrollToSection("sec-pipeline-results") : undefined}
+          />
         )}
       </SidePanelContent>
       <SidePanelIconRail

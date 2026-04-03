@@ -65,7 +65,6 @@ const SetekGuidePanel = lazy(() => import("./SetekGuidePanel").then((m) => ({ de
 import { CareerSetupBanner } from "./CareerSetupBanner";
 const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then((m) => ({ default: m.ExplorationGuidePanel })));
 const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
-import { PipelineSidebarWidget } from "./PipelineSidebarWidget";
 import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
 
 const CoursePlanEditor = lazy(() => import("./CoursePlanEditor"));
@@ -726,14 +725,6 @@ export function StudentRecordClient({
         )}
       </div>
 
-      {/* Phase B: AI 초기 분석 파이프라인 */}
-      <PipelineSidebarWidget
-        studentId={studentId}
-        tenantId={tenantId}
-        hasTargetMajor={!!diagnosisData?.targetMajor}
-        onReview={() => scrollToSection("sec-pipeline-results")}
-      />
-
       {STAGES.map((stage) => {
         const isExpanded = expandedStages.has(stage.id);
         const hasActive = stage.sections.some((s) => s.id === activeSection);
@@ -933,7 +924,7 @@ export function StudentRecordClient({
       })();
 
   return (
-    <StudentRecordProvider value={{ studentId, tenantId, studentName, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName }}>
+    <StudentRecordProvider value={{ studentId, tenantId, studentName, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName, scrollToSection, hasTargetMajor: !!diagnosisData?.targetMajor }}>
     <SidePanelProvider storageKey="recordSidePanelApp">
     <AgentUIBridgeProvider value={agentUIBridgeValue}>
     <TopBarCenterSlotPortal>
@@ -1483,6 +1474,7 @@ export function StudentRecordClient({
                 isPipelineRunning={isPipelineRunning}
                 targetMajor={diagnosisData?.targetMajor}
                 takenSubjects={diagnosisData?.takenSubjects}
+                qualityScores={diagnosisData?.qualityScores}
               />
             )}
           </StrategySection>

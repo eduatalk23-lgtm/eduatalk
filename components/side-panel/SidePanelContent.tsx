@@ -6,6 +6,7 @@ import { useSidePanel } from "./SidePanelContext";
 import { SIDE_PANEL_APPS } from "./types";
 
 const PANEL_WIDTH = 360;
+const PANEL_WIDTH_WIDE = "66vw"; // 2/3 화면
 
 export function SidePanelContent({
   children,
@@ -16,6 +17,8 @@ export function SidePanelContent({
     useSidePanel();
 
   const activeConfig = SIDE_PANEL_APPS.find((a) => a.id === activeApp);
+  const isWide = activeConfig?.wide ?? false;
+  const panelWidth = isWide ? PANEL_WIDTH_WIDE : PANEL_WIDTH;
 
   // 모바일: bottom sheet
   if (isMobile) {
@@ -39,8 +42,26 @@ export function SidePanelContent({
     );
   }
 
-  // 데스크톱: push 레이아웃
+  // 데스크톱: push 레이아웃 (wide 모드는 overlay로 전환)
   if (isWideDesktop) {
+    if (isWide) {
+      // wide 모드: overlay로 표시 (2/3 화면은 push하면 메인 콘텐츠가 너무 좁아짐)
+      if (!isPanelOpen || !activeConfig) return null;
+      return (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={closePanel} />
+          <div
+            className="fixed top-0 right-0 h-full z-50 bg-[var(--background)] shadow-xl flex flex-col"
+            style={{ width: panelWidth, maxWidth: "calc(100vw - 80px)" }}
+          >
+            <PanelHeader title={activeConfig.label} onClose={closePanel} />
+            <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+              {children}
+            </div>
+          </div>
+        </>
+      );
+    }
     return (
       <div
         className={cn(
@@ -73,7 +94,7 @@ export function SidePanelContent({
       />
       <div
         className="fixed top-0 right-0 h-full z-50 bg-[var(--background)] shadow-xl flex flex-col"
-        style={{ width: PANEL_WIDTH }}
+        style={{ width: isWide ? panelWidth : PANEL_WIDTH, maxWidth: "calc(100vw - 40px)" }}
       >
         <PanelHeader title={activeConfig.label} onClose={closePanel} />
         <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">

@@ -6,7 +6,7 @@
 // [원문] 뷰: 멀티 태그 하이라이트 + 퍼지 매칭
 // ============================================
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyArea, CompetencyItemCode } from "@/lib/domains/student-record";
@@ -223,9 +223,11 @@ type Props = {
   defaultExpanded?: boolean;
   onReanalyze?: () => void;
   isReanalyzing?: boolean;
+  /** 품질 점수 배지 (QualityScoreBadge) — 헤더에 인라인 표시 */
+  qualityBadge?: ReactNode;
 };
 
-export function HighlightedSetekView({ content, sections, label, defaultExpanded = false, onReanalyze, isReanalyzing }: Props) {
+export function HighlightedSetekView({ content, sections, label, defaultExpanded = false, onReanalyze, isReanalyzing, qualityBadge }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [viewMode, setViewMode] = useState<"competency" | "original">("competency");
   const [showReanalyzeConfirm, setShowReanalyzeConfirm] = useState(false);
@@ -252,6 +254,11 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-medium text-[var(--text-primary)]">{label}</span>
+          {qualityBadge && (
+            <span onClick={(e) => e.stopPropagation()}>
+              {qualityBadge}
+            </span>
+          )}
           {hasNeedsReview && (
             <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
               확인 要
