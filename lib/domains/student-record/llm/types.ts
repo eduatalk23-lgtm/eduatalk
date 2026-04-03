@@ -220,6 +220,11 @@ export interface SuggestStrategiesInput {
    * 데이터가 없으면 undefined (전략 프롬프트에서 섹션 자체를 생략).
    */
   qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
+  /**
+   * 대학 계열 프로필 매칭 결과 (eval/university-profile-matcher).
+   * 전략 생성 시 학생의 희망 진로 적합도를 보완전략에 반영.
+   */
+  universityMatchContext?: string;
 }
 
 /** suggestStrategies 액션의 출력 */

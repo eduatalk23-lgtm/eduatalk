@@ -31,6 +31,115 @@ import { runWithConcurrency } from "./pipeline-task-runners-shared";
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
 // ============================================
+// 헬퍼: eval 연결 (시계열 + 대학 프로필 매칭)
+// ============================================
+
+/** 역량 등급 → 0~100 점수 변환 (eval 함수 입력용) */
+function competencyGradeToScore(grade: string): number {
+  switch (grade) {
+    case "A+": return 95;
+    case "A-": return 85;
+    case "B+": return 75;
+    case "B": return 70;
+    case "B-": return 60;
+    case "C": return 50;
+    default: return 0;
+  }
+}
+
+interface AllYearScoreRow {
+  gradeYear: number;
+  competencyItem: string;
+  competencyLabel: string;
+  gradeValue: string;
+}
+
+/** 전 학년 역량 점수를 DB에서 조회하여 학년별로 태깅 */
+async function fetchAllYearCompetencyScores(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  studentId: string,
+  tenantId: string,
+): Promise<AllYearScoreRow[]> {
+  const { data: rows } = await supabase
+    .from("student_record_competency_scores")
+    .select("school_year, competency_item, grade_value")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("source", "ai")
+    .order("school_year", { ascending: true });
+
+  if (!rows || rows.length === 0) return [];
+
+  const { COMPETENCY_ITEMS } = await import("./constants");
+
+  // 학생 학년으로부터 각 school_year를 gradeYear(1~3)로 매핑
+  // school_year 목록에서 최소값을 1학년으로 추정
+  const schoolYears = [...new Set((rows as Array<{ school_year: number }>).map((r) => r.school_year))].sort();
+  const baseYear = Math.min(...schoolYears);
+
+  return (rows as Array<{ school_year: number; competency_item: string; grade_value: string }>)
+    .map((r) => {
+      const gradeYear = Math.min(3, Math.max(1, r.school_year - baseYear + 1));
+      const itemDef = COMPETENCY_ITEMS.find((i) => i.code === r.competency_item);
+      return {
+        gradeYear,
+        competencyItem: r.competency_item,
+        competencyLabel: itemDef?.label ?? r.competency_item,
+        gradeValue: r.grade_value,
+      };
+    });
+}
+
+/** 시계열 분석 결과 → 진단 프롬프트 주입용 마크다운 섹션 */
+function buildTimeseriesPromptSection(
+  analysis: import("./eval/timeseries-analyzer").TimeSeriesAnalysis,
+): string {
+  const lines = ["## 역량 시계열 분석 (학년별 추이)"];
+  lines.push("");
+  lines.push(`- 요약: ${analysis.summary}`);
+  lines.push(`- 전체 평균 성장률: ${analysis.overallGrowthRate > 0 ? "+" : ""}${analysis.overallGrowthRate}점`);
+
+  if (analysis.anomalies.length > 0) {
+    lines.push("");
+    lines.push("### 이상 감지");
+    for (const a of analysis.anomalies) {
+      lines.push(`- ${a.competencyName}: ${a.anomalyReason ?? "이상 감지"} (추세: ${a.trend})`);
+    }
+  }
+
+  const rising = analysis.trends.filter((t) => t.trend === "rising");
+  const falling = analysis.trends.filter((t) => t.trend === "falling");
+
+  if (rising.length > 0) {
+    lines.push("");
+    lines.push(`### 상승 역량: ${rising.map((t) => `${t.competencyName}(+${t.growthRate})`).join(", ")}`);
+  }
+  if (falling.length > 0) {
+    lines.push("");
+    lines.push(`### 하락 역량: ${falling.map((t) => `${t.competencyName}(${t.growthRate})`).join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+/** 대학 계열 매칭 결과 → 전략 프롬프트 주입용 마크다운 섹션 */
+function buildUniversityMatchPromptSection(
+  analysis: import("./eval/university-profile-matcher").UniversityMatchAnalysis,
+): string {
+  const lines: string[] = [];
+  lines.push(`- 요약: ${analysis.summary}`);
+
+  // 상위 3개 트랙
+  const top3 = analysis.matches.slice(0, 3);
+  for (const m of top3) {
+    lines.push(`- ${m.label} (${m.grade}등급, ${m.matchScore}점): 강점=${m.strengths.join("/")} | 갭=${m.gaps.join("/")}`);
+    lines.push(`  추천: ${m.recommendation}`);
+  }
+
+  return lines.join("\n");
+}
+
+// ============================================
 // 헬퍼: 전 학년 세특/창체/행특 품질 패턴 집계
 // ============================================
 
@@ -833,6 +942,31 @@ export async function runAiDiagnosis(
     }
   }
 
+  // eval 시계열 분석 주입 (실패해도 진단 생성 계속)
+  if (hasNeisData) {
+    try {
+      const allYearScores = await fetchAllYearCompetencyScores(supabase, studentId, tenantId);
+      if (allYearScores.length > 0) {
+        const { analyzeTimeSeries } = await import("./eval/timeseries-analyzer");
+        const tsPoints = allYearScores.map((s) => ({
+          gradeYear: s.gradeYear as 1 | 2 | 3,
+          competencyId: s.competencyItem,
+          competencyName: s.competencyLabel,
+          score: competencyGradeToScore(s.gradeValue),
+        }));
+        const tsAnalysis = analyzeTimeSeries(studentId, tsPoints);
+        if (tsAnalysis.trends.length > 0) {
+          const tsSection = buildTimeseriesPromptSection(tsAnalysis);
+          diagQualityPatternSection = diagQualityPatternSection
+            ? `${diagQualityPatternSection}\n${tsSection}`
+            : tsSection;
+        }
+      }
+    } catch (tsErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.timeseriesAnalysis" }, tsErr, { pipelineId });
+    }
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -1075,6 +1209,31 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     ? (diagnosis.improvements as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }>)
     : [];
 
+  // eval 대학 계열 적합도 분석 주입 (실패해도 전략 생성 계속)
+  let universityMatchContext: string | undefined;
+  try {
+    const allYearScores = await fetchAllYearCompetencyScores(
+      ctx.supabase, studentId, tenantId,
+    );
+    if (allYearScores.length > 0) {
+      const { matchUniversityProfiles } = await import("./eval/university-profile-matcher");
+      const scoreMap: Record<string, number> = {};
+      // 가장 최근 학년(가장 큰 gradeYear)의 점수를 사용
+      const sorted = [...allYearScores].sort((a, b) => b.gradeYear - a.gradeYear);
+      for (const s of sorted) {
+        if (!(s.competencyItem in scoreMap)) {
+          scoreMap[s.competencyItem] = competencyGradeToScore(s.gradeValue);
+        }
+      }
+      const matchAnalysis = matchUniversityProfiles(studentId, scoreMap);
+      if (matchAnalysis.matches.length > 0) {
+        universityMatchContext = buildUniversityMatchPromptSection(matchAnalysis);
+      }
+    }
+  } catch (umErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.universityMatch" }, umErr, { pipelineId });
+  }
+
   const { suggestStrategies } = await import("./llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -1084,6 +1243,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     grade: studentGrade,
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     existingStrategies: existingContents,
+    universityMatchContext,
   });
   if (!result.success) throw new Error(result.error);
 
