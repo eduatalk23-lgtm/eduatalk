@@ -8,6 +8,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { withRetry } from "../retry";
 import {
   HIGHLIGHT_SYSTEM_PROMPT,
   buildHighlightUserPrompt,
@@ -170,14 +171,17 @@ export async function analyzeSetekBatchWithHighlight(
   const maxTokens = Math.min(validRecords.length * 3500, 16384);
 
   try {
-    const result = await generateTextWithRateLimit({
-      system: HIGHLIGHT_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
-      temperature: 0.3,
-      maxTokens,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: HIGHLIGHT_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "fast",
+        temperature: 0.3,
+        maxTokens,
+        responseFormat: "json",
+      }),
+      { label: "analyzeSetekBatchWithHighlight" },
+    );
 
     if (!result.content) {
       return {

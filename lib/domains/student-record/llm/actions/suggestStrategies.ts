@@ -8,6 +8,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { withRetry } from "../retry";
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from "../prompts/strategyRecommend";
 import type { SuggestStrategiesInput, SuggestStrategiesResult } from "../types";
 
@@ -25,14 +26,17 @@ export async function suggestStrategies(
 
     const userPrompt = buildUserPrompt(input);
 
-    const result = await generateTextWithRateLimit({
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
-      temperature: 0.4,
-      maxTokens: 3000,
-      grounding: { enabled: true, mode: "dynamic", dynamicThreshold: 0.3 },
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "fast",
+        temperature: 0.4,
+        maxTokens: 3000,
+        grounding: { enabled: true, mode: "dynamic", dynamicThreshold: 0.3 },
+      }),
+      { label: "suggestStrategies" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." };

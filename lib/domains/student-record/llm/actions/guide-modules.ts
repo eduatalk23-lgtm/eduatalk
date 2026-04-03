@@ -9,7 +9,7 @@
 //           fetchReportData() 의존 없이 시그니처 변경.
 // ============================================
 
-import type { ActionResponse } from "@/lib/types/actionResponse";
+import { withRetry } from "../retry";
 
 // ── NEIS 분석 모듈 ───────────────────────────────────────
 // NEIS imported_content가 존재하는 학년에 대해 실 생기부 분석
@@ -18,21 +18,21 @@ export async function analyzeSetekGuide(
   ...args: Parameters<typeof import("./generateSetekGuide").generateSetekGuide>
 ): ReturnType<typeof import("./generateSetekGuide").generateSetekGuide> {
   const { generateSetekGuide } = await import("./generateSetekGuide");
-  return generateSetekGuide(...args);
+  return withRetry(() => generateSetekGuide(...args), { label: "analyzeSetekGuide" });
 }
 
 export async function analyzeChangcheGuide(
   ...args: Parameters<typeof import("./generateChangcheGuide").generateChangcheGuide>
 ): ReturnType<typeof import("./generateChangcheGuide").generateChangcheGuide> {
   const { generateChangcheGuide } = await import("./generateChangcheGuide");
-  return generateChangcheGuide(...args);
+  return withRetry(() => generateChangcheGuide(...args), { label: "analyzeChangcheGuide" });
 }
 
 export async function analyzeHaengteukGuide(
   ...args: Parameters<typeof import("./generateHaengteukGuide").generateHaengteukGuide>
 ): ReturnType<typeof import("./generateHaengteukGuide").generateHaengteukGuide> {
   const { generateHaengteukGuide } = await import("./generateHaengteukGuide");
-  return generateHaengteukGuide(...args);
+  return withRetry(() => generateHaengteukGuide(...args), { label: "analyzeHaengteukGuide" });
 }
 
 // ── 컨설팅 모듈 ──────────────────────────────────────────
@@ -42,19 +42,19 @@ export async function generateSetekDirection(
   ...args: Parameters<typeof import("./generateSetekGuide").generateProspectiveSetekGuide>
 ): ReturnType<typeof import("./generateSetekGuide").generateProspectiveSetekGuide> {
   const { generateProspectiveSetekGuide } = await import("./generateSetekGuide");
-  return generateProspectiveSetekGuide(...args);
+  return withRetry(() => generateProspectiveSetekGuide(...args), { label: "generateSetekDirection" });
 }
 
 export async function generateChangcheDirection(
   ...args: Parameters<typeof import("./generateChangcheGuide").generateProspectiveChangcheGuide>
 ): ReturnType<typeof import("./generateChangcheGuide").generateProspectiveChangcheGuide> {
   const { generateProspectiveChangcheGuide } = await import("./generateChangcheGuide");
-  return generateProspectiveChangcheGuide(...args);
+  return withRetry(() => generateProspectiveChangcheGuide(...args), { label: "generateChangcheDirection" });
 }
 
 export async function generateHaengteukDirection(
   ...args: Parameters<typeof import("./generateHaengteukGuide").generateProspectiveHaengteukGuide>
 ): ReturnType<typeof import("./generateHaengteukGuide").generateProspectiveHaengteukGuide> {
   const { generateProspectiveHaengteukGuide } = await import("./generateHaengteukGuide");
-  return generateProspectiveHaengteukGuide(...args);
+  return withRetry(() => generateProspectiveHaengteukGuide(...args), { label: "generateHaengteukDirection" });
 }

@@ -160,8 +160,8 @@ export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
 export const PIPELINE_TASK_TIMEOUTS: Record<PipelineTaskKey, number> = {
   competency_analysis: 280_000,   // 4분 40초 (다건 배치 — Vercel 5분 제한 내 여유)
   storyline_generation: 120_000,
-  edge_computation: 60_000,       // CPU 기반
-  ai_diagnosis: 180_000,          // 3분 (복합 LLM)
+  edge_computation: 30_000,       // CPU 기반 (5-10s)
+  ai_diagnosis: 120_000,          // 2분 (실제 20-30s, 여유 포함)
   course_recommendation: 120_000,
   slot_generation: 30_000,        // 30초 (DB upsert 위주)
   guide_matching: 60_000,         // DB 조회 위주

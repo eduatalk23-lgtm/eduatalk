@@ -11,6 +11,7 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { extractJson } from "../extractJson";
+import { withRetry } from "../retry";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, COMPETENCY_RUBRIC_QUESTIONS, MAJOR_RECOMMENDED_COURSES } from "../../constants";
 import type { CompetencyScore, ActivityTag, CompetencyItemCode } from "../../types";
 import {
@@ -340,14 +341,17 @@ ${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection 
     const inputComplexity = competencyScores.length + activityTags.length;
     const diagModelTier = inputComplexity >= 20 ? "standard" : "fast";
 
-    const result = await generateTextWithRateLimit({
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: diagModelTier,
-      temperature: 0.3,
-      maxTokens: 4000,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: diagModelTier,
+        temperature: 0.3,
+        maxTokens: 4000,
+        responseFormat: "json",
+      }),
+      { label: "generateAiDiagnosis" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };
