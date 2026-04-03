@@ -2,10 +2,25 @@
 
 // ============================================
 // AI 초기 분석 파이프라인
-// Phase B+E1: 9개 AI 태스크 3-Phase 병렬 실행 + DB 상태 추적
-// Phase 1 (순차): 역량→스토리라인→엣지
-// Phase 2 (병렬): 진단, 수강, 가이드배정, 요약서
-// Phase 3 (병렬, 진단 후): 세특방향, 보완전략
+//
+// [Grade Pipeline — 학년별, 7태스크×6Phase]
+//   Phase 1: competency_setek
+//   Phase 2: competency_changche
+//   Phase 3: competency_haengteuk
+//   Phase 4: setek_guide + slot_generation (병렬)
+//   Phase 5: changche_guide
+//   Phase 6: haengteuk_guide
+//
+// [Synthesis Pipeline — 종합, 10태스크×6Phase]
+//   Phase 1: storyline_generation
+//   Phase 2: edge_computation
+//   Phase 3: ai_diagnosis + course_recommendation (병렬)
+//   Phase 4: bypass_analysis
+//   Phase 5: activity_summary + ai_strategy (병렬)
+//   Phase 6: interview_generation + roadmap_generation (병렬)
+//
+// [Legacy Pipeline — 단일 15태스크, 하위 호환 유지]
+//   pipeline-phases.ts → /api/admin/pipeline/run ~ phase-8
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -28,6 +43,12 @@ import type {
   OfferedSubjectRow,
 } from "../pipeline-types";
 import { PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, computeCascadeResetKeys } from "../pipeline-types";
+import type { GradePipelineTaskKey } from "../pipeline-types";
+import {
+  GRADE_PIPELINE_TASK_KEYS,
+  SYNTHESIS_PIPELINE_TASK_KEYS,
+  GRADE_TASK_DEPENDENTS,
+} from "../pipeline-types";
 import type { PersistedEdge } from "../edge-repository";
 import type { CrossRefEdge } from "../cross-reference";
 import * as competencyRepo from "../competency-repository";
@@ -319,6 +340,14 @@ export async function rerunPipelineTasks(
       .update({ status: "running", tasks, completed_at: null })
       .eq("id", pipelineId);
 
+    // competency_analysis 재실행 시 analysis_cache 무효화 → LLM 강제 재호출
+    if (toReset.has("competency_analysis")) {
+      await competencyRepo.deleteAnalysisCacheByStudentId(
+        pipeline.student_id as string,
+        pipeline.tenant_id as string,
+      );
+    }
+
     const existingState: ExistingPipelineState = {
       tasks,
       previews: (pipeline.task_previews ?? {}) as Record<string, string>,
@@ -469,16 +498,10 @@ export async function executePipelineTasks(
     (p) => p.plan_status === "confirmed" || p.plan_status === "recommended",
   ) ?? false;
 
-  // 하위 호환: DB mode 저장용 (판정 기준은 neisGrades 사용)
-  const pipelineMode: "analysis" | "prospective" = hasNeisData ? "analysis" : "prospective";
-
-  // prospective인데 수강계획 없으면 → course_recommendation을 선행 실행하여 자동 세팅
-  // (진로 설정만 있어도 추천 과목을 수강계획에 저장 → 이후 태스크가 활용)
-
-  // DB에 모드 저장
+  // DB에 모드 저장 (hasNeisData 기준으로 판정)
   await supabase
     .from("student_record_analysis_pipelines")
-    .update({ mode: pipelineMode })
+    .update({ mode: hasNeisData ? "analysis" : "prospective" })
     .eq("id", pipelineId);
 
   // 공유 변수: edge_computation에서 계산한 courseAdequacy를 ai_diagnosis에서 재사용
@@ -591,7 +614,7 @@ export async function executePipelineTasks(
           // 비교 시 scientific_validity NULL 여부로 버전을 구분하세요.
           if (data.contentQuality) {
             const cq = data.contentQuality;
-            void supabase
+            await supabase
               .from("student_record_content_quality")
               .upsert(
                 {
@@ -2307,5 +2330,458 @@ export async function saveTaskResult(
     }
   } catch {
     // fire-and-forget
+  }
+}
+
+// ============================================
+// Step 7: 학년별 파이프라인 오케스트레이터 (Grade-Aware Pipeline)
+// ============================================
+
+// ─── 7-1. runGradePipeline ───────────────────────────────────────────────────
+
+/**
+ * 특정 학년에 대한 grade 파이프라인 행 생성.
+ * 실제 phase 실행은 API route에서 클라이언트 주도로 수행.
+ */
+export async function runGradePipeline(
+  studentId: string,
+  tenantId: string,
+  grade: number,
+): Promise<ActionResponse<{ pipelineId: string; grade: number }>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // 속도 제한 검사
+    const rateLimitError = await checkPipelineRateLimit(studentId, supabase);
+    if (rateLimitError) {
+      return createErrorResponse(rateLimitError);
+    }
+
+    // 학생 스냅샷
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+
+    // grade 태스크만 초기화
+    const initTasks: Record<string, string> = {};
+    for (const key of GRADE_PIPELINE_TASK_KEYS) {
+      initTasks[key] = "pending";
+    }
+
+    const { data: pipeline, error: insertError } = await supabase
+      .from("student_record_analysis_pipelines")
+      .insert({
+        student_id: studentId,
+        tenant_id: tenantId,
+        created_by: userId,
+        status: "running",
+        pipeline_type: "grade",
+        grade,
+        tasks: initTasks,
+        input_snapshot: student ?? {},
+        started_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !pipeline) {
+      throw insertError ?? new Error("grade 파이프라인 생성 실패");
+    }
+
+    return createSuccessResponse({ pipelineId: pipeline.id, grade });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runGradePipeline" }, error, { studentId, grade });
+    return createErrorResponse("grade 파이프라인 시작 실패");
+  }
+}
+
+// ─── 7-2. runSynthesisPipeline ───────────────────────────────────────────────
+
+/**
+ * synthesis 파이프라인 행 생성.
+ * 사전 조건: 해당 학생의 grade 파이프라인이 모두 completed이어야 함.
+ */
+export async function runSynthesisPipeline(
+  studentId: string,
+  tenantId: string,
+): Promise<ActionResponse<{ pipelineId: string }>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // grade 파이프라인이 모두 completed인지 확인
+    const { data: gradePipelines, error: fetchErr } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, status, grade")
+      .eq("student_id", studentId)
+      .eq("pipeline_type", "grade")
+      .order("created_at", { ascending: false });
+
+    if (fetchErr) throw fetchErr;
+
+    const grades = gradePipelines ?? [];
+    const allCompleted = grades.length > 0 && grades.every((p) => p.status === "completed");
+    if (!allCompleted) {
+      return createErrorResponse(
+        "모든 학년 파이프라인이 완료된 후 종합 파이프라인을 실행할 수 있습니다",
+      );
+    }
+
+    // grade 파이프라인 ID 목록 (synthesis context용)
+    const gradePipelineIds = grades.map((p) => p.id as string);
+
+    // 학생 스냅샷
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+
+    // synthesis 태스크만 초기화
+    const initTasks: Record<string, string> = {};
+    for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
+      initTasks[key] = "pending";
+    }
+
+    const { data: pipeline, error: insertError } = await supabase
+      .from("student_record_analysis_pipelines")
+      .insert({
+        student_id: studentId,
+        tenant_id: tenantId,
+        created_by: userId,
+        status: "running",
+        pipeline_type: "synthesis",
+        grade: null,
+        tasks: initTasks,
+        input_snapshot: {
+          ...(student ?? {}),
+          gradePipelineIds,
+        },
+        started_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !pipeline) {
+      throw insertError ?? new Error("synthesis 파이프라인 생성 실패");
+    }
+
+    return createSuccessResponse({ pipelineId: pipeline.id });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runSynthesisPipeline" }, error, { studentId });
+    return createErrorResponse("synthesis 파이프라인 시작 실패");
+  }
+}
+
+// ─── 7-3. runGradeAwarePipeline ─────────────────────────────────────────────
+
+export interface GradeAwarePipelineStartResult {
+  /** 학년 → pipelineId 매핑 */
+  gradePipelines: Array<{ grade: number; pipelineId: string; status: string }>;
+  /** 클라이언트가 즉시 실행해야 할 첫 번째 grade 파이프라인 ID */
+  firstPipelineId: string | null;
+}
+
+/**
+ * 학년별 파이프라인 전체 흐름 초기화 오케스트레이터.
+ * - 데이터가 있는 학년들을 탐지하여 grade 파이프라인 행들을 일괄 생성.
+ * - 첫 번째 학년만 status: 'running', 나머지는 status: 'pending'.
+ * - options.grades로 특정 학년만 한정 가능.
+ */
+export async function runGradeAwarePipeline(
+  studentId: string,
+  tenantId: string,
+  options?: { grades?: number[] },
+): Promise<ActionResponse<GradeAwarePipelineStartResult>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // 속도 제한 검사 (전체 파이프라인 기준)
+    const rateLimitError = await checkPipelineRateLimit(studentId, supabase);
+    if (rateLimitError) {
+      return createErrorResponse(rateLimitError);
+    }
+
+    // 학생 스냅샷
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+
+    // 레코드 데이터 조회 → 어떤 학년에 데이터가 있는지 파악
+    const [sRes, cRes, hRes] = await Promise.all([
+      supabase
+        .from("student_record_seteks")
+        .select("id, content, imported_content, grade, subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null),
+      supabase
+        .from("student_record_changche")
+        .select("id, content, imported_content, grade, activity_type")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("student_record_haengteuk")
+        .select("id, content, imported_content, grade")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+    ]);
+
+    const allSeteks = (sRes.data ?? []) as CachedSetek[];
+    const allChangche = (cRes.data ?? []) as CachedChangche[];
+    const allHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
+
+    const resolvedRecords = resolveRecordData(allSeteks, allChangche, allHaengteuk);
+    const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
+
+    // 데이터가 있는 학년 = neisGrades + consultingGrades, 오름차순 정렬
+    const allGradesWithData = [...new Set([...neisGrades, ...consultingGrades])].sort(
+      (a, b) => a - b,
+    );
+
+    // options.grades로 필터링 (지정된 경우)
+    const targetGrades =
+      options?.grades && options.grades.length > 0
+        ? allGradesWithData.filter((g) => options.grades!.includes(g))
+        : allGradesWithData;
+
+    if (targetGrades.length === 0) {
+      return createErrorResponse("파이프라인을 실행할 학년 데이터가 없습니다");
+    }
+
+    // grade 파이프라인 행 일괄 생성 (첫 번째만 running, 나머지 pending)
+    const created: Array<{ grade: number; pipelineId: string; status: string }> = [];
+
+    for (let i = 0; i < targetGrades.length; i++) {
+      const grade = targetGrades[i];
+      const isFirst = i === 0;
+      const status = isFirst ? "running" : "pending";
+
+      const initTasks: Record<string, string> = {};
+      for (const key of GRADE_PIPELINE_TASK_KEYS) {
+        initTasks[key] = "pending";
+      }
+
+      const { data: pipeline, error: insertError } = await supabase
+        .from("student_record_analysis_pipelines")
+        .insert({
+          student_id: studentId,
+          tenant_id: tenantId,
+          created_by: userId,
+          status,
+          pipeline_type: "grade",
+          grade,
+          tasks: initTasks,
+          input_snapshot: student ?? {},
+          started_at: isFirst ? new Date().toISOString() : null,
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !pipeline) {
+        throw insertError ?? new Error(`학년 ${grade} 파이프라인 생성 실패`);
+      }
+
+      created.push({ grade, pipelineId: pipeline.id, status });
+    }
+
+    const firstPipelineId = created[0]?.pipelineId ?? null;
+
+    return createSuccessResponse({
+      gradePipelines: created,
+      firstPipelineId,
+    });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runGradeAwarePipeline" }, error, { studentId });
+    return createErrorResponse("학년별 파이프라인 시작 실패");
+  }
+}
+
+// ─── 7-4. fetchGradeAwarePipelineStatus ─────────────────────────────────────
+
+export interface GradeAwarePipelineStatus {
+  gradePipelines: Record<
+    number,
+    {
+      pipelineId: string;
+      grade: number;
+      status: string;
+      tasks: Record<string, string>;
+      previews: Record<string, string>;
+      elapsed: Record<string, number>;
+      errors: Record<string, string>;
+    }
+  >;
+  synthesisPipeline: {
+    pipelineId: string;
+    status: string;
+    tasks: Record<string, string>;
+    previews: Record<string, string>;
+    elapsed: Record<string, number>;
+    errors: Record<string, string>;
+  } | null;
+}
+
+/**
+ * 해당 학생의 최근 grade + synthesis 파이프라인 상태를 모두 조회.
+ */
+export async function fetchGradeAwarePipelineStatus(
+  studentId: string,
+): Promise<ActionResponse<GradeAwarePipelineStatus>> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: rows, error } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, status, pipeline_type, grade, tasks, task_previews, task_results, error_details")
+      .eq("student_id", studentId)
+      .in("pipeline_type", ["grade", "synthesis"])
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    const gradePipelines: GradeAwarePipelineStatus["gradePipelines"] = {};
+    let synthesisPipeline: GradeAwarePipelineStatus["synthesisPipeline"] = null;
+
+    for (const row of rows ?? []) {
+      const tasks = (row.tasks ?? {}) as Record<string, string>;
+      const previews = (row.task_previews ?? {}) as Record<string, string>;
+      const results = (row.task_results ?? {}) as Record<string, Record<string, unknown>>;
+      const errors = (row.error_details ?? {}) as Record<string, string>;
+
+      // 태스크별 소요시간 추출
+      const elapsed: Record<string, number> = {};
+      for (const [k, v] of Object.entries(results)) {
+        if (v && typeof v === "object" && "elapsedMs" in v && typeof v.elapsedMs === "number") {
+          elapsed[k] = v.elapsedMs;
+        }
+      }
+
+      if (row.pipeline_type === "grade" && row.grade != null) {
+        const gradeNum = row.grade as number;
+        // 학년당 가장 최근 파이프라인만 유지 (order by created_at desc 이미 적용)
+        if (!(gradeNum in gradePipelines)) {
+          gradePipelines[gradeNum] = {
+            pipelineId: row.id as string,
+            grade: gradeNum,
+            status: row.status as string,
+            tasks,
+            previews,
+            elapsed,
+            errors,
+          };
+        }
+      } else if (row.pipeline_type === "synthesis" && !synthesisPipeline) {
+        synthesisPipeline = {
+          pipelineId: row.id as string,
+          status: row.status as string,
+          tasks,
+          previews,
+          elapsed,
+          errors,
+        };
+      }
+    }
+
+    return createSuccessResponse({ gradePipelines, synthesisPipeline });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchGradeAwarePipelineStatus" }, error, { studentId });
+    return createErrorResponse("학년별 파이프라인 상태 조회 실패");
+  }
+}
+
+// ─── 7-5. rerunGradePipelineTasks ───────────────────────────────────────────
+
+/**
+ * grade 파이프라인 전용 태스크 재실행.
+ * - 지정 태스크 + GRADE_TASK_DEPENDENTS cascade reset.
+ * - 해당 학생의 synthesis 파이프라인이 있으면 전체 pending으로 리셋.
+ */
+export async function rerunGradePipelineTasks(
+  pipelineId: string,
+  taskKeys: GradePipelineTaskKey[],
+): Promise<ActionResponse<{ pipelineId: string }>> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: pipeline, error: fetchErr } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("*")
+      .eq("id", pipelineId)
+      .single();
+
+    if (fetchErr || !pipeline) {
+      return createErrorResponse("파이프라인을 찾을 수 없습니다");
+    }
+    if (pipeline.status === "running") {
+      return createErrorResponse("실행 중인 파이프라인은 재실행할 수 없습니다");
+    }
+
+    // cascade reset: GRADE_TASK_DEPENDENTS 기반
+    const toReset = new Set<GradePipelineTaskKey>(taskKeys);
+    for (const key of taskKeys) {
+      for (const dep of GRADE_TASK_DEPENDENTS[key] ?? []) {
+        toReset.add(dep);
+      }
+    }
+
+    const tasks = (pipeline.tasks ?? {}) as Record<string, PipelineTaskStatus>;
+    for (const key of toReset) {
+      tasks[key] = "pending";
+    }
+
+    await supabase
+      .from("student_record_analysis_pipelines")
+      .update({ status: "running", tasks, completed_at: null })
+      .eq("id", pipelineId);
+
+    // competency 계열 태스크 재실행 시 analysis_cache 무효화 → LLM 강제 재호출
+    const GRADE_COMPETENCY_TASKS: GradePipelineTaskKey[] = [
+      "competency_setek",
+      "competency_changche",
+      "competency_haengteuk",
+    ];
+    const hasCompetencyReset = GRADE_COMPETENCY_TASKS.some((k) => toReset.has(k));
+    if (hasCompetencyReset) {
+      await competencyRepo.deleteAnalysisCacheByStudentId(
+        pipeline.student_id as string,
+        pipeline.tenant_id as string,
+      );
+    }
+
+    // 해당 학생의 synthesis 파이프라인이 있으면 전체 pending으로 리셋
+    const { data: synthPipeline } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, tasks")
+      .eq("student_id", pipeline.student_id as string)
+      .eq("pipeline_type", "synthesis")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (synthPipeline) {
+      const synthTasks: Record<string, PipelineTaskStatus> = {};
+      for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
+        synthTasks[key] = "pending";
+      }
+      await supabase
+        .from("student_record_analysis_pipelines")
+        .update({ status: "pending", tasks: synthTasks, completed_at: null })
+        .eq("id", synthPipeline.id as string);
+    }
+
+    return createSuccessResponse({ pipelineId });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "rerunGradePipelineTasks" }, error, { pipelineId });
+    return createErrorResponse("grade 태스크 재실행 실패");
   }
 }

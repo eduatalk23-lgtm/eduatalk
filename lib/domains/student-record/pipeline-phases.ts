@@ -293,7 +293,7 @@ export async function executePhase6(ctx: PipelineContext): Promise<void> {
       const baseYear = calculateSchoolYear();
       const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
       const { userId: guideUserId } = await reqAuth();
-      const { fetchReportData: fetchReport } = await import("./report");
+      const { fetchReportData: fetchReport } = await import("./actions/report");
 
       for (const grade of ctx.consultingGrades!) {
         if (await checkCancelled(ctx)) break;

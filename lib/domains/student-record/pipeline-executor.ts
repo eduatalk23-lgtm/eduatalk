@@ -6,6 +6,7 @@
 import type {
   PipelineContext,
   PipelineTaskKey,
+  GradePipelineTaskKey,
   PipelineTaskStatus,
   PipelineTaskResults,
   TaskRunnerOutput,
@@ -13,8 +14,8 @@ import type {
   CachedChangche,
   CachedHaengteuk,
 } from "./pipeline-types";
-import { resolveRecordData, deriveGradeCategories } from "./pipeline-data-resolver";
-import { PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS } from "./pipeline-types";
+import { resolveRecordData, resolveRecordDataForGrade, deriveGradeCategories } from "./pipeline-data-resolver";
+import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS } from "./pipeline-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -102,7 +103,7 @@ export async function checkCancelled(ctx: PipelineContext): Promise<boolean> {
 
 export async function runTaskWithState(
   ctx: PipelineContext,
-  key: PipelineTaskKey,
+  key: PipelineTaskKey | GradePipelineTaskKey,
   runner: () => Promise<TaskRunnerOutput>,
 ): Promise<void> {
   if (ctx.tasks[key] === "completed") {
@@ -121,9 +122,15 @@ export async function runTaskWithState(
     ctx.errors,
   );
 
+  const startMs = Date.now();
+
   try {
-    const timeoutMs = PIPELINE_TASK_TIMEOUTS[key];
-    const output = await withTaskTimeout(runner(), timeoutMs, key);
+    // grade pipeline 전용 타임아웃 우선, 없으면 legacy 타임아웃
+    const timeoutMs =
+      (GRADE_PIPELINE_TASK_TIMEOUTS as Record<string, number>)[key] ??
+      PIPELINE_TASK_TIMEOUTS[key as PipelineTaskKey];
+    const output = await withTaskTimeout(runner(), timeoutMs, key as PipelineTaskKey);
+    const elapsedMs = Date.now() - startMs;
     ctx.tasks[key] = "completed";
     if (typeof output === "string") {
       ctx.previews[key] = output;
@@ -131,15 +138,25 @@ export async function runTaskWithState(
       ctx.previews[key] = output.preview;
       ctx.results[key] = output.result;
     }
-    logActionDebug(LOG_CTX, `Task ${key} completed: ${ctx.previews[key]}`);
+    // 소요시간 저장
+    ctx.results[key] = {
+      ...(typeof ctx.results[key] === "object" && ctx.results[key] != null ? ctx.results[key] as Record<string, unknown> : {}),
+      elapsedMs,
+    };
+    logActionDebug(LOG_CTX, `Task ${key} completed in ${(elapsedMs / 1000).toFixed(1)}s: ${ctx.previews[key]}`);
   } catch (err) {
+    const elapsedMs = Date.now() - startMs;
     ctx.tasks[key] = "failed";
     const msg = err instanceof Error ? err.message : String(err);
     ctx.errors[key] = msg;
+    ctx.results[key] = {
+      ...(typeof ctx.results[key] === "object" && ctx.results[key] != null ? ctx.results[key] as Record<string, unknown> : {}),
+      elapsedMs,
+    };
     logActionError(
       { ...LOG_CTX, action: `pipeline.${key}` },
       err,
-      { pipelineId: ctx.pipelineId },
+      { pipelineId: ctx.pipelineId, elapsedMs },
     );
   }
 
@@ -195,7 +212,7 @@ export async function loadPipelineContext(
     throw new Error("Admin client unavailable — SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
-  // 파이프라인 행 조회
+  // 파이프라인 행 조회 (pipeline_type, grade 포함)
   const { data: row, error } = await admin
     .from("student_record_analysis_pipelines")
     .select("*")
@@ -209,11 +226,31 @@ export async function loadPipelineContext(
   const studentId: string = row.student_id;
   const tenantId: string = row.tenant_id;
 
-  // 태스크 상태 복원 (하위 호환: 누락된 키는 pending 기본값)
+  // pipeline_type 복원
+  const pipelineType: "legacy" | "grade" | "synthesis" =
+    row.pipeline_type === "grade" || row.pipeline_type === "synthesis"
+      ? row.pipeline_type
+      : "legacy";
+  const targetGrade: number | undefined =
+    pipelineType === "grade" && row.grade != null ? (row.grade as number) : undefined;
+
+  // 태스크 상태 복원 (pipeline_type에 따라 사용할 키 셋 결정)
   const rawTasks = (row.tasks ?? {}) as Record<string, PipelineTaskStatus>;
   const tasks: Record<string, PipelineTaskStatus> = {};
-  for (const key of PIPELINE_TASK_KEYS) {
-    tasks[key] = rawTasks[key] ?? "pending";
+
+  if (pipelineType === "grade") {
+    for (const key of GRADE_PIPELINE_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
+  } else if (pipelineType === "synthesis") {
+    for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
+  } else {
+    // legacy: 기존 전체 키 사용
+    for (const key of PIPELINE_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
   }
 
   const previews: Record<string, string> =
@@ -257,12 +294,36 @@ export async function loadPipelineContext(
       .eq("tenant_id", tenantId),
   ]);
 
-  const cachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
-  const cachedChangche = (cRes.data ?? []) as CachedChangche[];
-  const cachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
+  const allCachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
+  const allCachedChangche = (cRes.data ?? []) as CachedChangche[];
+  const allCachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
 
-  const resolvedRecords = resolveRecordData(cachedSeteks, cachedChangche, cachedHaengteuk);
-  const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
+  // grade 파이프라인: targetGrade에 해당하는 레코드만 필터링
+  const cachedSeteks = pipelineType === "grade" && targetGrade != null
+    ? allCachedSeteks.filter((s) => s.grade === targetGrade)
+    : allCachedSeteks;
+  const cachedChangche = pipelineType === "grade" && targetGrade != null
+    ? allCachedChangche.filter((c) => c.grade === targetGrade)
+    : allCachedChangche;
+  const cachedHaengteuk = pipelineType === "grade" && targetGrade != null
+    ? allCachedHaengteuk.filter((h) => h.grade === targetGrade)
+    : allCachedHaengteuk;
+
+  // grade 파이프라인: targetGrade만 해소 / 그 외: 전체 학년 해소
+  const resolvedRecords = pipelineType === "grade" && targetGrade != null
+    ? resolveRecordDataForGrade(allCachedSeteks, allCachedChangche, allCachedHaengteuk, targetGrade)
+    : resolveRecordData(allCachedSeteks, allCachedChangche, allCachedHaengteuk);
+
+  // neisGrades/consultingGrades: grade 파이프라인이면 targetGrade 기준으로만 판별
+  let neisGrades: number[];
+  let consultingGrades: number[];
+  if (pipelineType === "grade" && targetGrade != null) {
+    const gradeData = resolvedRecords[targetGrade];
+    neisGrades = gradeData?.hasAnyNeis ? [targetGrade] : [];
+    consultingGrades = gradeData?.hasAnyNeis ? [] : [targetGrade];
+  } else {
+    ({ neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords));
+  }
 
   // pipelineMode 복원
   // DB에 저장된 mode가 있으면 그대로 사용,
@@ -317,7 +378,6 @@ export async function loadPipelineContext(
     studentId,
     tenantId,
     supabase: admin,
-    pipelineMode,
     studentGrade,
     snapshot,
     tasks,
@@ -331,5 +391,62 @@ export async function loadPipelineContext(
     resolvedRecords,
     neisGrades,
     consultingGrades,
+    pipelineType,
+    targetGrade,
   };
+}
+
+// ============================================
+// Grade Pipeline Phase 판별
+// ============================================
+
+/**
+ * Grade 파이프라인의 현재 태스크 상태에서 다음 실행할 Phase 번호를 반환한다.
+ * 모두 완료면 0.
+ *
+ * GradePhase 1: competency_setek
+ * GradePhase 2: competency_changche
+ * GradePhase 3: competency_haengteuk
+ * GradePhase 4: setek_guide + slot_generation (병렬)
+ * GradePhase 5: changche_guide
+ * GradePhase 6: haengteuk_guide
+ */
+export function getNextGradePhase(tasks: Record<string, string>): number {
+  if (tasks.competency_setek !== "completed") return 1;
+  if (tasks.competency_changche !== "completed") return 2;
+  if (tasks.competency_haengteuk !== "completed") return 3;
+  if (tasks.setek_guide !== "completed" || tasks.slot_generation !== "completed") return 4;
+  if (tasks.changche_guide !== "completed") return 5;
+  if (tasks.haengteuk_guide !== "completed") return 6;
+  return 0; // 모두 완료
+}
+
+// ============================================
+// Synthesis Pipeline Phase 판별
+// ============================================
+
+/**
+ * Synthesis 파이프라인의 현재 태스크 상태에서 다음 실행할 Phase 번호를 반환한다.
+ * 모두 완료면 0.
+ *
+ * SynthPhase 1: storyline_generation
+ * SynthPhase 2: edge_computation + guide_matching (순차)
+ * SynthPhase 3: ai_diagnosis + course_recommendation (병렬)
+ * SynthPhase 4: bypass_analysis
+ * SynthPhase 5: activity_summary + ai_strategy (병렬)
+ * SynthPhase 6: interview_generation + roadmap_generation (병렬)
+ */
+export function getNextSynthesisPhase(tasks: Record<string, string>): number {
+  if (tasks.storyline_generation !== "completed") return 1;
+  // guide_matching은 Phase 2(executeSynthesisPhase2)에서 edge_computation과 함께 실행
+  // 둘 중 하나라도 미완료면 Phase 2 재실행
+  if (tasks.edge_computation !== "completed" || tasks.guide_matching !== "completed") return 2;
+  if (
+    tasks.ai_diagnosis !== "completed" ||
+    tasks.course_recommendation !== "completed"
+  ) return 3;
+  if (tasks.bypass_analysis !== "completed") return 4;
+  if (tasks.activity_summary !== "completed" || tasks.ai_strategy !== "completed") return 5;
+  if (tasks.interview_generation !== "completed" || tasks.roadmap_generation !== "completed") return 6;
+  return 0;
 }

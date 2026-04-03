@@ -137,6 +137,29 @@ export function deriveGradeCategories(
 }
 
 // ============================================
+// resolveRecordDataForGrade
+// ============================================
+
+/**
+ * 특정 학년의 세특/창체/행특만 필터링하여 해소 결과를 반환한다.
+ *
+ * Grade 파이프라인에서 targetGrade에 해당하는 데이터만 처리할 때 사용.
+ * 내부적으로 resolveRecordData를 위임하므로 동일한 해소 로직이 보장된다.
+ */
+export function resolveRecordDataForGrade(
+  seteks: CachedSetek[],
+  changche: CachedChangche[],
+  haengteuk: CachedHaengteuk[],
+  targetGrade: number,
+): ResolvedRecordsByGrade {
+  return resolveRecordData(
+    seteks.filter(s => s.grade === targetGrade),
+    changche.filter(c => c.grade === targetGrade),
+    haengteuk.filter(h => h.grade === targetGrade),
+  );
+}
+
+// ============================================
 // 내부 유틸
 // ============================================
 

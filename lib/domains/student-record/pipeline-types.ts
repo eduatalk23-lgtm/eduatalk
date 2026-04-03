@@ -31,7 +31,108 @@ export const PIPELINE_TASK_KEYS = [
   "roadmap_generation",      // 14th: 진단+스토리라인+세특/창체/행특방향 → 학기별 로드맵
 ] as const;
 
+// ============================================
+// 학년 단위 파이프라인 태스크 (Grade Pipeline — 학년별 7개)
+// GradePhase 1: competency_setek
+// GradePhase 2: competency_changche
+// GradePhase 3: competency_haengteuk
+// GradePhase 4: setek_guide + slot_generation (병렬)
+// GradePhase 5: changche_guide
+// GradePhase 6: haengteuk_guide
+// ============================================
+
+export const GRADE_PIPELINE_TASK_KEYS = [
+  "competency_setek",
+  "competency_changche",
+  "competency_haengteuk",
+  "setek_guide",
+  "slot_generation",
+  "changche_guide",
+  "haengteuk_guide",
+] as const;
+
+export type GradePipelineTaskKey = (typeof GRADE_PIPELINE_TASK_KEYS)[number];
+
+// ============================================
+// 종합 파이프라인 태스크 (Synthesis Pipeline — 종합 10개)
+// ============================================
+
+export const SYNTHESIS_PIPELINE_TASK_KEYS = [
+  "storyline_generation",
+  "edge_computation",
+  "ai_diagnosis",
+  "course_recommendation",
+  "guide_matching",
+  "bypass_analysis",
+  "activity_summary",
+  "ai_strategy",
+  "interview_generation",
+  "roadmap_generation",
+] as const;
+
+export type SynthesisPipelineTaskKey = (typeof SYNTHESIS_PIPELINE_TASK_KEYS)[number];
+
+// ============================================
+// 학년 내 의존 관계 (Grade Pipeline 내부)
+// ============================================
+
+/**
+ * Grade 파이프라인 내 상류 태스크 → 하류 의존 태스크 매핑 (전이적 폐쇄).
+ * - competency_setek 완료 후 setek_guide, changche_guide, haengteuk_guide 실행 가능
+ * - competency_changche 완료 후 changche_guide, haengteuk_guide 실행 가능
+ * - competency_haengteuk 완료 후 haengteuk_guide 실행 가능
+ * - setek_guide 완료 후 changche_guide, haengteuk_guide 실행 가능
+ * - changche_guide 완료 후 haengteuk_guide 실행 가능
+ */
+export const GRADE_TASK_DEPENDENTS: Partial<Record<GradePipelineTaskKey, GradePipelineTaskKey[]>> = {
+  competency_setek: ["slot_generation", "setek_guide", "changche_guide", "haengteuk_guide"],
+  competency_changche: ["slot_generation", "changche_guide", "haengteuk_guide"],
+  competency_haengteuk: ["slot_generation", "haengteuk_guide"],
+  setek_guide: ["changche_guide", "haengteuk_guide"],
+  changche_guide: ["haengteuk_guide"],
+};
+
+// ============================================
+// Synthesis 의존 관계 (Synthesis Pipeline 내부)
+// ============================================
+
+/**
+ * Synthesis 파이프라인 내 상류 태스크 → 하류 의존 태스크 매핑 (전이적 폐쇄).
+ * 기존 PIPELINE_TASK_DEPENDENTS에서 synthesis 태스크만 추출.
+ */
+export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<SynthesisPipelineTaskKey, SynthesisPipelineTaskKey[]>> = {
+  storyline_generation: ["edge_computation", "ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  edge_computation: ["ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  guide_matching: ["activity_summary", "roadmap_generation"],
+  ai_diagnosis: ["ai_strategy", "interview_generation", "roadmap_generation"],
+};
+
 export type PipelineTaskKey = (typeof PIPELINE_TASK_KEYS)[number];
+
+// ============================================
+// Grade Pipeline 전용 레이블/타임아웃
+// ============================================
+
+export const GRADE_PIPELINE_TASK_LABELS: Record<GradePipelineTaskKey, string> = {
+  competency_setek: "세특 역량 분석",
+  competency_changche: "창체 역량 분석",
+  competency_haengteuk: "행특 역량 분석",
+  setek_guide: "세특 방향",
+  slot_generation: "슬롯 생성",
+  changche_guide: "창체 방향",
+  haengteuk_guide: "행특 방향",
+};
+
+/** Grade Pipeline 태스크별 타임아웃 (ms) */
+export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<GradePipelineTaskKey, number> = {
+  competency_setek: 280_000,   // 세특이 가장 오래 걸림 (Vercel 5분 제한 내 여유)
+  competency_changche: 120_000,
+  competency_haengteuk: 120_000,
+  setek_guide: 120_000,
+  slot_generation: 30_000,
+  changche_guide: 120_000,
+  haengteuk_guide: 120_000,
+};
 
 export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
   competency_analysis: "역량 분석",
@@ -124,14 +225,64 @@ export interface ResolvedRecordsByGrade {
   };
 }
 
+// ============================================
+// 역량 분석 맥락 타입 (Phase 1-3 → Phase 4-6 전달)
+// ============================================
+
+/**
+ * 단일 레코드의 역량 분석 맥락.
+ * Grade Phase 1-3(역량 분석) 완료 후 수집하여 Phase 4-6(가이드 생성)에 전달.
+ */
+export interface RecordAnalysisContext {
+  recordId: string;
+  recordType: "setek" | "changche" | "haengteuk";
+  subjectName?: string;
+  /** 감지된 품질 문제 패턴 (예: "P1_나열식", "F10_성장부재") */
+  issues: string[];
+  /** 품질 개선 피드백 (1-2문장) */
+  feedback: string;
+  /** 전체 품질 점수 (0-100) */
+  overallScore: number;
+}
+
+/**
+ * 역량 등급 항목의 분석 맥락.
+ * 낮은 등급(B- 이하) 항목의 reasoning을 가이드 프롬프트에 주입할 때 사용.
+ */
+export interface CompetencyAnalysisContext {
+  item: string;
+  grade: string;
+  reasoning: string | null;
+  /** 루브릭 질문별 평가 (B- 이하 항목만) */
+  rubricScores?: Array<{
+    questionIndex: number;
+    grade: string;
+    reasoning: string;
+  }>;
+}
+
+/**
+ * 학년별 역량 분석 맥락 집합.
+ * PipelineContext.analysisContext에 저장.
+ */
+export interface GradeAnalysisContext {
+  /** 학년 번호 (1/2/3) */
+  grade: number;
+  /** 품질 이슈가 있는 레코드 목록 (issues가 빈 배열인 레코드는 제외) */
+  qualityIssues: RecordAnalysisContext[];
+  /** B- 이하 역량 등급 항목 */
+  weakCompetencies: CompetencyAnalysisContext[];
+}
+
+/** 전체 학년에 걸친 역량 분석 맥락 (학년 번호 → 맥락) */
+export type AnalysisContextByGrade = Record<number, GradeAnalysisContext>;
+
 /** Phase 분할 실행을 위한 파이프라인 실행 컨텍스트 */
 export interface PipelineContext {
   pipelineId: string;
   studentId: string;
   tenantId: string;
   supabase: import("@supabase/supabase-js").SupabaseClient;
-  /** @deprecated NEIS 기반 resolvedRecords/neisGrades 사용 권장. 하위 호환 유지. */
-  pipelineMode: "analysis" | "prospective";
   studentGrade: number;
   snapshot: Record<string, unknown> | null;
   // 태스크 상태 (매 태스크 완료 시 DB 저장)
@@ -148,6 +299,19 @@ export interface PipelineContext {
   resolvedRecords?: ResolvedRecordsByGrade;
   neisGrades?: number[];
   consultingGrades?: number[];
+  // 학년 단위 파이프라인 (Step 1: grade partitioning)
+  /** 파이프라인 유형. legacy = 기존 단일 파이프라인, grade = 학년별, synthesis = 종합. */
+  pipelineType: "legacy" | "grade" | "synthesis";
+  /** grade 파이프라인일 때 처리 대상 학년 (1/2/3). */
+  targetGrade?: number;
+  /** synthesis 파이프라인일 때 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용). */
+  gradePipelineIds?: string[];
+  /**
+   * Phase 1-3(역량 분석) 완료 후 수집된 분석 맥락.
+   * Phase 4-6(가이드 생성)에서 직접 참조하여 약점/이슈 기반 가이드 작성.
+   * ctx.results(untyped)와 별도로 typed 필드로 관리.
+   */
+  analysisContext?: AnalysisContextByGrade;
 }
 
 /** 이어서 실행 시 복원할 상태 */
@@ -211,7 +375,7 @@ export interface OfferedSubjectRow {
  * 예: storyline → edge → diagnosis → strategy 이면, storyline 항목에 strategy도 포함
  */
 export const PIPELINE_TASK_DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineTaskKey[]>> = {
-  competency_analysis: ["storyline_generation", "edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  competency_analysis: ["slot_generation", "storyline_generation", "edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
   storyline_generation: ["edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
   edge_computation: ["ai_diagnosis", "setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
   guide_matching: ["setek_guide", "changche_guide", "haengteuk_guide", "activity_summary", "roadmap_generation"],
