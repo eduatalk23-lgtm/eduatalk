@@ -244,10 +244,9 @@ export function ContextGridBottomSheet({
   // ─── 열 선택: activeKind에 따라 사용 가능한 열 필터링 ──
 
   const availableCols = useMemo<GridColumnKey[]>(() => {
-    if (activeKind === "setek") return SELECTABLE_COLS;
-    // changche/haengteuk: direction 없음
-    return SELECTABLE_COLS.filter((c) => c !== "direction");
-  }, [activeKind]);
+    // 세특/창체/행특 모두 방향 레이어 사용 가능 (P4~P6 방향 가이드 생성)
+    return SELECTABLE_COLS;
+  }, []);
 
   // ─── Setek 데이터 ──
 
