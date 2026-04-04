@@ -940,7 +940,7 @@ export async function executePipelineTasks(
         });
 
         // DB 영속화
-        const edgeCount = await edgeRepo.replaceEdges(studentId, tenantId, pipelineId, graph);
+        const edgeCount = await edgeRepo.replaceEdges(studentId, tenantId, pipelineId, graph, "analysis");
         await edgeRepo.saveSnapshot(studentId, pipelineId, graph);
 
         // content_hash 저장 — 레코드의 실제 updated_at을 사용

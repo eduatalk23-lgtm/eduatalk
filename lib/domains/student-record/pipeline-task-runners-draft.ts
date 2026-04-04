@@ -14,8 +14,15 @@ import {
   formatSetekFlowDetailed,
   formatDraftBannedPatterns,
 } from "./evaluation-criteria/defaults";
+import { computeLevelingForStudent } from "./leveling";
 
 const LOG_CTX = { domain: "student-record", action: "draftGeneration" };
+
+/** 시스템 프롬프트에 레벨 디렉티브 주입 */
+function withLevelDirective(basePrompt: string, levelDirective: string | null): string {
+  if (!levelDirective) return basePrompt;
+  return `${basePrompt}\n\n## 난이도 기준\n${levelDirective}`;
+}
 
 // ─── 시스템 프롬프트 (기존 generateSetekDraft.ts에서 재사용) ──
 
@@ -79,6 +86,22 @@ export async function runDraftGenerationForGrade(
   if (hasNeis) {
     return "분석 모드 학년 — 가안 생성 스킵 (NEIS 기록 기반)";
   }
+
+  // ─── 레벨링: 1회 산출 후 ctx에 캐시 ──
+  if (!ctx.leveling) {
+    try {
+      ctx.leveling = await computeLevelingForStudent({
+        studentId,
+        tenantId,
+        grade: targetGrade,
+      });
+      logActionDebug(LOG_CTX, `레벨링 산출: L${ctx.leveling.adequateLevel} (${ctx.leveling.tierLabel}, gap=${ctx.leveling.gap})`, { studentId, targetGrade });
+    } catch (err) {
+      logActionError(LOG_CTX, err, { step: "leveling", studentId });
+      // 레벨링 실패해도 가안 생성은 계속 진행
+    }
+  }
+  const levelDirective = ctx.leveling?.levelDirective ?? null;
 
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
@@ -146,7 +169,7 @@ export async function runDraftGenerationForGrade(
         const userPrompt = `## 과목: ${subjectName} (${targetGrade}학년 ${record.semester}학기)\n\n## 세특 방향\n${guide.direction}\n\n## 포함할 키워드\n${guide.keywords.join(", ")}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
 
         const result = await generateTextWithRateLimit({
-          system: SETEK_SYSTEM_PROMPT,
+          system: withLevelDirective(SETEK_SYSTEM_PROMPT, levelDirective),
           messages: [{ role: "user", content: userPrompt }],
           modelTier: "standard",
           temperature: 0.5,
@@ -212,7 +235,7 @@ export async function runDraftGenerationForGrade(
         const userPrompt = `## 활동유형: ${label} (${targetGrade}학년)\n\n## 방향\n${guide.direction}\n\n## 포함할 키워드\n${guide.keywords.join(", ")}\n\n${guide.teacherPoints.length > 0 ? `## 교사 관찰 포인트\n${guide.teacherPoints.join("\n")}\n\n` : ""}${charLimit}자 이내의 ${label} 특기사항 초안을 작성해주세요.`;
 
         const result = await generateTextWithRateLimit({
-          system: CHANGCHE_SYSTEM_PROMPT,
+          system: withLevelDirective(CHANGCHE_SYSTEM_PROMPT, levelDirective),
           messages: [{ role: "user", content: userPrompt }],
           modelTier: "standard",
           temperature: 0.5,
@@ -274,7 +297,7 @@ export async function runDraftGenerationForGrade(
         userPrompt += `${charLimit}자 이내의 행동특성 및 종합의견 초안을 작성해주세요.`;
 
         const result = await generateTextWithRateLimit({
-          system: HAENGTEUK_SYSTEM_PROMPT,
+          system: withLevelDirective(HAENGTEUK_SYSTEM_PROMPT, levelDirective),
           messages: [{ role: "user", content: userPrompt }],
           modelTier: "standard",
           temperature: 0.5,
@@ -309,10 +332,18 @@ export async function runDraftGenerationForGrade(
 // ============================================
 // P8: draft_analysis — 가안 역량 분석
 //
-// P7에서 생성된 AI 가안(ai_draft_content)을 분석하여
-// activity_tags에 tag_context='draft_analysis' 태그를 생성.
-// 설계 모드 학년에서만 실행.
+// 설계 모드 학년의 콘텐츠를 분석하여:
+// 1. activity_tags (tag_context='draft_analysis')
+// 2. content_quality (source='ai_projected')
+// 3. competency_scores (source='ai_projected')
+//
+// 콘텐츠 우선순위: confirmed_content > content > ai_draft_content
 // ============================================
+
+/** 설계 모드 콘텐츠 우선순위: confirmed > content > ai_draft */
+function resolveContent(rec: { confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null }): string | null {
+  return rec.confirmed_content?.trim() || rec.content?.trim() || rec.ai_draft_content?.trim() || null;
+}
 
 export async function runDraftAnalysisForGrade(
   ctx: PipelineContext,
@@ -340,6 +371,9 @@ export async function runDraftAnalysisForGrade(
   const supabase = ctx.supabase as any;
   let analyzed = 0;
 
+  // L3: competencyGrades 수집 (P8 끝에서 집계 + 저장)
+  const allCompetencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> = [];
+
   // contentQuality 저장 헬퍼 (P1-P3와 동일 패턴)
   async function saveContentQuality(
     recordType: string,
@@ -363,7 +397,7 @@ export async function runDraftAnalysisForGrade(
           overall_score: cq.overallScore,
           issues: cq.issues,
           feedback: cq.feedback,
-          source: "ai",
+          source: "ai_projected",
         },
         { onConflict: "tenant_id,student_id,record_id,source" },
       );
@@ -376,7 +410,7 @@ export async function runDraftAnalysisForGrade(
 
   const { data: setekRecords } = await supabase
     .from("student_record_seteks")
-    .select("id, subject_id, ai_draft_content, grade")
+    .select("id, subject_id, confirmed_content, content, ai_draft_content, grade")
     .eq("student_id", studentId)
     .eq("school_year", targetSchoolYear);
 
@@ -390,8 +424,8 @@ export async function runDraftAnalysisForGrade(
     const nameMap = new Map<string, string>();
     for (const s of subjects ?? []) nameMap.set(s.id, s.name);
 
-    for (const rec of setekRecords as Array<{ id: string; subject_id: string; ai_draft_content: string | null; grade: number }>) {
-      const content = rec.ai_draft_content?.trim();
+    for (const rec of setekRecords as Array<{ id: string; subject_id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>) {
+      const content = resolveContent(rec);
       if (!content || content.length < 20) continue;
 
       try {
@@ -427,6 +461,10 @@ export async function runDraftAnalysisForGrade(
           if (result.data.contentQuality) {
             await saveContentQuality("setek", rec.id, result.data.contentQuality);
           }
+          // competencyGrades 수집
+          if (result.data.competencyGrades?.length > 0) {
+            allCompetencyGrades.push(...result.data.competencyGrades);
+          }
         }
       } catch (err) {
         logActionError(LOG_CTX, err, { recordId: rec.id, phase: "draft_analysis_setek" });
@@ -438,14 +476,14 @@ export async function runDraftAnalysisForGrade(
 
   const { data: changcheRecords } = await supabase
     .from("student_record_changche")
-    .select("id, activity_type, ai_draft_content, grade")
+    .select("id, activity_type, confirmed_content, content, ai_draft_content, grade")
     .eq("student_id", studentId)
     .eq("school_year", targetSchoolYear);
 
   if (changcheRecords) {
     for (const r of changcheRecords as Array<{ id: string }>) targetRecordIds.push(r.id);
-    for (const rec of changcheRecords as Array<{ id: string; activity_type: string; ai_draft_content: string | null; grade: number }>) {
-      const content = rec.ai_draft_content?.trim();
+    for (const rec of changcheRecords as Array<{ id: string; activity_type: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>) {
+      const content = resolveContent(rec);
       if (!content || content.length < 20) continue;
 
       try {
@@ -479,6 +517,9 @@ export async function runDraftAnalysisForGrade(
           if (result.data.contentQuality) {
             await saveContentQuality("changche", rec.id, result.data.contentQuality);
           }
+          if (result.data.competencyGrades?.length > 0) {
+            allCompetencyGrades.push(...result.data.competencyGrades);
+          }
         }
       } catch (err) {
         logActionError(LOG_CTX, err, { recordId: rec.id, phase: "draft_analysis_changche" });
@@ -490,7 +531,7 @@ export async function runDraftAnalysisForGrade(
 
   const { data: haengteukRecord } = await supabase
     .from("student_record_haengteuk")
-    .select("id, ai_draft_content, grade")
+    .select("id, confirmed_content, content, ai_draft_content, grade")
     .eq("student_id", studentId)
     .eq("school_year", targetSchoolYear)
     .maybeSingle();
@@ -507,12 +548,13 @@ export async function runDraftAnalysisForGrade(
       .eq("source", "ai");
   }
 
-  if (haengteukRecord?.ai_draft_content?.trim() && haengteukRecord.ai_draft_content.trim().length >= 20) {
+  const haengteukContent = haengteukRecord ? resolveContent(haengteukRecord) : null;
+  if (haengteukContent && haengteukContent.length >= 20) {
     try {
       const result = await analyzeSetekWithHighlight({
         recordType: "haengteuk",
-        content: haengteukRecord.ai_draft_content.trim(),
-        grade: haengteukRecord.grade ?? targetGrade,
+        content: haengteukContent,
+        grade: haengteukRecord!.grade ?? targetGrade,
       });
 
       if (result.success && result.data.sections) {
@@ -537,17 +579,93 @@ export async function runDraftAnalysisForGrade(
         }
 
         if (result.data.contentQuality) {
-          await saveContentQuality("haengteuk", haengteukRecord.id, result.data.contentQuality);
+          await saveContentQuality("haengteuk", haengteukRecord!.id, result.data.contentQuality);
+        }
+        if (result.data.competencyGrades?.length > 0) {
+          allCompetencyGrades.push(...result.data.competencyGrades);
         }
       }
     } catch (err) {
-      logActionError(LOG_CTX, err, { recordId: haengteukRecord.id, phase: "draft_analysis_haengteuk" });
+      logActionError(LOG_CTX, err, { recordId: haengteukRecord!.id, phase: "draft_analysis_haengteuk" });
     }
   }
 
-  if (analyzed === 0) {
+  // ─── competency_scores 집계 + 저장 (source=ai_projected) ──
+
+  let competencyScoresSaved = 0;
+  if (allCompetencyGrades.length > 0) {
+    try {
+      const { aggregateCompetencyGrades } = await import("./rubric-matcher");
+      const competencyRepo = await import("./competency-repository");
+      const aggregated = aggregateCompetencyGrades(allCompetencyGrades);
+
+      for (const ag of aggregated) {
+        const narrative = ag.rubricScores
+          ?.filter((rs) => rs.reasoning)
+          .map((rs) => rs.reasoning)
+          .join(" ") || null;
+
+        await competencyRepo.upsertCompetencyScore({
+          tenant_id: tenantId,
+          student_id: studentId,
+          school_year: targetSchoolYear,
+          scope: "yearly",
+          competency_area: ag.area,
+          competency_item: ag.item,
+          grade_value: ag.finalGrade,
+          narrative,
+          notes: `[AI설계] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합 (${targetGrade}학년)`,
+          rubric_scores: ag.rubricScores as unknown as import("./types").CompetencyScoreInsert["rubric_scores"],
+          source: "ai_projected",
+          status: "suggested",
+        } as import("./types").CompetencyScoreInsert);
+        competencyScoresSaved++;
+      }
+    } catch (err) {
+      logActionError(LOG_CTX, err, { phase: "draft_analysis_competency_scores" });
+    }
+  }
+
+  // ─── projected 엣지 생성 (draft_analysis 태그 기반) ──
+
+  let projectedEdgeCount = 0;
+  if (analyzed > 0) {
+    try {
+      const { buildConnectionGraph } = await import("./cross-reference");
+      const { fetchCrossRefData } = await import("./actions/diagnosis");
+      const edgeRepo = await import("./edge-repository");
+
+      // draft_analysis 태그만 조회
+      const competencyRepo = await import("./competency-repository");
+      const draftTags = await competencyRepo.findActivityTags(studentId, tenantId, { tagContext: "draft_analysis" });
+
+      if (draftTags.length > 0) {
+        const crd = await fetchCrossRefData(studentId, tenantId);
+        const graph = buildConnectionGraph({
+          allTags: draftTags,
+          storylineLinks: crd.storylineLinks,
+          readingLinks: crd.readingLinks,
+          recordLabelMap: new Map(Object.entries(crd.recordLabelMap)),
+          readingLabelMap: new Map(Object.entries(crd.readingLabelMap)),
+          recordContentMap: crd.recordContentMap
+            ? new Map(Object.entries(crd.recordContentMap))
+            : undefined,
+        });
+
+        projectedEdgeCount = await edgeRepo.replaceEdges(
+          studentId, tenantId, ctx.pipelineId, graph, "projected",
+        );
+      }
+    } catch (err) {
+      logActionError(LOG_CTX, err, { phase: "draft_analysis_projected_edges" });
+    }
+  }
+
+  if (analyzed === 0 && competencyScoresSaved === 0) {
     return "설계 모드 — 가안 분석 대상 없음 (가안 미생성 또는 내용 부족)";
   }
 
-  return `설계 모드 가안 분석 완료: ${analyzed}건 태그 생성 (tag_context=draft_analysis)`;
+  const parts = [`${analyzed}건 태그`, `${competencyScoresSaved}건 역량점수`];
+  if (projectedEdgeCount > 0) parts.push(`${projectedEdgeCount}건 예상엣지`);
+  return `설계 모드 가안 분석 완료: ${parts.join(" + ")} (source=ai_projected)`;
 }

@@ -330,6 +330,8 @@ export interface PipelineContext {
   gradeMode?: "analysis" | "design";
   /** Synthesis Pipeline용 통합 학년 입력 (buildUnifiedGradeInput으로 1회 구성) */
   unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
+  /** 레벨링 결과 캐시 (P7에서 1회 산출, P8/Synthesis에서 재사용) */
+  leveling?: import("./leveling/types").LevelingResult;
 }
 
 // ============================================

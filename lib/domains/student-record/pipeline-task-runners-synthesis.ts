@@ -841,7 +841,7 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
   });
 
   // DB 영속화
-  const edgeCount = await edgeRepo.replaceEdges(studentId, tenantId, pipelineId, graph);
+  const edgeCount = await edgeRepo.replaceEdges(studentId, tenantId, pipelineId, graph, "analysis");
   await edgeRepo.saveSnapshot(studentId, pipelineId, graph);
 
   // content_hash 저장 — stale-detection.ts의 checkPipelineStaleness와 동일한 범위 사용
@@ -1011,6 +1011,44 @@ export async function runAiDiagnosis(
       }
     } catch (tsErr) {
       logActionError({ ...LOG_CTX, action: "pipeline.timeseriesAnalysis" }, tsErr, { pipelineId });
+    }
+  }
+
+  // L5: 설계 모드 projected 데이터 별도 섹션 (ai_projected scores + projected edges)
+  if (ctx.consultingGrades && ctx.consultingGrades.length > 0) {
+    try {
+      const projectedScores = await competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai_projected");
+      const edgeRepo = await import("./edge-repository");
+      const projectedEdges = await edgeRepo.findEdges(studentId, tenantId, "projected");
+
+      if (projectedScores.length > 0 || projectedEdges.length > 0) {
+        const lines: string[] = ["## 설계 모드 예상 데이터 (참고용)"];
+        lines.push("⚠ 아래는 NEIS 기록이 없는 학년의 AI 가안 분석 결과입니다. 확정 데이터가 아닌 예상치입니다.");
+
+        if (projectedScores.length > 0) {
+          lines.push("\n### 예상 역량 등급");
+          for (const s of projectedScores) {
+            lines.push(`- ${s.competency_area} > ${s.competency_item}: ${s.grade_value}`);
+          }
+        }
+
+        if (projectedEdges.length > 0) {
+          lines.push(`\n### 예상 연결 (${projectedEdges.length}건)`);
+          for (const e of projectedEdges.slice(0, 10)) {
+            lines.push(`- ${e.source_label} → ${e.target_label} (${e.edge_type}): ${e.reason}`);
+          }
+          if (projectedEdges.length > 10) {
+            lines.push(`  ... 외 ${projectedEdges.length - 10}건`);
+          }
+        }
+
+        const projectedSection = lines.join("\n");
+        diagQualityPatternSection = diagQualityPatternSection
+          ? `${diagQualityPatternSection}\n\n${projectedSection}`
+          : projectedSection;
+      }
+    } catch (projErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.projectedDataSection" }, projErr, { pipelineId });
     }
   }
 

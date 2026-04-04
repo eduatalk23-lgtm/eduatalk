@@ -10,6 +10,8 @@ import type { ConnectionGraph, CrossRefEdge, CrossRefEdgeType } from "./cross-re
 // 1. 타입
 // ============================================
 
+export type EdgeContext = "analysis" | "projected";
+
 export interface PersistedEdge {
   id: string;
   tenant_id: string;
@@ -24,6 +26,7 @@ export interface PersistedEdge {
   target_label: string;
   target_grade: number | null;
   edge_type: CrossRefEdgeType;
+  edge_context: EdgeContext;
   reason: string;
   shared_competencies: string[] | null;
   confidence: number;
@@ -47,17 +50,24 @@ export interface EdgeSnapshot {
 // 2. 조회
 // ============================================
 
-/** 학생의 현재 엣지 목록 조회 */
+/** 학생의 현재 엣지 목록 조회 (edgeContext 미지정 시 전체) */
 export async function findEdges(
   studentId: string,
   tenantId: string,
+  edgeContext?: EdgeContext,
 ): Promise<PersistedEdge[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("student_record_edges")
     .select("*")
     .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
+    .eq("tenant_id", tenantId);
+
+  if (edgeContext) {
+    query = query.eq("edge_context", edgeContext);
+  }
+
+  const { data, error } = await query
     .order("edge_type")
     .order("created_at");
 
@@ -95,20 +105,22 @@ export async function replaceEdges(
   tenantId: string,
   pipelineId: string,
   graph: ConnectionGraph,
+  edgeContext: EdgeContext = "analysis",
 ): Promise<number> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 기존 엣지 삭제
+  // 1. 해당 context 엣지만 삭제 (다른 context 보존)
   const { error: deleteError } = await supabase
     .from("student_record_edges")
     .delete()
     .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .eq("edge_context", edgeContext);
 
   if (deleteError) throw deleteError;
 
   // 2. 새 엣지 INSERT
-  const rows = graphToEdgeRows(studentId, tenantId, pipelineId, graph);
+  const rows = graphToEdgeRows(studentId, tenantId, pipelineId, graph, edgeContext);
   if (rows.length === 0) return 0;
 
   // 50개씩 배치 INSERT
@@ -249,6 +261,7 @@ interface EdgeInsertRow {
   target_label: string;
   target_grade: number | null;
   edge_type: string;
+  edge_context: EdgeContext;
   reason: string;
   shared_competencies: string[] | null;
   confidence: number;
@@ -259,6 +272,7 @@ function graphToEdgeRows(
   tenantId: string,
   pipelineId: string,
   graph: ConnectionGraph,
+  edgeContext: EdgeContext = "analysis",
 ): EdgeInsertRow[] {
   const rows: EdgeInsertRow[] = [];
 
@@ -279,6 +293,7 @@ function graphToEdgeRows(
         target_label: edge.targetLabel,
         target_grade: resolveTargetGrade(edge),
         edge_type: edge.type,
+        edge_context: edgeContext,
         reason: edge.reason,
         shared_competencies: edge.sharedCompetencies ?? null,
         confidence: computeEdgeConfidence(edge),

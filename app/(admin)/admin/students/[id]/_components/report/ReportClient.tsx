@@ -38,6 +38,7 @@ import { UnivStrategySection } from "./sections/UnivStrategySection";
 import { ConclusionSection } from "./sections/ConclusionSection";
 import { GrowthTrajectorySection } from "./sections/GrowthTrajectorySection";
 import { CohortBenchmarkSection } from "./sections/CohortBenchmarkSection";
+import { ProjectedAnalysisSection } from "./sections/ProjectedAnalysisSection";
 
 interface ReportClientProps {
   studentId: string;
@@ -366,6 +367,23 @@ export function ReportClient({ studentId }: ReportClientProps) {
 
     // ── Part B: 전체 분석 ──
     { id: "part-b-header", title: "전체 분석", content: null, isPartBHeader: true },
+
+    // L6: 설계 방향 섹션 (projected 데이터가 있을 때만 표시)
+    ...(data.projectedData ? [{
+      id: "projected-analysis",
+      title: "설계 방향 분석",
+      content: (
+        <ProjectedAnalysisSection
+          projectedScores={data.projectedData.competencyScores}
+          projectedEdges={data.projectedData.edges}
+          leveling={data.projectedData.leveling}
+          designGrades={data.projectedData.designGrades}
+          contentQuality={data.projectedData.contentQuality}
+        />
+      ),
+      importance: "primary" as SectionImportance,
+    }] : []),
+
     {
       id: "score",
       title: "교과 성적 분석",

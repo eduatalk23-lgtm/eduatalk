@@ -167,6 +167,19 @@ export interface ReportData {
    * 가이드 프롬프트에서 약점 역량 reasoning 주입에 활용.
    */
   weakCompetencyContexts: CompetencyAnalysisContext[];
+  /**
+   * L6: 설계 모드 예상 데이터.
+   * NEIS 없는 학년의 P8 분석 결과 (ai_projected scores + projected edges + leveling).
+   */
+  projectedData?: {
+    competencyScores: import("../types").CompetencyScore[];
+    edges: PersistedEdge[];
+    leveling: import("../leveling/types").LevelingResult | null;
+    /** 설계 모드 학년 번호 목록 */
+    designGrades: number[];
+    /** 가안 품질 점수 (ai_projected) */
+    contentQuality: ContentQualityRow[];
+  };
 }
 
 // ============================================
@@ -640,6 +653,57 @@ export async function fetchReportData(
       contentQuality: analysis.contentQuality,
       weakCompetencyContexts: analysis.weakCompetencyContexts,
     };
+
+    // L6: projected 데이터 조회 (설계 모드 학년이 있을 때만)
+    try {
+      const consultingGrades = Object.entries(analysis.recordDataByGrade)
+        .filter(([, rd]) => {
+          const hasNeis = rd.seteks?.some((s) => s.imported_content?.trim()) ||
+            rd.changches?.some((c) => c.imported_content?.trim());
+          return !hasNeis;
+        })
+        .map(([g]) => Number(g));
+
+      if (consultingGrades.length > 0) {
+        const competencyRepo = await import("../competency-repository");
+        const edgeRepo = await import("../edge-repository");
+        const { computeLevelingForStudent } = await import("../leveling");
+        const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+        const currentSchoolYear = calculateSchoolYear();
+
+        const [projScores, projEdges, projQualityRes] = await Promise.all([
+          competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai_projected"),
+          edgeRepo.findEdges(studentId, tenantId, "projected"),
+          supabase.from("student_record_content_quality")
+            .select("record_type, overall_score, issues, feedback")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId)
+            .eq("source", "ai_projected"),
+        ]);
+        const projContentQuality = (projQualityRes.data ?? []) as ContentQualityRow[];
+
+        let leveling = null;
+        try {
+          leveling = await computeLevelingForStudent({
+            studentId,
+            tenantId,
+            grade: Math.max(...consultingGrades),
+          });
+        } catch { /* leveling 실패해도 계속 */ }
+
+        if (projScores.length > 0 || projEdges.length > 0 || leveling) {
+          reportData.projectedData = {
+            competencyScores: projScores,
+            edges: projEdges,
+            leveling,
+            designGrades: consultingGrades,
+            contentQuality: projContentQuality,
+          };
+        }
+      }
+    } catch {
+      // projected 데이터 실패해도 리포트 정상 반환
+    }
 
     return { success: true, data: reportData };
   } catch (error) {
