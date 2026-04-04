@@ -97,8 +97,8 @@ export async function findSnapshots(
 // ============================================
 
 /**
- * 학생의 기존 엣지를 모두 삭제하고 새 엣지로 교체
- * ConnectionGraph → DB 행 변환
+ * 학생의 기존 엣지를 모두 삭제하고 새 엣지로 교체 (RPC 트랜잭션)
+ * ConnectionGraph → JSONB 변환 → atomic DELETE+INSERT
  */
 export async function replaceEdges(
   studentId: string,
@@ -108,32 +108,18 @@ export async function replaceEdges(
   edgeContext: EdgeContext = "analysis",
 ): Promise<number> {
   const supabase = await createSupabaseServerClient();
-
-  // 1. 해당 context 엣지만 삭제 (다른 context 보존)
-  const { error: deleteError } = await supabase
-    .from("student_record_edges")
-    .delete()
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("edge_context", edgeContext);
-
-  if (deleteError) throw deleteError;
-
-  // 2. 새 엣지 INSERT
   const rows = graphToEdgeRows(studentId, tenantId, pipelineId, graph, edgeContext);
-  if (rows.length === 0) return 0;
 
-  // 50개씩 배치 INSERT
-  const BATCH = 50;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
-    const { error: insertError } = await supabase
-      .from("student_record_edges")
-      .insert(batch);
-    if (insertError) throw insertError;
-  }
+  const { data, error } = await supabase.rpc("replace_student_record_edges", {
+    p_student_id: studentId,
+    p_tenant_id: tenantId,
+    p_pipeline_id: pipelineId,
+    p_edge_context: edgeContext,
+    p_edges: JSON.stringify(rows),
+  });
 
-  return rows.length;
+  if (error) throw error;
+  return (data as number) ?? rows.length;
 }
 
 // ============================================

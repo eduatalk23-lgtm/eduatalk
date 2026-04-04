@@ -225,6 +225,28 @@ export async function deleteAiActivityTagsByRecord(
   if (error) throw error;
 }
 
+/**
+ * AI 역량 태그 원자적 교체 (RPC 트랜잭션)
+ * deleteAiActivityTagsByRecordIds + insertActivityTags를 단일 트랜잭션으로 실행.
+ * 크래시 시 데이터 유실 방지.
+ */
+export async function refreshCompetencyTagsAtomic(
+  studentId: string,
+  tenantId: string,
+  recordIds: string[],
+  newTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context?: string }>,
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("refresh_competency_tags", {
+    p_student_id: studentId,
+    p_tenant_id: tenantId,
+    p_record_ids: recordIds,
+    p_new_tags: JSON.stringify(newTags),
+  });
+  if (error) throw error;
+  return (data as number) ?? newTags.length;
+}
+
 // ============================================
 // 분석 결과 캐시 (하이라이트 영속화)
 // ⚠️ analysis_cache.source = "ai" | "consultant" (DB CHECK 제약)

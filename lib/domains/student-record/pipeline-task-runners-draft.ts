@@ -361,10 +361,11 @@ async function analyzeAndCollectTags(
     saveContentQuality: (recordType: string, recordId: string, cq: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string }) => Promise<void>;
   },
 ): Promise<{
-  tagsCreated: number;
+  /** 수집된 태그 (아직 DB 미저장 — 본체에서 RPC로 atomic 저장) */
+  collectedTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }>;
   competencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }>;
 }> {
-  let tagsCreated = 0;
+  const collectedTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
   const competencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> = [];
 
   for (const rec of records) {
@@ -380,24 +381,16 @@ async function analyzeAndCollectTags(
       });
 
       if (result.success && result.data.sections) {
-        const tagInserts = result.data.sections.flatMap((section) =>
-          section.tags.map((tag) => ({
-            tenant_id: opts.tenantId,
-            student_id: opts.studentId,
-            record_type: opts.recordType,
-            record_id: rec.id,
-            competency_item: tag.competencyItem,
-            evaluation: tag.evaluation,
-            evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-            source: "ai" as const,
-            status: "suggested" as const,
-            tag_context: "draft_analysis" as const,
-          })),
-        );
-
-        if (tagInserts.length > 0) {
-          await opts.supabase.from("student_record_activity_tags").insert(tagInserts);
-          tagsCreated += tagInserts.length;
+        for (const section of result.data.sections) {
+          for (const tag of section.tags) {
+            collectedTags.push({
+              record_type: opts.recordType,
+              record_id: rec.id,
+              competency_item: tag.competencyItem,
+              evaluation: tag.evaluation,
+              evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
+            });
+          }
         }
 
         if (result.data.contentQuality) {
@@ -412,7 +405,7 @@ async function analyzeAndCollectTags(
     }
   }
 
-  return { tagsCreated, competencyGrades };
+  return { collectedTags, competencyGrades };
 }
 
 export async function runDraftAnalysisForGrade(
@@ -443,6 +436,8 @@ export async function runDraftAnalysisForGrade(
 
   // L3: competencyGrades 수집 (P8 끝에서 집계 + 저장)
   const allCompetencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> = [];
+  // Phase 1: 태그를 메모리에 수집 → RPC로 atomic 교체
+  const allCollectedTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
 
   // contentQuality 저장 헬퍼 (P1-P3와 동일 패턴)
   async function saveContentQuality(
@@ -500,7 +495,7 @@ export async function runDraftAnalysisForGrade(
       setekRecords as Array<{ id: string; subject_id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>,
       { ...analyzeOpts, recordType: "setek", subjectNameMap },
     );
-    analyzed += setekResult.tagsCreated;
+    allCollectedTags.push(...setekResult.collectedTags);
     allCompetencyGrades.push(...setekResult.competencyGrades);
   }
 
@@ -518,7 +513,7 @@ export async function runDraftAnalysisForGrade(
       changcheRecords as Array<{ id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>,
       { ...analyzeOpts, recordType: "changche" },
     );
-    analyzed += changcheResult.tagsCreated;
+    allCollectedTags.push(...changcheResult.collectedTags);
     allCompetencyGrades.push(...changcheResult.competencyGrades);
   }
 
@@ -537,14 +532,24 @@ export async function runDraftAnalysisForGrade(
       [haengteukRecord as { id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }],
       { ...analyzeOpts, recordType: "haengteuk" },
     );
-    analyzed += haengteukResult.tagsCreated;
+    allCollectedTags.push(...haengteukResult.collectedTags);
     allCompetencyGrades.push(...haengteukResult.competencyGrades);
   }
 
-  // 해당 학년 레코드의 기존 draft_analysis AI 태그만 삭제 (다른 학년 영향 없음)
-  // NOTE: Phase 1에서 RPC 트랜잭션으로 교체 예정 (현재는 분석 후 삭제+재삽입)
-  // 현재 구현: 태그는 이미 INSERT 완료 → 기존 것만 삭제하면 새 것은 유지
-  // TODO(Phase 1): atomic replace로 전환
+  // Atomic 태그 교체: 기존 draft_analysis 삭제 + 새 태그 삽입을 단일 트랜잭션으로
+  if (targetRecordIds.length > 0 || allCollectedTags.length > 0) {
+    const { error: rpcError } = await supabase.rpc("replace_draft_analysis_tags", {
+      p_student_id: studentId,
+      p_tenant_id: tenantId,
+      p_record_ids: targetRecordIds,
+      p_new_tags: JSON.stringify(allCollectedTags),
+    });
+    if (rpcError) {
+      logActionError(LOG_CTX, rpcError, { phase: "draft_analysis_atomic_replace" });
+    } else {
+      analyzed = allCollectedTags.length;
+    }
+  }
 
   // ─── competency_scores 집계 + 저장 (source=ai_projected) ──
 
