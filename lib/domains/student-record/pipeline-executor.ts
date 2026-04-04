@@ -314,6 +314,16 @@ export async function loadPipelineContext(
     ? resolveRecordDataForGrade(allCachedSeteks, allCachedChangche, allCachedHaengteuk, targetGrade)
     : resolveRecordData(allCachedSeteks, allCachedChangche, allCachedHaengteuk);
 
+  // grade 파이프라인: targetGrade 엔트리 보장 (레코드 0건이어도 컨설팅 모드로 동작)
+  if (pipelineType === "grade" && targetGrade != null && !resolvedRecords[targetGrade]) {
+    resolvedRecords[targetGrade] = {
+      seteks: [],
+      changche: [],
+      haengteuk: null,
+      hasAnyNeis: false,
+    };
+  }
+
   // neisGrades/consultingGrades: grade 파이프라인이면 targetGrade 기준으로만 판별
   let neisGrades: number[];
   let consultingGrades: number[];
@@ -325,6 +335,12 @@ export async function loadPipelineContext(
     ({ neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords));
   }
 
+  // Grade Pipeline 모드 (analysis/design)
+  const gradeMode: "analysis" | "design" | undefined =
+    pipelineType === "grade"
+      ? (row.mode === "design" ? "design" : "analysis")
+      : undefined;
+
   // pipelineMode 복원
   // DB에 저장된 mode가 있으면 그대로 사용,
   // null이면 NEIS 기반으로 판단 (신규 파이프라인 또는 구버전 호환)
@@ -332,6 +348,9 @@ export async function loadPipelineContext(
 
   if (row.mode === "analysis" || row.mode === "prospective") {
     pipelineMode = row.mode;
+  } else if (row.mode === "design") {
+    // design 모드 grade pipeline → 전체 파이프라인 모드는 NEIS 유무로 판단
+    pipelineMode = neisGrades.length > 0 ? "analysis" : "prospective";
   } else {
     // mode 컬럼이 null — NEIS 유무로 판단 (하위 호환)
     pipelineMode = neisGrades.length > 0 ? "analysis" : "prospective";
@@ -393,6 +412,7 @@ export async function loadPipelineContext(
     consultingGrades,
     pipelineType,
     targetGrade,
+    gradeMode,
   };
 }
 

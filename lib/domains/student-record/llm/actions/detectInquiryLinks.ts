@@ -21,6 +21,7 @@ export type { RecordSummary, InquiryLinkResult, InquiryConnection, SuggestedStor
 
 export async function detectInquiryLinks(
   records: RecordSummary[],
+  extraContext?: string,
 ): Promise<{ success: true; data: InquiryLinkResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -29,7 +30,7 @@ export async function detectInquiryLinks(
       return { success: false, error: "탐구 연결 감지에는 최소 2건의 기록이 필요합니다." };
     }
 
-    const userPrompt = buildInquiryLinkUserPrompt(records);
+    const userPrompt = buildInquiryLinkUserPrompt(records, extraContext);
 
     // 레코드 20건 이상이면 Pro 모델 사용 (다중 레코드 교차 분석 품질)
     const tier = records.length >= 20 ? "advanced" : "fast";

@@ -727,6 +727,25 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
     return `${targetGrade}학년 레코드 없음 — 세특 방향 건너뜀`;
   }
 
+  // 캐시 체크: 상위 역량 분석이 모두 캐시 + 기존 AI 가이드 존재 → LLM 스킵
+  const setekUpstream = ctx.results["competency_setek"] as Record<string, unknown> | undefined;
+  if (setekUpstream?.allCached === true) {
+    const { count } = await ctx.supabase
+      .from("student_record_setek_guides")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", targetSchoolYear)
+      .eq("source", "ai");
+
+    if (count && count > 0) {
+      return {
+        preview: `${targetGrade}학년 세특 방향 ${count}과목 (캐시)`,
+        result: { cached: true },
+      };
+    }
+  }
+
   const { buildGuideContextSection } = await import("./guide-context");
   const guideContextSection = await buildGuideContextSection(studentId, "guide");
 
@@ -780,6 +799,26 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
 
   if (!gradeResolved) {
     return `${targetGrade}학년 레코드 없음 — 창체 방향 건너뜀`;
+  }
+
+  // 캐시 체크: 상위 역량 분석 캐시 + 세특 방향 안정 + 기존 AI 가이드 존재 → LLM 스킵
+  const changcheUpstream = ctx.results["competency_changche"] as Record<string, unknown> | undefined;
+  const setekGuideStable = (ctx.results["setek_guide"] as Record<string, unknown> | undefined)?.cached === true;
+  if (changcheUpstream?.allCached === true && setekGuideStable) {
+    const { count } = await ctx.supabase
+      .from("student_record_changche_guides")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", targetSchoolYear)
+      .eq("source", "ai");
+
+    if (count && count > 0) {
+      return {
+        preview: `${targetGrade}학년 창체 ${count}개 활동유형 방향 (캐시)`,
+        result: { cached: true },
+      };
+    }
   }
 
   if (isNeisGrade) {
@@ -843,6 +882,26 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
 
   if (!gradeResolved) {
     return `${targetGrade}학년 레코드 없음 — 행특 방향 건너뜀`;
+  }
+
+  // 캐시 체크: 상위 역량 분석 캐시 + 창체 방향 안정 + 기존 AI 가이드 존재 → LLM 스킵
+  const haengteukUpstream = ctx.results["competency_haengteuk"] as Record<string, unknown> | undefined;
+  const changcheGuideStable = (ctx.results["changche_guide"] as Record<string, unknown> | undefined)?.cached === true;
+  if (haengteukUpstream?.allCached === true && changcheGuideStable) {
+    const { count } = await ctx.supabase
+      .from("student_record_haengteuk_guides")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", targetSchoolYear)
+      .eq("source", "ai");
+
+    if (count && count > 0) {
+      return {
+        preview: `${targetGrade}학년 행특 방향 (캐시)`,
+        result: { cached: true },
+      };
+    }
   }
 
   if (isNeisGrade) {

@@ -2427,8 +2427,18 @@ export async function runGradeAwarePipeline(
     const resolvedRecords = resolveRecordData(allSeteks, allChangche, allHaengteuk);
     const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
 
-    // 데이터가 있는 학년 = neisGrades + consultingGrades, 오름차순 정렬
-    const allGradesWithData = [...new Set([...neisGrades, ...consultingGrades])].sort(
+    // 수강계획이 있는 학년도 컨설팅 대상에 포함 (레코드 없어도 슬롯/방향 생성 필요)
+    const { data: coursePlanGradeRows } = await supabase
+      .from("student_course_plans")
+      .select("grade")
+      .eq("student_id", studentId)
+      .in("plan_status", ["confirmed", "recommended"]);
+    const coursePlanGrades = [...new Set(
+      (coursePlanGradeRows ?? []).map((r) => r.grade as number).filter((g) => g >= 1 && g <= 3),
+    )];
+
+    // 데이터가 있는 학년 = neisGrades + consultingGrades + 수강계획 학년, 오름차순 정렬
+    const allGradesWithData = [...new Set([...neisGrades, ...consultingGrades, ...coursePlanGrades])].sort(
       (a, b) => a - b,
     );
 

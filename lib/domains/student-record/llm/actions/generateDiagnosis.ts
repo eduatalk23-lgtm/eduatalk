@@ -323,6 +323,27 @@ ${formatDiagnosisMacroPatterns()}
   - 여러 교사가 동일한 역량을 공통 언급(교차 관찰 일관성)하면 해당 역량을 강점에 높은 가중치로 반영
 - JSON으로만 응답`;
 
+    // ── 하이브리드 모드: NEIS 분석 + 비NEIS 학년 수강계획 보강 ──
+    let coursePlanSection = "";
+    if (coursePlanContext?.coursePlanData?.plans) {
+      const plans = coursePlanContext.coursePlanData.plans.filter(
+        (p) => p.plan_status === "confirmed" || p.plan_status === "recommended",
+      );
+      if (plans.length > 0) {
+        const plansBySemester = new Map<string, string[]>();
+        for (const p of plans) {
+          const key = `${p.grade}학년 ${p.semester}학기`;
+          if (!plansBySemester.has(key)) plansBySemester.set(key, []);
+          const subjectName = (p.subject as { name?: string } | null)?.name ?? "과목 미정";
+          plansBySemester.get(key)!.push(subjectName);
+        }
+        const plansText = [...plansBySemester.entries()]
+          .map(([sem, subs]) => `  · ${sem}: ${subs.join(", ")}`)
+          .join("\n");
+        coursePlanSection = `\n## 수강 계획 (비NEIS 학년 예정 교과)\n${plansText}\n위 수강계획 학년은 NEIS 데이터 없이 계획만 있습니다. 분석 데이터 학년과 연계하여 진단에 반영하세요.`;
+      }
+    }
+
     // ── 사용자 프롬프트 ──
     const userPrompt = `## 학생 정보
 ${studentInfo?.targetMajor ? `- 희망 전공: ${studentInfo.targetMajor}` : "- 희망 전공: 미정"}
@@ -334,7 +355,7 @@ ${gradesSummary}
 ## 활동 태그 (총 ${activityTags.length}건)
 ${tagsSummary}
 ${trendSection}${adequacySection}${gapSection}
-${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}
+${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${coursePlanSection}
 위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요.`;
 
     // Q2: 입력 복잡도 기반 모델 선택 — 태그 20개+ 또는 점수 8개+ → standard, 그 외 fast

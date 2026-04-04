@@ -316,6 +316,27 @@ export interface PipelineContext {
    * ctx.results(untyped)와 별도로 typed 필드로 관리.
    */
   analysisContext?: AnalysisContextByGrade;
+  /** Grade Pipeline의 모드: analysis(NEIS) 또는 design(수강계획 기반 설계) */
+  gradeMode?: "analysis" | "design";
+  /** Synthesis Pipeline용 통합 학년 입력 (buildUnifiedGradeInput으로 1회 구성) */
+  unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
+}
+
+// ============================================
+// 데이터 커버리지 경고 (Synthesis 태스크 출력에 포함)
+// ============================================
+
+export interface DataCoverageWarning {
+  /** 경고를 생산한 Synthesis 태스크 */
+  taskKey: string;
+  /** 경고 코드 */
+  code: "partial_analysis" | "no_analysis" | "design_only_grades";
+  /** 사용자 표시용 메시지 */
+  message: string;
+  /** 영향받는 학년 */
+  affectedGrades: number[];
+  /** UI 표시 심각도 */
+  severity: "info" | "warning";
 }
 
 /** 이어서 실행 시 복원할 상태 */

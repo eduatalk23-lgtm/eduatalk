@@ -649,8 +649,29 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     return "기록 2건 미만 — 건너뜀";
   }
 
+  // 비NEIS 학년의 수강계획을 컨텍스트로 전달 (grade_X_theme 품질 향상)
+  let coursePlanExtra: string | undefined;
+  if (ctx.consultingGrades && ctx.consultingGrades.length > 0 && ctx.coursePlanData?.plans) {
+    const plans = ctx.coursePlanData.plans.filter(
+      (p) => (p.plan_status === "confirmed" || p.plan_status === "recommended")
+        && ctx.consultingGrades!.includes(p.grade),
+    );
+    if (plans.length > 0) {
+      const byGrade = new Map<number, string[]>();
+      for (const p of plans) {
+        if (!byGrade.has(p.grade)) byGrade.set(p.grade, []);
+        const name = (p.subject as { name?: string } | null)?.name ?? "과목 미정";
+        byGrade.get(p.grade)!.push(name);
+      }
+      const lines = [...byGrade.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([g, subs]) => `- ${g}학년 수강 예정: ${subs.join(", ")}`);
+      coursePlanExtra = `## 수강 계획 (기록 없는 학년 예정 교과)\n${lines.join("\n")}`;
+    }
+  }
+
   const { detectInquiryLinks } = await import("./llm/actions/detectInquiryLinks");
-  const result = await detectInquiryLinks(records);
+  const result = await detectInquiryLinks(records, coursePlanExtra);
   if (!result.success) throw new Error(result.error);
 
   const { suggestedStorylines, connections } = result.data;
@@ -857,13 +878,15 @@ export async function runAiDiagnosis(
 
   // NEIS 학년이 없어 역량 데이터가 0건이면 수강계획 기반 예비 진단으로 전환.
   const hasNeisData = neisGrades && neisGrades.length > 0;
+  const hasConsultingGrades = ctx.consultingGrades && ctx.consultingGrades.length > 0;
 
   // NEIS가 있는데 역량 데이터까지 0건이면 역량 분석이 아직 실행되지 않은 것 → 건너뜀
   if (hasNeisData && scores.length === 0 && tags.length === 0) {
     return "역량 데이터 없음 — 건너뜀";
   }
 
-  const coursePlanContext = !hasNeisData
+  // 하이브리드 모드: NEIS 학년이 있어도 컨설팅 학년이 있으면 수강계획 컨텍스트 전달
+  const coursePlanContext = (!hasNeisData || hasConsultingGrades)
     ? { studentId, tenantId, coursePlanData: coursePlanData ?? null, snapshot }
     : undefined;
 
@@ -1003,7 +1026,11 @@ export async function runAiDiagnosis(
   } as DiagnosisInsert);
 
   const warnSuffix = result.data.warnings?.length ? ` ⚠️ ${result.data.warnings.join(", ")}` : "";
-  const diagLabel = hasNeisData ? "종합진단" : "예비진단(수강계획 기반)";
+  const diagLabel = !hasNeisData
+    ? "예비진단(수강계획 기반)"
+    : hasConsultingGrades
+      ? "종합진단(NEIS+수강계획)"
+      : "종합진단";
   return {
     preview: `${diagLabel} 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
     // 진단 상세(weaknesses/improvements)는 DB(student_record_diagnosis)에 저장됨 → ctx에는 카운트만 유지
@@ -1141,7 +1168,28 @@ export async function runActivitySummary(
     if (parts.length > 1) diagnosisSection = parts.join("\n");
   }
 
-  const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection].filter(Boolean).join("\n") || undefined;
+  // 비NEIS 학년의 수강계획 컨텍스트 (레코드 없는 학년 보강)
+  let summaryCoursePlanSection: string | undefined;
+  if (ctx.consultingGrades && ctx.consultingGrades.length > 0 && ctx.coursePlanData?.plans) {
+    const plans = ctx.coursePlanData.plans.filter(
+      (p) => (p.plan_status === "confirmed" || p.plan_status === "recommended")
+        && ctx.consultingGrades!.includes(p.grade),
+    );
+    if (plans.length > 0) {
+      const byGrade = new Map<number, string[]>();
+      for (const p of plans) {
+        if (!byGrade.has(p.grade)) byGrade.set(p.grade, []);
+        const name = (p.subject as { name?: string } | null)?.name ?? "과목 미정";
+        byGrade.get(p.grade)!.push(name);
+      }
+      const lines = [...byGrade.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([g, subs]) => `- ${g}학년 수강 예정: ${subs.join(", ")}`);
+      summaryCoursePlanSection = `## 수강 계획 (기록 없는 학년)\n${lines.join("\n")}\n위 학년은 아직 기록이 없습니다. 수강 예정 교과를 고려하여 해당 학년의 활동 방향을 서술하세요.`;
+    }
+  }
+
+  const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection, summaryCoursePlanSection].filter(Boolean).join("\n") || undefined;
   const result = await generateActivitySummary(studentId, grades, extraSections);
   if (!result.success) throw new Error(result.error);
   return "활동 요약서 생성 완료";
@@ -1358,11 +1406,11 @@ export async function runBypassAnalysis(ctx: PipelineContext): Promise<TaskRunne
 export async function runInterviewGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
   const { supabase, studentId, tenantId, snapshot, results } = ctx;
 
-  // 세특/창체 레코드 수집 (캐시 재사용)
+  // 세특/창체 레코드 수집 (캐시 재사용, imported_content 포함)
   if (!ctx.cachedSeteks) {
     const { data } = await supabase
       .from("student_record_seteks")
-      .select("id, content, grade, subject:subject_id(name)")
+      .select("id, content, imported_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null);
@@ -1371,7 +1419,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedChangche) {
     const { data } = await supabase
       .from("student_record_changche")
-      .select("id, content, grade, activity_type")
+      .select("id, content, imported_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
     ctx.cachedChangche = (data ?? []) as CachedChangche[];
@@ -1388,11 +1436,16 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   function getRecordType(r: CachedRecord): "setek" | "changche" {
     return isCachedSetek(r) ? "setek" : "changche";
   }
+  /** NEIS(imported_content) 우선, 없으면 content 사용 */
+  function getEffectiveContent(r: CachedRecord): string {
+    const imported = r.imported_content?.trim();
+    return (imported && imported.length > 0) ? imported : (r.content ?? "");
+  }
 
-  // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용)
+  // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용) — imported_content 우선
   const candidateRecords: CachedRecord[] = [...ctx.cachedSeteks!, ...ctx.cachedChangche!]
-    .filter((r) => r.content && r.content.trim().length >= 50)
-    .sort((a, b) => b.content.length - a.content.length)
+    .filter((r) => getEffectiveContent(r).length >= 50)
+    .sort((a, b) => getEffectiveContent(b).length - getEffectiveContent(a).length)
     .slice(0, 5);
 
   if (candidateRecords.length === 0) return "기록 부족 — 건너뜀";
@@ -1401,11 +1454,12 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
 
   // 메인 레코드 + 추가 레코드로 교차 질문 생성
   const main = candidateRecords[0];
+  const mainContent = getEffectiveContent(main);
   const mainSubject = getSubjectLabel(main);
   const mainType = getRecordType(main);
 
   const additionalRecords = candidateRecords.slice(1).map((r) => ({
-    content: r.content,
+    content: getEffectiveContent(r),
     recordType: getRecordType(r),
     subjectName: getSubjectLabel(r),
     grade: r.grade,
@@ -1445,7 +1499,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   const existingQuestions = existingQs?.map((q) => q.question).filter(Boolean) ?? [];
 
   const result = await generateInterviewQuestions({
-    content: main.content,
+    content: mainContent,
     recordType: mainType,
     subjectName: mainSubject,
     grade: main.grade,
@@ -1534,7 +1588,7 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
       { grade: 1, theme: sl.grade_1_theme },
       { grade: 2, theme: sl.grade_2_theme },
       { grade: 3, theme: sl.grade_3_theme },
-    ].filter((t) => t.theme && t.grade >= studentGrade)) {
+    ].filter((t) => t.theme)) {
       roadmapItems.push({ area: "setek", plan_content: `[AI] ${sl.title} — ${theme}`, plan_keywords: sl.keywords ?? [], grade, semester: null, storyline_id: sl.id });
     }
   }

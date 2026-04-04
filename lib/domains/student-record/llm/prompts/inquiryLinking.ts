@@ -98,7 +98,7 @@ function contentLimit(totalRecords: number): number {
   return 500; // 30건+ → 500자
 }
 
-export function buildInquiryLinkUserPrompt(records: RecordSummary[]): string {
+export function buildInquiryLinkUserPrompt(records: RecordSummary[], extraContext?: string): string {
   const limit = contentLimit(records.length);
   const recordList = records
     .map((r) => {
@@ -110,9 +110,9 @@ export function buildInquiryLinkUserPrompt(records: RecordSummary[]): string {
   return `## 분석 대상 학생의 전 학년 생기부 기록 (${records.length}건)
 
 ${recordList}
-
+${extraContext ? `\n${extraContext}\n` : ""}
 위 기록들에서 학년간 탐구 주제의 연결관계를 감지하고, 스토리라인을 제안해주세요.
-같은 과목의 학년 간 심화, 다른 과목 간 공통 주제, 창체↔세특 연계 등을 폭넓게 탐색하되, 근거가 약한 억지 연결은 하지 마세요.`;
+같은 과목의 학년 간 심화, 다른 과목 간 공통 주제, 창체↔세특 연계 등을 폭넓게 탐색하되, 근거가 약한 억지 연결은 하지 마세요.${extraContext ? " 수강 계획이 제공된 학년은 grade_X_theme에 예정 교과를 고려하여 테마를 제안하세요." : ""}`;
 }
 
 // ─── 파서 ──────────────────────────────────
