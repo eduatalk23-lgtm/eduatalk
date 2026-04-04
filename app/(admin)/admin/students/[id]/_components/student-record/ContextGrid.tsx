@@ -63,6 +63,8 @@ export interface ContextGridProps {
   subjectReflection?: SubjectReflectionRate;
   subjectGuides: GuideAssignmentLike[];
   subjectDirection: SetekGuideItemLike[];
+  /** 설계 모드(NEIS 없음) 학년 — AI 초안/분석 미생성 안내 */
+  isDesignMode?: boolean;
 }
 
 // ─── 상수 ──
@@ -122,6 +124,7 @@ export function ContextGrid({
   subjectReflection,
   subjectGuides,
   subjectDirection,
+  isDesignMode,
 }: ContextGridProps) {
   // 열별 관점 필터: 3행 분리 열만 해당 (rowSpan 열은 관점 구분 없음)
   const [columnPerspectives, setColumnPerspectives] = useState<Record<string, Set<Perspective>>>(() => {
@@ -205,6 +208,7 @@ export function ContextGrid({
                       subjectReflection={subjectReflection}
                       subjectGuides={subjectGuides}
                       subjectDirection={subjectDirection}
+                      isDesignMode={isDesignMode}
                     />
                   </div>
                 ))
@@ -249,6 +253,7 @@ function GridCell({
   subjectReflection,
   subjectGuides,
   subjectDirection,
+  isDesignMode,
 }: {
   column: GridColumnKey;
   perspective: Perspective;
@@ -262,6 +267,7 @@ function GridCell({
   subjectReflection?: SubjectReflectionRate;
   subjectGuides: GuideAssignmentLike[];
   subjectDirection: SetekGuideItemLike[];
+  isDesignMode?: boolean;
 }) {
   // ── 논의 (rowSpan=3, 관점 무관 — 채팅 + 가이드 추천) ──
   if (column === "chat") {
@@ -386,6 +392,15 @@ function GridCell({
 
   // ── 가안 (관점별 3행) ──
   if (column === "draft") {
+    if (isDesignMode && perspective === "ai") {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+            설계 모드 — 방향 가이드를 참고하여 직접 작성하세요
+          </span>
+        </div>
+      );
+    }
     return (
       <DraftGridCell
         perspective={perspective}
@@ -401,6 +416,15 @@ function GridCell({
 
   // ── 분석 (관점별 3행) ──
   if (column === "analysis") {
+    if (isDesignMode && perspective === "ai") {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+            설계 모드 — 컨설턴트가 수동으로 태그를 추가하세요
+          </span>
+        </div>
+      );
+    }
     return (
       <AnalysisGridCell
         perspective={perspective}

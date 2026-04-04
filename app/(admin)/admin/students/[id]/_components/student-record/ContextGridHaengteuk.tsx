@@ -70,6 +70,7 @@ export interface ContextGridHaengteukProps {
   tags: AnalysisTagLike[];
   guideAssignments: GuideAssignmentLike[];
   guideItem: HaengteukGuideItemLike | undefined;
+  isDesignMode?: boolean;
 }
 
 // ─── 상수 ──
@@ -119,6 +120,7 @@ export function ContextGridHaengteuk({
   tags,
   guideAssignments,
   guideItem,
+  isDesignMode,
 }: ContextGridHaengteukProps) {
   const [columnPerspectives, setColumnPerspectives] = useState<Record<string, Set<Perspective>>>(() => {
     const init: Record<string, Set<Perspective>> = {};
@@ -199,6 +201,7 @@ export function ContextGridHaengteuk({
                       tags={tags}
                       guideAssignments={guideAssignments}
                       guideItem={guideItem}
+                      isDesignMode={isDesignMode}
                     />
                   </div>
                 ))
@@ -253,6 +256,7 @@ function HaengteukGridCell({
   tags: AnalysisTagLike[];
   guideAssignments: GuideAssignmentLike[];
   guideItem: HaengteukGuideItemLike | undefined;
+  isDesignMode?: boolean;
 }) {
   // ── 논의 ──
   if (column === "chat") {
@@ -381,6 +385,15 @@ function HaengteukGridCell({
 
   // ── 가안 (3행 분리) ──
   if (column === "draft") {
+    if (isDesignMode && perspective === "ai") {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+            설계 모드 — 방향 가이드를 참고하여 직접 작성하세요
+          </span>
+        </div>
+      );
+    }
     return (
       <HaengteukDraftGridCell
         perspective={perspective}
@@ -396,6 +409,15 @@ function HaengteukGridCell({
 
   // ── 분석 (3행 분리) ──
   if (column === "analysis") {
+    if (isDesignMode && perspective === "ai") {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+            설계 모드 — 컨설턴트가 수동으로 태그를 추가하세요
+          </span>
+        </div>
+      );
+    }
     return (
       <HaengteukAnalysisGridCell
         perspective={perspective}

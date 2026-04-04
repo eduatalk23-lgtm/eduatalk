@@ -234,7 +234,7 @@ export function ContextGridBottomSheet({
 
   // ─── React Query (과목 전환 시 자동 재평가) ──
 
-  const { data: recordData } = useQuery(
+  const { data: recordData, isFetched: isRecordFetched } = useQuery(
     recordTabQueryOptions(studentId, activeSchoolYear ?? 0),
   );
   const { data: diagnosisData } = useQuery(
@@ -273,6 +273,18 @@ export function ContextGridBottomSheet({
       (t) => t.record_type === "setek" && recordIds.has(t.record_id),
     );
   }, [diagnosisData?.activityTags, subjectRecords]);
+
+  // 설계 모드 판별: 이 학년에 NEIS imported_content가 있는 레코드가 0건이면 설계 모드
+  const isDesignMode = useMemo(() => {
+    if (!recordData) return false;
+    const allRecords = [
+      ...((recordData.seteks ?? []) as Array<{ imported_content?: string | null }>),
+      ...((recordData.changche ?? []) as Array<{ imported_content?: string | null }>),
+      ...(recordData.haengteuk ? [recordData.haengteuk as { imported_content?: string | null }] : []),
+    ];
+    if (allRecords.length === 0) return true;
+    return !allRecords.some((r) => r.imported_content && r.imported_content.trim().length > 20);
+  }, [recordData]);
 
   const filteredGuides = useMemo(() => {
     if (!guideAssignments || !activeSubjectId) return [];
@@ -458,6 +470,7 @@ export function ContextGridBottomSheet({
               subjectTags={subjectTags}
               subjectGuides={filteredGuides}
               subjectDirection={filteredDirection}
+              isDesignMode={isDesignMode}
             />
           ) : activeKind === "changche" && changcheRecord ? (
             <ContextGridChangche
@@ -475,6 +488,7 @@ export function ContextGridBottomSheet({
               guideItem={changcheGuideItems?.find(
                 (g) => g.activityType === changcheRecord.activity_type && g.schoolYear === activeSchoolYear,
               )}
+              isDesignMode={isDesignMode}
             />
           ) : activeKind === "haengteuk" ? (
             <ContextGridHaengteuk
@@ -489,10 +503,26 @@ export function ContextGridBottomSheet({
               tags={nonSetekTags}
               guideAssignments={guideAssignments ?? []}
               guideItem={haengteukGuideItems?.find((g) => g.schoolYear === activeSchoolYear)}
+              isDesignMode={isDesignMode}
             />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-gray-400">데이터를 불러오는 중...</p>
+            <div className="flex h-full flex-col items-center justify-center gap-2">
+              {isRecordFetched ? (
+                <>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {activeKind === "setek"
+                      ? "이 학년의 세특 레코드가 없습니다"
+                      : activeKind === "changche"
+                        ? "이 학년의 창체 레코드가 없습니다"
+                        : "레코드가 없습니다"}
+                  </p>
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    수강계획을 확정한 뒤 파이프라인을 실행하면 자동 생성됩니다
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--text-tertiary)]">데이터를 불러오는 중...</p>
+              )}
             </div>
           )}
         </div>
