@@ -509,6 +509,7 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
 
   const gp = gradeStatus?.gradePipelines ?? {};
   const sp = gradeStatus?.synthesisPipeline ?? null;
+  const expectedModes = gradeStatus?.expectedModes ?? {};
   const gradeNumbers = Object.keys(gp).map(Number).sort((a, b) => a - b);
   // 항상 1~3학년 모두 표시 (파이프라인 없는 학년도 표시)
   const displayGrades = [1, 2, 3];
@@ -691,16 +692,20 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
                       )}>
                         {grade}학년
                       </span>
-                      {pipeline?.mode && (
-                        <span className={cn(
-                          "text-[8px] font-medium px-1 py-px rounded-sm",
-                          pipeline.mode === "analysis"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-                        )}>
-                          {pipeline.mode === "analysis" ? "분석" : "설계"}
-                        </span>
-                      )}
+                      {(() => {
+                        const mode = pipeline?.mode ?? expectedModes[grade];
+                        if (!mode) return null;
+                        return (
+                          <span className={cn(
+                            "text-[8px] font-medium px-1 py-px rounded-sm",
+                            mode === "analysis"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+                          )}>
+                            {mode === "analysis" ? "분석" : "설계"}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {GRADE_PHASE_GROUPS.map((pg, idx) => {
@@ -757,7 +762,10 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
                   종합
                 </span>
                 {(() => {
-                  const modes = Object.values(gp).map((p) => p.mode);
+                  // 파이프라인 mode 우선, 없으면 expectedModes 폴백
+                  const modes = Object.keys(expectedModes).length > 0
+                    ? Object.values(expectedModes)
+                    : Object.values(gp).map((p) => p.mode);
                   const hasAnalysis = modes.includes("analysis");
                   const hasDesign = modes.includes("design");
                   if (hasAnalysis && hasDesign) {

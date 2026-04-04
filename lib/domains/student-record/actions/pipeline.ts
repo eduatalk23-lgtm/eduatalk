@@ -2528,6 +2528,8 @@ export interface GradeAwarePipelineStatus {
     elapsed: Record<string, number>;
     errors: Record<string, string>;
   } | null;
+  /** 파이프라인 실행 전에도 NEIS 유무 기반으로 예상 mode를 표시 (1~3학년) */
+  expectedModes: Record<number, "analysis" | "design">;
 }
 
 /**
@@ -2594,7 +2596,53 @@ export async function fetchGradeAwarePipelineStatus(
       }
     }
 
-    return createSuccessResponse({ gradePipelines, synthesisPipeline });
+    // 파이프라인 실행 전에도 학년별 예상 mode 산출 (NEIS 유무 기반)
+    const expectedModes: Record<number, "analysis" | "design"> = {};
+    const { data: student } = await supabase
+      .from("students")
+      .select("grade, tenant_id")
+      .eq("id", studentId)
+      .single();
+
+    if (student) {
+      const tenantId = student.tenant_id as string;
+      const [sRes, cRes, hRes, cpRes] = await Promise.all([
+        supabase.from("student_record_seteks")
+          .select("grade, imported_content")
+          .eq("student_id", studentId).eq("tenant_id", tenantId).is("deleted_at", null),
+        supabase.from("student_record_changche")
+          .select("grade, imported_content")
+          .eq("student_id", studentId).eq("tenant_id", tenantId),
+        supabase.from("student_record_haengteuk")
+          .select("grade, imported_content")
+          .eq("student_id", studentId).eq("tenant_id", tenantId),
+        supabase.from("student_course_plans")
+          .select("grade")
+          .eq("student_id", studentId).in("plan_status", ["confirmed", "recommended"]),
+      ]);
+
+      const resolvedRecords = resolveRecordData(
+        (sRes.data ?? []) as CachedSetek[],
+        (cRes.data ?? []) as CachedChangche[],
+        (hRes.data ?? []) as CachedHaengteuk[],
+      );
+      const { neisGrades } = deriveGradeCategories(resolvedRecords);
+      const coursePlanGrades = [...new Set(
+        ((cpRes.data ?? []) as { grade: number }[]).map((r) => r.grade).filter((g) => g >= 1 && g <= 3),
+      )];
+
+      // 레코드 또는 수강��획이 있는 모든 학년에 대해 mode 계산
+      const allGrades = [...new Set([
+        ...Object.keys(resolvedRecords).map(Number),
+        ...coursePlanGrades,
+      ])].filter((g) => g >= 1 && g <= 3);
+
+      for (const grade of allGrades) {
+        expectedModes[grade] = neisGrades.includes(grade) ? "analysis" : "design";
+      }
+    }
+
+    return createSuccessResponse({ gradePipelines, synthesisPipeline, expectedModes });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchGradeAwarePipelineStatus" }, error, { studentId });
     return createErrorResponse("학년별 파이프라인 상태 조회 실패");
