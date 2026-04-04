@@ -66,12 +66,27 @@ async function refreshCoursePlanData(ctx: PipelineContext): Promise<void> {
 }
 
 // ============================================
-// Synthesis Phase 1: 스토리라인
+// Synthesis Phase 1: 통합 입력 빌드 + 스토리라인
 // ============================================
 
 export async function executeSynthesisPhase1(
   ctx: PipelineContext,
 ): Promise<void> {
+  // 통합 입력 빌더: 학년별 분석/설계 데이터를 1회 조합하여 ctx에 저장
+  if (!ctx.unifiedInput) {
+    try {
+      const { buildUnifiedGradeInput } = await import("./pipeline-unified-input");
+      ctx.unifiedInput = await buildUnifiedGradeInput({
+        studentId: ctx.studentId,
+        tenantId: ctx.tenantId,
+        studentGrade: ctx.snapshot?.grade ?? 1,
+        supabase: ctx.supabase,
+      });
+    } catch {
+      // unifiedInput 빌드 실패 시 기존 플로우로 폴백 (치명적이지 않음)
+    }
+  }
+
   await runTaskWithState(ctx, "storyline_generation", () =>
     runStorylineGeneration(ctx),
   );

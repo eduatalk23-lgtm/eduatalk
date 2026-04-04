@@ -682,7 +682,7 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
 
                 return (
                   <div key={grade} className="contents">
-                    <div className="flex items-center justify-center">
+                    <div className="flex flex-col items-center justify-center gap-0.5">
                       <span className={cn(
                         "text-[11px] font-bold",
                         pipeline?.status === "completed" ? "text-emerald-600 dark:text-emerald-400"
@@ -691,6 +691,16 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
                       )}>
                         {grade}학년
                       </span>
+                      {pipeline?.mode && (
+                        <span className={cn(
+                          "text-[8px] font-medium px-1 py-px rounded-sm",
+                          pipeline.mode === "analysis"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+                        )}>
+                          {pipeline.mode === "analysis" ? "분석" : "설계"}
+                        </span>
+                      )}
                     </div>
 
                     {GRADE_PHASE_GROUPS.map((pg, idx) => {
@@ -737,7 +747,7 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
           <div>
             <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">Synthesis Pipeline</h4>
             <div className="grid grid-cols-[44px_repeat(6,1fr)] gap-1">
-              <div className="flex items-center justify-center">
+              <div className="flex flex-col items-center justify-center gap-0.5">
                 <span className={cn(
                   "text-[11px] font-bold",
                   sp?.status === "completed" ? "text-emerald-600 dark:text-emerald-400"
@@ -746,6 +756,19 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
                 )}>
                   종합
                 </span>
+                {(() => {
+                  const modes = Object.values(gp).map((p) => p.mode);
+                  const hasAnalysis = modes.includes("analysis");
+                  const hasDesign = modes.includes("design");
+                  if (hasAnalysis && hasDesign) {
+                    return (
+                      <span className="text-[8px] font-medium px-1 py-px rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                        혼합
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               {SYNTHESIS_PHASE_GROUPS.map((pg, idx) => {
                 const phaseNum = idx + 1;

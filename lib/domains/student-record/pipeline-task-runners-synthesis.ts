@@ -603,8 +603,10 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
 export async function runStorylineGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
   const { supabase, studentId, tenantId } = ctx;
 
-  // NEIS 레코드가 하나도 없으면 스토리라인 추출 대상 없음 — skip
-  if (!ctx.neisGrades || ctx.neisGrades.length === 0) {
+  // NEIS 레코드도 없고 설계 학년 가이드도 없으면 스토리라인 추출 대상 없음 — skip
+  const hasDesignGuides = ctx.unifiedInput?.hasAnyDesign &&
+    Object.values(ctx.unifiedInput.grades).some((g) => g.mode === "design" && g.directionGuides.length > 0);
+  if ((!ctx.neisGrades || ctx.neisGrades.length === 0) && !hasDesignGuides) {
     return "NEIS 기록 없음 — 기록 임포트 후 감지 가능";
   }
 
@@ -643,6 +645,15 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     const effectiveContent = c.imported_content?.trim() ? c.imported_content : null;
     if (!effectiveContent || effectiveContent.length < 20) continue;
     records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: effectiveContent });
+  }
+
+  // 설계 학년의 방향 가이드를 가상 레코드로 병합 (unifiedInput 사용)
+  if (ctx.unifiedInput?.hasAnyDesign) {
+    const { collectDesignRecords } = await import("./pipeline-unified-input");
+    const virtualRecords = collectDesignRecords(ctx.unifiedInput);
+    for (const vr of virtualRecords) {
+      records.push({ ...vr, index: idx++ });
+    }
   }
 
   if (records.length < 2) {
@@ -742,8 +753,15 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   }));
 
   const preview = `${savedCount}건 스토리라인 생성 (${connections.length}건 연결)`;
-  // 전체 LLM 응답은 DB(student_record_storylines)에 이미 저장됨 → ctx에는 카운트만 유지
-  return { preview, result: { storylineCount: savedCount, connectionCount: connections.length } };
+  // 커버리지 경고
+  let coverageWarnings: import("./pipeline-types").DataCoverageWarning[] | undefined;
+  if (ctx.unifiedInput) {
+    const { checkCoverageForTask } = await import("./pipeline-unified-input");
+    const warnings = checkCoverageForTask(ctx.unifiedInput, "storyline_generation");
+    if (warnings.length > 0) coverageWarnings = warnings;
+  }
+  // 전체 LLM 응답은 DB(student_record_storylines)에 이미 저장됨 → ctx에는 카운��만 유지
+  return { preview, result: { storylineCount: savedCount, connectionCount: connections.length, coverageWarnings } };
 }
 
 // ============================================
@@ -753,8 +771,10 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
 export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunnerOutput & { computedEdges?: PersistedEdge[] | CrossRefEdge[]; sharedCourseAdequacy?: CourseAdequacyResult | null }> {
   const { supabase, studentId, tenantId, pipelineId, studentGrade, snapshot } = ctx;
 
-  // NEIS 레코드가 하나도 없으면 연결 계산 대상 없음 — skip
-  if (!ctx.neisGrades || ctx.neisGrades.length === 0) {
+  // NEIS 레코드도 없고 설계 학년 가이드도 없으면 연결 계산 대상 없음 — skip
+  const hasDesignData = ctx.unifiedInput?.hasAnyDesign &&
+    Object.values(ctx.unifiedInput.grades).some((g) => g.mode === "design" && g.directionGuides.length > 0);
+  if ((!ctx.neisGrades || ctx.neisGrades.length === 0) && !hasDesignData) {
     return "NEIS 기록 없음 — 기록 임포트 후 연결 분석 가능";
   }
   const { buildConnectionGraph } = await import("./cross-reference");
@@ -1031,6 +1051,14 @@ export async function runAiDiagnosis(
     : hasConsultingGrades
       ? "종합진단(NEIS+수강계획)"
       : "종합진단";
+  // 커버리지 경고
+  let coverageWarnings: import("./pipeline-types").DataCoverageWarning[] | undefined;
+  if (ctx.unifiedInput) {
+    const { checkCoverageForTask } = await import("./pipeline-unified-input");
+    const warnings = checkCoverageForTask(ctx.unifiedInput, "ai_diagnosis");
+    if (warnings.length > 0) coverageWarnings = warnings;
+  }
+
   return {
     preview: `${diagLabel} 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
     // 진단 상세(weaknesses/improvements)는 DB(student_record_diagnosis)에 저장됨 → ctx에는 카운트만 유지
@@ -1038,6 +1066,7 @@ export async function runAiDiagnosis(
       overallGrade: result.data.overallGrade,
       weaknessCount: Array.isArray(result.data.weaknesses) ? result.data.weaknesses.length : 0,
       improvementCount: Array.isArray(result.data.improvements) ? (result.data.improvements as unknown[]).length : 0,
+      coverageWarnings,
     },
   };
 }
@@ -1464,6 +1493,22 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     subjectName: getSubjectLabel(r),
     grade: r.grade,
   }));
+
+  // 설계 학년 가상 레코드를 보충 면접 자료로 추가 (방향 가이드 기반)
+  if (ctx.unifiedInput?.hasAnyDesign) {
+    const { collectDesignRecords } = await import("./pipeline-unified-input");
+    const virtualRecords = collectDesignRecords(ctx.unifiedInput);
+    for (const vr of virtualRecords) {
+      if (vr.content.length >= 30) {
+        additionalRecords.push({
+          content: vr.content,
+          recordType: vr.type as "setek" | "changche",
+          subjectName: vr.subject,
+          grade: vr.grade,
+        });
+      }
+    }
+  }
 
   // 진단 약점을 면접 질문에 반영 (DB에서 조회 — in-memory 결과는 ai_diagnosis 실패 시 undefined)
   const interviewDiag = await diagnosisRepo.findDiagnosis(studentId, calculateSchoolYear(), tenantId, "ai");

@@ -2453,7 +2453,7 @@ export async function runGradeAwarePipeline(
     }
 
     // grade 파이프라인 행 일괄 생성 (첫 번째만 running, 나머지 pending)
-    const created: Array<{ grade: number; pipelineId: string; status: string }> = [];
+    const created: Array<{ grade: number; pipelineId: string; status: string; mode: "analysis" | "design" }> = [];
 
     for (let i = 0; i < targetGrades.length; i++) {
       const grade = targetGrades[i];
@@ -2465,6 +2465,9 @@ export async function runGradeAwarePipeline(
         initTasks[key] = "pending";
       }
 
+      // NEIS 데이터가 있는 학년 = analysis, 없는 학년 = design
+      const gradeMode = neisGrades.includes(grade) ? "analysis" : "design";
+
       const { data: pipeline, error: insertError } = await supabase
         .from("student_record_analysis_pipelines")
         .insert({
@@ -2474,6 +2477,7 @@ export async function runGradeAwarePipeline(
           status,
           pipeline_type: "grade",
           grade,
+          mode: gradeMode,
           tasks: initTasks,
           input_snapshot: student ?? {},
           started_at: isFirst ? new Date().toISOString() : null,
@@ -2485,7 +2489,7 @@ export async function runGradeAwarePipeline(
         throw insertError ?? new Error(`학년 ${grade} 파이프라인 생성 실패`);
       }
 
-      created.push({ grade, pipelineId: pipeline.id, status });
+      created.push({ grade, pipelineId: pipeline.id, status, mode: gradeMode });
     }
 
     const firstPipelineId = created[0]?.pipelineId ?? null;
@@ -2509,6 +2513,7 @@ export interface GradeAwarePipelineStatus {
       pipelineId: string;
       grade: number;
       status: string;
+      mode: "analysis" | "design";
       tasks: Record<string, string>;
       previews: Record<string, string>;
       elapsed: Record<string, number>;
@@ -2537,7 +2542,7 @@ export async function fetchGradeAwarePipelineStatus(
 
     const { data: rows, error } = await supabase
       .from("student_record_analysis_pipelines")
-      .select("id, status, pipeline_type, grade, tasks, task_previews, task_results, error_details")
+      .select("id, status, pipeline_type, grade, mode, tasks, task_previews, task_results, error_details")
       .eq("student_id", studentId)
       .in("pipeline_type", ["grade", "synthesis"])
       .order("created_at", { ascending: false })
@@ -2570,6 +2575,7 @@ export async function fetchGradeAwarePipelineStatus(
             pipelineId: row.id as string,
             grade: gradeNum,
             status: row.status as string,
+            mode: (row.mode === "design" ? "design" : "analysis") as "analysis" | "design",
             tasks,
             previews,
             elapsed,
