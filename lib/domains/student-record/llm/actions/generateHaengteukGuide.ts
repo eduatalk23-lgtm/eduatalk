@@ -54,6 +54,10 @@ export async function generateProspectiveHaengteukGuide(
 
   const diagnosis = report.diagnosisData.consultantDiagnosis ?? report.diagnosisData.aiDiagnosis;
 
+  // Impl-4: 이전 분석 학년의 보완방향 주입
+  const { buildCrossGradeDirections } = await import("../../pipeline-task-runners-shared");
+  const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
+
   const allPlannedNames = [
     ...new Set(
       plans.map((p) => (p.subject as { name?: string } | null)?.name).filter((n): n is string => !!n),
@@ -98,6 +102,7 @@ ${(diagnosis?.weaknesses as string[] | undefined)?.length ? `## 보완 영역\n$
 ${setekGuideContext ? `${setekGuideContext}\n` : ""}
 ${changcheGuideContext ? `${changcheGuideContext}\n` : ""}
 ${edgePromptSection ? `${edgePromptSection}\n` : ""}
+${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
 ## 지시사항
 
@@ -127,14 +132,15 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
     return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다." };
   }
 
-  // 기존 AI 가이드 삭제
+  // 기존 AI 가이드 삭제 (prospective 범위만)
   const { error: deleteError } = await supabase
     .from("student_record_haengteuk_guides")
     .delete()
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("school_year", currentSchoolYear)
-    .eq("source", "ai");
+    .eq("source", "ai")
+    .eq("guide_mode", "prospective");
 
   if (deleteError) {
     logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert_prospective" });
@@ -156,6 +162,7 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
     overall_direction: parsed.overallDirection || null,
     model_tier: "standard",
     prompt_version: "haengteuk_guide_v1_prospective",
+    guide_mode: "prospective" as const,
     created_by: userId,
   };
 
@@ -317,14 +324,15 @@ export async function generateHaengteukGuide(
     // DB 저장 — haengteuk_guides 테이블에 1행 삽입
     const currentSchoolYear = targetSchoolYear ?? calculateSchoolYear();
 
-    // 기존 AI 가이드 삭제 (재생성 시 중복 방지)
+    // 기존 AI 가이드 삭제 (재생성 시 중복 방지 — retrospective 범위만)
     const { error: deleteError } = await supabase
       .from("student_record_haengteuk_guides")
       .delete()
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("school_year", currentSchoolYear)
-      .eq("source", "ai");
+      .eq("source", "ai")
+      .eq("guide_mode", "retrospective");
 
     if (deleteError) {
       logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert" });
@@ -346,6 +354,7 @@ export async function generateHaengteukGuide(
       overall_direction: parsed.overallDirection || null,
       model_tier: "standard",
       prompt_version: "haengteuk_guide_v1",
+      guide_mode: "retrospective" as const,
       created_by: userId,
     };
 

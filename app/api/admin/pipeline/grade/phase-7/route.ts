@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { loadPipelineContext } from "@/lib/domains/student-record/pipeline-executor";
-import { executeGradePhase6 } from "@/lib/domains/student-record/pipeline-grade-phases";
+import { executeGradePhase7 } from "@/lib/domains/student-record/pipeline-grade-phases";
 
 export const maxDuration = 300;
 
-const LOG_CTX = { domain: "student-record", action: "pipeline.grade.phase-6" };
+const LOG_CTX = { domain: "student-record", action: "pipeline.grade.phase-7" };
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,15 +27,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await executeGradePhase6(ctx);
+    await executeGradePhase7(ctx);
 
     return NextResponse.json({
-      phase: 6,
+      phase: 7,
       grade: ctx.targetGrade,
       completed: true,
     });
   } catch (error) {
     logActionError(LOG_CTX, error);
-    return NextResponse.json({ error: "Grade Phase 6 실패" }, { status: 500 });
+    return NextResponse.json({ error: "Grade Phase 7 실패" }, { status: 500 });
   }
 }

@@ -25,6 +25,7 @@ export interface AnalysisTagLike {
   evidence_summary?: string | null;
   source?: string;
   status?: string;
+  tag_context?: string;
 }
 
 /** 태깅 모드에서 사용하는 레코드 정보 (에디터 무관 공통) */

@@ -7,7 +7,7 @@
 // + 과목 네비게이션 스트립 (학년·교과 필터 + prev/next)
 // ============================================
 
-import { useEffect, useCallback, useState, useMemo } from "react";
+import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { Bot, Check, ChevronUp, X } from "lucide-react";
@@ -38,13 +38,23 @@ function detectIdKind(id: string | null | undefined): ActiveIdKind | null {
 
 // ─── ContextGrid 전용 열 타입 (에디터 탭과 별개) ──
 
-export type GridColumnKey = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
+export type GridColumnKey =
+  | "chat" | "guide"
+  | "design_direction" | "draft" | "draft_analysis"
+  | "neis" | "analysis" | "improve_direction"
+  | "memo";
 
-const DEFAULT_COLUMNS: GridColumnKey[] = ["draft", "neis", "analysis"];
+const DEFAULT_COLUMNS_ANALYSIS: GridColumnKey[] = ["draft", "neis", "analysis"];
+const DEFAULT_COLUMNS_DESIGN: GridColumnKey[] = ["design_direction", "draft", "draft_analysis"];
 const MAX_COLUMNS = 3;
-const SELECTABLE_COLS: GridColumnKey[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
+const SELECTABLE_COLS: GridColumnKey[] = [
+  "chat", "guide", "design_direction", "draft", "draft_analysis",
+  "neis", "analysis", "improve_direction", "memo",
+];
 const COL_LABELS: Record<GridColumnKey, string> = {
-  chat: "논의", guide: "가이드", direction: "방향", draft: "가안", neis: "NEIS", analysis: "분석", memo: "메모",
+  chat: "논의", guide: "가이드", design_direction: "설계방향",
+  draft: "가안", draft_analysis: "가안분석",
+  neis: "NEIS", analysis: "분석", improve_direction: "보완방향", memo: "메모",
 };
 
 const LS_KEY_COLUMNS = "contextGrid:selectedColumns";
@@ -105,9 +115,13 @@ export function ContextGridBottomSheet({
   // ─── localStorage 영속 상태 ──
 
   const [selectedColumns, setSelectedColumns] = useState<GridColumnKey[]>(() =>
-    readLS(LS_KEY_COLUMNS, DEFAULT_COLUMNS, (v) => {
-      const parsed = JSON.parse(v) as GridColumnKey[];
-      return Array.isArray(parsed) && parsed.length > 0 && parsed.length <= MAX_COLUMNS ? parsed : null;
+    readLS(LS_KEY_COLUMNS, DEFAULT_COLUMNS_ANALYSIS, (v) => {
+      const parsed = JSON.parse(v) as string[];
+      if (!Array.isArray(parsed) || parsed.length === 0) return null;
+      // migrate legacy "direction" → "design_direction"
+      const migrated = parsed.map((c) => (c === "direction" ? "design_direction" : c)) as GridColumnKey[];
+      const valid = migrated.filter((c) => SELECTABLE_COLS.includes(c));
+      return valid.length > 0 && valid.length <= MAX_COLUMNS ? valid : null;
     }),
   );
 
@@ -285,6 +299,21 @@ export function ContextGridBottomSheet({
     if (allRecords.length === 0) return true;
     return !allRecords.some((r) => r.imported_content && r.imported_content.trim().length > 20);
   }, [recordData]);
+
+  // 모드 전환 시 기본 열 자동 조정 (사용자가 수동 선택하지 않은 경우)
+  const prevDesignModeRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (prevDesignModeRef.current !== null && prevDesignModeRef.current !== isDesignMode) {
+      // 모드 전환 감지: 기존 열이 기본값과 동일한 경우에만 자동 전환
+      const currentIsDefault =
+        JSON.stringify(selectedColumns) === JSON.stringify(DEFAULT_COLUMNS_ANALYSIS) ||
+        JSON.stringify(selectedColumns) === JSON.stringify(DEFAULT_COLUMNS_DESIGN);
+      if (currentIsDefault) {
+        setSelectedColumns(isDesignMode ? DEFAULT_COLUMNS_DESIGN : DEFAULT_COLUMNS_ANALYSIS);
+      }
+    }
+    prevDesignModeRef.current = isDesignMode;
+  }, [isDesignMode, selectedColumns]);
 
   const filteredGuides = useMemo(() => {
     if (!guideAssignments || !activeSubjectId) return [];
@@ -485,8 +514,11 @@ export function ContextGridBottomSheet({
               grade={changcheRecord.grade ?? 1}
               tags={nonSetekTags}
               guideAssignments={guideAssignments ?? []}
-              guideItem={changcheGuideItems?.find(
-                (g) => g.activityType === changcheRecord.activity_type && g.schoolYear === activeSchoolYear,
+              designGuideItem={changcheGuideItems?.find(
+                (g) => g.activityType === changcheRecord.activity_type && g.schoolYear === activeSchoolYear && g.guideMode === "prospective",
+              )}
+              improveGuideItem={changcheGuideItems?.find(
+                (g) => g.activityType === changcheRecord.activity_type && g.schoolYear === activeSchoolYear && (g.guideMode === "retrospective" || !g.guideMode),
               )}
               isDesignMode={isDesignMode}
             />
@@ -502,7 +534,8 @@ export function ContextGridBottomSheet({
               grade={haengteukRecord?.grade ?? 1}
               tags={nonSetekTags}
               guideAssignments={guideAssignments ?? []}
-              guideItem={haengteukGuideItems?.find((g) => g.schoolYear === activeSchoolYear)}
+              designGuideItem={haengteukGuideItems?.find((g) => g.schoolYear === activeSchoolYear && g.guideMode === "prospective")}
+              improveGuideItem={haengteukGuideItems?.find((g) => g.schoolYear === activeSchoolYear && (g.guideMode === "retrospective" || !g.guideMode))}
               isDesignMode={isDesignMode}
             />
           ) : (
@@ -609,6 +642,15 @@ function SimplifiedRecordView({
             )}
             {col === "guide" && (
               <span className="text-sm text-[var(--text-placeholder)]">가이드 데이터 없음</span>
+            )}
+            {col === "design_direction" && (
+              <span className="text-sm text-[var(--text-placeholder)]">설계방향 없음</span>
+            )}
+            {col === "improve_direction" && (
+              <span className="text-sm text-[var(--text-placeholder)]">보완방향 없음</span>
+            )}
+            {col === "draft_analysis" && (
+              <span className="text-sm text-[var(--text-placeholder)]">가안분석 없음</span>
             )}
             {col === "memo" && (
               <span className="text-sm text-[var(--text-placeholder)]">메모는 에디터에서 확인</span>

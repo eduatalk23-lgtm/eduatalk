@@ -56,6 +56,7 @@ export interface HaengteukGuideItemLike {
   cautions?: string;
   teacherPoints?: string[];
   evaluationItems?: Array<{ item: string; score: string; reasoning: string }>;
+  guideMode?: "retrospective" | "prospective";
 }
 
 export interface ContextGridHaengteukProps {
@@ -69,7 +70,8 @@ export interface ContextGridHaengteukProps {
   grade: number;
   tags: AnalysisTagLike[];
   guideAssignments: GuideAssignmentLike[];
-  guideItem: HaengteukGuideItemLike | undefined;
+  designGuideItem?: HaengteukGuideItemLike;
+  improveGuideItem?: HaengteukGuideItemLike;
   isDesignMode?: boolean;
 }
 
@@ -81,27 +83,34 @@ type Perspective = (typeof PERSPECTIVES)[number];
 const COL_ROW_SPAN: Record<GridColumnKey, number> = {
   chat: 3,
   guide: 1,
-  direction: 3,
+  design_direction: 1,
   draft: 1,
+  draft_analysis: 1,
   neis: 3,
   analysis: 1,
+  improve_direction: 1,
   memo: 3,
 };
 
 const COL_LABELS: Record<GridColumnKey, string> = {
   chat: "논의",
   guide: "가이드",
-  direction: "방향",
+  design_direction: "설계방향",
   draft: "가안",
+  draft_analysis: "가안분석",
   neis: "NEIS",
   analysis: "분석",
+  improve_direction: "보완방향",
   memo: "메모",
 };
 
 const COL_PERSPECTIVE_LABELS: Partial<Record<GridColumnKey, Record<Perspective, string>>> = {
   draft: { ai: "AI 초안", consultant: "컨설턴트 가안", confirmed: "확정본" },
+  draft_analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
   analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
   guide: { ai: "AI 추천", consultant: "배정 목록", confirmed: "완료" },
+  design_direction: { ai: "AI 설계", consultant: "컨설턴트", confirmed: "확정" },
+  improve_direction: { ai: "AI 보완", consultant: "컨설턴트", confirmed: "확정" },
 };
 
 const HAENGTEUK_AREA_ID = "haengteuk";
@@ -119,7 +128,8 @@ export function ContextGridHaengteuk({
   grade,
   tags,
   guideAssignments,
-  guideItem,
+  designGuideItem,
+  improveGuideItem,
   isDesignMode,
 }: ContextGridHaengteukProps) {
   const [columnPerspectives, setColumnPerspectives] = useState<Record<string, Set<Perspective>>>(() => {
@@ -200,7 +210,8 @@ export function ContextGridHaengteuk({
                       grade={grade}
                       tags={tags}
                       guideAssignments={guideAssignments}
-                      guideItem={guideItem}
+                      designGuideItem={designGuideItem}
+                      improveGuideItem={improveGuideItem}
                       isDesignMode={isDesignMode}
                     />
                   </div>
@@ -218,7 +229,8 @@ export function ContextGridHaengteuk({
                     grade={grade}
                     tags={tags}
                     guideAssignments={guideAssignments}
-                    guideItem={guideItem}
+                    designGuideItem={designGuideItem}
+                    improveGuideItem={improveGuideItem}
                   />
                 </div>
               )}
@@ -243,7 +255,8 @@ function HaengteukGridCell({
   grade,
   tags,
   guideAssignments,
-  guideItem,
+  designGuideItem,
+  improveGuideItem,
 }: {
   column: GridColumnKey;
   perspective: Perspective;
@@ -255,7 +268,8 @@ function HaengteukGridCell({
   grade: number;
   tags: AnalysisTagLike[];
   guideAssignments: GuideAssignmentLike[];
-  guideItem: HaengteukGuideItemLike | undefined;
+  designGuideItem?: HaengteukGuideItemLike;
+  improveGuideItem?: HaengteukGuideItemLike;
   isDesignMode?: boolean;
 }) {
   // ── 논의 ──
@@ -290,43 +304,76 @@ function HaengteukGridCell({
     );
   }
 
-  // ── 방향 ──
-  if (column === "direction") {
-    if (!guideItem) {
-      return <span className="text-sm text-[var(--text-placeholder)]">방향 가이드 없음</span>;
+  // ── 설계방향 (3행 분리) ──
+  if (column === "design_direction") {
+    if (perspective === "ai") {
+      if (!designGuideItem) {
+        return <span className="text-sm text-[var(--text-placeholder)]">설계방향 없음</span>;
+      }
+      return (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-sm text-[var(--text-primary)]">{designGuideItem.direction}</p>
+          {designGuideItem.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-0.5">
+              {designGuideItem.keywords.slice(0, 5).map((kw) => (
+                <span key={kw} className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{kw}</span>
+              ))}
+            </div>
+          )}
+          {designGuideItem.competencyFocus && designGuideItem.competencyFocus.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-0.5">
+              {designGuideItem.competencyFocus.map((c) => (
+                <span key={c} className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">{c}</span>
+              ))}
+            </div>
+          )}
+          {designGuideItem.cautions && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">{designGuideItem.cautions}</p>
+          )}
+        </div>
+      );
     }
     return (
-      <div className="flex flex-col gap-1.5">
-        <p className="text-sm text-[var(--text-primary)]">{guideItem.direction}</p>
-        {guideItem.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-0.5">
-            {guideItem.keywords.slice(0, 5).map((kw) => (
-              <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
-            ))}
-          </div>
-        )}
-        {guideItem.competencyFocus && guideItem.competencyFocus.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-0.5">
-            {guideItem.competencyFocus.map((c) => (
-              <span key={c} className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">{c}</span>
-            ))}
-          </div>
-        )}
-        {guideItem.cautions && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">{guideItem.cautions}</p>
-        )}
-        {guideItem.evaluationItems && guideItem.evaluationItems.length > 0 && (
-          <div className="mt-2 flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">평가 항목</span>
-            {guideItem.evaluationItems.map((ev, i) => (
-              <div key={i} className="flex items-start gap-1.5">
-                <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">{ev.score}</span>
-                <span className="text-xs text-[var(--text-primary)]">{ev.item}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <span className="text-sm text-[var(--text-placeholder)]">
+        {perspective === "consultant" ? "컨설턴트 설계방향 — 준비 중" : "확정 설계방향 — 준비 중"}
+      </span>
+    );
+  }
+
+  // ── 보완방향 (3행 분리) ──
+  if (column === "improve_direction") {
+    if (perspective === "ai") {
+      if (!improveGuideItem) {
+        return <span className="text-sm text-[var(--text-placeholder)]">보완방향 없음</span>;
+      }
+      return (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-sm text-[var(--text-primary)]">{improveGuideItem.direction}</p>
+          {improveGuideItem.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-0.5">
+              {improveGuideItem.keywords.slice(0, 5).map((kw) => (
+                <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+              ))}
+            </div>
+          )}
+          {improveGuideItem.evaluationItems && improveGuideItem.evaluationItems.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">평가 항목</span>
+              {improveGuideItem.evaluationItems.map((ev, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">{ev.score}</span>
+                  <span className="text-xs text-[var(--text-primary)]">{ev.item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <span className="text-sm text-[var(--text-placeholder)]">
+        {perspective === "consultant" ? "컨설턴트 보완방향 — 준비 중" : "확정 보완방향 — 준비 중"}
+      </span>
     );
   }
 
@@ -385,11 +432,11 @@ function HaengteukGridCell({
 
   // ── 가안 (3행 분리) ──
   if (column === "draft") {
-    if (isDesignMode && perspective === "ai") {
+    if (isDesignMode && perspective === "ai" && !record?.ai_draft_content?.trim()) {
       return (
         <div className="flex h-full items-center justify-center">
           <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
-            설계 모드 — 방향 가이드를 참고하여 직접 작성하세요
+            설계 모드 — P7 파이프라인 실행 또는 직접 작성
           </span>
         </div>
       );
@@ -405,6 +452,32 @@ function HaengteukGridCell({
         grade={grade}
       />
     );
+  }
+
+  // ── 가안분석 (설계 모드 전용 — 3행 분리) ──
+  if (column === "draft_analysis") {
+    const draftTags = tags.filter((t) => t.tag_context === "draft_analysis");
+    const draftContent = record?.ai_draft_content?.trim() || "";
+
+    if (perspective === "ai") {
+      const aiDraftTags = draftTags.filter((t) => t.source === "ai");
+      if (aiDraftTags.length === 0) {
+        return (
+          <div className="flex h-full items-center justify-center">
+            <span className="rounded bg-gray-50 px-2 py-1 text-xs text-[var(--text-tertiary)] dark:bg-gray-800">
+              가안분석 태그 없음
+            </span>
+          </div>
+        );
+      }
+      return <AnalysisBlock label="AI 가안분석" tags={aiDraftTags} content={draftContent} mode="competency" setMode={() => {}} />;
+    }
+    if (perspective === "consultant") {
+      const manualDraftTags = draftTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed");
+      return <AnalysisBlock label="컨설턴트" tags={manualDraftTags} content={draftContent} mode="tagging" setMode={() => {}} />;
+    }
+    const confirmedDraftTags = draftTags.filter((t) => t.status === "confirmed");
+    return <AnalysisBlock label="확정" tags={confirmedDraftTags} content={draftContent} mode="tagging" setMode={() => {}} />;
   }
 
   // ── 분석 (3행 분리) ──
@@ -568,9 +641,11 @@ function HaengteukAnalysisGridCell({
   const queryClient = useQueryClient();
   const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
-  const aiTags = useMemo(() => tags.filter((t) => t.source === "ai"), [tags]);
-  const manualTags = useMemo(() => tags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [tags]);
-  const confirmedTags = useMemo(() => tags.filter((t) => t.status === "confirmed"), [tags]);
+  // analysis 열은 draft_analysis 태그 제외
+  const analysisTags = useMemo(() => tags.filter((t) => t.tag_context !== "draft_analysis"), [tags]);
+  const aiTags = useMemo(() => analysisTags.filter((t) => t.source === "ai"), [analysisTags]);
+  const manualTags = useMemo(() => analysisTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [analysisTags]);
+  const confirmedTags = useMemo(() => analysisTags.filter((t) => t.status === "confirmed"), [analysisTags]);
 
   const combinedContent = record?.content?.trim() || record?.imported_content || "";
 

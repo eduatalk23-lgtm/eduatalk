@@ -298,6 +298,7 @@ export function StudentRecordClient({
       competencyFocus: row.competency_focus,
       cautions: row.cautions ?? undefined,
       teacherPoints: row.teacher_points,
+      guideMode: (row.guide_mode === "prospective" ? "prospective" : "retrospective") as "retrospective" | "prospective",
     }));
     return items.length > 0 ? items : undefined;
   }, [setekGuidesRes, subjects]);
@@ -327,6 +328,7 @@ export function StudentRecordClient({
       competencyFocus: row.competency_focus,
       cautions: row.cautions ?? undefined,
       teacherPoints: row.teacher_points,
+      guideMode: (row.guide_mode === "prospective" ? "prospective" : "retrospective") as "retrospective" | "prospective",
     }));
     return items.length > 0 ? items : undefined;
   }, [changcheGuidesRes]);
@@ -341,6 +343,7 @@ export function StudentRecordClient({
       cautions: row.cautions ?? undefined,
       teacherPoints: row.teacher_points,
       evaluationItems: row.evaluation_items as Array<{ item: string; score: string; reasoning: string }> | undefined,
+      guideMode: (row.guide_mode === "prospective" ? "prospective" : "retrospective") as "retrospective" | "prospective",
     }));
     return items.length > 0 ? items : undefined;
   }, [haengteukGuideRes]);

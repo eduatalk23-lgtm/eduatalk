@@ -92,7 +92,7 @@ export async function deleteCompetencyScore(id: string): Promise<void> {
 export async function findActivityTags(
   studentId: string,
   tenantId: string,
-  options?: { recordType?: string; recordId?: string },
+  options?: { recordType?: string; recordId?: string; excludeTagContext?: string },
 ): Promise<ActivityTag[]> {
   const supabase = await createSupabaseServerClient();
   let query = supabase
@@ -106,6 +106,9 @@ export async function findActivityTags(
   }
   if (options?.recordId) {
     query = query.eq("record_id", options.recordId);
+  }
+  if (options?.excludeTagContext) {
+    query = query.neq("tag_context", options.excludeTagContext);
   }
 
   const { data, error } = await query.order("created_at", { ascending: false });

@@ -5,7 +5,9 @@
 // GradePhase 3: competency_haengteuk (+ 집계)
 // GradePhase 4: setek_guide + slot_generation (병렬)
 // GradePhase 5: changche_guide
-// GradePhase 6: haengteuk_guide → 최종 상태
+// GradePhase 6: haengteuk_guide
+// GradePhase 7: draft_generation (설계 모드 전용)
+// GradePhase 8: draft_analysis (설계 모드 전용) → 최종 상태
 // ============================================
 
 import type { PipelineContext } from "./pipeline-types";
@@ -27,6 +29,8 @@ import {
   runSlotGenerationForGrade,
   runChangcheGuideForGrade,
   runHaengteukGuideForGrade,
+  runDraftGenerationForGrade,
+  runDraftAnalysisForGrade,
 } from "./pipeline-task-runners";
 
 // ============================================
@@ -244,7 +248,7 @@ export async function executeGradePhase5(
 }
 
 // ============================================
-// Grade Phase 6: 행특 가이드 → 최종 상태
+// Grade Phase 6: 행특 가이드
 // ============================================
 
 export async function executeGradePhase6(
@@ -254,6 +258,34 @@ export async function executeGradePhase6(
 
   await runTaskWithState(ctx, "haengteuk_guide", () =>
     runHaengteukGuideForGrade(ctx),
+  );
+}
+
+// ============================================
+// Grade Phase 7: 가안 생성 (설계 모드 전용)
+// ============================================
+
+export async function executeGradePhase7(
+  ctx: PipelineContext,
+): Promise<void> {
+  if (await checkCancelled(ctx)) return;
+
+  await runTaskWithState(ctx, "draft_generation", () =>
+    runDraftGenerationForGrade(ctx),
+  );
+}
+
+// ============================================
+// Grade Phase 8: 가안 분석 (설계 모드 전용) → 최종 상태
+// ============================================
+
+export async function executeGradePhase8(
+  ctx: PipelineContext,
+): Promise<void> {
+  if (await checkCancelled(ctx)) return;
+
+  await runTaskWithState(ctx, "draft_analysis", () =>
+    runDraftAnalysisForGrade(ctx),
   );
 
   // Grade pipeline 최종 상태 판정

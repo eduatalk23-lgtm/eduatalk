@@ -167,14 +167,15 @@ export async function generateSetekGuide(
     const nameToSubjectId = new Map<string, string>();
     for (const [id, name] of subjectMap) nameToSubjectId.set(name, id);
 
-    // 기존 AI 가이드 삭제 (재생성 시 중복 방지)
+    // 기존 AI 가이드 삭제 (재생성 시 중복 방지 — retrospective 범위만)
     const { error: deleteError } = await supabase
       .from("student_record_setek_guides")
       .delete()
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("school_year", currentSchoolYear)
-      .eq("source", "ai");
+      .eq("source", "ai")
+      .eq("guide_mode", "retrospective");
 
     if (deleteError) {
       logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert" });
@@ -200,6 +201,7 @@ export async function generateSetekGuide(
           overall_direction: i === 0 ? parsed.overallDirection : null,
           model_tier: "standard",
           prompt_version: "guide_v1",
+          guide_mode: "retrospective" as const,
           created_by: userId,
         };
       })
@@ -284,6 +286,11 @@ export async function generateProspectiveSetekGuide(
   // 진단 데이터 (있으면 사용)
   const diagnosis = report.diagnosisData.consultantDiagnosis ?? report.diagnosisData.aiDiagnosis;
 
+  // Impl-4: 이전 분석 학년의 역량/품질/보완방향 주입
+  const { buildGuideAnalysisContextFromReport, buildCrossGradeDirections } = await import("../../pipeline-task-runners-shared");
+  const analysisContext = buildGuideAnalysisContextFromReport(report);
+  const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
+
   const input: SetekGuideInput = {
     mode: "prospective",
     studentName: report.student.name ?? "학생",
@@ -307,6 +314,8 @@ export async function generateProspectiveSetekGuide(
       subjectType: p.subject?.subject_type?.name ?? undefined,
     })),
     guideAssignments: guideSection || undefined,
+    analysisContext,
+    crossGradeDirections,
   };
 
   const userPrompt = buildUserPrompt(input);
@@ -342,7 +351,8 @@ export async function generateProspectiveSetekGuide(
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("school_year", currentSchoolYear)
-    .eq("source", "ai");
+    .eq("source", "ai")
+    .eq("guide_mode", "prospective");
 
   if (deleteError) {
     logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert_prospective" });
@@ -368,6 +378,7 @@ export async function generateProspectiveSetekGuide(
         overall_direction: i === 0 ? parsed.overallDirection : null,
         model_tier: "standard",
         prompt_version: "guide_v1_prospective",
+        guide_mode: "prospective" as const,
         created_by: userId,
       };
     })

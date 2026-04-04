@@ -40,6 +40,7 @@ export interface SetekGuideItemLike {
   competencyFocus?: string[];
   cautions?: string;
   teacherPoints?: string[];
+  guideMode?: "retrospective" | "prospective";
 }
 
 type PlannedSubject = {

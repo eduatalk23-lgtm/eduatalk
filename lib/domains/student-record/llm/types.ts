@@ -305,6 +305,8 @@ export interface SetekGuideInput {
    * 없으면 해당 섹션 자체를 프롬프트에서 생략.
    */
   analysisContext?: GuideAnalysisContext;
+  /** Impl-4: 이전 분석 학년의 보완방향 요약 (prospective 모드 전용) */
+  crossGradeDirections?: string;
 }
 
 /** generateSetekGuide 액션의 출력 */
@@ -389,6 +391,8 @@ export interface ChangcheGuideInput {
    * issues/feedback/weakCompetencies를 포함하여 프롬프트에 약점 맥락 주입.
    */
   analysisContext?: GuideAnalysisContext;
+  /** Impl-4: 이전 분석 학년의 보완방향 요약 (prospective 모드 전용) */
+  crossGradeDirections?: string;
 }
 
 /** generateChangcheGuide 액션의 출력 */
@@ -431,6 +435,8 @@ export interface HaengteukGuideInput {
    * issues/feedback/weakCompetencies를 포함하여 프롬프트에 약점 맥락 주입.
    */
   analysisContext?: GuideAnalysisContext;
+  /** Impl-4: 이전 분석 학년의 보완방향 요약 (prospective 모드 전용) */
+  crossGradeDirections?: string;
 }
 
 /** generateHaengteukGuide 액션의 출력 */

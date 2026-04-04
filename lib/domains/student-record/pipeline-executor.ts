@@ -278,18 +278,18 @@ export async function loadPipelineContext(
   const [sRes, cRes, hRes] = await Promise.all([
     admin
       .from("student_record_seteks")
-      .select("id, content, imported_content, grade, subject:subject_id(name)")
+      .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null),
     admin
       .from("student_record_changche")
-      .select("id, content, imported_content, grade, activity_type")
+      .select("id, content, imported_content, ai_draft_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId),
     admin
       .from("student_record_haengteuk")
-      .select("id, content, imported_content, grade")
+      .select("id, content, imported_content, ai_draft_content, grade")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId),
   ]);
@@ -430,6 +430,8 @@ export async function loadPipelineContext(
  * GradePhase 4: setek_guide + slot_generation (병렬)
  * GradePhase 5: changche_guide
  * GradePhase 6: haengteuk_guide
+ * GradePhase 7: draft_generation (설계 모드 전용)
+ * GradePhase 8: draft_analysis (설계 모드 전용)
  */
 export function getNextGradePhase(tasks: Record<string, string>): number {
   if (tasks.competency_setek !== "completed") return 1;
@@ -438,6 +440,8 @@ export function getNextGradePhase(tasks: Record<string, string>): number {
   if (tasks.setek_guide !== "completed" || tasks.slot_generation !== "completed") return 4;
   if (tasks.changche_guide !== "completed") return 5;
   if (tasks.haengteuk_guide !== "completed") return 6;
+  if (tasks.draft_generation !== "completed") return 7;
+  if (tasks.draft_analysis !== "completed") return 8;
   return 0; // 모두 완료
 }
 

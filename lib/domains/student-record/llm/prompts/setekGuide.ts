@@ -218,6 +218,13 @@ export function buildUserPrompt(input: SetekGuideInput): string {
     prompt += `${input.guideAssignments}\n\n`;
   }
 
+  // Impl-4: 이전 분석 학년의 보완방향 참조
+  if (input.crossGradeDirections) {
+    prompt += `## 이전 학년 보완방향 (분석 결과 기반)\n\n`;
+    prompt += `→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n\n`;
+    prompt += `${input.crossGradeDirections}\n\n`;
+  }
+
   if (mode === "prospective") {
     // prospective: 계획 과목 기반
     if (input.plannedSubjects && input.plannedSubjects.length > 0) {

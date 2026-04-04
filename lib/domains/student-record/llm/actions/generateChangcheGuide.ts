@@ -53,6 +53,10 @@ export async function generateProspectiveChangcheGuide(
 
   const diagnosis = report.diagnosisData.consultantDiagnosis ?? report.diagnosisData.aiDiagnosis;
 
+  // Impl-4: 이전 분석 학년의 역량/품질/보완방향 주입
+  const { buildCrossGradeDirections } = await import("../../pipeline-task-runners-shared");
+  const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
+
   // 활동 유형별 관련 과목 추론
   const allPlannedNames = [
     ...new Set(
@@ -96,6 +100,7 @@ ${(diagnosis?.strengths as string[] | undefined)?.length ? `## 강점 영역\n${
 ${(diagnosis?.weaknesses as string[] | undefined)?.length ? `## 보완 영역\n${(diagnosis.weaknesses as string[]).map((w: string) => `- ${w}`).join("\n")}\n` : ""}
 ${setekGuideContext ? `${setekGuideContext}\n` : ""}
 ${edgePromptSection ? `${edgePromptSection}\n` : ""}
+${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
 ## 지시사항
 
@@ -131,7 +136,8 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("school_year", currentSchoolYear)
-    .eq("source", "ai");
+    .eq("source", "ai")
+    .eq("guide_mode", "prospective");
 
   if (deleteError) {
     logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert_prospective" });
@@ -153,6 +159,7 @@ ${edgePromptSection ? `${edgePromptSection}\n` : ""}
     overall_direction: i === 0 ? parsed.overallDirection : null,
     model_tier: "standard",
     prompt_version: "changche_guide_v1_prospective",
+    guide_mode: "prospective" as const,
     created_by: userId,
   }));
 
@@ -313,14 +320,15 @@ export async function generateChangcheGuide(
     // DB 저장 — changche_guides 테이블에 활동유형별 행 삽입
     const currentSchoolYear = targetSchoolYear ?? calculateSchoolYear();
 
-    // 기존 AI 가이드 삭제 (재생성 시 중복 방지)
+    // 기존 AI 가이드 삭제 (재생성 시 중복 방지 — retrospective 범위만)
     const { error: deleteError } = await supabase
       .from("student_record_changche_guides")
       .delete()
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("school_year", currentSchoolYear)
-      .eq("source", "ai");
+      .eq("source", "ai")
+      .eq("guide_mode", "retrospective");
 
     if (deleteError) {
       logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert" });
@@ -342,6 +350,7 @@ export async function generateChangcheGuide(
       overall_direction: i === 0 ? parsed.overallDirection : null,
       model_tier: "standard",
       prompt_version: "changche_guide_v1",
+      guide_mode: "retrospective" as const,
       created_by: userId,
     }));
 

@@ -2573,6 +2573,14 @@ export async function fetchGradeAwarePipelineStatus(
         const gradeNum = row.grade as number;
         // 학년당 가장 최근 파이프라인만 유지 (order by created_at desc 이미 적용)
         if (!(gradeNum in gradePipelines)) {
+          // 하위 호환: 기존 7-task 파이프라인에 신규 키 보정
+          // 이미 completed인 파이프라인은 신규 태스크도 completed로 간주 (P7/P8은 해당 시점에 없었으므로)
+          const isCompleted = row.status === "completed";
+          for (const key of GRADE_PIPELINE_TASK_KEYS) {
+            if (!(key in tasks)) {
+              tasks[key] = isCompleted ? "completed" : "pending";
+            }
+          }
           gradePipelines[gradeNum] = {
             pipelineId: row.id as string,
             grade: gradeNum,

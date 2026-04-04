@@ -154,13 +154,13 @@ export async function buildUnifiedGradeInput(params: {
   // 2. 공통 데이터 병렬 조회
   const [seteksRes, changcheRes, haengteukRes, guidesSetekRes, guidesChangcheRes, guidesHaengteukRes, coursePlansRes] = await Promise.all([
     supabase.from("student_record_seteks")
-      .select("id, content, imported_content, grade, subject:subject_id(name)")
+      .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId).eq("tenant_id", tenantId).is("deleted_at", null),
     supabase.from("student_record_changche")
-      .select("id, content, imported_content, grade, activity_type")
+      .select("id, content, imported_content, ai_draft_content, grade, activity_type")
       .eq("student_id", studentId).eq("tenant_id", tenantId),
     supabase.from("student_record_haengteuk")
-      .select("id, content, imported_content, grade")
+      .select("id, content, imported_content, ai_draft_content, grade")
       .eq("student_id", studentId).eq("tenant_id", tenantId),
     supabase.from("student_record_setek_guides")
       .select("id, school_year, direction, keywords, competency_focus, teacher_points, subject:subject_id(name)")
@@ -187,8 +187,9 @@ export async function buildUnifiedGradeInput(params: {
         .select("competency_item, grade_value, school_year")
         .eq("student_id", studentId).eq("tenant_id", tenantId),
       supabase.from("student_record_activity_tags")
-        .select("record_id, record_type, competency_item, evaluation, evidence_summary")
-        .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
+        .select("record_id, record_type, competency_item, evaluation, evidence_summary, tag_context")
+        .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai")
+        .or("tag_context.eq.analysis,tag_context.is.null"),  // draft_analysis 제외
       supabase.from("student_record_content_quality")
         .select("record_id, record_type, overall_score, issues, feedback")
         .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
@@ -226,33 +227,38 @@ export async function buildUnifiedGradeInput(params: {
   const haengteukGuidesByGrade = groupGuidesByGrade(guidesHaengteukRes.data as GuideRow[] | null, "haengteuk");
 
   // 5. 레코드를 학년별로 그룹핑 + effectiveContent 해소
-  type SetekRow = { id: string; content: string; imported_content: string | null; grade: number; subject: { name: string } | null };
-  type ChangcheRow = { id: string; content: string; imported_content: string | null; grade: number; activity_type: string | null };
-  type HaengteukRow = { id: string; content: string; imported_content: string | null; grade: number };
+  //    콘텐츠 우선순위: imported_content(NEIS) > content(컨설턴트) > ai_draft_content(P7 가안)
+  type SetekRow = { id: string; content: string; imported_content: string | null; ai_draft_content: string | null; grade: number; subject: { name: string } | null };
+  type ChangcheRow = { id: string; content: string; imported_content: string | null; ai_draft_content: string | null; grade: number; activity_type: string | null };
+  type HaengteukRow = { id: string; content: string; imported_content: string | null; ai_draft_content: string | null; grade: number };
+
+  function resolveContent(imported: string | null | undefined, content: string | null | undefined, aiDraft: string | null | undefined): { text: string; hasNeis: boolean } {
+    const imp = imported?.trim();
+    if (imp && imp.length > 20) return { text: imp, hasNeis: true };
+    const con = content?.trim();
+    if (con && con.length > 10) return { text: con, hasNeis: false };
+    const draft = aiDraft?.trim();
+    if (draft && draft.length > 10) return { text: draft, hasNeis: false };
+    return { text: "", hasNeis: false };
+  }
 
   const buildRecords = (grade: number): GradeRecordContent[] => {
     const recs: GradeRecordContent[] = [];
     for (const s of (seteksRes.data ?? []) as SetekRow[]) {
       if (s.grade !== grade) continue;
-      const imported = s.imported_content?.trim();
-      const hasNeis = (imported?.length ?? 0) > 20;
-      const content = hasNeis ? imported! : (s.content ?? "");
+      const { text: content, hasNeis } = resolveContent(s.imported_content, s.content, s.ai_draft_content);
       if (content.length < 10) continue;
       recs.push({ id: s.id, recordType: "setek", grade, subjectName: s.subject?.name, content, hasNeis });
     }
     for (const c of (changcheRes.data ?? []) as ChangcheRow[]) {
       if (c.grade !== grade) continue;
-      const imported = c.imported_content?.trim();
-      const hasNeis = (imported?.length ?? 0) > 20;
-      const content = hasNeis ? imported! : (c.content ?? "");
+      const { text: content, hasNeis } = resolveContent(c.imported_content, c.content, c.ai_draft_content);
       if (content.length < 10) continue;
       recs.push({ id: c.id, recordType: "changche", grade, activityType: c.activity_type ?? undefined, content, hasNeis });
     }
     for (const h of (haengteukRes.data ?? []) as HaengteukRow[]) {
       if (h.grade !== grade) continue;
-      const imported = h.imported_content?.trim();
-      const hasNeis = (imported?.length ?? 0) > 20;
-      const content = hasNeis ? imported! : (h.content ?? "");
+      const { text: content, hasNeis } = resolveContent(h.imported_content, h.content, h.ai_draft_content);
       if (content.length < 10) continue;
       recs.push({ id: h.id, recordType: "haengteuk", grade, content, hasNeis });
     }

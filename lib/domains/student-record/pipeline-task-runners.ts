@@ -54,3 +54,9 @@ export {
   runCompetencyHaengteukChunkForGrade,
   runSlotGenerationForGrade,
 } from "./pipeline-task-runners-competency";
+
+// Draft Pipeline (P7-P8)
+export {
+  runDraftGenerationForGrade,
+  runDraftAnalysisForGrade,
+} from "./pipeline-task-runners-draft";

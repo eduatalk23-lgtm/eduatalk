@@ -396,7 +396,7 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
       if (!ctx.cachedSeteks) {
         const { data } = await supabase
           .from("student_record_seteks")
-          .select("id, content, imported_content, grade, subject:subject_id(name)")
+          .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId)
           .is("deleted_at", null);
@@ -407,7 +407,7 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
       if (!ctx.cachedChangche) {
         const { data } = await supabase
           .from("student_record_changche")
-          .select("id, content, imported_content, grade, activity_type")
+          .select("id, content, imported_content, ai_draft_content, grade, activity_type")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId);
         ctx.cachedChangche = (data ?? []) as CachedChangche[];
@@ -417,7 +417,7 @@ export async function runCompetencyAnalysis(ctx: PipelineContext): Promise<TaskR
       if (!ctx.cachedHaengteuk) {
         const { data } = await supabase
           .from("student_record_haengteuk")
-          .select("id, content, imported_content, grade")
+          .select("id, content, imported_content, ai_draft_content, grade")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId);
         ctx.cachedHaengteuk = (data ?? []) as import("./pipeline-types").CachedHaengteuk[];
@@ -618,7 +618,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedSeteks) {
     const { data } = await supabase
       .from("student_record_seteks")
-      .select("id, content, imported_content, grade, subject:subject_id(name)")
+      .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null);
@@ -627,7 +627,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   // grade 기준 정렬 (원래 order("grade") 대체)
   const sortedSeteks = [...ctx.cachedSeteks].sort((a, b) => a.grade - b.grade);
   for (const s of sortedSeteks) {
-    const effectiveContent = s.imported_content?.trim() ? s.imported_content : null;
+    const effectiveContent = s.imported_content?.trim() || s.content?.trim() || s.ai_draft_content?.trim() || null;
     if (!effectiveContent || effectiveContent.length < 20) continue;
     records.push({ index: idx++, id: s.id, grade: s.grade, subject: s.subject?.name ?? "과목 미정", type: "setek", content: effectiveContent });
   }
@@ -635,14 +635,14 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedChangche) {
     const { data } = await supabase
       .from("student_record_changche")
-      .select("id, content, imported_content, grade, activity_type")
+      .select("id, content, imported_content, ai_draft_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
     ctx.cachedChangche = (data ?? []) as CachedChangche[];
   }
   const sortedChangche = [...ctx.cachedChangche].sort((a, b) => a.grade - b.grade);
   for (const c of sortedChangche) {
-    const effectiveContent = c.imported_content?.trim() ? c.imported_content : null;
+    const effectiveContent = c.imported_content?.trim() || c.content?.trim() || c.ai_draft_content?.trim() || null;
     if (!effectiveContent || effectiveContent.length < 20) continue;
     records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: effectiveContent });
   }
@@ -785,7 +785,7 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
   const { calculateCourseAdequacy } = await import("./course-adequacy");
 
   const [allTags, crd] = await Promise.all([
-    competencyRepo.findActivityTags(studentId, tenantId),
+    competencyRepo.findActivityTags(studentId, tenantId, { excludeTagContext: "draft_analysis" }),
     fetchCrossRefData(studentId, tenantId),
   ]);
 
@@ -844,27 +844,31 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
   const edgeCount = await edgeRepo.replaceEdges(studentId, tenantId, pipelineId, graph);
   await edgeRepo.saveSnapshot(studentId, pipelineId, graph);
 
-  // content_hash 저장 — 레코드의 실제 updated_at을 사용
-  const recordIds = Object.keys(crd.recordLabelMap);
-  const allRecords: Array<{ id: string; updated_at: string | null }> = [];
-  if (recordIds.length > 0) {
-    const [sRes, cRes, hRes] = await Promise.all([
-      supabase.from("student_record_seteks").select("id, updated_at").in("id", recordIds),
-      supabase.from("student_record_changche").select("id, updated_at").in("id", recordIds),
-      supabase.from("student_record_haengteuk").select("id, updated_at").in("id", recordIds),
-    ]);
-    for (const row of [...(sRes.data ?? []), ...(cRes.data ?? []), ...(hRes.data ?? [])]) {
-      allRecords.push({ id: row.id, updated_at: row.updated_at ?? null });
-    }
-    // reading은 recordLabelMap에도 포함될 수 있음
-    const missingIds = recordIds.filter((id) => !allRecords.some((r) => r.id === id));
-    if (missingIds.length > 0) {
-      const { data: rRes } = await supabase.from("student_record_reading").select("id, updated_at").in("id", missingIds);
-      for (const row of (rRes ?? [])) {
-        allRecords.push({ id: row.id, updated_at: row.updated_at ?? null });
-      }
-    }
-  }
+  // content_hash 저장 — stale-detection.ts의 checkPipelineStaleness와 동일한 범위 사용
+  // (tenant 기준 전체 레코드 — recordLabelMap 필터 제거하여 false-positive stale 방지)
+  const [sResAll, cResAll, hResAll] = await Promise.all([
+    supabase
+      .from("student_record_seteks")
+      .select("id, updated_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+    supabase
+      .from("student_record_changche")
+      .select("id, updated_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId),
+    supabase
+      .from("student_record_haengteuk")
+      .select("id, updated_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId),
+  ]);
+  const allRecords = [
+    ...(sResAll.data ?? []),
+    ...(cResAll.data ?? []),
+    ...(hResAll.data ?? []),
+  ].map((r) => ({ id: r.id, updated_at: r.updated_at ?? null }));
   const hash = computeContentHash(allRecords);
   await supabase
     .from("student_record_analysis_pipelines")
@@ -893,7 +897,7 @@ export async function runAiDiagnosis(
 
   const [scores, tags] = await Promise.all([
     competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId),
-    competencyRepo.findActivityTags(studentId, tenantId),
+    competencyRepo.findActivityTags(studentId, tenantId, { excludeTagContext: "draft_analysis" }),
   ]);
 
   // NEIS 학년이 없어 역량 데이터가 0건이면 수강계획 기반 예비 진단으로 전환.
@@ -1094,12 +1098,43 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
 
   const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");
   const classificationId = snapshot?.target_sub_classification_id as number | null;
-  const result = await autoRecommendGuidesAction({
-    studentId,
-    classificationId,
-  });
-  if (!result.success) throw new Error(result.error);
-  const guides = Array.isArray(result.data) ? result.data : [];
+
+  // Impl-8: 진로분류 기반 + 수강계획 과목 기반 매칭 병합
+  type RecommendedGuide = { id: string; title: string; match_reason: string };
+  const guideMap = new Map<string, RecommendedGuide>();
+
+  // 1) 진로분류 기반 매칭
+  const classResult = await autoRecommendGuidesAction({ studentId, classificationId });
+  if (classResult.success && Array.isArray(classResult.data)) {
+    for (const g of classResult.data) guideMap.set(g.id, g);
+  }
+
+  // 2) 수강계획 과목 기반 매칭 (설계 모드 학년 포함)
+  if (ctx.coursePlanData?.plans) {
+    const plannedNames = [
+      ...new Set(
+        ctx.coursePlanData.plans
+          .filter((p) => p.plan_status === "confirmed" || p.plan_status === "recommended")
+          .map((p) => (p.subject as { name?: string } | null)?.name)
+          .filter((n): n is string => !!n),
+      ),
+    ];
+    // 최대 5개 과목만 (rate limit 방지)
+    for (const subjectName of plannedNames.slice(0, 5)) {
+      const subjectResult = await autoRecommendGuidesAction({ studentId, classificationId, subjectName });
+      if (subjectResult.success && Array.isArray(subjectResult.data)) {
+        for (const g of subjectResult.data) {
+          // "both" 우선, 기존보다 높은 매칭이면 덮어쓰기
+          const existing = guideMap.get(g.id);
+          if (!existing || g.match_reason === "both") {
+            guideMap.set(g.id, g);
+          }
+        }
+      }
+    }
+  }
+
+  const guides = [...guideMap.values()];
   let assigned = 0;
   if (guides.length > 0) {
     const { data: existing } = await supabase
@@ -1115,7 +1150,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       const { resolveGuideTargetArea } = await import("@/lib/domains/guide/actions/area-resolver");
       const areaMap = await resolveGuideTargetArea(newGuides.map((g) => g.id));
 
-      // 기존 세특 조회 (auto-link용)
+      // 기존 세특 조회 (auto-link용 — 설계 모드 슬롯 포함)
       const { data: existingSeteks } = await supabase
         .from("student_record_seteks")
         .select("id, subject_id")
@@ -1439,7 +1474,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedSeteks) {
     const { data } = await supabase
       .from("student_record_seteks")
-      .select("id, content, imported_content, grade, subject:subject_id(name)")
+      .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null);
@@ -1448,7 +1483,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedChangche) {
     const { data } = await supabase
       .from("student_record_changche")
-      .select("id, content, imported_content, grade, activity_type")
+      .select("id, content, imported_content, ai_draft_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
     ctx.cachedChangche = (data ?? []) as CachedChangche[];
@@ -1465,10 +1500,13 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   function getRecordType(r: CachedRecord): "setek" | "changche" {
     return isCachedSetek(r) ? "setek" : "changche";
   }
-  /** NEIS(imported_content) 우선, 없으면 content 사용 */
+  /** NEIS(imported_content) 우선, 없으면 content, 없으면 ai_draft_content 사용 */
   function getEffectiveContent(r: CachedRecord): string {
     const imported = r.imported_content?.trim();
-    return (imported && imported.length > 0) ? imported : (r.content ?? "");
+    if (imported && imported.length > 0) return imported;
+    const content = r.content?.trim();
+    if (content && content.length > 0) return content;
+    return r.ai_draft_content?.trim() ?? "";
   }
 
   // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용) — imported_content 우선

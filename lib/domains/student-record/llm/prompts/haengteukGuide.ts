@@ -173,6 +173,13 @@ export function buildUserPrompt(input: HaengteukGuideInput): string {
     prompt += `## 창체 방향 컨텍스트\n\n${input.changcheGuideContext}\n\n`;
   }
 
+  // Impl-4: 이전 분석 학년의 보완방향 참조
+  if (input.crossGradeDirections) {
+    prompt += `## 이전 학년 보완방향 (분석 결과 기반)\n\n`;
+    prompt += `→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n\n`;
+    prompt += `${input.crossGradeDirections}\n\n`;
+  }
+
   // 학년별 기록
   const CONTENT_LIMIT = 600;
 

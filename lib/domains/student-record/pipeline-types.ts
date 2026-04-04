@@ -43,6 +43,8 @@ export const PIPELINE_TASK_KEYS = [
 // GradePhase 4: setek_guide + slot_generation (병렬)
 // GradePhase 5: changche_guide
 // GradePhase 6: haengteuk_guide
+// GradePhase 7: draft_generation (설계 모드 전용)
+// GradePhase 8: draft_analysis (설계 모드 전용)
 // ============================================
 
 export const GRADE_PIPELINE_TASK_KEYS = [
@@ -53,6 +55,8 @@ export const GRADE_PIPELINE_TASK_KEYS = [
   "slot_generation",
   "changche_guide",
   "haengteuk_guide",
+  "draft_generation",
+  "draft_analysis",
 ] as const;
 
 export type GradePipelineTaskKey = (typeof GRADE_PIPELINE_TASK_KEYS)[number];
@@ -92,8 +96,10 @@ export const GRADE_TASK_DEPENDENTS: Partial<Record<GradePipelineTaskKey, GradePi
   competency_setek: ["slot_generation", "setek_guide", "changche_guide", "haengteuk_guide"],
   competency_changche: ["slot_generation", "changche_guide", "haengteuk_guide"],
   competency_haengteuk: ["slot_generation", "haengteuk_guide"],
-  setek_guide: ["changche_guide", "haengteuk_guide"],
-  changche_guide: ["haengteuk_guide"],
+  setek_guide: ["changche_guide", "haengteuk_guide", "draft_generation"],
+  changche_guide: ["haengteuk_guide", "draft_generation"],
+  haengteuk_guide: ["draft_generation", "draft_analysis"],
+  draft_generation: ["draft_analysis"],
 };
 
 // ============================================
@@ -125,6 +131,8 @@ export const GRADE_PIPELINE_TASK_LABELS: Record<GradePipelineTaskKey, string> = 
   slot_generation: "슬롯 생성",
   changche_guide: "창체 방향",
   haengteuk_guide: "행특 방향",
+  draft_generation: "가안 생성",
+  draft_analysis: "가안 분석",
 };
 
 /** Grade Pipeline 태스크별 타임아웃 (ms) */
@@ -136,6 +144,8 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<GradePipelineTaskKey, number> 
   slot_generation: 30_000,
   changche_guide: 120_000,
   haengteuk_guide: 120_000,
+  draft_generation: 240_000,  // 세특+창체+행특 가안 순차 생성
+  draft_analysis: 280_000,   // 가안 역량 분석 (세특이 가장 오래)
 };
 
 export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
@@ -363,6 +373,7 @@ export interface CachedSetek {
   id: string;
   content: string;
   imported_content: string | null;
+  ai_draft_content?: string | null;
   grade: number;
   subject: { name: string } | null;
 }
@@ -372,6 +383,7 @@ export interface CachedChangche {
   id: string;
   content: string;
   imported_content: string | null;
+  ai_draft_content?: string | null;
   grade: number;
   activity_type: string | null;
 }
@@ -381,6 +393,7 @@ export interface CachedHaengteuk {
   id: string;
   content: string;
   imported_content: string | null;
+  ai_draft_content?: string | null;
   grade: number;
 }
 

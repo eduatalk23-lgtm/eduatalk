@@ -81,32 +81,42 @@ const PERSPECTIVE_LABEL: Record<Perspective, string> = {
 /** 열별 rowSpan: 관점 구분이 없는 열은 3, 3행 분리는 1 */
 const COL_ROW_SPAN: Record<GridColumnKey, number> = {
   chat: 3,
-  guide: 1,       // 3행 분리: AI=방향텍스트, 컨설턴트=배정목록, 확정=확정상태
-  direction: 3,
-  draft: 1,       // 3행 분리: AI초안/컨설턴트가안/확정본
+  guide: 1,
+  design_direction: 1,   // 3행 분리: AI설계방향/컨설턴트/확정
+  draft: 1,
+  draft_analysis: 1,     // 3행 분리: AI가안분석/컨설턴트/확정
   neis: 3,
-  analysis: 1,    // 3행 분리: AI/컨설턴트/확정 태그
+  analysis: 1,
+  improve_direction: 1,  // 3행 분리: AI보완방향/컨설턴트/확정
   memo: 3,
 };
 
 const COL_LABELS: Record<GridColumnKey, string> = {
   chat: "논의",
   guide: "가이드",
-  direction: "방향",
+  design_direction: "설계방향",
   draft: "가안",
+  draft_analysis: "가안분석",
   neis: "NEIS",
   analysis: "분석",
+  improve_direction: "보완방향",
   memo: "메모",
 };
 
-const SELECTABLE_COLUMNS: GridColumnKey[] = ["chat", "guide", "direction", "draft", "neis", "analysis", "memo"];
+const SELECTABLE_COLUMNS: GridColumnKey[] = [
+  "chat", "guide", "design_direction", "draft", "draft_analysis",
+  "neis", "analysis", "improve_direction", "memo",
+];
 const MAX_COLS = 3;
 
 /** 3행 분리 열의 관점별 라벨 (열마다 다른 이름) */
 const COL_PERSPECTIVE_LABELS: Partial<Record<GridColumnKey, Record<Perspective, string>>> = {
   draft: { ai: "AI 초안", consultant: "컨설턴트 가안", confirmed: "확정본" },
+  draft_analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
   analysis: { ai: "AI 분석", consultant: "컨설턴트", confirmed: "확정" },
   guide: { ai: "AI 추천", consultant: "배정 목록", confirmed: "완료" },
+  design_direction: { ai: "AI 설계", consultant: "컨설턴트", confirmed: "확정" },
+  improve_direction: { ai: "AI 보완", consultant: "컨설턴트", confirmed: "확정" },
 };
 
 // ─── 메인 컴포넌트 ──
@@ -367,36 +377,78 @@ function GridCell({
     );
   }
 
-  // ── 방향 (rowSpan=3, 관점 무관) ──
-  if (column === "direction") {
-    if (subjectDirection.length === 0) {
-      return <span className="text-sm text-[var(--text-placeholder)]">방향 가이드 없음</span>;
+  // ── 설계방향 (prospective — 3행 분리) ──
+  if (column === "design_direction") {
+    if (perspective === "ai") {
+      const prospective = subjectDirection.filter((d) => d.guideMode === "prospective");
+      if (prospective.length === 0) {
+        return <span className="text-sm text-[var(--text-placeholder)]">설계방향 없음</span>;
+      }
+      return (
+        <div className="flex flex-col gap-1.5">
+          {prospective.map((d, i) => (
+            <div key={i} className="flex flex-col gap-1">
+              <p className="text-sm text-[var(--text-primary)] line-clamp-3">{d.direction}</p>
+              {d.keywords.length > 0 && (
+                <div className="flex flex-wrap gap-0.5">
+                  {d.keywords.slice(0, 5).map((kw) => (
+                    <span key={kw} className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{kw}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
     }
+    // consultant / confirmed — placeholder
     return (
-      <div className="flex flex-col gap-1.5">
-        {subjectDirection.map((d, i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <p className="text-sm text-[var(--text-primary)] line-clamp-3">{d.direction}</p>
-            {d.keywords.length > 0 && (
-              <div className="flex flex-wrap gap-0.5">
-                {d.keywords.slice(0, 5).map((kw) => (
-                  <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <span className="text-sm text-[var(--text-placeholder)]">
+        {perspective === "consultant" ? "컨설턴트 설계방향 — 준비 중" : "확정 설계방향 — 준비 중"}
+      </span>
+    );
+  }
+
+  // ── 보완방향 (retrospective — 3행 분리) ──
+  if (column === "improve_direction") {
+    if (perspective === "ai") {
+      const retrospective = subjectDirection.filter((d) => d.guideMode === "retrospective" || !d.guideMode);
+      if (retrospective.length === 0) {
+        return <span className="text-sm text-[var(--text-placeholder)]">보완방향 없음</span>;
+      }
+      return (
+        <div className="flex flex-col gap-1.5">
+          {retrospective.map((d, i) => (
+            <div key={i} className="flex flex-col gap-1">
+              <p className="text-sm text-[var(--text-primary)] line-clamp-3">{d.direction}</p>
+              {d.keywords.length > 0 && (
+                <div className="flex flex-wrap gap-0.5">
+                  {d.keywords.slice(0, 5).map((kw) => (
+                    <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    // consultant / confirmed — placeholder
+    return (
+      <span className="text-sm text-[var(--text-placeholder)]">
+        {perspective === "consultant" ? "컨설턴트 보완방향 — 준비 중" : "확정 보완방향 — 준비 중"}
+      </span>
     );
   }
 
   // ── 가안 (관점별 3행) ──
   if (column === "draft") {
-    if (isDesignMode && perspective === "ai") {
+    // 설계 모드에서 P7 가안이 아직 없으면 안내 표시
+    if (isDesignMode && perspective === "ai" && !row.records.some((r) => r.ai_draft_content?.trim())) {
       return (
         <div className="flex h-full items-center justify-center">
           <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
-            설계 모드 — 방향 가이드를 참고하여 직접 작성하세요
+            설계 모드 — P7 파이프라인 실행 또는 직접 작성
           </span>
         </div>
       );
@@ -410,6 +462,20 @@ function GridCell({
         schoolYear={schoolYear}
         tenantId={tenantId}
         grade={grade}
+      />
+    );
+  }
+
+  // ── 가안분석 (설계 모드 전용 — 3행 분리) ──
+  if (column === "draft_analysis") {
+    return (
+      <DraftAnalysisGridCell
+        perspective={perspective}
+        row={row}
+        subjectTags={subjectTags}
+        studentId={studentId}
+        tenantId={tenantId}
+        schoolYear={schoolYear}
       />
     );
   }
@@ -587,9 +653,11 @@ function AnalysisGridCell({
   const queryClient = useQueryClient();
   const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
-  const aiTags = useMemo(() => subjectTags.filter((t) => t.source === "ai"), [subjectTags]);
-  const manualTags = useMemo(() => subjectTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [subjectTags]);
-  const confirmedTags = useMemo(() => subjectTags.filter((t) => t.status === "confirmed"), [subjectTags]);
+  // analysis 열은 draft_analysis 태그 제외
+  const analysisTags = useMemo(() => subjectTags.filter((t) => t.tag_context !== "draft_analysis"), [subjectTags]);
+  const aiTags = useMemo(() => analysisTags.filter((t) => t.source === "ai"), [analysisTags]);
+  const manualTags = useMemo(() => analysisTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [analysisTags]);
+  const confirmedTags = useMemo(() => analysisTags.filter((t) => t.status === "confirmed"), [analysisTags]);
 
   const combinedContent = useMemo(
     () => row.records.map((r) => r.content?.trim() || r.imported_content || "").filter(Boolean).join("\n\n"),
@@ -710,6 +778,82 @@ function AnalysisGridCell({
       taggerProps={taggerProps}
       onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
       onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
+    />
+  );
+}
+
+// ─── 가안분석 셀 (draft_analysis 태그 전용) ──
+
+function DraftAnalysisGridCell({
+  perspective,
+  row,
+  subjectTags,
+}: {
+  perspective: Perspective;
+  row: MergedSetekRow;
+  subjectTags: AnalysisTagLike[];
+  studentId: string;
+  tenantId: string;
+  schoolYear: number;
+}) {
+  // draft_analysis 태그만 필터
+  const draftTags = useMemo(() => subjectTags.filter((t) => t.tag_context === "draft_analysis"), [subjectTags]);
+
+  const aiTags = useMemo(() => draftTags.filter((t) => t.source === "ai"), [draftTags]);
+  const manualTags = useMemo(() => draftTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [draftTags]);
+  const confirmedTags = useMemo(() => draftTags.filter((t) => t.status === "confirmed"), [draftTags]);
+
+  const combinedContent = useMemo(
+    () => row.records.map((r) => r.ai_draft_content?.trim() || "").filter(Boolean).join("\n\n"),
+    [row.records],
+  );
+
+  const [mode, setMode] = useState<AnalysisBlockMode>(
+    perspective === "ai" ? "competency" : "tagging",
+  );
+
+  if (draftTags.length === 0 && perspective === "ai") {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <span className="rounded bg-gray-50 px-2 py-1 text-xs text-[var(--text-tertiary)] dark:bg-gray-800">
+          가안분석 태그 없음 — 파이프라인 P8 실행 필요
+        </span>
+      </div>
+    );
+  }
+
+  if (perspective === "ai") {
+    return (
+      <AnalysisBlock
+        label="AI 가안분석"
+        tags={aiTags}
+        content={combinedContent}
+        mode={mode}
+        setMode={setMode}
+      />
+    );
+  }
+
+  if (perspective === "consultant") {
+    return (
+      <AnalysisBlock
+        label="컨설턴트"
+        tags={manualTags}
+        content={combinedContent}
+        mode={mode}
+        setMode={setMode}
+      />
+    );
+  }
+
+  // confirmed
+  return (
+    <AnalysisBlock
+      label="확정"
+      tags={confirmedTags}
+      content={combinedContent}
+      mode={mode}
+      setMode={setMode}
     />
   );
 }
