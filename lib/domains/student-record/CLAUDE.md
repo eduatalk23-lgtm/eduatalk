@@ -21,6 +21,7 @@ student-record/
 ├── course-plan/          # 수강 계획 (recommendation.ts, sync.ts)
 ├── import/               # parser → extractor → mapper → importer 체인
 ├── export/               # report-export.ts
+├── leveling/             # L0~L6 설계 모드 레벨링 (engine.ts, types.ts, resolve-tier.ts)
 └── llm/                  # AI 진단/전략 생성
 ```
 
@@ -83,8 +84,8 @@ Grade Pipeline (학년별, 9태스크×8Phase)
   P4: setek_guide + slot_generation  ← analysisContext 주입 (issues/feedback/약점)
   P5: changche_guide                 ← analysisContext 주입 (community 우선)
   P6: haengteuk_guide                ← analysisContext 주입 (community만)
-  P7: draft_generation               ← 설계 모드 전용, 방향 가이드 기반 AI 가안 생성
-  P8: draft_analysis                 ← 설계 모드 전용, 가안 역량 분석 (tag_context=draft_analysis)
+  P7: draft_generation               ← 설계 모드 전용, 레벨링 주입(L2) + 방향 가이드 기반 AI 가안
+  P8: draft_analysis                 ← 가안 역량 분석 (tag=draft_analysis, scores=ai_projected, edges=projected)
 
 Synthesis Pipeline (종합, 10태스크×6Phase)
   S1: storyline_generation
@@ -136,9 +137,19 @@ Phase 1-3 (역량 분석)
 | `student_record_setek_guides` | 세특 방향 가이드 | P4 출력 |
 | `student_record_changche_guides` | 창체 방향 가이드 | P5 출력 |
 | `student_record_haengteuk_guides` | 행특 방향 가이드 | P6 출력 |
-| `student_record_edges` | 레코드 간 연결 그래프 | S2 출력 |
+| `student_record_edges` | 레코드 간 연결 그래프 (`edge_context`: analysis/projected) | S2+P8 출력 |
 | `student_record_strategies` | 보완전략 | S5 출력 |
 | `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
+
+### 설계/분석 레이어 패턴 (L0~L6)
+
+| 테이블 | 구분자 | 분석(NEIS 기반) | 설계(AI 가안) |
+|--------|--------|---------|---------|
+| activity_tags | `tag_context` | `analysis` | `draft_analysis` |
+| competency_scores | `source` | `ai` | `ai_projected` |
+| content_quality | `source` | `ai` | `ai_projected` |
+| edges | `edge_context` | `analysis` | `projected` |
+| guides | `guide_mode` | `retrospective` | `prospective` |
 
 ### LLM Actions (llm/actions/)
 
