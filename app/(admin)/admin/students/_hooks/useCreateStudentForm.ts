@@ -54,6 +54,7 @@ export function useCreateStudentForm({
         target_major_2: "",
         target_score: undefined,
         target_university_type: "",
+        target_school_tier: "",
         notes: "",
         ...initialDefaultValues,
       }) satisfies Partial<CreateStudentFormSchema>,

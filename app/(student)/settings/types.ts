@@ -8,6 +8,8 @@ import type { StudentCareerGoal } from "@/lib/data/studentCareerGoals";
 import type { StudentDivision } from "@/lib/constants/students";
 import type { CareerTier1Code } from "@/lib/constants/career-classification";
 import { isCareerTier1Code } from "@/lib/constants/career-classification";
+import type { SchoolTier } from "@/lib/constants/school-tiers";
+import { isSchoolTier } from "@/lib/constants/school-tiers";
 
 export type Gender = "남" | "여";
 export type CurriculumRevision = "2009 개정" | "2015 개정" | "2022 개정";
@@ -44,6 +46,8 @@ export type StudentFormData = {
   target_major: string;
   // 세부 전공 (Tier 3 — department_classification.id, 선택적)
   target_sub_classification_id: string; // 폼에서는 string, 저장 시 int 변환
+  // 목표 학교권 (설계 모드 레벨링 입력)
+  target_school_tier: SchoolTier | "";
 };
 
 /**
@@ -66,6 +70,8 @@ export function isCurriculumRevision(
 export function isCareerField(value: unknown): value is CareerField {
   return isCareerTier1Code(value);
 }
+
+export { isSchoolTier };
 
 /**
  * Student 타입의 값을 FormData로 안전하게 변환

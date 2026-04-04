@@ -56,6 +56,7 @@ export function separateStudentFormFields(formData: FormData): {
     "target_sub_classification_id",
     "target_score",
     "target_university_type",
+    "target_school_tier",
     "notes",
   ];
 

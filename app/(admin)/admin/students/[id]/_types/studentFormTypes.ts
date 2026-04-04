@@ -58,5 +58,6 @@ export type StudentInfoData = {
   curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
   desired_university_ids?: string[] | null;
   desired_career_field?: string | null;
+  target_school_tier?: string | null;
 };
 

@@ -783,6 +783,7 @@ export async function updateStudentInfo(
       desired_career_field?: string | null;
       target_major?: string | null;
       target_sub_classification_id?: number | null;
+      target_school_tier?: string | null;
     };
   }
 ): Promise<{ success: boolean; error?: string }> {
@@ -1021,6 +1022,7 @@ export async function updateStudentInfo(
       if (payload.career.desired_career_field !== undefined) updateData.desired_career_field = payload.career.desired_career_field;
       if (payload.career.target_major !== undefined) updateData.target_major = payload.career.target_major;
       if (payload.career.target_sub_classification_id !== undefined) updateData.target_sub_classification_id = payload.career.target_sub_classification_id;
+      if (payload.career.target_school_tier !== undefined) updateData.target_school_tier = payload.career.target_school_tier;
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -1191,6 +1193,7 @@ export async function createStudent(
       if (career.target_major_2 != null) extraFields.target_major_2 = career.target_major_2;
       if (career.target_score != null) extraFields.target_score = career.target_score;
       if (career.target_university_type != null) extraFields.target_university_type = career.target_university_type;
+      if (career.target_school_tier != null) extraFields.target_school_tier = career.target_school_tier;
       if (career.notes != null) extraFields.career_notes = career.notes;
     }
 

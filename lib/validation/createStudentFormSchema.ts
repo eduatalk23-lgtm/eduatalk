@@ -54,6 +54,7 @@ export const createStudentFormSchema = z.object({
   target_major_2: z.string().default(""),
   target_score: z.record(z.string(), z.number()).optional(),
   target_university_type: z.string().default(""),
+  target_school_tier: z.string().default(""),
   notes: z.string().default(""),
 }).refine(
   (data) => !!(data.phone || data.mother_phone || data.father_phone),
@@ -113,6 +114,7 @@ export function toCreateStudentInput(flat: CreateStudentFormSchema): CreateStude
       target_major_2: emptyToNull(flat.target_major_2),
       target_score: flat.target_score ?? null,
       target_university_type: emptyToNull(flat.target_university_type),
+      target_school_tier: emptyToNull(flat.target_school_tier),
       notes: emptyToNull(flat.notes),
     },
   };

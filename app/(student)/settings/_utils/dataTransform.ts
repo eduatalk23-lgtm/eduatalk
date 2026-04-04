@@ -3,7 +3,7 @@
  */
 
 import type { StudentData, StudentFormData } from "../types";
-import { isGender, isCurriculumRevision, isCareerField, toFormDataValue } from "../types";
+import { isGender, isCurriculumRevision, isCareerField, isSchoolTier, toFormDataValue } from "../types";
 import { parseGradeNumber } from "@/lib/utils/studentFormUtils";
 import { STUDENT_DIVISIONS } from "@/lib/constants/students";
 
@@ -37,6 +37,7 @@ export async function transformStudentToFormData(
       desired_career_field: "",
       target_major: "",
       target_sub_classification_id: "",
+      target_school_tier: "",
     };
   }
 
@@ -70,6 +71,10 @@ export async function transformStudentToFormData(
     ) as "" | import("../types").CareerField,
     target_major: (studentData as Record<string, unknown>).target_major as string || "",
     target_sub_classification_id: ((studentData as Record<string, unknown>).target_sub_classification_id as number | null)?.toString() || "",
+    target_school_tier: toFormDataValue(
+      (studentData as Record<string, unknown>).target_school_tier as string | null,
+      isSchoolTier
+    ) as "" | import("@/lib/constants/school-tiers").SchoolTier,
   };
 }
 
@@ -100,6 +105,7 @@ export function transformFormDataToUpdatePayload(
     desired_career_field: string | null;
     target_major: string | null;
     target_sub_classification_id: number | null;
+    target_school_tier: string | null;
   };
 } {
   return {
@@ -127,6 +133,7 @@ export function transformFormDataToUpdatePayload(
       desired_career_field: formData.desired_career_field || null,
       target_major: formData.target_major || null,
       target_sub_classification_id: formData.target_sub_classification_id ? parseInt(formData.target_sub_classification_id, 10) : null,
+      target_school_tier: formData.target_school_tier || null,
     },
   };
 }

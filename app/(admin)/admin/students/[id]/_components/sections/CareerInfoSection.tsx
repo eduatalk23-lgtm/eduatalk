@@ -12,6 +12,7 @@ import {
   TIER1_TO_MAJORS,
   type CareerTier1Code,
 } from "@/lib/constants/career-classification";
+import { SCHOOL_TIER_OPTIONS } from "@/lib/constants/school-tiers";
 import {
   getSubClassifications,
   type SubClassificationOption,
@@ -35,6 +36,7 @@ export default function CareerInfoSection({
   const desiredCareerFieldField = useController({ name: "desired_career_field", control });
   const targetMajorField = useController({ name: "target_major", control });
   const subClassField = useController({ name: "target_sub_classification_id", control });
+  const schoolTierField = useController({ name: "target_school_tier", control });
 
   const careerFieldValue = useWatch({ name: "desired_career_field", control });
   const targetMajorValue = useWatch({ name: "target_major", control });
@@ -119,6 +121,18 @@ export default function CareerInfoSection({
               error={examYearField.fieldState.error?.message}
             />
           </div>
+
+          {/* 목표 학교권 */}
+          <FormSelect
+            {...schoolTierField.field}
+            label="목표 학교권"
+            disabled={disabled}
+            options={[
+              { value: "", label: "선택 안 함" },
+              ...SCHOOL_TIER_OPTIONS.map((t) => ({ value: t.value, label: t.label })),
+            ]}
+            error={schoolTierField.fieldState.error?.message}
+          />
 
           {/* 진로계열 (Tier 1) + 전공방향 (Tier 2) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

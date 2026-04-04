@@ -35,6 +35,7 @@ export function useStudentSettingsForm({
         desired_career_field: "",
         target_major: "",
         target_sub_classification_id: "",
+        target_school_tier: "",
       },
     [initialData]
   );

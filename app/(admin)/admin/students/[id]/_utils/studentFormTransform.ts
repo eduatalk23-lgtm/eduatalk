@@ -7,7 +7,7 @@ import type { StudentInfoData } from "../_types/studentFormTypes";
 import type { AdminStudentFormData } from "../_types/studentFormTypes";
 import { parseGradeNumber } from "@/lib/utils/studentFormUtils";
 import type { StudentFormData } from "@/app/(student)/settings/types";
-import { toFormDataValue, isGender, isCurriculumRevision, isCareerField } from "@/app/(student)/settings/types";
+import { toFormDataValue, isGender, isCurriculumRevision, isCareerField, isSchoolTier } from "@/app/(student)/settings/types";
 
 /**
  * StudentInfoData를 AdminStudentFormData로 변환
@@ -31,6 +31,7 @@ export function transformStudentToFormData(
       desired_career_field: "",
       target_major: "",
       target_sub_classification_id: "",
+      target_school_tier: "",
       // 관리자 전용 필드
       class: "",
       division: "",
@@ -70,6 +71,10 @@ export function transformStudentToFormData(
     ) as "" | import("@/app/(student)/settings/types").CareerField,
     target_major: (studentData as Record<string, unknown>).target_major as string || "",
     target_sub_classification_id: ((studentData as Record<string, unknown>).target_sub_classification_id as number | null)?.toString() || "",
+    target_school_tier: toFormDataValue(
+      studentData.target_school_tier,
+      isSchoolTier
+    ) as "" | import("@/lib/constants/school-tiers").SchoolTier,
     // 관리자 전용 필드
     division: studentData.division || "",
     memo: studentData.memo || "",
@@ -129,6 +134,7 @@ export function transformFormDataToUpdatePayload(
       desired_career_field?: string | null;
       target_major?: string | null;
       target_sub_classification_id?: number | null;
+      target_school_tier?: string | null;
     };
   } = {};
 
@@ -225,7 +231,8 @@ export function transformFormDataToUpdatePayload(
     shouldInclude("desired_university_ids") ||
     shouldInclude("desired_career_field") ||
     shouldInclude("target_major") ||
-    shouldInclude("target_sub_classification_id")
+    shouldInclude("target_sub_classification_id") ||
+    shouldInclude("target_school_tier")
   ) {
     payload.career = {};
     if (shouldInclude("exam_year")) {
@@ -258,6 +265,9 @@ export function transformFormDataToUpdatePayload(
       payload.career.target_sub_classification_id = formData.target_sub_classification_id
         ? parseInt(formData.target_sub_classification_id, 10)
         : null;
+    }
+    if (shouldInclude("target_school_tier")) {
+      payload.career.target_school_tier = formData.target_school_tier || null;
     }
   }
 

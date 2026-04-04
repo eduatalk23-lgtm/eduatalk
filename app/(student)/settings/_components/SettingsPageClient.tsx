@@ -83,6 +83,7 @@ export default function SettingsPageClient({
           desired_career_field: "",
           target_major: "",
           target_sub_classification_id: "",
+          target_school_tier: "",
         });
       } finally {
         setIsLoadingInitialData(false);
@@ -198,6 +199,9 @@ export default function SettingsPageClient({
         }
         if (formData.target_sub_classification_id) {
           formDataObj.append("target_sub_classification_id", formData.target_sub_classification_id);
+        }
+        if (formData.target_school_tier) {
+          formDataObj.append("target_school_tier", formData.target_school_tier);
         }
 
         const result = await updateStudentProfile(formDataObj);

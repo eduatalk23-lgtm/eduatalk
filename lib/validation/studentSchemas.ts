@@ -61,6 +61,7 @@ export const studentCareerSchema = z.object({
   target_major_2: z.string().max(100).optional().nullable(),
   target_score: z.record(z.string(), z.number()).optional().nullable(),
   target_university_type: z.string().max(50).optional().nullable(),
+  target_school_tier: z.enum(["sky_plus", "in_seoul", "regional", "general"]).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 });
 

@@ -308,6 +308,9 @@ export async function updateStudentProfile(
   const targetSubRaw = formData.get("target_sub_classification_id") as string | null;
   const targetSubClassificationId = targetSubRaw ? parseInt(targetSubRaw, 10) : null;
 
+  const targetSchoolTier =
+    (formData.get("target_school_tier") as string | null) || null;
+
   // 프로필 + 진로 정보 UPDATE
   // phone은 user_profiles에서 관리
   if (phone !== null || phoneRaw === "") {
@@ -363,6 +366,7 @@ export async function updateStudentProfile(
     desired_career_field: desiredCareerField,
     target_major: targetMajor,
     target_sub_classification_id: targetSubClassificationId,
+    target_school_tier: targetSchoolTier,
   };
 
   const { error: updateError } = await supabase

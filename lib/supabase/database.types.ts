@@ -12618,6 +12618,7 @@ export type Database = {
         Row: {
           confidence: number
           created_at: string
+          edge_context: string
           edge_type: string
           id: string
           is_stale: boolean
@@ -12641,6 +12642,7 @@ export type Database = {
         Insert: {
           confidence?: number
           created_at?: string
+          edge_context?: string
           edge_type: string
           id?: string
           is_stale?: boolean
@@ -12664,6 +12666,7 @@ export type Database = {
         Update: {
           confidence?: number
           created_at?: string
+          edge_context?: string
           edge_type?: string
           id?: string
           is_stale?: boolean
@@ -14232,6 +14235,7 @@ export type Database = {
           target_major_2: string | null
           target_score: Json | null
           target_sub_classification_id: number | null
+          target_school_tier: string | null
           target_university_type: string | null
           tenant_id: string
           updated_at: string | null
@@ -14274,6 +14278,7 @@ export type Database = {
           target_major_2?: string | null
           target_score?: Json | null
           target_sub_classification_id?: number | null
+          target_school_tier?: string | null
           target_university_type?: string | null
           tenant_id: string
           updated_at?: string | null
@@ -14316,6 +14321,7 @@ export type Database = {
           target_major_2?: string | null
           target_score?: Json | null
           target_sub_classification_id?: number | null
+          target_school_tier?: string | null
           target_university_type?: string | null
           tenant_id?: string
           updated_at?: string | null

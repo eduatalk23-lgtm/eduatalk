@@ -38,7 +38,7 @@ export async function getStudentDetailAction(
       adminClient
         .from("students")
         .select(
-          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field,withdrawn_at,withdrawn_reason,withdrawn_memo"
+          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field,target_school_tier,withdrawn_at,withdrawn_reason,withdrawn_memo"
         )
         .eq("id", studentId)
         .maybeSingle(),
@@ -128,6 +128,7 @@ export async function getStudentDetailAction(
         | null,
       desired_university_ids: student.desired_university_ids ?? null,
       desired_career_field: student.desired_career_field ?? null,
+      target_school_tier: student.target_school_tier ?? null,
       // auth
       email,
       authProvider,
