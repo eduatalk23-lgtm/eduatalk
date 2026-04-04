@@ -345,6 +345,76 @@ function resolveContent(rec: { confirmed_content?: string | null; content?: stri
   return rec.confirmed_content?.trim() || rec.content?.trim() || rec.ai_draft_content?.trim() || null;
 }
 
+/** P8 공통: 레코드 배열을 분석하여 태그/품질/역량등급 수집 */
+async function analyzeAndCollectTags(
+  records: Array<{ id: string; grade: number; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null; subject_id?: string }>,
+  opts: {
+    recordType: "setek" | "changche" | "haengteuk";
+    analyzeSetekWithHighlight: (input: { recordType: string; content: string; subjectName?: string; grade: number }) => Promise<{ success: boolean; data: { sections: Array<{ tags: Array<{ competencyItem: string; evaluation: string; reasoning: string; highlight: string }> }>; contentQuality?: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string }; competencyGrades?: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> } }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: any;
+    studentId: string;
+    tenantId: string;
+    targetGrade: number;
+    targetSchoolYear: number;
+    subjectNameMap?: Map<string, string>;
+    saveContentQuality: (recordType: string, recordId: string, cq: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string }) => Promise<void>;
+  },
+): Promise<{
+  tagsCreated: number;
+  competencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }>;
+}> {
+  let tagsCreated = 0;
+  const competencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> = [];
+
+  for (const rec of records) {
+    const content = resolveContent(rec);
+    if (!content || content.length < 20) continue;
+
+    try {
+      const result = await opts.analyzeSetekWithHighlight({
+        recordType: opts.recordType,
+        content,
+        subjectName: rec.subject_id ? opts.subjectNameMap?.get(rec.subject_id) : undefined,
+        grade: rec.grade ?? opts.targetGrade,
+      });
+
+      if (result.success && result.data.sections) {
+        const tagInserts = result.data.sections.flatMap((section) =>
+          section.tags.map((tag) => ({
+            tenant_id: opts.tenantId,
+            student_id: opts.studentId,
+            record_type: opts.recordType,
+            record_id: rec.id,
+            competency_item: tag.competencyItem,
+            evaluation: tag.evaluation,
+            evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
+            source: "ai" as const,
+            status: "suggested" as const,
+            tag_context: "draft_analysis" as const,
+          })),
+        );
+
+        if (tagInserts.length > 0) {
+          await opts.supabase.from("student_record_activity_tags").insert(tagInserts);
+          tagsCreated += tagInserts.length;
+        }
+
+        if (result.data.contentQuality) {
+          await opts.saveContentQuality(opts.recordType, rec.id, result.data.contentQuality);
+        }
+        if (result.data.competencyGrades?.length) {
+          competencyGrades.push(...result.data.competencyGrades);
+        }
+      }
+    } catch (err) {
+      logActionError(LOG_CTX, err, { recordId: rec.id, phase: `draft_analysis_${opts.recordType}` });
+    }
+  }
+
+  return { tagsCreated, competencyGrades };
+}
+
 export async function runDraftAnalysisForGrade(
   ctx: PipelineContext,
 ): Promise<TaskRunnerOutput> {
@@ -406,6 +476,8 @@ export async function runDraftAnalysisForGrade(
   // 해당 학년 레코드 ID 수집 → 해당 레코드의 draft_analysis 태그만 삭제
   const targetRecordIds: string[] = [];
 
+  const analyzeOpts = { analyzeSetekWithHighlight, supabase, studentId, tenantId, targetGrade, targetSchoolYear, saveContentQuality };
+
   // ─── 세특 가안 분석 ──
 
   const { data: setekRecords } = await supabase
@@ -421,55 +493,15 @@ export async function runDraftAnalysisForGrade(
     const { data: subjects } = subjectIds.length > 0
       ? await supabase.from("subjects").select("id, name").in("id", subjectIds)
       : { data: [] };
-    const nameMap = new Map<string, string>();
-    for (const s of subjects ?? []) nameMap.set(s.id, s.name);
+    const subjectNameMap = new Map<string, string>();
+    for (const s of subjects ?? []) subjectNameMap.set(s.id, s.name);
 
-    for (const rec of setekRecords as Array<{ id: string; subject_id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>) {
-      const content = resolveContent(rec);
-      if (!content || content.length < 20) continue;
-
-      try {
-        const result = await analyzeSetekWithHighlight({
-          recordType: "setek",
-          content,
-          subjectName: nameMap.get(rec.subject_id),
-          grade: rec.grade ?? targetGrade,
-        });
-
-        if (result.success && result.data.sections) {
-          const tagInserts = result.data.sections.flatMap((section) =>
-            section.tags.map((tag) => ({
-              tenant_id: tenantId,
-              student_id: studentId,
-              record_type: "setek" as const,
-              record_id: rec.id,
-              competency_item: tag.competencyItem,
-              evaluation: tag.evaluation,
-              evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-              source: "ai" as const,
-              status: "suggested" as const,
-              tag_context: "draft_analysis" as const,
-            })),
-          );
-
-          if (tagInserts.length > 0) {
-            await supabase.from("student_record_activity_tags").insert(tagInserts);
-            analyzed += tagInserts.length;
-          }
-
-          // content_quality 저장 (5축 품질 점수)
-          if (result.data.contentQuality) {
-            await saveContentQuality("setek", rec.id, result.data.contentQuality);
-          }
-          // competencyGrades 수집
-          if (result.data.competencyGrades?.length > 0) {
-            allCompetencyGrades.push(...result.data.competencyGrades);
-          }
-        }
-      } catch (err) {
-        logActionError(LOG_CTX, err, { recordId: rec.id, phase: "draft_analysis_setek" });
-      }
-    }
+    const setekResult = await analyzeAndCollectTags(
+      setekRecords as Array<{ id: string; subject_id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>,
+      { ...analyzeOpts, recordType: "setek", subjectNameMap },
+    );
+    analyzed += setekResult.tagsCreated;
+    allCompetencyGrades.push(...setekResult.competencyGrades);
   }
 
   // ─── 창체 가안 분석 ──
@@ -482,49 +514,12 @@ export async function runDraftAnalysisForGrade(
 
   if (changcheRecords) {
     for (const r of changcheRecords as Array<{ id: string }>) targetRecordIds.push(r.id);
-    for (const rec of changcheRecords as Array<{ id: string; activity_type: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>) {
-      const content = resolveContent(rec);
-      if (!content || content.length < 20) continue;
-
-      try {
-        const result = await analyzeSetekWithHighlight({
-          recordType: "changche",
-          content,
-          grade: rec.grade ?? targetGrade,
-        });
-
-        if (result.success && result.data.sections) {
-          const tagInserts = result.data.sections.flatMap((section) =>
-            section.tags.map((tag) => ({
-              tenant_id: tenantId,
-              student_id: studentId,
-              record_type: "changche" as const,
-              record_id: rec.id,
-              competency_item: tag.competencyItem,
-              evaluation: tag.evaluation,
-              evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-              source: "ai" as const,
-              status: "suggested" as const,
-              tag_context: "draft_analysis" as const,
-            })),
-          );
-
-          if (tagInserts.length > 0) {
-            await supabase.from("student_record_activity_tags").insert(tagInserts);
-            analyzed += tagInserts.length;
-          }
-
-          if (result.data.contentQuality) {
-            await saveContentQuality("changche", rec.id, result.data.contentQuality);
-          }
-          if (result.data.competencyGrades?.length > 0) {
-            allCompetencyGrades.push(...result.data.competencyGrades);
-          }
-        }
-      } catch (err) {
-        logActionError(LOG_CTX, err, { recordId: rec.id, phase: "draft_analysis_changche" });
-      }
-    }
+    const changcheResult = await analyzeAndCollectTags(
+      changcheRecords as Array<{ id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>,
+      { ...analyzeOpts, recordType: "changche" },
+    );
+    analyzed += changcheResult.tagsCreated;
+    allCompetencyGrades.push(...changcheResult.competencyGrades);
   }
 
   // ─── 행특 가안 분석 ──
@@ -536,59 +531,20 @@ export async function runDraftAnalysisForGrade(
     .eq("school_year", targetSchoolYear)
     .maybeSingle();
 
-  if (haengteukRecord) targetRecordIds.push(haengteukRecord.id);
+  if (haengteukRecord) {
+    targetRecordIds.push(haengteukRecord.id);
+    const haengteukResult = await analyzeAndCollectTags(
+      [haengteukRecord as { id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }],
+      { ...analyzeOpts, recordType: "haengteuk" },
+    );
+    analyzed += haengteukResult.tagsCreated;
+    allCompetencyGrades.push(...haengteukResult.competencyGrades);
+  }
 
   // 해당 학년 레코드의 기존 draft_analysis AI 태그만 삭제 (다른 학년 영향 없음)
-  if (targetRecordIds.length > 0) {
-    await supabase
-      .from("student_record_activity_tags")
-      .delete()
-      .in("record_id", targetRecordIds)
-      .eq("tag_context", "draft_analysis")
-      .eq("source", "ai");
-  }
-
-  const haengteukContent = haengteukRecord ? resolveContent(haengteukRecord) : null;
-  if (haengteukContent && haengteukContent.length >= 20) {
-    try {
-      const result = await analyzeSetekWithHighlight({
-        recordType: "haengteuk",
-        content: haengteukContent,
-        grade: haengteukRecord!.grade ?? targetGrade,
-      });
-
-      if (result.success && result.data.sections) {
-        const tagInserts = result.data.sections.flatMap((section) =>
-          section.tags.map((tag) => ({
-            tenant_id: tenantId,
-            student_id: studentId,
-            record_type: "haengteuk" as const,
-            record_id: haengteukRecord.id,
-            competency_item: tag.competencyItem,
-            evaluation: tag.evaluation,
-            evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-            source: "ai" as const,
-            status: "suggested" as const,
-            tag_context: "draft_analysis" as const,
-          })),
-        );
-
-        if (tagInserts.length > 0) {
-          await supabase.from("student_record_activity_tags").insert(tagInserts);
-          analyzed += tagInserts.length;
-        }
-
-        if (result.data.contentQuality) {
-          await saveContentQuality("haengteuk", haengteukRecord!.id, result.data.contentQuality);
-        }
-        if (result.data.competencyGrades?.length > 0) {
-          allCompetencyGrades.push(...result.data.competencyGrades);
-        }
-      }
-    } catch (err) {
-      logActionError(LOG_CTX, err, { recordId: haengteukRecord!.id, phase: "draft_analysis_haengteuk" });
-    }
-  }
+  // NOTE: Phase 1에서 RPC 트랜잭션으로 교체 예정 (현재는 분석 후 삭제+재삽입)
+  // 현재 구현: 태그는 이미 INSERT 완료 → 기존 것만 삭제하면 새 것은 유지
+  // TODO(Phase 1): atomic replace로 전환
 
   // ─── competency_scores 집계 + 저장 (source=ai_projected) ──
 

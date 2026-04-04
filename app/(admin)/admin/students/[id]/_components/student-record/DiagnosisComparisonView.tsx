@@ -119,7 +119,7 @@ export function DiagnosisComparisonView({
         direction_strength: data.dirStrength,
         strengths: data.strengths,
         weaknesses: data.weaknesses,
-        improvements: data.improvements as unknown as import("@/lib/supabase/types").Json,
+        improvements: data.improvements as unknown as import("@/lib/supabase/database.types").Json,
         recommended_majors: data.majors,
         strategy_notes: data.notes || null,
         source: "manual",
