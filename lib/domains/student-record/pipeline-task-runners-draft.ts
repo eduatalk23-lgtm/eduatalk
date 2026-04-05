@@ -8,6 +8,7 @@
 import type { PipelineContext } from "./pipeline-types";
 import type { TaskRunnerOutput } from "./pipeline-executor";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { withRetry } from "./llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { getCharLimit } from "./constants";
 import {
@@ -188,16 +189,19 @@ export async function runDraftGenerationForGrade(
       try {
         const userPrompt = `## 과목: ${subjectName} (${targetGrade}학년 ${record.semester}학기)\n\n## 세특 방향\n${guide.direction}\n\n## 포함할 키워드\n${guide.keywords.join(", ")}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
 
-        const result = await generateTextWithRateLimit({
-          system: withLevelDirective(SETEK_SYSTEM_PROMPT, levelDirective),
-          messages: [{ role: "user", content: userPrompt }],
-          modelTier: "standard",
-          temperature: 0.5,
-          maxTokens: 2000,
-        });
+        const result = await withRetry(
+          () => generateTextWithRateLimit({
+            system: withLevelDirective(SETEK_SYSTEM_PROMPT, levelDirective),
+            messages: [{ role: "user", content: userPrompt }],
+            modelTier: "standard",
+            temperature: 0.5,
+            maxTokens: 2000,
+          }),
+          { label: "draftSetek" },
+        );
 
         if (result.content?.trim()) {
-          await supabase
+          const { error: updateErr } = await supabase
             .from("student_record_seteks")
             .update({
               ai_draft_content: result.content.trim(),
@@ -205,6 +209,7 @@ export async function runDraftGenerationForGrade(
               ai_draft_status: "done",
             })
             .eq("id", record.id);
+          if (updateErr) logActionError(LOG_CTX, updateErr, { recordId: record.id, phase: "draft_generation_setek" });
 
           generated.push(`세특:${subjectName}`);
           logActionDebug(LOG_CTX, `세특 가안 생성: ${subjectName} (${result.content.trim().length}자)`, { recordId: record.id });
@@ -254,16 +259,19 @@ export async function runDraftGenerationForGrade(
       try {
         const userPrompt = `## 활동유형: ${label} (${targetGrade}학년)\n\n## 방향\n${guide.direction}\n\n## 포함할 키워드\n${guide.keywords.join(", ")}\n\n${guide.teacherPoints.length > 0 ? `## 교사 관찰 포인트\n${guide.teacherPoints.join("\n")}\n\n` : ""}${charLimit}자 이내의 ${label} 특기사항 초안을 작성해주세요.`;
 
-        const result = await generateTextWithRateLimit({
-          system: withLevelDirective(CHANGCHE_SYSTEM_PROMPT, levelDirective),
-          messages: [{ role: "user", content: userPrompt }],
-          modelTier: "standard",
-          temperature: 0.5,
-          maxTokens: 2000,
-        });
+        const result = await withRetry(
+          () => generateTextWithRateLimit({
+            system: withLevelDirective(CHANGCHE_SYSTEM_PROMPT, levelDirective),
+            messages: [{ role: "user", content: userPrompt }],
+            modelTier: "standard",
+            temperature: 0.5,
+            maxTokens: 2000,
+          }),
+          { label: "draftChangche" },
+        );
 
         if (result.content?.trim()) {
-          await supabase
+          const { error: updateErr } = await supabase
             .from("student_record_changche")
             .update({
               ai_draft_content: result.content.trim(),
@@ -271,6 +279,7 @@ export async function runDraftGenerationForGrade(
               ai_draft_status: "done",
             })
             .eq("id", record.id);
+          if (updateErr) logActionError(LOG_CTX, updateErr, { recordId: record.id, phase: "draft_generation_changche" });
 
           generated.push(`창체:${label}`);
         }
@@ -316,16 +325,19 @@ export async function runDraftGenerationForGrade(
 
         userPrompt += `${charLimit}자 이내의 행동특성 및 종합의견 초안을 작성해주세요.`;
 
-        const result = await generateTextWithRateLimit({
-          system: withLevelDirective(HAENGTEUK_SYSTEM_PROMPT, levelDirective),
-          messages: [{ role: "user", content: userPrompt }],
-          modelTier: "standard",
-          temperature: 0.5,
-          maxTokens: 2000,
-        });
+        const result = await withRetry(
+          () => generateTextWithRateLimit({
+            system: withLevelDirective(HAENGTEUK_SYSTEM_PROMPT, levelDirective),
+            messages: [{ role: "user", content: userPrompt }],
+            modelTier: "standard",
+            temperature: 0.5,
+            maxTokens: 2000,
+          }),
+          { label: "draftHaengteuk" },
+        );
 
         if (result.content?.trim()) {
-          await supabase
+          const { error: updateErr } = await supabase
             .from("student_record_haengteuk")
             .update({
               ai_draft_content: result.content.trim(),
@@ -333,6 +345,7 @@ export async function runDraftGenerationForGrade(
               ai_draft_status: "done",
             })
             .eq("id", haengteukRecord.id);
+          if (updateErr) logActionError(LOG_CTX, updateErr, { recordId: haengteukRecord.id, phase: "draft_generation_haengteuk" });
 
           generated.push("행특");
         }
@@ -464,7 +477,7 @@ export async function runDraftAnalysisForGrade(
     recordId: string,
     cq: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string },
   ) {
-    await supabase
+    const { error: cqErr } = await supabase
       .from("student_record_content_quality")
       .upsert(
         {
@@ -485,6 +498,7 @@ export async function runDraftAnalysisForGrade(
         },
         { onConflict: "tenant_id,student_id,record_id,source" },
       );
+    if (cqErr) logActionError(LOG_CTX, cqErr, { recordId, recordType, phase: "draft_analysis_quality" });
   }
 
   // 해당 학년 레코드 ID 수집 → 해당 레코드의 draft_analysis 태그만 삭제
@@ -599,6 +613,27 @@ export async function runDraftAnalysisForGrade(
       }
     } catch (err) {
       logActionError(LOG_CTX, err, { phase: "draft_analysis_competency_scores" });
+    }
+  }
+
+  // ─── ctx.analysisContext에 P8 약점 축적 (Synthesis 참조용) ──
+  if (allCompetencyGrades.length > 0) {
+    const WEAK_GRADES = new Set(["B-", "C"]);
+    const weakItems = allCompetencyGrades
+      .filter((cg) => WEAK_GRADES.has(cg.grade))
+      .map((cg) => ({
+        item: cg.item,
+        grade: cg.grade,
+        reasoning: cg.reasoning ?? null,
+        rubricScores: cg.rubricScores,
+      }));
+
+    if (weakItems.length > 0) {
+      if (!ctx.analysisContext) ctx.analysisContext = {};
+      if (!ctx.analysisContext[targetGrade]) {
+        ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+      }
+      ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
     }
   }
 

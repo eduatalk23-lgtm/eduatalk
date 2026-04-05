@@ -8,6 +8,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { withRetry } from "../retry";
 import {
   INQUIRY_LINK_SYSTEM_PROMPT,
   buildInquiryLinkUserPrompt,
@@ -36,14 +37,17 @@ export async function detectInquiryLinks(
     const tier = records.length >= 20 ? "advanced" : "fast";
     const maxTokens = records.length >= 20 ? 8000 : 4000;
 
-    const result = await generateTextWithRateLimit({
-      system: INQUIRY_LINK_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: tier,
-      temperature: 0.3,
-      maxTokens,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: INQUIRY_LINK_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: tier,
+        temperature: 0.3,
+        maxTokens,
+        responseFormat: "json",
+      }),
+      { label: "detectInquiryLinks" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };

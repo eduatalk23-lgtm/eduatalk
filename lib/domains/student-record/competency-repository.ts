@@ -4,6 +4,7 @@
 // ============================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import type {
   CompetencyScore,
   CompetencyScoreInsert,
@@ -180,14 +181,18 @@ export async function deleteActivityTag(id: string): Promise<void> {
 export async function deleteActivityTagsByRecord(
   recordType: string,
   recordId: string,
+  tenantId?: string,
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  let query = supabase
     .from("student_record_activity_tags")
     .delete()
     .eq("record_type", recordType)
     .eq("record_id", recordId);
 
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+
+  const { error } = await query;
   if (error) throw error;
 }
 
@@ -371,6 +376,60 @@ export async function deleteAnalysisCacheByStudentId(
     .eq("source", "ai");
 
   if (error) throw error;
+}
+
+/**
+ * 특정 학년의 AI 파생 분석 데이터 삭제 — 재실행 시 이전 결과 잔류 방지.
+ * analysis_cache와 별개로 competency_scores, activity_tags, content_quality를 정리한다.
+ */
+export async function deleteAnalysisResultsByGrade(
+  studentId: string,
+  tenantId: string,
+  grade: number,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  // 해당 학년의 record ID 일괄 조회
+  const [sRes, cRes, hRes] = await Promise.all([
+    supabase.from("student_record_seteks")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade).is("deleted_at", null),
+    supabase.from("student_record_changche")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
+    supabase.from("student_record_haengteuk")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
+  ]);
+
+  const recordIds = [
+    ...(sRes.data ?? []).map((r) => r.id as string),
+    ...(cRes.data ?? []).map((r) => r.id as string),
+    ...(hRes.data ?? []).map((r) => r.id as string),
+  ];
+
+  // competency_scores: school_year 기반 직접 삭제 (ai + ai_projected)
+  const scoreDeletePromise = supabase
+    .from("student_record_competency_scores")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("school_year", grade)
+    .in("source", ["ai", "ai_projected"]);
+
+  if (recordIds.length === 0) {
+    await scoreDeletePromise;
+    return;
+  }
+
+  // activity_tags + content_quality: record_id 기반 삭제 (AI 생성분만)
+  const [scoreRes, tagRes, qualityRes] = await Promise.all([
+    scoreDeletePromise,
+    supabase.from("student_record_activity_tags")
+      .delete().in("record_id", recordIds).in("tag_context", ["analysis", "draft_analysis"]),
+    supabase.from("student_record_content_quality")
+      .delete().in("record_id", recordIds).in("source", ["ai", "ai_projected"]),
+  ]);
+  if (scoreRes.error) logActionWarn({ domain: "student-record", action: "deleteAnalysisResultsByGrade" }, `역량 점수 삭제 실패: ${scoreRes.error.message}`, { studentId, grade });
+  if (tagRes.error) logActionWarn({ domain: "student-record", action: "deleteAnalysisResultsByGrade" }, `태그 삭제 실패: ${tagRes.error.message}`, { studentId, grade });
+  if (qualityRes.error) logActionWarn({ domain: "student-record", action: "deleteAnalysisResultsByGrade" }, `품질 삭제 실패: ${qualityRes.error.message}`, { studentId, grade });
 }
 
 /** 배치 캐시 조회 — 증분 분석용 (record_id 목록 → content_hash 포함 캐시 Map) */

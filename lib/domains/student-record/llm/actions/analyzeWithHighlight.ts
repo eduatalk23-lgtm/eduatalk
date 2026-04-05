@@ -80,14 +80,17 @@ export async function analyzeSetekWithHighlight(
 
     const userPrompt = buildHighlightUserPrompt(input);
 
-    const result = await generateTextWithRateLimit({
-      system: HIGHLIGHT_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "advanced",
-      temperature: 0.3,
-      maxTokens: 16384,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: HIGHLIGHT_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "advanced",
+        temperature: 0.3,
+        maxTokens: 16384,
+        responseFormat: "json",
+      }),
+      { label: "analyzeSetekWithHighlight" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };

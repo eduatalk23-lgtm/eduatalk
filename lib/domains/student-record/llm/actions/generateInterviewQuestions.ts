@@ -7,6 +7,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { withRetry } from "../retry";
 import {
   INTERVIEW_SYSTEM_PROMPT,
   buildInterviewUserPrompt,
@@ -67,14 +68,17 @@ export async function generateInterviewQuestions(input: {
         + "\n\n위 질문과 내용이 중복되지 않는 새로운 질문을 생성해주세요.";
     }
 
-    const result = await generateTextWithRateLimit({
-      system: INTERVIEW_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
-      temperature: 0.4,
-      maxTokens: 4000,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: INTERVIEW_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "fast",
+        temperature: 0.4,
+        maxTokens: 4000,
+        responseFormat: "json",
+      }),
+      { label: "generateInterviewQuestions" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };

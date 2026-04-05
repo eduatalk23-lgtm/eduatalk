@@ -8,7 +8,7 @@
 // G5: runSlotGenerationForGrade
 // ============================================
 
-import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import { updatePipelineState } from "./pipeline-executor";
 import type {
   PipelineContext,
@@ -178,7 +178,7 @@ async function runCompetencyForRecords(
         )
         .then(({ error }) => {
           if (error) {
-            logActionDebug(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${error.message}`);
+            logActionWarn(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${error.message}`, { recordId, recType });
           }
         });
     }
@@ -499,7 +499,7 @@ export async function runCompetencyAnalysisForGrade(ctx: PipelineContext): Promi
         )
         .then(({ error }) => {
           if (error) {
-            logActionDebug(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${error.message}`);
+            logActionWarn(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${error.message}`, { recordId, recType });
           }
         });
     }

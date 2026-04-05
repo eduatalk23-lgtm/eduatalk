@@ -2,7 +2,7 @@
 // S2: runEdgeComputation + runGuideMatching
 // ============================================
 
-import { logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import type {
   PipelineContext,
@@ -123,10 +123,11 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
     ...(hResAll.data ?? []),
   ].map((r) => ({ id: r.id, updated_at: r.updated_at ?? null }));
   const hash = computeContentHash(allRecords);
-  await supabase
+  const { error: hashErr } = await supabase
     .from("student_record_analysis_pipelines")
     .update({ content_hash: hash })
     .eq("id", pipelineId);
+  if (hashErr) logActionError({ domain: "student-record", action: "phase-s2-edges" }, hashErr, { pipelineId });
 
   // Phase E2: 후속 태스크용 엣지 배열
   const computedEdges = graph.nodes.flatMap((n) => n.edges) as PersistedEdge[] | CrossRefEdge[];

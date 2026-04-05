@@ -10,8 +10,8 @@
 // GradePhase 8: draft_analysis (설계 모드 전용) → 최종 상태
 // ============================================
 
-import type { PipelineContext } from "./pipeline-types";
-import { GRADE_PIPELINE_TASK_KEYS } from "./pipeline-types";
+import type { PipelineContext, GradePipelineTaskKey } from "./pipeline-types";
+import { GRADE_PIPELINE_TASK_KEYS, GRADE_TASK_PREREQUISITES } from "./pipeline-types";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   runTaskWithState,
@@ -32,6 +32,31 @@ import {
   runDraftGenerationForGrade,
   runDraftAnalysisForGrade,
 } from "./pipeline-task-runners";
+
+// ============================================
+// 선행 태스크 실패 시 자동 스킵 가드
+// ============================================
+
+/**
+ * 선행 태스크가 실패했으면 해당 태스크를 failed로 마킹하고 true를 반환.
+ * 호출부에서 true이면 태스크 실행을 건너뛴다.
+ */
+function skipIfPrereqFailed(
+  ctx: PipelineContext,
+  taskKey: GradePipelineTaskKey,
+): boolean {
+  if (ctx.tasks[taskKey] === "completed") return true;
+
+  const prereqs = GRADE_TASK_PREREQUISITES[taskKey];
+  if (!prereqs) return false;
+
+  const failed = prereqs.filter((p) => ctx.tasks[p] === "failed");
+  if (failed.length === 0) return false;
+
+  ctx.tasks[taskKey] = "failed";
+  ctx.errors[taskKey] = `선행 태스크 실패로 건너뜀: ${failed.join(", ")}`;
+  return true;
+}
 
 // ============================================
 // 청크 실행 결과 타입
@@ -223,14 +248,27 @@ export async function executeGradePhase4(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  await Promise.allSettled([
-    runTaskWithState(ctx, "setek_guide", () =>
-      runSetekGuideForGrade(ctx),
-    ),
-    runTaskWithState(ctx, "slot_generation", () =>
-      runSlotGenerationForGrade(ctx),
-    ),
-  ]);
+  const skipGuide = skipIfPrereqFailed(ctx, "setek_guide");
+  const skipSlot = skipIfPrereqFailed(ctx, "slot_generation");
+
+  const tasks: Promise<void>[] = [];
+  if (!skipGuide) {
+    tasks.push(runTaskWithState(ctx, "setek_guide", () => runSetekGuideForGrade(ctx)));
+  }
+  if (!skipSlot) {
+    tasks.push(runTaskWithState(ctx, "slot_generation", () => runSlotGenerationForGrade(ctx)));
+  }
+
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks);
+  } else {
+    // 모든 태스크 스킵 — 상태 DB 반영
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+  }
 }
 
 // ============================================
@@ -241,6 +279,15 @@ export async function executeGradePhase5(
   ctx: PipelineContext,
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
+
+  if (skipIfPrereqFailed(ctx, "changche_guide")) {
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+    return;
+  }
 
   await runTaskWithState(ctx, "changche_guide", () =>
     runChangcheGuideForGrade(ctx),
@@ -256,6 +303,15 @@ export async function executeGradePhase6(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
+  if (skipIfPrereqFailed(ctx, "haengteuk_guide")) {
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+    return;
+  }
+
   await runTaskWithState(ctx, "haengteuk_guide", () =>
     runHaengteukGuideForGrade(ctx),
   );
@@ -269,6 +325,15 @@ export async function executeGradePhase7(
   ctx: PipelineContext,
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
+
+  if (skipIfPrereqFailed(ctx, "draft_generation")) {
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+    return;
+  }
 
   await runTaskWithState(ctx, "draft_generation", () =>
     runDraftGenerationForGrade(ctx),
@@ -284,11 +349,12 @@ export async function executeGradePhase8(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  await runTaskWithState(ctx, "draft_analysis", () =>
-    runDraftAnalysisForGrade(ctx),
-  );
-
-  // Grade pipeline 최종 상태 판정
+  if (!skipIfPrereqFailed(ctx, "draft_analysis")) {
+    await runTaskWithState(ctx, "draft_analysis", () =>
+      runDraftAnalysisForGrade(ctx),
+    );
+  }
+  // 스킵이든 실행이든 최종 상태 판정은 항상 수행
   const allCompleted = GRADE_PIPELINE_TASK_KEYS.every(
     (k) => ctx.tasks[k] === "completed",
   );

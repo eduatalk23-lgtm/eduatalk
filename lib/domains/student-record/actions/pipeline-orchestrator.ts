@@ -176,10 +176,10 @@ export async function runSynthesisPipeline(
     const { userId } = await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // grade 파이프라인이 모두 completed인지 확인
+    // grade 파이프라인이 모두 completed인지 확인 (개별 태스크 레벨까지 검증)
     const { data: gradePipelines, error: fetchErr } = await supabase
       .from("student_record_analysis_pipelines")
-      .select("id, status, grade")
+      .select("id, status, grade, tasks")
       .eq("student_id", studentId)
       .eq("pipeline_type", "grade")
       .order("created_at", { ascending: false });
@@ -191,6 +191,20 @@ export async function runSynthesisPipeline(
     if (!allCompleted) {
       return createErrorResponse(
         "모든 학년 파이프라인이 완료된 후 종합 파이프라인을 실행할 수 있습니다",
+      );
+    }
+
+    // 핵심 태스크(P1~P3 역량분석)가 실제 completed인지 검증
+    const CORE_TASKS: GradePipelineTaskKey[] = ["competency_setek", "competency_changche", "competency_haengteuk"];
+    const failedGrades: number[] = [];
+    for (const p of grades) {
+      const tasks = (p.tasks ?? {}) as Record<string, string>;
+      const hasFailedCore = CORE_TASKS.some((k) => tasks[k] === "failed");
+      if (hasFailedCore) failedGrades.push(p.grade as number);
+    }
+    if (failedGrades.length > 0) {
+      return createErrorResponse(
+        `${failedGrades.join(", ")}학년의 역량 분석 태스크가 실패했습니다. 해당 학년을 재실행한 후 시도해주세요.`,
       );
     }
 
@@ -230,6 +244,9 @@ export async function runSynthesisPipeline(
       .single();
 
     if (insertError || !pipeline) {
+      if (insertError?.code === "23505") {
+        return createErrorResponse("이미 실행 중인 종합 파이프라인이 있습니다. 완료 후 다시 시도해주세요.");
+      }
       throw insertError ?? new Error("synthesis 파이프라인 생성 실패");
     }
 
@@ -358,6 +375,10 @@ export async function runGradeAwarePipeline(
         .single();
 
       if (insertError || !pipeline) {
+        // unique partial index 위반 = 동일 학생+학년에 이미 running/pending 파이프라인 존재
+        if (insertError?.code === "23505") {
+          return createErrorResponse("이미 실행 중인 파이프라인이 있습니다. 완료 후 다시 시도해주세요.");
+        }
         throw insertError ?? new Error(`학년 ${grade} 파이프라인 생성 실패`);
       }
 
@@ -553,7 +574,7 @@ export async function rerunGradePipelineTasks(
       .update({ status: "running", tasks, completed_at: null })
       .eq("id", pipelineId);
 
-    // competency 계열 태스크 재실행 시 analysis_cache 무효화 → LLM 강제 재호출
+    // competency 계열 태스크 재실행 시 analysis_cache + 파생 데이터 무효화
     const GRADE_COMPETENCY_TASKS: GradePipelineTaskKey[] = [
       "competency_setek",
       "competency_changche",
@@ -561,10 +582,22 @@ export async function rerunGradePipelineTasks(
     ];
     const hasCompetencyReset = GRADE_COMPETENCY_TASKS.some((k) => toReset.has(k));
     if (hasCompetencyReset) {
-      await competencyRepo.deleteAnalysisCacheByStudentId(
-        pipeline.student_id as string,
-        pipeline.tenant_id as string,
-      );
+      const pipelineGrade = pipeline.grade as number;
+      await Promise.all([
+        // LLM 캐시 삭제 → 강제 재호출
+        competencyRepo.deleteAnalysisCacheByStudentId(
+          pipeline.student_id as string,
+          pipeline.tenant_id as string,
+        ),
+        // 파생 데이터 삭제 → 이전 scores/tags/quality 잔류 방지
+        ...(pipelineGrade != null
+          ? [competencyRepo.deleteAnalysisResultsByGrade(
+              pipeline.student_id as string,
+              pipeline.tenant_id as string,
+              pipelineGrade,
+            )]
+          : []),
+      ]);
     }
 
     // 해당 학생의 synthesis 파이프라인이 있으면 전체 pending으로 리셋

@@ -16,6 +16,8 @@ import type { PersistedEdge } from "./edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
 import * as diagnosisRepo from "./diagnosis-repository";
 
+const LOG_CTX = { domain: "student-record", action: "pipeline-guide" };
+
 // ============================================
 // 7. 세특 방향 가이드
 // ============================================

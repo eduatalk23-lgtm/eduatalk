@@ -9,6 +9,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { withRetry } from "../retry";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import {
@@ -170,14 +171,17 @@ export async function generateAiRoadmap(
 
     // LLM 호출
     const userPrompt = buildUserPrompt(input);
-    const result = await generateTextWithRateLimit({
-      system: ROADMAP_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "standard",
-      temperature: 0.4,
-      maxTokens: 8192,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: ROADMAP_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "standard",
+        temperature: 0.4,
+        maxTokens: 8192,
+        responseFormat: "json",
+      }),
+      { label: "generateAiRoadmap" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };
