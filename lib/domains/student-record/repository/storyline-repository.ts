@@ -124,3 +124,65 @@ export async function deleteStorylineLinkById(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw error;
 }
+
+// ============================================
+// 트랜잭션 RPC (원자적 연산)
+// ============================================
+
+/**
+ * AI 스토리라인 일괄 삭제 RPC (트랜잭션)
+ * [AI] 접두사 스토리라인 + 연관 링크를 단일 트랜잭션으로 삭제.
+ * storyline_links는 ON DELETE CASCADE로 자동 삭제.
+ * Returns: 삭제된 스토리라인 수
+ */
+export async function deleteAiStorylinesByStudent(
+  studentId: string,
+  tenantId: string,
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_ai_storylines_by_student", {
+    p_student_id: studentId,
+    p_tenant_id: tenantId,
+  });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+
+/**
+ * AI 스토리라인 1건 + 링크 N건 삽입 RPC (트랜잭션)
+ * 스토리라인 삽입과 링크 삽입을 단일 트랜잭션으로 보장.
+ * Returns: 생성된 스토리라인 ID
+ */
+export async function createAiStorylineWithLinks(
+  tenantId: string,
+  studentId: string,
+  storyline: {
+    title: string;
+    keywords: string[];
+    narrative: string | null;
+    career_field: string | null;
+    grade_1_theme: string | null;
+    grade_2_theme: string | null;
+    grade_3_theme: string | null;
+    strength: string;
+    sort_order: number;
+  },
+  links: Array<{
+    record_type: string;
+    record_id: string;
+    grade: number;
+    connection_note: string;
+    sort_order: number;
+  }>,
+): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_ai_storyline_with_links", {
+    p_tenant_id: tenantId,
+    p_student_id: studentId,
+    p_storyline: JSON.stringify(storyline),
+    p_links: JSON.stringify(links),
+  });
+  if (error) throw error;
+  if (!data) throw new Error("스토리라인 RPC 결과가 비어있습니다.");
+  return data as string;
+}

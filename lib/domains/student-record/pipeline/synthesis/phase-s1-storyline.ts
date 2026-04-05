@@ -112,10 +112,10 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     return "스토리라인 연결 감지되지 않음";
   }
 
-  // 기존 AI 스토리라인 삭제 (재실행 시 중복 방지) — 병렬
+  // 기존 AI 스토리라인 + 연관 링크를 트랜잭션으로 일괄 삭제 (재실행 시 중복 방지)
+  // sort_order 계산용으로 수동 스토리라인 조회는 유지
   const existingStorylines = await repository.findStorylinesByStudent(studentId, tenantId);
-  const aiStorylines = existingStorylines.filter((s) => s.title.startsWith("[AI]"));
-  await Promise.allSettled(aiStorylines.map((s) => repository.deleteStorylineById(s.id)));
+  await repository.deleteAiStorylinesByStudent(studentId, tenantId);
 
   // sort_order 계산 (수동 스토리라인 뒤에 배치)
   const manualStorylines = existingStorylines.filter((s) => !s.title.startsWith("[AI]"));
@@ -123,26 +123,13 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     ? Math.max(...manualStorylines.map((s) => s.sort_order)) + 1
     : 0;
 
-  // 스토리라인 삽입+링크 병렬 (각 단위 내부는 순차)
+  // 스토리라인 삽입+링크를 RPC 트랜잭션으로 (부분 실패 시 고아 레코드 방지)
   let savedCount = 0;
-  await Promise.allSettled(suggestedStorylines.map(async (sl, i) => {
+  for (let i = 0; i < suggestedStorylines.length; i++) {
+    const sl = suggestedStorylines[i];
     try {
-      const storylineId = await repository.insertStoryline({
-        tenant_id: tenantId,
-        student_id: studentId,
-        title: `[AI] ${sl.title}`,
-        keywords: sl.keywords,
-        narrative: sl.narrative || null,
-        career_field: sl.careerField || null,
-        grade_1_theme: sl.grade1Theme || null,
-        grade_2_theme: sl.grade2Theme || null,
-        grade_3_theme: sl.grade3Theme || null,
-        strength: "moderate",
-        sort_order: baseSortOrder + i,
-      });
-
       // 연결된 레코드 링크 수집
-      const linkEntries: Array<{ recordType: string; recordId: string; grade: number; note: string; sortOrder: number }> = [];
+      const linkEntries: Array<{ record_type: string; record_id: string; grade: number; connection_note: string; sort_order: number }> = [];
       const linkedIds = new Set<string>();
       for (const connIdx of sl.connectionIndices) {
         const conn = connections[connIdx];
@@ -152,27 +139,37 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
           if (!rec || linkedIds.has(rec.id)) continue;
           linkedIds.add(rec.id);
           linkEntries.push({
-            recordType: rec.type, recordId: rec.id,
-            grade: rec.grade, note: conn.reasoning, sortOrder: linkEntries.length,
+            record_type: rec.type,
+            record_id: rec.id,
+            grade: rec.grade,
+            connection_note: conn.reasoning,
+            sort_order: linkEntries.length,
           });
         }
       }
-      // 링크 병렬 삽입
-      await Promise.allSettled(linkEntries.map((le) =>
-        repository.insertStorylineLink({
-          storyline_id: storylineId,
-          record_type: le.recordType,
-          record_id: le.recordId,
-          grade: le.grade,
-          connection_note: le.note,
-          sort_order: le.sortOrder,
-        }),
-      ));
+
+      // 스토리라인 + 링크 단일 트랜잭션 삽입
+      await repository.createAiStorylineWithLinks(
+        tenantId,
+        studentId,
+        {
+          title: `[AI] ${sl.title}`,
+          keywords: sl.keywords,
+          narrative: sl.narrative || null,
+          career_field: sl.careerField || null,
+          grade_1_theme: sl.grade1Theme || null,
+          grade_2_theme: sl.grade2Theme || null,
+          grade_3_theme: sl.grade3Theme || null,
+          strength: "moderate",
+          sort_order: baseSortOrder + i,
+        },
+        linkEntries,
+      );
       savedCount++;
     } catch (err) {
       logActionError({ ...LOG_CTX, action: "pipeline.storyline" }, err, { title: sl.title });
     }
-  }));
+  }
 
   const preview = `${savedCount}건 스토리라인 생성 (${connections.length}건 연결)`;
   // 커버리지 경고

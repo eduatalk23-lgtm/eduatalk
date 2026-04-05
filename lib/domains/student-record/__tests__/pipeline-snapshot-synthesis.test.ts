@@ -35,9 +35,8 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 
 vi.mock("../repository", () => ({
   findStorylinesByStudent: vi.fn(),
-  deleteStorylineById: vi.fn().mockResolvedValue(undefined),
-  insertStoryline: vi.fn().mockResolvedValue("new-storyline-id"),
-  insertStorylineLink: vi.fn().mockResolvedValue(undefined),
+  deleteAiStorylinesByStudent: vi.fn().mockResolvedValue(0),
+  createAiStorylineWithLinks: vi.fn().mockResolvedValue("new-storyline-id"),
   findAllRoadmapItemsByStudent: vi.fn(),
   deleteRoadmapItemById: vi.fn().mockResolvedValue(undefined),
   insertRoadmapItem: vi.fn().mockResolvedValue(undefined),
