@@ -38,8 +38,8 @@ export async function fetchDiagnosisTabData(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // 병렬 조회: 역량(AI+컨설턴트)/태그/진단(AI+컨설턴트)/전략 + 학생정보 + 이수과목
-    const [aiScores, consultantScores, activityTags, diagnosisPair, strategies, studentResult, scoresResult] =
+    // 병렬 조회: 역량(AI+컨설턴트)/태그/진단(AI+컨설턴트)/전략 + 학생정보 + 이수과목 + 파이프라인
+    const [aiScores, consultantScores, activityTags, diagnosisPair, strategies, studentResult, scoresResult, pipelineResult] =
       await Promise.all([
         competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai"),
         competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "manual"),
@@ -51,7 +51,21 @@ export async function fetchDiagnosisTabData(
           .select("subject:subject_id(name)")
           .eq("student_id", studentId)
           .returns<Array<{ subject: { name: string } | null }>>(),
+        // 최신 completed synthesis 파이프라인 조회
+        supabase
+          .from("student_record_analysis_pipelines")
+          .select("task_results")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId)
+          .eq("pipeline_type", "synthesis")
+          .eq("status", "completed")
+          .order("completed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
+
+    const fourAxisDiagnosis =
+      (pipelineResult.data?.task_results as Record<string, unknown> | null)?._fourAxisDiagnosis ?? null;
 
     const targetMajor = studentResult.data?.target_major ?? null;
     const schoolName = studentResult.data?.school_name ?? null;
@@ -131,6 +145,7 @@ export async function fetchDiagnosisTabData(
       strategies, courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
       targetSubClassificationId, targetSubClassificationName,
       qualityScores,
+      fourAxisDiagnosis: fourAxisDiagnosis as import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null,
     };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchDiagnosisTabData" }, error, { studentId, schoolYear });

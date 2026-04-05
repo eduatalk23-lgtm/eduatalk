@@ -314,6 +314,8 @@ export interface DiagnosisTabData {
     issues: string[];
     feedback: string | null;
   }>;
+  /** 4축 합격 진단 프로필 (파이프라인 synthesis 완료 시 존재) */
+  fourAxisDiagnosis?: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null;
 }
 
 /** 교과 이수 적합도 결과 */

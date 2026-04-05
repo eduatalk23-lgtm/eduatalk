@@ -66,6 +66,7 @@ import { CareerSetupBanner } from "./CareerSetupBanner";
 const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then((m) => ({ default: m.ExplorationGuidePanel })));
 const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
 import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
+import { FourAxisDiagnosisCard } from "./FourAxisDiagnosisCard";
 
 const CoursePlanEditor = lazy(() => import("./CoursePlanEditor"));
 
@@ -147,6 +148,7 @@ const STAGES: StageConfig[] = [
     sections: [
       { id: "sec-diagnosis-analysis", label: "역량 분석" },
       { id: "sec-diagnosis-crossref", label: "교차 분석" },
+      { id: "sec-diagnosis-four-axis", label: "4축 진단" },
       { id: "sec-diagnosis-overall", label: "종합진단" },
       { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
       { id: "sec-warnings", label: "경보" },
@@ -1523,6 +1525,13 @@ export function StudentRecordClient({
               </div>
             )}
           </StrategySection>
+
+          {/* 4축 합격 진단 프로필 (파이프라인 synthesis 완료 시만 표시) */}
+          {!diagnosisLoading && diagnosisData?.fourAxisDiagnosis && (
+            <StrategySection id="sec-diagnosis-four-axis" title="4축 합격 진단">
+              <FourAxisDiagnosisCard diagnosis={diagnosisData.fourAxisDiagnosis} />
+            </StrategySection>
+          )}
 
           <StrategySection id="sec-diagnosis-overall" title="종합진단">
             {diagnosisLoading ? <SectionSkeleton /> : (
