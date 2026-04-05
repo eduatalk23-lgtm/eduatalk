@@ -14,6 +14,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "../ai-client";
+import { withRetry } from "../retry";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCharLimit } from "@/lib/domains/student-record/constants";
@@ -114,13 +115,16 @@ async function _executeChangcheDraftGeneration(
 
     userPrompt += `\n위 정보를 바탕으로 NEIS ${charLimit}자 이내의 ${activityLabel} 특기사항 초안을 작성해주세요.`;
 
-    const result = await generateTextWithRateLimit({
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "standard",
-      temperature: 0.5,
-      maxTokens: 2000,
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "standard",
+        temperature: 0.5,
+        maxTokens: 2000,
+      }),
+      { label: "generateChangcheDraft" },
+    );
 
     if (!result.content) {
       await adminClient

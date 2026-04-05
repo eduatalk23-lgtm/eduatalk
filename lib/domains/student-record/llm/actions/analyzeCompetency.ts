@@ -8,6 +8,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "../ai-client";
+import { withRetry } from "../retry";
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "../../constants";
 import type { CompetencyItemCode, CompetencyGrade } from "../../types";
 import { extractJson } from "../extractJson";
@@ -94,14 +95,17 @@ export async function analyzeCompetencyFromRecords(
 
     const userPrompt = `## 분석 대상 학생의 생기부 기록 (${records.length}건)\n\n${recordText}\n\n위 생기부 전체 기록을 종합 분석하여 10개 역량 항목의 등급을 JSON으로 제안해주세요.`;
 
-    const result = await generateTextWithRateLimit({
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
-      temperature: 0.3,
-      maxTokens: 4000,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "fast",
+        temperature: 0.3,
+        maxTokens: 4000,
+        responseFormat: "json",
+      }),
+      { label: "analyzeCompetency" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };

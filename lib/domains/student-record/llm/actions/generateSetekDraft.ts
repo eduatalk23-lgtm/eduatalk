@@ -14,6 +14,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "../ai-client";
+import { withRetry } from "../retry";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
@@ -104,13 +105,16 @@ async function _executeSetekDraftGeneration(
 
     userPrompt += `\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
 
-    const result = await generateTextWithRateLimit({
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "standard",
-      temperature: 0.5,
-      maxTokens: 2000,
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "standard",
+        temperature: 0.5,
+        maxTokens: 2000,
+      }),
+      { label: "generateSetekDraft" },
+    );
 
     if (!result.content) {
       await adminClient

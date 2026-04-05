@@ -14,6 +14,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "../ai-client";
+import { withRetry } from "../retry";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCharLimit } from "@/lib/domains/student-record/constants";
@@ -104,13 +105,16 @@ async function _executeHaengteukDraftGeneration(
 
     userPrompt += `\n위 정보를 바탕으로 담임교사 관점의 NEIS ${charLimit}자 이내 행동특성 및 종합의견 초안을 작성해주세요. 7개 평가항목의 내용을 자연스러운 서술문으로 녹여야 합니다.`;
 
-    const result = await generateTextWithRateLimit({
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "standard",
-      temperature: 0.5,
-      maxTokens: 2000,
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "standard",
+        temperature: 0.5,
+        maxTokens: 2000,
+      }),
+      { label: "generateHaengteukDraft" },
+    );
 
     if (!result.content) {
       await adminClient

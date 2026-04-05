@@ -859,14 +859,17 @@ ${plansText}${courseAdequacyText}${storylineText}
 - recommendedMajors: 목표 전공과 연관된 인접 전공 1~3개
 - JSON으로만 응답합니다`;
 
-  const result = await generateTextWithRateLimit({
-    system: `당신은 입시 컨설턴트 내부 분석 도우미입니다. 학생의 수강 계획을 분석하여 예비 진단을 생성합니다. JSON으로만 응답합니다.`,
-    messages: [{ role: "user", content: userPrompt }],
-    modelTier: "standard",
-    temperature: 0.3,
-    maxTokens: 4096,
-    responseFormat: "json",
-  });
+  const result = await withRetry(
+    () => generateTextWithRateLimit({
+      system: `당신은 입시 컨설턴트 내부 분석 도우미입니다. 학생의 수강 계획을 분석하여 예비 진단을 생성합니다. JSON으로만 응답합니다.`,
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier: "standard",
+      temperature: 0.3,
+      maxTokens: 4096,
+      responseFormat: "json",
+    }),
+    { label: "generateProspectiveDiagnosis" },
+  );
 
   if (!result.content) {
     return { success: false, error: "AI 응답이 비어있습니다." };

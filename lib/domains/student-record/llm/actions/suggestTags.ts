@@ -8,6 +8,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "../ai-client";
+import { withRetry } from "../retry";
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from "../prompts/competencyTagging";
 import type { SuggestTagsInput, SuggestTagsResult } from "../types";
 
@@ -25,14 +26,17 @@ export async function suggestCompetencyTags(
 
     const userPrompt = buildUserPrompt(input);
 
-    const result = await generateTextWithRateLimit({
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
-      temperature: 0.3,
-      maxTokens: 2000,
-      responseFormat: "json",
-    });
+    const result = await withRetry(
+      () => generateTextWithRateLimit({
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "fast",
+        temperature: 0.3,
+        maxTokens: 2000,
+        responseFormat: "json",
+      }),
+      { label: "suggestTags" },
+    );
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." };
