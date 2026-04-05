@@ -193,7 +193,7 @@ export function gradeAwarePipelineStatusQueryOptions(studentId: string) {
     queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
     queryFn: async () => {
       const { fetchGradeAwarePipelineStatus } = await import(
-        "@/lib/domains/student-record/actions/pipeline"
+        "@/lib/domains/student-record/actions/pipeline-orchestrator"
       );
       const result = await fetchGradeAwarePipelineStatus(studentId);
       if (!result.success) throw new Error(result.error);

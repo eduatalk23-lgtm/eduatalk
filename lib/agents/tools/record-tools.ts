@@ -38,8 +38,8 @@ import { insertStrategy } from "@/lib/domains/student-record/diagnosis-repositor
 import {
   fetchPipelineStatus,
   rerunPipelineTasks,
-  runGradeAwarePipeline,
 } from "@/lib/domains/student-record/actions/pipeline";
+import { runGradeAwarePipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator";
 import { calculateCourseAdequacy } from "@/lib/domains/student-record/course-adequacy";
 import { generateRecommendationsAction } from "@/lib/domains/student-record/actions/coursePlan";
 import {

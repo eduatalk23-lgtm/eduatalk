@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { runSynthesisPipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { runSynthesisPipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator";
 
 export const maxDuration = 300;
 

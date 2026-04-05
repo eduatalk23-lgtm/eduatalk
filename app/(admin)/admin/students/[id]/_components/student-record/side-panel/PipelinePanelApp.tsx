@@ -351,7 +351,7 @@ export function PipelinePanelApp({ studentId, tenantId, hasTargetMajor, onReview
     try {
       let pid = gradeStatus?.gradePipelines[grade]?.pipelineId;
       if (!pid) {
-        const { runGradePipeline } = await import("@/lib/domains/student-record/actions/pipeline");
+        const { runGradePipeline } = await import("@/lib/domains/student-record/actions/pipeline-orchestrator");
         const r = await runGradePipeline(studentId, tenantId, grade);
         if (!r.success || !r.data) throw new Error(r.error ?? "생성 실패");
         pid = r.data.pipelineId;

@@ -21,7 +21,7 @@ vi.mock("@/lib/auth/guards", () => ({
   requireAdminOrConsultant: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/actions/pipeline", () => ({
+vi.mock("@/lib/domains/student-record/actions/pipeline-orchestrator", () => ({
   runGradeAwarePipeline: vi.fn(),
 }));
 
@@ -51,7 +51,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { runGradeAwarePipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { runGradeAwarePipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator";
 import { loadPipelineContext } from "@/lib/domains/student-record/pipeline-executor";
 import {
   executeGradePhase1,

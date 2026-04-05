@@ -21,7 +21,7 @@ vi.mock("@/lib/auth/guards", () => ({
   requireAdminOrConsultant: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/actions/pipeline", () => ({
+vi.mock("@/lib/domains/student-record/actions/pipeline-orchestrator", () => ({
   runSynthesisPipeline: vi.fn(),
 }));
 
@@ -47,7 +47,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { runSynthesisPipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { runSynthesisPipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator";
 import { loadPipelineContext } from "@/lib/domains/student-record/pipeline-executor";
 import {
   executeSynthesisPhase1,
