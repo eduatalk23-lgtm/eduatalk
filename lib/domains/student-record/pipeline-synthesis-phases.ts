@@ -33,6 +33,64 @@ import {
 } from "./pipeline-task-runners";
 
 // ============================================
+// 헬퍼: Executive Summary 자동 생성 (best-effort)
+// ============================================
+
+async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<void> {
+  const { studentId, tenantId } = ctx;
+
+  // 1. ctx.results에서 캐시된 분석 결과 추출
+  const diagResult = ctx.results["ai_diagnosis"] as Record<string, unknown> | undefined;
+  const stratResult = ctx.results["ai_strategy"] as Record<string, unknown> | undefined;
+
+  const timeSeriesAnalysis = diagResult?._timeSeriesAnalysis as
+    | import("./eval/timeseries-analyzer").TimeSeriesAnalysis
+    | undefined;
+  const universityMatch = stratResult?._universityMatch as
+    | import("./eval/university-profile-matcher").UniversityMatchAnalysis
+    | undefined;
+
+  // 2. 현재 학년도 역량 점수 조회 (ctx.supabase 직접 사용)
+  const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+  const { COMPETENCY_ITEMS } = await import("./constants");
+  const { competencyGradeToScore } = await import("./pipeline/synthesis/helpers");
+
+  const currentSchoolYear = calculateSchoolYear();
+  const { data: scoreRows } = await ctx.supabase
+    .from("student_record_competency_scores")
+    .select("competency_item, grade_value")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("school_year", currentSchoolYear)
+    .eq("source", "ai");
+
+  const competencySnapshots = ((scoreRows ?? []) as Array<{ competency_item: string; grade_value: string }>)
+    .map((row) => {
+      const itemDef = COMPETENCY_ITEMS.find((i) => i.code === row.competency_item);
+      return {
+        competencyId: row.competency_item,
+        competencyName: itemDef?.label ?? row.competency_item,
+        score: competencyGradeToScore(row.grade_value),
+      };
+    });
+
+  // 역량 스냅샷이 없으면 생성 의미 없음
+  if (competencySnapshots.length === 0) return;
+
+  // 3. Executive Summary 생성
+  const { generateExecutiveSummary } = await import("./eval/executive-summary");
+  const summary = generateExecutiveSummary({
+    studentId,
+    competencySnapshots,
+    ...(timeSeriesAnalysis ? { timeSeriesAnalysis } : {}),
+    ...(universityMatch ? { universityMatch } : {}),
+  });
+
+  // 4. ctx.results에 저장 (DB 저장은 향후 확장 시 추가)
+  ctx.results["_executiveSummary"] = summary;
+}
+
+// ============================================
 // 헬퍼: DB에서 영속화된 edges 로드
 // ============================================
 
@@ -201,6 +259,15 @@ export async function executeSynthesisPhase6(
   const allCompleted = SYNTHESIS_PIPELINE_TASK_KEYS.every(
     (k) => ctx.tasks[k] === "completed",
   );
+
+  // Executive Summary 자동 생성 (best-effort — 실패해도 파이프라인 완료 상태에 영향 없음)
+  if (allCompleted) {
+    try {
+      await generateAndCacheExecutiveSummary(ctx);
+    } catch {
+      // 실패 무시 — 파이프라인 완료 상태 유지
+    }
+  }
 
   await updatePipelineState(
     ctx.supabase as SupabaseAdminClient,

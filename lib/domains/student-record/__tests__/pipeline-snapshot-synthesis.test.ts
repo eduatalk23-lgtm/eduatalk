@@ -573,7 +573,7 @@ describe("S5 ai_strategy — runAiStrategy", () => {
     const result = await runAiStrategy(ctx as never);
 
     expect(suggestMock).toHaveBeenCalledOnce();
-    expect(result).toBe("2건 보완전략 제안됨");
+    expect(result).toMatchObject({ preview: "2건 보완전략 제안됨", result: { savedCount: 2 } });
 
     // insertStrategy 첫 번째 호출 구조 스냅샷
     const firstCall = (diagnosisRepo.insertStrategy as MockedFunction<typeof diagnosisRepo.insertStrategy>)

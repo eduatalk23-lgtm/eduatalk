@@ -132,6 +132,7 @@ export async function runAiDiagnosis(
   }
 
   // eval 시계열 분석 주입 (실패해도 진단 생성 계속)
+  let savedTsAnalysis: import("../../eval/timeseries-analyzer").TimeSeriesAnalysis | undefined;
   if (hasNeisData) {
     try {
       const allYearScores = await fetchAllYearCompetencyScores(supabase, studentId, tenantId);
@@ -146,6 +147,7 @@ export async function runAiDiagnosis(
         }));
         const tsAnalysis = analyzeTimeSeries(studentId, tsPoints);
         if (tsAnalysis.trends.length > 0) {
+          savedTsAnalysis = tsAnalysis;
           const tsSection = buildTimeseriesPromptSection(tsAnalysis);
           diagQualityPatternSection = diagQualityPatternSection
             ? `${diagQualityPatternSection}\n${tsSection}`
@@ -252,6 +254,8 @@ export async function runAiDiagnosis(
       weaknessCount: Array.isArray(result.data.weaknesses) ? result.data.weaknesses.length : 0,
       improvementCount: Array.isArray(result.data.improvements) ? (result.data.improvements as unknown[]).length : 0,
       coverageWarnings,
+      // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
+      ...(savedTsAnalysis ? { _timeSeriesAnalysis: savedTsAnalysis } : {}),
     },
   };
 }

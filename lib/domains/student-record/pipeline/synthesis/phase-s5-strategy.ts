@@ -151,6 +151,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
 
   // eval 대학 계열 적합도 분석 주입 (실패해도 전략 생성 계속)
   let universityMatchContext: string | undefined;
+  let savedMatchAnalysis: import("../../eval/university-profile-matcher").UniversityMatchAnalysis | undefined;
   try {
     const allYearScores = await fetchAllYearCompetencyScores(
       ctx.supabase, studentId, tenantId,
@@ -167,6 +168,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
       }
       const matchAnalysis = matchUniversityProfiles(studentId, scoreMap);
       if (matchAnalysis.matches.length > 0) {
+        savedMatchAnalysis = matchAnalysis;
         universityMatchContext = buildUniversityMatchPromptSection(matchAnalysis);
       }
     }
@@ -216,5 +218,12 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   // results는 컨텍스트에서 참조하므로 사용됨을 명시
   void results;
 
-  return `${saved}건 보완전략 제안됨`;
+  return {
+    preview: `${saved}건 보완전략 제안됨`,
+    result: {
+      savedCount: saved,
+      // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
+      ...(savedMatchAnalysis ? { _universityMatch: savedMatchAnalysis } : {}),
+    },
+  };
 }
