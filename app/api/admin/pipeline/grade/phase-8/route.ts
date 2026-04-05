@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { loadPipelineContext } from "@/lib/domains/student-record/pipeline-executor";
+import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/student-record/pipeline-executor";
 import { executeGradePhase8 } from "@/lib/domains/student-record/pipeline-grade-phases";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
     }
 
     const ctx = await loadPipelineContext(pipelineId);
+    const validationError = validatePhasePrerequisites(ctx, 8, "grade");
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 409 });
+    }
 
     if (ctx.targetGrade == null) {
       return NextResponse.json(

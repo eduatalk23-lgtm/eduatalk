@@ -13,6 +13,7 @@ import {
   getCostAnalysis,
   type AggregationOptions,
 } from "@/lib/domains/plan/llm/metrics";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
  * LLM 메트릭스 조회 API (관리자용)
@@ -60,30 +61,105 @@ export async function GET(request: NextRequest) {
 
     const options: AggregationOptions = { period };
 
-    // 뷰에 따른 데이터 수집
+    // DB 소스 사용 가능 여부 확인 (프로덕션 우선)
+    const supabase = createSupabaseAdminClient();
+    const useDb = !!supabase && process.env.NODE_ENV !== "development";
+
     const response: Record<string, unknown> = {
       period,
       generatedAt: new Date().toISOString(),
+      source: useDb ? "database" : "in-memory",
     };
 
-    if (view === "summary" || view === "all") {
-      response.summary = getAggregatedMetrics(options);
-    }
+    if (useDb) {
+      // DB 기반 조회 (프로덕션)
+      const periodMs = { "1h": 3600_000, "6h": 21600_000, "24h": 86400_000, "7d": 604800_000, "30d": 2592000_000 };
+      const since = new Date(Date.now() - (periodMs[period] ?? 86400_000)).toISOString();
 
-    if (view === "sources" || view === "all") {
-      response.bySource = getMetricsBySource(options);
-    }
+      if (view === "summary" || view === "all") {
+        const { data } = await supabase
+          .from("llm_metrics_logs" as never)
+          .select("duration_ms, cost_usd, error_occurred, rec_strategy, cache_hit, input_tokens, output_tokens" as never)
+          .gte("timestamp" as never, since as never);
 
-    if (view === "timeseries" || view === "all") {
-      response.timeseries = getMetricsTimeSeries({ ...options, intervalMinutes });
-    }
+        const rows = (data ?? []) as Array<Record<string, unknown>>;
+        const total = rows.length;
+        const errors = rows.filter((r) => r.error_occurred).length;
+        const durations = rows.map((r) => Number(r.duration_ms) || 0).sort((a, b) => a - b);
+        const p95Idx = Math.floor(total * 0.95);
 
-    if (view === "errors" || view === "all") {
-      response.errors = getErrorStats(options);
-    }
+        response.summary = {
+          totalRequests: total,
+          successCount: total - errors,
+          failureCount: errors,
+          successRate: total > 0 ? Math.round(((total - errors) / total) * 100) : 0,
+          avgDurationMs: total > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / total) : 0,
+          p95DurationMs: durations[p95Idx] ?? 0,
+          maxDurationMs: durations[total - 1] ?? 0,
+          totalInputTokens: rows.reduce((s, r) => s + (Number(r.input_tokens) || 0), 0),
+          totalOutputTokens: rows.reduce((s, r) => s + (Number(r.output_tokens) || 0), 0),
+          totalCostUSD: rows.reduce((s, r) => s + (Number(r.cost_usd) || 0), 0),
+          cacheHits: rows.filter((r) => r.cache_hit).length,
+          cacheHitRate: total > 0 ? Math.round((rows.filter((r) => r.cache_hit).length / total) * 100) : 0,
+        };
+      }
 
-    if (view === "costs" || view === "all") {
-      response.costs = getCostAnalysis(options);
+      if (view === "errors" || view === "all") {
+        const { data } = await supabase
+          .from("llm_metrics_logs" as never)
+          .select("error_type, error_message, error_stage, source, timestamp" as never)
+          .gte("timestamp" as never, since as never)
+          .eq("error_occurred" as never, true as never)
+          .order("timestamp" as never, { ascending: false } as never)
+          .limit(50);
+
+        response.errors = data ?? [];
+      }
+
+      if (view === "costs" || view === "all") {
+        const { data } = await supabase
+          .from("llm_metrics_logs" as never)
+          .select("source, model_tier, provider, cost_usd, input_tokens, output_tokens" as never)
+          .gte("timestamp" as never, since as never);
+
+        const rows = (data ?? []) as Array<Record<string, unknown>>;
+        const bySource: Record<string, { count: number; totalCost: number }> = {};
+        for (const r of rows) {
+          const src = String(r.source);
+          if (!bySource[src]) bySource[src] = { count: 0, totalCost: 0 };
+          bySource[src].count++;
+          bySource[src].totalCost += Number(r.cost_usd) || 0;
+        }
+        response.costs = {
+          totalCostUSD: rows.reduce((s, r) => s + (Number(r.cost_usd) || 0), 0),
+          bySource,
+        };
+      }
+
+      // sources, timeseries는 인메모리 폴백 (DB 집계 복잡도 높음)
+      if (view === "sources" || view === "all") {
+        response.bySource = getMetricsBySource(options);
+      }
+      if (view === "timeseries" || view === "all") {
+        response.timeseries = getMetricsTimeSeries({ ...options, intervalMinutes });
+      }
+    } else {
+      // 인메모리 기반 (개발 환경)
+      if (view === "summary" || view === "all") {
+        response.summary = getAggregatedMetrics(options);
+      }
+      if (view === "sources" || view === "all") {
+        response.bySource = getMetricsBySource(options);
+      }
+      if (view === "timeseries" || view === "all") {
+        response.timeseries = getMetricsTimeSeries({ ...options, intervalMinutes });
+      }
+      if (view === "errors" || view === "all") {
+        response.errors = getErrorStats(options);
+      }
+      if (view === "costs" || view === "all") {
+        response.costs = getCostAnalysis(options);
+      }
     }
 
     return apiSuccess(response);

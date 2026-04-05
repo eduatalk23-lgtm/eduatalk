@@ -1,0 +1,29 @@
+name: Pipeline Timeout Check
+
+on:
+  schedule:
+    # 6시간마다 (KST 0/6/12/18시)
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  timeout-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Trigger pipeline timeout check
+        run: |
+          response=$(curl -sf -w "\n%{http_code}" -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.DEPLOYMENT_URL }}/api/cron/pipeline-timeout")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | head -n -1)
+
+          echo "HTTP $http_code"
+          echo "$body"
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Pipeline timeout check failed with HTTP $http_code"
+            exit 1
+          fi

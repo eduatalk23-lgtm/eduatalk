@@ -103,6 +103,23 @@ export const GRADE_TASK_DEPENDENTS: Partial<Record<GradePipelineTaskKey, GradePi
 };
 
 // ============================================
+// Grade 선행 필수 태스크 (GRADE_TASK_DEPENDENTS의 역)
+// ============================================
+
+/**
+ * 태스크별 선행 필수 태스크 목록.
+ * 선행 태스크 중 하나라도 failed이면 해당 태스크를 자동 스킵한다.
+ */
+export const GRADE_TASK_PREREQUISITES: Partial<Record<GradePipelineTaskKey, GradePipelineTaskKey[]>> = {
+  slot_generation: ["competency_setek", "competency_changche", "competency_haengteuk"],
+  setek_guide: ["competency_setek"],
+  changche_guide: ["competency_setek", "competency_changche", "setek_guide"],
+  haengteuk_guide: ["competency_setek", "competency_changche", "competency_haengteuk", "setek_guide", "changche_guide"],
+  draft_generation: ["setek_guide", "changche_guide", "haengteuk_guide"],
+  draft_analysis: ["haengteuk_guide", "draft_generation"],
+};
+
+// ============================================
 // Synthesis 의존 관계 (Synthesis Pipeline 내부)
 // ============================================
 
@@ -436,3 +453,27 @@ export function computeCascadeResetKeys(taskKeys: PipelineTaskKey[]): Set<Pipeli
   }
   return toReset;
 }
+
+// ============================================
+// Phase → Task Key 매핑 (Phase 순서 검증용)
+// ============================================
+
+export const GRADE_PHASE_TASKS: Record<number, GradePipelineTaskKey[]> = {
+  1: ["competency_setek"],
+  2: ["competency_changche"],
+  3: ["competency_haengteuk"],
+  4: ["setek_guide", "slot_generation"],
+  5: ["changche_guide"],
+  6: ["haengteuk_guide"],
+  7: ["draft_generation"],
+  8: ["draft_analysis"],
+};
+
+export const SYNTHESIS_PHASE_TASKS: Record<number, SynthesisPipelineTaskKey[]> = {
+  1: ["storyline_generation"],
+  2: ["edge_computation", "guide_matching"],
+  3: ["ai_diagnosis", "course_recommendation"],
+  4: ["bypass_analysis"],
+  5: ["activity_summary", "ai_strategy"],
+  6: ["interview_generation", "roadmap_generation"],
+};

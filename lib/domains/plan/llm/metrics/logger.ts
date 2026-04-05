@@ -19,6 +19,7 @@ import type {
   RecommendationResultMetrics,
 } from "./types";
 import { getMetricsStore } from "./store";
+import { persistMetrics } from "./repository";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -190,6 +191,8 @@ export class MetricsBuilder {
 export function logLLMMetrics(metrics: LLMRecommendationMetrics): void {
   // 저장소에 저장 (집계용)
   getMetricsStore().add(metrics);
+  // DB에 영속화 (fire-and-forget, 비블로킹)
+  persistMetrics(metrics);
 
   const logEntry = {
     type: "llm_metrics",

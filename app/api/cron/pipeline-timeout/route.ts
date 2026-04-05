@@ -1,11 +1,10 @@
 /**
  * 좀비 파이프라인 타임아웃 처리 Cron Job
  *
- * 실행 조건: 외부 트리거 (Vercel Hobby 플랜 daily cron 제한으로 vercel.json에 미등록)
+ * 실행 조건: GitHub Actions (6시간마다) 또는 수동 트리거
  * 동작:
- *   1. student_record_analysis_pipelines 테이블에서
- *      status = 'running' AND updated_at < now() - 60분 인 행 조회
- *   2. 해당 행의 status → 'timeout', completed_at → 현재 시간으로 업데이트
+ *   1. status = 'running' AND updated_at < now() - 60분 → timeout 처리
+ *   2. status = 'pending' AND updated_at < now() - 30분 → timeout 처리
  *   3. 처리 건수 및 pipelineId 목록 로깅 후 응답 반환
  */
 
@@ -61,62 +60,82 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const sixtyMinutesAgo = new Date(
-      Date.now() - 60 * 60 * 1000
-    ).toISOString();
+    const now = new Date().toISOString();
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
-    // 60분 이상 running 상태인 파이프라인 조회
-    const { data: stuckPipelines, error: selectError } = await supabase
+    // 1) 60분 이상 running 상태인 파이프라인
+    const { data: runningStuck, error: runningError } = await supabase
       .from("student_record_analysis_pipelines")
       .select("id")
       .eq("status", "running")
       .lt("updated_at", sixtyMinutesAgo);
 
-    if (selectError) {
-      console.error("[pipeline-timeout] 조회 오류:", selectError.message);
-      return NextResponse.json(
-        { error: selectError.message },
-        { status: 500 }
-      );
+    if (runningError) {
+      console.error("[pipeline-timeout] running 조회 오류:", runningError.message);
+      return NextResponse.json({ error: runningError.message }, { status: 500 });
     }
 
-    const rows = (stuckPipelines ?? []) as PipelineRow[];
+    // 2) 30분 이상 pending 상태인 파이프라인 (정상이면 즉시 running 전환)
+    const { data: pendingStuck, error: pendingError } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id")
+      .eq("status", "pending")
+      .lt("updated_at", thirtyMinutesAgo);
 
-    if (rows.length === 0) {
-      return NextResponse.json({ processed: 0, pipelineIds: [] });
+    if (pendingError) {
+      console.error("[pipeline-timeout] pending 조회 오류:", pendingError.message);
+      return NextResponse.json({ error: pendingError.message }, { status: 500 });
     }
 
-    const pipelineIds = rows.map((r) => r.id);
-    const now = new Date().toISOString();
+    const runningIds = ((runningStuck ?? []) as PipelineRow[]).map((r) => r.id);
+    const pendingIds = ((pendingStuck ?? []) as PipelineRow[]).map((r) => r.id);
+    const allIds = [...runningIds, ...pendingIds];
+
+    if (allIds.length === 0) {
+      return NextResponse.json({
+        processed: 0,
+        runningTimedOut: 0,
+        pendingTimedOut: 0,
+        pipelineIds: [],
+      });
+    }
 
     // timeout 상태로 일괄 업데이트
     const { error: updateError } = await supabase
       .from("student_record_analysis_pipelines")
       .update({ status: "timeout", completed_at: now })
-      .in("id", pipelineIds);
+      .in("id", allIds);
 
     if (updateError) {
       console.error("[pipeline-timeout] 업데이트 오류:", updateError.message);
-      return NextResponse.json(
-        { error: updateError.message },
-        { status: 500 }
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    if (runningIds.length > 0) {
+      logActionWarn(
+        LOG_CTX,
+        `Running stuck 파이프라인 ${runningIds.length}건 timeout: ${runningIds.join(", ")}`,
+      );
+    }
+    if (pendingIds.length > 0) {
+      logActionWarn(
+        LOG_CTX,
+        `Pending stuck 파이프라인 ${pendingIds.length}건 timeout: ${pendingIds.join(", ")}`,
       );
     }
 
-    logActionWarn(
-      LOG_CTX,
-      `Stuck 파이프라인 ${pipelineIds.length}건 timeout 처리: ${pipelineIds.join(", ")}`
-    );
-
     return NextResponse.json({
-      processed: pipelineIds.length,
-      pipelineIds,
+      processed: allIds.length,
+      runningTimedOut: runningIds.length,
+      pendingTimedOut: pendingIds.length,
+      pipelineIds: allIds,
     });
   } catch (error) {
     console.error("[pipeline-timeout] Error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Pipeline timeout cleanup failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

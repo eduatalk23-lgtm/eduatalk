@@ -15,7 +15,7 @@ import type {
   CachedHaengteuk,
 } from "./pipeline-types";
 import { resolveRecordData, resolveRecordDataForGrade, deriveGradeCategories } from "./pipeline-data-resolver";
-import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS } from "./pipeline-types";
+import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -74,10 +74,14 @@ export async function updatePipelineState(
     update.completed_at = new Date().toISOString();
   }
 
-  await supabase
+  const { error: stateErr } = await supabase
     .from("student_record_analysis_pipelines")
     .update(update)
     .eq("id", pipelineId);
+  if (stateErr) {
+    logActionError({ domain: "student-record", action: "pipeline-executor" }, stateErr, { pipelineId, status });
+    throw new Error(`파이프라인 상태 저장 실패 (${status}): ${stateErr.message}`);
+  }
 }
 
 // ============================================
@@ -357,10 +361,11 @@ export async function loadPipelineContext(
     pipelineMode = neisGrades.length > 0 ? "analysis" : "prospective";
 
     // 판단 결과를 DB에 저장 (이후 Phase에서 재판단 방지)
-    await admin
+    const { error: modeErr } = await admin
       .from("student_record_analysis_pipelines")
       .update({ mode: pipelineMode })
       .eq("id", pipelineId);
+    if (modeErr) logActionWarn(LOG_CTX, `pipeline mode 저장 실패: ${modeErr.message}`, { pipelineId, pipelineMode });
 
     logActionWarn(
       LOG_CTX,
@@ -475,4 +480,47 @@ export function getNextSynthesisPhase(tasks: Record<string, string>): number {
   if (tasks.activity_summary !== "completed" || tasks.ai_strategy !== "completed") return 5;
   if (tasks.interview_generation !== "completed" || tasks.roadmap_generation !== "completed") return 6;
   return 0;
+}
+
+// ============================================
+// Phase 순서 검증
+// ============================================
+
+/**
+ * Phase 실행 전 선행 Phase 완료 여부 검증.
+ *
+ * 이전 Phase의 모든 태스크가 completed 또는 failed여야 통과.
+ * - completed: 정상 완료
+ * - failed: skipIfPrereqFailed에 의해 처리됨 (허용)
+ * - pending/running: 이전 Phase 미완료 → 거부
+ *
+ * @returns null이면 통과, 문자열이면 에러 메시지 (409 응답용)
+ */
+export function validatePhasePrerequisites(
+  ctx: PipelineContext,
+  phaseNumber: number,
+  pipelineType: "grade" | "synthesis",
+): string | null {
+  const phaseTasks = pipelineType === "grade"
+    ? GRADE_PHASE_TASKS
+    : SYNTHESIS_PHASE_TASKS;
+
+  for (let p = 1; p < phaseNumber; p++) {
+    const tasks = phaseTasks[p];
+    if (!tasks) continue;
+
+    const incomplete = tasks.filter((taskKey) => {
+      const status = ctx.tasks[taskKey];
+      return status !== "completed" && status !== "failed";
+    });
+
+    if (incomplete.length > 0) {
+      const details = incomplete
+        .map((k) => `${k}=${ctx.tasks[k] || "pending"}`)
+        .join(", ");
+      return `Phase ${phaseNumber} 실행 불가: Phase ${p} 미완료 (${details})`;
+    }
+  }
+
+  return null;
 }
