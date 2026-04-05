@@ -287,7 +287,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
 
     const { runDraftGenerationForGrade } = await import("../pipeline-task-runners-draft");
     await expect(runDraftGenerationForGrade(ctx as never)).rejects.toThrow(
-      "runDraftGenerationForGrade: targetGrade가 설정되지 않았습니다",
+      "targetGrade",
     );
   });
 });

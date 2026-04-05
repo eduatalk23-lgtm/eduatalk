@@ -156,6 +156,7 @@ function makeCtx(
     errors: {},
     pipelineType: "synthesis" as const,
     neisGrades: [1, 2],
+    unifiedInput: { hasAnyDesign: false, grades: {} },
     ...rest,
   };
 }

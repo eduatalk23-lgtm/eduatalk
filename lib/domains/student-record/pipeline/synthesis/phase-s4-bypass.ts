@@ -4,9 +4,10 @@
 
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
 } from "../../pipeline-types";
 import * as diagnosisRepo from "../../diagnosis-repository";
 
@@ -17,6 +18,7 @@ const LOG_CTX = { domain: "student-record", action: "pipeline" };
 // ============================================
 
 export async function runBypassAnalysis(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { studentId, tenantId } = ctx;
 
   const { discoverDepartmentsFromDiagnosis } = await import("@/lib/domains/bypass-major/department-discovery");

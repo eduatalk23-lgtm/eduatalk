@@ -4,10 +4,11 @@
 
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
-  ScoreRowWithSubject,
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
+  type ScoreRowWithSubject,
 } from "../../pipeline-types";
 import type { PersistedEdge } from "../../edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
@@ -31,6 +32,7 @@ export async function runAiDiagnosis(
   computedEdges: PersistedEdge[] | CrossRefEdge[],
   sharedCourseAdequacy: import("../../types").CourseAdequacyResult | null,
 ): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { supabase, studentId, tenantId, pipelineId, studentGrade, snapshot, tasks, coursePlanData, neisGrades } = ctx;
 
   const currentSchoolYear = calculateSchoolYear();
@@ -256,6 +258,7 @@ export async function runAiDiagnosis(
 // ============================================
 
 export async function runCourseRecommendation(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { studentId, tenantId } = ctx;
 
   const { generateRecommendationsAction } = await import("../../actions/coursePlan");

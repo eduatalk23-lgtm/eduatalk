@@ -4,9 +4,10 @@
 
 import { logActionError } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
 } from "../../pipeline-types";
 import type { PersistedEdge } from "../../edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
@@ -28,6 +29,7 @@ export async function runActivitySummary(
   ctx: PipelineContext,
   computedEdges: PersistedEdge[] | CrossRefEdge[],
 ): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { studentId, tenantId, studentGrade } = ctx;
 
   const { generateActivitySummary } = await import("../../llm/actions/generateActivitySummary");
@@ -92,6 +94,7 @@ export async function runActivitySummary(
 // ============================================
 
 export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { studentId, tenantId, studentGrade, snapshot, pipelineId, results } = ctx;
 
   const currentSchoolYear = calculateSchoolYear();

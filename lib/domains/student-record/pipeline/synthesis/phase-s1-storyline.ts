@@ -3,11 +3,12 @@
 // ============================================
 
 import { logActionError } from "@/lib/logging/actionLogger";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
-  CachedSetek,
-  CachedChangche,
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
+  type CachedSetek,
+  type CachedChangche,
 } from "../../pipeline-types";
 import * as repository from "../../repository";
 import type { RecordSummary } from "../../llm/prompts/inquiryLinking";
@@ -20,6 +21,7 @@ const LOG_CTX = { domain: "student-record", action: "pipeline" };
 // ============================================
 
 export async function runStorylineGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { supabase, studentId, tenantId } = ctx;
 
   // NEIS 레코드도 없고 설계 학년 가이드도 없으면 스토리라인 추출 대상 없음 — skip

@@ -4,11 +4,12 @@
 
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
-  CachedSetek,
-  CachedChangche,
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
+  type CachedSetek,
+  type CachedChangche,
 } from "../../pipeline-types";
 import * as repository from "../../repository";
 import * as diagnosisRepo from "../../diagnosis-repository";
@@ -20,6 +21,7 @@ const LOG_CTX = { domain: "student-record", action: "pipeline" };
 // ============================================
 
 export async function runInterviewGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { supabase, studentId, tenantId, snapshot, results } = ctx;
 
   // 세특/창체 레코드 수집 (캐시 재사용, imported_content 포함)
@@ -179,6 +181,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
 // ============================================
 
 export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { studentId, tenantId, pipelineId, studentGrade } = ctx;
 
   // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)

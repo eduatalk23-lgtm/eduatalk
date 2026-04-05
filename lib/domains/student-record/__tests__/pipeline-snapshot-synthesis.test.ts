@@ -129,6 +129,7 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
     results: {} as Record<string, unknown>,
     errors: {} as Record<string, string>,
     pipelineType: "synthesis" as const,
+    unifiedInput: { hasAnyDesign: false, grades: {} },
     supabase: buildDefaultSupabase(),
     ...overrides,
   };

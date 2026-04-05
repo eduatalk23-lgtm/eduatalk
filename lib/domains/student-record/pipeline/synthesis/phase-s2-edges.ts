@@ -4,10 +4,11 @@
 
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
-  ScoreRowWithSubject,
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
+  type ScoreRowWithSubject,
 } from "../../pipeline-types";
 import type { PersistedEdge } from "../../edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
@@ -21,6 +22,7 @@ const LOG_CTX = { domain: "student-record", action: "pipeline" };
 // ============================================
 
 export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunnerOutput & { computedEdges?: PersistedEdge[] | CrossRefEdge[]; sharedCourseAdequacy?: CourseAdequacyResult | null }> {
+  assertSynthesisCtx(ctx);
   const { supabase, studentId, tenantId, pipelineId, studentGrade, snapshot } = ctx;
 
   // NEIS 레코드도 없고 설계 학년 가이드도 없으면 연결 계산 대상 없음 — skip
@@ -141,6 +143,7 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
 // ============================================
 
 export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
   const { supabase, studentId, tenantId, studentGrade, snapshot } = ctx;
 
   const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");

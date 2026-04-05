@@ -8,10 +8,11 @@
 
 import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import { updatePipelineState } from "./pipeline-executor";
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
-  ScoreRowWithSubject,
+import {
+  assertGradeCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
+  type ScoreRowWithSubject,
 } from "./pipeline-types";
 import * as competencyRepo from "./competency-repository";
 import { toDbJson, type CompetencyScoreInsert } from "./types";
@@ -642,11 +643,8 @@ export async function runCompetencyAnalysisForGrade(ctx: PipelineContext): Promi
 // ============================================
 
 export async function runCompetencySetekForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runCompetencySetekForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
@@ -685,11 +683,8 @@ export async function runCompetencySetekChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number,
 ): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
   const { targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runCompetencySetekChunkForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
@@ -740,11 +735,8 @@ export async function runCompetencySetekChunkForGrade(
 // ============================================
 
 export async function runCompetencyChangcheForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runCompetencyChangcheForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
@@ -783,11 +775,8 @@ export async function runCompetencyChangcheChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number,
 ): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
   const { targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runCompetencyChangcheChunkForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
@@ -834,11 +823,8 @@ export async function runCompetencyChangcheChunkForGrade(
 // ============================================
 
 export async function runCompetencyHaengteukForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runCompetencyHaengteukForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
@@ -913,11 +899,8 @@ export async function runCompetencyHaengteukChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number,
 ): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
   const { targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runCompetencyHaengteukChunkForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {

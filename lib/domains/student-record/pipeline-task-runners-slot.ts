@@ -3,9 +3,10 @@
 // G5: runSlotGenerationForGrade
 // ============================================
 
-import type {
-  PipelineContext,
-  TaskRunnerOutput,
+import {
+  assertGradeCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
 } from "./pipeline-types";
 
 // ============================================
@@ -13,11 +14,8 @@ import type {
 // ============================================
 
 export async function runSlotGenerationForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { studentId, tenantId, studentGrade, coursePlanData, supabase, targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runSlotGenerationForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   // 해당 학년이 NEIS 학년이면 슬롯 생성 불필요 (임포트된 데이터 이미 있음)
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];

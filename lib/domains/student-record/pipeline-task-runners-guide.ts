@@ -11,8 +11,9 @@
 
 import { logActionWarn } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import type {
-  PipelineContext,
+import {
+  assertGradeCtx,
+  type PipelineContext,
   TaskRunnerOutput,
 } from "./pipeline-types";
 import type { PersistedEdge } from "./edge-repository";
@@ -271,11 +272,8 @@ export async function runSlotGeneration(ctx: PipelineContext): Promise<TaskRunne
 // ============================================
 
 export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { studentId, tenantId, studentGrade, targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runSetekGuideForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
@@ -347,11 +345,8 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
 // ============================================
 
 export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { studentId, tenantId, studentGrade, coursePlanData, targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runChangcheGuideForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
@@ -430,11 +425,8 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
 // ============================================
 
 export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
   const { studentId, tenantId, studentGrade, coursePlanData, targetGrade } = ctx;
-
-  if (targetGrade == null) {
-    throw new Error("runHaengteukGuideForGrade: targetGrade가 설정되지 않았습니다");
-  }
 
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
