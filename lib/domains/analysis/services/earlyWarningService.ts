@@ -6,7 +6,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import {
   PredictionService,
   type WeeklyPerformancePrediction,
@@ -421,8 +421,9 @@ export class EarlyWarningService {
       .eq("id", warningId);
 
     // TODO: 실제 알림 전송 구현 (이메일, 푸시 등)
-    console.log(
-      `[EarlyWarning] Immediate notification sent for ${warningType} (${severity}) - Student: ${studentId}`
+    logActionDebug(
+      { domain: "analysis", action: "sendImmediateNotification" },
+      `Immediate notification sent for ${warningType} (${severity}) - Student: ${studentId}`
     );
   }
 

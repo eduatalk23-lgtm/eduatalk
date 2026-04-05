@@ -29,15 +29,6 @@ export function calculateUnifiedReorder(
   movedItemId: string,
   originalItems: TimelineItem[]
 ): ReorderResult {
-  console.log('[calculateUnifiedReorder] Input:', {
-    orderedItemsCount: orderedItems.length,
-    originalItemsCount: originalItems.length,
-    movedItemId,
-    slot,
-  });
-  console.log('[calculateUnifiedReorder] Ordered items:', orderedItems.map(i => ({ id: i.id, type: i.type, start: i.startTime, end: i.endTime })));
-  console.log('[calculateUnifiedReorder] Original items:', originalItems.map(i => ({ id: i.id, type: i.type, start: i.startTime, end: i.endTime })));
-
   // 슬롯 용량 계산
   const slotStartMinutes = parseTimeToMinutes(slot.start);
   const slotEndMinutes = parseTimeToMinutes(slot.end);
@@ -66,15 +57,6 @@ export function calculateUnifiedReorder(
   // 여유 공간 판단 (비학습시간을 제외한 실제 가용 용량으로 계산)
   const availableCapacity = slotCapacity - totalNonStudyRequired;
   const hasCapacity = totalPlanRequired <= availableCapacity;
-
-  console.log('[calculateUnifiedReorder] Capacity check:', {
-    totalPlanRequired,
-    totalNonStudyRequired,
-    slotCapacity,
-    availableCapacity,
-    hasCapacity,
-    mode: hasCapacity ? 'push' : 'pull',
-  });
 
   if (hasCapacity) {
     // 밀기 모드 (Push)
@@ -115,16 +97,11 @@ function calculatePushMode(
   slotStartMinutes: number,
   slotEndMinutes: number
 ): ReorderResult {
-  console.log('[calculatePushMode] movedItemId:', movedItemId);
-  console.log('[calculatePushMode] orderedItems IDs:', orderedItems.map(i => i.id));
-  console.log('[calculatePushMode] originalItems IDs:', originalItems.map(i => i.id));
-
   // 이동한 아이템 정보
   const originalMovedItem = originalItems.find(
     (item) => item.id === movedItemId
   );
   if (!originalMovedItem) {
-    console.log('[calculatePushMode] movedItem not found, falling back to pull mode');
     return calculatePullMode(orderedItems, slotStartMinutes);
   }
 
@@ -133,11 +110,8 @@ function calculatePushMode(
   );
   const newIndex = orderedItems.findIndex((item) => item.id === movedItemId);
 
-  console.log('[calculatePushMode] Index change:', { originalIndex, newIndex });
-
   // 이동하지 않은 경우
   if (originalIndex === newIndex) {
-    console.log('[calculatePushMode] No index change, returning original items');
     return {
       items: originalItems.map((item) => ({ ...item })),
       emptySlot: undefined,
@@ -260,11 +234,8 @@ function calculatePushMode(
   // 슬롯 끝 초과 검증
   const lastItem = resultItems[resultItems.length - 1];
   if (lastItem && parseTimeToMinutes(lastItem.endTime) > slotEndMinutes) {
-    console.log('[calculatePushMode] Exceeds slot end, falling back to pull mode');
     return calculatePullMode(orderedItems, slotStartMinutes);
   }
-
-  console.log('[calculatePushMode] Result:', resultItems.map(i => ({ id: i.id.substring(0, 8), start: i.startTime, end: i.endTime })));
 
   return {
     items: resultItems,
@@ -283,8 +254,6 @@ function calculatePullMode(
   orderedItems: TimelineItem[],
   slotStartMinutes: number
 ): ReorderResult {
-  console.log('[calculatePullMode] Input items:', orderedItems.map(i => ({ id: i.id.substring(0, 8), duration: i.durationMinutes })));
-
   const resultItems: TimelineItem[] = [];
   let currentTime = slotStartMinutes;
 
@@ -300,8 +269,6 @@ function calculatePullMode(
 
     currentTime += item.durationMinutes;
   }
-
-  console.log('[calculatePullMode] Result:', resultItems.map(i => ({ id: i.id.substring(0, 8), start: i.startTime, end: i.endTime })));
 
   return {
     items: resultItems,

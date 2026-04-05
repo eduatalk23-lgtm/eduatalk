@@ -99,45 +99,6 @@ export async function buildContentQuery<T>(
     total: count ?? 0,
   };
 
-  // 로그: 검색 결과 (개발 환경에서만 상세 로깅)
-  if (process.env.NODE_ENV === "development") {
-    // 로그: 검색 결과 (개발 환경에서만 상세 로깅)
-    type LoggableItem = {
-      id?: string | number;
-      title?: string | null;
-      [key: string]: unknown;
-    };
-
-    const sample: Array<{ id: string | number | undefined; title: string | null | undefined }> = 
-      result.data.slice(0, 3).map((item: T) => {
-        const loggable = item as LoggableItem;
-        return {
-          id: loggable.id,
-          title: loggable.title ?? null,
-        };
-      });
-
-    console.log(`[data/contentQueryBuilder] ${tableName} 검색 결과:`, {
-      filters: {
-        curriculum_revision_id: filters.curriculum_revision_id,
-        subject_group_id: filters.subject_group_id,
-        subject_id: filters.subject_id,
-        search: filters.search,
-        difficulty: filters.difficulty,
-        sort: filters.sort,
-        tenantId: filters.tenantId,
-        limit: filters.limit,
-        offset: filters.offset,
-      },
-      result: {
-        count: result.data.length,
-        total: result.total,
-        // 처음 3개만 로깅 (성능 고려)
-        sample,
-      },
-    });
-  }
-
   return result;
 }
 

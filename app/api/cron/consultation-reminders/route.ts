@@ -22,8 +22,6 @@ export async function GET(request: Request) {
   try {
     const result = await processConsultationReminders();
 
-    console.log("[consultation-reminders] 결과:", JSON.stringify(result));
-
     return NextResponse.json({
       message: "Consultation reminders processed",
       date: new Date().toISOString(),

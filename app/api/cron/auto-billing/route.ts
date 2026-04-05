@@ -69,8 +69,6 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log("[auto-billing] 자동 청구 결과:", JSON.stringify(results));
-
     return NextResponse.json({
       message: "Auto billing completed",
       date: today.toISOString(),

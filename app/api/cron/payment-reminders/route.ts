@@ -15,8 +15,6 @@ export async function GET(request: Request) {
   try {
     const result = await processPaymentReminders();
 
-    console.log("[payment-reminders] 결과:", JSON.stringify(result));
-
     return NextResponse.json({
       message: "Payment reminders processed",
       date: new Date().toISOString(),

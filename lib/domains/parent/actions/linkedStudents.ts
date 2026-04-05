@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { LinkedStudent } from "../types";
 
@@ -60,6 +61,7 @@ export async function getLinkedStudentsByParentAction(
 
     return { success: true, data: result };
   } catch (error) {
+    logActionError({ domain: "parent", action: "getLinkedStudentsAction" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "연결 학생 조회 중 오류가 발생했습니다.",

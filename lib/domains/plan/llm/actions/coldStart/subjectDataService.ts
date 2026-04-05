@@ -172,10 +172,6 @@ export async function getSubjectDataFromDB(): Promise<SubjectDataResult> {
     cache.subjectsByCategory = subjectsByCategory;
     cache.lastFetched = Date.now();
 
-    console.log(
-      `[subjectDataService] DB에서 ${categories.length}개 교과, 총 ${Object.values(subjectsByCategory).flat().length}개 과목 로드`
-    );
-
     return {
       categories,
       subjectsByCategory,

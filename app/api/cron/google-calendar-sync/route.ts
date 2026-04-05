@@ -138,8 +138,6 @@ export async function GET(request: Request) {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
-    console.log("[google-calendar-sync] 결과:", JSON.stringify(result));
-
     return NextResponse.json({
       message: "Google Calendar sync queue processed",
       date: new Date().toISOString(),

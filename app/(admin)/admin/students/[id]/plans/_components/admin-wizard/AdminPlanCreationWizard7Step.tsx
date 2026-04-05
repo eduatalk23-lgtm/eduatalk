@@ -176,7 +176,6 @@ function WizardInner({
 
         updateData(autoFillData);
         settingsLoadedRef.current = true;
-        console.log("[WizardInner] 캘린더 데이터 자동 로드 완료:", idToLoad);
       } catch (err) {
         console.error("[WizardInner] 캘린더 로드 실패:", err);
       } finally {
@@ -211,7 +210,6 @@ function WizardInner({
 
       // 최소 기간 정보가 없으면 저장하지 않음
       if (!periodStart || !periodEnd) {
-        console.log("[AutoSave] 기간 정보 없음, 저장 스킵");
         return;
       }
 
@@ -281,11 +279,9 @@ function WizardInner({
 
       if (draftGroupId) {
         // 기존 draft 업데이트
-        console.log("[AutoSave] draft 업데이트:", draftGroupId);
         await updatePlanGroupDraftAction(draftGroupId, planGroupData);
       } else {
         // 새 draft 생성
-        console.log("[AutoSave] 새 draft 생성");
         const result = await createPlanGroupAction(planGroupData as PlanGroupCreationData, {
           skipContentValidation: true,
           studentId: studentId,
@@ -293,7 +289,6 @@ function WizardInner({
 
         // 성공 시 draftId 저장
         if ("groupId" in result && result.groupId) {
-          console.log("[AutoSave] draft 생성 완료:", result.groupId);
           setDraftId(result.groupId);
         }
       }
@@ -521,10 +516,6 @@ function WizardInner({
       }
 
       // 수동 모드: 콘텐츠별로 별도 플랜 그룹 생성 (기존 로직 유지)
-      console.log("[AdminWizard] 콘텐츠별 플랜 그룹 생성 시작", {
-        contentsCount: selectedContents.length,
-      });
-
       const createdGroupIds: string[] = [];
       let firstError: string | null = null;
 

@@ -192,9 +192,7 @@ export async function validateColdStartInputAsync(
   const categories = subjectData.categories;
   const subjectsByCategory = subjectData.subjectsByCategory;
 
-  if (subjectData.fromDatabase) {
-    console.log("[validateInput] DB 기반 교과/과목 데이터 사용");
-  } else {
+  if (!subjectData.fromDatabase) {
     console.warn(
       `[validateInput] Fallback 데이터 사용: ${subjectData.error || "알 수 없음"}`
     );

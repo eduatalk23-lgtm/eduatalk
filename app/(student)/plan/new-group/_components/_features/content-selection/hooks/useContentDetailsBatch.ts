@@ -275,12 +275,6 @@ export function useContentDetailsBatch({
             }
           });
 
-          if (process.env.NODE_ENV === "development") {
-            console.log("[useContentDetailsBatch] 배치 API 성공:", {
-              count: contentIdsToFetch.length,
-              fetched: newDetails.size,
-            });
-          }
         } else {
           // 배치 API 실패 시 개별 API로 fallback
           if (process.env.NODE_ENV === "development") {

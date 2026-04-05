@@ -12,12 +12,6 @@ export async function GET(request: NextRequest) {
       // 교과만 조회
       const groups = await getSubjectGroups(curriculumRevisionId);
       
-      console.log("[api/subject-groups] 교과 조회 결과:", {
-        curriculumRevisionId,
-        count: groups.length,
-        groups: groups.map((g) => ({ id: g.id, name: g.name })),
-      });
-
       return NextResponse.json({
         success: true,
         data: groups || [],
@@ -26,16 +20,6 @@ export async function GET(request: NextRequest) {
 
     // 교과와 과목을 함께 조회
     const groupsWithSubjects = await getSubjectGroupsWithSubjects(curriculumRevisionId);
-
-    console.log("[api/subject-groups] 교과 및 과목 조회 결과:", {
-      curriculumRevisionId,
-      count: groupsWithSubjects.length,
-      groupsWithSubjects: groupsWithSubjects.map((g) => ({
-        id: g.id,
-        name: g.name,
-        subjectCount: g.subjects?.length || 0,
-      })),
-    });
 
     return NextResponse.json({
       success: true,

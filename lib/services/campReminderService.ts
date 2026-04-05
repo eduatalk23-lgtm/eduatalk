@@ -160,10 +160,6 @@ export async function processReminders(): Promise<{
       }
     });
 
-    console.log(
-      `[campReminderService] ${successCount}/${remindersToSend.length}개의 리마인더를 발송했습니다.`
-    );
-
     return {
       success: true,
       count: successCount,

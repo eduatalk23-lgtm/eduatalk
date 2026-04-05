@@ -106,8 +106,6 @@ export async function GET(request: NextRequest) {
       results.dlqCleaned = dlqCount ?? 0;
     }
 
-    console.log("[push-cleanup] Results:", results);
-
     return NextResponse.json({
       success: results.errors.length === 0,
       ...results,

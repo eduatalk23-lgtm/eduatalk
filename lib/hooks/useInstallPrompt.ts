@@ -63,10 +63,6 @@ export function useInstallPrompt(): UseInstallPromptReturn {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      // 설치 추적 (개발 모드 로그)
-      if (process.env.NODE_ENV === "development") {
-        console.log("[PWA] App installed successfully");
-      }
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);

@@ -128,18 +128,6 @@ export default async function CampParticipationPage({
   // 템플릿 데이터를 initialData로 변환
   const templateData = template.template_data as Record<string, unknown> | null;
 
-  // 개발 환경에서 디버깅 로그
-  if (process.env.NODE_ENV === "development") {
-    console.log("[CampParticipationPage] 템플릿 데이터 검증:", {
-      period_start: templateData?.period_start,
-      period_end: templateData?.period_end,
-      block_set_id: templateData?.block_set_id,
-      scheduler_type: templateData?.scheduler_type,
-      exclusions: Array.isArray(templateData?.exclusions) ? templateData.exclusions.length : 0,
-      academy_schedules: Array.isArray(templateData?.academy_schedules) ? templateData.academy_schedules.length : 0,
-    });
-  }
-
   // accepted 상태인데 플랜 그룹이 없는 경우 확인 (데이터 불일치 체크)
   let hasDataInconsistency = false;
   if (invitation.status === "accepted") {
@@ -315,25 +303,6 @@ export default async function CampParticipationPage({
   const blockSets = templateBlockSet
     ? [templateBlockSet, ...studentBlockSets]
     : studentBlockSets;
-
-  // 개발 환경에서 디버깅 로그
-  if (process.env.NODE_ENV === "development") {
-    console.log("[CampParticipationPage] 블록 세트 목록:", {
-      templateBlockSet: templateBlockSet
-        ? {
-            id: templateBlockSet.id,
-            name: templateBlockSet.name,
-            blocksCount: templateBlockSet.blocks?.length || 0,
-          }
-        : null,
-      studentBlockSetsCount: studentBlockSets.length,
-      totalBlockSetsCount: blockSets.length,
-      templateBlockSetId: templateData?.block_set_id,
-      willBeSelected: blockSets.some(
-        (bs) => bs.id === templateData?.block_set_id
-      ),
-    });
-  }
 
   // 템플릿 제외일에 source와 is_locked 필드 추가
   const rawExclusions = Array.isArray(templateData?.exclusions) ? templateData.exclusions : [];

@@ -47,11 +47,6 @@ export async function GET(request: NextRequest) {
     const result = await processScheduledMessages();
     const durationMs = Date.now() - startTime;
 
-    console.log("[send-scheduled-messages] 처리 완료:", {
-      ...result,
-      durationMs,
-    });
-
     return NextResponse.json({
       success: true,
       date: new Date().toISOString(),

@@ -197,7 +197,6 @@ export function useChatConnectionStatus(
   // 수동 재연결
   const reconnect = useCallback(async (): Promise<boolean> => {
     if (status === "connected") {
-      console.log("[useChatConnectionStatus] Already connected");
       return true;
     }
 
@@ -207,11 +206,8 @@ export function useChatConnectionStatus(
     }
 
     if (isReconnecting) {
-      console.log("[useChatConnectionStatus] Reconnection already in progress");
       return false;
     }
-
-    console.log("[useChatConnectionStatus] Manual reconnect requested");
     setIsReconnecting(true);
 
     try {

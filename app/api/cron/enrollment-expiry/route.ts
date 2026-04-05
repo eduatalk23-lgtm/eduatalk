@@ -15,8 +15,6 @@ export async function GET(request: Request) {
   try {
     const result = await processEnrollmentExpiry();
 
-    console.log("[enrollment-expiry] 결과:", JSON.stringify(result));
-
     return NextResponse.json({
       message: "Enrollment expiry processed",
       date: new Date().toISOString(),

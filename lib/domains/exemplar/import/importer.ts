@@ -4,6 +4,7 @@
 // ============================================
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   ExemplarParsedData,
   ExemplarImportFileResult,
@@ -310,6 +311,7 @@ export async function importExemplarToDb(
       counts,
     };
   } catch (error) {
+    logActionError({ domain: "exemplar", action: "importExemplarToDb" }, error, { filePath: data.metadata.sourceFilePath });
     return {
       filePath: data.metadata.sourceFilePath,
       success: false,

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
 import {
   getPermissionDefinitions,
   getRolePermissions,
@@ -26,6 +27,7 @@ export async function getPermissionDefinitionsAction(): Promise<{
     const definitions = await getPermissionDefinitions();
     return { success: true, data: definitions };
   } catch (error) {
+    logActionError({ domain: "settings", action: "getPermissionDefinitionsAction" }, error);
     const message = error instanceof Error ? error.message : "권한 정의 조회 실패";
     return { success: false, error: message };
   }
@@ -52,6 +54,7 @@ export async function getRolePermissionsAction(
     const permissions = await getRolePermissions(tenantId);
     return { success: true, data: permissions };
   } catch (error) {
+    logActionError({ domain: "settings", action: "getRolePermissionsAction" }, error);
     const message = error instanceof Error ? error.message : "권한 조회 실패";
     return { success: false, error: message };
   }
@@ -139,6 +142,7 @@ export async function setMultipleRolePermissionsAction(
     revalidatePath("/admin/settings/permissions");
     return { success: true };
   } catch (error) {
+    logActionError({ domain: "settings", action: "setMultipleRolePermissionsAction" }, error);
     const message = error instanceof Error ? error.message : "권한 설정 실패";
     return { success: false, error: message };
   }

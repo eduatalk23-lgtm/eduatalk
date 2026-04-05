@@ -13,7 +13,6 @@ export function createSupabaseBrowserClient() {
       realtime: {
         heartbeatCallback: (status) => {
           if (status === "disconnected") {
-            console.log("[Realtime] Heartbeat detected disconnect, reconnecting...");
             client.realtime.connect();
           }
         },

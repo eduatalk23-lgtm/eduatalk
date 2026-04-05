@@ -244,16 +244,6 @@ export class PlanValidator {
         return; // 시간이 없으면 다음 검증 스킵
       }
 
-      // 디버깅: 실제 값 확인 (개발 환경에서만)
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[PlanValidator] 학원 일정 ${index + 1} 시간 값:`, {
-          start_time: schedule.start_time,
-          end_time: schedule.end_time,
-          start_time_type: typeof schedule.start_time,
-          end_time_type: typeof schedule.end_time,
-        });
-      }
-
       // 시간 검증
       const start = this.parseTime(schedule.start_time);
       const end = this.parseTime(schedule.end_time);

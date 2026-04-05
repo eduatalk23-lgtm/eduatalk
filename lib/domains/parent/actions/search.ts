@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchParentsByTenant, type ParentSearchItem } from "@/lib/data/parents";
 
@@ -31,6 +32,7 @@ export async function searchParentsAction(
       total: result.total,
     };
   } catch (error) {
+    logActionError({ domain: "parent", action: "searchParentsAction" }, error);
     return {
       success: false,
       parents: [],

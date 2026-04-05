@@ -60,10 +60,7 @@ export function useBatchContentDetails({
       const initialLoadingSet = new Set(contentIdsToFetch);
       setLoadingDetails(new Set(initialLoadingSet));
 
-      const performanceStart = performance.now();
       try {
-        const typeCheckStart = performance.now();
-
         // 콘텐츠 타입 정보 수집
         const contentsToFetch = contentIdsToFetch.map((contentId) => {
           const isBook = bookIdSet.has(contentId);
@@ -72,9 +69,6 @@ export function useBatchContentDetails({
             contentType: isBook ? ("book" as const) : ("lecture" as const),
           };
         });
-
-        const typeCheckTime = performance.now() - typeCheckStart;
-        const networkStart = performance.now();
 
         // 배치 API 호출
         const response = await fetch("/api/student-content-details/batch", {
@@ -88,13 +82,8 @@ export function useBatchContentDetails({
           }),
         });
 
-        const networkTime = performance.now() - networkStart;
-        const parseStart = performance.now();
-
         if (response.ok) {
           const result = await response.json();
-          const parseTime = performance.now() - parseStart;
-          const processStart = performance.now();
           const batchData = result.data;
 
           // 배치 응답 결과 처리
@@ -137,15 +126,6 @@ export function useBatchContentDetails({
             }
           });
 
-          const processTime = performance.now() - processStart;
-          const totalTime = performance.now() - performanceStart;
-
-          if (process.env.NODE_ENV === "development") {
-            console.log("[useBatchContentDetails] 배치 API 성능:", {
-                totalTime: `${totalTime.toFixed(2)}ms`,
-                count: contentsToFetch.length
-            });
-          }
         } else {
             // Fallback to individual fetch if batch fails
             if (process.env.NODE_ENV === "development") {

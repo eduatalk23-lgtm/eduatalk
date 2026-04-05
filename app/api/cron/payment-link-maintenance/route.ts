@@ -105,11 +105,6 @@ export async function GET(request: Request) {
       reminderFailed,
     };
 
-    console.log(
-      "[payment-link-maintenance] 결과:",
-      JSON.stringify(summary)
-    );
-
     return NextResponse.json(summary);
   } catch (error) {
     console.error("[payment-link-maintenance] 오류:", error);

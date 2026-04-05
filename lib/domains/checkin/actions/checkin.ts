@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError } from "@/lib/logging/actionLogger";
 import {
   CheckInActionResult,
   CheckInStatus,
@@ -201,6 +202,7 @@ export async function checkInAndGetStatus(): Promise<
       },
     };
   } catch (error) {
+    logActionError({ domain: "checkin", action: "performCheckIn" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류",
@@ -261,6 +263,7 @@ export async function getCheckInStatus(): Promise<
       },
     };
   } catch (error) {
+    logActionError({ domain: "checkin", action: "getCheckInStatus" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류",
@@ -309,6 +312,7 @@ export async function getMonthlyCheckIns(
       data: (data || []).map((r) => r.check_date as string),
     };
   } catch (error) {
+    logActionError({ domain: "checkin", action: "getMonthlyCheckIns" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류",

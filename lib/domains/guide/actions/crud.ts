@@ -658,7 +658,6 @@ export async function listTopicsAction(
     await requireAdminOrConsultant();
     const { findSuggestedTopicsPaginated } = await import("../repository");
     const result = await findSuggestedTopicsPaginated(filters);
-    console.log("[listTopics] result count:", result.count, "data:", result.data.length);
     return createSuccessResponse(result);
   } catch (error) {
     console.error("[listTopics] error:", error);

@@ -10,6 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { validateFormData } from "@/lib/validation/schemas";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import { getStudentById } from "@/lib/data/students";
@@ -270,6 +271,7 @@ export async function addBlockDirect(input: {
 
     return result;
   } catch (error) {
+    logActionError({ domain: "block", action: "addBlockDirect" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다",
@@ -298,6 +300,7 @@ export async function updateBlockDirect(
 
     return result;
   } catch (error) {
+    logActionError({ domain: "block", action: "updateBlockDirect" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다",
@@ -319,6 +322,7 @@ export async function deleteBlockDirect(blockId: string): Promise<BlockActionRes
 
     return result;
   } catch (error) {
+    logActionError({ domain: "block", action: "deleteBlockDirect" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다",

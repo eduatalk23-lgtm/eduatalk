@@ -83,7 +83,6 @@ export async function GET(request: NextRequest) {
     const rows = (stuckPipelines ?? []) as PipelineRow[];
 
     if (rows.length === 0) {
-      console.log("[pipeline-timeout] 처리할 stuck 파이프라인 없음");
       return NextResponse.json({ processed: 0, pipelineIds: [] });
     }
 
@@ -108,11 +107,6 @@ export async function GET(request: NextRequest) {
       LOG_CTX,
       `Stuck 파이프라인 ${pipelineIds.length}건 timeout 처리: ${pipelineIds.join(", ")}`
     );
-
-    console.log("[pipeline-timeout] 처리 완료:", {
-      processed: pipelineIds.length,
-      pipelineIds,
-    });
 
     return NextResponse.json({
       processed: pipelineIds.length,

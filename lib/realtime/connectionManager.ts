@@ -12,6 +12,7 @@ import {
   addNetworkStatusListener,
 } from "@/lib/offline/networkStatus";
 import { supabase } from "@/lib/supabase/client";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /** 연결 상태 */
 export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
@@ -129,11 +130,10 @@ class RealtimeConnectionManager {
     state.status = "disconnected";
     this.notifyListeners(channelName, "disconnected");
 
-    console.log(`[ConnectionManager] Channel ${channelName} disconnected`);
+    logActionDebug({ domain: "realtime", action: "handleDisconnect" }, `Channel ${channelName} disconnected`);
 
     // 이미 재연결 타이머가 예약되어 있으면 중복 예약 방지
     if (this.reconnectTimers.has(channelName)) {
-      console.log(`[ConnectionManager] Reconnect already scheduled for ${channelName}, skipping`);
       return;
     }
 
@@ -144,9 +144,7 @@ class RealtimeConnectionManager {
       state.retryCount < this.MAX_RETRY_COUNT
     ) {
       const delay = this.calculateRetryDelay(state.retryCount);
-      console.log(
-        `[ConnectionManager] Auto-reconnect scheduled for ${channelName} in ${Math.round(delay / 1000)}s (attempt ${state.retryCount + 1}/${this.MAX_RETRY_COUNT})`
-      );
+      logActionDebug({ domain: "realtime", action: "handleDisconnect" }, `Auto-reconnect scheduled for ${channelName} in ${Math.round(delay / 1000)}s (attempt ${state.retryCount + 1}/${this.MAX_RETRY_COUNT})`);
 
       // 기존 타이머 정리
       const existingTimer = this.reconnectTimers.get(channelName);
@@ -223,7 +221,7 @@ class RealtimeConnectionManager {
 
     this.notifyListeners(channelName, "reconnecting");
 
-    console.log(`[ConnectionManager] Reconnecting ${channelName} (attempt ${state.retryCount})`);
+    logActionDebug({ domain: "realtime", action: "startReconnect" }, `Reconnecting ${channelName} (attempt ${state.retryCount})`);
   }
 
   /**
@@ -340,7 +338,7 @@ class RealtimeConnectionManager {
       // 콜백은 재구독을 트리거할 뿐, 실제 연결 성공은 subscribe() 콜백에서 판단.
       // setChannelState("connected")는 useChatRealtime의 SUBSCRIBED 핸들러가 호출.
       // 여기서는 reconnecting 상태를 유지하고 retryCount를 보존한다.
-      console.log(`[ConnectionManager] Reconnect triggered for ${channelName}, awaiting SUBSCRIBED`);
+      logActionDebug({ domain: "realtime", action: "attemptReconnect" }, `Reconnect triggered for ${channelName}, awaiting SUBSCRIBED`);
       return true;
     } catch (error) {
       console.error(`[ConnectionManager] Reconnect failed for ${channelName}:`, error);
@@ -348,7 +346,7 @@ class RealtimeConnectionManager {
       // 실패 - 최대 횟수 미만이면 자동 재시도 예약
       if (state.retryCount < this.MAX_RETRY_COUNT && this.isNetworkOnline()) {
         const delay = this.calculateRetryDelay(state.retryCount);
-        console.log(`[ConnectionManager] Will retry in ${Math.round(delay / 1000)}s`);
+        logActionDebug({ domain: "realtime", action: "attemptReconnect" }, `Will retry in ${Math.round(delay / 1000)}s`);
 
         // 기존 타이머 정리
         const existingTimer = this.reconnectTimers.get(channelName);
@@ -466,7 +464,7 @@ class RealtimeConnectionManager {
         // 온라인 복귀 시 모든 disconnected 채널에 대해:
         // 1) retry count 리셋 (5회 소진 후에도 재연결 가능)
         // 2) Jitter 적용 후 재연결 시도 (Thundering Herd 방지)
-        console.log("[ConnectionManager] Network online. Reconnecting disconnected channels with jitter...");
+        logActionDebug({ domain: "realtime", action: "networkStatusChange" }, "Network online. Reconnecting disconnected channels with jitter...");
         for (const [channelName, state] of this.channels) {
           if (state.status === "disconnected" && this.reconnectCallbacks.has(channelName)) {
             // retry count 리셋 — 네트워크 복구는 새로운 시도
@@ -483,9 +481,7 @@ class RealtimeConnectionManager {
             const jitter = this.NETWORK_RECONNECT_MIN_JITTER_MS +
               Math.random() * (this.NETWORK_RECONNECT_MAX_JITTER_MS - this.NETWORK_RECONNECT_MIN_JITTER_MS);
 
-            console.log(
-              `[ConnectionManager] Scheduling reconnect for ${channelName} in ${Math.round(jitter)}ms (jitter)`
-            );
+            logActionDebug({ domain: "realtime", action: "networkStatusChange" }, `Scheduling reconnect for ${channelName} in ${Math.round(jitter)}ms (jitter)`);
 
             const timer = setTimeout(() => {
               this.reconnectTimers.delete(channelName);
@@ -503,7 +499,7 @@ class RealtimeConnectionManager {
         }
       } else {
         // 오프라인 시 모든 채널 disconnected로 전환 + 진행 중인 타이머 정리
-        console.log("[ConnectionManager] Network offline. Marking channels disconnected.");
+        logActionDebug({ domain: "realtime", action: "networkStatusChange" }, "Network offline. Marking channels disconnected.");
         for (const [channelName] of this.channels) {
           // 진행 중인 재연결 타이머 정리 (오프라인인데 재연결 시도 방지)
           const existingTimer = this.reconnectTimers.get(channelName);

@@ -7,6 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync } from "fs";
 import type { ExemplarParsedData, ParseError } from "../types";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 const anthropic = new Anthropic();
 
@@ -27,7 +28,10 @@ export async function parseExemplarPdf(
   const pdfBase64 = pdfBuffer.toString("base64");
   const fileSizeMB = pdfBuffer.length / (1024 * 1024);
 
-  console.log(`[exemplar-parser] Reading ${filePath} (${fileSizeMB.toFixed(1)}MB)`);
+  logActionDebug(
+    { domain: "exemplar", action: "parseExemplarPdf" },
+    `Reading ${filePath} (${fileSizeMB.toFixed(1)}MB)`
+  );
 
   const response = await anthropic.messages.create({
     model,

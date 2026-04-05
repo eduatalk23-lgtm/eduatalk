@@ -94,20 +94,11 @@ function getCachedDuration(key: string, calculateFn: () => number): number {
   const now = Date.now();
 
   if (cached && now - cached.timestamp < CACHE_TTL) {
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[calculateContentDuration] 캐시 히트: ${key}`);
-    }
     return cached.result;
   }
 
   const result = calculateFn();
   durationCache.set(key, { result, timestamp: now });
-
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      `[calculateContentDuration] 캐시 미스: ${key}, 계산 결과: ${result}분`
-    );
-  }
 
   return result;
 }
@@ -270,21 +261,6 @@ function calculateContentDurationInternal(
         }
       }
       
-      // Episode 정보 사용 로깅 (개발 환경에서만)
-      if (process.env.NODE_ENV === "development") {
-        console.log(
-          `[calculateContentDuration] 강의 episode별 duration 합산:`,
-          {
-            content_id: content.content_id,
-            range: `${content.start_range}~${content.end_range}`,
-            total_episodes_in_range: content.end_range - content.start_range + 1,
-            episodes_with_duration: episodesWithDuration,
-            episodes_without_duration: episodesWithoutDuration,
-            calculated_duration: totalDuration,
-          }
-        );
-      }
-      
       baseTime = totalDuration;
     } else if (durationInfo.duration !== null && durationInfo.duration !== undefined && durationInfo.duration > 0) {
       // Episode 정보가 없으면 전체 duration / 전체 회차 * 배정 회차
@@ -352,18 +328,6 @@ function calculateContentDurationInternal(
   if (studentLevel && studentLevel in SCHEDULER_CONFIG.STUDENT_LEVEL) {
     const levelFactor = SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel];
     baseTime = Math.round(baseTime * levelFactor);
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `[calculateContentDuration] 학생 수준 보정 적용:`,
-        {
-          content_id: content.content_id,
-          student_level: studentLevel,
-          factor: levelFactor,
-          adjusted_duration: baseTime,
-        }
-      );
-    }
   }
 
   return baseTime;

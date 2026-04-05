@@ -228,9 +228,6 @@ function cleanupExpiredCache(): void {
   
   keysToDelete.forEach((key) => cacheStore.delete(key));
   
-  if (keysToDelete.length > 0) {
-    console.log(`[previewCache] ${keysToDelete.length}개의 만료된 캐시 항목 정리`);
-  }
 }
 
 /**

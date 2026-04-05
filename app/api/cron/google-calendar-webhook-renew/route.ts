@@ -67,8 +67,6 @@ export async function GET(request: Request) {
       result.failed += tenantResult.failed;
     }
 
-    console.log("[google-calendar-webhook-renew] 결과:", JSON.stringify(result));
-
     return NextResponse.json({
       message: "Webhook renewal processed",
       date: new Date().toISOString(),

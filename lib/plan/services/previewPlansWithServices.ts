@@ -119,19 +119,6 @@ export async function previewPlansWithServices(
       contentIdMapSize: contentIdMap.size,
     });
 
-    // DEBUG: 데이터 확인
-    if (process.env.NODE_ENV === "development") {
-      console.log("[previewPlansWithServices] dateAllocations:", dateAllocations.length);
-      if (dateAllocations.length > 0) {
-        const firstAllocation = dateAllocations[0];
-        console.log("[previewPlansWithServices] first allocation:", {
-          date: firstAllocation.date,
-          segmentsCount: firstAllocation.segments.length,
-          firstSegment: firstAllocation.segments[0]?.plan,
-        });
-      }
-    }
-
     // 8. 미리보기 플랜 생성
     const previewPlans: PreviewPlan[] = [];
     const planNumberCalc = createPlanNumberCalculator();
@@ -175,15 +162,6 @@ export async function previewPlansWithServices(
           segment.plan.planned_end_page_or_time
         );
 
-        // DEBUG: plan_number 확인
-        if (process.env.NODE_ENV === "development" && blockIndex <= 2) {
-          console.log("[previewPlansWithServices] planNumber:", {
-            date,
-            blockIndex,
-            planNumber,
-            content_id: resolvedContentId.substring(0, 8),
-          });
-        }
 
         previewPlans.push({
           plan_date: date,

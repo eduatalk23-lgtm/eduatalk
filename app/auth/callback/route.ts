@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { acceptInvitation, validateInvitationByToken } from "@/lib/domains/invitation/actions";
 import type { ConsentData } from "@/lib/types/auth";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 통합 초대 토큰 처리 (join_token)
@@ -16,26 +17,17 @@ async function processJoinToken(
   try {
     const validation = await validateInvitationByToken(token);
     if (!validation.success || !validation.invitation) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[auth/callback] 통합 초대 검증 실패:", validation.error);
-      }
+      logActionDebug({ domain: "auth", action: "processJoinToken" }, `통합 초대 검증 실패: ${validation.error}`);
       return { success: false };
     }
 
     const result = await acceptInvitation(token, userId, { consents });
     if (result.success) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[auth/callback] 통합 초대 수락 성공:", {
-          userId,
-          targetRole: validation.invitation.targetRole,
-        });
-      }
+      logActionDebug({ domain: "auth", action: "processJoinToken" }, `통합 초대 수락 성공: userId=${userId}, targetRole=${validation.invitation.targetRole}`);
       return { success: true, redirectTo: result.redirectTo };
     }
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[auth/callback] 통합 초대 수락 실패:", result.error);
-    }
+    logActionDebug({ domain: "auth", action: "processJoinToken" }, `통합 초대 수락 실패: ${result.error}`);
     return { success: false };
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
@@ -111,13 +103,7 @@ export async function GET(request: Request) {
     const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (exchangeError) {
-      // 개발 환경에서 디버깅용 로그
-      if (process.env.NODE_ENV === "development") {
-        console.log("[auth/callback] 코드 교환 실패:", {
-          error: exchangeError.message,
-          code: exchangeError.name,
-        });
-      }
+      logActionDebug({ domain: "auth", action: "callback" }, `코드 교환 실패: ${exchangeError.message}`);
 
       // PKCE code_verifier 누락 에러인 경우 (다른 브라우저에서 이메일 링크 클릭)
       const isPKCEError = exchangeError.message?.includes("code verifier") ||
@@ -139,9 +125,7 @@ export async function GET(request: Request) {
 
       // 다른 에러의 경우 세션이 이미 있을 수 있으므로 리다이렉트 시도
     } else {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[auth/callback] 코드 교환 성공, 세션 생성됨");
-      }
+      logActionDebug({ domain: "auth", action: "callback" }, "코드 교환 성공, 세션 생성됨");
 
       // 세션 정보를 확인하여 recovery 여부 판단
       const session = data?.session;
@@ -187,9 +171,7 @@ export async function GET(request: Request) {
               return redirectToNext();
             }
 
-            if (process.env.NODE_ENV === "development") {
-              console.log("[auth/callback] OAuth 사용자 역할 없음, 역할 선택 페이지로 리다이렉트");
-            }
+            logActionDebug({ domain: "auth", action: "callback" }, "OAuth 사용자 역할 없음, 역할 선택 페이지로 리다이렉트");
             // 연결 코드가 있으면 함께 전달
             next = connectionCode
               ? `/onboarding/select-role?code=${encodeURIComponent(connectionCode)}`
@@ -210,16 +192,7 @@ export async function GET(request: Request) {
           }
         }
       }
-      if (process.env.NODE_ENV === "development") {
-        console.log("[auth/callback] 세션 정보:", {
-          user_id: session?.user?.id,
-          user_amr: (session?.user as { amr?: unknown } | undefined)?.amr,
-          session_amr: (session as { amr?: unknown })?.amr,
-          aal: (session as { aal?: unknown })?.aal,
-          app_metadata: session?.user?.app_metadata,
-          user_metadata: session?.user?.user_metadata,
-        });
-      }
+      logActionDebug({ domain: "auth", action: "callback" }, `세션 정보: user_id=${session?.user?.id}`);
 
       // Supabase는 password recovery 시 user.app_metadata.provider = 'email'
       // 그리고 user.recovery_sent_at이 최근인지 확인
@@ -237,14 +210,7 @@ export async function GET(request: Request) {
       const isRecentRecovery = recoverySentAt &&
         (Date.now() - new Date(recoverySentAt).getTime()) < 10 * 60 * 1000;
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("[auth/callback] Recovery 확인:", {
-          amr,
-          isRecoveryAmr,
-          recoverySentAt,
-          isRecentRecovery
-        });
-      }
+      logActionDebug({ domain: "auth", action: "callback" }, `Recovery 확인: isRecoveryAmr=${isRecoveryAmr}, isRecentRecovery=${isRecentRecovery}`);
 
       // recovery 플로우인 경우 비밀번호 변경 페이지로 리다이렉트
       if (isRecoveryAmr || isRecentRecovery) {
@@ -295,23 +261,12 @@ export async function GET(request: Request) {
           error: getUserError,
         } = await supabase.auth.getUser();
 
-        // 디버깅 로그
-        if (process.env.NODE_ENV === "development") {
-          console.log("[auth/callback] 세션 확인:", {
-            hasUser: !!user,
-            userId: user?.id,
-            getUserError: getUserError?.message,
-            error,
-            errorCode,
-          });
-        }
+        logActionDebug({ domain: "auth", action: "callback" }, `세션 확인: hasUser=${!!user}, error=${getUserError?.message}`);
 
         // 세션이 있으면 정상 리다이렉트 (에러 무시)
         // Supabase 문서: 세션이 이미 생성되어 있으면 에러를 무시하고 진행 가능
         if (user) {
-          if (process.env.NODE_ENV === "development") {
-            console.log("[auth/callback] 세션 확인 성공, 리다이렉트:", next);
-          }
+          logActionDebug({ domain: "auth", action: "callback" }, `세션 확인 성공, 리다이렉트: ${next}`);
           return redirectToNext();
         }
 
@@ -329,31 +284,16 @@ export async function GET(request: Request) {
           // refresh token 에러는 세션이 아직 쿠키에 저장되지 않았을 수 있으므로
           // 에러를 무시하고 리다이렉트 (Supabase SSR이 자동으로 처리)
           if (isRefreshTokenError) {
-            if (process.env.NODE_ENV === "development") {
-              console.log(
-                "[auth/callback] refresh token 에러 감지, 에러 무시하고 리다이렉트"
-              );
-            }
+            logActionDebug({ domain: "auth", action: "callback" }, "refresh token 에러 감지, 에러 무시하고 리다이렉트");
             return redirectToNext();
           }
 
-          // 다른 에러인 경우에만 로깅
-          if (process.env.NODE_ENV === "development") {
-            console.log(
-              "[auth/callback] getUser 에러 (세션 없음):",
-              getUserError
-            );
-          }
+          logActionDebug({ domain: "auth", action: "callback" }, `getUser 에러 (세션 없음): ${getUserError.message}`);
         }
       } catch (sessionError) {
         // 세션 확인 중 예외 발생 시에도 에러를 무시하고 리다이렉트
         // Supabase SSR이 자동으로 세션을 관리하므로 예외가 발생해도 정상 처리될 수 있음
-        if (process.env.NODE_ENV === "development") {
-          console.log(
-            "[auth/callback] 세션 확인 중 예외 발생, 에러 무시하고 리다이렉트:",
-            sessionError
-          );
-        }
+        logActionDebug({ domain: "auth", action: "callback" }, `세션 확인 중 예외 발생, 에러 무시하고 리다이렉트: ${sessionError}`);
         // 예외가 발생해도 에러를 무시하고 리다이렉트
         return redirectToNext();
       }

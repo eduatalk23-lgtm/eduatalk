@@ -49,8 +49,6 @@ export async function getInternalPercentile(
   // GPA 1.0 → 100%, GPA 2.0 → 87.5%, GPA 3.0 → 75%, ..., GPA 9.0 → 0%
   const percentile = Math.max(0, Math.min(100, 100 - (totalGpa - 1) * 12.5));
   
-  console.log(`[scores/admissionStrategy] GPA ${totalGpa} → 백분위 ${percentile.toFixed(2)}%`);
-  
   return percentile;
 }
 

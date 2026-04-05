@@ -54,9 +54,6 @@ export async function processScheduledMessages(): Promise<ProcessResult> {
     return result;
   }
 
-  console.log("[scheduled-messages] 발송 대상:", {
-    claimed: pending.length,
-  });
 
   // 2. 사용자별 배치 제한 적용
   const userCounts = new Map<string, number>();
@@ -81,9 +78,6 @@ export async function processScheduledMessages(): Promise<ProcessResult> {
       .update({ status: "pending" })
       .in("id", skippedIds);
 
-    console.log("[scheduled-messages] 사용자별 배치 제한 초과, pending 복구:", {
-      skippedCount: skippedIds.length,
-    });
   }
 
   // 3. 각 메시지 처리

@@ -1641,6 +1641,8 @@ export function useChatRoomLogic({
         // 사용자가 파일 제거로 취소한 경우 state 업데이트 불필요
         if (err instanceof Error && err.message === "업로드가 취소되었습니다.") return;
 
+        console.error("[useChatRoomLogic] 첨부파일 업로드 실패:", err);
+
         setUploadingFiles((prev) =>
           prev.map((f) =>
             f.clientId === clientId

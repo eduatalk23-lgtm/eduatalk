@@ -12,6 +12,7 @@ import type {
   RestrictionImportRow,
   PercentageConversionImportRow,
 } from "../types";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /** 추천선택 데이터 배치 삽입 */
 export async function bulkInsertAdmissions(
@@ -29,7 +30,7 @@ export async function bulkInsertAdmissions(
       .delete()
       .eq("data_year", dataYear);
     if (error) throw new Error(`기존 데이터 삭제 실패: ${error.message}`);
-    console.log(`  기존 data_year=${dataYear} 데이터 삭제 완료`);
+    logActionDebug({ domain: "admission", action: "bulkInsert" }, `기존 data_year=${dataYear} 데이터 삭제 완료`);
   }
 
   let inserted = 0;
@@ -89,7 +90,6 @@ export async function bulkInsertAdmissions(
     process.stdout.write(`\r  진행: ${progress}/${rows.length} (삽입: ${inserted}, 스킵: ${skipped})`);
   }
 
-  console.log(""); // 줄바꿈
   return { inserted, skipped };
 }
 
@@ -202,7 +202,7 @@ export async function bulkInsertConversions(
       .delete()
       .eq("data_year", dataYear);
     if (error) throw new Error(`기존 데이터 삭제 실패: ${error.message}`);
-    console.log(`  기존 data_year=${dataYear} conversions 삭제 완료`);
+    logActionDebug({ domain: "admission", action: "bulkInsertConversions" }, `기존 data_year=${dataYear} conversions 삭제 완료`);
   }
 
   let inserted = 0;
@@ -241,7 +241,6 @@ export async function bulkInsertConversions(
     process.stdout.write(`\r  진행: ${progress}/${rows.length} (삽입: ${inserted}, 스킵: ${skipped})`);
   }
 
-  console.log(""); // 줄바꿈
   return { inserted, skipped };
 }
 
@@ -306,7 +305,7 @@ export async function bulkInsertPercentageConversions(
       .delete()
       .eq("data_year", dataYear);
     if (error) throw new Error(`기존 데이터 삭제 실패: ${error.message}`);
-    console.log(`  기존 data_year=${dataYear} percentage 삭제 완료`);
+    logActionDebug({ domain: "admission", action: "bulkInsertPercentageConversions" }, `기존 data_year=${dataYear} percentage 삭제 완료`);
   }
 
   let inserted = 0;
@@ -345,6 +344,5 @@ export async function bulkInsertPercentageConversions(
     process.stdout.write(`\r  진행: ${progress}/${rows.length} (삽입: ${inserted}, 스킵: ${skipped})`);
   }
 
-  console.log("");
   return { inserted, skipped };
 }

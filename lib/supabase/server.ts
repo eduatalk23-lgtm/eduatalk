@@ -129,14 +129,6 @@ async function createServerClientInternal(
                       }
                     : options;
 
-                if (rememberMe && isAuthCookie) {
-                  console.log("[auth] 자동로그인 쿠키 설정:", {
-                    cookieName: name,
-                    maxAge: finalOptions.maxAge,
-                    expires: finalOptions.expires,
-                  });
-                }
-
                 store.set(name, value, finalOptions);
               });
             } catch {

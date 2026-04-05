@@ -131,9 +131,6 @@ export const getCachedAuthUser = cache(async (): Promise<User | null> => {
     }
 
     // 3순위: 쿠키 파싱 실패 → getUser()로 서버 검증
-    if (process.env.NODE_ENV === "development") {
-      console.log("[AUTH-DEBUG] getCachedAuthUser → getUser() 네트워크 호출");
-    }
     const supabase = await createSupabaseServerClient();
     const initialResult = await supabase.auth.getUser();
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getParentById } from "@/lib/data/parents";
 
@@ -50,6 +51,7 @@ export async function getParentDetailAction(
       },
     };
   } catch (error) {
+    logActionError({ domain: "parent", action: "getParentDetailAction" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "조회 중 오류가 발생했습니다.",

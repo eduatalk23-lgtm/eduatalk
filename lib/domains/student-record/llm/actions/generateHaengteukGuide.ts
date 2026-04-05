@@ -81,8 +81,9 @@ export async function generateProspectiveHaengteukGuide(
       const lines = setekRows.map((r) => `- ${r.direction?.slice(0, 80) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`);
       setekGuideContext = `## 세특 방향 요약\n${lines.join("\n")}`;
     }
-  } catch (_e) {
-    // 세특 가이드 조회 실패 시 무시
+  } catch (e) {
+    // 세특 가이드 조회 실패 시 무시 — 보조 데이터이므로 경미
+    logActionWarn(LOG_CTX, "세특 가이드 조회 실패 (prospective 행특 방향 생성 중)", { studentId, error: String(e) });
   }
 
   const userPrompt = `# 신입생 행특 방향 가이드 요청 (수강계획+진로 기반)

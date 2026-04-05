@@ -75,14 +75,6 @@ export function SingleRecipientSearch({
 
         setFilteredStudents(searchResults);
 
-        // 디버깅: 검색 결과 확인
-        if (process.env.NODE_ENV === "development") {
-          console.log("[SingleRecipientSearch] 검색 결과:", {
-            query,
-            resultCount: searchResults.length,
-            recipientType: recipientType || "mother",
-          });
-        }
       } else {
         setFilteredStudents([]);
       }

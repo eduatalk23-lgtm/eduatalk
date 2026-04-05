@@ -203,31 +203,6 @@ export default async function AdminSMSPage({
     console.error("[admin/sms] 학생 목록 조회 실패:", errorInfo);
   }
 
-  // 디버깅: 학생 목록 조회 결과 확인
-  if (process.env.NODE_ENV === "development") {
-    const studentsWithAnyPhone = studentsWithPhones.filter(
-      (s) => s.phone || s.mother_phone || s.father_phone
-    );
-    console.log("[admin/sms] 학생 목록 조회 결과:", {
-      count: studentsWithPhones.length,
-      withPhone: studentsWithAnyPhone.length,
-      withoutPhone: studentsWithPhones.length - studentsWithAnyPhone.length,
-      profilesCount: phoneDataList.length,
-      tenantId: tenantContext?.tenantId,
-      hasError: !!studentsError,
-      errorCode: (studentsError as PostgrestError)?.code ?? null,
-      sampleStudent: studentsWithPhones[0]
-        ? {
-            id: studentsWithPhones[0].id,
-            name: studentsWithPhones[0].name,
-            phone: studentsWithPhones[0].phone,
-            mother_phone: studentsWithPhones[0].mother_phone,
-            father_phone: studentsWithPhones[0].father_phone,
-          }
-        : null,
-    });
-  }
-
   // 학원명 조회
   let academyName = "학원";
   const currentTenantId = tenantContext?.tenantId;

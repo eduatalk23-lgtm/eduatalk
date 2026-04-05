@@ -161,13 +161,9 @@ export async function getPlanContentsForAdmin(
   groupId: string,
   tenantId: string
 ): Promise<PlanContent[]> {
-  console.log("[getPlanContentsForAdmin] 호출됨", { groupId, tenantId });
-
   // 1. Service Role Key로 시도 (RLS 우회)
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminClient = createSupabaseAdminClient();
-
-  console.log("[getPlanContentsForAdmin] adminClient 생성:", adminClient ? "성공" : "실패");
 
   if (!adminClient) {
     // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
@@ -191,11 +187,6 @@ export async function getPlanContentsForAdmin(
       .order("display_order", { ascending: true });
 
   let { data, error } = await selectContents();
-
-  console.log("[getPlanContentsForAdmin] 쿼리 결과:", {
-    dataCount: data?.length ?? 0,
-    error: error ? { message: error.message, code: error.code } : null,
-  });
 
   if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // 컬럼이 없는 경우 fallback 쿼리 시도
@@ -247,7 +238,6 @@ export async function getPlanGroupWithDetailsForAdmin(
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
 }> {
-  console.log("[getPlanGroupWithDetailsForAdmin] 호출됨", { groupId, tenantId });
   const group = await getPlanGroupByIdForAdmin(groupId, tenantId);
 
   if (!group) {

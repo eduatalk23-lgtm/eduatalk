@@ -182,7 +182,6 @@ export async function calculateReschedulePreview(
   );
   const cachedResult = await getCachedPreview(cacheKey);
   if (cachedResult) {
-    console.log("[reschedule/core] 캐시된 미리보기 결과 반환:", cacheKey);
     return cachedResult;
   }
 

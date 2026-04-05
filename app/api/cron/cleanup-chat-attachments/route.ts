@@ -47,21 +47,8 @@ export async function GET(request: NextRequest) {
     // 1. 채팅 첨부파일 정리
     const chatResult = await cleanupOrphanedAttachments();
 
-    console.log("[cleanup] Chat attachments:", {
-      orphanedDeleted: chatResult.orphanedDeleted,
-      expiredDeleted: chatResult.expiredDeleted,
-      storageDeletedCount: chatResult.storageDeletedCount,
-      errors: chatResult.errors,
-    });
-
     // 2. 드라이브 파일 정리
     const driveResult = await cleanupDriveFiles();
-
-    console.log("[cleanup] Drive files:", {
-      expiredDeleted: driveResult.expiredDeleted,
-      storageDeletedCount: driveResult.storageDeletedCount,
-      errors: driveResult.errors,
-    });
 
     return NextResponse.json({
       success: chatResult.success && driveResult.success,

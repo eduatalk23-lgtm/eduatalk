@@ -789,8 +789,9 @@ async function generateProspectiveDiagnosisInternal(
         const notTakenStr = adequacy.notTaken.length > 0 ? adequacy.notTaken.slice(0, 5).join(", ") : "없음";
         courseAdequacyText = `\n\n## 전공 교과 적합도 (수강계획 기준)\n- 이수 예정: ${takenStr}\n- 미이수 예정: ${notTakenStr}\n- 일반교과 이수율: ${Math.round(adequacy.generalRate * 100)}%\n- 진로교과 이수율: ${Math.round(adequacy.careerRate * 100)}%`;
       }
-    } catch (_e) {
-      // 적합도 계산 실패 시 무시
+    } catch (e) {
+      // 적합도 계산 실패 — 보조 데이터이므로 경미 로깅만
+      logActionWarn(LOG_CTX, "전공 교과 적합도 계산 실패", { studentId, error: String(e) });
     }
   }
 
@@ -807,8 +808,9 @@ async function generateProspectiveDiagnosisInternal(
       const lines = storylines.map((sl) => `- ${sl.title} [${(sl.keywords ?? []).slice(0, 3).join(", ")}]`);
       storylineText = `\n\n## 설정된 스토리라인\n${lines.join("\n")}`;
     }
-  } catch (_e) {
-    // 스토리라인 조회 실패 시 무시
+  } catch (e) {
+    // 스토리라인 조회 실패 — 보조 데이터이므로 경미 로깅만
+    logActionWarn(LOG_CTX, "스토리라인 조회 실패", { studentId, error: String(e) });
   }
 
   const userPrompt = `# 신입생 예비 진단 요청

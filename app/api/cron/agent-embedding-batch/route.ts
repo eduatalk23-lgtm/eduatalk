@@ -100,8 +100,6 @@ export async function GET(request: NextRequest) {
       results.corrections.success +
       results.corrections.failed;
 
-    console.log("[agent-embedding-batch] Results:", results);
-
     return NextResponse.json({
       success: results.errors.length === 0,
       totalProcessed,

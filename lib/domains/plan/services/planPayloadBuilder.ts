@@ -328,14 +328,6 @@ export class PlanPayloadBuilder {
     const now = new Date().toISOString();
 
     for (const segment of timeSegments) {
-      // DEBUG: segment.plan 범위 확인
-      console.log("[PlanPayloadBuilder] segment.plan 범위:", {
-        date,
-        content_id: segment.plan.content_id,
-        planned_start: segment.plan.planned_start_page_or_time,
-        planned_end: segment.plan.planned_end_page_or_time,
-      });
-
       const originalContentId =
         reverseContentIdMap.get(segment.plan.content_id) ||
         segment.plan.content_id;
@@ -376,21 +368,6 @@ export class PlanPayloadBuilder {
         startRange: segment.plan.planned_start_page_or_time,
         endRange: segment.plan.planned_end_page_or_time,
         contentType: segment.plan.content_type as "book" | "lecture",
-      });
-
-      // DEBUG: custom_title 생성 확인
-      console.log("[PlanPayloadBuilder] custom_title 생성:", {
-        date,
-        content_id: finalContentId,
-        customTitle,
-        metadata: {
-          subject: metadata?.subject,
-          title: metadata?.title,
-        },
-        range: {
-          start: segment.plan.planned_start_page_or_time,
-          end: segment.plan.planned_end_page_or_time,
-        },
       });
 
       payloads.push({

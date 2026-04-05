@@ -635,7 +635,6 @@ export function PlanCalendarView({
         onBatchResolve={async (changes) => {
           // 실제 해결 로직은 추후 구현
           // 현재는 새로고침으로 대체
-          console.log("Conflict resolution changes:", changes);
           onPlansUpdated?.();
           router.refresh();
         }}

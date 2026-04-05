@@ -584,15 +584,6 @@ export function withErrorHandlingSafe<TArgs extends readonly unknown[], TReturn>
         isUserFacing: normalizedError.isUserFacing,
       };
 
-      // [DIAGNOSTIC] 에러 직렬화 디버깅 - 문제 해결 후 제거
-      console.log("[withErrorHandlingSafe] Serializing error:", {
-        code: serializedError.code,
-        message: serializedError.message,
-        statusCode: serializedError.statusCode,
-        isUserFacing: serializedError.isUserFacing,
-        fnName: fn.name,
-      });
-
       // 직렬화 가능한 에러 객체 반환 (throw 대신)
       return {
         success: false as const,

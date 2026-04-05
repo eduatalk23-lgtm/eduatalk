@@ -42,7 +42,6 @@ export function useAttendanceRealtime({
           filter: `student_id=eq.${studentId}`,
         },
         (payload) => {
-          console.log("[Realtime] Attendance updated:", payload);
           // 출석 관련 쿼리 무효화
           queryClient.invalidateQueries({ queryKey: ["attendance", studentId] });
           queryClient.invalidateQueries({ queryKey: ["attendance", "stats"] });
@@ -86,7 +85,6 @@ export function useAdminAttendanceRealtime({
           filter: `tenant_id=eq.${tenantId}`,
         },
         (payload) => {
-          console.log("[Realtime] Admin attendance updated:", payload);
           queryClient.invalidateQueries({ queryKey: ["admin", "attendance"] });
           queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
         }

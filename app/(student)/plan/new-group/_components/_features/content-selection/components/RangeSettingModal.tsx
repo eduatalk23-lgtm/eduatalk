@@ -135,21 +135,6 @@ export function RangeSettingModal({
           ? "/api/master-content-details"
           : "/api/student-content-details";
 
-        if (process.env.NODE_ENV === "development") {
-          console.log("[RangeSettingModal] API 호출 정보:", {
-            apiPath,
-            isRecommendedContent,
-            contentType: content.type,
-            contentId: content.id,
-            studentId,
-            title: content.title,
-            props: {
-              isRecommendedContent,
-              studentId,
-            },
-          });
-        }
-
       // URL 파라미터 안전하게 생성
       const params = new URLSearchParams({
         contentType: content.type,

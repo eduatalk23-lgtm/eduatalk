@@ -83,9 +83,7 @@ export function AttendanceSMSSettingsForm() {
     }
 
     try {
-      console.log('[AttendanceSMSSettingsForm] 폼 제출 데이터:', formData);
       const result = await updateAttendanceSMSSettings(formData);
-      console.log('[AttendanceSMSSettingsForm] 서버 응답:', result);
 
       if (result.success) {
         setSuccess(true);

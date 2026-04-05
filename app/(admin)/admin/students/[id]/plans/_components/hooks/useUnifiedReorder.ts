@@ -309,8 +309,6 @@ export function useUnifiedReorder({
 
       // 빈 슬롯에 드롭한 경우: 재정렬 대신 직접 시간 변경
       if (data.overItemType === 'emptySlot' && data.targetSlotTime) {
-        console.log('[useUnifiedReorder] Empty slot drop detected:', data);
-
         // 이동한 아이템 찾기
         const movedItem = mergedItems.find(item => {
           if (data.movedItemType === 'plan' && item.kind === 'plan') {
@@ -331,12 +329,9 @@ export function useUnifiedReorder({
         });
 
         if (!movedItem) {
-          console.log('[useUnifiedReorder] Moved item not found:', data.movedItemId);
           showToast('이동할 아이템을 찾을 수 없습니다.', 'error');
           return;
         }
-
-        console.log('[useUnifiedReorder] Found moved item:', movedItem);
 
         // 아이템 정보 추출
         const itemType = data.movedItemType;
@@ -358,17 +353,6 @@ export function useUnifiedReorder({
 
         // 서버 액션 호출
         startTransition(async () => {
-          console.log('[useUnifiedReorder] Calling updateItemTime:', {
-            studentId,
-            calendarId,
-            planDate: selectedDate,
-            itemId,
-            itemType,
-            newStartTime: data.targetSlotTime!.start,
-            newEndTime: data.targetSlotTime!.end,
-            recordId,
-          });
-
           const result = await updateItemTime({
             studentId,
             calendarId,
@@ -489,12 +473,6 @@ export function useUnifiedReorder({
           nonStudyType: item.kind === 'nonStudy' ? item.item.type : item.kind === 'timeSlot' ? item.slot.type : undefined,
           sourceIndex: item.kind === 'nonStudy' ? item.item.sourceIndex : undefined,
         };
-      });
-
-      console.log('[useUnifiedReorder] ID parsing:', {
-        original: data.movedItemId,
-        parsedMovedId: movedOriginalId,
-        parsedOverId: overOriginalId,
       });
 
       // 클라이언트에서 새 시간 계산 (Optimistic Update용)
