@@ -514,6 +514,13 @@ export const PIPELINE_THRESHOLDS = {
   DEFAULT_DRAFT_MAX_TOKENS: 2000,
 } as const;
 
+/** 창체 활동 유형 라벨 (축약형: 자율/동아리/진로) */
+export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  autonomy: "자율",
+  club: "동아리",
+  career: "진로",
+};
+
 export const SCHOOL_CATEGORY_LABELS: Record<string, string> = {
   general: "일반고",
   autonomous_private: "자사고",

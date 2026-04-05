@@ -19,6 +19,7 @@ import {
 import type { PersistedEdge } from "./edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
 import * as diagnosisRepo from "./diagnosis-repository";
+import { ACTIVITY_TYPE_LABELS } from "./constants";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-guide" };
 
@@ -196,9 +197,8 @@ export async function runHaengteukGuide(
       .eq("source", "ai")
       .limit(3);
     if (changcheRows && changcheRows.length > 0) {
-      const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
       const lines = changcheRows.map((r) =>
-        `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
+        `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
       );
       changcheCtx = `## 창체 방향 요약\n${lines.join("\n")}`;
     }
@@ -231,9 +231,8 @@ export async function runHaengteukGuide(
     .eq("source", "ai")
     .limit(3);
   if (changcheRows && changcheRows.length > 0) {
-    const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
     const lines = changcheRows.map((r) =>
-      `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
+      `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
     );
     changcheGuideContext = `## 창체 방향 요약\n${lines.join("\n")}`;
   }
@@ -479,7 +478,6 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   }
 
   // 창체 방향 컨텍스트 (해당 학년 school_year 기준)
-  const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
   const { data: changcheCtxRows } = await ctx.supabase
     .from("student_record_changche_guides")
     .select("activity_type, direction, keywords")
@@ -489,7 +487,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
     .eq("source", "ai")
     .limit(3);
   const changcheCtx = changcheCtxRows?.length
-    ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
+    ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
   await generateHaengteukDirection(

@@ -260,22 +260,3 @@ export async function generateAiDiagnosis(
     return { success: false, error: "종합 진단 생성 중 오류가 발생했습니다." };
   }
 }
-
-// ============================================
-// @deprecated generateProspectiveDiagnosis
-// generateAiDiagnosis([], [], info, ..., ..., ..., coursePlanContext) 로 대체됨.
-// 이 함수는 하위 호환을 위해 잠시 남겨두되, 호출하지 말 것.
-// ============================================
-
-/** @deprecated generateAiDiagnosis의 coursePlanContext 파라미터를 사용하세요. */
-export interface ProspectiveDiagnosisResult {
-  overallGrade: string;
-  recordDirection: string;
-  directionStrength: "strong" | "moderate" | "weak";
-  directionReasoning: string;
-  strengths: string[];
-  weaknesses: string[];
-  improvements: DiagnosisImprovement[];
-  recommendedMajors: string[];
-  strategyNotes: string;
-}
