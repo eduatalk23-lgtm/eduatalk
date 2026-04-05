@@ -39,6 +39,18 @@ export interface SharedReportData {
   visibleSections: string[];
 }
 
+interface ReportShareRow {
+  id: string;
+  student_id: string;
+  share_token: string;
+  visible_sections: string[];
+  report_data: ReportExportData;
+  is_active: boolean;
+  expires_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 // ============================================
 // Actions
 // ============================================
@@ -128,6 +140,7 @@ export async function fetchSharedReportAction(
       .select("id, student_id, share_token, visible_sections, report_data, is_active, expires_at, created_by, created_at")
       .eq("share_token", token)
       .eq("is_active", true)
+      .returns<ReportShareRow>()
       .maybeSingle();
 
     if (error || !share) {
@@ -139,7 +152,7 @@ export async function fetchSharedReportAction(
       return { success: false, error: "만료된 공유 링크입니다." };
     }
 
-    const report = share.report_data as unknown as ReportExportData;
+    const report = share.report_data;
     const visibleSections = share.visible_sections as string[];
 
     // visible_sections 필터 적용: 빈 배열이면 전체 노출

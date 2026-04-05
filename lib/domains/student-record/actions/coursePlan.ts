@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -40,7 +40,7 @@ export async function generateRecommendationsAction(
     await requireAdminOrConsultant();
     const data = await service.generateAndSaveRecommendations(studentId, tenantId);
     // 파이프라인 상태 동기화 (fire-and-forget)
-    syncPipelineTaskStatus(studentId, "course_recommendation").catch(() => {});
+    syncPipelineTaskStatus(studentId, "course_recommendation").catch((err) => logActionWarn(LOG_CTX, `syncPipelineTaskStatus failed: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse(data);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "generateRecommendationsAction" }, error);
@@ -109,7 +109,7 @@ export async function updateCoursePlanStatusAction(
             // 가이드 auto-link: 생성된 세특과 target_subject_id 매칭
             if (syncResult.createdSeteks.length > 0) {
               const { linkAssignmentsToSeteks } = await import("@/lib/domains/guide/repository");
-              await linkAssignmentsToSeteks(plan.student_id, student.tenant_id, syncResult.createdSeteks).catch(() => {});
+              await linkAssignmentsToSeteks(plan.student_id, student.tenant_id, syncResult.createdSeteks).catch((err) => logActionWarn(LOG_CTX, `linkAssignmentsToSeteks failed: ${err instanceof Error ? err.message : String(err)}`));
             }
           }
         }

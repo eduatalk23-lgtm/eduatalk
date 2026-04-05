@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 
 // ============================================
 // 에러 분류 기반 적응형 재시도 래퍼
@@ -111,7 +112,10 @@ export async function withRetry<T>(
         if (attempt >= effectiveMax) break;
 
         const delay = strategy.delays[Math.min(attempt, strategy.delays.length - 1)] ?? 10000;
-        console.warn(`[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기)`);
+        logActionWarn(
+          { domain: "student-record", action: "llm-retry" },
+          `[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기)`,
+        );
         await new Promise<void>((r) => setTimeout(r, delay));
       } else {
         if (attempt >= defaultMaxRetries) break;

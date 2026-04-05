@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { generateTextWithRateLimit } from "../ai-client";
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "../../constants";
 import type { CompetencyItemCode, CompetencyGrade } from "../../types";
 import { extractJson } from "../extractJson";

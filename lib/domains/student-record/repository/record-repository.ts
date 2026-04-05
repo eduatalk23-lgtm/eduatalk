@@ -6,8 +6,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   RecordSetek, RecordSetekInsert, RecordSetekUpdate,
   RecordPersonalSetek, RecordPersonalSetekInsert, RecordPersonalSetekUpdate,
-  RecordChangche, RecordChangcheInsert,
-  RecordHaengteuk, RecordHaengteukInsert,
+  RecordChangche, RecordChangcheInsert, RecordChangcheUpdate,
+  RecordHaengteuk, RecordHaengteukInsert, RecordHaengteukUpdate,
   SubjectPair,
 } from "../types";
 
@@ -194,6 +194,29 @@ export async function upsertChangche(
   return data.id;
 }
 
+export async function updateChangcheById(
+  id: string,
+  updates: RecordChangcheUpdate,
+  expectedUpdatedAt?: string,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_changche")
+    .update(updates)
+    .eq("id", id);
+
+  // 낙관적 잠금
+  if (expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { error, count } = await query;
+  if (error) throw error;
+  if (expectedUpdatedAt && count === 0) {
+    throw new Error("CONFLICT: 다른 사용자가 수정했습니다. 새로고침 후 다시 시도해주세요.");
+  }
+}
+
 /** 임포트 전용 upsert — imported_content에 저장, content 비어있으면 복사 */
 export async function upsertChangcheImport(
   input: RecordChangcheInsert,
@@ -245,6 +268,29 @@ export async function upsertHaengteuk(
     .single();
   if (error) throw error;
   return data.id;
+}
+
+export async function updateHaengteukById(
+  id: string,
+  updates: RecordHaengteukUpdate,
+  expectedUpdatedAt?: string,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_haengteuk")
+    .update(updates)
+    .eq("id", id);
+
+  // 낙관적 잠금
+  if (expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { error, count } = await query;
+  if (error) throw error;
+  if (expectedUpdatedAt && count === 0) {
+    throw new Error("CONFLICT: 다른 사용자가 수정했습니다. 새로고침 후 다시 시도해주세요.");
+  }
 }
 
 /** 임포트 전용 upsert — imported_content에 저장, content 비어있으면 복사 */

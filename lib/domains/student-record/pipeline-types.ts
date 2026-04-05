@@ -461,6 +461,49 @@ export interface PipelineContext {
 }
 
 // ============================================
+// Phase별 narrowed 타입 — 특정 Phase 이후 보장되는 필드
+// 기존 PipelineContext를 깨지 않고 소비자 측에서 타입 안전성 확보
+// ============================================
+
+/** Grade P1-P3 완료 후: resolvedRecords + cachedRecords + analysisContext 보장 */
+export interface GradeAnalysisCompleteCtx extends PipelineContext {
+  pipelineType: "grade";
+  targetGrade: number;
+  resolvedRecords: NonNullable<PipelineContext["resolvedRecords"]>;
+  analysisContext: NonNullable<PipelineContext["analysisContext"]>;
+}
+
+/** Grade P4-P6 완료 후: 가이드 생성 컨텍스트 보장 */
+export interface GradeGuideCompleteCtx extends GradeAnalysisCompleteCtx {
+  gradeMode: "analysis" | "design";
+}
+
+/** Grade P7-P8 (설계 모드): leveling 결과 보장 */
+export interface GradeDesignCompleteCtx extends GradeGuideCompleteCtx {
+  gradeMode: "design";
+  leveling: NonNullable<PipelineContext["leveling"]>;
+}
+
+/** Synthesis 파이프라인: unifiedInput 보장 */
+export interface SynthesisCtx extends PipelineContext {
+  pipelineType: "synthesis";
+  unifiedInput: NonNullable<PipelineContext["unifiedInput"]>;
+  gradePipelineIds: string[];
+}
+
+/** Phase 전환 시 필수 필드 존재를 확인하는 어설션 헬퍼 */
+export function assertGradeCtx(ctx: PipelineContext): asserts ctx is GradeAnalysisCompleteCtx {
+  if (ctx.pipelineType !== "grade") throw new Error(`assertGradeCtx: expected grade pipeline, got ${ctx.pipelineType}`);
+  if (ctx.targetGrade == null) throw new Error("assertGradeCtx: targetGrade is required");
+  if (!ctx.resolvedRecords) throw new Error("assertGradeCtx: resolvedRecords not populated");
+}
+
+export function assertSynthesisCtx(ctx: PipelineContext): asserts ctx is SynthesisCtx {
+  if (ctx.pipelineType !== "synthesis") throw new Error(`assertSynthesisCtx: expected synthesis pipeline, got ${ctx.pipelineType}`);
+  if (!ctx.unifiedInput) throw new Error("assertSynthesisCtx: unifiedInput not populated (call buildUnifiedGradeInput first)");
+}
+
+// ============================================
 // 데이터 커버리지 경고 (Synthesis 태스크 출력에 포함)
 // ============================================
 

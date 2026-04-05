@@ -11,6 +11,11 @@ import type { ActionResponse } from "@/lib/types/actionResponse";
 
 const LOG_CTX = { domain: "student-record", action: "duplication" } as const;
 
+interface SiblingRow {
+  id: string;
+  name: { display_name: string } | null;
+}
+
 export interface SameSchoolSetekEntry {
   studentName: string;
   content: string;
@@ -51,7 +56,8 @@ export async function findSameSchoolSeteksAction(input: {
       .select("id, name:user_profiles(display_name)")
       .eq("tenant_id", tenantId)
       .eq("school_name", student.school_name)
-      .neq("id", input.studentId);
+      .neq("id", input.studentId)
+      .returns<SiblingRow[]>();
 
     if (!siblings || siblings.length === 0) {
       return createSuccessResponse([]);
@@ -60,8 +66,7 @@ export async function findSameSchoolSeteksAction(input: {
     const siblingIds = siblings.map((s) => s.id);
     const nameMap = new Map<string, string>();
     for (const s of siblings) {
-      const profile = s.name as unknown as { display_name: string } | null;
-      nameMap.set(s.id, profile?.display_name ?? "학생");
+      nameMap.set(s.id, s.name?.display_name ?? "학생");
     }
 
     // 3. 같은 과목 + school_year의 세특 조회

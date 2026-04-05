@@ -52,6 +52,8 @@ vi.mock("../constants", () => ({
   COMPETENCY_AREA_LABELS: {},
   COMPETENCY_RUBRIC_QUESTIONS: {},
   MAJOR_RECOMMENDED_COURSES: {},
+  PIPELINE_THRESHOLDS: { MIN_IMPORTED_LENGTH: 20, MIN_CONTENT_LENGTH: 10, DEFAULT_DRAFT_MAX_TOKENS: 2000 },
+  ACTIVITY_TYPE_LABELS: { autonomy: "자율", club: "동아리", career: "진로" },
 }));
 
 // actionLogger mock

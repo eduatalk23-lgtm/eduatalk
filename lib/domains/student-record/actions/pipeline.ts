@@ -24,7 +24,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
@@ -276,8 +276,9 @@ export async function syncPipelineTaskStatus(
       { ...LOG_CTX, action: "syncPipelineTask" },
       `Task ${taskKey} synced to completed (pipeline: ${data.id})`,
     );
-  } catch {
+  } catch (err) {
     // fire-and-forget: 동기화 실패는 무시
+    logActionWarn({ ...LOG_CTX, action: "syncPipelineTaskStatus" }, "syncPipelineTaskStatus failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -329,8 +330,9 @@ export async function saveTaskResult(
         completed_at: new Date().toISOString(),
       });
     }
-  } catch {
+  } catch (err) {
     // fire-and-forget
+    logActionWarn({ ...LOG_CTX, action: "saveTaskResult" }, "saveTaskResult failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 

@@ -261,8 +261,9 @@ export async function executeImport(
       try {
         const { relinkAssignmentsAfterImport } = await import("@/lib/domains/guide/repository");
         await relinkAssignmentsAfterImport(sid, tid);
-      } catch {
+      } catch (err) {
         // 가이드 재연결 실패해도 임포트 성공은 유지
+        logActionWarn(LOG_CTX, "가이드 재연결 failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
       }
     }
 
@@ -279,10 +280,13 @@ export async function executeImport(
             .single();
           if (st?.school_name) {
             const { autoCollectForSchool } = await import("../actions/schoolProfile");
-            autoCollectForSchool(tid, st.school_name).catch(() => {});
+            autoCollectForSchool(tid, st.school_name).catch((err: unknown) =>
+              logActionWarn(LOG_CTX, "학교 개설 과목 수집 failed", { error: err instanceof Error ? err.message : String(err) }),
+            );
           }
-        } catch {
+        } catch (err) {
           // 학교 수집 실패해도 임포트 성공 유지
+          logActionWarn(LOG_CTX, "학교 수집 failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
         }
       }
     }

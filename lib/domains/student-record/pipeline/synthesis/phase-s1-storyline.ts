@@ -11,6 +11,7 @@ import type {
 } from "../../pipeline-types";
 import * as repository from "../../repository";
 import type { RecordSummary } from "../../llm/prompts/inquiryLinking";
+import { PIPELINE_THRESHOLDS } from "../../constants";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
@@ -47,7 +48,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   const sortedSeteks = [...ctx.cachedSeteks].sort((a, b) => a.grade - b.grade);
   for (const s of sortedSeteks) {
     const effectiveContent = s.imported_content?.trim() || s.content?.trim() || s.ai_draft_content?.trim() || null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
+    if (!effectiveContent || effectiveContent.length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) continue;
     records.push({ index: idx++, id: s.id, grade: s.grade, subject: s.subject?.name ?? "과목 미정", type: "setek", content: effectiveContent });
   }
 
@@ -62,7 +63,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   const sortedChangche = [...ctx.cachedChangche].sort((a, b) => a.grade - b.grade);
   for (const c of sortedChangche) {
     const effectiveContent = c.imported_content?.trim() || c.content?.trim() || c.ai_draft_content?.trim() || null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
+    if (!effectiveContent || effectiveContent.length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) continue;
     records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: effectiveContent });
   }
 

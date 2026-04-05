@@ -4,6 +4,7 @@
 // ============================================
 
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "../../constants";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import {
   formatFailPatternsForPrompt,
   formatSetekFlowEvaluation,
@@ -315,7 +316,10 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   };
   if (c.scientificValidity != null) rawAxes.scientificValidity = Number(c.scientificValidity) || 0;
   if (Object.values(rawAxes).some((v) => v < 0 || v > 5)) {
-    console.warn("[ContentQuality] 축 점수 범위 초과 (유효범위 0-5):", rawAxes);
+    logActionWarn(
+      { domain: "student-record", action: "extractContentQuality" },
+      `[ContentQuality] 축 점수 범위 초과 (유효범위 0-5): ${JSON.stringify(rawAxes)}`,
+    );
   }
 
   const sp = clamp(Number(c.specificity) || 0, 0, 5);
@@ -333,11 +337,10 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   // overallScore vs 계산값 불일치 감지 (15점 이상 차이 = LLM 환각 의심)
   const llmOverall = Number(c.overallScore);
   if (llmOverall > 0 && Math.abs(llmOverall - fallbackScore) > 15) {
-    console.warn("[ContentQuality] overallScore 불일치 (LLM vs 계산):", {
-      llm: llmOverall,
-      calculated: Math.round(fallbackScore),
-      diff: Math.round(llmOverall - fallbackScore),
-    });
+    logActionWarn(
+      { domain: "student-record", action: "extractContentQuality" },
+      `[ContentQuality] overallScore 불일치 (LLM vs 계산): llm=${llmOverall}, calculated=${Math.round(fallbackScore)}, diff=${Math.round(llmOverall - fallbackScore)}`,
+    );
   }
   const overall = llmOverall > 0 ? clamp(llmOverall, 0, 100) : Math.round(fallbackScore);
 

@@ -14,6 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RecordSummary } from "./llm/prompts/inquiryLinking";
 import { logActionDebug } from "@/lib/logging/actionLogger";
+import { PIPELINE_THRESHOLDS } from "./constants";
 import { findContentQualityByStudent } from "./competency-repository";
 
 const LOG_CTX = { domain: "student-record", action: "unified-input" };
@@ -236,11 +237,11 @@ export async function buildUnifiedGradeInput(params: {
 
   function resolveContent(imported: string | null | undefined, content: string | null | undefined, aiDraft: string | null | undefined): { text: string; hasNeis: boolean } {
     const imp = imported?.trim();
-    if (imp && imp.length > 20) return { text: imp, hasNeis: true };
+    if (imp && imp.length > PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) return { text: imp, hasNeis: true };
     const con = content?.trim();
-    if (con && con.length > 10) return { text: con, hasNeis: false };
+    if (con && con.length > PIPELINE_THRESHOLDS.MIN_CONTENT_LENGTH) return { text: con, hasNeis: false };
     const draft = aiDraft?.trim();
-    if (draft && draft.length > 10) return { text: draft, hasNeis: false };
+    if (draft && draft.length > PIPELINE_THRESHOLDS.MIN_CONTENT_LENGTH) return { text: draft, hasNeis: false };
     return { text: "", hasNeis: false };
   }
 
@@ -249,19 +250,19 @@ export async function buildUnifiedGradeInput(params: {
     for (const s of (seteksRes.data ?? []) as SetekRow[]) {
       if (s.grade !== grade) continue;
       const { text: content, hasNeis } = resolveContent(s.imported_content, s.content, s.ai_draft_content);
-      if (content.length < 10) continue;
+      if (content.length < PIPELINE_THRESHOLDS.MIN_CONTENT_LENGTH) continue;
       recs.push({ id: s.id, recordType: "setek", grade, subjectName: s.subject?.name, content, hasNeis });
     }
     for (const c of (changcheRes.data ?? []) as ChangcheRow[]) {
       if (c.grade !== grade) continue;
       const { text: content, hasNeis } = resolveContent(c.imported_content, c.content, c.ai_draft_content);
-      if (content.length < 10) continue;
+      if (content.length < PIPELINE_THRESHOLDS.MIN_CONTENT_LENGTH) continue;
       recs.push({ id: c.id, recordType: "changche", grade, activityType: c.activity_type ?? undefined, content, hasNeis });
     }
     for (const h of (haengteukRes.data ?? []) as HaengteukRow[]) {
       if (h.grade !== grade) continue;
       const { text: content, hasNeis } = resolveContent(h.imported_content, h.content, h.ai_draft_content);
-      if (content.length < 10) continue;
+      if (content.length < PIPELINE_THRESHOLDS.MIN_CONTENT_LENGTH) continue;
       recs.push({ id: h.id, recordType: "haengteuk", grade, content, hasNeis });
     }
     return recs;
@@ -439,7 +440,7 @@ export function collectAnalysisRecords(input: UnifiedGradeInput): RecordSummary[
     const go = input.grades[grade];
     if (go.mode !== "analysis") continue;
     for (const rec of go.records) {
-      if (rec.content.length < 20) continue;
+      if (rec.content.length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) continue;
       records.push({
         index: idx++,
         id: rec.id,

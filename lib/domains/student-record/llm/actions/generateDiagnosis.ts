@@ -9,7 +9,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
-import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { generateTextWithRateLimit } from "../ai-client";
 import { extractJson } from "../extractJson";
 import { withRetry } from "../retry";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, COMPETENCY_RUBRIC_QUESTIONS, MAJOR_RECOMMENDED_COURSES } from "../../constants";

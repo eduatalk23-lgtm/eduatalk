@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
 import {
   HIGHLIGHT_SYSTEM_PROMPT,
@@ -17,6 +17,7 @@ import {
   parseBatchHighlightResponse,
 } from "../prompts/competencyHighlight";
 import type { HighlightAnalysisInput, HighlightAnalysisResult, BatchHighlightInput, BatchHighlightResult } from "../types";
+import { PIPELINE_THRESHOLDS } from "../../constants";
 
 const LOG_CTX = { domain: "student-record", action: "analyzeWithHighlight" };
 
@@ -30,7 +31,7 @@ export async function analyzeSetekWithHighlight(
   try {
     await requireAdminOrConsultant();
 
-    if (!input.content || input.content.trim().length < 20) {
+    if (!input.content || input.content.trim().length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) {
       return { success: false, error: "분석할 텍스트가 너무 짧습니다 (20자 이상 필요)." };
     }
 
@@ -144,9 +145,9 @@ export async function analyzeSetekBatchWithHighlight(
 ): Promise<BatchHighlightResult> {
   await requireAdminOrConsultant();
 
-  const validRecords = input.records.filter((r) => r.content?.trim().length >= 20);
+  const validRecords = input.records.filter((r) => r.content?.trim().length >= PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH);
   const invalidIds = input.records
-    .filter((r) => !r.content || r.content.trim().length < 20)
+    .filter((r) => !r.content || r.content.trim().length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH)
     .map((r) => r.id);
 
   if (validRecords.length === 0) {

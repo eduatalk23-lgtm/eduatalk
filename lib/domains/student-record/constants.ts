@@ -500,6 +500,20 @@ export type StrategyTargetArea = keyof typeof STRATEGY_TARGET_AREAS;
 // 11. 라벨 맵
 // ============================================
 
+// ============================================
+// 12. 파이프라인 임계값
+// ============================================
+
+/** 파이프라인 콘텐츠 실질성 판별 임계값 */
+export const PIPELINE_THRESHOLDS = {
+  /** imported_content 최소 길이 (이보다 짧으면 분석 무의미) */
+  MIN_IMPORTED_LENGTH: 20,
+  /** confirmed/content 최소 길이 */
+  MIN_CONTENT_LENGTH: 10,
+  /** LLM maxTokens 기본값 (세특/창체/행특 초안) */
+  DEFAULT_DRAFT_MAX_TOKENS: 2000,
+} as const;
+
 export const SCHOOL_CATEGORY_LABELS: Record<string, string> = {
   general: "일반고",
   autonomous_private: "자사고",

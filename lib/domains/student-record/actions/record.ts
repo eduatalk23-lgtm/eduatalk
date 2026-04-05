@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import type {
   ActionResponse,
 } from "@/lib/types/actionResponse";
@@ -56,11 +56,11 @@ export async function saveSetekAction(
       return createErrorResponse(result.error ?? "세특 저장 실패");
     }
     // Phase E3: 관련 엣지 stale 마킹 (fire-and-forget)
-    markRelatedEdgesStale(result.id!).catch(() => {});
-    markRelatedAssignmentsStale(result.id!).catch(() => {});
+    markRelatedEdgesStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+    markRelatedAssignmentsStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
     // H2: 로드맵 자동 매칭 (세특 과목+학년 → roadmap status 전환)
     if (input.student_id && input.subject_id && input.grade) {
-      autoMatchRoadmapOnSetekSave(input.student_id, input.subject_id, input.grade, input.content ?? "").catch(() => {});
+      autoMatchRoadmapOnSetekSave(input.student_id, input.subject_id, input.grade, input.content ?? "").catch((err) => logActionWarn(LOG_CTX, `autoMatchRoadmapOnSetekSave failed: ${err instanceof Error ? err.message : String(err)}`));
     }
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
@@ -82,8 +82,8 @@ export async function savePersonalSetekAction(
     if (!result.success) {
       return createErrorResponse(result.error ?? "개인 세특 저장 실패");
     }
-    markRelatedEdgesStale(result.id!).catch(() => {});
-    markRelatedAssignmentsStale(result.id!).catch(() => {});
+    markRelatedEdgesStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+    markRelatedAssignmentsStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "savePersonalSetekAction" }, error);
@@ -145,8 +145,8 @@ export async function saveChangcheAction(
     if (!result.success) {
       return createErrorResponse(result.error ?? "창체 저장 실패");
     }
-    markRelatedEdgesStale(result.id!).catch(() => {});
-    markRelatedAssignmentsStale(result.id!).catch(() => {});
+    markRelatedEdgesStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+    markRelatedAssignmentsStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveChangcheAction" }, error);
@@ -168,8 +168,8 @@ export async function saveHaengteukAction(
     if (!result.success) {
       return createErrorResponse(result.error ?? "행특 저장 실패");
     }
-    markRelatedEdgesStale(result.id!).catch(() => {});
-    markRelatedAssignmentsStale(result.id!).catch(() => {});
+    markRelatedEdgesStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+    markRelatedAssignmentsStale(result.id!).catch((err) => logActionWarn(LOG_CTX, `markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveHaengteukAction" }, error);

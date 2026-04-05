@@ -201,6 +201,7 @@ export async function removePersonalSetek(id: string): Promise<StudentRecordActi
 export async function saveChangche(
   input: RecordChangcheInsert,
   schoolYear: number,
+  options?: { expectedUpdatedAt?: string },
 ): Promise<StudentRecordActionResult> {
   try {
     const content = normalizeLineBreaks(input.content ?? "");
@@ -216,9 +217,21 @@ export async function saveChangche(
       };
     }
 
+    if (options?.expectedUpdatedAt && input.id) {
+      await repository.updateChangcheById(
+        input.id,
+        { ...input, content, char_limit: charLimit },
+        options.expectedUpdatedAt,
+      );
+      return { success: true, id: input.id };
+    }
+
     const id = await repository.upsertChangche({ ...input, content, char_limit: charLimit });
     return { success: true, id };
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("CONFLICT")) {
+      return { success: false, error: error.message };
+    }
     logActionError({ domain: DOMAIN, action: "saveChangche" }, error);
     return { success: false, error: "창체 저장 중 오류가 발생했습니다." };
   }
@@ -231,6 +244,7 @@ export async function saveChangche(
 export async function saveHaengteuk(
   input: RecordHaengteukInsert,
   schoolYear: number,
+  options?: { expectedUpdatedAt?: string },
 ): Promise<StudentRecordActionResult> {
   try {
     const content = normalizeLineBreaks(input.content ?? "");
@@ -243,9 +257,21 @@ export async function saveHaengteuk(
       };
     }
 
+    if (options?.expectedUpdatedAt && input.id) {
+      await repository.updateHaengteukById(
+        input.id,
+        { ...input, content, char_limit: charLimit },
+        options.expectedUpdatedAt,
+      );
+      return { success: true, id: input.id };
+    }
+
     const id = await repository.upsertHaengteuk({ ...input, content, char_limit: charLimit });
     return { success: true, id };
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("CONFLICT")) {
+      return { success: false, error: error.message };
+    }
     logActionError({ domain: DOMAIN, action: "saveHaengteuk" }, error);
     return { success: false, error: "행특 저장 중 오류가 발생했습니다." };
   }

@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
 import {
   INQUIRY_LINK_SYSTEM_PROMPT,

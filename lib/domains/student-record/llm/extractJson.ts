@@ -1,3 +1,5 @@
+import { logActionError } from "@/lib/logging/actionLogger";
+
 /**
  * AI 응답에서 JSON 문자열을 안전하게 추출
  *
@@ -75,7 +77,10 @@ export function extractJson<T = unknown>(raw: string): T {
       const pos = parseInt(posMatch[1], 10);
       const lastStr = repairTruncatedJson(escapeNewlinesInStrings(str));
       const around = lastStr.substring(Math.max(0, pos - 80), pos + 80);
-      console.error(`[extractJson] 파싱 실패 — pos=${pos}, len=${lastStr.length}: ...${around}...`);
+      logActionError(
+        { domain: "student-record", action: "extractJson" },
+        `파싱 실패 — pos=${pos}, len=${lastStr.length}: ...${around}...`,
+      );
     }
   }
 

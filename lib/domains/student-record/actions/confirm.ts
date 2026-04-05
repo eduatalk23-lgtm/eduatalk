@@ -6,7 +6,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   createSuccessResponse,
@@ -104,8 +104,8 @@ export async function acceptAiDraftAction(
     Promise.resolve().then(async () => {
       try {
         const { markRelatedEdgesStale, markRelatedAssignmentsStale } = await import("../stale-detection");
-        await markRelatedEdgesStale(recordId).catch(() => {});
-        await markRelatedAssignmentsStale(recordId).catch(() => {});
+        await markRelatedEdgesStale(recordId).catch((err) => logActionWarn(LOG_CTX, `acceptAiDraft.markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+        await markRelatedAssignmentsStale(recordId).catch((err) => logActionWarn(LOG_CTX, `acceptAiDraft.markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
       } catch {
         // fire-and-forget
       }
@@ -160,11 +160,11 @@ export async function confirmDraftAction(
           markRelatedAssignmentsStale,
           autoMatchRoadmapOnConfirm,
         } = await import("../stale-detection");
-        await markRelatedEdgesStale(recordId).catch(() => {});
-        await markRelatedAssignmentsStale(recordId).catch(() => {});
+        await markRelatedEdgesStale(recordId).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+        await markRelatedAssignmentsStale(recordId).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
 
         if (recordType === "setek" && data.student_id && data.subject_id && typeof data.grade === "number") {
-          await autoMatchRoadmapOnConfirm(data.student_id, data.subject_id, data.grade).catch(() => {});
+          await autoMatchRoadmapOnConfirm(data.student_id, data.subject_id, data.grade).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.autoMatchRoadmapOnConfirm failed: ${err instanceof Error ? err.message : String(err)}`));
         }
       } catch {
         // fire-and-forget: 실패해도 주요 흐름에 영향 없음

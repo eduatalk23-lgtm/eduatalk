@@ -7,10 +7,10 @@
 
 import type { PipelineContext } from "./pipeline-types";
 import type { TaskRunnerOutput } from "./pipeline-executor";
-import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { generateTextWithRateLimit } from "./llm/ai-client";
 import { withRetry } from "./llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
-import { getCharLimit } from "./constants";
+import { getCharLimit, PIPELINE_THRESHOLDS } from "./constants";
 import {
   formatSetekFlowDetailed,
   formatDraftBannedPatterns,
@@ -195,7 +195,7 @@ export async function runDraftGenerationForGrade(
             messages: [{ role: "user", content: userPrompt }],
             modelTier: "standard",
             temperature: 0.5,
-            maxTokens: 2000,
+            maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
           }),
           { label: "draftSetek" },
         );
@@ -265,7 +265,7 @@ export async function runDraftGenerationForGrade(
             messages: [{ role: "user", content: userPrompt }],
             modelTier: "standard",
             temperature: 0.5,
-            maxTokens: 2000,
+            maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
           }),
           { label: "draftChangche" },
         );
@@ -331,7 +331,7 @@ export async function runDraftGenerationForGrade(
             messages: [{ role: "user", content: userPrompt }],
             modelTier: "standard",
             temperature: 0.5,
-            maxTokens: 2000,
+            maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
           }),
           { label: "draftHaengteuk" },
         );

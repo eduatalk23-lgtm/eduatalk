@@ -68,6 +68,27 @@ export interface UpsertOfferedSubjectInput {
 }
 
 // ============================================
+// 내부 쿼리 결과 타입 (nested join용)
+// ============================================
+
+interface OfferedSubjectRow {
+  id: string;
+  school_profile_id: string;
+  subject_id: string;
+  grades: number[] | null;
+  semesters: number[] | null;
+  is_elective: boolean | null;
+  notes: string | null;
+  subject: { name: string; subject_group: { name: string } | null } | null;
+}
+
+interface SubjectWithGroupRow {
+  id: string;
+  name: string;
+  subject_group: { name: string } | null;
+}
+
+// ============================================
 // 전체 테넌트 학교별 자동 수집
 // ============================================
 
@@ -386,12 +407,12 @@ export async function fetchSchoolProfileDetail(
     const { data: rawSubjects, error: subjectsError } = await supabaseAdmin
       .from("school_offered_subjects")
       .select("id, school_profile_id, subject_id, grades, semesters, is_elective, notes, subject:subject_id(name, subject_group:subject_group_id(name))")
-      .eq("school_profile_id", profileId);
+      .eq("school_profile_id", profileId)
+      .returns<OfferedSubjectRow[]>();
 
     if (subjectsError) throw subjectsError;
 
     const offeredSubjects: OfferedSubjectWithMeta[] = (rawSubjects ?? []).map((row) => {
-      const subjectRaw = row.subject as unknown as { name: string; subject_group: { name: string } | null } | null;
       return {
         id: row.id,
         school_profile_id: row.school_profile_id,
@@ -400,8 +421,8 @@ export async function fetchSchoolProfileDetail(
         semesters: row.semesters ?? [],
         is_elective: row.is_elective ?? null,
         notes: row.notes ?? null,
-        subject_name: subjectRaw?.name ?? null,
-        subject_group_name: subjectRaw?.subject_group?.name ?? null,
+        subject_name: row.subject?.name ?? null,
+        subject_group_name: row.subject?.subject_group?.name ?? null,
       };
     });
 
@@ -486,13 +507,13 @@ export async function fetchSubjectOptionsAction(): Promise<ActionResponse<Subjec
       .from("subjects")
       .select("id, name, subject_group:subject_group_id(name)")
       .eq("is_active", true)
-      .order("name");
+      .order("name")
+      .returns<SubjectWithGroupRow[]>();
 
     if (error) throw error;
 
     const options: SubjectOption[] = (data ?? []).map((row) => {
-      const group = row.subject_group as unknown as { name: string } | null;
-      return { id: row.id, name: row.name, group_name: group?.name ?? null };
+      return { id: row.id, name: row.name, group_name: row.subject_group?.name ?? null };
     });
 
     return createSuccessResponse(options);

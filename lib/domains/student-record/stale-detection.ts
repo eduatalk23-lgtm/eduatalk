@@ -7,6 +7,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { computeContentHash } from "./content-hash";
 import { markEdgesStale, markAllStudentEdgesStale } from "./edge-repository";
+import { logActionWarn } from "@/lib/logging/actionLogger";
+import { PIPELINE_THRESHOLDS } from "./constants";
+
+const LOG_CTX = { domain: "student-record", action: "stale-detection" };
 
 /**
  * 레코드 저장 후 관련 엣지를 stale로 마킹 (fire-and-forget safe)
@@ -15,8 +19,9 @@ import { markEdgesStale, markAllStudentEdgesStale } from "./edge-repository";
 export async function markRelatedEdgesStale(recordId: string): Promise<void> {
   try {
     await markEdgesStale(recordId, "source_record_updated");
-  } catch {
+  } catch (err) {
     // fire-and-forget: 실패해도 주요 저장 플로우에 영향 없음
+    logActionWarn(LOG_CTX, "markRelatedEdgesStale failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -32,8 +37,9 @@ export async function markRelatedAssignmentsStale(recordId: string): Promise<voi
       .update({ is_stale: true, stale_reason: "linked_record_updated" })
       .eq("linked_record_id", recordId)
       .eq("is_stale", false);
-  } catch {
+  } catch (err) {
     // fire-and-forget
+    logActionWarn(LOG_CTX, "markRelatedAssignmentsStale failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -49,8 +55,9 @@ export async function markStudentAssignmentsStale(studentId: string, tenantId: s
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("is_stale", false);
-  } catch {
+  } catch (err) {
     // fire-and-forget
+    logActionWarn(LOG_CTX, "markStudentAssignmentsStale failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -65,7 +72,7 @@ export async function autoMatchRoadmapOnSetekSave(
   content: string,
 ): Promise<void> {
   try {
-    if (!content || content.trim().length < 20) return;
+    if (!content || content.trim().length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) return;
     const supabase = await createSupabaseServerClient();
 
     // 과목명 조회
@@ -106,8 +113,9 @@ export async function autoMatchRoadmapOnSetekSave(
           .eq("status", "planning"), // 동시 업데이트 방지
       ),
     );
-  } catch {
+  } catch (err) {
     // fire-and-forget
+    logActionWarn(LOG_CTX, "autoMatchRoadmapOnSetekSave failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -161,8 +169,9 @@ export async function autoMatchRoadmapOnConfirm(
           .eq("status", "in_progress"), // 동시 업데이트 방지
       ),
     );
-  } catch {
+  } catch (err) {
     // fire-and-forget
+    logActionWarn(LOG_CTX, "autoMatchRoadmapOnConfirm failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -190,10 +199,14 @@ export async function onGradeAdvanced(
     .eq("tenant_id", tenantId)
     .eq("is_stale", false)
     .then(() => {})
-    .catch(() => {});
+    .catch((err: unknown) =>
+      logActionWarn(LOG_CTX, "가이드 배정 stale 마킹 실패", { error: err instanceof Error ? err.message : String(err) }),
+    );
 
   // 2. 엣지 stale 마킹 (fire-and-forget)
-  await markAllStudentEdgesStale(studentId, "grade_advanced").catch(() => {});
+  await markAllStudentEdgesStale(studentId, "grade_advanced").catch((err: unknown) =>
+    logActionWarn(LOG_CTX, "엣지 stale 마킹 실패", { error: err instanceof Error ? err.message : String(err) }),
+  );
 
   // 3. 파이프라인 content_hash → null (다음 실행 시 무조건 재분석)
   await supabase
@@ -201,7 +214,9 @@ export async function onGradeAdvanced(
     .update({ content_hash: null })
     .eq("student_id", studentId)
     .then(() => {})
-    .catch(() => {});
+    .catch((err: unknown) =>
+      logActionWarn(LOG_CTX, "content_hash 초기화 실패", { error: err instanceof Error ? err.message : String(err) }),
+    );
 }
 
 /**

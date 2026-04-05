@@ -14,6 +14,19 @@ interface AssignmentForPrompt {
   ai_recommendation_reason: string | null;
 }
 
+interface GuideAssignmentRow {
+  status: string;
+  target_subject_id: string | null;
+  target_activity_type: string | null;
+  ai_recommendation_reason: string | null;
+  exploration_guides: {
+    title: string;
+    guide_type: string | null;
+    quality_tier: string | null;
+    quality_score: number | null;
+  };
+}
+
 /**
  * 학생의 가이드 배정 정보를 AI 프롬프트 섹션으로 변환
  * @param studentId 학생 UUID
@@ -37,7 +50,8 @@ export async function buildGuideContextSection(
     .eq("student_id", studentId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(20)
+    .returns<GuideAssignmentRow[]>();
 
   if (!assignments || assignments.length === 0) return "";
 
@@ -57,7 +71,7 @@ export async function buildGuideContextSection(
 
   // 배정 목록 텍스트 생성
   const lines = assignments.map((a) => {
-    const guide = a.exploration_guides as unknown as { title: string; guide_type: string | null; quality_tier: string | null; quality_score: number | null };
+    const guide = a.exploration_guides;
     const subjectName = a.target_subject_id ? subjectMap.get(a.target_subject_id) : null;
     const area = subjectName
       ? `세특-${subjectName}`

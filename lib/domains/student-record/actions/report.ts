@@ -43,6 +43,19 @@ import type { RecordWarning } from "../warnings/types";
 const LOG_CTX = { domain: "student-record", action: "report" };
 
 // ============================================
+// 내부 쿼리 결과 타입 (nested join용)
+// ============================================
+
+interface StudentWithProfile {
+  id: string;
+  grade: number | null;
+  class: string | null;
+  school_name: string | null;
+  target_major: string | null;
+  user_profiles: { name: string } | null;
+}
+
+// ============================================
 // Report 통합 데이터 타입
 // ============================================
 
@@ -204,6 +217,7 @@ async function fetchStudentInfoAndScores(
     .select("id, grade, class, school_name, target_major, user_profiles(name)")
     .eq("id", studentId)
     .eq("tenant_id", tenantId)
+    .returns<StudentWithProfile>()
     .maybeSingle();
 
   if (studentError || !student) {
@@ -211,7 +225,7 @@ async function fetchStudentInfoAndScores(
   }
 
   const studentGrade = student.grade ?? 3;
-  const studentName = (student.user_profiles as unknown as { name: string } | null)?.name ?? null;
+  const studentName = student.user_profiles?.name ?? null;
 
   const { data: consultant } = await supabase
     .from("user_profiles")
