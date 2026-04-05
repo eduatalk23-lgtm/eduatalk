@@ -16,7 +16,7 @@ import type {
   ScoreRowWithSubject,
 } from "./pipeline-types";
 import * as competencyRepo from "./competency-repository";
-import type { ActivityTagInsert, CompetencyScoreInsert } from "./types";
+import { toDbJson, type CompetencyScoreInsert } from "./types";
 import type { HighlightAnalysisResult, HighlightAnalysisInput } from "./llm/types";
 import { runWithConcurrency, collectAnalysisContext } from "./pipeline-task-runners-shared";
 
@@ -121,36 +121,26 @@ async function runCompetencyForRecords(
     hasMore = true;
   }
 
-  if (effectiveUncached.length > 0) {
-    await competencyRepo.deleteAiActivityTagsByRecordIds(effectiveUncached.map((r) => r.id), tenantId);
-  }
-
-  // 분석 결과 저장 헬퍼
+  // 분석 결과 저장 헬퍼 (per-record atomic: delete+insert in single RPC transaction)
   async function saveResult(
     recType: "setek" | "personal_setek" | "changche" | "haengteuk",
     recordId: string,
     content: string,
     data: HighlightAnalysisResult,
   ) {
-    const tagInputs: ActivityTagInsert[] = [];
+    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
     for (const section of data.sections) {
       for (const tag of section.tags) {
-        tagInputs.push({
-          tenant_id: tenantId,
-          student_id: studentId,
+        rpcTags.push({
           record_type: recType,
           record_id: recordId,
           competency_item: tag.competencyItem,
           evaluation: tag.evaluation,
           evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-          source: "ai",
-          status: "suggested",
         });
       }
     }
-    if (tagInputs.length > 0) {
-      await competencyRepo.insertActivityTags(tagInputs);
-    }
+    await competencyRepo.refreshCompetencyTagsAtomic(studentId, tenantId, [recordId], rpcTags);
 
     const currentHash = computeRecordContentHash(content, careerHashCtx);
     await competencyRepo.upsertAnalysisCache({
@@ -371,7 +361,7 @@ async function runAggregateForGrade(
         grade_value: ag.finalGrade,
         narrative,
         notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합 (${targetGrade}학년)`,
-        rubric_scores: ag.rubricScores as unknown as CompetencyScoreInsert["rubric_scores"],
+        rubric_scores: toDbJson(ag.rubricScores),
         source: "ai",
         status: "suggested",
       } as CompetencyScoreInsert);
@@ -452,32 +442,26 @@ export async function runCompetencyAnalysisForGrade(ctx: PipelineContext): Promi
   // 캐시 맵
   let cacheMap = new Map<string, { analysis_result: unknown; content_hash: string | null }>();
 
-  // 분석 결과 저장 헬퍼 (기존 runCompetencyAnalysis와 동일 패턴)
+  // 분석 결과 저장 헬퍼 (per-record atomic: delete+insert in single RPC transaction)
   async function saveAnalysisResultForGrade(
     recordType: "setek" | "personal_setek" | "changche" | "haengteuk",
     recordId: string,
     content: string,
     data: HighlightAnalysisResult,
   ) {
-    const tagInputs: ActivityTagInsert[] = [];
+    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
     for (const section of data.sections) {
       for (const tag of section.tags) {
-        tagInputs.push({
-          tenant_id: tenantId,
-          student_id: studentId,
+        rpcTags.push({
           record_type: recordType,
           record_id: recordId,
           competency_item: tag.competencyItem,
           evaluation: tag.evaluation,
           evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-          source: "ai",
-          status: "suggested",
         });
       }
     }
-    if (tagInputs.length > 0) {
-      await competencyRepo.insertActivityTags(tagInputs);
-    }
+    await competencyRepo.refreshCompetencyTagsAtomic(studentId, tenantId, [recordId], rpcTags);
 
     const currentHash = computeRecordContentHash(content, careerHashCtx);
     await competencyRepo.upsertAnalysisCache({
@@ -571,11 +555,8 @@ export async function runCompetencyAnalysisForGrade(ctx: PipelineContext): Promi
       uncachedRecords.push(rec);
     }
   }
-  if (uncachedRecords.length > 0) {
-    await competencyRepo.deleteAiActivityTagsByRecordIds(uncachedRecords.map((r) => r.id), tenantId);
-  }
-
   // 개별 LLM 호출 (동시성 3, 캐시 미히트 레코드만)
+  // NOTE: 기존 upfront delete 제거 — saveAnalysisResultForGrade 내부에서 per-record atomic RPC로 교체됨
   if (uncachedRecords.length > 0) {
     const failedRecords: AnalysisRecord[] = [];
 
@@ -684,7 +665,7 @@ export async function runCompetencyAnalysisForGrade(ctx: PipelineContext): Promi
           grade_value: ag.finalGrade,
           narrative,
           notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합 (${targetGrade}학년)`,
-          rubric_scores: ag.rubricScores as unknown as CompetencyScoreInsert["rubric_scores"],
+          rubric_scores: toDbJson(ag.rubricScores),
           source: "ai",
           status: "suggested",
         } as CompetencyScoreInsert);

@@ -671,16 +671,11 @@ export async function fetchReportData(
         const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
         const currentSchoolYear = calculateSchoolYear();
 
-        const [projScores, projEdges, projQualityRes] = await Promise.all([
+        const [projScores, projEdges, projContentQuality] = await Promise.all([
           competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai_projected"),
           edgeRepo.findEdges(studentId, tenantId, "projected"),
-          supabase.from("student_record_content_quality")
-            .select("record_type, overall_score, issues, feedback")
-            .eq("student_id", studentId)
-            .eq("tenant_id", tenantId)
-            .eq("source", "ai_projected"),
+          competencyRepo.findContentQualityByStudent(studentId, tenantId, { source: "ai_projected", selectRecordId: false }),
         ]);
-        const projContentQuality = (projQualityRes.data ?? []) as ContentQualityRow[];
 
         let leveling = null;
         try {

@@ -106,14 +106,15 @@ export async function generateAiDiagnosis(
       const supabase = await createSupabaseServerClient();
 
       // 성적 추이
+      type TrendRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
       const { data: trendRows } = await supabase
         .from("student_internal_scores")
         .select("subject:subject_id(name), rank_grade, grade, semester")
         .eq("student_id", studentInfo.studentId)
         .order("grade")
-        .order("semester");
-      type TrendRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
-      const typedTrendRows = (trendRows ?? []) as unknown as TrendRow[];
+        .order("semester")
+        .returns<TrendRow[]>();
+      const typedTrendRows = trendRows ?? [];
       const gradeTrend = typedTrendRows
         .filter((s) => s.rank_grade != null)
         .map((s) => ({

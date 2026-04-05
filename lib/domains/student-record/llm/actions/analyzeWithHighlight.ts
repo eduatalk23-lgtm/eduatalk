@@ -45,14 +45,15 @@ export async function analyzeSetekWithHighlight(
         .maybeSingle();
       const tgtMajor = student?.target_major as string | null;
       if (tgtMajor) {
+        type HighlightScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
         const { data: scoreRows } = await supabase
           .from("student_internal_scores")
           .select("subject:subject_id(name), rank_grade, grade, semester")
           .eq("student_id", input.studentId)
           .order("grade")
-          .order("semester");
-        type HighlightScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
-        const allRows = (scoreRows ?? []) as unknown as HighlightScoreRow[];
+          .order("semester")
+          .returns<HighlightScoreRow[]>();
+        const allRows = scoreRows ?? [];
         const scores = allRows.map((s) => ({
           subjectName: s.subject?.name ?? "",
           rankGrade: s.rank_grade ?? 5,

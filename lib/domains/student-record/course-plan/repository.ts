@@ -28,10 +28,11 @@ export async function findByStudent(
     .eq("student_id", studentId)
     .order("grade")
     .order("semester")
-    .order("priority", { ascending: false });
+    .order("priority", { ascending: false })
+    .returns<CoursePlanWithSubject[]>();
 
   if (error) throw new Error(`수강 계획 조회 실패: ${error.message}`);
-  return (data ?? []) as unknown as CoursePlanWithSubject[];
+  return data ?? [];
 }
 
 /** 단건 조회 */
@@ -168,9 +169,9 @@ export async function findConfirmedByGradeSemester(
   if (grade != null) query = query.eq("grade", grade);
   if (semester != null) query = query.eq("semester", semester);
 
-  const { data, error } = await query.order("grade").order("semester");
+  const { data, error } = await query.order("grade").order("semester").returns<CoursePlanWithSubject[]>();
   if (error) throw new Error(`confirmed 조회 실패: ${error.message}`);
-  return (data ?? []) as unknown as CoursePlanWithSubject[];
+  return data ?? [];
 }
 
 /** subject_id + grade + semester 매칭으로 confirmed → completed 일괄 전환 */

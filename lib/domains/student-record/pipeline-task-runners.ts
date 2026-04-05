@@ -30,7 +30,7 @@ export {
   runBypassAnalysis,
   runInterviewGeneration,
   runRoadmapGeneration,
-} from "./pipeline-task-runners-synthesis";
+} from "./pipeline/synthesis";
 
 // Guide Pipeline (P4-P6 + slot)
 export {

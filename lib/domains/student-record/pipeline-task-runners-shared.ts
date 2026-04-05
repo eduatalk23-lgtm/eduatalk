@@ -179,30 +179,27 @@ export function buildGuideAnalysisContextFromReport(
  * @param currentSchoolYear - 현재(설계 대상) 학년도 (이 학년은 제외)
  */
 export async function buildCrossGradeDirections(
-  supabase: { from: (table: string) => unknown },
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/lib/supabase/database.types").Database>,
   studentId: string,
   currentSchoolYear: number,
 ): Promise<string | undefined> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   try {
   const [setekRes, changcheRes, haengteukRes] = await Promise.all([
-    sb.from("student_record_setek_guides")
+    supabase.from("student_record_setek_guides")
       .select("school_year, direction, keywords")
       .eq("student_id", studentId)
       .eq("guide_mode", "retrospective")
       .neq("school_year", currentSchoolYear)
       .order("school_year", { ascending: true })
       .limit(20),
-    sb.from("student_record_changche_guides")
+    supabase.from("student_record_changche_guides")
       .select("school_year, activity_type, direction, keywords")
       .eq("student_id", studentId)
       .eq("guide_mode", "retrospective")
       .neq("school_year", currentSchoolYear)
       .order("school_year", { ascending: true })
       .limit(10),
-    sb.from("student_record_haengteuk_guides")
+    supabase.from("student_record_haengteuk_guides")
       .select("school_year, direction, keywords")
       .eq("student_id", studentId)
       .eq("guide_mode", "retrospective")

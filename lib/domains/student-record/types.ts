@@ -110,6 +110,11 @@ export type CompetencyScore = Tables<"student_record_competency_scores">;
 export type CompetencyScoreInsert = TablesInsert<"student_record_competency_scores">;
 export type CompetencyScoreUpdate = TablesUpdate<"student_record_competency_scores">;
 
+/** LLM rubricScores → DB Json 타입 변환 (구조적 호환이지만 TS Json 재귀 타입 추론 불가하여 단일 캐스트) */
+export function toDbJson(value: unknown): import("@/lib/supabase/database.types").Json {
+  return value as import("@/lib/supabase/database.types").Json;
+}
+
 export type ActivityTag = Tables<"student_record_activity_tags">;
 export type ActivityTagInsert = TablesInsert<"student_record_activity_tags">;
 

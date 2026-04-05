@@ -177,7 +177,7 @@ export async function generateActivitySummary(
         school_year: currentSchoolYear,
         target_grades: grades,
         summary_title: parsed.title,
-        summary_sections: parsed.sections as unknown as Record<string, unknown>[],
+        summary_sections: (await import("../../types")).toDbJson(parsed.sections),
         summary_text: parsed.fullText,
         model_tier: "standard",
         prompt_version: "v1",

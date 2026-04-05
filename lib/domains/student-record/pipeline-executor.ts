@@ -281,7 +281,8 @@ export async function loadPipelineContext(
       .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
-      .is("deleted_at", null),
+      .is("deleted_at", null)
+      .returns<CachedSetek[]>(),
     admin
       .from("student_record_changche")
       .select("id, content, imported_content, ai_draft_content, grade, activity_type")
@@ -294,7 +295,7 @@ export async function loadPipelineContext(
       .eq("tenant_id", tenantId),
   ]);
 
-  const allCachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
+  const allCachedSeteks = sRes.data ?? [];
   const allCachedChangche = (cRes.data ?? []) as CachedChangche[];
   const allCachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
 
@@ -384,10 +385,11 @@ export async function loadPipelineContext(
       .eq("student_id", studentId)
       .order("grade")
       .order("semester")
-      .order("priority", { ascending: false });
+      .order("priority", { ascending: false })
+      .returns<CoursePlanWithSubject[]>();
     if (planRows) {
       coursePlanData = {
-        plans: planRows as unknown as CoursePlanWithSubject[],
+        plans: planRows,
       };
     }
   }

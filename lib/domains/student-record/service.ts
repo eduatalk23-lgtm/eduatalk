@@ -674,7 +674,7 @@ export async function runMinScoreSimulation(
       grade_sum: result.gradeSum,
       gap: result.gap,
       bottleneck_subjects: result.bottleneckSubjects,
-      what_if: result.whatIf as unknown as import("@/lib/supabase/database.types").Json,
+      what_if: (await import("./types")).toDbJson(result.whatIf),
     });
 
     return { success: true, id };

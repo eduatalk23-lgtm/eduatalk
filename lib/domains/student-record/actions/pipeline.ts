@@ -54,7 +54,7 @@ import type { CrossRefEdge } from "../cross-reference";
 import * as competencyRepo from "../competency-repository";
 import * as diagnosisRepo from "../diagnosis-repository";
 import * as repository from "../repository";
-import type { ActivityTagInsert, CompetencyScoreInsert, DiagnosisInsert } from "../types";
+import { toDbJson, type CompetencyScoreInsert, type DiagnosisInsert } from "../types";
 import type { HighlightAnalysisInput, HighlightAnalysisResult } from "../llm/types";
 import type { RecordSummary } from "../llm/prompts/inquiryLinking";
 import { resolveRecordData, deriveGradeCategories } from "../pipeline-data-resolver";
@@ -339,7 +339,8 @@ export async function executePipelineTasks(
         .select("id, content, imported_content, grade, subject:subject_id(name)")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId)
-        .is("deleted_at", null),
+        .is("deleted_at", null)
+        .returns<CachedSetek[]>(),
       supabase
         .from("student_record_changche")
         .select("id, content, imported_content, grade, activity_type")
@@ -351,7 +352,7 @@ export async function executePipelineTasks(
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId),
     ]);
-    cachedSeteks = (sRes.data ?? []) as unknown as CachedSetek[];
+    cachedSeteks = sRes.data ?? [];
     cachedChangche = (cRes.data ?? []) as CachedChangche[];
     cachedHaengteuk = (hRes.data ?? []) as CachedHaengteuk[];
   }
@@ -376,9 +377,10 @@ export async function executePipelineTasks(
       .eq("student_id", studentId)
       .order("grade")
       .order("semester")
-      .order("priority", { ascending: false });
+      .order("priority", { ascending: false })
+      .returns<import("../course-plan/types").CoursePlanWithSubject[]>();
     if (planRows) {
-      coursePlanData = { plans: planRows as unknown as import("../course-plan/types").CoursePlanWithSubject[] };
+      coursePlanData = { plans: planRows };
     }
   }
   const hasCoursePlans = coursePlanData?.plans?.some(
@@ -456,32 +458,26 @@ export async function executePipelineTasks(
 
         const careerHashCtx = careerContext ? { targetMajor: careerContext.targetMajor, takenSubjects: careerContext.takenSubjects } : null;
 
-        // 분석 결과 저장 헬퍼 (배치/개별 양쪽에서 재사용)
+        // 분석 결과 저장 헬퍼 (per-record atomic: delete+insert in single RPC transaction)
         async function saveAnalysisResult(
           recordType: "setek" | "personal_setek" | "changche" | "haengteuk",
           recordId: string,
           content: string,
           data: HighlightAnalysisResult,
         ) {
-          const tagInputs: ActivityTagInsert[] = [];
+          const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
           for (const section of data.sections) {
             for (const tag of section.tags) {
-              tagInputs.push({
-                tenant_id: tenantId,
-                student_id: studentId,
+              rpcTags.push({
                 record_type: recordType,
                 record_id: recordId,
                 competency_item: tag.competencyItem,
                 evaluation: tag.evaluation,
                 evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
-                source: "ai",
-                status: "suggested",
               });
             }
           }
-          if (tagInputs.length > 0) {
-            await competencyRepo.insertActivityTags(tagInputs);
-          }
+          await competencyRepo.refreshCompetencyTagsAtomic(studentId, tenantId, [recordId], rpcTags);
 
           const currentHash = computeRecordContentHash(content, careerHashCtx);
           await competencyRepo.upsertAnalysisCache({
@@ -542,8 +538,9 @@ export async function executePipelineTasks(
                 .select("id, content, grade, subject:subject_id(name)")
                 .eq("student_id", studentId)
                 .eq("tenant_id", tenantId)
-                .is("deleted_at", null);
-              cachedSeteks = (data ?? []) as unknown as CachedSetek[];
+                .is("deleted_at", null)
+                .returns<CachedSetek[]>();
+              cachedSeteks = data ?? [];
             }
           })(),
           (async () => {
@@ -604,12 +601,8 @@ export async function executePipelineTasks(
             uncachedRecords.push(rec);
           }
         }
-        if (uncachedRecords.length > 0) {
-          await competencyRepo.deleteAiActivityTagsByRecordIds(uncachedRecords.map((r) => r.id), tenantId);
-        }
-
         // 개별 LLM 호출 (동시성 3, 캐시 미히트 레코드만)
-        // NOTE: 배치 호출(analyzeSetekBatchWithHighlight)은 LLM 품질 문제로 보류
+        // NOTE: upfront delete 제거 — saveAnalysisResult 내부에서 per-record atomic RPC로 교체됨
         if (uncachedRecords.length > 0) {
           const failedRecords: AnalysisRecord[] = [];
 
@@ -725,7 +718,7 @@ export async function executePipelineTasks(
                 grade_value: ag.finalGrade,
                 narrative,
                 notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합`,
-                rubric_scores: ag.rubricScores as unknown as CompetencyScoreInsert["rubric_scores"],
+                rubric_scores: toDbJson(ag.rubricScores),
                 source: "ai",
                 status: "suggested",
               } as CompetencyScoreInsert);
@@ -763,8 +756,9 @@ export async function executePipelineTasks(
             .select("id, content, grade, subject:subject_id(name)")
             .eq("student_id", studentId)
             .eq("tenant_id", tenantId)
-            .is("deleted_at", null);
-          cachedSeteks = (data ?? []) as unknown as CachedSetek[];
+            .is("deleted_at", null)
+            .returns<CachedSetek[]>();
+          cachedSeteks = data ?? [];
         }
         // grade 기준 정렬 (원래 order("grade") 대체)
         const sortedSeteks = [...cachedSeteks].sort((a, b) => a.grade - b.grade);
@@ -894,9 +888,10 @@ export async function executePipelineTasks(
           const { data: scoreRows } = await supabase
             .from("student_internal_scores")
             .select("subject:subject_id(name)")
-            .eq("student_id", studentId);
+            .eq("student_id", studentId)
+            .returns<ScoreRowWithSubject[]>();
           const takenSubjects = [...new Set(
-            ((scoreRows ?? []) as unknown as ScoreRowWithSubject[])
+            (scoreRows ?? [])
               .map((s) => s.subject?.name)
               .filter((n): n is string => !!n),
           )];
@@ -913,8 +908,9 @@ export async function executePipelineTasks(
               const { data: offered } = await supabase
                 .from("school_offered_subjects")
                 .select("subject:subject_id(name)")
-                .eq("school_profile_id", profile.id);
-              offeredSubjects = ((offered ?? []) as unknown as OfferedSubjectRow[])
+                .eq("school_profile_id", profile.id)
+                .returns<OfferedSubjectRow[]>();
+              offeredSubjects = (offered ?? [])
                 .map((o) => o.subject?.name)
                 .filter((n): n is string => !!n);
             }
@@ -1012,8 +1008,9 @@ export async function executePipelineTasks(
           .select("subject:subject_id(name), rank_grade, grade, semester")
           .eq("student_id", studentId)
           .order("grade")
-          .order("semester");
-        const gradeTrend = ((trendRows ?? []) as unknown as ScoreRowWithSubject[])
+          .order("semester")
+          .returns<ScoreRowWithSubject[]>();
+        const gradeTrend = (trendRows ?? [])
           .filter((s) => s.rank_grade != null)
           .map((s) => ({
             grade: s.grade ?? 1,
@@ -1036,9 +1033,10 @@ export async function executePipelineTasks(
             const { data: fbScoreRows } = await supabase
               .from("student_internal_scores")
               .select("subject:subject_id(name)")
-              .eq("student_id", studentId);
+              .eq("student_id", studentId)
+              .returns<ScoreRowWithSubject[]>();
             const fbTakenSubjects = [...new Set(
-              ((fbScoreRows ?? []) as unknown as ScoreRowWithSubject[])
+              (fbScoreRows ?? [])
                 .map((s) => s.subject?.name)
                 .filter((n): n is string => !!n),
             )];
@@ -1100,7 +1098,7 @@ export async function executePipelineTasks(
           direction_reasoning: result.data.directionReasoning || null,
           strengths: result.data.strengths,
           weaknesses: result.data.weaknesses,
-          improvements: result.data.improvements as unknown as import("@/lib/supabase/database.types").Json,
+          improvements: toDbJson(result.data.improvements),
           recommended_majors: result.data.recommendedMajors,
           strategy_notes: result.data.strategyNotes,
           source: "ai",
@@ -1600,8 +1598,9 @@ export async function executePipelineTasks(
             .select("id, content, grade, subject:subject_id(name)")
             .eq("student_id", studentId)
             .eq("tenant_id", tenantId)
-            .is("deleted_at", null);
-          cachedSeteks = (data ?? []) as unknown as CachedSetek[];
+            .is("deleted_at", null)
+            .returns<CachedSetek[]>();
+          cachedSeteks = data ?? [];
         }
         if (!cachedChangche) {
           const { data } = await supabase

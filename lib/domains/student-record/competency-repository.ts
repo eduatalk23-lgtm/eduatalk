@@ -248,6 +248,70 @@ export async function refreshCompetencyTagsAtomic(
 }
 
 // ============================================
+// content_quality
+// ============================================
+
+export interface ContentQualityRow {
+  record_type: string;
+  record_id?: string;
+  overall_score: number;
+  issues: string[] | null;
+  feedback: string | null;
+}
+
+/** 학생의 콘텐츠 품질 점수 조회 (source 필터, record_id 포함/제외 선택) */
+export async function findContentQualityByStudent(
+  studentId: string,
+  tenantId: string,
+  options?: {
+    source?: "ai" | "ai_projected";
+    selectRecordId?: boolean;
+    selectRecordType?: boolean;
+  },
+): Promise<ContentQualityRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const fields = [
+    "record_type",
+    options?.selectRecordId !== false ? "record_id" : null,
+    "overall_score",
+    "issues",
+    "feedback",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  let query = supabase
+    .from("student_record_content_quality")
+    .select(fields)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (options?.source) query = query.eq("source", options.source);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as ContentQualityRow[];
+}
+
+/** 특정 레코드 ID 목록의 콘텐츠 품질 점수 조회 */
+export async function findContentQualityByRecordIds(
+  recordIds: string[],
+  tenantId: string,
+  source: "ai" | "ai_projected" = "ai",
+): Promise<Array<{ record_id: string; record_type: string; overall_score: number; issues: string[] | null; feedback: string | null }>> {
+  if (recordIds.length === 0) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_content_quality")
+    .select("record_id, record_type, overall_score, issues, feedback")
+    .in("record_id", recordIds)
+    .eq("tenant_id", tenantId)
+    .eq("source", source);
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ============================================
 // 분석 결과 캐시 (하이라이트 영속화)
 // ⚠️ analysis_cache.source = "ai" | "consultant" (DB CHECK 제약)
 //    diagnosis/competency_scores.source = "ai" | "manual" 과 별개 도메인

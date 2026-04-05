@@ -56,11 +56,12 @@ async function refreshCoursePlanData(ctx: PipelineContext): Promise<void> {
     .eq("student_id", ctx.studentId)
     .order("grade")
     .order("semester")
-    .order("priority", { ascending: false });
+    .order("priority", { ascending: false })
+    .returns<import("./course-plan/types").CoursePlanWithSubject[]>();
 
   if (refreshedPlans) {
     ctx.coursePlanData = {
-      plans: refreshedPlans as unknown as import("./course-plan/types").CoursePlanWithSubject[],
+      plans: refreshedPlans,
     };
   }
 }

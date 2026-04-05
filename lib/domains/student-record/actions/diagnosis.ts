@@ -49,7 +49,8 @@ export async function fetchDiagnosisTabData(
         supabase.from("students").select("target_major, school_name, target_sub_classification_id, grade").eq("id", studentId).maybeSingle(),
         supabase.from("student_internal_scores")
           .select("subject:subject_id(name)")
-          .eq("student_id", studentId),
+          .eq("student_id", studentId)
+          .returns<Array<{ subject: { name: string } | null }>>(),
       ]);
 
     const targetMajor = studentResult.data?.target_major ?? null;
@@ -60,10 +61,7 @@ export async function fetchDiagnosisTabData(
     const takenSubjects = [
       ...new Set(
         (scoresResult.data ?? [])
-          .map((s) => {
-            const subj = s.subject as unknown as { name: string } | null;
-            return subj?.name;
-          })
+          .map((s) => s.subject?.name)
           .filter((n): n is string => !!n),
       ),
     ];
@@ -92,12 +90,10 @@ export async function fetchDiagnosisTabData(
         const { data: offered } = await supabase
           .from("school_offered_subjects")
           .select("subject:subject_id(name)")
-          .eq("school_profile_id", profile.id);
+          .eq("school_profile_id", profile.id)
+          .returns<Array<{ subject: { name: string } | null }>>();
         return (offered ?? [])
-          .map((o) => {
-            const subj = o.subject as unknown as { name: string } | null;
-            return subj?.name;
-          })
+          .map((o) => o.subject?.name)
           .filter((n): n is string => !!n);
       })(),
     ]);
@@ -320,13 +316,14 @@ export async function computeDeterministicCareerGradesAction(
     const tgtMajor = student?.target_major as string | null;
     if (!tgtMajor) return { success: true, data: [] };
 
+    type ScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
     const { data: scoreRows } = await supabase
       .from("student_internal_scores")
       .select("subject:subject_id(name), rank_grade, grade, semester")
-      .eq("student_id", studentId);
+      .eq("student_id", studentId)
+      .returns<ScoreRow[]>();
 
-    type ScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
-    const typedScoreRows = (scoreRows ?? []) as unknown as ScoreRow[];
+    const typedScoreRows = scoreRows ?? [];
 
     const subjectScores = typedScoreRows
       .map((s) => ({
@@ -552,7 +549,8 @@ export async function fetchCrossRefData(
           .from("student_record_seteks")
           .select("id, grade, content, subject:subject_id(name)")
           .eq("student_id", studentId)
-          .eq("tenant_id", tenantId),
+          .eq("tenant_id", tenantId)
+          .returns<Array<{ id: string; grade: number; content: string | null; subject: { name: string } | null }>>(),
         // changche labels + content (G3-5)
         supabase
           .from("student_record_changche")
@@ -579,8 +577,7 @@ export async function fetchCrossRefData(
     };
     const recordLabelMap: Record<string, string> = {};
     for (const s of seteksResult.data ?? []) {
-      const subj = s.subject as unknown as { name: string } | null;
-      recordLabelMap[s.id] = `${s.grade}학년 ${subj?.name ?? "과목"} 세특`;
+      recordLabelMap[s.id] = `${s.grade}학년 ${s.subject?.name ?? "과목"} 세특`;
     }
     for (const c of changcheResult.data ?? []) {
       recordLabelMap[c.id] = `${c.grade}학년 ${changcheTypeLabels[c.activity_type] ?? c.activity_type}`;

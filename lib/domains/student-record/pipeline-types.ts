@@ -296,7 +296,7 @@ export interface PipelineContext {
   pipelineId: string;
   studentId: string;
   tenantId: string;
-  supabase: import("@supabase/supabase-js").SupabaseClient;
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/lib/supabase/database.types").Database>;
   studentGrade: number;
   snapshot: Record<string, unknown> | null;
   // 태스크 상태 (매 태스크 완료 시 DB 저장)

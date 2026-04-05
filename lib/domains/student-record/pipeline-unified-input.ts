@@ -14,6 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RecordSummary } from "./llm/prompts/inquiryLinking";
 import { logActionDebug } from "@/lib/logging/actionLogger";
+import { findContentQualityByStudent } from "./competency-repository";
 
 const LOG_CTX = { domain: "student-record", action: "unified-input" };
 
@@ -182,7 +183,7 @@ export async function buildUnifiedGradeInput(params: {
   let qualityRes: { data: unknown[] | null } = { data: null };
 
   if (analysisGrades.length > 0) {
-    [scoresRes, tagsRes, qualityRes] = await Promise.all([
+    const [scoresRaw, tagsRaw, qualityRaw] = await Promise.all([
       supabase.from("student_record_competency_scores")
         .select("competency_item, grade_value, school_year")
         .eq("student_id", studentId).eq("tenant_id", tenantId),
@@ -190,10 +191,11 @@ export async function buildUnifiedGradeInput(params: {
         .select("record_id, record_type, competency_item, evaluation, evidence_summary, tag_context")
         .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai")
         .or("tag_context.eq.analysis,tag_context.is.null"),  // draft_analysis 제외
-      supabase.from("student_record_content_quality")
-        .select("record_id, record_type, overall_score, issues, feedback")
-        .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
+      findContentQualityByStudent(studentId, tenantId, { source: "ai", selectRecordId: true }),
     ]);
+    scoresRes = scoresRaw;
+    tagsRes = tagsRaw;
+    qualityRes = { data: qualityRaw };
   }
 
   // 3. 학년별 school_year 매핑

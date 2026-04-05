@@ -18,6 +18,27 @@ import { computeLevelingForStudent } from "./leveling";
 
 const LOG_CTX = { domain: "student-record", action: "draftGeneration" };
 
+// ─── Private 헬퍼 ──
+
+/**
+ * subject_id 목록 → { id: name } 맵 조회 (supabase 직접 인스턴스 사용).
+ * draft generation 내부 전용. 파이프라인 컨텍스트의 supabase 인스턴스를 그대로 받아 재사용.
+ */
+async function fetchSubjectNames(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  subjectIds: string[],
+): Promise<Map<string, string>> {
+  if (subjectIds.length === 0) return new Map();
+  const { data } = (await supabase
+    .from("subjects")
+    .select("id, name")
+    .in("id", subjectIds)) as { data: Array<{ id: string; name: string }> | null };
+  const map = new Map<string, string>();
+  for (const s of data ?? []) map.set(s.id, s.name);
+  return map;
+}
+
 /** 시스템 프롬프트에 레벨 디렉티브 주입 */
 function withLevelDirective(basePrompt: string, levelDirective: string | null): string {
   if (!levelDirective) return basePrompt;
@@ -107,8 +128,7 @@ export async function runDraftGenerationForGrade(
   const currentSchoolYear = calcSchoolYear();
   const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = ctx.supabase as any;
+  const { supabase } = ctx;
   const generated: string[] = [];
 
   // ─── 세특 가안 생성 ──
@@ -430,8 +450,7 @@ export async function runDraftAnalysisForGrade(
   const currentSchoolYear = calcSchoolYear();
   const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = ctx.supabase as any;
+  const { supabase } = ctx;
   let analyzed = 0;
 
   // L3: competencyGrades 수집 (P8 끝에서 집계 + 저장)
@@ -483,13 +502,9 @@ export async function runDraftAnalysisForGrade(
 
   if (setekRecords) {
     for (const r of setekRecords as Array<{ id: string }>) targetRecordIds.push(r.id);
-    // 과목 이름 조회
+    // 과목 이름 조회 (헬퍼 사용)
     const subjectIds = [...new Set((setekRecords as Array<{ subject_id: string }>).map((r) => r.subject_id))];
-    const { data: subjects } = subjectIds.length > 0
-      ? await supabase.from("subjects").select("id, name").in("id", subjectIds)
-      : { data: [] };
-    const subjectNameMap = new Map<string, string>();
-    for (const s of subjects ?? []) subjectNameMap.set(s.id, s.name);
+    const subjectNameMap = await fetchSubjectNames(supabase, subjectIds);
 
     const setekResult = await analyzeAndCollectTags(
       setekRecords as Array<{ id: string; subject_id: string; confirmed_content: string | null; content: string | null; ai_draft_content: string | null; grade: number }>,
@@ -576,7 +591,7 @@ export async function runDraftAnalysisForGrade(
           grade_value: ag.finalGrade,
           narrative,
           notes: `[AI설계] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합 (${targetGrade}학년)`,
-          rubric_scores: ag.rubricScores as unknown as import("./types").CompetencyScoreInsert["rubric_scores"],
+          rubric_scores: (await import("./types")).toDbJson(ag.rubricScores),
           source: "ai_projected",
           status: "suggested",
         } as import("./types").CompetencyScoreInsert);
