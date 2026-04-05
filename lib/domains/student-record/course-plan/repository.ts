@@ -13,9 +13,10 @@ import type {
 /** 학생의 전체 수강 계획 조회 (subject 정보 포함) */
 export async function findByStudent(
   studentId: string,
+  tenantId?: string,
 ): Promise<CoursePlanWithSubject[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("student_course_plans")
     .select(`
       *,
@@ -25,7 +26,11 @@ export async function findByStudent(
         subject_group:subject_group_id ( name )
       )
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", studentId);
+
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+
+  const { data, error } = await query
     .order("grade")
     .order("semester")
     .order("priority", { ascending: false })
@@ -36,13 +41,16 @@ export async function findByStudent(
 }
 
 /** 단건 조회 */
-export async function findById(id: string): Promise<CoursePlan | null> {
+export async function findById(id: string, tenantId?: string): Promise<CoursePlan | null> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("student_course_plans")
     .select("*")
-    .eq("id", id)
-    .single();
+    .eq("id", id);
+
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+
+  const { data, error } = await query.single();
 
   if (error) {
     if (error.code === "PGRST116") return null;
@@ -102,17 +110,20 @@ export async function bulkConfirm(
   studentId: string,
   grade: number,
   semester: number,
+  tenantId?: string,
 ): Promise<number> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("student_course_plans")
     .update({ plan_status: "confirmed" })
     .eq("student_id", studentId)
     .eq("grade", grade)
     .eq("semester", semester)
-    .eq("plan_status", "recommended")
-    .select("id");
+    .eq("plan_status", "recommended");
 
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+
+  const { data, error } = await query.select("id");
   if (error) throw new Error(`일괄 확정 실패: ${error.message}`);
   return data?.length ?? 0;
 }
@@ -132,6 +143,7 @@ export async function remove(id: string): Promise<void> {
 export async function countByStatus(
   studentId: string,
   status?: CoursePlanStatus,
+  tenantId?: string,
 ): Promise<number> {
   const supabase = await createSupabaseServerClient();
   let query = supabase
@@ -139,6 +151,7 @@ export async function countByStatus(
     .select("id", { count: "exact", head: true })
     .eq("student_id", studentId);
 
+  if (tenantId) query = query.eq("tenant_id", tenantId);
   if (status) query = query.eq("plan_status", status);
 
   const { count, error } = await query;
@@ -151,6 +164,7 @@ export async function findConfirmedByGradeSemester(
   studentId: string,
   grade?: number,
   semester?: number,
+  tenantId?: string,
 ): Promise<CoursePlanWithSubject[]> {
   const supabase = await createSupabaseServerClient();
   let query = supabase
@@ -166,6 +180,7 @@ export async function findConfirmedByGradeSemester(
     .eq("student_id", studentId)
     .eq("plan_status", "confirmed");
 
+  if (tenantId) query = query.eq("tenant_id", tenantId);
   if (grade != null) query = query.eq("grade", grade);
   if (semester != null) query = query.eq("semester", semester);
 

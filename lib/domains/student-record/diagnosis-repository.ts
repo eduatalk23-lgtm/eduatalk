@@ -4,6 +4,7 @@
 // ============================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import type {
   Diagnosis,
   DiagnosisInsert,
@@ -76,7 +77,7 @@ export async function upsertDiagnosis(
     .maybeSingle();
 
   if (existing) {
-    await supabase
+    const { error: snapErr } = await supabase
       .from("student_record_diagnosis_snapshots")
       .insert({
         diagnosis_id: existing.id,
@@ -86,6 +87,7 @@ export async function upsertDiagnosis(
         source: existing.source,
         snapshot: existing,
       });
+    if (snapErr) logActionWarn({ domain: "student-record", action: "diagnosis-snapshot" }, `스냅샷 저장 실패: ${snapErr.message}`, { diagnosisId: existing.id });
   }
 
   const { data, error } = await supabase

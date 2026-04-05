@@ -9,6 +9,7 @@
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 
 // ─── grade_value → 숫자 변환 ──────────────────────────────────────────────
 
@@ -282,7 +283,7 @@ export async function fetchLatestCohortBenchmark(
 export async function saveCohortBenchmark(benchmark: CohortBenchmark): Promise<void> {
   const supabase = createSupabaseAdminClient();
 
-  await supabase.from("student_cohort_benchmarks").upsert(
+  const { error } = await supabase.from("student_cohort_benchmarks").upsert(
     {
       tenant_id: benchmark.tenantId,
       target_major: benchmark.targetMajor,
@@ -308,4 +309,5 @@ export async function saveCohortBenchmark(benchmark: CohortBenchmark): Promise<v
       onConflict: "tenant_id,target_major,school_year,grade,snapshot_date",
     },
   );
+  if (error) logActionWarn({ domain: "student-record", action: "cohort-benchmark" }, `벤치마크 저장 실패: ${error.message}`, { tenantId: benchmark.tenantId, targetMajor: benchmark.targetMajor });
 }

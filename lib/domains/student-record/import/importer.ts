@@ -4,9 +4,12 @@
 // ============================================
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import * as repo from "../repository";
 import type { MappedRecordData } from "./mapper";
 import type { ImportResult } from "./types";
+
+const LOG_CTX = { domain: "student-record", action: "importer" };
 
 interface ImportOptions {
   overwriteExisting: boolean;
@@ -206,7 +209,11 @@ export async function executeImport(
 
         if (error) {
           if (error.code === "42P10" || error.message.includes("unique")) {
-            await supabaseAdmin.from("student_internal_scores").insert(payload);
+            const { error: insertErr } = await supabaseAdmin.from("student_internal_scores").insert(payload);
+            if (insertErr) {
+              logActionError(LOG_CTX, insertErr, { subjectId: g.subject_id, phase: "grade-import-fallback" });
+              throw insertErr;
+            }
           } else {
             throw error;
           }
@@ -218,13 +225,16 @@ export async function executeImport(
     // ── 모든 insert/upsert 성공 → 기존 데이터 삭제 (safe point) ──
     if (options.overwriteExisting && supabaseAdmin) {
       if (oldIds.readings.length > 0) {
-        await supabaseAdmin.from("student_record_reading").delete().in("id", oldIds.readings);
+        const { error: rErr } = await supabaseAdmin.from("student_record_reading").delete().in("id", oldIds.readings);
+        if (rErr) logActionWarn(LOG_CTX, `독서 삭제 실패: ${rErr.message}`, { count: oldIds.readings.length });
       }
       if (oldIds.awards.length > 0) {
-        await supabaseAdmin.from("student_record_awards").delete().in("id", oldIds.awards);
+        const { error: aErr } = await supabaseAdmin.from("student_record_awards").delete().in("id", oldIds.awards);
+        if (aErr) logActionWarn(LOG_CTX, `수상 삭제 실패: ${aErr.message}`, { count: oldIds.awards.length });
       }
       if (oldIds.volunteer.length > 0) {
-        await supabaseAdmin.from("student_record_volunteer").delete().in("id", oldIds.volunteer);
+        const { error: vErr } = await supabaseAdmin.from("student_record_volunteer").delete().in("id", oldIds.volunteer);
+        if (vErr) logActionWarn(LOG_CTX, `봉사 삭제 실패: ${vErr.message}`, { count: oldIds.volunteer.length });
       }
       // 성적: upsert로 갱신된 레코드는 보존, import에 없던 과목(old)만 삭제
       if (oldGradeIds.length > 0) {
@@ -238,7 +248,8 @@ export async function executeImport(
           .filter((r) => !upsertedSubjectIds.has(r.subject_id))
           .map((r) => r.id);
         if (toDelete.length > 0) {
-          await supabaseAdmin.from("student_internal_scores").delete().in("id", toDelete);
+          const { error: sErr } = await supabaseAdmin.from("student_internal_scores").delete().in("id", toDelete);
+          if (sErr) logActionWarn(LOG_CTX, `성적 삭제 실패: ${sErr.message}`, { count: toDelete.length });
         }
       }
     }

@@ -112,6 +112,38 @@ Phase 1-3 (역량 분석)
 
 **원본 LLM 응답 전체는 DB에만 저장. Phase 간 전달과 프롬프트 주입은 가공된 요약만.**
 
+### 태스크 의존성 가드 (pipeline-grade-phases.ts)
+
+`GRADE_TASK_PREREQUISITES`(pipeline-types.ts): 선행 태스크가 failed이면 후속 태스크를 자동 스킵.
+
+```
+setek_guide       ← [competency_setek]
+slot_generation   ← [competency_setek, competency_changche, competency_haengteuk]
+changche_guide    ← [competency_setek, competency_changche, setek_guide]
+haengteuk_guide   ← [전 competency + setek_guide + changche_guide]
+draft_generation  ← [setek_guide, changche_guide, haengteuk_guide]
+draft_analysis    ← [haengteuk_guide, draft_generation]
+```
+
+스킵된 태스크: `status="failed"`, `error="선행 태스크 실패로 건너뜀: ..."`. 재실행 cascade로 복구.
+
+### 재실행 클린업 (pipeline-orchestrator.ts)
+
+`rerunGradePipelineTasks()` 시 competency 태스크 재실행이면:
+1. `analysis_cache` 삭제 (학생 전체, LLM 강제 재호출)
+2. `deleteAnalysisResultsByGrade()`: 해당 학년의 scores(ai/ai_projected) + tags(analysis/draft_analysis) + quality(ai/ai_projected) 삭제
+3. Synthesis pipeline → 전체 pending으로 리셋
+
+### 동시성 보호 (DB 레벨)
+
+`idx_unique_running_grade_pipeline`: 학생+학년 단위 running/pending 파이프라인 1개 제한.
+`idx_unique_running_synth_pipeline`: 학생 단위 synthesis 파이프라인 1개 제한.
+위반 시 23505 에러 → 사용자 친화적 메시지 반환.
+
+### LLM 호출 재시도 (llm/retry.ts)
+
+모든 파이프라인 LLM 호출에 `withRetry()` 적용: 1s → 3s → 10s 지수 백오프, 최대 3회.
+
 ### 핵심 헬퍼 함수 (pipeline-task-runners.ts)
 
 | 함수 | 역할 | 호출 위치 |

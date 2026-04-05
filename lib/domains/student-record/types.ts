@@ -316,6 +316,19 @@ export interface DiagnosisTabData {
   }>;
   /** 4축 합격 진단 프로필 (파이프라인 synthesis 완료 시 존재) */
   fourAxisDiagnosis?: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null;
+  /** 설계 모드 예상 데이터 (P8 가안 분석 ��과) */
+  projectedData?: {
+    competencyScores: CompetencyScore[];
+    edges: import("./edge-repository").PersistedEdge[];
+    leveling: import("./leveling/types").LevelingResult | null;
+    designGrades: number[];
+    contentQuality: Array<{
+      record_type: string;
+      overall_score: number;
+      issues: string[];
+      feedback: string | null;
+    }>;
+  };
 }
 
 /** 교과 이수 적합도 결과 */

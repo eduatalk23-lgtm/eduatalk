@@ -167,6 +167,10 @@ export interface ReportData {
    * 가이드 프롬프트에서 약점 역량 reasoning 주입에 활용.
    */
   weakCompetencyContexts: CompetencyAnalysisContext[];
+  /** Synthesis pipeline eval 출력 (task_results에서 추출) */
+  executiveSummary?: import("../eval/executive-summary").ExecutiveSummary | null;
+  timeSeriesAnalysis?: import("../eval/timeseries-analyzer").TimeSeriesAnalysis | null;
+  universityMatch?: import("../eval/university-profile-matcher").UniversityMatchAnalysis | null;
   /**
    * L6: 설계 모드 예상 데이터.
    * NEIS 없는 학년의 P8 분석 결과 (ai_projected scores + projected edges + leveling).
@@ -459,10 +463,10 @@ async function fetchSupplementaryData(
       .order("question_type")
       .order("difficulty")
       .limit(15),
-    // 파이프라인 메타
+    // 파이프라인 메타 + eval 출력 (synthesis의 task_results에서 추출)
     supabase
       .from("student_record_analysis_pipelines")
-      .select("started_at, status, mode")
+      .select("started_at, status, mode, task_results")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -508,7 +512,7 @@ async function fetchSupplementaryData(
     suggested_answer: q.suggested_answer as string | null,
   }));
 
-  // 파이프라인 메타
+  // 파이프라인 메타 + eval 출력 추출
   const pipelineRaw = pipelineRes.status === "fulfilled" ? pipelineRes.value.data : null;
   const pipelineMeta = pipelineRaw ? {
     startedAt: pipelineRaw.started_at as string | null,
@@ -516,6 +520,17 @@ async function fetchSupplementaryData(
     hasStaleEdges: edges.some((e) => e.is_stale),
     mode: (pipelineRaw.mode as "analysis" | "prospective" | null) ?? null,
   } : null;
+
+  // M4~M6: synthesis task_results에서 eval 데이터 추출
+  const taskResults = (pipelineRaw?.task_results ?? null) as Record<string, unknown> | null;
+  const executiveSummary = (taskResults?.["_executiveSummary"] ?? null) as
+    import("../eval/executive-summary").ExecutiveSummary | null;
+  const diagTaskResult = (taskResults?.["ai_diagnosis"] ?? null) as Record<string, unknown> | null;
+  const timeSeriesAnalysis = (diagTaskResult?.["_timeSeriesAnalysis"] ?? null) as
+    import("../eval/timeseries-analyzer").TimeSeriesAnalysis | null;
+  const stratTaskResult = (taskResults?.["ai_strategy"] ?? null) as Record<string, unknown> | null;
+  const universityMatch = (stratTaskResult?.["_universityMatch"] ?? null) as
+    import("../eval/university-profile-matcher").UniversityMatchAnalysis | null;
 
   // 가이드 배정 건수
   const guideAssignmentCount = guideCountRes.status === "fulfilled"
@@ -536,7 +551,7 @@ async function fetchSupplementaryData(
     key_tips: u.key_tips as string[] | null,
   }));
 
-  return { bypassCandidates, interviewQuestions, pipelineMeta, guideAssignmentCount, univStrategies };
+  return { bypassCandidates, interviewQuestions, pipelineMeta, guideAssignmentCount, univStrategies, executiveSummary, timeSeriesAnalysis, universityMatch };
 }
 
 // ============================================
@@ -609,7 +624,7 @@ export async function fetchReportData(
     ).catch(() => null);
 
     // E-6: 감사 로그
-    await supabase.from("audit_logs").insert({
+    const { error: auditErr } = await supabase.from("audit_logs").insert({
       tenant_id: tenantId,
       user_id: userId,
       resource_type: "student_record_report",
@@ -617,6 +632,7 @@ export async function fetchReportData(
       action: "generate",
       metadata: { generatedAt: new Date().toISOString() },
     });
+    if (auditErr) logActionWarn({ ...LOG_CTX, action: "report-audit-log" }, `감사 로그 저장 실패: ${auditErr.message}`, { studentId });
 
     const reportData: ReportData = {
       student: {
@@ -652,6 +668,9 @@ export async function fetchReportData(
       cohortBenchmark: cohortBenchmark ?? null,
       contentQuality: analysis.contentQuality,
       weakCompetencyContexts: analysis.weakCompetencyContexts,
+      executiveSummary: supplementary.executiveSummary,
+      timeSeriesAnalysis: supplementary.timeSeriesAnalysis,
+      universityMatch: supplementary.universityMatch,
     };
 
     // L6: projected 데이터 조회 (설계 모드 학년이 있을 때만)
@@ -659,7 +678,7 @@ export async function fetchReportData(
       const consultingGrades = Object.entries(analysis.recordDataByGrade)
         .filter(([, rd]) => {
           const hasNeis = rd.seteks?.some((s) => s.imported_content?.trim()) ||
-            rd.changches?.some((c) => c.imported_content?.trim());
+            rd.changche?.some((c) => c.imported_content?.trim());
           return !hasNeis;
         })
         .map(([g]) => Number(g));

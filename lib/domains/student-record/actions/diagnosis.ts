@@ -137,6 +137,49 @@ export async function fetchDiagnosisTabData(
       feedback: (r.feedback as string) ?? null,
     }));
 
+    // ─── 설계 모드 projected 데이터 (P8 가안 분석 결과) ───
+    let projectedData: DiagnosisTabData["projectedData"] = undefined;
+    const projScores = await competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai_projected");
+    if (projScores.length > 0) {
+      const edgeRepo = await import("../edge-repository");
+      const { computeLevelingForStudent } = await import("../leveling");
+
+      const [projEdges, projContentQuality] = await Promise.all([
+        edgeRepo.findEdges(studentId, tenantId, "projected"),
+        competencyRepo.findContentQualityByStudent(studentId, tenantId, { source: "ai_projected", selectRecordId: false }),
+      ]);
+
+      // 설계 학년: projected scores의 school_year에서 학년 역산
+      const sGrade = studentResult.data?.grade ?? 3;
+      const projSchoolYears = [...new Set(projScores.map((s) => s.school_year))];
+      const designGrades = projSchoolYears
+        .map((sy) => sGrade - (schoolYear - sy))
+        .filter((g) => g >= 1 && g <= 3)
+        .sort();
+
+      let leveling = null;
+      try {
+        leveling = await computeLevelingForStudent({
+          studentId,
+          tenantId,
+          grade: designGrades.length > 0 ? Math.max(...designGrades) : (studentResult.data?.grade ?? 3),
+        });
+      } catch { /* leveling 실패해도 계속 */ }
+
+      projectedData = {
+        competencyScores: projScores,
+        edges: projEdges,
+        leveling,
+        designGrades,
+        contentQuality: projContentQuality.map((cq) => ({
+          record_type: cq.record_type as string,
+          overall_score: (cq.overall_score as number) ?? 0,
+          issues: ((cq.issues ?? []) as string[]),
+          feedback: (cq.feedback as string) ?? null,
+        })),
+      };
+    }
+
     return {
       competencyScores: { ai: aiScores, consultant: consultantScores },
       activityTags,
@@ -146,6 +189,7 @@ export async function fetchDiagnosisTabData(
       targetSubClassificationId, targetSubClassificationName,
       qualityScores,
       fourAxisDiagnosis: fourAxisDiagnosis as import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null,
+      projectedData,
     };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchDiagnosisTabData" }, error, { studentId, schoolYear });
@@ -156,6 +200,9 @@ export async function fetchDiagnosisTabData(
       strategies: [], courseAdequacy: null,
       takenSubjects: [], offeredSubjects: null, targetMajor: null,
       targetSubClassificationId: null, targetSubClassificationName: null,
+      qualityScores: [],
+      fourAxisDiagnosis: null,
+      projectedData: undefined,
     };
   }
 }
