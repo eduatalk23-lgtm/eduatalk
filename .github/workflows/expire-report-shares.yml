@@ -1,0 +1,29 @@
+name: Expire Report Shares
+
+on:
+  schedule:
+    # 매일 KST 02:00 (UTC 17:00)
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+
+jobs:
+  expire-shares:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Trigger report share expiry
+        run: |
+          response=$(curl -sf -w "\n%{http_code}" -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.DEPLOYMENT_URL }}/api/cron/expire-report-shares")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | head -n -1)
+
+          echo "HTTP $http_code"
+          echo "$body"
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Report share expiry failed with HTTP $http_code"
+            exit 1
+          fi
