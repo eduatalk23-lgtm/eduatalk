@@ -86,8 +86,80 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
     ...(universityMatch ? { universityMatch } : {}),
   });
 
-  // 4. ctx.results에 저장 (DB 저장은 향후 확장 시 추가)
+  // 4. ctx.results에 저장
   ctx.results["_executiveSummary"] = summary;
+
+  // 5. 4축 합격 진단 프로필 산출 (best-effort)
+  try {
+    const { buildFourAxisDiagnosis } = await import("@/lib/domains/admission/prediction/profile-diagnosis");
+    const { computeAggregateFlowCompletion } = await import("./evaluation-criteria/flow-completion");
+    const { calculateCourseAdequacy } = await import("./course-adequacy");
+
+    // 5-1. Flow Completion: content_quality DB 조회
+    const { data: qualityRows } = await ctx.supabase
+      .from("student_record_content_quality")
+      .select("record_type, record_id, specificity, coherence, depth, grammar, scientific_validity, overall_score, issues, feedback")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("source", "ai");
+
+    let flowCompletion: Awaited<ReturnType<typeof computeAggregateFlowCompletion>> | null = null;
+    if (qualityRows && qualityRows.length > 0) {
+      const records = qualityRows.map((q) => ({
+        qualityData: {
+          specificity: q.specificity as number,
+          coherence: q.coherence as number,
+          depth: q.depth as number,
+          grammar: q.grammar as number,
+          scientific_validity: (q.scientific_validity as number) ?? null,
+          overall_score: q.overall_score as number,
+          issues: (q.issues as string[]) ?? null,
+          feedback: (q.feedback as string) ?? null,
+        },
+        isCareerSubject: q.record_type === "setek", // 세특만 진로교과 가능 (단순화)
+      }));
+      const tier = (ctx.snapshot?.target_school_tier as string) === "top" ? "top" as const : "mid" as const;
+      flowCompletion = computeAggregateFlowCompletion(records, tier);
+    }
+
+    // 5-2. Course Adequacy
+    const targetMajor = (ctx.snapshot?.target_major as string) ?? null;
+    let courseAdequacy: import("./course-adequacy").CourseAdequacyResult | null = null;
+    if (targetMajor) {
+      const { data: scoreRowsForCa } = await ctx.supabase
+        .from("student_internal_scores")
+        .select("subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .returns<Array<{ subject: { name: string } | null }>>();
+      const takenSubjects = [...new Set(
+        (scoreRowsForCa ?? []).map((s) => s.subject?.name).filter((n): n is string => !!n),
+      )];
+      courseAdequacy = calculateCourseAdequacy(targetMajor, takenSubjects, null);
+    }
+
+    // 5-3. 학종 입결 참조 (학생 평균 내신)
+    const { data: gradeRows } = await ctx.supabase
+      .from("student_internal_scores")
+      .select("rank_grade")
+      .eq("student_id", studentId)
+      .not("rank_grade", "is", null);
+    const studentGrade = gradeRows && gradeRows.length > 0
+      ? gradeRows.reduce((sum, r) => sum + (r.rank_grade as number), 0) / gradeRows.length
+      : null;
+
+    // 5-4. 4축 조합
+    if (universityMatch && flowCompletion) {
+      const diagnosis = buildFourAxisDiagnosis({
+        universityMatch,
+        courseAdequacy,
+        flowCompletion,
+        studentGrade: studentGrade ? Math.round(studentGrade * 10) / 10 : null,
+      });
+      ctx.results["_fourAxisDiagnosis"] = diagnosis;
+    }
+  } catch {
+    // 4축 산출 실패 무시
+  }
 }
 
 // ============================================
