@@ -48,6 +48,10 @@ export const PUBLIC_API_PATHS = [
   "/api/goals/list",
   "/api/push/click", // SW notificationclick에서 인증 없이 호출 (UUID 기반)
   "/api/payments/toss/confirm-guest", // 게스트 결제 승인 (토큰 기반)
+  "/api/public/admissions/search", // 공개 입결 검색 (rate limited)
+  "/api/public/profile-match", // 공개 계열 적합도 (rate limited)
+  "/api/public/gpa/compute", // 공개 내신 계산기 (rate limited)
+  "/api/auth/guest", // 게스트 자가등록 (rate limited)
 ] as const;
 
 /** 외부 서비스 웹훅 경로 (자체 인증 메커니즘 사용) */
