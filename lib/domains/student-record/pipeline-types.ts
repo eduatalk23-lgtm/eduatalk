@@ -226,6 +226,115 @@ export interface PipelineStatus {
 export type PipelineTaskResults = Record<string, unknown>;
 
 // ============================================
+// 태스크 결과 타입 맵 (typed accessor용)
+// ============================================
+
+/**
+ * 각 태스크 캐시 키의 결과 타입 정의.
+ * PipelineTaskResults는 하위 호환을 위해 Record<string, unknown>으로 유지하고,
+ * 이 맵을 통해 getTaskResult() / setTaskResult() 헬퍼에서 타입 안전성을 제공한다.
+ *
+ * 타입이 완전히 확정되지 않은 태스크는 Record<string, unknown>으로 선언 (점진적 강화).
+ */
+export interface PipelineTaskResultMap {
+  // ── Grade Pipeline ──────────────────────────
+  /** P1: 세특 역량 분석 결과 (elapsedMs는 executor가 병합) */
+  competency_setek: { allCached: boolean; elapsedMs?: number };
+  /** P2: 창체 역량 분석 결과 */
+  competency_changche: { allCached: boolean; elapsedMs?: number };
+  /** P3: 행특 역량 분석 결과 */
+  competency_haengteuk: { allCached: boolean; elapsedMs?: number };
+  /** P4-a: 세특 방향 가이드 */
+  setek_guide: { cached?: boolean; elapsedMs?: number };
+  /** P4-b: 슬롯 생성 (string preview만 반환 → result는 elapsedMs만) */
+  slot_generation: { elapsedMs?: number };
+  /** P5: 창체 방향 가이드 */
+  changche_guide: { cached?: boolean; elapsedMs?: number };
+  /** P6: 행특 방향 가이드 */
+  haengteuk_guide: { cached?: boolean; elapsedMs?: number };
+  /** P7: 설계 모드 가안 생성 (string preview만 반환) */
+  draft_generation: { elapsedMs?: number };
+  /** P8: 설계 모드 가안 분석 (string preview만 반환) */
+  draft_analysis: { elapsedMs?: number };
+
+  // ── Synthesis Pipeline ───────────────────────
+  /** S1: 스토리라인 감지 */
+  storyline_generation: {
+    storylineCount: number;
+    connectionCount: number;
+    coverageWarnings?: DataCoverageWarning[];
+    elapsedMs?: number;
+  };
+  /** S2-a: 엣지 연결 그래프 */
+  edge_computation: { totalEdges: number; nodeCount: number; elapsedMs?: number };
+  /** S3-a: AI 종합 진단 */
+  ai_diagnosis: {
+    overallGrade: string;
+    weaknessCount: number;
+    improvementCount: number;
+    coverageWarnings?: DataCoverageWarning[];
+    _timeSeriesAnalysis?: import("./eval/timeseries-analyzer").TimeSeriesAnalysis;
+    elapsedMs?: number;
+  };
+  /** S3-b: 수강 추천 (string preview만 반환) */
+  course_recommendation: { elapsedMs?: number };
+  /** S2-b: 가이드 매칭 (string preview만 반환) */
+  guide_matching: { elapsedMs?: number };
+  /** S4: 우회학과 분석 (string preview만 반환) */
+  bypass_analysis: { elapsedMs?: number };
+  /** S5-a: 활동 요약서 (string preview만 반환) */
+  activity_summary: { elapsedMs?: number };
+  /** S5-b: 보완전략 자동 제안 */
+  ai_strategy: {
+    savedCount: number;
+    _universityMatch?: import("./eval/university-profile-matcher").UniversityMatchAnalysis;
+    elapsedMs?: number;
+  };
+  /** S6-a: 면접 예상 질문 (string preview만 반환) */
+  interview_generation: { elapsedMs?: number };
+  /** S6-b: 학기별 로드맵 */
+  roadmap_generation: { mode: string; itemCount: number; elapsedMs?: number };
+
+  // ── Internal (Executive Summary + 4축 진단) ──
+  /** Synthesis Phase 6 완료 후 자동 생성되는 Executive Summary */
+  _executiveSummary: import("./eval/executive-summary").ExecutiveSummary;
+  /** Synthesis Phase 6 완료 후 자동 생성되는 4축 합격 진단 프로필 */
+  _fourAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis;
+}
+
+/**
+ * 타입 안전한 ctx.results 읽기 헬퍼.
+ * `as` 캐스트를 이 함수 1곳으로 집약한다.
+ *
+ * @example
+ *   const diag = getTaskResult(ctx.results, "ai_diagnosis");
+ *   diag?.overallGrade  // string | undefined
+ */
+export function getTaskResult<K extends keyof PipelineTaskResultMap>(
+  results: PipelineTaskResults,
+  key: K,
+): PipelineTaskResultMap[K] | undefined {
+  const raw = results[key];
+  if (raw == null) return undefined;
+  return raw as PipelineTaskResultMap[K];
+}
+
+/**
+ * 타입 안전한 ctx.results 쓰기 헬퍼.
+ * `as` 캐스트를 이 함수 1곳으로 집약한다.
+ *
+ * @example
+ *   setTaskResult(ctx.results, "ai_diagnosis", { overallGrade: "A", weaknessCount: 2, improvementCount: 3 });
+ */
+export function setTaskResult<K extends keyof PipelineTaskResultMap>(
+  results: PipelineTaskResults,
+  key: K,
+  value: PipelineTaskResultMap[K],
+): void {
+  results[key] = value;
+}
+
+// ============================================
 // NEIS 기반 레코드 해소 타입 (Step 1: pipeline-neis-driven-redesign)
 // ============================================
 

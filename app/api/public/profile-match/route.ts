@@ -3,10 +3,10 @@ import { apiSuccess, apiBadRequest } from "@/lib/api/response";
 import { matchUniversityProfiles } from "@/lib/domains/student-record/eval/university-profile-matcher";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 
-const limiter = createRateLimiter({ maxRequests: 30 });
+const limiter = createRateLimiter({ maxRequests: 30, prefix: "rl:profile-match" });
 
 export async function POST(req: NextRequest) {
-  const rateLimitResponse = applyRateLimit(req, limiter);
+  const rateLimitResponse = await applyRateLimit(req, limiter);
   if (rateLimitResponse) return rateLimitResponse;
 
   let body: unknown;

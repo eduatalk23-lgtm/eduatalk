@@ -6,7 +6,7 @@ import {
 } from "@/lib/domains/score/computation";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 
-const limiter = createRateLimiter({ maxRequests: 30 });
+const limiter = createRateLimiter({ maxRequests: 30, prefix: "rl:gpa" });
 
 interface SubjectInput {
   rawScore: number | null;
@@ -26,7 +26,7 @@ interface SubjectInput {
 }
 
 export async function POST(req: NextRequest) {
-  const rateLimitResponse = applyRateLimit(req, limiter);
+  const rateLimitResponse = await applyRateLimit(req, limiter);
   if (rateLimitResponse) return rateLimitResponse;
 
   let body: unknown;

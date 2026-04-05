@@ -40,6 +40,10 @@
     {
       "path": "/api/cron/agent-embedding-batch",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/expire-report-shares",
+      "schedule": "0 17 * * *"
     }
   ]
 }

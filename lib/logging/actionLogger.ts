@@ -2,10 +2,12 @@
  * 구조화된 Server Action 로깅 유틸리티
  *
  * Server Actions에서 일관된 로깅 패턴을 제공합니다.
- * - 에러 로깅 (컨텍스트 정보 포함)
+ * - 에러 로깅 (컨텍스트 정보 포함) + Sentry 수동 캡처
  * - 성공 로깅 (감사 추적용)
  * - 성능 측정
  */
+
+import * as Sentry from "@sentry/nextjs";
 
 export interface ActionContext {
   /** 액션이 속한 도메인 (예: 'plan', 'attendance', 'camp') */
@@ -128,6 +130,21 @@ export function logActionError(
   entry.error = errorInfo;
 
   writeLog(entry);
+
+  // Sentry 수동 캡처 (프로덕션 전용)
+  if (process.env.NODE_ENV === "production") {
+    Sentry.captureException(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        tags: { domain: context.domain, action: context.action },
+        extra: {
+          ...metadata,
+          ...(context.tenantId && { tenantId: context.tenantId }),
+          ...(context.userId && { userId: context.userId }),
+        },
+      },
+    );
+  }
 }
 
 /**

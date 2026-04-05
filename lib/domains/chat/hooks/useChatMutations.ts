@@ -7,7 +7,7 @@
  * 오프라인 큐 초기화, Actions(public API)를 담당합니다.
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
@@ -26,12 +26,9 @@ import {
 import { operationTracker } from "../operationTracker";
 import { chatKeys } from "../queryKeys";
 import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
-import {
-  enqueueChatMessage,
-  registerMessageSender,
-  registerQueueEventCallbacks,
-  initChatQueueProcessor,
-} from "@/lib/offline/chatQueue";
+import { enqueueChatMessage } from "@/lib/offline/chatQueue";
+import { useChatOfflineQueue } from "./useChatOfflineQueue";
+import { useChatStaleRecovery } from "./useChatStaleRecovery";
 import type {
   ReactionEmoji,
   ReplyTargetInfo,
@@ -121,50 +118,11 @@ export function useChatMutations({
     300
   );
 
-  // ============================================
-  // 오프라인 큐 프로세서 초기화 + sender 등록 (마운트 시 1회)
-  // ============================================
-  useEffect(() => {
-    registerMessageSender(async (sendRoomId, content, replyToId, clientMsgId) => {
-      const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.rpc("send_chat_message", {
-        p_room_id: sendRoomId,
-        p_content: content,
-        p_reply_to_id: replyToId ?? undefined,
-        p_client_message_id: clientMsgId ?? undefined,
-      });
-      if (error) return { success: false, error: error.message };
-      const msg = data as { id: string };
-      return { success: true, data: { id: msg.id } };
-    });
-    const cleanup = initChatQueueProcessor();
-    return cleanup;
-  }, []);
+  // 오프라인 큐 초기화 + 이벤트 콜백 등록
+  useChatOfflineQueue(roomId, queryClient, showError);
 
-  // 큐 이벤트 콜백 등록
-  useEffect(() => {
-    registerQueueEventCallbacks({
-      onMessageSent: (sentRoomId, clientMessageId, data) => {
-        if (sentRoomId !== roomId) return;
-        queryClient.setQueryData<InfiniteMessagesCache>(
-          chatKeys.messages(roomId),
-          (old) => replaceMessageInFirstPage(old, clientMessageId, { id: data.id })
-        );
-      },
-      onMessageFailed: (failedRoomId, clientMessageId, error) => {
-        if (failedRoomId !== roomId) return;
-        queryClient.setQueryData<InfiniteMessagesCache>(
-          chatKeys.messages(roomId),
-          (old) =>
-            updateMessageInCache(old, clientMessageId, (m) => ({
-              ...m,
-              status: "error" as const,
-            }))
-        );
-        showError(`메시지 전송 실패: ${error}`);
-      },
-    });
-  }, [roomId, queryClient, showError]);
+  // stale "sending" 메시지 자동 복구 (30초 이상 stuck 감지)
+  useChatStaleRecovery(roomId, queryClient);
 
   // ============================================
   // Mutations
@@ -589,70 +547,6 @@ export function useChatMutations({
       console.error("[useChatMutations] Announcement error:", error);
     },
   });
-
-  // "sending" 상태 메시지 자동 복구 (30초 이상 stuck 감지)
-  useEffect(() => {
-    const STALE_THRESHOLD_MS = 30_000;
-    const CHECK_INTERVAL_MS = 10_000;
-
-    const interval = setInterval(() => {
-      const cache = queryClient.getQueryData<InfiniteMessagesCache>([
-        "chat-messages",
-        roomId,
-      ]);
-      if (!cache?.pages) return;
-
-      const now = Date.now();
-      let hasStale = false;
-
-      for (const page of cache.pages) {
-        for (const msg of page.messages) {
-          if (
-            msg.status === "sending" &&
-            now - new Date(msg.created_at).getTime() > STALE_THRESHOLD_MS
-          ) {
-            hasStale = true;
-            break;
-          }
-        }
-        if (hasStale) break;
-      }
-
-      if (hasStale) {
-        const staleIds: string[] = [];
-        for (const page of cache.pages) {
-          for (const msg of page.messages) {
-            if (
-              msg.status === "sending" &&
-              now - new Date(msg.created_at).getTime() > STALE_THRESHOLD_MS
-            ) {
-              staleIds.push(msg.id);
-            }
-          }
-        }
-        staleIds.forEach((id) => operationTracker.failSend(id));
-
-        const staleIdSet = new Set(staleIds);
-        queryClient.setQueryData<InfiniteMessagesCache>(
-          chatKeys.messages(roomId),
-          (old) => {
-            if (!old?.pages) return old;
-            return {
-              ...old,
-              pages: old.pages.map((page) => ({
-                ...page,
-                messages: page.messages.map((m) =>
-                  staleIdSet.has(m.id) ? { ...m, status: "error" as const } : m
-                ),
-              })),
-            };
-          }
-        );
-      }
-    }, CHECK_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [roomId, queryClient]);
 
   // ============================================
   // Actions

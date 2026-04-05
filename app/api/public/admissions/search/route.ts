@@ -4,12 +4,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { expandAliasNames, type AliasEntry } from "@/lib/domains/admission/search/alias-resolver";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 
-const limiter = createRateLimiter({ maxRequests: 30 });
+const limiter = createRateLimiter({ maxRequests: 30, prefix: "rl:admissions" });
 
 const MAX_PAGE_SIZE = 20;
 
 export async function GET(req: NextRequest) {
-  const rateLimitResponse = applyRateLimit(req, limiter);
+  const rateLimitResponse = await applyRateLimit(req, limiter);
   if (rateLimitResponse) return rateLimitResponse;
 
   const { searchParams } = req.nextUrl;

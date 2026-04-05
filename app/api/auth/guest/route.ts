@@ -3,10 +3,10 @@ import { apiSuccess, apiBadRequest, apiInternalError } from "@/lib/api/response"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 
-const limiter = createRateLimiter({ windowMs: 60_000, maxRequests: 5 });
+const limiter = createRateLimiter({ windowMs: 60_000, maxRequests: 5, prefix: "rl:guest" });
 
 export async function POST(req: NextRequest) {
-  const rateLimitResponse = applyRateLimit(req, limiter);
+  const rateLimitResponse = await applyRateLimit(req, limiter);
   if (rateLimitResponse) return rateLimitResponse;
 
   let body: unknown;

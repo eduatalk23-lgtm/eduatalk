@@ -10,7 +10,7 @@
 // ============================================
 
 import type { PipelineContext } from "./pipeline-types";
-import { SYNTHESIS_PIPELINE_TASK_KEYS } from "./pipeline-types";
+import { SYNTHESIS_PIPELINE_TASK_KEYS, getTaskResult, setTaskResult } from "./pipeline-types";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PersistedEdge } from "./edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
@@ -40,15 +40,11 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
   const { studentId, tenantId } = ctx;
 
   // 1. ctx.results에서 캐시된 분석 결과 추출
-  const diagResult = ctx.results["ai_diagnosis"] as Record<string, unknown> | undefined;
-  const stratResult = ctx.results["ai_strategy"] as Record<string, unknown> | undefined;
+  const diagResult = getTaskResult(ctx.results, "ai_diagnosis");
+  const stratResult = getTaskResult(ctx.results, "ai_strategy");
 
-  const timeSeriesAnalysis = diagResult?._timeSeriesAnalysis as
-    | import("./eval/timeseries-analyzer").TimeSeriesAnalysis
-    | undefined;
-  const universityMatch = stratResult?._universityMatch as
-    | import("./eval/university-profile-matcher").UniversityMatchAnalysis
-    | undefined;
+  const timeSeriesAnalysis = diagResult?._timeSeriesAnalysis;
+  const universityMatch = stratResult?._universityMatch;
 
   // 2. 현재 학년도 역량 점수 조회 (ctx.supabase 직접 사용)
   const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
@@ -87,7 +83,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
   });
 
   // 4. ctx.results에 저장
-  ctx.results["_executiveSummary"] = summary;
+  setTaskResult(ctx.results, "_executiveSummary", summary);
 
   // 5. 4축 합격 진단 프로필 산출 (best-effort)
   try {
@@ -155,7 +151,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
         flowCompletion,
         studentGrade: studentGrade ? Math.round(studentGrade * 10) / 10 : null,
       });
-      ctx.results["_fourAxisDiagnosis"] = diagnosis;
+      setTaskResult(ctx.results, "_fourAxisDiagnosis", diagnosis);
     }
   } catch {
     // 4축 산출 실패 무시

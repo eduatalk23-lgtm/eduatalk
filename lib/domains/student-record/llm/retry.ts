@@ -1,29 +1,135 @@
+import * as Sentry from "@sentry/nextjs";
+
 // ============================================
-// 지수 백오프 재시도 래퍼
-// LLM 호출 실패 시 1s → 3s → 10s 대기 후 재시도 (최대 3회)
+// 에러 분류 기반 적응형 재시도 래퍼
+//
+// 에러 카테고리별 차등 백오프:
+//   rate_limit   → 5s → 15s → 30s  (길게 대기)
+//   timeout      → 1s → 2s  → 5s   (빠르게 재시도)
+//   server_error → 2s → 5s  → 15s  (중간)
+//   client_error → 재시도 안 함     (즉시 throw)
+//   unknown      → 1s → 3s  → 10s  (기존과 동일)
 // ============================================
 
+type LlmErrorCategory = "rate_limit" | "timeout" | "server_error" | "client_error" | "unknown";
+
+interface BackoffStrategy {
+  delays: number[];
+  maxRetries: number;
+}
+
+const BACKOFF_STRATEGIES: Record<LlmErrorCategory, BackoffStrategy> = {
+  rate_limit:   { delays: [5000, 15000, 30000], maxRetries: 3 },
+  timeout:      { delays: [1000, 2000, 5000],   maxRetries: 3 },
+  server_error: { delays: [2000, 5000, 15000],  maxRetries: 3 },
+  client_error: { delays: [],                    maxRetries: 0 },
+  unknown:      { delays: [1000, 3000, 10000],   maxRetries: 3 },
+};
+
+function classifyError(error: unknown): LlmErrorCategory {
+  if (!(error instanceof Error)) return "unknown";
+
+  const msg = error.message.toLowerCase();
+  const name = error.name.toLowerCase();
+
+  // Rate limit / quota
+  if (msg.includes("429") || msg.includes("rate limit") || msg.includes("quota") || msg.includes("resource_exhausted")) {
+    return "rate_limit";
+  }
+
+  // Timeout
+  if (msg.includes("timeout") || msg.includes("timed out") || msg.includes("deadline") || name.includes("timeout") || msg.includes("econnreset")) {
+    return "timeout";
+  }
+
+  // Server error (5xx)
+  if (msg.includes("500") || msg.includes("502") || msg.includes("503") || msg.includes("internal server error") || msg.includes("service unavailable")) {
+    return "server_error";
+  }
+
+  // Client error (4xx, non-429) — 재시도 무의미
+  if (msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("404") || msg.includes("invalid")) {
+    return "client_error";
+  }
+
+  return "unknown";
+}
+
 /**
- * 지수 백오프 재시도 래퍼.
- * LLM 호출 실패 시 1s → 3s → 10s 대기 후 재시도 (최대 3회).
+ * 적응형 재시도 래퍼.
+ *
+ * - `adaptiveBackoff: true` (기본): 에러 카테고리별 자동 백오프
+ * - `backoff` 배열 명시 전달 시: adaptive 무시, 지정된 백오프 사용 (하위 호환)
+ * - `maxRetries` 명시 전달 시: adaptive의 maxRetries 대신 사용
  */
 export async function withRetry<T>(
   fn: () => Promise<T>,
-  options?: { maxRetries?: number; backoff?: number[]; label?: string },
+  options?: {
+    maxRetries?: number;
+    backoff?: number[];
+    label?: string;
+    /** 에러 카테고리별 자동 백오프 (기본: true) */
+    adaptiveBackoff?: boolean;
+  },
 ): Promise<T> {
-  const { maxRetries = 3, backoff = [1000, 3000, 10000], label = "LLM" } = options ?? {};
+  const {
+    label = "LLM",
+    adaptiveBackoff = true,
+    backoff: explicitBackoff,
+    maxRetries: explicitMaxRetries,
+  } = options ?? {};
+
+  // 명시적 backoff 배열 → 기존 동작 (하위 호환)
+  const useAdaptive = adaptiveBackoff && !explicitBackoff;
+
+  // 비적응형 기본값
+  const defaultBackoff = explicitBackoff ?? [1000, 3000, 10000];
+  const defaultMaxRetries = explicitMaxRetries ?? 3;
+
   let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  let attempt = 0;
+
+  // 적응형은 첫 시도 후 에러 카테고리로 전략 결정
+  const maxFirstPass = useAdaptive ? (explicitMaxRetries ?? 3) : defaultMaxRetries;
+
+  for (attempt = 0; attempt <= maxFirstPass; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-      if (attempt < maxRetries) {
-        const delay = backoff[Math.min(attempt, backoff.length - 1)];
-        // Rate limit / quota 에러는 즉시 재시도하지 않고 반드시 백오프 대기
+
+      if (useAdaptive) {
+        const category = classifyError(error);
+        const strategy = BACKOFF_STRATEGIES[category];
+
+        // client_error → 재시도 무의미
+        if (strategy.maxRetries === 0) {
+          throw error;
+        }
+
+        const effectiveMax = explicitMaxRetries ?? strategy.maxRetries;
+        if (attempt >= effectiveMax) break;
+
+        const delay = strategy.delays[Math.min(attempt, strategy.delays.length - 1)] ?? 10000;
+        console.warn(`[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기)`);
+        await new Promise<void>((r) => setTimeout(r, delay));
+      } else {
+        if (attempt >= defaultMaxRetries) break;
+        const delay = defaultBackoff[Math.min(attempt, defaultBackoff.length - 1)];
         await new Promise<void>((r) => setTimeout(r, delay));
       }
     }
   }
+
+  // 최종 실패 시 Sentry에 재시도 컨텍스트 기록
+  if (process.env.NODE_ENV === "production") {
+    Sentry.setContext("llm_retry", {
+      label,
+      totalAttempts: attempt + 1,
+      adaptive: useAdaptive,
+      errorCategory: useAdaptive && lastError ? classifyError(lastError) : undefined,
+    });
+  }
+
   throw lastError;
 }
