@@ -46,36 +46,11 @@ export async function analyzeSetekWithHighlight(
         .maybeSingle();
       const tgtMajor = student?.target_major as string | null;
       if (tgtMajor) {
-        type HighlightScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
-        const { data: scoreRows } = await supabase
-          .from("student_internal_scores")
-          .select("subject:subject_id(name), rank_grade, grade, semester")
-          .eq("student_id", input.studentId)
-          .order("grade")
-          .order("semester")
-          .returns<HighlightScoreRow[]>();
-        const allRows = scoreRows ?? [];
-        const scores = allRows.map((s) => ({
-          subjectName: s.subject?.name ?? "",
-          rankGrade: s.rank_grade ?? 5,
-        })).filter((s: { subjectName: string }) => s.subjectName);
-
-        // 학기별 성적 추이 (rank_grade가 있는 과목만)
-        const gradeTrend = allRows
-          .filter((s) => s.rank_grade != null)
-          .map((s) => ({
-            grade: s.grade ?? 1,
-            semester: s.semester ?? 1,
-            subjectName: s.subject?.name ?? "",
-            rankGrade: s.rank_grade!,
-          }));
-
-        input.careerContext = {
-          targetMajor: tgtMajor,
-          takenSubjects: [...new Set(scores.map((s: { subjectName: string }) => s.subjectName))],
-          relevantScores: scores,
-          gradeTrend,
-        };
+        const { fetchCareerContext } = await import("../../repository/score-query");
+        const ccResult = await fetchCareerContext(supabase, input.studentId!, tgtMajor);
+        if (ccResult) {
+          input.careerContext = ccResult.careerContext;
+        }
       }
     }
 

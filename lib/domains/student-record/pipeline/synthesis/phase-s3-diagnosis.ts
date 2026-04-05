@@ -66,14 +66,9 @@ export async function runAiDiagnosis(
   }
 
   // 보강 컨텍스트: 성적 추이 + 교과이수적합도
-  const { data: trendRows } = await supabase
-    .from("student_internal_scores")
-    .select("subject:subject_id(name), rank_grade, grade, semester")
-    .eq("student_id", studentId)
-    .order("grade")
-    .order("semester")
-    .returns<ScoreRowWithSubject[]>();
-  const gradeTrend = (trendRows ?? [])
+  const { fetchScoresWithSubject } = await import("../../repository/score-query");
+  const trendRows = await fetchScoresWithSubject(supabase, studentId);
+  const gradeTrend = trendRows
     .filter((s) => s.rank_grade != null)
     .map((s) => ({
       grade: s.grade ?? 1,
@@ -93,13 +88,9 @@ export async function runAiDiagnosis(
       const fbTargetMajor = snapshot!.target_major as string;
 
       // 이수과목 조회
-      const { data: fbScoreRows } = await supabase
-        .from("student_internal_scores")
-        .select("subject:subject_id(name)")
-        .eq("student_id", studentId)
-        .returns<ScoreRowWithSubject[]>();
+      const fbScoreRows = await fetchScoresWithSubject(supabase, studentId);
       const fbTakenSubjects = [...new Set(
-        (fbScoreRows ?? [])
+        fbScoreRows
           .map((s) => s.subject?.name)
           .filter((n): n is string => !!n),
       )];

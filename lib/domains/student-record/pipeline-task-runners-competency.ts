@@ -62,27 +62,10 @@ async function runCompetencyForRecords(
   const tgtMajor = (snapshot?.target_major as string) ?? null;
   let careerContext: HighlightAnalysisInput["careerContext"] = undefined;
 
-  if (tgtMajor) {
-    const { data: scoreRows } = await supabase
-      .from("student_internal_scores")
-      .select("subject:subject_id(name), rank_grade, grade, semester")
-      .eq("student_id", studentId)
-      .order("grade")
-      .order("semester");
-    const careerScoreRows = (scoreRows ?? []) as ScoreRowWithSubject[];
-    const subjectScores = careerScoreRows
-      .map((s) => ({ subjectName: s.subject?.name ?? "", rankGrade: s.rank_grade ?? 5 }))
-      .filter((s) => s.subjectName);
-    const takenNames = [...new Set(subjectScores.map((s) => s.subjectName))];
-    const gradeTrend = careerScoreRows
-      .filter((s) => s.rank_grade != null)
-      .map((s) => ({
-        grade: s.grade ?? 1,
-        semester: s.semester ?? 1,
-        subjectName: s.subject?.name ?? "",
-        rankGrade: s.rank_grade as number,
-      }));
-    careerContext = { targetMajor: tgtMajor, takenSubjects: takenNames, relevantScores: subjectScores, gradeTrend };
+  const { fetchCareerContext } = await import("./repository/score-query");
+  const ccResult = await fetchCareerContext(supabase, studentId, tgtMajor);
+  if (ccResult) {
+    careerContext = ccResult.careerContext;
   }
 
   const careerHashCtx = careerContext
@@ -312,20 +295,15 @@ async function runAggregateForGrade(
   const allGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> =
     [...allResults.values()].flatMap((d) => d.competencyGrades);
 
-  let careerScoreRows: ScoreRowWithSubject[] = [];
+  const { fetchCareerContext: fetchCC } = await import("./repository/score-query");
+  const aggCcResult = await fetchCC(supabase, studentId, tgtMajor);
+  const careerScoreRows = aggCcResult?.careerScoreRows ?? [];
 
-  if (tgtMajor) {
-    const { data: scoreRows } = await supabase
-      .from("student_internal_scores")
-      .select("subject:subject_id(name), rank_grade, grade, semester")
-      .eq("student_id", studentId)
-      .order("grade")
-      .order("semester");
-    careerScoreRows = (scoreRows ?? []) as ScoreRowWithSubject[];
+  if (tgtMajor && aggCcResult) {
     const subjectScores = careerScoreRows
       .map((s) => ({ subjectName: s.subject?.name ?? "", rankGrade: s.rank_grade ?? 5 }))
       .filter((s) => s.subjectName);
-    const takenNames = [...new Set(subjectScores.map((s) => s.subjectName))];
+    const takenNames = aggCcResult.careerContext.takenSubjects;
 
     const { getCurriculumYear: getCurYearFn } = await import("@/lib/utils/schoolYear");
     const enrollYear = currentSchoolYear - studentGrade + 1;
@@ -403,35 +381,11 @@ export async function runCompetencyAnalysisForGrade(ctx: PipelineContext): Promi
   let careerContext: HighlightAnalysisInput["careerContext"] = undefined;
   let careerScoreRows: ScoreRowWithSubject[] = [];
 
-  if (tgtMajor) {
-    const { data: scoreRows } = await supabase
-      .from("student_internal_scores")
-      .select("subject:subject_id(name), rank_grade, grade, semester")
-      .eq("student_id", studentId)
-      .order("grade")
-      .order("semester");
-    careerScoreRows = (scoreRows ?? []) as ScoreRowWithSubject[];
-    const subjectScores = careerScoreRows
-      .map((s) => ({
-        subjectName: s.subject?.name ?? "",
-        rankGrade: s.rank_grade ?? 5,
-      }))
-      .filter((s) => s.subjectName);
-    const takenNames = [...new Set(subjectScores.map((s) => s.subjectName))];
-    const gradeTrend = careerScoreRows
-      .filter((s) => s.rank_grade != null)
-      .map((s) => ({
-        grade: s.grade ?? 1,
-        semester: s.semester ?? 1,
-        subjectName: s.subject?.name ?? "",
-        rankGrade: s.rank_grade as number,
-      }));
-    careerContext = {
-      targetMajor: tgtMajor,
-      takenSubjects: takenNames,
-      relevantScores: subjectScores,
-      gradeTrend,
-    };
+  const { fetchCareerContext: fetchCCLegacy } = await import("./repository/score-query");
+  const legacyCcResult = await fetchCCLegacy(supabase, studentId, tgtMajor);
+  if (legacyCcResult) {
+    careerContext = legacyCcResult.careerContext;
+    careerScoreRows = legacyCcResult.careerScoreRows;
   }
 
   const careerHashCtx = careerContext

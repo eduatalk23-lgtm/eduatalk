@@ -10,3 +10,4 @@ export * from "./roadmap-repository";
 export * from "./admission-repository";
 export * from "./activity-log-repository";
 export * from "./school-profile-repository";
+export * from "./score-query";
