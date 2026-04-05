@@ -69,6 +69,7 @@ import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
 import { FourAxisDiagnosisCard } from "./FourAxisDiagnosisCard";
 
 const CoursePlanEditor = lazy(() => import("./CoursePlanEditor"));
+const ProjectedAnalysisSection = lazy(() => import("../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })));
 
 type Subject = {
   id: string;
@@ -149,6 +150,7 @@ const STAGES: StageConfig[] = [
       { id: "sec-diagnosis-analysis", label: "역량 분석" },
       { id: "sec-diagnosis-crossref", label: "교차 분석" },
       { id: "sec-diagnosis-four-axis", label: "4축 진단" },
+      { id: "sec-projected-analysis", label: "설계 예상" },
       { id: "sec-diagnosis-overall", label: "종합진단" },
       { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
       { id: "sec-warnings", label: "경보" },
@@ -1530,6 +1532,21 @@ export function StudentRecordClient({
           {!diagnosisLoading && diagnosisData?.fourAxisDiagnosis && (
             <StrategySection id="sec-diagnosis-four-axis" title="4축 합격 진단">
               <FourAxisDiagnosisCard diagnosis={diagnosisData.fourAxisDiagnosis} />
+            </StrategySection>
+          )}
+
+          {/* 설계 모드 예상 분석 (P8 가안 + 레벨링) */}
+          {!diagnosisLoading && diagnosisData?.projectedData && (
+            <StrategySection id="sec-projected-analysis" title="설계 모드 예상 분석">
+              <Suspense fallback={<SectionSkeleton />}>
+                <ProjectedAnalysisSection
+                  projectedScores={diagnosisData.projectedData.competencyScores}
+                  projectedEdges={diagnosisData.projectedData.edges}
+                  leveling={diagnosisData.projectedData.leveling}
+                  designGrades={diagnosisData.projectedData.designGrades}
+                  contentQuality={diagnosisData.projectedData.contentQuality}
+                />
+              </Suspense>
             </StrategySection>
           )}
 

@@ -372,6 +372,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
                             subjectName={plan.subject.name}
                             subjectType={plan.subject.subject_type?.name ?? null}
                             status={plan.plan_status}
+                            source={plan.source}
                             reason={plan.recommendation_reason}
                             isSchoolOffered={plan.is_school_offered}
                             notes={plan.notes}

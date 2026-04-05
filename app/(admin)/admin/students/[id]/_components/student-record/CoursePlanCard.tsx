@@ -1,14 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { CheckCircle, Circle, Trash2, StickyNote, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
-import type { CoursePlanStatus } from "@/lib/domains/student-record/course-plan/types";
+import { CheckCircle, Circle, Trash2, StickyNote, AlertTriangle, ChevronUp, ChevronDown, Sparkles } from "lucide-react";
+import type { CoursePlanStatus, CoursePlanSource } from "@/lib/domains/student-record/course-plan/types";
 
 interface CoursePlanCardProps {
   id: string;
   subjectName: string;
   subjectType: string | null;
   status: CoursePlanStatus;
+  source?: CoursePlanSource;
   reason: string | null;
   isSchoolOffered: boolean | null;
   notes: string | null;
@@ -39,7 +40,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 };
 
 export function CoursePlanCard({
-  subjectName, subjectType, status, reason,
+  subjectName, subjectType, status, source, reason,
   isSchoolOffered, notes, onConfirm, onRemove, onMoveUp, onMoveDown, disabled,
 }: CoursePlanCardProps) {
   const style = STATUS_STYLES[status];
@@ -74,6 +75,14 @@ export function CoursePlanCard({
         )}>
           {style.label}
         </span>
+
+        {/* AI 추천 뱃지 */}
+        {source === "auto" && (
+          <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+            <Sparkles className="h-2.5 w-2.5" />
+            AI
+          </span>
+        )}
 
         {/* 학교 개설 여부 */}
         {isSchoolOffered === true && (

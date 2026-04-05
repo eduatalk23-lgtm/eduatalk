@@ -39,6 +39,9 @@ import { ConclusionSection } from "./sections/ConclusionSection";
 import { GrowthTrajectorySection } from "./sections/GrowthTrajectorySection";
 import { CohortBenchmarkSection } from "./sections/CohortBenchmarkSection";
 import { ProjectedAnalysisSection } from "./sections/ProjectedAnalysisSection";
+import { PipelineExecutiveSummarySection } from "./sections/PipelineExecutiveSummarySection";
+import { TimeSeriesSection } from "./sections/TimeSeriesSection";
+import { UniversityMatchSection } from "./sections/UniversityMatchSection";
 
 interface ReportClientProps {
   studentId: string;
@@ -232,6 +235,25 @@ export function ReportClient({ studentId }: ReportClientProps) {
         />
       ),
     },
+    // ── 파이프라인 eval 출력 (M4~M6) ──
+    ...(data.executiveSummary ? [{
+      id: "pipeline-exec",
+      title: "AI 종합 분석",
+      content: <PipelineExecutiveSummarySection summary={data.executiveSummary} />,
+      importance: "secondary" as SectionImportance,
+    }] : []),
+    ...(data.timeSeriesAnalysis ? [{
+      id: "pipeline-timeseries",
+      title: "3년 성장 분석",
+      content: <TimeSeriesSection analysis={data.timeSeriesAnalysis} />,
+      importance: "secondary" as SectionImportance,
+    }] : []),
+    ...(data.universityMatch ? [{
+      id: "pipeline-univ-match",
+      title: "계열별 적합도",
+      content: <UniversityMatchSection analysis={data.universityMatch} />,
+      importance: "secondary" as SectionImportance,
+    }] : []),
     // ── 점검 사항 (분석 전 리스크 조기 인지) ──
     {
       id: "warning",

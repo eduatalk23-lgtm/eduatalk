@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Tag } from "lucide-react";
 import {
   saveRoadmapItemAction,
   updateRoadmapItemAction,
@@ -94,11 +94,26 @@ export function RoadmapEditor({
     <div className="flex flex-col gap-4">
       {/* AI 로드맵 생성 + 상태 표시 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasAiItems && (
-            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
-              AI {aiItems.length}건
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+                <Sparkles className="h-3 w-3" />
+                AI 추천 {aiItems.length}건
+              </span>
+              {(() => {
+                const allKw = aiItems.flatMap((r) => r.plan_keywords ?? []);
+                const freq = new Map<string, number>();
+                for (const kw of allKw) freq.set(kw, (freq.get(kw) ?? 0) + 1);
+                const topKw = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+                if (topKw.length === 0) return null;
+                return (
+                  <span className="text-[10px] text-[var(--text-tertiary)]">
+                    핵심 키워드: {topKw.map(([kw]) => kw).join(", ")}
+                  </span>
+                );
+              })()}
+            </>
           )}
         </div>
         <button
@@ -238,6 +253,8 @@ function RoadmapItemRow({
     ? storylines.find((s) => s.id === item.storyline_id)
     : null;
 
+  const isAi = item.plan_content.startsWith("[AI]");
+  const displayContent = isAi ? item.plan_content.replace(/^\[AI\]\s*/, "") : item.plan_content;
   const areaLabel = AREA_OPTIONS.find((a) => a.value === item.area)?.label ?? item.area;
   const hasExecution = !!item.execution_content;
   const itemStatus = (item.status as RoadmapItemStatus) ?? (hasExecution ? "completed" : "planning");
@@ -252,10 +269,15 @@ function RoadmapItemRow({
         : ("idle" as const);
 
   return (
-    <div className="p-3">
+    <div className={cn("p-3", isAi && "bg-violet-50/40 dark:bg-violet-900/10")}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isAi && (
+              <span className="inline-flex items-center gap-0.5 text-violet-500">
+                <Sparkles className="h-3 w-3" />
+              </span>
+            )}
             <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
               {areaLabel}
             </span>
@@ -283,7 +305,22 @@ function RoadmapItemRow({
           </div>
 
           {/* 계획 */}
-          <p className="mt-1 text-sm text-[var(--text-primary)]">{item.plan_content}</p>
+          <p className="mt-1 text-sm text-[var(--text-primary)]">{displayContent}</p>
+
+          {/* AI 키워드 태그 */}
+          {isAi && item.plan_keywords && item.plan_keywords.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {item.plan_keywords.map((kw) => (
+                <span
+                  key={kw}
+                  className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
+                >
+                  <Tag className="h-2 w-2" />
+                  {kw}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* 실행 결과 */}
           {hasExecution && !isEditing && (
