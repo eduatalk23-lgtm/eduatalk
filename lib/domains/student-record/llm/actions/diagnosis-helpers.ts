@@ -321,18 +321,7 @@ export function generateImprovementsFallback(
 // (generateAiDiagnosis가 scores/tags 0건일 때 자동 호출)
 // ============================================
 
-type DiagnosisGenerationResult = {
-  overallGrade: string;
-  recordDirection: string;
-  directionStrength: "strong" | "moderate" | "weak";
-  directionReasoning: string;
-  strengths: string[];
-  weaknesses: string[];
-  improvements: DiagnosisImprovement[];
-  recommendedMajors: string[];
-  strategyNotes: string;
-  warnings?: string[];
-};
+import type { DiagnosisGenerationResult } from "./generateDiagnosis";
 
 /**
  * 수강계획+진로 기반 예비 진단 생성 (내부 헬퍼).

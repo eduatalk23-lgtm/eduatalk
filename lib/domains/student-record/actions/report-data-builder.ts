@@ -287,7 +287,6 @@ export async function fetchAnalysisData(
     })),
     coursePlans: coursePlansRaw,
     plannedSubjects: coursePlansRaw.map((p) => p.subject.name),
-    recordDataByGrade: {} as Record<number, RecordTabData>, // placeholder — 호출측에서 덮어씀
     activitySummaries: (actSummariesRes.success && actSummariesRes.data ? actSummariesRes.data : []).map((s) => ({
       id: s.id, summary_title: s.summary_title, summary_sections: s.summary_sections,
       summary_text: s.summary_text, status: s.status, target_grades: s.target_grades,

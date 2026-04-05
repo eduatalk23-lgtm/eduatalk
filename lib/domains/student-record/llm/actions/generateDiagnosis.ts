@@ -37,7 +37,7 @@ export type { DiagnosisImprovement, DiagnosisEnrichedContext, CoursePlanContext 
 
 const LOG_CTX = { domain: "student-record", action: "generateDiagnosis" };
 
-interface DiagnosisGenerationResult {
+export interface DiagnosisGenerationResult {
   overallGrade: string;
   recordDirection: string;
   directionStrength: "strong" | "moderate" | "weak";
