@@ -81,6 +81,19 @@ See `docs/auth-strategy-pattern.md` for full documentation.
 
 ### Next.js 15+ Specifics
 
+**`"use server"` 모듈에서 type re-export 금지:**
+```typescript
+// ❌ FORBIDDEN: 런타임 ReferenceError 유발
+"use server";
+import type { Foo } from "./types";
+export type { Foo };
+
+// ✅ OK: 타입은 원본 파일에서 직접 import
+// types.ts (별도 파일)에서 export interface Foo { ... }
+// 소비자: import type { Foo } from "./types"
+```
+Next.js가 `"use server"` 모듈의 모든 export를 런타임 참조로 처리하여, `import type`으로 지워진 값을 참조 시 크래시.
+
 Dynamic route params are Promises:
 ```typescript
 export default async function Page({

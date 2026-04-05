@@ -73,7 +73,7 @@ export async function getGoalProgress(
         .select("*")
         .eq("goal_id", goalId)
         .eq("student_id", studentId)
-        .order("recorded_at", { ascending: false });
+        .order("created_at", { ascending: false });
       return { data: result.data, error: result.error };
     },
     async () => {
@@ -81,7 +81,7 @@ export async function getGoalProgress(
         .from("student_goal_progress")
         .select("*")
         .eq("goal_id", goalId)
-        .order("recorded_at", { ascending: false });
+        .order("created_at", { ascending: false });
       return { data: result.data, error: result.error };
     },
     { context: "[goals] 진행률 조회" }
@@ -103,7 +103,7 @@ export async function getGoalProgressBatch(
         .select("*")
         .eq("student_id", studentId)
         .in("goal_id", goalIds)
-        .order("recorded_at", { ascending: false });
+        .order("created_at", { ascending: false });
       return { data: result.data, error: result.error };
     },
     async () => {
@@ -111,7 +111,7 @@ export async function getGoalProgressBatch(
         .from("student_goal_progress")
         .select("*")
         .in("goal_id", goalIds)
-        .order("recorded_at", { ascending: false });
+        .order("created_at", { ascending: false });
       return { data: result.data, error: result.error };
     },
     { context: "[goals] 진행률 배치 조회" }
@@ -395,7 +395,7 @@ export async function fetchGoalsSummary(
           .select("*")
           .eq("student_id", studentId)
           .in("goal_id", uniqueGoalIds)
-          .order("recorded_at", { ascending: false });
+          .order("created_at", { ascending: false });
         return { data: result.data, error: result.error };
       },
       async () => {
@@ -403,7 +403,7 @@ export async function fetchGoalsSummary(
           .from("student_goal_progress")
           .select("*")
           .in("goal_id", uniqueGoalIds)
-          .order("recorded_at", { ascending: false });
+          .order("created_at", { ascending: false });
         return { data: result.data, error: result.error };
       },
       { context: "[goals] 목표 요약 진행률 조회" }

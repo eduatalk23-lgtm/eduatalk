@@ -115,7 +115,7 @@ async function fetchBatchGoals(
       .from("student_goal_progress")
       .select("*")
       .in("student_id", ids)
-      .order("recorded_at", { ascending: false }),
+      .order("created_at", { ascending: false }),
   ]);
   return {
     goals: (goalsResult.data ?? []) as Goal[],

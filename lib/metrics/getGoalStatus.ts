@@ -104,7 +104,7 @@ export async function getGoalStatus(
           .select("*")
           .eq("student_id", studentId)
           .in("goal_id", goalIds)
-          .order("recorded_at", { ascending: false });
+          .order("created_at", { ascending: false });
         return { data: result.data as GoalProgress[] | null, error: result.error };
       },
       async () => {
@@ -112,7 +112,7 @@ export async function getGoalStatus(
           .from("student_goal_progress")
           .select("*")
           .in("goal_id", goalIds)
-          .order("recorded_at", { ascending: false });
+          .order("created_at", { ascending: false });
         return { data: result.data as GoalProgress[] | null, error: result.error };
       },
       { context: "[metrics/getGoalStatus] 진행률 조회" }

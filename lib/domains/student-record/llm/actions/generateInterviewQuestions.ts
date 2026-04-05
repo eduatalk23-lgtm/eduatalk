@@ -15,7 +15,8 @@ import {
 } from "../prompts/interviewQuestions";
 import type { InterviewQuestionResult } from "../prompts/interviewQuestions";
 
-export type { InterviewQuestionResult, GeneratedInterviewQuestion, InterviewQuestionType } from "../prompts/interviewQuestions";
+// NOTE: "use server" 모듈에서는 type re-export 금지 (런타임 ReferenceError 유발)
+// 외부에서 이 타입이 필요하면 ../prompts/interviewQuestions 에서 직접 import할 것
 
 const LOG_CTX = { domain: "student-record", action: "generateInterviewQuestions" };
 

@@ -31,9 +31,10 @@ import {
   generateImprovementsFallback,
   generateProspectiveDiagnosisInternal,
 } from "./diagnosis-helpers";
-// 타입은 diagnosis-helpers.ts에서 정의되므로 import + re-export
+// 타입은 diagnosis-helpers.ts에서 직접 import하여 사용
+// NOTE: "use server" 모듈에서는 type re-export 금지 (런타임 ReferenceError 유발)
+// 외부에서 이 타입이 필요하면 diagnosis-helpers.ts에서 직접 import할 것
 import type { DiagnosisImprovement, DiagnosisEnrichedContext, CoursePlanContext } from "./diagnosis-helpers";
-export type { DiagnosisImprovement, DiagnosisEnrichedContext, CoursePlanContext };
 
 const LOG_CTX = { domain: "student-record", action: "generateDiagnosis" };
 

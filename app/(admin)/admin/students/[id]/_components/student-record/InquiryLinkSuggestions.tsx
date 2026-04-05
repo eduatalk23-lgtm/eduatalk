@@ -11,7 +11,7 @@ import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { detectInquiryLinks } from "@/lib/domains/student-record/llm/actions/detectInquiryLinks";
-import type { RecordSummary, InquiryConnection, SuggestedStoryline, InquiryLinkResult } from "@/lib/domains/student-record/llm/actions/detectInquiryLinks";
+import type { RecordSummary, InquiryConnection, SuggestedStoryline, InquiryLinkResult } from "@/lib/domains/student-record/llm/prompts/inquiryLinking";
 import {
   saveStorylineAction,
   addStorylineLinkAction,
