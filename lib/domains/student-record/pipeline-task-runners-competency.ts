@@ -111,7 +111,7 @@ async function runCompetencyForRecords(
     content: string,
     data: HighlightAnalysisResult,
   ) {
-    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
+    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: string }> = [];
     for (const section of data.sections) {
       for (const tag of section.tags) {
         rpcTags.push({
@@ -120,6 +120,7 @@ async function runCompetencyForRecords(
           competency_item: tag.competencyItem,
           evaluation: tag.evaluation,
           evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
+          tag_context: "analysis",
         });
       }
     }

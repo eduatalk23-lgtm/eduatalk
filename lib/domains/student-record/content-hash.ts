@@ -24,12 +24,7 @@ export function computeContentHash(
     payload += `\x00plans:${plansPayload}`;
   }
 
-  // djb2 해시 — 암호학적 보안 불필요, 변경 감지용
-  let hash = 5381;
-  for (let i = 0; i < payload.length; i++) {
-    hash = ((hash << 5) + hash + payload.charCodeAt(i)) | 0;
-  }
-  return (hash >>> 0).toString(36);
+  return djb2(payload);
 }
 
 /**

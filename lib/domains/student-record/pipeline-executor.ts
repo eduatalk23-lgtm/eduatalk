@@ -396,6 +396,12 @@ export async function loadPipelineContext(
     }
   }
 
+  // S6: qualityPatterns를 task_results.ai_diagnosis에서 복원 (Phase 재시작 시 S5에서 사용)
+  const diagResult = results.ai_diagnosis as Record<string, unknown> | undefined;
+  const qualityPatterns = Array.isArray(diagResult?.qualityPatterns)
+    ? (diagResult.qualityPatterns as Array<{ pattern: string; count: number; subjects: string[] }>)
+    : undefined;
+
   return {
     pipelineId,
     studentId,
@@ -417,6 +423,7 @@ export async function loadPipelineContext(
     pipelineType,
     targetGrade,
     gradeMode,
+    qualityPatterns,
   };
 }
 

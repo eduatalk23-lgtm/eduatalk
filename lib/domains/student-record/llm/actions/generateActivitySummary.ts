@@ -27,6 +27,8 @@ export async function generateActivitySummary(
   targetGrades?: number[],
   /** Phase E2: 파이프라인에서 전달되는 엣지 프롬프트 섹션 */
   edgePromptSection?: string,
+  /** 파이프라인에서 전달되는 ReportData (있으면 fetchReportData 호출 스킵) */
+  cachedReport?: import("../../actions/report").ReportData,
 ): Promise<ActionResponse<ActivitySummaryResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -34,16 +36,20 @@ export async function generateActivitySummary(
       return { success: false, error: "기관 정보를 찾을 수 없습니다." };
     }
 
-    // 기존 fetchReportData 재사용하여 데이터 수집
-    const reportResult = await fetchReportData(studentId);
-    if (!reportResult.success || !reportResult.data) {
-      return {
-        success: false,
-        error: reportResult.success === false ? reportResult.error : "데이터 수집 실패",
-      };
+    // cachedReport가 있으면 fetchReportData 스킵
+    let report: import("../../actions/report").ReportData;
+    if (cachedReport) {
+      report = cachedReport;
+    } else {
+      const reportResult = await fetchReportData(studentId);
+      if (!reportResult.success || !reportResult.data) {
+        return {
+          success: false,
+          error: reportResult.success === false ? reportResult.error : "데이터 수집 실패",
+        };
+      }
+      report = reportResult.data;
     }
-
-    const report = reportResult.data;
     const studentGrade = report.student.grade;
     const grades = targetGrades ?? Array.from({ length: studentGrade }, (_, i) => i + 1);
 

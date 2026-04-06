@@ -56,13 +56,24 @@ export async function runSetekGuide(
   const extraSections = [guideEdgeSection, guideContextSection, improvementsSection].filter(Boolean).join("\n") || undefined;
   const results: string[] = [];
 
+  // report 1회 fetch — NEIS+consulting 양쪽에서 공유
+  let sharedReport: import("./actions/report").ReportData | undefined;
+  if (hasNeisGrades || hasConsultingGrades) {
+    const { fetchReportData: fetchReport } = await import("./actions/report");
+    const reportResult = await fetchReport(studentId);
+    if (!reportResult.success || !reportResult.data) {
+      throw new Error(reportResult.success === false ? reportResult.error : "세특 방향 리포트 데이터 수집 실패");
+    }
+    sharedReport = reportResult.data;
+  }
+
   // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
   if (hasNeisGrades) {
     const { analyzeSetekGuide } = await import("./llm/actions/guide-modules");
     const mergedAnalysisCtx = mergeGuideAnalysisContexts(
       ctx.neisGrades!.map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
     );
-    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx);
+    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx, sharedReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     if (guides) results.push(`NEIS ${guides.length}과목`);
@@ -71,19 +82,14 @@ export async function runSetekGuide(
   // 컨설팅 학년 → 수강계획 기반 세특 방향 (학년별 개별 호출 — 타임아웃 안전)
   if (hasConsultingGrades) {
     const { generateSetekDirection } = await import("./llm/actions/guide-modules");
-    const { fetchReportData: fetchReport } = await import("./actions/report");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
-    const reportResult = await fetchReport(studentId);
-    if (!reportResult.success || !reportResult.data) {
-      throw new Error(reportResult.success === false ? reportResult.error : "세특 방향 리포트 데이터 수집 실패");
-    }
     for (const grade of ctx.consultingGrades!) {
       const targetSchoolYear = currentYear - ctx.studentGrade + grade;
       const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[grade]);
       const result = await generateSetekDirection(
         studentId, tenantId, guideUserId,
-        reportResult.data, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+        sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx,
       );
       if (!result.success) {
         logActionWarn(LOG_CTX, `세특 방향 생성 실패 (grade ${grade})`, { studentId, error: result.error });
@@ -107,15 +113,18 @@ export async function runChangcheGuide(
 ): Promise<TaskRunnerOutput> {
   const { supabase, studentId, tenantId, coursePlanData } = ctx;
 
+  // report 1회 fetch — NEIS/consulting 양 경로 공유
+  const { fetchReportData } = await import("./actions/report");
+  const reportResult = await fetchReportData(studentId);
+  if (!reportResult.success || !reportResult.data) {
+    throw new Error(reportResult.success === false ? reportResult.error : "창체 방향 리포트 데이터 수집 실패");
+  }
+  const report = reportResult.data;
+
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
   if (!hasNeisData) {
     const { generateChangcheDirection } = await import("./llm/actions/guide-modules");
-    const { fetchReportData } = await import("./actions/report");
-    const reportResult = await fetchReportData(studentId);
-    if (!reportResult.success || !reportResult.data) {
-      throw new Error(reportResult.success === false ? reportResult.error : "데이터 수집 실패");
-    }
     // 세특 방향 컨텍스트 (setek_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let setekCtx: string | undefined;
@@ -138,7 +147,7 @@ export async function runChangcheGuide(
     );
     const result = await generateChangcheDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      reportResult.data, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx,
+      report, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx,
     );
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
@@ -181,7 +190,7 @@ export async function runChangcheGuide(
   const mergedCtxChangche = mergeGuideAnalysisContexts(
     (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
   );
-  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche);
+  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche, report);
   if (!result.success) throw new Error(result.error);
   const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
   return guides ? `${guides.length}개 활동유형 방향 생성` : "창체 방향 생성 완료";
@@ -197,15 +206,18 @@ export async function runHaengteukGuide(
 ): Promise<TaskRunnerOutput> {
   const { supabase, studentId, tenantId, coursePlanData } = ctx;
 
+  // report 1회 fetch — NEIS/consulting 양 경로 공유
+  const { fetchReportData } = await import("./actions/report");
+  const reportResult = await fetchReportData(studentId);
+  if (!reportResult.success || !reportResult.data) {
+    throw new Error(reportResult.success === false ? reportResult.error : "행특 방향 리포트 데이터 수집 실패");
+  }
+  const report = reportResult.data;
+
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
   if (!hasNeisData) {
     const { generateHaengteukDirection } = await import("./llm/actions/guide-modules");
-    const { fetchReportData } = await import("./actions/report");
-    const reportResult = await fetchReportData(studentId);
-    if (!reportResult.success || !reportResult.data) {
-      throw new Error(reportResult.success === false ? reportResult.error : "데이터 수집 실패");
-    }
     // 창체 방향 컨텍스트 (changche_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let changcheCtx: string | undefined;
@@ -228,7 +240,7 @@ export async function runHaengteukGuide(
     );
     const result = await generateHaengteukDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      reportResult.data, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH,
+      report, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH,
     );
     if (!result.success) throw new Error(result.error);
     return "행특 방향 생성 완료 (예비)";
@@ -264,7 +276,7 @@ export async function runHaengteukGuide(
   const mergedCtxHaengteuk = mergeGuideAnalysisContexts(
     (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
   );
-  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk);
+  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk, report);
   if (!result.success) throw new Error(result.error);
   return "행특 방향 생성 완료";
 }
@@ -345,11 +357,19 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
 
   const extraSections = [guideContextSection, improvementsSection].filter(Boolean).join("\n") || undefined;
 
+  // report 1회 fetch — NEIS/consulting 양 경로 공유
+  const { fetchReportData: fetchReport } = await import("./actions/report");
+  const reportResult = await fetchReport(studentId);
+  if (!reportResult.success || !reportResult.data) {
+    throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
+  }
+  const gradeReport = reportResult.data;
+
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 세특 가이드
     const { analyzeSetekGuide } = await import("./llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
-    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, undefined, gradeAnalysisCtx);
+    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, undefined, gradeAnalysisCtx, gradeReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     return guides ? `${targetGrade}학년 NEIS 세특 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;
@@ -358,17 +378,12 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   if (isConsultingGrade) {
     // 컨설팅 학년 → 수강계획 기반 세특 방향 (창체/행특 ForGrade 패턴과 동일)
     const { generateSetekDirection } = await import("./llm/actions/guide-modules");
-    const { fetchReportData: fetchReport } = await import("./actions/report");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
-    const reportResult = await fetchReport(studentId);
-    if (!reportResult.success || !reportResult.data) {
-      throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
-    }
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
     const result = await generateSetekDirection(
       studentId, tenantId, guideUserId,
-      reportResult.data, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+      gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx,
     );
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
@@ -417,11 +432,19 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
     }
   }
 
+  // report 1회 fetch — NEIS/consulting 양 경로 공유
+  const { fetchReportData: fetchReport } = await import("./actions/report");
+  const reportResult = await fetchReport(studentId);
+  if (!reportResult.success || !reportResult.data) {
+    throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
+  }
+  const gradeReport = reportResult.data;
+
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 창체 가이드
     const { analyzeChangcheGuide } = await import("./llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
-    const result = await analyzeChangcheGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtx);
+    const result = await analyzeChangcheGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtx, gradeReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
     return guides ? `${targetGrade}학년 창체 ${guides.length}개 활동유형 방향 생성` : `${targetGrade}학년 창체 방향 생성 완료`;
@@ -429,14 +452,8 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
 
   // 컨설팅 학년 → 수강계획 기반 창체 방향
   const { generateChangcheDirection } = await import("./llm/actions/guide-modules");
-  const { fetchReportData: fetchReport } = await import("./actions/report");
   const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
   const { userId: guideUserId } = await reqAuth();
-
-  const reportResult = await fetchReport(studentId);
-  if (!reportResult.success || !reportResult.data) {
-    throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
-  }
 
   // 세특 방향 컨텍스트 (해당 학년 school_year 기준)
   const { data: setekCtxRows } = await ctx.supabase
@@ -454,7 +471,7 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   const gradeAnalysisCtxForChangche = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
   await generateChangcheDirection(
     studentId, tenantId, guideUserId,
-    reportResult.data, coursePlanData ?? null, undefined, setekCtx, targetSchoolYear, gradeAnalysisCtxForChangche,
+    gradeReport, coursePlanData ?? null, undefined, setekCtx, targetSchoolYear, gradeAnalysisCtxForChangche,
   );
 
   return `${targetGrade}학년 창체 방향 생성 완료 (예비)`;
@@ -499,25 +516,27 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
     }
   }
 
+  // report 1회 fetch — NEIS/consulting 양 경로 공유
+  const { fetchReportData: fetchReport } = await import("./actions/report");
+  const reportResult = await fetchReport(studentId);
+  if (!reportResult.success || !reportResult.data) {
+    throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
+  }
+  const gradeReport = reportResult.data;
+
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 행특 가이드
     const { analyzeHaengteukGuide } = await import("./llm/actions/guide-modules");
     const gradeAnalysisCtxH = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
-    const result = await analyzeHaengteukGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtxH);
+    const result = await analyzeHaengteukGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtxH, gradeReport);
     if (!result.success) throw new Error(result.error);
     return `${targetGrade}학년 행특 방향 생성 완료`;
   }
 
   // 컨설팅 학년 → 수강계획 기반 행특 방향
   const { generateHaengteukDirection } = await import("./llm/actions/guide-modules");
-  const { fetchReportData: fetchReport } = await import("./actions/report");
   const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
   const { userId: guideUserId } = await reqAuth();
-
-  const reportResult = await fetchReport(studentId);
-  if (!reportResult.success || !reportResult.data) {
-    throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
-  }
 
   // 창체 방향 컨텍스트 (해당 학년 school_year 기준)
   const { data: changcheCtxRows } = await ctx.supabase
@@ -535,7 +554,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   const gradeAnalysisCtxForHaengteuk = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
   await generateHaengteukDirection(
     studentId, tenantId, guideUserId,
-    reportResult.data, coursePlanData ?? null, undefined, changcheCtx, targetSchoolYear, gradeAnalysisCtxForHaengteuk,
+    gradeReport, coursePlanData ?? null, undefined, changcheCtx, targetSchoolYear, gradeAnalysisCtxForHaengteuk,
   );
 
   return `${targetGrade}학년 행특 방향 생성 완료 (예비)`;

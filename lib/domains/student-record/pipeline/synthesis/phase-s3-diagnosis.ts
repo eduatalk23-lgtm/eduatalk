@@ -250,6 +250,8 @@ export async function runAiDiagnosis(
       coverageWarnings,
       // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
       ...(savedTsAnalysis ? { _timeSeriesAnalysis: savedTsAnalysis } : {}),
+      // S6: qualityPatterns를 DB에 영속화하여 Phase 재시작 시 S5에서 복원 가능
+      ...(ctx.qualityPatterns && ctx.qualityPatterns.length > 0 ? { qualityPatterns: ctx.qualityPatterns } : {}),
     },
   };
 }

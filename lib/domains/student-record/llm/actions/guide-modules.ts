@@ -27,10 +27,11 @@ export async function analyzeSetekGuide(
   edgePromptSection?: string,
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
+  cachedReport?: import("../../actions/report").ReportData,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { generateSetekGuide } = await import("./generateSetekGuide");
   return withRetry(
-    () => generateSetekGuide(studentId, targetGrades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext),
+    () => generateSetekGuide(studentId, targetGrades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, cachedReport),
     { label: "analyzeSetekGuide" },
   );
 }
@@ -42,10 +43,11 @@ export async function analyzeChangcheGuide(
   setekGuideContext?: string,
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
+  cachedReport?: import("../../actions/report").ReportData,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   const { generateChangcheGuide } = await import("./generateChangcheGuide");
   return withRetry(
-    () => generateChangcheGuide(studentId, targetGrades, edgePromptSection, setekGuideContext, targetSchoolYear, pipelineAnalysisContext),
+    () => generateChangcheGuide(studentId, targetGrades, edgePromptSection, setekGuideContext, targetSchoolYear, pipelineAnalysisContext, cachedReport),
     { label: "analyzeChangcheGuide" },
   );
 }
@@ -57,10 +59,11 @@ export async function analyzeHaengteukGuide(
   changcheGuideContext?: string,
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
+  cachedReport?: import("../../actions/report").ReportData,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   const { generateHaengteukGuide } = await import("./generateHaengteukGuide");
   return withRetry(
-    () => generateHaengteukGuide(studentId, targetGrades, edgePromptSection, changcheGuideContext, targetSchoolYear, pipelineAnalysisContext),
+    () => generateHaengteukGuide(studentId, targetGrades, edgePromptSection, changcheGuideContext, targetSchoolYear, pipelineAnalysisContext, cachedReport),
     { label: "analyzeHaengteukGuide" },
   );
 }

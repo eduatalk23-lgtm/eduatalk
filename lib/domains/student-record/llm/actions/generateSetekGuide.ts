@@ -31,6 +31,8 @@ export async function generateSetekGuide(
   targetSchoolYear?: number,
   /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
+  /** 파이프라인에서 전달되는 ReportData (있으면 fetchReportData 호출 스킵) */
+  cachedReport?: import("../../actions/report").ReportData,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -38,16 +40,20 @@ export async function generateSetekGuide(
       return { success: false, error: "기관 정보를 찾을 수 없습니다." };
     }
 
-    // fetchReportData 재사용
-    const reportResult = await fetchReportData(studentId);
-    if (!reportResult.success || !reportResult.data) {
-      return {
-        success: false,
-        error: reportResult.success === false ? reportResult.error : "데이터 수집 실패",
-      };
+    // cachedReport가 있으면 fetchReportData 스킵
+    let report: import("../../actions/report").ReportData;
+    if (cachedReport) {
+      report = cachedReport;
+    } else {
+      const reportResult = await fetchReportData(studentId);
+      if (!reportResult.success || !reportResult.data) {
+        return {
+          success: false,
+          error: reportResult.success === false ? reportResult.error : "데이터 수집 실패",
+        };
+      }
+      report = reportResult.data;
     }
-
-    const report = reportResult.data;
     const studentGrade = report.student.grade;
     const grades = targetGrades ?? Array.from({ length: studentGrade }, (_, i) => i + 1);
 
