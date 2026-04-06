@@ -97,7 +97,7 @@ export async function generateSetekGuide(
 
     // Phase R2: 기록 없으면 prospective 모드로 전환
     if (!hasAnyData) {
-      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear);
+      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext);
     }
 
     // 역량 진단 데이터 변환 (컨설턴트 진단 우선, 없으면 AI 진단)

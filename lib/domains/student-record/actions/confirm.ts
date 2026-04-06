@@ -126,10 +126,10 @@ export async function confirmDraftAction(
     const supabase = await createSupabaseServerClient();
     const table = TABLE_MAP[recordType];
 
-    // 현재 content + B6 side effect용 필드 조회
+    // 현재 content + updated_at(낙관적 잠금) + B6 side effect용 필드 조회
     const { data, error: fetchErr } = await supabase
       .from(table)
-      .select("content, student_id, subject_id, grade")
+      .select("content, updated_at, student_id, subject_id, grade")
       .eq("id", recordId)
       .single();
     if (fetchErr) throw fetchErr;
@@ -138,7 +138,8 @@ export async function confirmDraftAction(
       return createErrorResponse("확정할 가안이 없습니다.");
     }
 
-    const { error } = await supabase
+    // 낙관적 잠금 — 조회 시점의 updated_at이 변하지 않았는지 확인
+    const { error, count } = await supabase
       .from(table)
       .update({
         confirmed_content: data.content,
@@ -147,8 +148,13 @@ export async function confirmDraftAction(
         // B5: 가안 확정 → 확정 단계로 전환
         status: "final",
       })
-      .eq("id", recordId);
+      .eq("id", recordId)
+      .eq("updated_at", data.updated_at)
+      .select("id");
     if (error) throw error;
+    if (!count || count === 0) {
+      return createErrorResponse("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
+    }
 
     // B6: 확정 후 side effects (개별 실패 무시, 주요 흐름 차단 없음)
     try {

@@ -71,9 +71,20 @@ export async function runSetekGuide(
   // 컨설팅 학년 → 수강계획 기반 세특 방향 (학년별 개별 호출 — 타임아웃 안전)
   if (hasConsultingGrades) {
     const { generateSetekDirection } = await import("./llm/actions/guide-modules");
+    const { fetchReportData: fetchReport } = await import("./actions/report");
+    const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
+    const { userId: guideUserId } = await reqAuth();
+    const reportResult = await fetchReport(studentId);
+    if (!reportResult.success || !reportResult.data) {
+      throw new Error(reportResult.success === false ? reportResult.error : "세특 방향 리포트 데이터 수집 실패");
+    }
     for (const grade of ctx.consultingGrades!) {
       const targetSchoolYear = currentYear - ctx.studentGrade + grade;
-      const result = await generateSetekDirection(studentId, [grade], extraSections, targetSchoolYear);
+      const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[grade]);
+      const result = await generateSetekDirection(
+        studentId, tenantId, guideUserId,
+        reportResult.data, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+      );
       if (!result.success) {
         logActionWarn(LOG_CTX, `세특 방향 생성 실패 (grade ${grade})`, { studentId, error: result.error });
         continue;
@@ -345,9 +356,20 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   }
 
   if (isConsultingGrade) {
-    // 컨설팅 학년 → 수강계획 기반 세특 방향
+    // 컨설팅 학년 → 수강계획 기반 세특 방향 (창체/행특 ForGrade 패턴과 동일)
     const { generateSetekDirection } = await import("./llm/actions/guide-modules");
-    const result = await generateSetekDirection(studentId, [targetGrade], extraSections, targetSchoolYear);
+    const { fetchReportData: fetchReport } = await import("./actions/report");
+    const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
+    const { userId: guideUserId } = await reqAuth();
+    const reportResult = await fetchReport(studentId);
+    if (!reportResult.success || !reportResult.data) {
+      throw new Error(reportResult.success === false ? reportResult.error : `${targetGrade}학년 리포트 데이터 수집 실패`);
+    }
+    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const result = await generateSetekDirection(
+      studentId, tenantId, guideUserId,
+      reportResult.data, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+    );
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     return guides ? `${targetGrade}학년 세특 방향 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;

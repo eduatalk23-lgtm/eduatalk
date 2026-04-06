@@ -50,11 +50,12 @@ export interface EdgeSnapshot {
 // 2. 조회
 // ============================================
 
-/** 학생의 현재 엣지 목록 조회 (edgeContext 미지정 시 전체) */
+/** 학생의 현재 엣지 목록 조회 (edgeContext 미지정 시 전체, 기본적으로 stale 제외) */
 export async function findEdges(
   studentId: string,
   tenantId: string,
   edgeContext?: EdgeContext,
+  options?: { includeStale?: boolean },
 ): Promise<PersistedEdge[]> {
   const supabase = await createSupabaseServerClient();
   let query = supabase
@@ -65,6 +66,10 @@ export async function findEdges(
 
   if (edgeContext) {
     query = query.eq("edge_context", edgeContext);
+  }
+
+  if (!options?.includeStale) {
+    query = query.eq("is_stale", false);
   }
 
   const { data, error } = await query

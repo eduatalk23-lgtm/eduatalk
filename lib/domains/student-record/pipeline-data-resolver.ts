@@ -45,7 +45,7 @@ export function resolveRecordData(
     const hasNeis = (s.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (s.imported_content ?? "")
-      : (s.confirmed_content?.trim() || (s.content ?? ""));
+      : (s.confirmed_content?.trim() || s.content?.trim() || s.ai_draft_content?.trim() || "");
 
     const record: ResolvedRecord = {
       id: s.id,
@@ -67,7 +67,7 @@ export function resolveRecordData(
     const hasNeis = (c.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (c.imported_content ?? "")
-      : (c.confirmed_content?.trim() || (c.content ?? ""));
+      : (c.confirmed_content?.trim() || c.content?.trim() || c.ai_draft_content?.trim() || "");
 
     const record: ResolvedRecord = {
       id: c.id,
@@ -89,7 +89,7 @@ export function resolveRecordData(
     const hasNeis = (h.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (h.imported_content ?? "")
-      : (h.confirmed_content?.trim() || (h.content ?? ""));
+      : (h.confirmed_content?.trim() || h.content?.trim() || h.ai_draft_content?.trim() || "");
 
     const record: ResolvedRecord = {
       id: h.id,

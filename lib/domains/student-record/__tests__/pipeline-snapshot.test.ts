@@ -642,10 +642,12 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
   ) => ({
     from: vi.fn((table: string) => {
       if (table === "student_record_content_quality") {
+        // .select().eq(student_id).eq(tenant_id).eq(source) 3단 체인
+        const eqSource = vi.fn().mockResolvedValue({ data: qualityRows, error: null });
+        const eqTenant = vi.fn().mockReturnValue({ eq: eqSource });
+        const eqStudent = vi.fn().mockReturnValue({ eq: eqTenant });
         return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ data: qualityRows, error: null }),
-          }),
+          select: vi.fn().mockReturnValue({ eq: eqStudent }),
         };
       }
       if (table === "student_record_seteks") {

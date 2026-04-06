@@ -213,33 +213,17 @@ describe("confirmDraftAction", () => {
     mockClientFactory.mockResolvedValue(supabaseMock);
   });
 
-  it("성공: content → confirmed_content 복사 + status=final", async () => {
+  it("성공: content → confirmed_content 복사 + status=final (낙관적 잠금)", async () => {
     supabaseMock.single.mockResolvedValue({
-      data: { content: "컨설턴트 가안", student_id: "student-1", subject_id: "subject-1", grade: 2 },
+      data: { content: "컨설턴트 가안", updated_at: "2026-04-06T00:00:00Z", student_id: "student-1", subject_id: "subject-1", grade: 2 },
       error: null,
     });
-    // 두 번째 체인 update()...eq() 결과
-    supabaseMock.eq = vi.fn().mockReturnThis();
-    // update 최종 결과 (에러 없음)
-    const eqEndMock = vi.fn().mockResolvedValue({ error: null });
-    supabaseMock.eq.mockReturnValue({ ...supabaseMock, eq: eqEndMock, then: undefined });
 
-    // 단순하게: update, eq 체인이 에러 없이 resolve 되도록
-    // supabaseMock.eq는 this를 반환하고 최종 await에서 { error: null } 반환
-    supabaseMock.eq = vi.fn().mockReturnThis();
-    // from(table).update({}).eq(id) 마지막 .eq()가 await 될 때 { error: null } 반환
-    Object.defineProperty(supabaseMock, Symbol.toStringTag, { get: () => "Mock" });
-
-    // 직접 Promise를 반환하도록 구성
-    const chainMock = {
-      ...supabaseMock,
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    };
-    supabaseMock.update = vi.fn().mockReturnValue(chainMock);
-    supabaseMock.single.mockResolvedValue({
-      data: { content: "컨설턴트 가안", student_id: "student-1", subject_id: "subject-1", grade: 2 },
-      error: null,
-    });
+    // update().eq(id).eq(updated_at).select(id) 체인 → { error: null, count: 1 }
+    const selectMock = vi.fn().mockResolvedValue({ error: null, count: 1 });
+    const eq2Mock = vi.fn().mockReturnValue({ select: selectMock });
+    const eq1Mock = vi.fn().mockReturnValue({ eq: eq2Mock });
+    supabaseMock.update = vi.fn().mockReturnValue({ eq: eq1Mock });
 
     const result = await confirmDraftAction("setek-1", "setek");
 

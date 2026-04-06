@@ -132,13 +132,15 @@ export async function aggregateQualityPatterns(ctx: PipelineContext): Promise<{
   repeatingPatterns: Array<{ pattern: string; count: number; subjects: string[] }>;
   qualityPatternSection: string;
 }> {
-  const { supabase, studentId } = ctx;
+  const { supabase, studentId, tenantId } = ctx;
 
-  // 1. content_quality 전체 조회 (issues가 있는 행만)
+  // 1. content_quality 전체 조회 (issues가 있는 행만, ai source만)
   const { data: qualityRows } = await supabase
     .from("student_record_content_quality")
     .select("record_id, record_type, issues, feedback")
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("source", "ai");
 
   const rows = (qualityRows ?? []) as Array<{
     record_id: string;
