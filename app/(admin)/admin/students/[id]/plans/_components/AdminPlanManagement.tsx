@@ -14,7 +14,8 @@ import {
   type ContainerType,
   type EmptySlotDropData,
 } from "./dnd/DndContext";
-import { useUndo } from "./UndoSnackbar";
+import { useUndo, UndoProvider } from "./UndoSnackbar";
+import { PlanToastProvider } from "./PlanToast";
 import {
   useKeyboardShortcuts,
   type ShortcutConfig,
@@ -126,13 +127,17 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       currentUserId={props.currentUserId}
       selectedCalendarSettings={props.selectedCalendarSettings}
     >
-      <SidePanelProvider>
-        <AdminPlanManagementContent
-          autoOpenWizard={props.autoOpenWizard}
-          studentName={props.studentName}
-          studentSwitcher={props.studentSwitcher}
-        />
-      </SidePanelProvider>
+      <PlanToastProvider>
+        <UndoProvider>
+          <SidePanelProvider>
+            <AdminPlanManagementContent
+              autoOpenWizard={props.autoOpenWizard}
+              studentName={props.studentName}
+              studentSwitcher={props.studentSwitcher}
+            />
+          </SidePanelProvider>
+        </UndoProvider>
+      </PlanToastProvider>
     </AdminPlanProvider>
   );
 }
@@ -369,32 +374,35 @@ function AdminPlanManagementContent({
     []
   );
 
-  // 캘린더 뷰 상태 (localStorage lazy initializer → 초기 리렌더 0회, CLS 방지)
-  const [calendarView, setCalendarView] = useState<CalendarView>(() => {
-    if (typeof window === 'undefined') return 'weekly';
-    const saved = localStorage.getItem('dailyDock_viewLayout');
-    if (saved === 'list' || saved === 'grid') {
+  // 캘린더 뷰 상태 — SSR 기본값 → useEffect로 localStorage 복원 (hydration 안정)
+  const [calendarView, setCalendarView] = useState<CalendarView>('weekly');
+  const [customDayCount, setCustomDayCount] = useState(7);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    // calendarView 복원
+    const savedView = localStorage.getItem('dailyDock_viewLayout');
+    if (savedView === 'list' || savedView === 'grid') {
       localStorage.setItem('dailyDock_viewLayout', 'daily');
-      return 'daily';
-    }
-    if (saved === 'weeklyGrid') {
+      setCalendarView('daily');
+    } else if (savedView === 'weeklyGrid') {
       localStorage.setItem('dailyDock_viewLayout', 'weekly');
-      return 'weekly';
+      setCalendarView('weekly');
+    } else if (savedView === 'daily' || savedView === 'weekly' || savedView === 'biweekly' || savedView === 'month') {
+      setCalendarView(savedView as CalendarView);
     }
-    if (saved === 'daily' || saved === 'weekly' || saved === 'biweekly' || saved === 'month') {
-      return saved as CalendarView;
-    }
-    return 'weekly';
-  });
-  const [customDayCount, setCustomDayCount] = useState(() => {
-    if (typeof window === 'undefined') return 7;
-    return Number(localStorage.getItem('calendarLayout_customDayCount')) || 7;
-  });
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const saved = localStorage.getItem('calendarLayout_sidebarOpen');
-    return saved !== null ? saved === 'true' : true;
-  });
+
+    // customDayCount 복원
+    const savedDays = Number(localStorage.getItem('calendarLayout_customDayCount'));
+    if (savedDays > 0) setCustomDayCount(savedDays);
+
+    // sidebarOpen 복원
+    const savedSidebar = localStorage.getItem('calendarLayout_sidebarOpen');
+    if (savedSidebar !== null) setSidebarOpen(savedSidebar === 'true');
+
+    setHydrated(true);
+  }, []);
   const [showGoToDate, setShowGoToDate] = useState(false);
 
   const handleCalendarViewChange = useCallback((view: CalendarView) => {
