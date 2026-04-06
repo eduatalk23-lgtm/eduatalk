@@ -63,6 +63,42 @@ export async function getCampTemplate(
 }
 
 /**
+ * 캠프 템플릿 배치 조회 (N+1 쿼리 방지)
+ * 여러 ID를 한 번의 쿼리로 조회
+ */
+export async function getCampTemplatesByIds(
+  templateIds: string[]
+): Promise<CampTemplate[]> {
+  if (!templateIds || templateIds.length === 0) {
+    return [];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    handleQueryError(null, {
+      context: "[data/campTemplates] getCampTemplatesByIds",
+      logError: true,
+    });
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("camp_templates")
+    .select("*")
+    .in("id", templateIds);
+
+  if (error) {
+    handleQueryError(error, {
+      context: "[data/campTemplates] getCampTemplatesByIds",
+      logError: true,
+    });
+    return [];
+  }
+
+  return (data || []) as CampTemplate[];
+}
+
+/**
  * 캠프 템플릿 생성
  * 관리자 전용 함수이므로 Admin 클라이언트를 사용하여 RLS를 우회합니다.
  */

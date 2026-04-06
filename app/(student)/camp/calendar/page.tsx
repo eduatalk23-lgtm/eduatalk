@@ -3,7 +3,7 @@ import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ensureStudentPrimaryCalendar } from "@/lib/domains/calendar/helpers";
 import { fetchCalendarPageData } from "@/lib/domains/admin-plan/actions/calendarPageData";
-import { getCampTemplate } from "@/lib/data/campTemplates";
+import { getCampTemplatesByIds } from "@/lib/data/campTemplates";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { AdminPlanManagementClient } from "@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementClient";
 import { PlanCalendarProviders } from "@/app/(student)/plan/calendar/PlanCalendarProviders";
@@ -66,18 +66,15 @@ export default async function CampCalendarPage({
   // 5. 캠프 모드 플랜 그룹만 필터링
   const campGroupCandidates = pageData.allPlanGroups.filter(isCampGroup);
 
-  // 삭제된 템플릿의 플랜 그룹 제외
-  const campGroups = (
-    await Promise.all(
-      campGroupCandidates.map(async (g) => {
-        if (g.campTemplateId) {
-          const template = await getCampTemplate(g.campTemplateId);
-          return template ? g : null;
-        }
-        return g;
-      })
-    )
-  ).filter((g): g is NonNullable<typeof g> => g !== null);
+  // 삭제된 템플릿의 플랜 그룹 제외 (배치 1회 조회)
+  const templateIds = campGroupCandidates
+    .map((g) => g.campTemplateId)
+    .filter((id): id is string => !!id);
+  const existingTemplates = await getCampTemplatesByIds(templateIds);
+  const existingTemplateIds = new Set(existingTemplates.map((t) => t.id));
+  const campGroups = campGroupCandidates.filter(
+    (g) => !g.campTemplateId || existingTemplateIds.has(g.campTemplateId)
+  );
 
   if (campGroups.length === 0) {
     return (

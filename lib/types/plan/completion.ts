@@ -9,6 +9,13 @@
 // ============================================
 // 완료 판정 헬퍼
 // ============================================
+// NOTE: 의도적인 3-way 분리 (2026-04-06)
+// 이 파일의 isCompletedPlan은 event_study_done을 우선 사용하는 새로운 방식입니다.
+// 하지만 event_study_done은 캘린더 페이지 enrichment 경로에서만 사용 가능합니다.
+// 따라서 다음 두 레거시 헬퍼는 아직 마이그레이션할 수 없습니다:
+// - lib/utils/planUtils.ts :: isCompletedPlan (status + actual_end_time)
+// - lib/utils/planStatusUtils.ts :: isCompletedPlan (status only)
+// 모든 쿼리 포인트에서 event_study_done을 enrichment한 후에 통합 가능합니다.
 
 /**
  * 플랜 완료 여부를 판정합니다.

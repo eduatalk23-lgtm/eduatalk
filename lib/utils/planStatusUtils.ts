@@ -73,7 +73,12 @@ export function isReschedulable(plan: PlanWithStatus): boolean {
 
 /**
  * 완료 플랜 여부 (재조정 제외 대상)
- * 
+ *
+ * @deprecated Calendar-First 마이그레이션 후에는 event_study_data.done이 단일 진실 공급원입니다.
+ * 캘린더 경로에서는 lib/types/plan/completion.ts의 isCompletedPlan을 사용하세요.
+ * 재조정 로직에서는 event_study_done 데이터가 아직 없으므로 이 함수를 계속 사용합니다.
+ * @see lib/types/plan/completion.ts
+ *
  * @param plan 플랜 객체
  * @returns 완료 여부
  */

@@ -94,14 +94,13 @@ export type PlanCompletionFields = {
  * 1. status === 'completed' (명시적 상태 완료)
  * 2. actual_end_time이 설정됨 (타이머 완료)
  *
+ * @deprecated Calendar-First 마이그레이션 후에는 event_study_data.done이 단일 진실 공급원입니다.
+ * 캘린더 경로에서는 lib/types/plan/completion.ts의 isCompletedPlan을 사용하세요.
+ * 비캘린더 경로에서는 event_study_done 데이터가 아직 없으므로 이 함수를 계속 사용합니다.
+ * @see lib/types/plan/completion.ts
+ *
  * @param plan - 확인할 플랜 (status, actual_end_time 필드 포함)
  * @returns 완료 여부
- *
- * @example
- * ```typescript
- * const completedPlans = plans.filter(plan => isCompletedPlan(plan));
- * const completionRate = completedPlans.length / plans.length;
- * ```
  */
 export function isCompletedPlan(plan: PlanCompletionFields): boolean {
   // 기본 기준: status === 'completed'

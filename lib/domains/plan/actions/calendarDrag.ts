@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type PlanType = "student_plan";
 
@@ -207,14 +208,23 @@ export async function rescheduleOnDrop(
         calendarUpdate.end_at = `${newDate}T${endTimeForCal}:00+09:00`;
       }
 
-      await supabase
+      const { error: eventError } = await supabase
         .from('calendar_events')
         .update(calendarUpdate)
         .eq('id', planId)
         .is('deleted_at', null);
+
+      if (eventError) {
+        logActionError(
+          { domain: 'plan', action: 'rescheduleOnDrop' },
+          eventError,
+          { planId, newDate },
+        );
+      }
     }
 
     revalidatePath("/plan/calendar");
+    revalidatePath("/camp/calendar");
 
     return { success: true, planId, newDate, newStartTime };
   } catch (error) {
@@ -296,7 +306,7 @@ export async function resizePlanDuration(
 
       // calendar_events 동기화 (Calendar-First: start_at/end_at)
       const planDate = existingPlan.plan_date;
-      await supabase
+      const { error: eventError } = await supabase
         .from('calendar_events')
         .update({
           start_at: `${planDate}T${newStartTime}:00+09:00`,
@@ -304,9 +314,18 @@ export async function resizePlanDuration(
         })
         .eq('id', planId)
         .is('deleted_at', null);
+
+      if (eventError) {
+        logActionError(
+          { domain: 'plan', action: 'resizePlanDuration' },
+          eventError,
+          { planId, planDate, newStartTime, newEndTime },
+        );
+      }
     }
 
     revalidatePath("/plan/calendar");
+    revalidatePath("/camp/calendar");
 
     return { success: true, planId, newStartTime };
   } catch (error) {
