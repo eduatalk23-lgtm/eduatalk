@@ -308,6 +308,7 @@ async function updateRecurringInstanceStatus({
       instanceDate,
       overrides: { status: eventStatus },
       skipStudyData: true,
+      skipAuthCheck: true, // status 변경(학습 완료)은 학생에게 허용
     });
     if (!result.success || !result.eventId) {
       return { success: false, error: result.error ?? 'Exception 생성 실패' };
@@ -554,9 +555,11 @@ export async function createRecurringException(params: {
   overrides?: Record<string, unknown>;
   /** true면 event_study_data 생성을 건너뜀 (호출자가 직접 처리) */
   skipStudyData?: boolean;
+  /** true면 권한 검증을 건너뜀 (status 변경 등 학생에게 허용된 작업) */
+  skipAuthCheck?: boolean;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
-    await assertCanModifyEvent(params.parentEventId);
+    if (!params.skipAuthCheck) await assertCanModifyEvent(params.parentEventId);
     const supabase = await createSupabaseServerClient();
 
     // 부모 이벤트 조회
