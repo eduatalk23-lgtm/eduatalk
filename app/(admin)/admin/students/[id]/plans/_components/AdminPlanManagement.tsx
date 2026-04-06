@@ -14,8 +14,7 @@ import {
   type ContainerType,
   type EmptySlotDropData,
 } from "./dnd/DndContext";
-import { PlanToastProvider } from "./PlanToast";
-import { UndoProvider, useUndo } from "./UndoSnackbar";
+import { useUndo } from "./UndoSnackbar";
 import {
   useKeyboardShortcuts,
   type ShortcutConfig,
@@ -126,23 +125,14 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       selectedCalendarSettings={props.selectedCalendarSettings}
     >
       <SidePanelProvider>
-        <PlanToastProvider>
-          <UndoProviderWrapper>
-            <AdminPlanManagementContent
-              autoOpenWizard={props.autoOpenWizard}
-              studentName={props.studentName}
-              studentSwitcher={props.studentSwitcher}
-            />
-          </UndoProviderWrapper>
-        </PlanToastProvider>
+        <AdminPlanManagementContent
+          autoOpenWizard={props.autoOpenWizard}
+          studentName={props.studentName}
+          studentSwitcher={props.studentSwitcher}
+        />
       </SidePanelProvider>
     </AdminPlanProvider>
   );
-}
-
-function UndoProviderWrapper({ children }: { children: ReactNode }) {
-  const { handleRefresh } = useAdminPlan();
-  return <UndoProvider onRefresh={handleRefresh}>{children}</UndoProvider>;
 }
 
 interface AdminPlanManagementContentProps {

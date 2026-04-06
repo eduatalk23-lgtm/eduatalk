@@ -13,6 +13,7 @@ import {
   type CalendarEventFullUpdate,
   type RecurringScope,
 } from '@/lib/domains/calendar/actions/calendarEventActions';
+import { useUndo } from '../../_components/UndoSnackbar';
 import { createCalendarEventAction } from '@/lib/domains/admin-plan/actions/calendarEvents';
 import { extractTimeHHMM, extractDateYMD } from '@/lib/domains/calendar/adapters';
 import { getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
@@ -130,6 +131,12 @@ export interface UseEventEditFormReturn {
   needsRecurringScope: 'save' | 'delete' | null;
   handleRecurringScopeSelect: (scope: RecurringScope) => Promise<void>;
   cancelRecurringScope: () => void;
+  // Recurrence removal confirmation
+  needsRecurrenceRemoveConfirm: boolean;
+  handleRecurrenceRemoveConfirm: () => void;
+  cancelRecurrenceRemoveConfirm: () => void;
+  /** 반복 이벤트의 exception 개수 (확인 다이얼로그 표시용) */
+  exceptionCount: number;
   originalData: CalendarEventEditData | null;
   /** 실제 결정된 entityType (props + 로드 데이터 auto-detect 반영) */
   resolvedEntityType: EventEditEntityType;
@@ -260,6 +267,7 @@ function eventDataToForm(data: CalendarEventEditData): EventEditFormState {
 export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFormReturn {
   const router = useRouter();
   const toast = useToast();
+  const { pushUndoable } = useUndo();
   const [form, setForm] = useState<EventEditFormState>(() => getDefaultForm(opts));
   const [originalData, setOriginalData] = useState<CalendarEventEditData | null>(null);
   const [initialForm, setInitialForm] = useState<EventEditFormState>(() => getDefaultForm(opts));
@@ -267,6 +275,7 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
   const [isSaving, startSaveTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
   const [needsRecurringScope, setNeedsRecurringScope] = useState<'save' | 'delete' | null>(null);
+  const [needsRecurrenceRemoveConfirm, setNeedsRecurrenceRemoveConfirm] = useState(false);
   const hasMountedRef = useRef(false);
   /** 로드된 데이터 기반 auto-detected entityType (edit mode) */
   const [detectedEntityType, setDetectedEntityType] = useState<EventEditEntityType | null>(null);
@@ -351,7 +360,10 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     return JSON.stringify(form) !== JSON.stringify(initialForm);
   }, [form, initialForm]);
 
-  const isRecurring = !!(form.rrule || originalData?.recurring_event_id);
+  // 원본이 반복이었으면 여전히 recurring 컨텍스트로 취급 (반복 제거 시에도 scope/confirm 필요)
+  const wasRecurring = !!originalData?.rrule;
+  const isRecurring = !!(form.rrule || originalData?.recurring_event_id || wasRecurring);
+  const isRemovingRecurrence = wasRecurring && !form.rrule;
 
   // beforeunload guard
   useEffect(() => {
@@ -506,6 +518,12 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
           toast.showError('상담 일정 저장 중 오류가 발생했습니다.');
         }
       });
+      return;
+    }
+
+    // 반복 제거: scope 선택 대신 전용 확인 다이얼로그
+    if (opts.mode === 'edit' && isRemovingRecurrence) {
+      setNeedsRecurrenceRemoveConfirm(true);
       return;
     }
 
@@ -668,6 +686,35 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     setNeedsRecurringScope(null);
   }, []);
 
+  // 반복 제거 확인 후 실행: updateCalendarEventFull 호출
+  const handleRecurrenceRemoveConfirm = useCallback(() => {
+    setNeedsRecurrenceRemoveConfirm(false);
+    startSaveTransition(async () => {
+      const updates = buildUpdates();
+      const result = await updateCalendarEventFull(opts.eventId!, updates);
+      if (result.success) {
+        // undo meta가 있으면 pushUndoable (페이지 전환 후에도 layout UndoProvider가 유지)
+        if (result.recurrenceRemoveMeta) {
+          pushUndoable({
+            type: 'recurrence-remove',
+            eventId: opts.eventId!,
+            ...result.recurrenceRemoveMeta,
+            description: '반복 설정이 해제되었습니다',
+          });
+        }
+        toast.showSuccess('반복 설정이 해제되었습니다.');
+        if (opts.onSuccessModal) opts.onSuccessModal();
+        else router.push(opts.returnPath);
+      } else {
+        toast.showError(result.error ?? '수정에 실패했습니다.');
+      }
+    });
+  }, [opts, buildUpdates, pushUndoable, router, toast]);
+
+  const cancelRecurrenceRemoveConfirm = useCallback(() => {
+    setNeedsRecurrenceRemoveConfirm(false);
+  }, []);
+
   return {
     form,
     setField,
@@ -682,6 +729,10 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     needsRecurringScope,
     handleRecurringScopeSelect,
     cancelRecurringScope,
+    needsRecurrenceRemoveConfirm,
+    handleRecurrenceRemoveConfirm,
+    cancelRecurrenceRemoveConfirm,
+    exceptionCount: originalData?.exception_count ?? 0,
     originalData,
     resolvedEntityType,
   };

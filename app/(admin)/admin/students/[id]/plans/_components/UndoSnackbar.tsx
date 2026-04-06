@@ -9,10 +9,14 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePlanToast } from './PlanToast';
 import type { UndoableAction } from './undoTypes';
-import { restoreEvent, updateItemTime, updatePlanStatus, restoreRecurringDelete } from '@/lib/domains/calendar/actions/calendarEventActions';
+import { restoreEvent, updateItemTime, updatePlanStatus, restoreRecurringDelete, restoreRecurrenceRemove, restoreDragRecurringInstance } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { movePlanToDate } from '@/lib/domains/admin-plan/actions/movePlanToDate';
+import { adminDockKeys } from '@/lib/query-options/adminDock';
+import { calendarEventKeys } from '@/lib/query-options/calendarEvents';
+import { calendarViewKeys } from '@/lib/query-options/calendarViewQueryOptions';
 
 const UNDO_TIMEOUT_MS = 5000;
 
@@ -42,10 +46,10 @@ export function useUndo() {
 
 interface UndoProviderProps {
   children: ReactNode;
-  onRefresh: () => void;
 }
 
-export function UndoProvider({ children, onRefresh }: UndoProviderProps) {
+export function UndoProvider({ children }: UndoProviderProps) {
+  const queryClient = useQueryClient();
   const [pending, setPending] = useState<UndoableAction | null>(null);
   const [isUndoing, setIsUndoing] = useState(false);
   const { showToast } = usePlanToast();
@@ -130,10 +134,27 @@ export function UndoProvider({ children, onRefresh }: UndoProviderProps) {
             deletedEventIds: action.deletedEventIds,
           });
           break;
+        case 'recurrence-remove':
+          result = await restoreRecurrenceRemove({
+            eventId: action.eventId,
+            previousRrule: action.previousRrule,
+            previousExdates: action.previousExdates,
+            deletedExceptionIds: action.deletedExceptionIds,
+          });
+          break;
+        case 'undo-recurring-drag':
+          result = await restoreDragRecurringInstance({
+            exceptionEventId: action.exceptionEventId,
+            parentEventId: action.parentEventId,
+            instanceDate: action.instanceDate,
+          });
+          break;
       }
 
       if (result.success) {
-        onRefresh();
+        queryClient.invalidateQueries({ queryKey: adminDockKeys.all });
+        queryClient.invalidateQueries({ queryKey: calendarEventKeys.all });
+        queryClient.invalidateQueries({ queryKey: calendarViewKeys.all });
         showToast('실행취소 완료', 'info');
       } else {
         showToast(result.error ?? '실행취소에 실패했습니다.', 'error');
@@ -143,7 +164,7 @@ export function UndoProvider({ children, onRefresh }: UndoProviderProps) {
     } finally {
       setIsUndoing(false);
     }
-  }, [pending, isUndoing, clearTimer, onRefresh, showToast]);
+  }, [pending, isUndoing, clearTimer, queryClient, showToast]);
 
   // 언마운트 시 타이머 정리
   useEffect(() => {

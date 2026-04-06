@@ -1147,6 +1147,11 @@ export async function updateRecurringEvent({
         }
       }
     } else if (scope === 'all') {
+      // rrule 변경 시 exdates 초기화 (새 RRULE과 기존 exdates 충돌 방지)
+      if (eventFields.rrule !== undefined) {
+        eventFields.exdates = null;
+      }
+
       // 부모 직접 수정
       if (Object.keys(eventFields).length > 0) {
         const { error } = await supabase
@@ -1244,6 +1249,93 @@ export async function restoreRecurringDelete(params: {
 }
 
 // ============================================
+// Recurrence Remove: restoreRecurrenceRemove (undo용)
+// ============================================
+
+/**
+ * 반복 해제(recurring→regular 전환)를 되돌립니다 (undo).
+ *
+ * - 부모 이벤트의 rrule + exdates 복원
+ * - soft-deleted exception들 복원
+ */
+export async function restoreRecurrenceRemove(params: {
+  eventId: string;
+  previousRrule: string;
+  previousExdates: string[] | null;
+  deletedExceptionIds: string[];
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 부모 이벤트의 rrule + exdates 복원
+    await supabase
+      .from('calendar_events')
+      .update({ rrule: params.previousRrule, exdates: params.previousExdates })
+      .eq('id', params.eventId);
+
+    // soft-deleted exception들 복원
+    if (params.deletedExceptionIds.length > 0) {
+      for (const id of params.deletedExceptionIds) {
+        await restoreEvent(id);
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    logActionError({ domain: 'calendar', action: 'restoreRecurrenceRemove' }, err);
+    return { success: false, error: String(err) };
+  }
+}
+
+// ============================================
+// Recurring Drag: restoreDragRecurringInstance (undo용)
+// ============================================
+
+/**
+ * 반복 이벤트 드래그(exception 생성)를 되돌립니다 (undo).
+ *
+ * - 생성된 exception을 soft-delete
+ * - 부모 exdates에서 instanceDate 제거
+ */
+export async function restoreDragRecurringInstance(params: {
+  exceptionEventId: string;
+  parentEventId: string;
+  instanceDate: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // exception soft-delete + 부모 exdates 조회 병렬 실행
+    const [, parentResult] = await Promise.all([
+      supabase
+        .from('calendar_events')
+        .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+        .eq('id', params.exceptionEventId),
+      supabase
+        .from('calendar_events')
+        .select('exdates')
+        .eq('id', params.parentEventId)
+        .single(),
+    ]);
+
+    // 부모 exdates에서 instanceDate 제거
+    const currentExdates = (parentResult.data?.exdates as string[]) ?? [];
+    const filteredExdates = currentExdates.filter((d) => d !== params.instanceDate);
+    if (filteredExdates.length !== currentExdates.length) {
+      await supabase
+        .from('calendar_events')
+        .update({ exdates: filteredExdates.length > 0 ? filteredExdates : null })
+        .eq('id', params.parentEventId);
+    }
+
+    return { success: true };
+  } catch (err) {
+    logActionError({ domain: 'calendar', action: 'restoreDragRecurringInstance' }, err);
+    return { success: false, error: String(err) };
+  }
+}
+
+// ============================================
 // getCalendarEventForEdit → 편집용 이벤트 전체 조회
 // ============================================
 
@@ -1299,6 +1391,8 @@ export interface CalendarEventEditData {
   event_type: string | null;
   // consultation data (1:1 JOIN, null if not consultation)
   consultation_event_data: ConsultationEventEditData | null;
+  /** 반복 이벤트의 exception 개수 (rrule이 있을 때만 조회, 없으면 0) */
+  exception_count: number;
 }
 
 export async function getCalendarEventForEdit(
@@ -1307,27 +1401,39 @@ export async function getCalendarEventForEdit(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase
-      .from('calendar_events')
-      .select(`
-        id, title, description, color, start_at, end_at, start_date, end_date,
-        is_all_day, rrule, recurring_event_id, is_exception, reminder_minutes,
-        status, label, event_subtype, is_task, is_exclusion, container_type,
-        calendar_id, plan_group_id, tags, event_type,
-        event_study_data(
-          subject_category, subject_name, content_type, content_title, content_id,
-          planned_start_page, planned_end_page, estimated_minutes
-        ),
-        consultation_event_data(
-          consultant_id, student_id, session_type, enrollment_id,
-          program_name, consultation_mode, meeting_link, visitor,
-          schedule_status, notification_targets,
-          student:students!student_id(user_profiles(name))
-        )
-      `)
-      .eq('id', eventId)
-      .is('deleted_at', null)
-      .single();
+    // 이벤트 데이터 + exception 개수 병렬 조회
+    const [eventResult, exceptionCountResult] = await Promise.all([
+      supabase
+        .from('calendar_events')
+        .select(`
+          id, title, description, color, start_at, end_at, start_date, end_date,
+          is_all_day, rrule, recurring_event_id, is_exception, reminder_minutes,
+          status, label, event_subtype, is_task, is_exclusion, container_type,
+          calendar_id, plan_group_id, tags, event_type,
+          event_study_data(
+            subject_category, subject_name, content_type, content_title, content_id,
+            planned_start_page, planned_end_page, estimated_minutes
+          ),
+          consultation_event_data(
+            consultant_id, student_id, session_type, enrollment_id,
+            program_name, consultation_mode, meeting_link, visitor,
+            schedule_status, notification_targets,
+            student:students!student_id(user_profiles(name))
+          )
+        `)
+        .eq('id', eventId)
+        .is('deleted_at', null)
+        .single(),
+      supabase
+        .from('calendar_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('recurring_event_id', eventId)
+        .eq('is_exception', true)
+        .is('deleted_at', null),
+    ]);
+
+    const { data, error } = eventResult;
+    const exceptionCount = exceptionCountResult.count ?? 0;
 
     if (error || !data) {
       return { success: false, error: error?.message ?? '이벤트를 찾을 수 없습니다.' };
@@ -1375,6 +1481,7 @@ export async function getCalendarEventForEdit(
         estimated_minutes: study?.estimated_minutes ?? null,
         has_study_data: study !== null,
         event_type: data.event_type ?? null,
+        exception_count: data.rrule ? exceptionCount : 0,
         consultation_event_data: consult ? {
           consultant_id: consult.consultant_id ?? null,
           student_id: consult.student_id ?? null,
@@ -1427,22 +1534,42 @@ export interface CalendarEventFullUpdate {
   has_study_data?: boolean;
 }
 
+/** 반복→일반 전환 시 undo용 메타데이터 */
+export interface RecurrenceRemoveMeta {
+  previousRrule: string;
+  previousExdates: string[] | null;
+  deletedExceptionIds: string[];
+}
+
 export async function updateCalendarEventFull(
   eventId: string,
   updates: CalendarEventFullUpdate,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; recurrenceRemoveMeta?: RecurrenceRemoveMeta }> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // has_study_data 변경 시 기존 상태 미리 조회 (lifecycle 판단용)
+    // ── Prefetch: rrule 전환 감지 + study data lifecycle 판단 (병렬 실행) ──
+    let previousRrule: string | null | undefined;
+    let previousExdates: string[] | null | undefined;
     let hadStudyData: boolean | undefined;
-    if (updates.has_study_data !== undefined) {
-      const { data: cur } = await supabase
-        .from('event_study_data')
-        .select('event_id')
-        .eq('event_id', eventId)
-        .maybeSingle();
-      hadStudyData = cur !== null;
+
+    const needsRrulePrefetch = updates.rrule !== undefined;
+    const needsStudyPrefetch = updates.has_study_data !== undefined;
+
+    if (needsRrulePrefetch || needsStudyPrefetch) {
+      const [rruleResult, studyResult] = await Promise.all([
+        needsRrulePrefetch
+          ? supabase.from('calendar_events').select('rrule, exdates').eq('id', eventId).maybeSingle()
+          : Promise.resolve(null),
+        needsStudyPrefetch
+          ? supabase.from('event_study_data').select('event_id').eq('event_id', eventId).maybeSingle()
+          : Promise.resolve(null),
+      ]);
+      if (rruleResult) {
+        previousRrule = rruleResult.data?.rrule ?? null;
+        previousExdates = rruleResult.data?.exdates ?? null;
+      }
+      if (studyResult) hadStudyData = studyResult.data !== null;
     }
 
     // calendar_events 필드
@@ -1466,6 +1593,22 @@ export async function updateCalendarEventFull(
     if (updates.is_task !== undefined) eventFields.is_task = updates.is_task;
     if (updates.is_exclusion !== undefined) eventFields.is_exclusion = updates.is_exclusion;
 
+    // ── rrule 전환 시 연관 필드 정리 ──
+    if (needsRrulePrefetch && previousRrule !== undefined) {
+      const wasRecurring = !!previousRrule;
+      const willBeRecurring = !!updates.rrule;
+
+      if (wasRecurring && !willBeRecurring) {
+        // 반복→일반: exdates 초기화 (orphan exception은 UPDATE 후 별도 처리)
+        eventFields.exdates = null;
+      } else if (!wasRecurring && willBeRecurring) {
+        // 일반→반복: 이전 exception 관계가 있을 경우 정리
+        eventFields.recurring_event_id = null;
+        eventFields.is_exception = false;
+        eventFields.exdates = null;
+      }
+    }
+
     if (Object.keys(eventFields).length > 0) {
       const { error } = await supabase
         .from('calendar_events')
@@ -1473,6 +1616,32 @@ export async function updateCalendarEventFull(
         .eq('id', eventId)
         .is('deleted_at', null);
       if (error) return { success: false, error: error.message };
+    }
+
+    // ── 반복→일반 전환: orphan exception soft-delete + undo meta 수집 ──
+    let recurrenceRemoveMeta: RecurrenceRemoveMeta | undefined;
+    if (needsRrulePrefetch && previousRrule && !updates.rrule) {
+      const { data: orphans } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('recurring_event_id', eventId)
+        .eq('is_exception', true)
+        .is('deleted_at', null);
+
+      const deletedIds: string[] = [];
+      if (orphans && orphans.length > 0) {
+        deletedIds.push(...orphans.map((e) => e.id));
+        await supabase
+          .from('calendar_events')
+          .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+          .in('id', deletedIds);
+      }
+
+      recurrenceRemoveMeta = {
+        previousRrule,
+        previousExdates: previousExdates ?? null,
+        deletedExceptionIds: deletedIds,
+      };
     }
 
     // has_study_data 변경 시 event_study_data lifecycle 처리
@@ -1526,7 +1695,7 @@ export async function updateCalendarEventFull(
       }
     }
 
-    return { success: true };
+    return { success: true, recurrenceRemoveMeta };
   } catch (err) {
     logActionError({ domain: 'calendar', action: 'updateCalendarEventFull' }, err);
     return { success: false, error: String(err) };

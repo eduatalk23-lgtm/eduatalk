@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { studentCalendarsQueryOptions } from '@/lib/query-options/calendarEvents';
 import { RecurringEditChoiceModal } from '../../_components/modals/RecurringEditChoiceModal';
+import { RecurringRemoveConfirmModal } from '../../_components/modals/RecurringRemoveConfirmModal';
 import { useEventEditForm } from './useEventEditForm';
 import { EventEditTopBar } from './EventEditTopBar';
 import { EventEditLeftColumn, type CalendarOption } from './EventEditLeftColumn';
@@ -105,6 +106,10 @@ export function EventEditPage({
     needsRecurringScope,
     handleRecurringScopeSelect,
     cancelRecurringScope,
+    needsRecurrenceRemoveConfirm,
+    handleRecurrenceRemoveConfirm,
+    cancelRecurrenceRemoveConfirm,
+    exceptionCount,
     resolvedEntityType,
   } = useEventEditForm({
     mode,
@@ -299,6 +304,17 @@ export function EventEditPage({
           onClose={cancelRecurringScope}
           mode={needsRecurringScope === 'save' ? 'edit' : 'delete'}
           onSelect={handleRecurringScopeSelect}
+        />
+      )}
+
+      {/* Recurrence removal confirmation modal */}
+      {needsRecurrenceRemoveConfirm && (
+        <RecurringRemoveConfirmModal
+          isOpen
+          onClose={cancelRecurrenceRemoveConfirm}
+          onConfirm={handleRecurrenceRemoveConfirm}
+          exceptionCount={exceptionCount}
+          isProcessing={isSaving}
         />
       )}
     </div>

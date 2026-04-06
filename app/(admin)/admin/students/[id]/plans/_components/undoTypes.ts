@@ -50,4 +50,19 @@ export type UndoableAction =
       deletedEventIds?: string[];
       previousRrule?: string | null;
       description: string;
+    }
+  | {
+      type: 'recurrence-remove';
+      eventId: string;
+      previousRrule: string;
+      previousExdates: string[] | null;
+      deletedExceptionIds: string[];
+      description: string;
+    }
+  | {
+      type: 'undo-recurring-drag';
+      exceptionEventId: string;
+      parentEventId: string;
+      instanceDate: string;
+      description: string;
     };

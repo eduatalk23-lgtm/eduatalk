@@ -33,6 +33,7 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { movePlanToContainer, createRecurringException } from "@/lib/domains/calendar/actions/calendarEventActions";
 import { useOptimisticCalendarUpdate } from "@/lib/hooks/useOptimisticCalendarUpdate";
+import { useUndo } from "../../UndoSnackbar";
 import DragOverlayContent from "../DragOverlayContent";
 import type {
   DraggableAdminPlanData,
@@ -108,6 +109,7 @@ export function AdminCalendarDragProvider({
   const [isPending, startTransition] = useTransition();
 
   const toast = useToast();
+  const { pushUndoable } = useUndo();
 
   const { optimisticDateMove, revalidate } =
     useOptimisticCalendarUpdate(calendarId, visibleCalendarIds);
@@ -233,10 +235,15 @@ export function AdminCalendarDragProvider({
             });
 
             if (result.success) {
-              toast.showToast(
-                `"${planData.title}" 반복 일정이 ${targetData.date}로 이동되었습니다.`,
-                "success"
-              );
+              if (result.eventId) {
+                pushUndoable({
+                  type: 'undo-recurring-drag',
+                  exceptionEventId: result.eventId,
+                  parentEventId: parentId,
+                  instanceDate: planData.originalDate,
+                  description: `"${planData.title}" 이동됨`,
+                });
+              }
               revalidate();
             } else {
               rollback();
@@ -254,10 +261,18 @@ export function AdminCalendarDragProvider({
             });
 
             if (result.success) {
-              toast.showToast(
-                `"${planData.title}" 플랜이 ${targetData.date}로 이동되었습니다.`,
-                "success"
-              );
+              pushUndoable({
+                type: 'move-to-date',
+                planId: planData.id,
+                studentId,
+                prev: {
+                  date: planData.originalDate,
+                  startTime: startTime,
+                  endTime: endTime,
+                  estimatedMinutes: planData.estimatedMinutes ?? undefined,
+                },
+                description: `"${planData.title}" 이동됨`,
+              });
               revalidate();
             } else {
               rollback();
@@ -274,7 +289,7 @@ export function AdminCalendarDragProvider({
         }
       });
     },
-    [exclusionsByDate, toast, optimisticDateMove, revalidate, studentId, tenantId]
+    [exclusionsByDate, toast, pushUndoable, optimisticDateMove, revalidate, studentId, tenantId]
   );
 
   // 드래그 취소
