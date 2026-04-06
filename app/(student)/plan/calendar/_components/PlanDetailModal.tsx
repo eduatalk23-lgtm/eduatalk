@@ -19,8 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
-import { deleteStudentPlan } from "@/lib/domains/plan/actions/core";
-import { updatePlanStatus } from "@/lib/domains/plan/actions/dock";
+import { updatePlanStatus, deletePlan } from "@/lib/domains/plan/actions/dock";
 import type { PlanStatus } from "@/lib/types/plan";
 import type { PlanWithContent } from "../_types/plan";
 
@@ -154,7 +153,7 @@ export function PlanDetailModal({
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        const result = await deleteStudentPlan(plan.id);
+        const result = await deletePlan({ planId: plan.id });
 
         if (result.success) {
           showToast("플랜이 삭제되었습니다.", "success");

@@ -32,6 +32,7 @@ type StudentPlanWithPlanGroup = {
  */
 type StudentPlanVersionWithPlanGroup = {
   id: string;
+  plan_date: string;
   version: number | null;
   plan_groups: {
     student_id: string;
@@ -192,6 +193,25 @@ export async function rescheduleOnDrop(
           error: "플랜이 이미 수정되었습니다. 새로고침 후 다시 시도해주세요.",
         };
       }
+
+      // calendar_events 동기화 (Calendar-First: start_date + start_at/end_at)
+      const calendarUpdate: Record<string, unknown> = {
+        start_date: newDate,
+      };
+      const startTimeForCal = newStartTime ?? existingPlan.start_time;
+      const endTimeForCal = newEndTime ?? existingPlan.end_time;
+      if (startTimeForCal) {
+        calendarUpdate.start_at = `${newDate}T${startTimeForCal}:00+09:00`;
+      }
+      if (endTimeForCal) {
+        calendarUpdate.end_at = `${newDate}T${endTimeForCal}:00+09:00`;
+      }
+
+      await supabase
+        .from('calendar_events')
+        .update(calendarUpdate)
+        .eq('id', planId)
+        .is('deleted_at', null);
     }
 
     revalidatePath("/plan/calendar");
@@ -228,7 +248,7 @@ export async function resizePlanDuration(
       // Phase 2.2: Optimistic Locking을 위해 version 필드도 조회
       const { data: existingPlan, error: fetchError } = await supabase
         .from("student_plan")
-        .select("id, version, plan_groups!inner(student_id)")
+        .select("id, plan_date, version, plan_groups!inner(student_id)")
         .eq("id", planId)
         .single();
 
@@ -273,6 +293,17 @@ export async function resizePlanDuration(
           error: "플랜이 이미 수정되었습니다. 새로고침 후 다시 시도해주세요.",
         };
       }
+
+      // calendar_events 동기화 (Calendar-First: start_at/end_at)
+      const planDate = existingPlan.plan_date;
+      await supabase
+        .from('calendar_events')
+        .update({
+          start_at: `${planDate}T${newStartTime}:00+09:00`,
+          end_at: `${planDate}T${newEndTime}:00+09:00`,
+        })
+        .eq('id', planId)
+        .is('deleted_at', null);
     }
 
     revalidatePath("/plan/calendar");
