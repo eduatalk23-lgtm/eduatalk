@@ -5,6 +5,7 @@ import { ensureStudentPrimaryCalendar } from '@/lib/domains/calendar/helpers';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
 import { EmptyState } from '@/components/molecules/EmptyState';
 import { AdminPlanManagementClient } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementClient';
+import { PlanCalendarProviders } from './PlanCalendarProviders';
 
 type PlanCalendarPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -58,22 +59,24 @@ export default async function PlanCalendarPage({
 
   return (
     <div className="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden">
-      <AdminPlanManagementClient
-        studentId={userId}
-        studentName={studentName}
-        tenantId={tenantId}
-        initialDate={pageData.targetDate}
-        activePlanGroupId={pageData.activePlanGroupId}
-        allPlanGroups={pageData.allPlanGroups}
-        calendarId={calendarId}
-        calendarDailySchedules={pageData.calendarDailySchedules}
-        calendarExclusions={pageData.calendarExclusions}
-        calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
-        calendarDateTimeSlots={pageData.calendarDateTimeSlots}
-        viewMode="student"
-        currentUserId={userId}
-        selectedCalendarSettings={pageData.calendarSettings}
-      />
+      <PlanCalendarProviders>
+        <AdminPlanManagementClient
+          studentId={userId}
+          studentName={studentName}
+          tenantId={tenantId}
+          initialDate={pageData.targetDate}
+          activePlanGroupId={pageData.activePlanGroupId}
+          allPlanGroups={pageData.allPlanGroups}
+          calendarId={calendarId}
+          calendarDailySchedules={pageData.calendarDailySchedules}
+          calendarExclusions={pageData.calendarExclusions}
+          calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
+          calendarDateTimeSlots={pageData.calendarDateTimeSlots}
+          viewMode="student"
+          currentUserId={userId}
+          selectedCalendarSettings={pageData.calendarSettings}
+        />
+      </PlanCalendarProviders>
     </div>
   );
 }

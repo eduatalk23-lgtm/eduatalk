@@ -74,6 +74,8 @@ export interface PlanGroupSummary {
   periodStart: string;
   periodEnd: string;
   planPurpose: string | null;
+  planType?: string | null;
+  campTemplateId?: string | null;
 }
 
 export interface AdminPlanManagementProps {

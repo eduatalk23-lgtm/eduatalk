@@ -14,6 +14,8 @@ export interface PlanGroupSummaryData {
   periodStart: string;
   periodEnd: string;
   planPurpose: string | null;
+  planType?: string | null;
+  campTemplateId?: string | null;
 }
 
 export interface CalendarPageData {
@@ -52,7 +54,7 @@ export async function fetchCalendarPageData(
     getCachedCalendarSettings(calendarId),
     supabase
       .from('plan_groups')
-      .select('id, name, status, period_start, period_end, plan_purpose, daily_schedule, created_at')
+      .select('id, name, status, period_start, period_end, plan_purpose, plan_type, camp_template_id, daily_schedule, created_at')
       .eq('calendar_id', calendarId)
       .eq('student_id', studentId)
       .is('deleted_at', null)
@@ -67,6 +69,8 @@ export async function fetchCalendarPageData(
     periodStart: g.period_start ?? '',
     periodEnd: g.period_end ?? '',
     planPurpose: g.plan_purpose,
+    planType: g.plan_type ?? null,
+    campTemplateId: g.camp_template_id ?? null,
   }));
 
   const activePlanGroupId = calendarGroups?.find((g) => g.status === 'active')?.id ?? null;

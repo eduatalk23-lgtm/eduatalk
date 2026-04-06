@@ -12,6 +12,8 @@ export type PlanWithContent = Plan & {
   contentSubjectCategory: string | null;
   contentCategory: string | null;
   contentEpisode: string | null;
+  /** event_study_data.done — Calendar-First 완료 판정의 단일 진실 공급원 */
+  event_study_done: boolean | null;
 };
 
 /**
@@ -102,6 +104,32 @@ export async function enrichPlansWithContentInfo(
     }
   }
 
+  // 2-b. event_study_data.done 배치 조회 (origin_plan_item_id → student_plan.id)
+  const eventStudyDoneMap = new Map<string, boolean>();
+  const planIds = filteredPlans.map((p) => p.id).filter(Boolean);
+  if (planIds.length > 0) {
+    try {
+      const { data: esdRows, error: esdError } = await supabase
+        .from("event_study_data")
+        .select("origin_plan_item_id, done")
+        .in("origin_plan_item_id", planIds);
+
+      if (!esdError && esdRows) {
+        for (const row of esdRows) {
+          if (row.origin_plan_item_id) {
+            eventStudyDoneMap.set(row.origin_plan_item_id, row.done);
+          }
+        }
+      }
+    } catch (error) {
+      logActionError(
+        { domain: "utils", action: "enrichPlansWithContentInfo.eventStudyData" },
+        error,
+        { logPrefix }
+      );
+    }
+  }
+
   // 3. 플랜에 콘텐츠 정보 추가 (denormalized 필드 사용 + 조회한 정보 보완)
   // 먼저 교과 정보를 추가한 후, 콘텐츠 상세 정보(episode/book_detail)를 추가
   const plansWithBasicContent = filteredPlans.map((plan) => {
@@ -152,6 +180,7 @@ export async function enrichPlansWithContentInfo(
         contentSubjectCategory: planWithContent.contentSubjectCategory ?? plan.content_subject_category ?? null,
         contentCategory: planWithContent.contentCategory ?? plan.content_category ?? null,
         contentEpisode: planWithContent.contentEpisode ?? null,
+        event_study_done: eventStudyDoneMap.get(plan.id) ?? null,
       };
     }
   );

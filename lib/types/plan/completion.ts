@@ -7,6 +7,25 @@
  */
 
 // ============================================
+// 완료 판정 헬퍼
+// ============================================
+
+/**
+ * 플랜 완료 여부를 판정합니다.
+ *
+ * - event_study_done이 있으면 그것을 단일 진실 공급원으로 사용
+ * - 없으면 레거시 필드(status, actual_end_time)로 폴백
+ */
+export function isCompletedPlan(plan: {
+  event_study_done?: boolean | null;
+  status?: string | null;
+  actual_end_time?: string | null;
+}): boolean {
+  if (plan.event_study_done != null) return plan.event_study_done;
+  return plan.status === "completed" || plan.actual_end_time != null;
+}
+
+// ============================================
 // 학생 권한 타입
 // ============================================
 
