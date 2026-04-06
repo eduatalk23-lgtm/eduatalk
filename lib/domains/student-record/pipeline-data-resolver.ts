@@ -20,6 +20,36 @@ import type {
 } from "./pipeline-types";
 
 // ============================================
+// 공유 헬퍼: 4-layer 콘텐츠 해소
+// ============================================
+
+/**
+ * 단일 레코드의 유효 콘텐츠를 4-layer 우선순위로 해소한다.
+ * imported_content(NEIS) > confirmed_content(확정본) > content(가안) > ai_draft_content(AI 초안)
+ *
+ * 이 함수를 도메인 전체에서 공유하여 콘텐츠 우선순위 일관성을 보장한다.
+ * @returns { text: 유효 콘텐츠, hasNeis: NEIS 기반 여부 }
+ */
+export function resolveEffectiveContent(
+  record: {
+    imported_content?: string | null;
+    confirmed_content?: string | null;
+    content?: string | null;
+    ai_draft_content?: string | null;
+  },
+): { text: string; hasNeis: boolean } {
+  const imp = record.imported_content?.trim();
+  if (imp) return { text: imp, hasNeis: true };
+  const conf = record.confirmed_content?.trim();
+  if (conf) return { text: conf, hasNeis: false };
+  const con = record.content?.trim();
+  if (con) return { text: con, hasNeis: false };
+  const draft = record.ai_draft_content?.trim();
+  if (draft) return { text: draft, hasNeis: false };
+  return { text: "", hasNeis: false };
+}
+
+// ============================================
 // resolveRecordData
 // ============================================
 

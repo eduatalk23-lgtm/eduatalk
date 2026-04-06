@@ -39,7 +39,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedSeteks) {
     const { data } = await supabase
       .from("student_record_seteks")
-      .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
+      .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
@@ -47,9 +47,10 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     ctx.cachedSeteks = data ?? [];
   }
   // grade 기준 정렬 (원래 order("grade") 대체)
+  const { resolveEffectiveContent } = await import("../../pipeline-data-resolver");
   const sortedSeteks = [...ctx.cachedSeteks].sort((a, b) => a.grade - b.grade);
   for (const s of sortedSeteks) {
-    const effectiveContent = s.imported_content?.trim() || s.content?.trim() || s.ai_draft_content?.trim() || null;
+    const effectiveContent = resolveEffectiveContent(s).text || null;
     if (!effectiveContent || effectiveContent.length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) continue;
     records.push({ index: idx++, id: s.id, grade: s.grade, subject: s.subject?.name ?? "과목 미정", type: "setek", content: effectiveContent });
   }
@@ -57,14 +58,14 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedChangche) {
     const { data } = await supabase
       .from("student_record_changche")
-      .select("id, content, imported_content, ai_draft_content, grade, activity_type")
+      .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
     ctx.cachedChangche = (data ?? []) as CachedChangche[];
   }
   const sortedChangche = [...ctx.cachedChangche].sort((a, b) => a.grade - b.grade);
   for (const c of sortedChangche) {
-    const effectiveContent = c.imported_content?.trim() || c.content?.trim() || c.ai_draft_content?.trim() || null;
+    const effectiveContent = resolveEffectiveContent(c).text || null;
     if (!effectiveContent || effectiveContent.length < PIPELINE_THRESHOLDS.MIN_IMPORTED_LENGTH) continue;
     records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: effectiveContent });
   }

@@ -92,6 +92,11 @@ export interface WarningCheckInput {
 const MIN_READINGS_PER_GRADE = WARNING_THRESHOLDS.minReadingsPerGrade;
 const COURSE_ADEQUACY_THRESHOLD = WARNING_THRESHOLDS.courseAdequacyThreshold;
 
+/** 레코드의 유효 콘텐츠 (4-layer: imported > confirmed > content > ai_draft) */
+function getEffective(rec: { imported_content?: string | null; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null }): string {
+  return rec.imported_content?.trim() || rec.confirmed_content?.trim() || rec.content?.trim() || rec.ai_draft_content?.trim() || "";
+}
+
 /** 전체 경고 계산 */
 export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
   const warnings: RecordWarning[] = [];
@@ -143,7 +148,7 @@ function checkMissingCareerActivity(input: WarningCheckInput): RecordWarning[] {
   for (const [grade, data] of input.recordsByGrade) {
     if (grade > input.currentGrade) continue;
     const hasCareer = data.changche.some(
-      (c) => c.activity_type === "career" && c.content && c.content.trim().length > 10,
+      (c) => c.activity_type === "career" && getEffective(c).length > 10,
     );
     if (!hasCareer) {
       results.push({
@@ -166,7 +171,7 @@ function checkChangcheEmpty(input: WarningCheckInput): RecordWarning[] {
     if (grade > input.currentGrade) continue;
     const emptyTypes = ["autonomy", "club", "career"].filter((type) => {
       const record = data.changche.find((c) => c.activity_type === type);
-      return !record || !record.content || record.content.trim().length < 10;
+      return !record || getEffective(record).length < 10;
     });
     if (emptyTypes.length > 0) {
       results.push({
@@ -243,10 +248,10 @@ function checkReadingNotConnected(input: WarningCheckInput): RecordWarning[] {
     if (grade > input.currentGrade) continue;
     if (data.readings.length === 0) continue; // 독서 없으면 reading_insufficient가 처리
 
-    // 세특 content에서 독서 제목이 한 번이라도 언급되는지 확인
+    // 세특 유효 콘텐츠에서 독서 제목이 한 번이라도 언급되는지 확인
     const allSetekContent = [
-      ...data.seteks.map((s) => s.content ?? ""),
-      ...data.personalSeteks.map((s) => s.content ?? ""),
+      ...data.seteks.map((s) => getEffective(s)),
+      ...data.personalSeteks.map((s) => getEffective(s)),
     ].join(" ");
 
     const connectedCount = data.readings.filter((r) => {
