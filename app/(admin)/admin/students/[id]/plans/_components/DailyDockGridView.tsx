@@ -40,6 +40,7 @@ import { updateItemTime, updatePlanStatus } from '@/lib/domains/calendar/actions
 import { useOptimisticCalendarUpdate } from '@/lib/hooks/useOptimisticCalendarUpdate';
 import { useUndo } from './UndoSnackbar';
 import { usePlanToast } from './PlanToast';
+import { useAdminPlanActions } from './context/AdminPlanActionsContext';
 import { resolveCalendarColors } from './utils/subjectColors';
 import { cn } from '@/lib/cn';
 import type { DailyPlan, AllDayItem } from '@/lib/query-options/adminDock';
@@ -59,7 +60,7 @@ interface DailyDockGridViewProps {
   /** 캘린더 ID */
   calendarId?: string;
   // 액션 콜백
-  onEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
+  onEdit?: (planId: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   onRefresh: () => void;
   onCreatePlanAtSlot?: (slotStartTime: string, slotEndTime: string) => void;
   // P1-4: 리사이즈
@@ -145,6 +146,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   isAdminMode = true,
 }: DailyDockGridViewProps) {
   const router = useRouter();
+  const { handleOpenEdit } = useAdminPlanActions();
   const ppm = ppmProp ?? PX_PER_MINUTE;
   const { isCollapsed: deadZoneCollapsed, toggle: toggleDeadZone } = useDeadZoneCollapse();
   const { pushUndoable } = useUndo();
@@ -275,7 +277,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 
   // EventDetailPopover (useEventDetailPopover 훅)
   const { showPopover, closePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
-    onEdit: (id, et) => { onEdit?.(id, et); },
+    onEdit: (id, et, instDate) => { handleOpenEdit(id, et, instDate); },
     onDelete: (id) => { onDelete?.(id); },
     onQuickStatusChange: (planId, newStatus, prevStatus, instanceDate) => {
       handleQuickStatusChange(planId, newStatus, prevStatus, instanceDate);
@@ -344,13 +346,11 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           showToast(result.error ?? '삭제에 실패했습니다.', 'error');
         }
       } else {
-        // 반복 이벤트 편집: instanceDate 포함하여 전체 페이지로 이동
-        const editParams = new URLSearchParams({ instanceDate });
-        if (calendarId) editParams.set('calendarId', calendarId);
-        router.push(`/admin/students/${studentId}/plans/event/${planId}/edit?${editParams}`);
+        // 반복 이벤트 편집: 모달로 열기 (풀페이지 전환 제거)
+        handleOpenEdit(planId, undefined, instanceDate);
       }
     },
-    [recurringModalState, closeRecurringModal, revalidate, pushUndoable, showToast, router, studentId, calendarId],
+    [recurringModalState, closeRecurringModal, revalidate, pushUndoable, showToast, handleOpenEdit],
   );
 
   // 퀵생성 후 하이라이트 (2초 자동 해제)
@@ -800,15 +800,22 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       const planItem: PlanItemData = {
         id: item.id,
         type: 'plan',
-        title: item.label,
-        status: 'pending',
+        title: item.title ?? item.label,
+        status: (item.status as PlanItemData['status']) ?? 'pending',
         isCompleted: false,
         planDate: item.startDate ?? selectedDate,
         startTime: null,
         endTime: null,
         label: item.exclusionType ?? item.label ?? '기타',
         isExclusion: !!item.exclusionType,
-        isTask: false,
+        isTask: item.isTask ?? false,
+        // 반복 이벤트 필드
+        rrule: item.rrule ?? null,
+        recurringEventId: item.recurringEventId ?? null,
+        isException: item.isException ?? null,
+        exdates: item.exdates ?? null,
+        description: item.description ?? null,
+        creatorRole: item.creatorRole ?? null,
       };
       showPopover(planItem, anchorRect);
     },

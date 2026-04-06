@@ -5,7 +5,6 @@ import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
 } from '@/lib/constants/queryCache';
-import { extractTimeHHMM } from '@/lib/domains/calendar/adapters';
 
 // Types
 export interface DailyPlan {
@@ -359,65 +358,7 @@ export function overduePlansQueryOptions(
   });
 }
 
-// ============================================
-// 비학습시간 데이터 조회
-// ============================================
-
-/**
- * 비학습시간 데이터 조회
- *
- * Calendar-First: calendarId를 직접 받아 calendar_events 테이블에서 조회
- */
-export function nonStudyTimeQueryOptions(
-  studentId: string,
-  date: string,
-  planGroupIds: string[],
-  calendarId?: string
-) {
-  return queryOptions({
-    queryKey: adminDockKeys.dailyNonStudy(studentId, date, planGroupIds, calendarId),
-    queryFn: async (): Promise<NonStudyItem[]> => {
-      if (!calendarId) return [];
-
-      const supabase = createSupabaseBrowserClient();
-
-      const dateStart = `${date}T00:00:00+09:00`;
-      const dateEnd = `${date}T23:59:59+09:00`;
-
-      const { data: events, error } = await supabase
-        .from('calendar_events')
-        .select('id, label, is_task, is_exclusion, start_at, end_at, title, order_index')
-        .eq('calendar_id', calendarId)
-        .is('deleted_at', null)
-        .eq('is_all_day', false)
-        .eq('is_task', false)
-        .eq('is_exclusion', false)
-        .gte('start_at', dateStart)
-        .lt('start_at', dateEnd)
-        .order('start_at', { ascending: true });
-
-      if (error || !events) return [];
-
-      return events.map((event) => {
-        const startTime = extractTimeHHMM(event.start_at ?? null) ?? '00:00';
-        const endTime = extractTimeHHMM(event.end_at ?? null) ?? '00:00';
-        const type = mapToNonStudyItemType(event.label ?? '기타');
-
-        return {
-          id: event.id,
-          type,
-          start_time: startTime,
-          end_time: endTime,
-          label: event.title ?? type,
-          sourceIndex: event.order_index ?? undefined,
-          hasOverride: false,
-        };
-      });
-    },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
-  });
-}
+// nonStudyTimeQueryOptions 삭제됨 (Calendar-First 쿼리로 대체)
 
 // ============================================
 // 종일 이벤트 (All-day events)
@@ -442,52 +383,20 @@ export interface AllDayItem {
   startTime?: string | null;
   /** Multi-day timed 이벤트: 종료 시간 (HH:mm) */
   endTime?: string | null;
+  // ── 반복 이벤트 필드 (팝오버 반복 표시 + scope 선택용) ──
+  rrule?: string | null;
+  recurringEventId?: string | null;
+  isException?: boolean | null;
+  exdates?: string[] | null;
+  title?: string | null;
+  description?: string | null;
+  creatorRole?: string | null;
+  status?: string | null;
+  isTask?: boolean;
 }
 
-export function allDayEventsQueryOptions(
-  studentId: string,
-  date: string,
-  calendarId?: string,
-) {
-  return queryOptions({
-    queryKey: adminDockKeys.dailyAllDay(studentId, date, calendarId),
-    queryFn: async (): Promise<AllDayItem[]> => {
-      if (!calendarId) return [];
-      const supabase = createSupabaseBrowserClient();
-
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('id, label, is_exclusion, title, color, calendar_id')
-        .eq('calendar_id', calendarId)
-        .eq('is_all_day', true)
-        .is('deleted_at', null)
-        .or(`start_date.eq.${date},and(start_date.lte.${date},end_date.gte.${date})`);
-
-      if (error || !data) return [];
-      return data.map((row) => ({
-        id: row.id,
-        type: row.is_exclusion ? 'exclusion' : 'event',
-        label: row.title ?? row.label ?? '기타',
-        exclusionType: row.is_exclusion ? (row.label ?? null) : null,
-        color: row.color,
-        calendarId: row.calendar_id,
-      }));
-    },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
-  });
-}
-
-/**
- * type 문자열을 NonStudyItem type으로 매핑
- */
-function mapToNonStudyItemType(type: string): NonStudyItem['type'] {
-  const validTypes = ['아침식사', '점심식사', '저녁식사', '수면', '학원', '이동시간', '기타'] as const;
-  if (validTypes.includes(type as typeof validTypes[number])) {
-    return type as NonStudyItem['type'];
-  }
-  return '기타';
-}
+// allDayEventsQueryOptions — 삭제됨 (Calendar-First 쿼리로 대체)
+// nonStudyTimeQueryOptions — 삭제됨 (Calendar-First 쿼리로 대체)
 
 // ============================================
 // WeeklyCalendar planCounts 조회

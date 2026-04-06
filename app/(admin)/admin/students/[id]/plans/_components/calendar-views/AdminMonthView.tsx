@@ -129,7 +129,7 @@ export default function AdminMonthView({
 
   // EventDetailPopover 훅 (GCal 스타일 팝오버)
   const { showPopover: showEventPopover, closePopover, isPopoverOpen, popoverProps: eventPopoverProps } = useEventDetailPopover({
-    onEdit: (id, et) => { onPlanEdit?.(id, et); },
+    onEdit: (id, et, instDate) => { onPlanEdit?.(id, et, instDate); },
     onDelete: (id) => { onPlanDelete?.(id); },
     onQuickStatusChange: async (planId, newStatus, _prevStatus, instanceDate) => {
       await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true, instanceDate });

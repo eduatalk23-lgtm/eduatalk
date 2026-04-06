@@ -14,7 +14,7 @@ export interface RecurringModalState {
 }
 
 interface UseEventDetailPopoverOptions {
-  onEdit?: (id: string, entityType?: 'event' | 'consultation') => void;
+  onEdit?: (id: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   onDelete?: (id: string) => void;
   onQuickStatusChange?: (
     planId: string,
@@ -96,13 +96,13 @@ export function useEventDetailPopover({
     [closePopover, showRecurringModal, state],
   );
 
+  // Google Calendar 패턴: 편집은 scope 없이 바로 편집 모달 진입 (scope는 저장 시 1회)
   const handleRecurringEdit = useCallback(
     (planId: string, instanceDate: string) => {
-      const exceptionCount = state?.plan.exdates?.length ?? 0;
       closePopover();
-      showRecurringModal('edit', planId, instanceDate, exceptionCount);
+      onEdit?.(planId, undefined, instanceDate);
     },
-    [closePopover, showRecurringModal, state],
+    [closePopover, onEdit],
   );
 
   const popoverProps: EventDetailPopoverProps | null = state

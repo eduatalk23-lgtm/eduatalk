@@ -131,11 +131,11 @@ export interface UseEventEditFormReturn {
   needsRecurringScope: 'save' | 'delete' | null;
   handleRecurringScopeSelect: (scope: RecurringScope) => Promise<void>;
   cancelRecurringScope: () => void;
-  // Recurrence removal confirmation
+  // 반복 해제 확인 (Google Calendar 패턴: scope 없이 해당 인스턴스만 남김)
   needsRecurrenceRemoveConfirm: boolean;
   handleRecurrenceRemoveConfirm: () => void;
   cancelRecurrenceRemoveConfirm: () => void;
-  /** 반복 이벤트의 exception 개수 (확인 다이얼로그 표시용) */
+  /** 반복 이벤트의 exception 개수 (다이얼로그 표시용) */
   exceptionCount: number;
   originalData: CalendarEventEditData | null;
   /** 실제 결정된 entityType (props + 로드 데이터 auto-detect 반영) */
@@ -360,11 +360,10 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     return JSON.stringify(form) !== JSON.stringify(initialForm);
   }, [form, initialForm]);
 
-  // 원본이 반복이었으면 여전히 recurring 컨텍스트로 취급 (반복 제거 시에도 scope/confirm 필요)
+  // form.rrule은 포함하지 않음 — 비반복 이벤트에 rrule 추가 시 scope 선택 불필요
   const wasRecurring = !!originalData?.rrule;
-  const isRecurring = !!(form.rrule || originalData?.recurring_event_id || wasRecurring);
+  const isRecurring = wasRecurring || !!originalData?.recurring_event_id;
   const isRemovingRecurrence = wasRecurring && !form.rrule;
-
   // beforeunload guard
   useEffect(() => {
     hasMountedRef.current = true;
@@ -521,13 +520,13 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
       return;
     }
 
-    // 반복 제거: scope 선택 대신 전용 확인 다이얼로그
+    // 반복 해제: scope 선택 없이 확인 → 해당 인스턴스만 남기고 삭제 (Google Calendar 패턴)
     if (opts.mode === 'edit' && isRemovingRecurrence) {
       setNeedsRecurrenceRemoveConfirm(true);
       return;
     }
 
-    // Recurring event: need scope selection
+    // 반복 이벤트 수정 (rrule 유지): scope 선택
     if (opts.mode === 'edit' && isRecurring) {
       setNeedsRecurringScope('save');
       return;
@@ -686,14 +685,14 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     setNeedsRecurringScope(null);
   }, []);
 
-  // 반복 제거 확인 후 실행: updateCalendarEventFull 호출
+  // 반복 해제 확인 → 해당 인스턴스만 남기고 삭제 (Google Calendar 패턴)
   const handleRecurrenceRemoveConfirm = useCallback(() => {
     setNeedsRecurrenceRemoveConfirm(false);
     startSaveTransition(async () => {
       const updates = buildUpdates();
-      const result = await updateCalendarEventFull(opts.eventId!, updates);
+      const instanceDate = opts.instanceDate ?? form.date;
+      const result = await updateCalendarEventFull(opts.eventId!, updates, { instanceDate });
       if (result.success) {
-        // undo meta가 있으면 pushUndoable (페이지 전환 후에도 layout UndoProvider가 유지)
         if (result.recurrenceRemoveMeta) {
           pushUndoable({
             type: 'recurrence-remove',
@@ -702,14 +701,14 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
             description: '반복 설정이 해제되었습니다',
           });
         }
-        toast.showSuccess('반복 설정이 해제되었습니다.');
+        toast.showSuccess('이 일정만 남기고 반복이 해제되었습니다.');
         if (opts.onSuccessModal) opts.onSuccessModal();
         else router.push(opts.returnPath);
       } else {
         toast.showError(result.error ?? '수정에 실패했습니다.');
       }
     });
-  }, [opts, buildUpdates, pushUndoable, router, toast]);
+  }, [opts, form.date, buildUpdates, pushUndoable, router, toast]);
 
   const cancelRecurrenceRemoveConfirm = useCallback(() => {
     setNeedsRecurrenceRemoveConfirm(false);

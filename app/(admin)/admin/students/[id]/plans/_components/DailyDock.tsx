@@ -72,7 +72,7 @@ interface DailyDockProps {
   selectedDate: string;
   /** 선택된 플랜 그룹 ID (null = 전체 보기) */
   selectedGroupId?: string | null;
-  onEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
+  onEdit?: (planId: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
   /** 전체 새로고침 (기본) */
   onRefresh: () => void;
@@ -839,7 +839,7 @@ export const DailyDock = memo(function DailyDock({
               exclusionsByDate={exclusionsByDate}
               dailySchedulesByDate={{}}
               onPlanClick={(planId) => onEdit?.(planId)}
-              onPlanEdit={(planId) => onEdit?.(planId)}
+              onPlanEdit={(planId, et, instDate) => onEdit?.(planId, et, instDate)}
               onPlanDelete={() => {}}
               onExclusionToggle={() => {}}
               onRefresh={onRefresh}

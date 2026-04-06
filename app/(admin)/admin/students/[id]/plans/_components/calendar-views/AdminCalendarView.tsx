@@ -7,7 +7,6 @@
  */
 
 import { useState, useMemo, useCallback, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, CheckSquare, ListFilter } from "lucide-react";
 import {
   addMonths,
@@ -76,10 +75,10 @@ export default function AdminCalendarView({
   onRefresh,
   checkInDates,
 }: AdminCalendarViewProps) {
-  const router = useRouter();
   const { selectedCalendarSettings } = useAdminPlanBasic();
   const { resolvedVisibleCalendarIds, showHolidays } = useAdminPlanFilter();
   const {
+    handleOpenEdit,
     handleOpenEventEditNew,
     handleOpenConsultationEditNew,
     eventEditModalState,
@@ -192,12 +191,6 @@ export default function AdminCalendarView({
     },
     [onDateChange]
   );
-
-  // 플랜 편집 핸들러 → 전체 페이지 이동
-  const handlePlanEdit = useCallback((planId: string) => {
-    const params = calendarId ? `?calendarId=${calendarId}` : '';
-    router.push(`/admin/students/${studentId}/plans/event/${planId}/edit${params}`);
-  }, [router, studentId, calendarId]);
 
   // 플랜 편집 모달 닫기
   const handleCloseEditPlanModal = useCallback(() => {
@@ -497,7 +490,7 @@ export default function AdminCalendarView({
             dailySchedulesByDate={dailySchedulesByDate}
             dateTimeSlots={dateTimeSlots}
             onTimelineClick={onTimelineClick}
-            onPlanEdit={handlePlanEdit}
+            onPlanEdit={handleOpenEdit}
             onPlanDelete={handlePlanDelete}
             onExclusionToggle={handleExclusionToggle}
             onContextMenu={handleContextMenu}

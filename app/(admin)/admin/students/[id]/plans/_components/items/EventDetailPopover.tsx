@@ -19,7 +19,7 @@ export interface EventDetailPopoverProps {
   plan: PlanItemData;
   anchorRect: DOMRect;
   onClose: () => void;
-  onEdit?: (id: string, entityType?: 'event' | 'consultation') => void;
+  onEdit?: (id: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   onDelete?: (id: string) => void;
   onQuickStatusChange?: (planId: string, newStatus: PlanStatus) => void;
   onColorChange?: (planId: string, color: string | null) => void;

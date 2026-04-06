@@ -265,7 +265,7 @@ export type AdminMonthViewProps = {
   onTimelineClick?: (date: string) => void;
   /** @deprecated 레거시 — 월간뷰에서는 더 이상 사용 안 함 (EventDetailPopover로 대체) */
   onPlanClick?: (planId: string) => void;
-  onPlanEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
+  onPlanEdit?: (planId: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   onPlanDelete?: (planId: string) => void;
   onExclusionToggle: (date: string, hasExclusion: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, date: string, hasExclusion: boolean) => void;

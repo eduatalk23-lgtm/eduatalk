@@ -1,11 +1,10 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import {
   adminDockKeys,
   dailyPlansQueryOptions,
-  nonStudyTimeQueryOptions,
   overduePlansQueryOptions,
   type DailyPlan,
   type OverduePlan,
@@ -50,51 +49,7 @@ export function useDailyDockQuery(
   };
 }
 
-/**
- * 비학습시간 쿼리 훅
- * @param studentId 학생 ID
- * @param date 날짜
- * @param plans 플랜 목록 (plan_group_id 추출용)
- * @param plansLoaded 플랜 로딩 완료 여부 (false면 쿼리 비활성화하여 플리커 방지)
- * @param calendarId 캘린더 ID (Calendar-First)
- * @param initialData SSR 프리페치 데이터
- */
-export function useNonStudyTimeQuery(
-  studentId: string,
-  date: string,
-  plans: DailyPlan[],
-  plansLoaded: boolean = true,
-  calendarId?: string,
-  initialData?: NonStudyItem[]
-) {
-  const planGroupIds = useMemo(() => {
-    const ids = plans
-      .map(p => p.plan_group_id)
-      .filter((id): id is string => id != null);
-    return [...new Set(ids)];
-  }, [plans]);
-
-  const queryOpts = nonStudyTimeQueryOptions(studentId, date, planGroupIds, calendarId);
-
-  const hasValidInitialData = useMemo(() => {
-    if (!initialData || initialData.length === 0) return false;
-    if (calendarId && !initialData[0].id) {
-      return false;
-    }
-    return true;
-  }, [initialData, calendarId]);
-
-  const query = useQuery({
-    ...queryOpts,
-    initialData: hasValidInitialData ? initialData : undefined,
-    enabled: hasValidInitialData || plansLoaded,
-  });
-
-  return {
-    nonStudyItems: query.data ?? [],
-    isLoading: query.isLoading,
-  };
-}
+// useNonStudyTimeQuery 삭제됨 (Calendar-First 쿼리로 대체)
 
 /**
  * Overdue Plans 쿼리 훅

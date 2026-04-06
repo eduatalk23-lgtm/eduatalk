@@ -173,6 +173,16 @@ export function calendarEventToAllDayItem(
     startDate,
     endDate,
     spanDays,
+    // 반복 이벤트 필드 (팝오버 반복 표시 + scope 선택용)
+    rrule: event.rrule ?? null,
+    recurringEventId: event.recurring_event_id ?? null,
+    isException: event.is_exception ?? null,
+    exdates: event.exdates as string[] | null ?? null,
+    title: event.title,
+    description: event.description ?? null,
+    creatorRole: event.creator_role ?? null,
+    status: event.status ?? null,
+    isTask: event.is_task ?? false,
   };
 }
 
@@ -312,6 +322,16 @@ export function calendarEventToMultiDayBar(
     // 시간 정보 보존 (UI에서 표시용)
     startTime,
     endTime,
+    // 반복 이벤트 필드
+    rrule: event.rrule ?? null,
+    recurringEventId: event.recurring_event_id ?? null,
+    isException: event.is_exception ?? null,
+    exdates: event.exdates as string[] | null ?? null,
+    title: event.title,
+    description: event.description ?? null,
+    creatorRole: event.creator_role ?? null,
+    status: event.status ?? null,
+    isTask: event.is_task ?? false,
   };
 }
 

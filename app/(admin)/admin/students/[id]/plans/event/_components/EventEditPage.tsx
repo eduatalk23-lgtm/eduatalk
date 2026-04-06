@@ -297,17 +297,20 @@ export function EventEditPage({
         </div>
       </div>
 
-      {/* Recurring scope modal */}
+      {/* Recurring scope modal — z-[10000]으로 EventEditModal(z-[9999]) 위에 표시 */}
       {needsRecurringScope && (
         <RecurringEditChoiceModal
           isOpen
           onClose={cancelRecurringScope}
           mode={needsRecurringScope === 'save' ? 'edit' : 'delete'}
           onSelect={handleRecurringScopeSelect}
+          exceptionCount={exceptionCount}
+          isProcessing={isSaving || isDeleting}
+          overlayClassName="z-[10000]"
         />
       )}
 
-      {/* Recurrence removal confirmation modal */}
+      {/* 반복 해제 확인 — scope 없이 해당 인스턴스만 남김 (Google Calendar 패턴) */}
       {needsRecurrenceRemoveConfirm && (
         <RecurringRemoveConfirmModal
           isOpen
@@ -315,6 +318,7 @@ export function EventEditPage({
           onConfirm={handleRecurrenceRemoveConfirm}
           exceptionCount={exceptionCount}
           isProcessing={isSaving}
+          overlayClassName="z-[10000]"
         />
       )}
     </div>

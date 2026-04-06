@@ -278,8 +278,8 @@ export function CalendarSidebar() {
           showToast(result.error ?? '삭제 실패', 'error');
         }
       } else if (mode === 'edit') {
-        // 편집: 이벤트 편집 페이지로 이동
-        handleOpenEdit(planId);
+        // 편집: 이벤트 편집 모달로 열기 (instanceDate 포함)
+        handleOpenEdit(planId, undefined, instanceDate);
       }
     },
     [recurringModalState, closeRecurringModal, optimisticDelete, revalidate, pushUndoable, showToast, handleOpenEdit],

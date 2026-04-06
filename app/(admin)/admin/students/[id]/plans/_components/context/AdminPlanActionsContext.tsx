@@ -18,7 +18,7 @@ import type { ConsultationMode } from "@/lib/domains/consulting/types";
  */
 export interface AdminPlanActionsContextValue {
   handleOpenRedistribute: (planId: string) => void;
-  handleOpenEdit: (planId: string, entityType?: 'event' | 'consultation') => void;
+  handleOpenEdit: (planId: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   handleOpenReorder: (containerType: "daily") => void;
   handleOpenTemplateWithPlans: (planIds: string[]) => void;
   handleOpenMoveToGroup: (planIds: string[], currentGroupId?: string | null) => void;
@@ -64,11 +64,12 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
   );
 
   const handleOpenEdit = useCallback(
-    (planId: string, entityType?: 'event' | 'consultation') => {
+    (planId: string, entityType?: 'event' | 'consultation', instanceDate?: string) => {
       eventEditModal.openEdit({
         eventId: planId,
         calendarId: selectedCalendarId ?? undefined,
         entityType,
+        instanceDate,
       });
     },
     [eventEditModal, selectedCalendarId]

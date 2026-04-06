@@ -1544,6 +1544,10 @@ export interface RecurrenceRemoveMeta {
 export async function updateCalendarEventFull(
   eventId: string,
   updates: CalendarEventFullUpdate,
+  options?: {
+    /** 반복→일반 전환 시, 부모 날짜를 해당 인스턴스 날짜로 이동 (Google Calendar 패턴) */
+    instanceDate?: string;
+  },
 ): Promise<{ success: boolean; error?: string; recurrenceRemoveMeta?: RecurrenceRemoveMeta }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -1601,6 +1605,31 @@ export async function updateCalendarEventFull(
       if (wasRecurring && !willBeRecurring) {
         // 반복→일반: exdates 초기화 (orphan exception은 UPDATE 후 별도 처리)
         eventFields.exdates = null;
+        // Google Calendar 패턴: 선택한 인스턴스 날짜로 부모 이동
+        if (options?.instanceDate) {
+          const { data: parentEvent } = await supabase
+            .from('calendar_events')
+            .select('start_at, end_at, start_date, end_date, is_all_day')
+            .eq('id', eventId)
+            .single();
+          if (parentEvent) {
+            const instDate = options.instanceDate;
+            if (parentEvent.is_all_day) {
+              const dayDiff = parentEvent.start_date && parentEvent.end_date
+                ? Math.round((new Date(parentEvent.end_date).getTime() - new Date(parentEvent.start_date).getTime()) / 86400000)
+                : 0;
+              eventFields.start_date = instDate;
+              eventFields.end_date = dayDiff > 0
+                ? new Date(new Date(instDate).getTime() + dayDiff * 86400000).toISOString().split('T')[0]
+                : instDate;
+            } else if (parentEvent.start_at) {
+              eventFields.start_at = shiftTimestamp(parentEvent.start_at, extractDateYMD(parentEvent.start_at) ?? '', instDate);
+              eventFields.end_at = parentEvent.end_at
+                ? shiftTimestamp(parentEvent.end_at, extractDateYMD(parentEvent.start_at) ?? '', instDate)
+                : null;
+            }
+          }
+        }
       } else if (!wasRecurring && willBeRecurring) {
         // 일반→반복: 이전 exception 관계가 있을 경우 정리
         eventFields.recurring_event_id = null;

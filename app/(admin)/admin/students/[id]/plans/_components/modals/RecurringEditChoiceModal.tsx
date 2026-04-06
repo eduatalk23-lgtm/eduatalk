@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/Dialog';
 import Button from '@/components/atoms/Button';
 
@@ -13,13 +14,16 @@ interface RecurringEditChoiceModalProps {
   onSelect: (scope: RecurringEditScope) => void;
   /** 이 반복 시리즈의 exception(개별 수정) 개수 */
   exceptionCount?: number;
+  /** 처리 중 상태 (버튼 비활성화 + 로딩 표시) */
+  isProcessing?: boolean;
+  /** Dialog z-index 오버라이드 (EventEditModal 위에 표시 등) */
+  overlayClassName?: string;
 }
 
 /**
  * 반복 이벤트 편집/삭제 시 범위 선택 다이얼로그
  *
  * Google Calendar의 "이 일정만 / 이후 모든 일정 / 모든 일정" 패턴.
- * Phase 2 scaffold — 선택 후 실제 로직 연결은 향후 구현.
  */
 export function RecurringEditChoiceModal({
   isOpen,
@@ -27,6 +31,8 @@ export function RecurringEditChoiceModal({
   mode,
   onSelect,
   exceptionCount,
+  isProcessing = false,
+  overlayClassName,
 }: RecurringEditChoiceModalProps) {
   const isDelete = mode === 'delete';
   const title = isDelete ? '반복 일정 삭제' : '반복 일정 수정';
@@ -34,9 +40,10 @@ export function RecurringEditChoiceModal({
   return (
     <Dialog
       open={isOpen}
-      onOpenChange={(open) => { if (!open) onClose(); }}
+      onOpenChange={(open) => { if (!open && !isProcessing) onClose(); }}
       title={title}
       maxWidth="sm"
+      overlayClassName={overlayClassName}
     >
       <DialogContent>
         <div className="flex flex-col gap-2">
@@ -48,7 +55,8 @@ export function RecurringEditChoiceModal({
 
           <button
             onClick={() => onSelect('this')}
-            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
+            disabled={isProcessing}
+            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">이 일정만</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -58,7 +66,8 @@ export function RecurringEditChoiceModal({
 
           <button
             onClick={() => onSelect('this_and_following')}
-            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
+            disabled={isProcessing}
+            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">이후 모든 일정</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -68,7 +77,8 @@ export function RecurringEditChoiceModal({
 
           <button
             onClick={() => onSelect('all')}
-            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
+            disabled={isProcessing}
+            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">모든 일정</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -81,10 +91,17 @@ export function RecurringEditChoiceModal({
             )}
           </button>
         </div>
+
+        {isProcessing && (
+          <div className="flex items-center gap-2 mt-3 text-sm text-gray-500 dark:text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>처리중...</span>
+          </div>
+        )}
       </DialogContent>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose} size="md">
+        <Button variant="outline" onClick={onClose} size="md" disabled={isProcessing}>
           취소
         </Button>
       </DialogFooter>

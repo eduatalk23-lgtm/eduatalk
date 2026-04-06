@@ -63,7 +63,7 @@ import { useAdminPlanBasic } from './context/AdminPlanBasicContext';
 import type { AllDayItem } from '@/lib/query-options/adminDock';
 import type { EmptySlot } from '@/lib/domains/admin-plan/utils/emptySlotCalculation';
 import { getHolidayAllDayItems } from '@/lib/domains/calendar/koreanHolidays';
-import { useAdminPlanFilter } from './context/AdminPlanContext';
+import { useAdminPlanFilter, useAdminPlanActions } from './context/AdminPlanContext';
 
 interface WeeklyGridViewProps {
   studentId: string;
@@ -73,7 +73,7 @@ interface WeeklyGridViewProps {
   selectedDate: string;
   selectedGroupId?: string | null;
   displayRange?: { start: string; end: string };
-  onEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
+  onEdit?: (planId: string, entityType?: 'event' | 'consultation', instanceDate?: string) => void;
   onRefresh: () => void;
   onDateChange: (date: string) => void;
   onCreatePlanAtSlot?: (slotStartTime: string, slotEndTime: string) => void;
@@ -157,6 +157,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
   // Calendar-First: Context에서 calendarId 직접 사용 (브릿지 훅 제거)
   const { selectedCalendarId, selectedCalendarSettings, isAdminMode } = useAdminPlanBasic();
+  const { handleOpenEdit } = useAdminPlanActions();
   const resolvedCalendarId = calendarIdProp || selectedCalendarId || undefined;
   const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
 
@@ -727,7 +728,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const popoverOpenOnMouseDownRef = useRef(false);
 
   const { showPopover, closePopover: rawClosePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
-    onEdit: (id, et) => { onEdit?.(id, et); },
+    onEdit: (id, et, instDate) => { handleOpenEdit(id, et, instDate); },
     onDelete: (id) => { onDelete?.(id); },
     onQuickStatusChange: (planId, newStatus, prevStatus, instanceDate) => {
       handleQuickStatusChange(planId, newStatus, prevStatus, instanceDate);
@@ -877,7 +878,9 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const handleGridClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if ((e.target as HTMLElement).closest('[data-grid-block]') ||
-          (e.target as HTMLElement).closest('[data-dead-zone-bar]')) return;
+          (e.target as HTMLElement).closest('[data-dead-zone-bar]') ||
+          (e.target as HTMLElement).closest('[data-allday-item]') ||
+          (e.target as HTMLElement).closest('[data-allday-area]')) return;
       if (!calendarId) return;
 
       // 이미 열려있으면 닫기만 하고 리턴 (ref로 즉시 확인 → 클로저/리렌더 무관)
@@ -1127,21 +1130,27 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       // 퀵생성 닫기
       if (quickCreateOpenRef.current) closeQuickCreate();
 
-      // AllDayItem → PlanItemData 변환 (팝오버 표시용 최소 데이터)
+      // AllDayItem → PlanItemData 변환 (팝오버 표시용)
       const planItem: PlanItemData = {
         id: item.id,
         type: 'plan',
-        title: item.label,
-        status: 'pending',
+        title: item.title ?? item.label,
+        status: (item.status as PlanItemData['status']) ?? 'pending',
         isCompleted: false,
         planDate: item.startDate,
         startTime: item.startTime ?? null,
         endTime: item.endTime ?? null,
         label: item.exclusionType ?? item.label ?? '기타',
         isExclusion: !!item.exclusionType,
-        isTask: false,
-        // multi-day timed: 종료 날짜 정보 (팝오버에서 날짜 범위 표시용)
+        isTask: item.isTask ?? false,
         endDate: item.endDate,
+        // 반복 이벤트 필드
+        rrule: item.rrule ?? null,
+        recurringEventId: item.recurringEventId ?? null,
+        isException: item.isException ?? null,
+        exdates: item.exdates ?? null,
+        description: item.description ?? null,
+        creatorRole: item.creatorRole ?? null,
       };
       showPopover(planItem, anchorRect);
     },
@@ -1252,13 +1261,11 @@ export const WeeklyGridView = memo(function WeeklyGridView({
           showToast(result.error ?? '삭제에 실패했습니다.', 'error');
         }
       } else {
-        // 반복 이벤트 편집: instanceDate 포함하여 전체 페이지로 이동
-        const editParams = new URLSearchParams({ instanceDate });
-        if (calendarId) editParams.set('calendarId', calendarId);
-        router.push(`/admin/students/${studentId}/plans/event/${planId}/edit?${editParams}`);
+        // 반복 이벤트 편집: 모달로 열기 (풀페이지 전환 제거)
+        handleOpenEdit(planId, undefined, instanceDate);
       }
     },
-    [recurringModalState, closeRecurringModal, revalidate, pushUndoable, showToast, router, studentId, calendarId],
+    [recurringModalState, closeRecurringModal, revalidate, pushUndoable, showToast, handleOpenEdit],
   );
 
   // 컬럼 ref 등록
@@ -2063,10 +2070,12 @@ function AllDayRow({
     ? Math.max(...layoutItems.map((l) => l.row)) + 1
     : 0;
 
-  const visibleRows =
+  // 최소 1행 보장: 종일 이벤트가 없어도 빈 영역 클릭으로 퀵 생성 가능
+  const visibleRows = Math.max(1,
     allDayExpanded || totalRows <= ALL_DAY_COLLAPSE_THRESHOLD
       ? totalRows
-      : ALL_DAY_COLLAPSE_THRESHOLD;
+      : ALL_DAY_COLLAPSE_THRESHOLD
+  );
   const showToggle = totalRows > ALL_DAY_COLLAPSE_THRESHOLD;
   const showOverflowRow = !allDayExpanded && totalRows > ALL_DAY_COLLAPSE_THRESHOLD;
   const previewExtra = isQuickCreateAllDay && quickCreateDate ? 22 : 0;
@@ -2078,7 +2087,7 @@ function AllDayRow({
     : layoutItems.filter((l) => l.row < visibleRows);
 
   return (
-    <div className="border-b border-[rgb(var(--color-secondary-200))]">
+    <div data-allday-area className="border-b border-[rgb(var(--color-secondary-200))]">
       <div className="flex pr-2" style={{ minHeight: Math.max(28, rowMinHeight) }}>
         <div
           className="shrink-0 flex flex-col items-center gap-0.5 pr-2 pt-1 border-r border-[rgb(var(--color-secondary-200))]"
