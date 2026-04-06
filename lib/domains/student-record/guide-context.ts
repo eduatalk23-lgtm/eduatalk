@@ -30,11 +30,11 @@ interface GuideAssignmentRow {
 /**
  * 학생의 가이드 배정 정보를 AI 프롬프트 섹션으로 변환
  * @param studentId 학생 UUID
- * @param context "guide" | "summary" — 프롬프트 맥락에 따라 instruction 분기
+ * @param context "guide" | "summary" | "strategy" — 프롬프트 맥락에 따라 instruction 분기
  */
 export async function buildGuideContextSection(
   studentId: string,
-  context: "guide" | "summary",
+  context: "guide" | "summary" | "strategy",
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
 
@@ -84,7 +84,9 @@ export async function buildGuideContextSection(
 
   const instruction = context === "guide"
     ? "위 배정 가이드의 탐구 주제와 방향을 참고하여 세특 방향을 설계하세요. 가이드가 배정된 영역은 해당 가이드의 주제를 반영하고, 미배정 영역은 독립적으로 방향을 제안하세요."
-    : "위 배정 가이드 목록을 참고하여 학생의 탐구 활동 맥락을 파악하세요. 가이드 주제가 활동 요약에 자연스럽게 녹아들도록 하세요.";
+    : context === "summary"
+      ? "위 배정 가이드 목록을 참고하여 학생의 탐구 활동 맥락을 파악하세요. 가이드 주제가 활동 요약에 자연스럽게 녹아들도록 하세요."
+      : "위 배정 가이드의 탐구 방향과 키워드를 파악하고, 이와 정합하는 보완전략을 제안하세요. 가이드의 탐구 주제와 충돌하는 전략은 제외하세요.";
 
   return `## 배정된 탐구 가이드\n\n${lines.join("\n")}\n\n${instruction}\n`;
 }

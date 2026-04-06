@@ -99,11 +99,17 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
 
   const currentSchoolYear = calculateSchoolYear();
 
-  // 1~3. 진단 + 역량 + 기존 전략 병렬 조회
-  const [diagnosis, aiScores, existingStrategies] = await Promise.all([
+  // 1~3. 진단 + 역량 + 기존 전략 + 가이드 컨텍스트 병렬 조회
+  const [diagnosis, aiScores, existingStrategies, guideContextSection] = await Promise.all([
     diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai"),
     competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai"),
     diagnosisRepo.findStrategies(studentId, currentSchoolYear, tenantId),
+    import("../../guide-context").then(({ buildGuideContextSection: build }) =>
+      build(studentId, "strategy"),
+    ).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "pipeline.guideContext" }, err, { pipelineId });
+      return "";
+    }),
   ]);
   const weaknesses = (diagnosis?.weaknesses as string[]) ?? [];
 
@@ -189,6 +195,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     existingStrategies: existingContents,
     universityMatchContext,
+    guideContextSection: guideContextSection || undefined,
   });
   if (!result.success) throw new Error(result.error);
 

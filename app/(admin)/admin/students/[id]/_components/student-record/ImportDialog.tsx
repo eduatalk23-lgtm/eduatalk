@@ -34,6 +34,8 @@ type ImportDialogProps = {
   studentId: string;
   tenantId: string;
   subjects: { id: string; name: string }[];
+  /** 임포트 완료 후 호출 — 세특/창체/행특 레코드가 1건 이상 저장된 경우만 */
+  onImportComplete?: () => void;
 };
 
 // ============================================
@@ -46,6 +48,7 @@ export function ImportDialog({
   studentId,
   tenantId,
   subjects,
+  onImportComplete,
 }: ImportDialogProps) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -240,12 +243,14 @@ export function ImportDialog({
 
       setTimeout(() => {
         handleClose();
+        // 세특/창체/행특이 포함된 임포트면 진단 탭으로 이동 유도
+        if (hasRecords && onImportComplete) onImportComplete();
       }, 1500);
     } catch (err) {
       setPhase("error");
       setError(err instanceof Error ? err.message : "저장 중 오류가 발생했습니다.");
     }
-  }, [preview, studentId, overwrite, manualMappings, showToast, queryClient, handleClose]);
+  }, [preview, studentId, overwrite, manualMappings, showToast, queryClient, handleClose, onImportComplete]);
 
   // ============================================
   // 수동 매핑 핸들러

@@ -1772,6 +1772,7 @@ export function StudentRecordClient({
         studentId={studentId}
         tenantId={tenantId}
         subjects={subjects}
+        onImportComplete={() => scrollToSection("sec-diagnosis-analysis")}
       />
     </RecordLayoutShell>
     <ContextGridBottomSheet

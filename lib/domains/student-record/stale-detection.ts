@@ -176,6 +176,39 @@ export async function autoMatchRoadmapOnConfirm(
 }
 
 /**
+ * 수강계획 변경 시 prospective 가이드를 stale로 마킹 (fire-and-forget safe)
+ * retrospective 가이드는 NEIS 기반이므로 수강계획과 무관 — 대상에서 제외.
+ * 기존 edge stale 패턴(markAllStudentEdgesStale)과 동일 구조.
+ */
+export async function markRelatedGuidesStale(
+  studentId: string,
+  reason: string,
+): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const tables = [
+      "student_record_setek_guides",
+      "student_record_changche_guides",
+      "student_record_haengteuk_guides",
+    ] as const;
+    await Promise.allSettled(
+      tables.map((table) =>
+        supabase
+          .from(table)
+          .update({ is_stale: true, stale_reason: reason, updated_at: new Date().toISOString() })
+          .eq("student_id", studentId)
+          .eq("guide_mode", "prospective")
+          .eq("is_stale", false),
+      ),
+    );
+  } catch (err) {
+    logActionWarn(LOG_CTX, "markRelatedGuidesStale failed (fire-and-forget)", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
  * 학년 승급 시 모든 분석 결과를 stale 처리
  *
  * 배치 스크립트(semester-transition.ts)에서 호출.
@@ -208,7 +241,12 @@ export async function onGradeAdvanced(
     logActionWarn(LOG_CTX, "엣지 stale 마킹 실패", { error: err instanceof Error ? err.message : String(err) }),
   );
 
-  // 3. 파이프라인 content_hash → null (다음 실행 시 무조건 재분석)
+  // 3. prospective 가이드 stale 마킹 (새 학년 재평가 필요)
+  await markRelatedGuidesStale(studentId, "grade_advanced").catch((err: unknown) =>
+    logActionWarn(LOG_CTX, "가이드 stale 마킹 실패", { error: err instanceof Error ? err.message : String(err) }),
+  );
+
+  // 4. 파이프라인 content_hash → null (다음 실행 시 무조건 재분석)
   await supabase
     .from("student_record_analysis_pipelines")
     .update({ content_hash: null })

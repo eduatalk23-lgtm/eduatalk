@@ -41,6 +41,8 @@ export async function generateRecommendationsAction(
     const data = await service.generateAndSaveRecommendations(studentId, tenantId);
     // 파이프라인 상태 동기화 (fire-and-forget)
     syncPipelineTaskStatus(studentId, "course_recommendation").catch((err) => logActionWarn(LOG_CTX, `syncPipelineTaskStatus failed: ${err instanceof Error ? err.message : String(err)}`));
+    // 수강계획 변경 → prospective 가이드 stale 마킹 (fire-and-forget)
+    import("../stale-detection").then(({ markRelatedGuidesStale }) => markRelatedGuidesStale(studentId, "course_plan_changed")).catch((err) => logActionWarn(LOG_CTX, `markRelatedGuidesStale: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse(data);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "generateRecommendationsAction" }, error);
@@ -70,6 +72,8 @@ export async function saveCoursePlanAction(input: {
       source: "consultant",
       notes: input.notes,
     }]);
+    // 수강계획 변경 → prospective 가이드 stale (fire-and-forget)
+    import("../stale-detection").then(({ markRelatedGuidesStale }) => markRelatedGuidesStale(input.studentId, "course_plan_changed")).catch((err) => logActionWarn(LOG_CTX, `markRelatedGuidesStale: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse({ id: result.id });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveCoursePlanAction" }, error);
@@ -85,6 +89,11 @@ export async function updateCoursePlanStatusAction(
   try {
     await requireAdminOrConsultant();
     await repo.updateStatus(id, status);
+
+    // 수강계획 상태 변경 → prospective 가이드 stale (fire-and-forget)
+    repo.findById(id).then((plan) => {
+      if (plan) return import("../stale-detection").then(({ markRelatedGuidesStale }) => markRelatedGuidesStale(plan.student_id, "course_plan_status_changed"));
+    }).catch((err) => logActionWarn(LOG_CTX, `markRelatedGuidesStale: ${err instanceof Error ? err.message : String(err)}`));
 
     // confirmed 전환 시 빈 세특 자동 생성
     if (status === "confirmed") {
@@ -131,7 +140,11 @@ export async function removeCoursePlanAction(
 ): Promise<ActionResponse> {
   try {
     await requireAdminOrConsultant();
+    // 삭제 전 student_id 확보 (stale 마킹용)
+    const plan = await repo.findById(id);
     await repo.remove(id);
+    // 수강계획 삭제 → prospective 가이드 stale (fire-and-forget)
+    if (plan) import("../stale-detection").then(({ markRelatedGuidesStale }) => markRelatedGuidesStale(plan.student_id, "course_plan_removed")).catch((err) => logActionWarn(LOG_CTX, `markRelatedGuidesStale: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse();
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "removeCoursePlanAction" }, error);
@@ -148,6 +161,8 @@ export async function bulkConfirmAction(
   try {
     await requireAdminOrConsultant();
     const count = await repo.bulkConfirm(studentId, grade, semester);
+    // 수강계획 일괄 확정 → prospective 가이드 stale (fire-and-forget)
+    import("../stale-detection").then(({ markRelatedGuidesStale }) => markRelatedGuidesStale(studentId, "course_plan_bulk_confirmed")).catch((err) => logActionWarn(LOG_CTX, `markRelatedGuidesStale: ${err instanceof Error ? err.message : String(err)}`));
 
     // 빈 세특 자동 생성 (실패해도 confirm은 유지)
     try {
@@ -196,6 +211,10 @@ export async function swapCoursePlanPriorityAction(
       repo.updatePriority(planIdA, priorityB),
       repo.updatePriority(planIdB, priorityA),
     ]);
+    // 우선순위 변경 → prospective 가이드 stale (fire-and-forget)
+    repo.findById(planIdA).then((plan) => {
+      if (plan) return import("../stale-detection").then(({ markRelatedGuidesStale }) => markRelatedGuidesStale(plan.student_id, "course_plan_priority_changed"));
+    }).catch((err) => logActionWarn(LOG_CTX, `markRelatedGuidesStale: ${err instanceof Error ? err.message : String(err)}`));
     return createSuccessResponse(undefined);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "swapCoursePlanPriority" }, error);

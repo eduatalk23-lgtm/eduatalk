@@ -409,7 +409,7 @@ describe("runTaskWithState()", () => {
     ctx.tasks["edge_computation"] = "pending";
 
     await runTaskWithState(ctx, "edge_computation", async () => {
-      throw "문자열 에러"; // eslint-disable-line @typescript-eslint/only-throw-error
+      throw "문자열 에러";  
     });
 
     expect(ctx.errors["edge_computation"]).toBe("문자열 에러");

@@ -21,6 +21,7 @@ function makeSetek(
     id: overrides.id ?? `setek-${overrides.grade}-1`,
     content: overrides.content ?? "",
     imported_content: overrides.imported_content ?? null,
+    confirmed_content: overrides.confirmed_content ?? null,
     grade: overrides.grade,
     subject: overrides.subject ?? null,
   };
@@ -33,6 +34,7 @@ function makeChangche(
     id: overrides.id ?? `changche-${overrides.grade}-1`,
     content: overrides.content ?? "",
     imported_content: overrides.imported_content ?? null,
+    confirmed_content: overrides.confirmed_content ?? null,
     grade: overrides.grade,
     activity_type: overrides.activity_type ?? null,
   };
@@ -45,6 +47,7 @@ function makeHaengteuk(
     id: overrides.id ?? `haengteuk-${overrides.grade}-1`,
     content: overrides.content ?? "",
     imported_content: overrides.imported_content ?? null,
+    confirmed_content: overrides.confirmed_content ?? null,
     grade: overrides.grade,
   };
 }
@@ -434,6 +437,40 @@ describe("resolveRecordData — 경계 케이스", () => {
     const setek = makeSetek({ grade: 1, imported_content: padded });
     const result = resolveRecordData([setek], [], []);
     expect(result[1].seteks[0].hasNeis).toBe(false);
+  });
+
+  // ── confirmed_content 4-layer 해소 ──
+
+  it("confirmed_content가 있고 imported_content가 없으면 confirmed_content 사용", () => {
+    const setek = makeSetek({ grade: 1, content: "가안 v1", confirmed_content: "확정본 v2" });
+    const result = resolveRecordData([setek], [], []);
+    expect(result[1].seteks[0].effectiveContent).toBe("확정본 v2");
+    expect(result[1].seteks[0].hasNeis).toBe(false);
+  });
+
+  it("imported_content와 confirmed_content 모두 있으면 imported_content 우선", () => {
+    const setek = makeSetek({ grade: 1, imported_content: NEIS_CONTENT, confirmed_content: "확정본" });
+    const result = resolveRecordData([setek], [], []);
+    expect(result[1].seteks[0].effectiveContent).toBe(NEIS_CONTENT);
+    expect(result[1].seteks[0].hasNeis).toBe(true);
+  });
+
+  it("confirmed_content와 content 모두 있으면 confirmed_content 우선", () => {
+    const changche = makeChangche({ grade: 2, content: "가안", confirmed_content: "확정" });
+    const result = resolveRecordData([], [changche], []);
+    expect(result[2].changche[0].effectiveContent).toBe("확정");
+  });
+
+  it("confirmed_content가 빈 문자열이면 content로 폴백", () => {
+    const haengteuk = makeHaengteuk({ grade: 1, content: "가안 내용", confirmed_content: "" });
+    const result = resolveRecordData([], [], [haengteuk]);
+    expect(result[1].haengteuk!.effectiveContent).toBe("가안 내용");
+  });
+
+  it("confirmed_content가 공백만이면 content로 폴백", () => {
+    const setek = makeSetek({ grade: 1, content: "가안 내용", confirmed_content: "   " });
+    const result = resolveRecordData([setek], [], []);
+    expect(result[1].seteks[0].effectiveContent).toBe("가안 내용");
   });
 
   it("세특/창체/행특이 서로 다른 학년일 때 각 학년 객체가 독립적으로 초기화된다", () => {

@@ -100,16 +100,14 @@ export async function acceptAiDraftAction(
       return { success: false, error: "CONFLICT" };
     }
 
-    // B6: 수용 후 side effects (fire-and-forget)
-    Promise.resolve().then(async () => {
-      try {
-        const { markRelatedEdgesStale, markRelatedAssignmentsStale } = await import("../stale-detection");
-        await markRelatedEdgesStale(recordId).catch((err) => logActionWarn(LOG_CTX, `acceptAiDraft.markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
-        await markRelatedAssignmentsStale(recordId).catch((err) => logActionWarn(LOG_CTX, `acceptAiDraft.markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
-      } catch {
-        // fire-and-forget
-      }
-    });
+    // B6: 수용 후 side effects (개별 실패 무시, 주요 흐름 차단 없음)
+    try {
+      const { markRelatedEdgesStale, markRelatedAssignmentsStale } = await import("../stale-detection");
+      await markRelatedEdgesStale(recordId).catch((err) => logActionWarn(LOG_CTX, `acceptAiDraft.markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+      await markRelatedAssignmentsStale(recordId).catch((err) => logActionWarn(LOG_CTX, `acceptAiDraft.markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
+    } catch (sideEffectErr) {
+      logActionWarn(LOG_CTX, `acceptAiDraft side effects failed: ${sideEffectErr instanceof Error ? sideEffectErr.message : String(sideEffectErr)}`);
+    }
 
     return createSuccessResponse();
   } catch (error) {
@@ -152,24 +150,22 @@ export async function confirmDraftAction(
       .eq("id", recordId);
     if (error) throw error;
 
-    // B6: 확정 후 side effects (fire-and-forget)
-    Promise.resolve().then(async () => {
-      try {
-        const {
-          markRelatedEdgesStale,
-          markRelatedAssignmentsStale,
-          autoMatchRoadmapOnConfirm,
-        } = await import("../stale-detection");
-        await markRelatedEdgesStale(recordId).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
-        await markRelatedAssignmentsStale(recordId).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
+    // B6: 확정 후 side effects (개별 실패 무시, 주요 흐름 차단 없음)
+    try {
+      const {
+        markRelatedEdgesStale,
+        markRelatedAssignmentsStale,
+        autoMatchRoadmapOnConfirm,
+      } = await import("../stale-detection");
+      await markRelatedEdgesStale(recordId).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.markRelatedEdgesStale failed: ${err instanceof Error ? err.message : String(err)}`));
+      await markRelatedAssignmentsStale(recordId).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.markRelatedAssignmentsStale failed: ${err instanceof Error ? err.message : String(err)}`));
 
-        if (recordType === "setek" && data.student_id && data.subject_id && typeof data.grade === "number") {
-          await autoMatchRoadmapOnConfirm(data.student_id, data.subject_id, data.grade).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.autoMatchRoadmapOnConfirm failed: ${err instanceof Error ? err.message : String(err)}`));
-        }
-      } catch {
-        // fire-and-forget: 실패해도 주요 흐름에 영향 없음
+      if (recordType === "setek" && data.student_id && data.subject_id && typeof data.grade === "number") {
+        await autoMatchRoadmapOnConfirm(data.student_id, data.subject_id, data.grade).catch((err) => logActionWarn(LOG_CTX, `confirmDraft.autoMatchRoadmapOnConfirm failed: ${err instanceof Error ? err.message : String(err)}`));
       }
-    });
+    } catch (sideEffectErr) {
+      logActionWarn(LOG_CTX, `confirmDraft side effects failed: ${sideEffectErr instanceof Error ? sideEffectErr.message : String(sideEffectErr)}`);
+    }
 
     return createSuccessResponse();
   } catch (error) {

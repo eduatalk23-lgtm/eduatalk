@@ -45,7 +45,7 @@ vi.mock("../course-plan/service", () => ({
 vi.mock("../course-plan/repository", () => ({
   bulkUpsert: vi.fn(),
   updateStatus: vi.fn(),
-  findById: vi.fn(),
+  findById: vi.fn().mockResolvedValue(null),
   remove: vi.fn(),
   bulkConfirm: vi.fn(),
   updatePriority: vi.fn(),
@@ -66,6 +66,13 @@ vi.mock("@/lib/utils/schoolYear", () => ({
 // guide/repository — dynamic import("@/lib/domains/guide/repository") mock
 vi.mock("@/lib/domains/guide/repository", () => ({
   linkAssignmentsToSeteks: vi.fn().mockResolvedValue(undefined),
+}));
+
+// stale-detection — dynamic import("../stale-detection") mock
+vi.mock("../stale-detection", () => ({
+  markRelatedGuidesStale: vi.fn().mockResolvedValue(undefined),
+  markRelatedEdgesStale: vi.fn().mockResolvedValue(undefined),
+  markRelatedAssignmentsStale: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ── Supabase client factory mock ─────────────────────────────────────────────

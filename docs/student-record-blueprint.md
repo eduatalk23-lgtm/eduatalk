@@ -109,6 +109,19 @@ flowchart TB
 
 ---
 
+## 1-1. 콘텐츠 해소 우선순위 (4-layer)
+
+파이프라인 전역에서 동일한 우선순위로 레코드 콘텐츠를 해소한다:
+
+```
+imported_content(NEIS 최종) > confirmed_content(확정본) > content(가안) > ai_draft_content(AI 초안)
+```
+
+적용 위치: `pipeline-data-resolver.ts`, `pipeline-unified-input.ts`, `phase-s6-interview.ts`
+`grade-stage.ts`의 stage 판정과 일치: final > confirmed > consultant > ai_draft > prospective
+
+---
+
 ## 2. Phase 간 데이터 전달 상세
 
 ```mermaid

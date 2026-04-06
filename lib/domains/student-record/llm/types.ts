@@ -225,6 +225,8 @@ export interface SuggestStrategiesInput {
    * 전략 생성 시 학생의 희망 진로 적합도를 보완전략에 반영.
    */
   universityMatchContext?: string;
+  /** 배정 가이드 컨텍스트 (P4-P6 탐구 방향/키워드). 없으면 프롬프트에서 생략. */
+  guideContextSection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */

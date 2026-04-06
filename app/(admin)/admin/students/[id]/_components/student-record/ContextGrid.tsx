@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { cn } from "@/lib/cn";
-import { BookOpen, Compass } from "lucide-react";
+import { BookOpen, Bot, Compass } from "lucide-react";
 
 const InlineTopicChat = dynamic(
   () =>

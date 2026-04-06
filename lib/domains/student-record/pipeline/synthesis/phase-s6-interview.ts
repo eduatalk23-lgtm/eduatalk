@@ -28,7 +28,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedSeteks) {
     const { data } = await supabase
       .from("student_record_seteks")
-      .select("id, content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
+      .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
@@ -38,7 +38,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   if (!ctx.cachedChangche) {
     const { data } = await supabase
       .from("student_record_changche")
-      .select("id, content, imported_content, ai_draft_content, grade, activity_type")
+      .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, activity_type")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
     ctx.cachedChangche = (data ?? []) as CachedChangche[];
@@ -55,10 +55,12 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   function getRecordType(r: CachedRecord): "setek" | "changche" {
     return isCachedSetek(r) ? "setek" : "changche";
   }
-  /** NEIS(imported_content) 우선, 없으면 content, 없으면 ai_draft_content 사용 */
+  /** 콘텐츠 해소 우선순위: imported > confirmed > content > ai_draft */
   function getEffectiveContent(r: CachedRecord): string {
     const imported = r.imported_content?.trim();
     if (imported && imported.length > 0) return imported;
+    const confirmed = r.confirmed_content?.trim();
+    if (confirmed && confirmed.length > 0) return confirmed;
     const content = r.content?.trim();
     if (content && content.length > 0) return content;
     return r.ai_draft_content?.trim() ?? "";

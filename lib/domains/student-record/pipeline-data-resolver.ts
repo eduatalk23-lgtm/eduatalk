@@ -6,9 +6,9 @@
 // 각 레코드의 imported_content(NEIS) 유무를 판정하고,
 // 유효 콘텐츠(effectiveContent)를 결정한다.
 //
-// 핵심 원칙:
-//   - NEIS(imported_content) 있음 → 실 생기부 → imported_content 사용 (content 무시)
-//   - NEIS 없음 → 컨설팅 대상 → content(가안) 사용
+// 콘텐츠 해소 우선순위 (4-layer):
+//   imported_content(NEIS) > confirmed_content(확정본) > content(가안) > ""
+//   grade-stage.ts의 4-stage 우선순위와 일치
 // ============================================
 
 import type {
@@ -27,7 +27,7 @@ import type {
  * 세특/창체/행특 캐시 목록을 받아 학년별 해소 결과를 반환한다.
  *
  * - hasNeis = !!imported_content?.trim()
- * - effectiveContent = NEIS 있으면 imported_content, 없으면 content(가안 또는 "")
+ * - effectiveContent = NEIS 있으면 imported_content, 없으면 confirmed_content → content(가안 또는 "")
  * - hasAnyNeis = 해당 학년의 세특/창체/행특 중 하나라도 NEIS가 있는지
  */
 export function resolveRecordData(
@@ -45,7 +45,7 @@ export function resolveRecordData(
     const hasNeis = (s.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (s.imported_content ?? "")
-      : (s.content ?? "");
+      : (s.confirmed_content?.trim() || (s.content ?? ""));
 
     const record: ResolvedRecord = {
       id: s.id,
@@ -67,7 +67,7 @@ export function resolveRecordData(
     const hasNeis = (c.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (c.imported_content ?? "")
-      : (c.content ?? "");
+      : (c.confirmed_content?.trim() || (c.content ?? ""));
 
     const record: ResolvedRecord = {
       id: c.id,
@@ -89,7 +89,7 @@ export function resolveRecordData(
     const hasNeis = (h.imported_content?.trim()?.length ?? 0) > 20;
     const effectiveContent = hasNeis
       ? (h.imported_content ?? "")
-      : (h.content ?? "");
+      : (h.confirmed_content?.trim() || (h.content ?? ""));
 
     const record: ResolvedRecord = {
       id: h.id,

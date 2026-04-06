@@ -74,6 +74,13 @@ specificity(25) + coherence(15) + depth(25) + grammar(10) + scientificValidity/�
 
 ## Pipeline Architecture (청사진)
 
+### 콘텐츠 해소 우선순위 (4-layer)
+```
+imported_content(NEIS 최종) > confirmed_content(확정본) > content(가안) > ai_draft_content(AI 초안)
+```
+pipeline-data-resolver.ts, pipeline-unified-input.ts, phase-s6-interview.ts 모두 동일 우선순위 적용.
+grade-stage.ts의 stage 판정 로직과 일치: final > confirmed > consultant > ai_draft > prospective.
+
 ### 3-Tier 파이프라인 구조
 
 ```
