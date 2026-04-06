@@ -78,7 +78,7 @@ export function WeeklySummary({ plans, currentDate, className }: WeeklySummaryPr
   // 통계 계산
   const stats = useMemo(() => {
     const total = weekPlans.length;
-    const completed = weekPlans.filter((p) => p.status === "completed").length;
+    const completed = weekPlans.filter((p) => p.status === "completed" || p.actual_end_time != null).length;
     const inProgress = weekPlans.filter((p) => p.status === "in_progress").length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -170,7 +170,7 @@ export function WeeklySummary({ plans, currentDate, className }: WeeklySummaryPr
           {weekDates.map((date, index) => {
             const dateStr = formatDateString(date);
             const dayPlans = plansByDate.get(dateStr) || [];
-            const completed = dayPlans.filter((p) => p.status === "completed").length;
+            const completed = dayPlans.filter((p) => p.status === "completed" || p.actual_end_time != null).length;
             const total = dayPlans.length;
             const isToday = dateStr === todayStr;
             const isPast = dateStr < todayStr;
