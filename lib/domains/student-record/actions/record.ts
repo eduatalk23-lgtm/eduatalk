@@ -47,7 +47,7 @@ export async function fetchRecordTabData(
 
 export async function saveSetekAction(
   input: RecordSetekInsert,
-  options?: { curriculumRevisionId?: string },
+  options?: { curriculumRevisionId?: string; expectedUpdatedAt?: string },
 ): Promise<ActionResponse<{ id: string }>> {
   try {
     await requireAdminOrConsultant();
@@ -104,6 +104,9 @@ export async function removeSetekAction(
     if (!result.success) {
       return createErrorResponse(result.error ?? "세특 삭제 실패");
     }
+    // 삭제 후 관련 엣지 stale 마킹
+    const { markRelatedEdgesStale } = await import("../stale-detection");
+    markRelatedEdgesStale(id).catch(() => {});
     return createSuccessResponse();
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "removeSetekAction" }, error);
@@ -124,6 +127,9 @@ export async function removePersonalSetekAction(
     if (!result.success) {
       return createErrorResponse(result.error ?? "개인 세특 삭제 실패");
     }
+    // 삭제 후 관련 엣지 stale 마킹
+    const { markRelatedEdgesStale } = await import("../stale-detection");
+    markRelatedEdgesStale(id).catch(() => {});
     return createSuccessResponse();
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "removePersonalSetekAction" }, error);
@@ -138,10 +144,11 @@ export async function removePersonalSetekAction(
 export async function saveChangcheAction(
   input: RecordChangcheInsert,
   schoolYear: number,
+  options?: { expectedUpdatedAt?: string },
 ): Promise<ActionResponse<{ id: string }>> {
   try {
     await requireAdminOrConsultant();
-    const result = await service.saveChangche(input, schoolYear);
+    const result = await service.saveChangche(input, schoolYear, options);
     if (!result.success) {
       return createErrorResponse(result.error ?? "창체 저장 실패");
     }
@@ -161,10 +168,11 @@ export async function saveChangcheAction(
 export async function saveHaengteukAction(
   input: RecordHaengteukInsert,
   schoolYear: number,
+  options?: { expectedUpdatedAt?: string },
 ): Promise<ActionResponse<{ id: string }>> {
   try {
     await requireAdminOrConsultant();
-    const result = await service.saveHaengteuk(input, schoolYear);
+    const result = await service.saveHaengteuk(input, schoolYear, options);
     if (!result.success) {
       return createErrorResponse(result.error ?? "행특 저장 실패");
     }

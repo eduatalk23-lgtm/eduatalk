@@ -280,10 +280,16 @@ export async function checkPipelineStaleness(
 
   const savedHash = pipeline?.content_hash ?? null;
 
-  // 2. 현재 레코드 해시 계산
-  const [seteks, changche, haengteuk] = await Promise.all([
+  // 2. 현재 레코드 해시 계산 (personal_seteks + 수강계획 포함)
+  const [seteks, personalSeteks, changche, haengteuk, coursePlans] = await Promise.all([
     supabase
       .from("student_record_seteks")
+      .select("id, updated_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+    supabase
+      .from("student_record_personal_seteks")
       .select("id, updated_at")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
@@ -298,15 +304,22 @@ export async function checkPipelineStaleness(
       .select("id, updated_at")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId),
+    supabase
+      .from("student_course_plans")
+      .select("id, updated_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId),
   ]);
 
   const allRecords = [
     ...(seteks.data ?? []),
+    ...(personalSeteks.data ?? []),
     ...(changche.data ?? []),
     ...(haengteuk.data ?? []),
   ].map((r) => ({ id: r.id, updated_at: r.updated_at }));
 
-  const currentHash = computeContentHash(allRecords);
+  const coursePlanRecords = (coursePlans.data ?? []).map((r) => ({ id: r.id, updated_at: r.updated_at }));
+  const currentHash = computeContentHash(allRecords, coursePlanRecords);
 
   return {
     isStale: savedHash !== null && savedHash !== currentHash,

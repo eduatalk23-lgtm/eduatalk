@@ -125,7 +125,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     if (allScores.length > 0) {
       const { COMPETENCY_ITEMS } = await import("../../constants");
       weakCompetencies = allScores
-        .filter((s) => s.grade_value === "B-" || s.grade_value === "C" || s.grade_value === "C+")
+        .filter((s) => s.grade_value === "B-" || s.grade_value === "C")
         .map((s) => {
           const item = COMPETENCY_ITEMS.find((c) => c.code === s.competency_item);
           return { item: s.competency_item, label: item?.label ?? s.competency_item, grade: s.grade_value };

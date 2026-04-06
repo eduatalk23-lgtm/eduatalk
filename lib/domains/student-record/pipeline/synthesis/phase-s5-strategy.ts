@@ -115,7 +115,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
 
   const { COMPETENCY_ITEMS: CI } = await import("../../constants");
   const weakCompetencies = aiScores
-    .filter((s) => ["B", "B-", "C"].includes(s.grade_value))
+    .filter((s) => s.grade_value === "B-" || s.grade_value === "C")
     .map((s) => ({
       item: s.competency_item as import("../../types").CompetencyItemCode,
       grade: s.grade_value as import("../../types").CompetencyGrade,

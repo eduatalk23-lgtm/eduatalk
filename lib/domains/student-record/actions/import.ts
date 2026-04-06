@@ -159,11 +159,12 @@ async function buildGradeMapperContext(
   // 기본 curriculum_revision_id (최신 개정 사용)
   const { data: revisions } = await supabase
     .from("curriculum_revisions")
-    .select("id")
+    .select("id, year")
     .order("year", { ascending: false })
     .limit(1);
 
   const curriculumRevisionId = revisions?.[0]?.id;
+  const curriculumYear = (revisions?.[0] as { year?: number } | undefined)?.year;
   if (!curriculumRevisionId) return undefined;
 
   // 기본 subject_type_id (첫 번째 타입)
@@ -180,5 +181,6 @@ async function buildGradeMapperContext(
     subjectDetailMap,
     curriculumRevisionId,
     defaultSubjectTypeId,
+    curriculumYear,
   };
 }

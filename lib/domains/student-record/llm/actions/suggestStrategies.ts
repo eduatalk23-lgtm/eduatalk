@@ -20,7 +20,7 @@ export async function suggestStrategies(
   try {
     await requireAdminOrConsultant();
 
-    if (input.weaknesses.length === 0 && input.weakCompetencies.length === 0) {
+    if (input.weaknesses.length === 0 && input.weakCompetencies.length === 0 && (!input.rubricWeaknesses || input.rubricWeaknesses.length === 0)) {
       return { success: false, error: "진단 약점이나 부족 역량 데이터가 없습니다. 먼저 종합 진단을 실행해주세요." };
     }
 

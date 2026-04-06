@@ -484,6 +484,10 @@ export function computeCourseAchievementGrades(
     rubricScores.push({ questionIndex: 1, grade: achievementGrade, reasoning: "일반/진로선택 성취 비교 (전체 평균 기준)" });
   }
 
+  // TODO: Q2 "전공 관련 과목 성적이 학기별로 향상/유지되고 있는가?" 미구현
+  // constants.ts COMPETENCY_RUBRIC_QUESTIONS.career_course_achievement에 Q2가 정의되어 있으나,
+  // 학기별 성적 추이 분석 로직이 필요하여 별도 구현 예정. 현재 Q0+Q1만으로 등급 산출.
+
   return {
     item: "career_course_achievement",
     grade: deriveItemGradeFromRubrics(rubricScores.map((r) => ({ grade: r.grade as CompetencyGrade }))) ?? "B",
