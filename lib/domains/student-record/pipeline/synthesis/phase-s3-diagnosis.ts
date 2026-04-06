@@ -117,8 +117,9 @@ export async function runAiDiagnosis(
   let diagQualityPatternSection: string | undefined;
   if (hasNeisData) {
     try {
-      const { qualityPatternSection } = await aggregateQualityPatterns(ctx);
+      const { qualityPatternSection, repeatingPatterns } = await aggregateQualityPatterns(ctx);
       if (qualityPatternSection) diagQualityPatternSection = qualityPatternSection;
+      if (repeatingPatterns.length > 0) ctx.qualityPatterns = repeatingPatterns;
     } catch (qpErr) {
       logActionError({ ...LOG_CTX, action: "pipeline.aggregateQualityPatterns" }, qpErr, { pipelineId });
     }

@@ -10,8 +10,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ExtractedContent, RecordImportData } from "./types";
 
-// 우선순위: 3.1-pro → 3.1-flash-lite (503/404 시 자동 fallback)
-const GEMINI_MODELS = ["gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"] as const;
+// 우선순위: 2.5-pro → 2.5-flash (503/404 시 자동 fallback) — GA 모델만 사용
+const GEMINI_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"] as const;
 
 // ============================================
 // Structured Output 스키마 (@google/genai Type 사용)

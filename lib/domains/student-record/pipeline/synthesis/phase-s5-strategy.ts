@@ -185,6 +185,15 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     logActionError({ ...LOG_CTX, action: "pipeline.universityMatch" }, umErr, { pipelineId });
   }
 
+  // Phase 재시작 시 ctx.qualityPatterns가 유실된 경우 DB에서 재집계
+  if (!ctx.qualityPatterns) {
+    try {
+      const { aggregateQualityPatterns } = await import("./helpers");
+      const { repeatingPatterns } = await aggregateQualityPatterns(ctx);
+      if (repeatingPatterns.length > 0) ctx.qualityPatterns = repeatingPatterns;
+    } catch { /* 재집계 실패해도 전략 생성은 계속 */ }
+  }
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -196,6 +205,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     existingStrategies: existingContents,
     universityMatchContext,
     guideContextSection: guideContextSection || undefined,
+    qualityPatterns: ctx.qualityPatterns,
   });
   if (!result.success) throw new Error(result.error);
 

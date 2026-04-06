@@ -36,6 +36,8 @@ export async function generateProspectiveChangcheGuide(
   setekGuideContext?: string,
   /** Phase V2: 3년 가상본 — 저장 대상 school_year 명시 (미지정 시 calculateSchoolYear() 사용) */
   targetSchoolYear?: number,
+  /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
+  pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 창체 방향 생성", { studentId });
@@ -192,6 +194,8 @@ export async function generateChangcheGuide(
   setekGuideContext?: string,
   /** Phase V2: 3년 가상본 — 저장 대상 school_year 명시 (미지정 시 calculateSchoolYear() 사용) */
   targetSchoolYear?: number,
+  /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
+  pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -272,8 +276,10 @@ export async function generateChangcheGuide(
     const weaknesses = diagnosis?.weaknesses as string[] | undefined;
 
     // D→B단계: fetchReportData 결과에서 역량 분석 맥락 구성
-    const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
-    const analysisContext = buildGuideAnalysisContextFromReport(report, undefined, "changche");
+    const analysisContext = pipelineAnalysisContext ?? await (async () => {
+      const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
+      return buildGuideAnalysisContextFromReport(report, undefined, "changche");
+    })();
 
     const input: ChangcheGuideInput = {
       studentName: report.student.name ?? "학생",

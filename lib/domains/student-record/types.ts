@@ -227,7 +227,7 @@ export interface MinScoreSimulationResult {
   isMet: boolean;
   actualGrades: Record<string, number>;
   gradeSum: number | null;
-  gap: number;
+  gap: number | null;
   bottleneckSubjects: string[];
   whatIf: Record<string, { isMet: boolean; newSum: number }>;
 }

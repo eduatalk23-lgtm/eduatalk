@@ -458,6 +458,8 @@ export interface PipelineContext {
   unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
   /** 레벨링 결과 캐시 (P7에서 1회 산출, P8/Synthesis에서 재사용) */
   leveling?: import("./leveling/types").LevelingResult;
+  /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
+  qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
 }
 
 // ============================================

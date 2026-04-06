@@ -20,6 +20,7 @@ import type { PersistedEdge } from "./edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
 import * as diagnosisRepo from "./diagnosis-repository";
 import { ACTIVITY_TYPE_LABELS } from "./constants";
+import { toGuideAnalysisContext, mergeGuideAnalysisContexts } from "./pipeline-task-runners-shared";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-guide" };
 
@@ -58,7 +59,10 @@ export async function runSetekGuide(
   // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
   if (hasNeisGrades) {
     const { analyzeSetekGuide } = await import("./llm/actions/guide-modules");
-    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections);
+    const mergedAnalysisCtx = mergeGuideAnalysisContexts(
+      ctx.neisGrades!.map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
+    );
+    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     if (guides) results.push(`NEIS ${guides.length}과목`);
@@ -118,9 +122,12 @@ export async function runChangcheGuide(
       );
       setekCtx = `## 세특 방향 요약\n${lines.join("\n")}`;
     }
+    const allGradesCtx = mergeGuideAnalysisContexts(
+      (ctx.consultingGrades ?? []).map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
+    );
     const result = await generateChangcheDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      reportResult.data, coursePlanData ?? null, undefined, setekCtx,
+      reportResult.data, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx,
     );
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
@@ -160,7 +167,10 @@ export async function runChangcheGuide(
     setekGuideContext = `## 세특 방향 요약\n${lines.join("\n")}`;
   }
 
-  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext);
+  const mergedCtxChangche = mergeGuideAnalysisContexts(
+    (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
+  );
+  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche);
   if (!result.success) throw new Error(result.error);
   const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
   return guides ? `${guides.length}개 활동유형 방향 생성` : "창체 방향 생성 완료";
@@ -202,9 +212,12 @@ export async function runHaengteukGuide(
       );
       changcheCtx = `## 창체 방향 요약\n${lines.join("\n")}`;
     }
+    const allGradesCtxH = mergeGuideAnalysisContexts(
+      (ctx.consultingGrades ?? []).map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
+    );
     const result = await generateHaengteukDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      reportResult.data, coursePlanData ?? null, undefined, changcheCtx,
+      reportResult.data, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH,
     );
     if (!result.success) throw new Error(result.error);
     return "행특 방향 생성 완료 (예비)";
@@ -237,7 +250,10 @@ export async function runHaengteukGuide(
     changcheGuideContext = `## 창체 방향 요약\n${lines.join("\n")}`;
   }
 
-  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext);
+  const mergedCtxHaengteuk = mergeGuideAnalysisContexts(
+    (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
+  );
+  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk);
   if (!result.success) throw new Error(result.error);
   return "행특 방향 생성 완료";
 }
@@ -321,7 +337,8 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 세특 가이드
     const { analyzeSetekGuide } = await import("./llm/actions/guide-modules");
-    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections);
+    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, undefined, gradeAnalysisCtx);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     return guides ? `${targetGrade}학년 NEIS 세특 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;
@@ -381,7 +398,8 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 창체 가이드
     const { analyzeChangcheGuide } = await import("./llm/actions/guide-modules");
-    const result = await analyzeChangcheGuide(studentId, [targetGrade]);
+    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const result = await analyzeChangcheGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtx);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
     return guides ? `${targetGrade}학년 창체 ${guides.length}개 활동유형 방향 생성` : `${targetGrade}학년 창체 방향 생성 완료`;
@@ -411,9 +429,10 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
     ? `## 세특 방향 요약\n${setekCtxRows.map((r) => `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
+  const gradeAnalysisCtxForChangche = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
   await generateChangcheDirection(
     studentId, tenantId, guideUserId,
-    reportResult.data, coursePlanData ?? null, undefined, setekCtx, targetSchoolYear,
+    reportResult.data, coursePlanData ?? null, undefined, setekCtx, targetSchoolYear, gradeAnalysisCtxForChangche,
   );
 
   return `${targetGrade}학년 창체 방향 생성 완료 (예비)`;
@@ -461,7 +480,8 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 행특 가이드
     const { analyzeHaengteukGuide } = await import("./llm/actions/guide-modules");
-    const result = await analyzeHaengteukGuide(studentId, [targetGrade]);
+    const gradeAnalysisCtxH = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const result = await analyzeHaengteukGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtxH);
     if (!result.success) throw new Error(result.error);
     return `${targetGrade}학년 행특 방향 생성 완료`;
   }
@@ -490,9 +510,10 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
     ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
+  const gradeAnalysisCtxForHaengteuk = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
   await generateHaengteukDirection(
     studentId, tenantId, guideUserId,
-    reportResult.data, coursePlanData ?? null, undefined, changcheCtx, targetSchoolYear,
+    reportResult.data, coursePlanData ?? null, undefined, changcheCtx, targetSchoolYear, gradeAnalysisCtxForHaengteuk,
   );
 
   return `${targetGrade}학년 행특 방향 생성 완료 (예비)`;

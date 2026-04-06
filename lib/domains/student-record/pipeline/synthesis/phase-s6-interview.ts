@@ -116,18 +116,24 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     targetSubClassification: (snapshot as Record<string, unknown>)?.target_sub_classification_name as string | undefined,
   } : undefined;
 
-  // 역량 약점 (B- 이하)
+  // 역량 약점 (B- 이하) — Grade Pipeline 결과를 DB에서 직접 조회
   let weakCompetencies: { item: string; label: string; grade: string }[] | undefined;
-  const diagScores = (results.competency_analysis as { competencyScores?: Array<{ competency_item: string; grade_value: string }> } | undefined)?.competencyScores;
-  if (diagScores) {
-    const { COMPETENCY_ITEMS } = await import("../../constants");
-    weakCompetencies = diagScores
-      .filter((s) => s.grade_value === "B-" || s.grade_value === "C" || s.grade_value === "C+")
-      .map((s) => {
-        const item = COMPETENCY_ITEMS.find((c) => c.code === s.competency_item);
-        return { item: s.competency_item, label: item?.label ?? s.competency_item, grade: s.grade_value };
-      });
-    if (weakCompetencies.length === 0) weakCompetencies = undefined;
+  try {
+    const { findCompetencyScores } = await import("../../competency-repository");
+    const currentYear = calculateSchoolYear();
+    const allScores = await findCompetencyScores(studentId, currentYear, tenantId, "ai");
+    if (allScores.length > 0) {
+      const { COMPETENCY_ITEMS } = await import("../../constants");
+      weakCompetencies = allScores
+        .filter((s) => s.grade_value === "B-" || s.grade_value === "C" || s.grade_value === "C+")
+        .map((s) => {
+          const item = COMPETENCY_ITEMS.find((c) => c.code === s.competency_item);
+          return { item: s.competency_item, label: item?.label ?? s.competency_item, grade: s.grade_value };
+        });
+      if (weakCompetencies.length === 0) weakCompetencies = undefined;
+    }
+  } catch (compErr) {
+    logActionDebug(LOG_CTX, `역량 점수 조회 실패 (면접 생성 계속): ${compErr}`);
   }
 
   // Q4: 기존 질문 조회 (중복 방지)

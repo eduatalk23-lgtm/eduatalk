@@ -389,6 +389,17 @@ export async function deleteAnalysisResultsByGrade(
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
+  // grade(1/2/3) → school_year(연도) 변환: 학생의 현재 학년 조회
+  const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+  const currentSchoolYear = calculateSchoolYear();
+  const { data: student } = await supabase
+    .from("students")
+    .select("grade")
+    .eq("id", studentId)
+    .single();
+  const studentGrade = (student?.grade as number) ?? 3;
+  const targetSchoolYear = currentSchoolYear - studentGrade + grade;
+
   // 해당 학년의 record ID 일괄 조회
   const [sRes, cRes, hRes] = await Promise.all([
     supabase.from("student_record_seteks")
@@ -405,13 +416,13 @@ export async function deleteAnalysisResultsByGrade(
     ...(hRes.data ?? []).map((r) => r.id as string),
   ];
 
-  // competency_scores: school_year 기반 직접 삭제 (ai + ai_projected)
+  // competency_scores: school_year(연도) 기반 직접 삭제 (ai + ai_projected)
   const scoreDeletePromise = supabase
     .from("student_record_competency_scores")
     .delete()
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
-    .eq("school_year", grade)
+    .eq("school_year", targetSchoolYear)
     .in("source", ["ai", "ai_projected"]);
 
   if (recordIds.length === 0) {

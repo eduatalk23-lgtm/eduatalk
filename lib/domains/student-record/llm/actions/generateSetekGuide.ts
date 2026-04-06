@@ -29,6 +29,8 @@ export async function generateSetekGuide(
   edgePromptSection?: string,
   /** Phase V2: 3년 가상본 — 저장 대상 school_year 명시 (미지정 시 calculateSchoolYear() 사용) */
   targetSchoolYear?: number,
+  /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
+  pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -115,9 +117,12 @@ export async function generateSetekGuide(
     const strengths = diagnosis?.strengths as string[] | undefined;
     const weaknesses = diagnosis?.weaknesses as string[] | undefined;
 
-    // D→B단계: fetchReportData 결과에서 역량 분석 맥락 구성
-    const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
-    const analysisContext = buildGuideAnalysisContextFromReport(report);
+    // D→B단계: 파이프라인 경로면 학년별 타겟팅된 맥락 사용, 아니면 report에서 구성
+    let analysisContext = pipelineAnalysisContext;
+    if (!analysisContext) {
+      const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
+      analysisContext = buildGuideAnalysisContextFromReport(report);
+    }
 
     const input: SetekGuideInput = {
       studentName: report.student.name ?? "학생",
@@ -258,6 +263,8 @@ export async function generateProspectiveSetekGuide(
   edgePromptSection?: string,
   /** Phase V2: 3년 가상본 — 저장 대상 school_year 명시 */
   targetSchoolYear?: number,
+  /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
+  pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
@@ -288,7 +295,7 @@ export async function generateProspectiveSetekGuide(
 
   // Impl-4: 이전 분석 학년의 역량/품질/보완방향 주입
   const { buildGuideAnalysisContextFromReport, buildCrossGradeDirections } = await import("../../pipeline-task-runners-shared");
-  const analysisContext = buildGuideAnalysisContextFromReport(report);
+  const analysisContext = pipelineAnalysisContext ?? buildGuideAnalysisContextFromReport(report);
   const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
 
   const input: SetekGuideInput = {

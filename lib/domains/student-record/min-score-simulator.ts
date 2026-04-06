@@ -58,6 +58,20 @@ export function simulateMinScore(
 
   // N개 선택 (최소 등급합 조합)
   const selected = availableGrades.slice(0, criteria.count);
+
+  // 선택 가능한 과목이 요구 수보다 부족하면 충족 불가
+  if (selected.length < criteria.count) {
+    const missing = criteria.subjects.filter(s => grades[s] === undefined);
+    return {
+      isMet: false,
+      actualGrades: grades,
+      gradeSum: selected.reduce((sum, sg) => sum + sg.grade, 0),
+      gap: null,
+      bottleneckSubjects: missing,
+      whatIf: {},
+    };
+  }
+
   const gradeSum = selected.reduce((sum, sg) => sum + sg.grade, 0);
   const gap = criteria.maxSum - gradeSum; // 양수=여유, 음수=미달
 

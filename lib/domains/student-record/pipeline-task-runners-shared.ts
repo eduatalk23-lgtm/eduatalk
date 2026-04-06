@@ -135,6 +135,34 @@ export function toGuideAnalysisContext(gradeCtx: GradeAnalysisContext | undefine
 }
 
 /**
+ * 여러 학년의 GuideAnalysisContext를 하나로 병합한다.
+ * NEIS 경로에서 복수 학년을 한 번에 가이드 생성할 때 사용.
+ */
+export function mergeGuideAnalysisContexts(
+  contexts: (GuideAnalysisContext | undefined)[],
+): GuideAnalysisContext | undefined {
+  const defined = contexts.filter((c): c is GuideAnalysisContext => c != null);
+  if (defined.length === 0) return undefined;
+
+  // weakCompetencies는 item 기준으로 중복 제거 (가장 낮은 등급 유지)
+  const GRADE_NUM: Record<string, number> = { "A+": 5, "A-": 4, "B+": 3, "B": 2, "B-": 1, "C": 0 };
+  const weakMap = new Map<string, CompetencyAnalysisContext>();
+  for (const ctx of defined) {
+    for (const wc of ctx.weakCompetencies) {
+      const existing = weakMap.get(wc.item);
+      if (!existing || (GRADE_NUM[wc.grade] ?? 2) < (GRADE_NUM[existing.grade] ?? 2)) {
+        weakMap.set(wc.item, wc);
+      }
+    }
+  }
+
+  return {
+    qualityIssues: defined.flatMap((c) => c.qualityIssues),
+    weakCompetencies: [...weakMap.values()],
+  };
+}
+
+/**
  * fetchReportData 결과에서 GuideAnalysisContext를 구성한다.
  * 파이프라인이 아닌 경로(컨설턴트 수동 재생성)에서 사용.
  * targetGrade/recordType을 지정하면 해당 범위로 필터링.

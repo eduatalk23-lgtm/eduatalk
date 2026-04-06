@@ -15,6 +15,7 @@ export {
   runWithConcurrency,
   collectAnalysisContext,
   toGuideAnalysisContext,
+  mergeGuideAnalysisContexts,
   buildGuideAnalysisContextFromReport,
 } from "./pipeline-task-runners-shared";
 
