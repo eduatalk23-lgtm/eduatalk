@@ -559,7 +559,7 @@ export function buildConnectionGraph(input: CrossRefGlobalInput): ConnectionGrap
       const gradeMatch = label.match(/^(\d)학년/);
       recordMeta.set(tag.record_id, {
         recordType: tag.record_type as RecordType,
-        grade: gradeMatch ? Number(gradeMatch[1]) : 0,
+        grade: gradeMatch ? Number(gradeMatch[1]) : 1, // 파싱 실패 시 1학년 기본값 (0은 TEMPORAL_GROWTH 오탐 유발)
       });
     }
   }

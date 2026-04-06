@@ -45,7 +45,7 @@ function djb2(input: string): string {
 
 /** 현재 분석에 사용되는 모델 버전 — 변경 시 캐시 자동 무효화 */
 /** 프롬프트 또는 모델 변경 시 버전 올리면 전체 캐시 자동 무효화 */
-export const ANALYSIS_MODEL_VERSION = "gemini-2.5-pro-v1";
+export const ANALYSIS_MODEL_VERSION = "gemini-2.5-pro-v2";
 
 /**
  * 개별 레코드 content + careerContext + 모델 버전 → DJB2 해시

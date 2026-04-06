@@ -51,6 +51,10 @@ export function simulateMinScore(
   }
 
   // 등급합 조건 (grade_sum) — 가장 일반적
+  if (criteria.count <= 0) {
+    return { isMet: false, actualGrades: grades, gradeSum: null, gap: null, bottleneckSubjects: [], whatIf: {} };
+  }
+
   const availableGrades = criteria.subjects
     .map(s => ({ subject: s, grade: grades[s] }))
     .filter(sg => sg.grade !== undefined)

@@ -367,12 +367,12 @@ export async function runDraftGenerationForGrade(
 // 2. content_quality (source='ai_projected')
 // 3. competency_scores (source='ai_projected')
 //
-// 콘텐츠 우선순위: confirmed_content > content > ai_draft_content
+// 콘텐츠 우선순위: imported > confirmed > content > ai_draft (4-layer 정책 준수)
 // ============================================
 
-/** 설계 모드 콘텐츠 우선순위: confirmed > content > ai_draft */
-function resolveContent(rec: { confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null }): string | null {
-  return rec.confirmed_content?.trim() || rec.content?.trim() || rec.ai_draft_content?.trim() || null;
+/** 콘텐츠 우선순위: imported > confirmed > content > ai_draft */
+function resolveContent(rec: { imported_content?: string | null; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null }): string | null {
+  return rec.imported_content?.trim() || rec.confirmed_content?.trim() || rec.content?.trim() || rec.ai_draft_content?.trim() || null;
 }
 
 /** P8 공통: 레코드 배열을 분석하여 태그/품질/역량등급 수집 */
