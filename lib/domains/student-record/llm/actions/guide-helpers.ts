@@ -5,6 +5,7 @@
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
+import { generateTextWithRateLimit } from "../ai-client";
 import { syncPipelineTaskStatus } from "../../actions/pipeline";
 import type { DiagnosisTabData } from "../../types";
 
@@ -88,6 +89,29 @@ export async function deleteExistingGuides(
     return { success: false, error: `기존 가이드 삭제 실패: ${error.message}` };
   }
   return null;
+}
+
+/**
+ * AI 가이드 생성 + 응답 파싱 공통 래퍼
+ * 빈 응답 시 null 반환 (호출부에서 에러 처리)
+ */
+export async function callGuideAI<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  parseResponse: (content: string) => T,
+  options?: { maxTokens?: number; temperature?: number },
+): Promise<T | null> {
+  const result = await generateTextWithRateLimit({
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    modelTier: "standard",
+    temperature: options?.temperature ?? 0.3,
+    maxTokens: options?.maxTokens ?? 16384,
+    responseFormat: "json",
+  });
+
+  if (!result.content) return null;
+  return parseResponse(result.content);
 }
 
 /**

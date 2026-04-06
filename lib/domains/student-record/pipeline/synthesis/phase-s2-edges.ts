@@ -10,9 +10,9 @@ import {
   type TaskRunnerOutput,
   type ScoreRowWithSubject,
 } from "../../pipeline-types";
-import type { PersistedEdge } from "../../edge-repository";
+import type { PersistedEdge } from "../../repository/edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
-import * as competencyRepo from "../../competency-repository";
+import * as competencyRepo from "../../repository/competency-repository";
 import type { CourseAdequacyResult } from "../../types";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
@@ -32,8 +32,8 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
     return "NEIS 기록 없음 — 기록 임포트 후 연결 분석 가능";
   }
   const { buildConnectionGraph } = await import("../../cross-reference");
-  const { fetchCrossRefData } = await import("../../actions/diagnosis");
-  const edgeRepo = await import("../../edge-repository");
+  const { fetchCrossRefData } = await import("../../actions/cross-ref-data-builder");
+  const edgeRepo = await import("../../repository/edge-repository");
   const { computeContentHash } = await import("../../content-hash");
 
   const { calculateCourseAdequacy } = await import("../../course-adequacy");

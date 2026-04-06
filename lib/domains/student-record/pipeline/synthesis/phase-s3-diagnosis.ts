@@ -10,10 +10,10 @@ import {
   type TaskRunnerOutput,
   type ScoreRowWithSubject,
 } from "../../pipeline-types";
-import type { PersistedEdge } from "../../edge-repository";
+import type { PersistedEdge } from "../../repository/edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
-import * as competencyRepo from "../../competency-repository";
-import * as diagnosisRepo from "../../diagnosis-repository";
+import * as competencyRepo from "../../repository/competency-repository";
+import * as diagnosisRepo from "../../repository/diagnosis-repository";
 import type { DiagnosisInsert } from "../../types";
 import {
   aggregateQualityPatterns,
@@ -157,7 +157,7 @@ export async function runAiDiagnosis(
   if (ctx.consultingGrades && ctx.consultingGrades.length > 0) {
     try {
       const projectedScores = await competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai_projected");
-      const edgeRepo = await import("../../edge-repository");
+      const edgeRepo = await import("../../repository/edge-repository");
       const projectedEdges = await edgeRepo.findEdges(studentId, tenantId, "projected");
 
       if (projectedScores.length > 0 || projectedEdges.length > 0) {

@@ -134,7 +134,7 @@ export async function generateAiRoadmap(
 
     // analysis 모드 전용 데이터
     if (mode === "analysis") {
-      const diagnosisRepo = await import("../../diagnosis-repository");
+      const diagnosisRepo = await import("../../repository/diagnosis-repository");
       const { fetchSetekGuides } = await import("../../actions/activitySummary");
 
       const [diagnosis, setekGuidesRes] = await Promise.all([

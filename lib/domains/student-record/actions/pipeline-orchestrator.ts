@@ -24,7 +24,7 @@ import {
   GRADE_TASK_DEPENDENTS,
 } from "../pipeline-types";
 import { resolveRecordData, deriveGradeCategories } from "../pipeline-data-resolver";
-import * as competencyRepo from "../competency-repository";
+import * as competencyRepo from "../repository/competency-repository";
 import { checkPipelineRateLimit } from "./pipeline";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };

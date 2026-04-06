@@ -11,3 +11,6 @@ export * from "./admission-repository";
 export * from "./activity-log-repository";
 export * from "./school-profile-repository";
 export * from "./score-query";
+export * from "./competency-repository";
+export * from "./diagnosis-repository";
+export * from "./edge-repository";

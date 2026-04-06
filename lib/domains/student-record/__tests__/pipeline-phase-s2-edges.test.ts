@@ -32,7 +32,7 @@ vi.mock("@/lib/utils/schoolYear", () => ({
 }));
 
 // competency-repository (findActivityTags) mock
-vi.mock("../competency-repository", () => ({
+vi.mock("../repository/competency-repository", () => ({
   findActivityTags: vi.fn().mockResolvedValue([]),
 }));
 
@@ -44,8 +44,8 @@ vi.mock("../cross-reference", () => ({
   }),
 }));
 
-// actions/diagnosis fetchCrossRefData mock
-vi.mock("../actions/diagnosis", () => ({
+// actions/cross-ref-data-builder fetchCrossRefData mock
+vi.mock("../actions/cross-ref-data-builder", () => ({
   fetchCrossRefData: vi.fn().mockResolvedValue({
     storylineLinks: [],
     readingLinks: [],
@@ -56,7 +56,7 @@ vi.mock("../actions/diagnosis", () => ({
 }));
 
 // edge-repository mock
-vi.mock("../edge-repository", () => ({
+vi.mock("../repository/edge-repository", () => ({
   replaceEdges: vi.fn().mockResolvedValue(1),
   saveSnapshot: vi.fn().mockResolvedValue(undefined),
   findEdges: vi.fn().mockResolvedValue([]),
@@ -100,7 +100,7 @@ vi.mock("@/lib/domains/guide/actions/area-resolver", () => ({
 // ─── import ──────────────────────────────────────────────────────────────
 
 import type { PipelineContext } from "../pipeline-types";
-import * as edgeRepo from "../edge-repository";
+import * as edgeRepo from "../repository/edge-repository";
 import * as courseAdequacyModule from "../course-adequacy";
 import * as crossRef from "../cross-reference";
 import { autoRecommendGuidesAction } from "@/lib/domains/guide/actions/auto-recommend";

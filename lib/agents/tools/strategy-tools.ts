@@ -14,8 +14,8 @@ import {
   parseResponse as parseStrategyResponse,
 } from "@/lib/domains/student-record/llm/prompts/strategyRecommend";
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
-import { findCompetencyScores } from "@/lib/domains/student-record/competency-repository";
-import { findDiagnosis } from "@/lib/domains/student-record/diagnosis-repository";
+import { findCompetencyScores } from "@/lib/domains/student-record/repository/competency-repository";
+import { findDiagnosis } from "@/lib/domains/student-record/repository/diagnosis-repository";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "agent", action: "strategy-tools" };

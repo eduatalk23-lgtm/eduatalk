@@ -4,7 +4,7 @@
 // ============================================
 
 import { EDGE_TYPE_META, type CrossRefEdgeType } from "./cross-reference";
-import type { PersistedEdge } from "./edge-repository";
+import type { PersistedEdge } from "./repository/edge-repository";
 
 /** AI 프롬프트에 삽입할 엣지 요약 텍스트 생성 */
 export function buildEdgeSummary(

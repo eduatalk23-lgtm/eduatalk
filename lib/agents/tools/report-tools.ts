@@ -11,8 +11,8 @@ import { generateActivitySummary } from "@/lib/domains/student-record/llm/action
 import { generateSetekGuide } from "@/lib/domains/student-record/llm/actions/generateSetekGuide";
 import { fetchActivitySummaries, fetchSetekGuides } from "@/lib/domains/student-record/actions/activitySummary";
 import { getRecordTabData, getStorylineTabData } from "@/lib/domains/student-record/service";
-import { findDiagnosisPair } from "@/lib/domains/student-record/diagnosis-repository";
-import { findCompetencyScores } from "@/lib/domains/student-record/competency-repository";
+import { findDiagnosisPair } from "@/lib/domains/student-record/repository/diagnosis-repository";
+import { findCompetencyScores } from "@/lib/domains/student-record/repository/competency-repository";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 

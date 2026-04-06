@@ -123,7 +123,7 @@ export interface DiagnosisTabData {
   fourAxisDiagnosis?: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null;
   projectedData?: {
     competencyScores: CompetencyScore[];
-    edges: import("../edge-repository").PersistedEdge[];
+    edges: import("../repository/edge-repository").PersistedEdge[];
     leveling: import("../leveling/types").LevelingResult | null;
     designGrades: number[];
     contentQuality: Array<{

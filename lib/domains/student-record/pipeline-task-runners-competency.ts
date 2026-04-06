@@ -14,7 +14,7 @@ import {
   type TaskRunnerOutput,
   type ScoreRowWithSubject,
 } from "./pipeline-types";
-import * as competencyRepo from "./competency-repository";
+import * as competencyRepo from "./repository/competency-repository";
 import { toDbJson, type CompetencyScoreInsert } from "./types";
 import type { HighlightAnalysisResult, HighlightAnalysisInput } from "./llm/types";
 import { runWithConcurrency, collectAnalysisContext } from "./pipeline-task-runners-shared";

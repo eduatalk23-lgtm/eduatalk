@@ -12,7 +12,7 @@ import {
   type CrossRefEdge,
   type CrossRefEdgeType,
 } from "@/lib/domains/student-record/cross-reference";
-import type { PersistedEdge } from "@/lib/domains/student-record/edge-repository";
+import type { PersistedEdge } from "@/lib/domains/student-record/repository/edge-repository";
 import { useStudentRecordContext } from "../StudentRecordContext";
 import { ConnectionNodeCard } from "./ConnectionNodeCard";
 import { ConnectionEmptyState } from "./ConnectionEmptyState";

@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RecordSummary } from "./llm/prompts/inquiryLinking";
 import { logActionDebug } from "@/lib/logging/actionLogger";
 import { PIPELINE_THRESHOLDS } from "./constants";
-import { findContentQualityByStudent } from "./competency-repository";
+import { findContentQualityByStudent } from "./repository/competency-repository";
 
 const LOG_CTX = { domain: "student-record", action: "unified-input" };
 

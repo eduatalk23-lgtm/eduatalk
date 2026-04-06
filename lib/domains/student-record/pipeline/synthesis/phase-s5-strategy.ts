@@ -9,10 +9,10 @@ import {
   type PipelineContext,
   type TaskRunnerOutput,
 } from "../../pipeline-types";
-import type { PersistedEdge } from "../../edge-repository";
+import type { PersistedEdge } from "../../repository/edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
-import * as competencyRepo from "../../competency-repository";
-import * as diagnosisRepo from "../../diagnosis-repository";
+import * as competencyRepo from "../../repository/competency-repository";
+import * as diagnosisRepo from "../../repository/diagnosis-repository";
 import {
   fetchAllYearCompetencyScores,
   buildUniversityMatchPromptSection,

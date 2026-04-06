@@ -567,7 +567,7 @@ export async function runDraftAnalysisForGrade(
   if (allCompetencyGrades.length > 0) {
     try {
       const { aggregateCompetencyGrades } = await import("./rubric-matcher");
-      const competencyRepo = await import("./competency-repository");
+      const competencyRepo = await import("./repository/competency-repository");
       const aggregated = aggregateCompetencyGrades(allCompetencyGrades);
 
       for (const ag of aggregated) {
@@ -624,11 +624,11 @@ export async function runDraftAnalysisForGrade(
   if (analyzed > 0) {
     try {
       const { buildConnectionGraph } = await import("./cross-reference");
-      const { fetchCrossRefData } = await import("./actions/diagnosis");
-      const edgeRepo = await import("./edge-repository");
+      const { fetchCrossRefData } = await import("./actions/cross-ref-data-builder");
+      const edgeRepo = await import("./repository/edge-repository");
 
       // draft_analysis 태그만 조회
-      const competencyRepo = await import("./competency-repository");
+      const competencyRepo = await import("./repository/competency-repository");
       const draftTags = await competencyRepo.findActivityTags(studentId, tenantId, { tagContext: "draft_analysis" });
 
       if (draftTags.length > 0) {

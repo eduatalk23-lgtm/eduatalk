@@ -99,7 +99,7 @@ export async function fetchCoursePlanData(
       finalPlans = await repo.findByStudent(studentId);
       // 성적 전환 발생 시 학생 전체 엣지 stale 마킹 (파이프라인 재분석 트리거)
       try {
-        const { markAllStudentEdgesStale } = await import("../edge-repository");
+        const { markAllStudentEdgesStale } = await import("../repository/edge-repository");
         await markAllStudentEdgesStale(studentId, "scores_synced");
       } catch { /* fire-and-forget */ }
     }

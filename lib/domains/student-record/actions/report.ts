@@ -18,7 +18,7 @@ import type { RecordTabData } from "../types";
 import type { InternalAnalysis } from "@/lib/scores/internalAnalysis";
 import type { InternalScoreWithRelations } from "@/lib/types/scoreAnalysis";
 import type { MockAnalysis } from "@/lib/scores/mockAnalysis";
-import type { PersistedEdge } from "../edge-repository";
+import type { PersistedEdge } from "../repository/edge-repository";
 import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { StudentPercentile } from "../cohort/percentile";
 import type { CohortBenchmark } from "../cohort/benchmark";
@@ -274,8 +274,8 @@ export async function fetchReportData(
         .map(([g]) => Number(g));
 
       if (consultingGrades.length > 0) {
-        const competencyRepo = await import("../competency-repository");
-        const edgeRepoMod = await import("../edge-repository");
+        const competencyRepo = await import("../repository/competency-repository");
+        const edgeRepoMod = await import("../repository/edge-repository");
         const { computeLevelingForStudent } = await import("../leveling");
         const { calculateSchoolYear: calcYear } = await import("@/lib/utils/schoolYear");
         const currentSchoolYear = calcYear();

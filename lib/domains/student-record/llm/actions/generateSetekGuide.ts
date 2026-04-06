@@ -13,7 +13,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
 import { resolveEffectiveContent } from "../../pipeline-data-resolver";
-import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus } from "./guide-helpers";
+import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
 import {
   SYSTEM_PROMPT,
   buildUserPrompt,
@@ -126,22 +126,10 @@ export async function generateSetekGuide(
     };
 
     // AI SDK 호출
-    const userPrompt = buildUserPrompt(input);
-
-    const result = await generateTextWithRateLimit({
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      modelTier: "standard",
-      temperature: 0.3,
-      maxTokens: 32768,
-      responseFormat: "json",
-    });
-
-    if (!result.content) {
+    const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768 });
+    if (!parsed) {
       return { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." };
     }
-
-    const parsed = parseResponse(result.content);
 
     if (parsed.guides.length === 0) {
       return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다. 다시 시도해주세요." };
@@ -287,22 +275,10 @@ export async function generateProspectiveSetekGuide(
     crossGradeDirections,
   };
 
-  const userPrompt = buildUserPrompt(input);
-
-  const result = await generateTextWithRateLimit({
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-    modelTier: "standard",
-    temperature: 0.3,
-    maxTokens: 32768,
-    responseFormat: "json",
-  });
-
-  if (!result.content) {
+  const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768 });
+  if (!parsed) {
     return { success: false, error: "AI 응답이 비어있습니다." };
   }
-
-  const parsed = parseResponse(result.content);
   if (parsed.guides.length === 0) {
     return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다." };
   }

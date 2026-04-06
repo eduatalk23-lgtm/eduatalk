@@ -8,8 +8,8 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import * as competencyRepo from "../competency-repository";
-import * as diagnosisRepo from "../diagnosis-repository";
+import * as competencyRepo from "../repository/competency-repository";
+import * as diagnosisRepo from "../repository/diagnosis-repository";
 import { calculateCourseAdequacy } from "../course-adequacy";
 import type {
   CompetencyScoreInsert,
@@ -80,7 +80,7 @@ async function assembleProjectedData(
   const projScores = await competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai_projected");
   if (projScores.length === 0) return undefined;
 
-  const edgeRepo = await import("../edge-repository");
+  const edgeRepo = await import("../repository/edge-repository");
   const { computeLevelingForStudent } = await import("../leveling");
 
   const [projEdges, projContentQuality] = await Promise.all([
@@ -574,156 +574,14 @@ export async function deleteStrategyAction(
 // storyline_links + reading_links + reading labels
 // ============================================
 
-export interface CrossRefSourceData {
-  storylineLinks: import("../types").StorylineLink[];
-  readingLinks: import("../types").ReadingLink[];
-  /** reading_id → book title */
-  readingLabelMap: Record<string, string>;
-  /** record_id → display label (세특/창체/행특/독서 등) */
-  recordLabelMap: Record<string, string>;
-  /** G3-5: record_id → content 텍스트 */
-  recordContentMap: Record<string, string>;
-}
-
-export async function fetchCrossRefData(
-  studentId: string,
-  tenantId: string,
-): Promise<CrossRefSourceData> {
-  try {
-    await requireAdminOrConsultant();
-    const supabase = await createSupabaseServerClient();
-
-    const [storylineLinksResult, readingLinksResult, readingsResult, seteksResult, changcheResult, haengteukResult] =
-      await Promise.all([
-        // storyline_links (through storylines)
-        (async () => {
-          const { data: storylines } = await supabase
-            .from("student_record_storylines")
-            .select("id")
-            .eq("student_id", studentId)
-            .eq("tenant_id", tenantId);
-          if (!storylines || storylines.length === 0) return [];
-          const { data } = await supabase
-            .from("student_record_storyline_links")
-            .select("*")
-            .in("storyline_id", storylines.map((s) => s.id))
-            .order("grade")
-            .order("sort_order");
-          return data ?? [];
-        })(),
-        // reading_links
-        (async () => {
-          const { data: readings } = await supabase
-            .from("student_record_reading")
-            .select("id")
-            .eq("student_id", studentId)
-            .eq("tenant_id", tenantId);
-          if (!readings || readings.length === 0) return [];
-          const { data } = await supabase
-            .from("student_record_reading_links")
-            .select("*")
-            .in("reading_id", readings.map((r) => r.id));
-          return data ?? [];
-        })(),
-        // reading labels
-        supabase
-          .from("student_record_reading")
-          .select("id, book_title")
-          .eq("student_id", studentId)
-          .eq("tenant_id", tenantId),
-        // setek labels + content (G3-5)
-        supabase
-          .from("student_record_seteks")
-          .select("id, grade, content, subject:subject_id(name)")
-          .eq("student_id", studentId)
-          .eq("tenant_id", tenantId)
-          .returns<Array<{ id: string; grade: number; content: string | null; subject: { name: string } | null }>>(),
-        // changche labels + content (G3-5)
-        supabase
-          .from("student_record_changche")
-          .select("id, grade, activity_type, content")
-          .eq("student_id", studentId)
-          .eq("tenant_id", tenantId),
-        // G3-5: haengteuk content
-        supabase
-          .from("student_record_haengteuk")
-          .select("id, grade, content")
-          .eq("student_id", studentId)
-          .eq("tenant_id", tenantId),
-      ]);
-
-    // Build reading label map
-    const readingLabelMap: Record<string, string> = {};
-    for (const r of readingsResult.data ?? []) {
-      readingLabelMap[r.id] = r.book_title ?? "독서";
-    }
-
-    // Build record label map
-    const changcheTypeLabels: Record<string, string> = {
-      autonomy: "자율활동", club: "동아리활동", career: "진로활동",
-    };
-    const recordLabelMap: Record<string, string> = {};
-    for (const s of seteksResult.data ?? []) {
-      recordLabelMap[s.id] = `${s.grade}학년 ${s.subject?.name ?? "과목"} 세특`;
-    }
-    for (const c of changcheResult.data ?? []) {
-      recordLabelMap[c.id] = `${c.grade}학년 ${changcheTypeLabels[c.activity_type] ?? c.activity_type}`;
-    }
-    for (const r of readingsResult.data ?? []) {
-      recordLabelMap[r.id] = r.book_title ?? "독서";
-    }
-    for (const h of haengteukResult.data ?? []) {
-      recordLabelMap[h.id] = `${h.grade}학년 행동특성`;
-    }
-
-    // G3-5: Build record content map
-    const recordContentMap: Record<string, string> = {};
-    for (const s of seteksResult.data ?? []) {
-      if (s.content) recordContentMap[s.id] = s.content as string;
-    }
-    for (const c of changcheResult.data ?? []) {
-      if (c.content) recordContentMap[c.id] = c.content as string;
-    }
-    for (const h of haengteukResult.data ?? []) {
-      if (h.content) recordContentMap[h.id] = h.content as string;
-    }
-
-    // S4: DB에서 직접 grade/recordType 맵 구성 (label regex 파싱 대체)
-    const recordGradeMap: Record<string, number> = {};
-    const recordTypeMap: Record<string, string> = {};
-    for (const s of seteksResult.data ?? []) {
-      recordGradeMap[s.id] = s.grade;
-      recordTypeMap[s.id] = "setek";
-    }
-    for (const c of changcheResult.data ?? []) {
-      recordGradeMap[c.id] = c.grade;
-      recordTypeMap[c.id] = "changche";
-    }
-    for (const h of haengteukResult.data ?? []) {
-      recordGradeMap[h.id] = h.grade;
-      recordTypeMap[h.id] = "haengteuk";
-    }
-
-    return {
-      storylineLinks: storylineLinksResult as import("../types").StorylineLink[],
-      readingLinks: readingLinksResult as import("../types").ReadingLink[],
-      readingLabelMap,
-      recordLabelMap,
-      recordContentMap,
-      recordGradeMap,
-      recordTypeMap,
-    };
-  } catch (error) {
-    logActionError({ ...LOG_CTX, action: "fetchCrossRefData" }, error, { studentId });
-    return { storylineLinks: [], readingLinks: [], readingLabelMap: {}, recordLabelMap: {}, recordContentMap: {}, recordGradeMap: {}, recordTypeMap: {} };
-  }
-}
+// fetchCrossRefData → cross-ref-data-builder.ts로 이동
+// "use server" 파일에서 re-export 불가 — 호출부에서 직접 import 필요
 
 // ============================================
 // Phase E4: 영속화된 엣지 조회
 // ============================================
 
-import type { PersistedEdge } from "../edge-repository";
+import type { PersistedEdge } from "../repository/edge-repository";
 
 /** 학생의 DB 영속화 엣지 목록 조회 */
 export async function fetchPersistedEdges(
@@ -732,7 +590,7 @@ export async function fetchPersistedEdges(
 ): Promise<PersistedEdge[]> {
   try {
     await requireAdminOrConsultant();
-    const { findEdges } = await import("../edge-repository");
+    const { findEdges } = await import("../repository/edge-repository");
     return await findEdges(studentId, tenantId);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchPersistedEdges" }, error, { studentId });

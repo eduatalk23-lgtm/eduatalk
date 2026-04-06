@@ -84,14 +84,14 @@ vi.mock("@/lib/domains/bypass-major/pipeline", () => ({
 vi.mock("@/lib/domains/student-record/llm/actions/generateSetekDraft", () => ({
   generateSetekDraftAction: vi.fn(),
 }));
-vi.mock("@/lib/domains/student-record/diagnosis-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/diagnosis-repository", () => ({
   findDiagnosisPair: vi.fn(),
   findDiagnosis: vi.fn(),
   findStrategies: vi.fn(),
   upsertDiagnosis: vi.fn(),
   insertStrategy: vi.fn(),
 }));
-vi.mock("@/lib/domains/student-record/competency-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/competency-repository", () => ({
   findCompetencyScores: vi.fn(),
   findActivityTags: vi.fn(),
   upsertCompetencyScore: vi.fn(),
@@ -107,7 +107,7 @@ vi.mock("@/lib/domains/student-record/course-adequacy", () => ({
 vi.mock("@/lib/domains/student-record/actions/coursePlan", () => ({
   generateRecommendationsAction: vi.fn(),
 }));
-vi.mock("@/lib/domains/student-record/edge-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/edge-repository", () => ({
   findEdges: vi.fn(),
 }));
 vi.mock("@/lib/domains/student-record/min-score-simulator", () => ({

@@ -12,7 +12,7 @@
 import type { PipelineContext } from "./pipeline-types";
 import { SYNTHESIS_PIPELINE_TASK_KEYS, getTaskResult, setTaskResult } from "./pipeline-types";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
-import type { PersistedEdge } from "./edge-repository";
+import type { PersistedEdge } from "./repository/edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
 import {
   runTaskWithState,
@@ -165,7 +165,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
 async function loadComputedEdges(
   ctx: PipelineContext,
 ): Promise<PersistedEdge[] | CrossRefEdge[]> {
-  const { findEdges } = await import("./edge-repository");
+  const { findEdges } = await import("./repository/edge-repository");
   return findEdges(ctx.studentId, ctx.tenantId);
 }
 

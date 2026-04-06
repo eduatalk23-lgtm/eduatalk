@@ -9,7 +9,7 @@ import {
   type PipelineContext,
   type TaskRunnerOutput,
 } from "../../pipeline-types";
-import * as diagnosisRepo from "../../diagnosis-repository";
+import * as diagnosisRepo from "../../repository/diagnosis-repository";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 

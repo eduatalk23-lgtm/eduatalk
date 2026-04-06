@@ -6,7 +6,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { computeContentHash } from "./content-hash";
-import { markEdgesStale, markAllStudentEdgesStale } from "./edge-repository";
+import { markEdgesStale, markAllStudentEdgesStale } from "./repository/edge-repository";
 import { logActionWarn } from "@/lib/logging/actionLogger";
 import { PIPELINE_THRESHOLDS } from "./constants";
 

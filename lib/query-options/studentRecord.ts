@@ -3,7 +3,8 @@ import { fetchRecordTabData } from "@/lib/domains/student-record/actions/record"
 import { fetchStorylineTabData } from "@/lib/domains/student-record/actions/storyline";
 import { fetchSupplementaryTabData } from "@/lib/domains/student-record/actions/supplementary";
 import { fetchStrategyTabData } from "@/lib/domains/student-record/actions/strategy";
-import { fetchDiagnosisTabData, fetchCrossRefData } from "@/lib/domains/student-record/actions/diagnosis";
+import { fetchDiagnosisTabData } from "@/lib/domains/student-record/actions/diagnosis";
+import { fetchCrossRefData } from "@/lib/domains/student-record/actions/cross-ref-data-builder";
 
 // ============================================
 // Query Key Factory

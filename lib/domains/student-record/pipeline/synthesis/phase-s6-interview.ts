@@ -12,7 +12,7 @@ import {
   type CachedChangche,
 } from "../../pipeline-types";
 import * as repository from "../../repository";
-import * as diagnosisRepo from "../../diagnosis-repository";
+import * as diagnosisRepo from "../../repository/diagnosis-repository";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
@@ -119,7 +119,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   // 역량 약점 (B- 이하) — Grade Pipeline 결과를 DB에서 직접 조회
   let weakCompetencies: { item: string; label: string; grade: string }[] | undefined;
   try {
-    const { findCompetencyScores } = await import("../../competency-repository");
+    const { findCompetencyScores } = await import("../../repository/competency-repository");
     const currentYear = calculateSchoolYear();
     const allScores = await findCompetencyScores(studentId, currentYear, tenantId, "ai");
     if (allScores.length > 0) {

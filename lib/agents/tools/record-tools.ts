@@ -32,9 +32,9 @@ import { determineGradeSystem } from "@/lib/domains/student-record/grade-normali
 import { buildEdgeSummary } from "@/lib/domains/student-record/edge-summary";
 import type { PipelineTaskKey } from "@/lib/domains/student-record/pipeline-types";
 import { generateSetekDraftAction } from "@/lib/domains/student-record/llm/actions/generateSetekDraft";
-import { upsertDiagnosis } from "@/lib/domains/student-record/diagnosis-repository";
-import { upsertCompetencyScore } from "@/lib/domains/student-record/competency-repository";
-import { insertStrategy } from "@/lib/domains/student-record/diagnosis-repository";
+import { upsertDiagnosis } from "@/lib/domains/student-record/repository/diagnosis-repository";
+import { upsertCompetencyScore } from "@/lib/domains/student-record/repository/competency-repository";
+import { insertStrategy } from "@/lib/domains/student-record/repository/diagnosis-repository";
 import {
   fetchPipelineStatus,
   rerunPipelineTasks,
@@ -505,7 +505,7 @@ ${tagsSummary}
             "@/lib/domains/student-record/service"
           );
           const { findActivityTags: fetchTags, findCompetencyScores: fetchScores } =
-            await import("@/lib/domains/student-record/competency-repository");
+            await import("@/lib/domains/student-record/repository/competency-repository");
 
           const [recordRes, tagsRes, scoresRes] = await Promise.allSettled([
             fetchRecords(ctx.studentId, year, ctx.tenantId),
@@ -1172,7 +1172,7 @@ ${feedback}
             "@/lib/domains/student-record/service"
           );
           const { findActivityTags: fetchTags, findCompetencyScores: fetchScores } =
-            await import("@/lib/domains/student-record/competency-repository");
+            await import("@/lib/domains/student-record/repository/competency-repository");
           const { findStorylinesByStudent: fetchStorylines } =
             await import("@/lib/domains/student-record/repository");
 
@@ -1283,7 +1283,7 @@ ${feedback}
           if (!ctx.tenantId) return TOOL_ERRORS.NO_TENANT;
 
           const { findEdges } = await import(
-            "@/lib/domains/student-record/edge-repository"
+            "@/lib/domains/student-record/repository/edge-repository"
           );
           const edges = await findEdges(ctx.studentId, ctx.tenantId);
 

@@ -12,7 +12,7 @@ import { generateCandidates } from "./candidate-generator";
 import { findDepartmentById, saveCandidates, fetchCurriculumSourceBatch } from "./repository";
 import { resolveCareerField, getTopCompetencyItems } from "./competency-matcher";
 import { generateExplanation } from "./explanation-generator";
-import { findCompetencyScores } from "@/lib/domains/student-record/competency-repository";
+import { findCompetencyScores } from "@/lib/domains/student-record/repository/competency-repository";
 import { calculateAverageGrade, calculateSubjectGroupGpa, type SubjectGroupGpa } from "@/lib/domains/score/service";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 

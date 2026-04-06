@@ -10,8 +10,8 @@
 
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
 import * as repoModule from "../repository";
-import * as diagnosisRepo from "../diagnosis-repository";
-import * as competencyRepo from "../competency-repository";
+import * as diagnosisRepo from "../repository/diagnosis-repository";
+import * as competencyRepo from "../repository/competency-repository";
 import * as detectInquiryLinksModule from "../llm/actions/detectInquiryLinks";
 import * as generateActivitySummaryModule from "../llm/actions/generateActivitySummary";
 import * as suggestStrategiesModule from "../llm/actions/suggestStrategies";
@@ -42,14 +42,14 @@ vi.mock("../repository", () => ({
   insertRoadmapItem: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../diagnosis-repository", () => ({
+vi.mock("../repository/diagnosis-repository", () => ({
   findDiagnosis: vi.fn(),
   findStrategies: vi.fn(),
   deleteStrategy: vi.fn().mockResolvedValue(undefined),
   insertStrategy: vi.fn().mockResolvedValue("new-strategy-id"),
 }));
 
-vi.mock("../competency-repository", () => ({
+vi.mock("../repository/competency-repository", () => ({
   findCompetencyScores: vi.fn(),
 }));
 

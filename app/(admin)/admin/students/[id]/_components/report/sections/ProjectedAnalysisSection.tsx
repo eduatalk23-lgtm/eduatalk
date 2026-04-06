@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record/constants";
 import { DIFFICULTY_LABELS } from "@/lib/domains/student-record/leveling/types";
 import type { CompetencyScore } from "@/lib/domains/student-record/types";
-import type { PersistedEdge } from "@/lib/domains/student-record/edge-repository";
+import type { PersistedEdge } from "@/lib/domains/student-record/repository/edge-repository";
 import type { LevelingResult, DifficultyLevel } from "@/lib/domains/student-record/leveling/types";
 
 interface ContentQualityRow {

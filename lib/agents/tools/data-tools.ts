@@ -10,11 +10,11 @@ import { getRecordTabData, getStorylineTabData } from "@/lib/domains/student-rec
 import {
   findCompetencyScores,
   findActivityTags,
-} from "@/lib/domains/student-record/competency-repository";
+} from "@/lib/domains/student-record/repository/competency-repository";
 import {
   findDiagnosisPair,
   findStrategies,
-} from "@/lib/domains/student-record/diagnosis-repository";
+} from "@/lib/domains/student-record/repository/diagnosis-repository";
 import { findStorylinesByStudent } from "@/lib/domains/student-record/repository";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 

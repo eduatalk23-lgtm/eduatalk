@@ -114,7 +114,7 @@ export async function executeImportAction(
 
     // Phase R4: 임포트 후 학생의 전체 엣지 stale 마킹 (파이프라인 재분석 필요 알림)
     try {
-      const { markAllStudentEdgesStale } = await import("../edge-repository");
+      const { markAllStudentEdgesStale } = await import("../repository/edge-repository");
       await markAllStudentEdgesStale(options.studentId, "import_updated");
     } catch { /* fire-and-forget */ }
 

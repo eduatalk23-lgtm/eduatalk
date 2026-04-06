@@ -35,7 +35,7 @@ import type {
   PipelineTaskResults,
 } from "../pipeline-types";
 import { PIPELINE_TASK_KEYS, computeCascadeResetKeys } from "../pipeline-types";
-import * as competencyRepo from "../competency-repository";
+import * as competencyRepo from "../repository/competency-repository";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 

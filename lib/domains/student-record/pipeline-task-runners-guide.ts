@@ -16,9 +16,9 @@ import {
   type PipelineContext,
   TaskRunnerOutput,
 } from "./pipeline-types";
-import type { PersistedEdge } from "./edge-repository";
+import type { PersistedEdge } from "./repository/edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
-import * as diagnosisRepo from "./diagnosis-repository";
+import * as diagnosisRepo from "./repository/diagnosis-repository";
 import { ACTIVITY_TYPE_LABELS } from "./constants";
 import { toGuideAnalysisContext, mergeGuideAnalysisContexts } from "./pipeline-task-runners-shared";
 

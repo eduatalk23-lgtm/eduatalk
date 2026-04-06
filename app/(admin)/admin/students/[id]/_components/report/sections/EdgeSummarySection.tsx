@@ -3,7 +3,7 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Cell,
 } from "recharts";
-import type { PersistedEdge } from "@/lib/domains/student-record/edge-repository";
+import type { PersistedEdge } from "@/lib/domains/student-record/repository/edge-repository";
 import { EDGE_TYPE_META, type CrossRefEdgeType } from "@/lib/domains/student-record/cross-reference";
 import { EmptyState } from "../EmptyState";
 import { Link2 } from "lucide-react";
