@@ -11792,6 +11792,55 @@ export type Database = {
           },
         ]
       }
+      student_record_analysis_pipeline_snapshots: {
+        Row: {
+          id: string
+          pipeline_id: string
+          tenant_id: string
+          student_id: string
+          snapshot: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pipeline_id: string
+          tenant_id: string
+          student_id: string
+          snapshot: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          pipeline_id?: string
+          tenant_id?: string
+          student_id?: string
+          snapshot?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_analysis_pipeline_snapshots_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_pipeline_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_pipeline_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_applications: {
         Row: {
           admission_type: string | null

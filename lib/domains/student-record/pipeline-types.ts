@@ -544,6 +544,7 @@ export interface CachedSetek {
   id: string;
   content: string;
   imported_content: string | null;
+  confirmed_content?: string | null;
   ai_draft_content?: string | null;
   grade: number;
   subject: { name: string } | null;
@@ -554,6 +555,7 @@ export interface CachedChangche {
   id: string;
   content: string;
   imported_content: string | null;
+  confirmed_content?: string | null;
   ai_draft_content?: string | null;
   grade: number;
   activity_type: string | null;
@@ -564,6 +566,7 @@ export interface CachedHaengteuk {
   id: string;
   content: string;
   imported_content: string | null;
+  confirmed_content?: string | null;
   ai_draft_content?: string | null;
   grade: number;
 }
@@ -629,3 +632,14 @@ export const SYNTHESIS_PHASE_TASKS: Record<number, SynthesisPipelineTaskKey[]> =
   5: ["activity_summary", "ai_strategy"],
   6: ["interview_generation", "roadmap_generation"],
 };
+
+// ============================================
+// Pipeline Snapshot (P2-3: 재실행 히스토리)
+// ============================================
+
+export interface PipelineSnapshot {
+  id: string;
+  pipeline_id: string;
+  snapshot: PipelineTaskResults;
+  created_at: string;
+}

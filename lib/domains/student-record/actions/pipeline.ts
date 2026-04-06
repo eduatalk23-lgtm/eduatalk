@@ -162,6 +162,20 @@ export async function rerunPipelineTasks(
       tasks[key] = "pending";
     }
 
+    // P2-3: 재실행 전 기존 task_results 스냅샷 보존
+    const prevResults = pipeline.task_results as PipelineTaskResults | null;
+    if (prevResults && Object.keys(prevResults).length > 0) {
+      const { error: snapErr } = await supabase
+        .from("student_record_analysis_pipeline_snapshots")
+        .insert({
+          pipeline_id: pipelineId,
+          tenant_id: pipeline.tenant_id as string,
+          student_id: pipeline.student_id as string,
+          snapshot: prevResults,
+        });
+      if (snapErr) logActionWarn(LOG_CTX, `파이프라인 스냅샷 저장 실패: ${snapErr.message}`, { pipelineId });
+    }
+
     await supabase
       .from("student_record_analysis_pipelines")
       .update({ status: "running", tasks, completed_at: null })
@@ -334,5 +348,21 @@ export async function saveTaskResult(
     // fire-and-forget
     logActionWarn({ ...LOG_CTX, action: "saveTaskResult" }, "saveTaskResult failed (fire-and-forget)", { error: err instanceof Error ? err.message : String(err) });
   }
+}
+
+// ============================================
+// P2-3: 파이프라인 스냅샷 조회
+// ============================================
+
+export async function findPipelineSnapshots(studentId: string, limit = 10) {
+  await requireAdminOrConsultant();
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("student_record_analysis_pipeline_snapshots")
+    .select("id, pipeline_id, snapshot, created_at")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return data ?? [];
 }
 
