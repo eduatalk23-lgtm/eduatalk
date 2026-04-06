@@ -26,6 +26,98 @@ import type {
 const LOG_CTX = { domain: "student-record", action: "diagnosis" };
 
 // ============================================
+// 내부 헬퍼: 학교 컨텍스트 조회
+// ============================================
+
+/** 소분류 이름 + 학교 개설 과목 병렬 조회 */
+async function fetchSchoolContext(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  targetSubClassificationId: string | null,
+  schoolName: string | null,
+): Promise<{ targetSubClassificationName: string | null; offeredSubjects: string[] | null }> {
+  const [targetSubClassificationName, offeredSubjects] = await Promise.all([
+    (async (): Promise<string | null> => {
+      if (!targetSubClassificationId) return null;
+      const { data: dc } = await supabase
+        .from("department_classification")
+        .select("sub_name")
+        .eq("id", targetSubClassificationId)
+        .single();
+      return dc?.sub_name ?? null;
+    })(),
+    (async (): Promise<string[] | null> => {
+      if (!schoolName) return null;
+      const { data: profile } = await supabase
+        .from("school_profiles")
+        .select("id")
+        .eq("school_name", schoolName)
+        .maybeSingle();
+      if (!profile) return null;
+      const { data: offered } = await supabase
+        .from("school_offered_subjects")
+        .select("subject:subject_id(name)")
+        .eq("school_profile_id", profile.id)
+        .returns<Array<{ subject: { name: string } | null }>>();
+      return (offered ?? [])
+        .map((o) => o.subject?.name)
+        .filter((n): n is string => !!n);
+    })(),
+  ]);
+  return { targetSubClassificationName, offeredSubjects };
+}
+
+// ============================================
+// 내부 헬퍼: Projected 데이터 조립
+// ============================================
+
+/** 설계 모드 projected 데이터(P8 가안 분석 결과) 조립 */
+async function assembleProjectedData(
+  studentId: string,
+  schoolYear: number,
+  tenantId: string,
+  studentGrade: number,
+): Promise<DiagnosisTabData["projectedData"]> {
+  const projScores = await competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai_projected");
+  if (projScores.length === 0) return undefined;
+
+  const edgeRepo = await import("../edge-repository");
+  const { computeLevelingForStudent } = await import("../leveling");
+
+  const [projEdges, projContentQuality] = await Promise.all([
+    edgeRepo.findEdges(studentId, tenantId, "projected"),
+    competencyRepo.findContentQualityByStudent(studentId, tenantId, { source: "ai_projected", selectRecordId: false }),
+  ]);
+
+  const projSchoolYears = [...new Set(projScores.map((s) => s.school_year))];
+  const designGrades = projSchoolYears
+    .map((sy) => studentGrade - (schoolYear - sy))
+    .filter((g) => g >= 1 && g <= 3)
+    .sort();
+
+  let leveling = null;
+  try {
+    leveling = await computeLevelingForStudent({
+      studentId,
+      tenantId,
+      grade: designGrades.length > 0 ? Math.max(...designGrades) : studentGrade,
+    });
+  } catch { /* leveling 실패해도 계속 */ }
+
+  return {
+    competencyScores: projScores,
+    edges: projEdges,
+    leveling,
+    designGrades,
+    contentQuality: projContentQuality.map((cq) => ({
+      record_type: cq.record_type as string,
+      overall_score: (cq.overall_score as number) ?? 0,
+      issues: ((cq.issues ?? []) as string[]),
+      feedback: (cq.feedback as string) ?? null,
+    })),
+  };
+}
+
+// ============================================
 // 진단 탭 데이터 조회
 // ============================================
 
@@ -81,36 +173,9 @@ export async function fetchDiagnosisTabData(
     ];
 
     // 소분류 이름 + 학교 개설 과목 병렬 조회
-    const [targetSubClassificationName, offeredSubjects] = await Promise.all([
-      // 소분류 이름
-      (async (): Promise<string | null> => {
-        if (!targetSubClassificationId) return null;
-        const { data: dc } = await supabase
-          .from("department_classification")
-          .select("sub_name")
-          .eq("id", targetSubClassificationId)
-          .single();
-        return dc?.sub_name ?? null;
-      })(),
-      // 학교 개설 과목
-      (async (): Promise<string[] | null> => {
-        if (!schoolName) return null;
-        const { data: profile } = await supabase
-          .from("school_profiles")
-          .select("id")
-          .eq("school_name", schoolName)
-          .maybeSingle();
-        if (!profile) return null;
-        const { data: offered } = await supabase
-          .from("school_offered_subjects")
-          .select("subject:subject_id(name)")
-          .eq("school_profile_id", profile.id)
-          .returns<Array<{ subject: { name: string } | null }>>();
-        return (offered ?? [])
-          .map((o) => o.subject?.name)
-          .filter((n): n is string => !!n);
-      })(),
-    ]);
+    const { targetSubClassificationName, offeredSubjects } = await fetchSchoolContext(
+      supabase, targetSubClassificationId, schoolName,
+    );
 
     // 교육과정 연도 판별
     const studentGrade = studentResult.data?.grade ?? 1;
@@ -138,47 +203,7 @@ export async function fetchDiagnosisTabData(
     }));
 
     // ─── 설계 모드 projected 데이터 (P8 가안 분석 결과) ───
-    let projectedData: DiagnosisTabData["projectedData"] = undefined;
-    const projScores = await competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai_projected");
-    if (projScores.length > 0) {
-      const edgeRepo = await import("../edge-repository");
-      const { computeLevelingForStudent } = await import("../leveling");
-
-      const [projEdges, projContentQuality] = await Promise.all([
-        edgeRepo.findEdges(studentId, tenantId, "projected"),
-        competencyRepo.findContentQualityByStudent(studentId, tenantId, { source: "ai_projected", selectRecordId: false }),
-      ]);
-
-      // 설계 학년: projected scores의 school_year에서 학년 역산
-      const sGrade = studentResult.data?.grade ?? 3;
-      const projSchoolYears = [...new Set(projScores.map((s) => s.school_year))];
-      const designGrades = projSchoolYears
-        .map((sy) => sGrade - (schoolYear - sy))
-        .filter((g) => g >= 1 && g <= 3)
-        .sort();
-
-      let leveling = null;
-      try {
-        leveling = await computeLevelingForStudent({
-          studentId,
-          tenantId,
-          grade: designGrades.length > 0 ? Math.max(...designGrades) : (studentResult.data?.grade ?? 3),
-        });
-      } catch { /* leveling 실패해도 계속 */ }
-
-      projectedData = {
-        competencyScores: projScores,
-        edges: projEdges,
-        leveling,
-        designGrades,
-        contentQuality: projContentQuality.map((cq) => ({
-          record_type: cq.record_type as string,
-          overall_score: (cq.overall_score as number) ?? 0,
-          issues: ((cq.issues ?? []) as string[]),
-          feedback: (cq.feedback as string) ?? null,
-        })),
-      };
-    }
+    const projectedData = await assembleProjectedData(studentId, schoolYear, tenantId, studentGrade);
 
     return {
       competencyScores: { ai: aiScores, consultant: consultantScores },

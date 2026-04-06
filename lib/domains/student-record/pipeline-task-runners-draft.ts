@@ -11,11 +11,13 @@ import { generateTextWithRateLimit } from "./llm/ai-client";
 import { withRetry } from "./llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { getCharLimit, PIPELINE_THRESHOLDS } from "./constants";
-import {
-  formatSetekFlowDetailed,
-  formatDraftBannedPatterns,
-} from "./evaluation-criteria/defaults";
 import { computeLevelingForStudent } from "./leveling";
+import { resolveEffectiveContent } from "./pipeline-data-resolver";
+import {
+  SETEK_DRAFT_SYSTEM_PROMPT,
+  CHANGCHE_DRAFT_SYSTEM_PROMPT,
+  HAENGTEUK_DRAFT_SYSTEM_PROMPT,
+} from "./llm/prompts/draft-system-prompts";
 
 const LOG_CTX = { domain: "student-record", action: "draftGeneration" };
 
@@ -46,49 +48,51 @@ function withLevelDirective(basePrompt: string, levelDirective: string | null): 
   return `${basePrompt}\n\n## 난이도 기준\n${levelDirective}`;
 }
 
-// ─── 시스템 프롬프트 (기존 generateSetekDraft.ts에서 재사용) ──
+/**
+ * AI 가안 생성 후 DB에 저장하는 공통 헬퍼.
+ * @returns 생성 성공 시 true, 빈 응답이면 false
+ */
+async function generateAndSaveDraft(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  tableName: string,
+  recordId: string,
+  systemPrompt: string,
+  userPrompt: string,
+  levelDirective: string | null,
+  label: string,
+): Promise<boolean> {
+  const result = await withRetry(
+    () => generateTextWithRateLimit({
+      system: withLevelDirective(systemPrompt, levelDirective),
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier: "standard",
+      temperature: 0.5,
+      maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
+    }),
+    { label },
+  );
 
-const SETEK_SYSTEM_PROMPT = `당신은 고등학교 세특(세부능력 및 특기사항) 작성 보조 도우미입니다.
+  if (!result.content?.trim()) {
+    logActionDebug(LOG_CTX, `draft empty for ${recordId}`);
+    return false;
+  }
 
-## 역할
-- 방향 가이드와 키워드를 기반으로 세특 초안을 생성합니다.
-- 이 초안은 컨설턴트가 수정하는 **시작점**입니다. 완성본이 아닙니다.
+  const { error: updateErr } = await supabase
+    .from(tableName)
+    .update({
+      ai_draft_content: result.content.trim(),
+      ai_draft_at: new Date().toISOString(),
+      ai_draft_status: "done",
+    })
+    .eq("id", recordId);
 
-## 좋은 세특의 8단계 흐름
-${formatSetekFlowDetailed()}
+  if (updateErr) {
+    logActionError(LOG_CTX, updateErr, { recordId, phase: `draft_generation_${label}` });
+  }
 
-## 규칙
-1. 습니다체(~했다, ~보였다, ~성장했다)를 사용합니다. 학생 3인칭 서술입니다.
-2. NEIS 기준 500자(한글 500자, 1,500바이트) 이내로 작성합니다.
-3. 구체적인 탐구 주제와 과정을 포함합니다.
-4. 학업 태도(적극성, 질문, 협업)를 자연스럽게 녹입니다.
-5. 제공된 키워드를 2-3개 이상 자연스럽게 포함합니다.
-6. plain text로만 응답합니다 (JSON이 아닌 일반 텍스트).
-
-## 절대 금지 패턴
-${formatDraftBannedPatterns()}`;
-
-const CHANGCHE_SYSTEM_PROMPT = `당신은 고등학교 창체(창의적 체험활동) 특기사항 작성 보조 도우미입니다.
-
-## 역할
-- 방향 가이드를 기반으로 창체 초안을 생성합니다.
-- 습니다체, 3인칭 서술. 교사 관찰 관점.
-
-## 규칙
-1. 활동 내용, 참여 태도, 성장 과정을 구체적으로 기술합니다.
-2. 글자수 제한 이내로 작성합니다.
-3. plain text로만 응답합니다.`;
-
-const HAENGTEUK_SYSTEM_PROMPT = `당신은 고등학교 행동특성 및 종합의견(행특) 작성 보조 도우미입니다.
-
-## 역할
-- 방향 가이드를 기반으로 행특 초안을 생성합니다.
-- 습니다체, 3인칭 서술. 담임교사 관점.
-
-## 규칙
-1. 학교 생활 전반의 인성, 태도, 성장을 종합적으로 기술합니다.
-2. 글자수 제한 이내로 작성합니다.
-3. plain text로만 응답합니다.`;
+  return true;
+}
 
 // ─── 메인 Runner ──
 
@@ -186,30 +190,19 @@ export async function runDraftGenerationForGrade(
       try {
         const userPrompt = `## 과목: ${subjectName} (${targetGrade}학년 ${record.semester}학기)\n\n## 세특 방향\n${guide.direction}\n\n## 포함할 키워드\n${guide.keywords.join(", ")}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
 
-        const result = await withRetry(
-          () => generateTextWithRateLimit({
-            system: withLevelDirective(SETEK_SYSTEM_PROMPT, levelDirective),
-            messages: [{ role: "user", content: userPrompt }],
-            modelTier: "standard",
-            temperature: 0.5,
-            maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
-          }),
-          { label: "draftSetek" },
+        const saved = await generateAndSaveDraft(
+          supabase,
+          "student_record_seteks",
+          record.id,
+          SETEK_DRAFT_SYSTEM_PROMPT,
+          userPrompt,
+          levelDirective,
+          "draftSetek",
         );
 
-        if (result.content?.trim()) {
-          const { error: updateErr } = await supabase
-            .from("student_record_seteks")
-            .update({
-              ai_draft_content: result.content.trim(),
-              ai_draft_at: new Date().toISOString(),
-              ai_draft_status: "done",
-            })
-            .eq("id", record.id);
-          if (updateErr) logActionError(LOG_CTX, updateErr, { recordId: record.id, phase: "draft_generation_setek" });
-
+        if (saved) {
           generated.push(`세특:${subjectName}`);
-          logActionDebug(LOG_CTX, `세특 가안 생성: ${subjectName} (${result.content.trim().length}자)`, { recordId: record.id });
+          logActionDebug(LOG_CTX, `세특 가안 생성: ${subjectName}`, { recordId: record.id });
         }
       } catch (err) {
         logActionError(LOG_CTX, err, { recordId: record.id, subject: subjectName });
@@ -256,28 +249,17 @@ export async function runDraftGenerationForGrade(
       try {
         const userPrompt = `## 활동유형: ${label} (${targetGrade}학년)\n\n## 방향\n${guide.direction}\n\n## 포함할 키워드\n${guide.keywords.join(", ")}\n\n${guide.teacherPoints.length > 0 ? `## 교사 관찰 포인트\n${guide.teacherPoints.join("\n")}\n\n` : ""}${charLimit}자 이내의 ${label} 특기사항 초안을 작성해주세요.`;
 
-        const result = await withRetry(
-          () => generateTextWithRateLimit({
-            system: withLevelDirective(CHANGCHE_SYSTEM_PROMPT, levelDirective),
-            messages: [{ role: "user", content: userPrompt }],
-            modelTier: "standard",
-            temperature: 0.5,
-            maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
-          }),
-          { label: "draftChangche" },
+        const saved = await generateAndSaveDraft(
+          supabase,
+          "student_record_changche",
+          record.id,
+          CHANGCHE_DRAFT_SYSTEM_PROMPT,
+          userPrompt,
+          levelDirective,
+          "draftChangche",
         );
 
-        if (result.content?.trim()) {
-          const { error: updateErr } = await supabase
-            .from("student_record_changche")
-            .update({
-              ai_draft_content: result.content.trim(),
-              ai_draft_at: new Date().toISOString(),
-              ai_draft_status: "done",
-            })
-            .eq("id", record.id);
-          if (updateErr) logActionError(LOG_CTX, updateErr, { recordId: record.id, phase: "draft_generation_changche" });
-
+        if (saved) {
           generated.push(`창체:${label}`);
         }
       } catch (err) {
@@ -322,28 +304,17 @@ export async function runDraftGenerationForGrade(
 
         userPrompt += `${charLimit}자 이내의 행동특성 및 종합의견 초안을 작성해주세요.`;
 
-        const result = await withRetry(
-          () => generateTextWithRateLimit({
-            system: withLevelDirective(HAENGTEUK_SYSTEM_PROMPT, levelDirective),
-            messages: [{ role: "user", content: userPrompt }],
-            modelTier: "standard",
-            temperature: 0.5,
-            maxTokens: PIPELINE_THRESHOLDS.DEFAULT_DRAFT_MAX_TOKENS,
-          }),
-          { label: "draftHaengteuk" },
+        const saved = await generateAndSaveDraft(
+          supabase,
+          "student_record_haengteuk",
+          haengteukRecord.id,
+          HAENGTEUK_DRAFT_SYSTEM_PROMPT,
+          userPrompt,
+          levelDirective,
+          "draftHaengteuk",
         );
 
-        if (result.content?.trim()) {
-          const { error: updateErr } = await supabase
-            .from("student_record_haengteuk")
-            .update({
-              ai_draft_content: result.content.trim(),
-              ai_draft_at: new Date().toISOString(),
-              ai_draft_status: "done",
-            })
-            .eq("id", haengteukRecord.id);
-          if (updateErr) logActionError(LOG_CTX, updateErr, { recordId: haengteukRecord.id, phase: "draft_generation_haengteuk" });
-
+        if (saved) {
           generated.push("행특");
         }
       } catch (err) {
@@ -370,14 +341,53 @@ export async function runDraftGenerationForGrade(
 // 콘텐츠 우선순위: imported > confirmed > content > ai_draft (4-layer 정책 준수)
 // ============================================
 
-/** 콘텐츠 우선순위: imported > confirmed > content > ai_draft */
-function resolveContent(rec: { imported_content?: string | null; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null }): string | null {
-  return rec.imported_content?.trim() || rec.confirmed_content?.trim() || rec.content?.trim() || rec.ai_draft_content?.trim() || null;
+/** contentQuality 저장 헬퍼 (P1-P3와 동일 패턴) */
+async function saveContentQuality(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  tenantId: string,
+  studentId: string,
+  targetSchoolYear: number,
+  recordType: string,
+  recordId: string,
+  cq: {
+    specificity: number;
+    coherence: number;
+    depth: number;
+    grammar: number;
+    scientificValidity?: number | null;
+    overallScore: number;
+    issues: string[];
+    feedback: string;
+  },
+): Promise<void> {
+  const { error: cqErr } = await supabase
+    .from("student_record_content_quality")
+    .upsert(
+      {
+        tenant_id: tenantId,
+        student_id: studentId,
+        record_type: recordType,
+        record_id: recordId,
+        school_year: targetSchoolYear,
+        specificity: cq.specificity,
+        coherence: cq.coherence,
+        depth: cq.depth,
+        grammar: cq.grammar,
+        scientific_validity: cq.scientificValidity ?? null,
+        overall_score: cq.overallScore,
+        issues: cq.issues,
+        feedback: cq.feedback,
+        source: "ai_projected",
+      },
+      { onConflict: "tenant_id,student_id,record_id,source" },
+    );
+  if (cqErr) logActionError(LOG_CTX, cqErr, { recordId, recordType, phase: "draft_analysis_quality" });
 }
 
 /** P8 공통: 레코드 배열을 분석하여 태그/품질/역량등급 수집 */
 async function analyzeAndCollectTags(
-  records: Array<{ id: string; grade: number; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null; subject_id?: string }>,
+  records: Array<{ id: string; grade: number; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null; imported_content?: string | null; subject_id?: string }>,
   opts: {
     recordType: "setek" | "changche" | "haengteuk";
     analyzeSetekWithHighlight: (input: { recordType: string; content: string; subjectName?: string; grade: number }) => Promise<{ success: boolean; data: { sections: Array<{ tags: Array<{ competencyItem: string; evaluation: string; reasoning: string; highlight: string }> }>; contentQuality?: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string }; competencyGrades?: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> } }>;
@@ -388,7 +398,6 @@ async function analyzeAndCollectTags(
     targetGrade: number;
     targetSchoolYear: number;
     subjectNameMap?: Map<string, string>;
-    saveContentQuality: (recordType: string, recordId: string, cq: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string }) => Promise<void>;
   },
 ): Promise<{
   /** 수집된 태그 (아직 DB 미저장 — 본체에서 RPC로 atomic 저장) */
@@ -399,7 +408,7 @@ async function analyzeAndCollectTags(
   const competencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> = [];
 
   for (const rec of records) {
-    const content = resolveContent(rec);
+    const { text: content } = resolveEffectiveContent(rec);
     if (!content || content.length < 20) continue;
 
     try {
@@ -424,7 +433,15 @@ async function analyzeAndCollectTags(
         }
 
         if (result.data.contentQuality) {
-          await opts.saveContentQuality(opts.recordType, rec.id, result.data.contentQuality);
+          await saveContentQuality(
+            opts.supabase,
+            opts.tenantId,
+            opts.studentId,
+            opts.targetSchoolYear,
+            opts.recordType,
+            rec.id,
+            result.data.contentQuality,
+          );
         }
         if (result.data.competencyGrades?.length) {
           competencyGrades.push(...result.data.competencyGrades);
@@ -465,40 +482,10 @@ export async function runDraftAnalysisForGrade(
   // Phase 1: 태그를 메모리에 수집 → RPC로 atomic 교체
   const allCollectedTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
 
-  // contentQuality 저장 헬퍼 (P1-P3와 동일 패턴)
-  async function saveContentQuality(
-    recordType: string,
-    recordId: string,
-    cq: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string },
-  ) {
-    const { error: cqErr } = await supabase
-      .from("student_record_content_quality")
-      .upsert(
-        {
-          tenant_id: tenantId,
-          student_id: studentId,
-          record_type: recordType,
-          record_id: recordId,
-          school_year: targetSchoolYear,
-          specificity: cq.specificity,
-          coherence: cq.coherence,
-          depth: cq.depth,
-          grammar: cq.grammar,
-          scientific_validity: cq.scientificValidity ?? null,
-          overall_score: cq.overallScore,
-          issues: cq.issues,
-          feedback: cq.feedback,
-          source: "ai_projected",
-        },
-        { onConflict: "tenant_id,student_id,record_id,source" },
-      );
-    if (cqErr) logActionError(LOG_CTX, cqErr, { recordId, recordType, phase: "draft_analysis_quality" });
-  }
-
   // 해당 학년 레코드 ID 수집 → 해당 레코드의 draft_analysis 태그만 삭제
   const targetRecordIds: string[] = [];
 
-  const analyzeOpts = { analyzeSetekWithHighlight, supabase, studentId, tenantId, targetGrade, targetSchoolYear, saveContentQuality };
+  const analyzeOpts = { analyzeSetekWithHighlight, supabase, studentId, tenantId, targetGrade, targetSchoolYear };
 
   // ─── 세특 가안 분석 ──
 

@@ -25,40 +25,9 @@ import {
 } from "../pipeline-types";
 import { resolveRecordData, deriveGradeCategories } from "../pipeline-data-resolver";
 import * as competencyRepo from "../competency-repository";
+import { checkPipelineRateLimit } from "./pipeline";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };
-
-// ============================================
-// Rate Limit 검사 (pipeline-orchestrator 내부용 인라인 복사)
-// 순환 참조 방지를 위해 pipeline.ts에서 import하지 않고 직접 포함
-// ============================================
-
-async function checkPipelineRateLimit(
-  studentId: string,
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-): Promise<string | null> {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { data: recentPipelines, error } = await supabase
-    .from("student_record_analysis_pipelines")
-    .select("id, status")
-    .eq("student_id", studentId)
-    .gte("created_at", oneHourAgo)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    logActionError({ ...LOG_CTX, action: "checkPipelineRateLimit" }, error, { studentId });
-    return null; // fail-open
-  }
-
-  const rows = recentPipelines ?? [];
-  if (rows.some((r) => r.status === "pending" || r.status === "running")) {
-    return "이미 실행 중인 파이프라인이 있습니다. 완료 후 다시 시도해주세요.";
-  }
-  if (rows.length >= 5) {
-    return "1시간 내 최대 5회까지 파이프라인을 실행할 수 있습니다. 잠시 후 다시 시도해주세요.";
-  }
-  return null;
-}
 
 // ============================================
 // 타입 정의
