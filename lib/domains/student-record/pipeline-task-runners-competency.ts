@@ -23,6 +23,16 @@ import { PIPELINE_THRESHOLDS } from "./constants";
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
 // ============================================
+// 역량 분석 타입별 설정 (G1-a/b/c 공통 디스패치)
+// ============================================
+
+const COMPETENCY_TYPE_CONFIG = {
+  setek:    { cacheKey: "cachedSeteks"    as const, taskKey: "competency_setek"    as const, label: "세특" },
+  changche: { cacheKey: "cachedChangche"  as const, taskKey: "competency_changche" as const, label: "창체" },
+  haengteuk:{ cacheKey: "cachedHaengteuk" as const, taskKey: "competency_haengteuk" as const, label: "행특" },
+} as const;
+
+// ============================================
 // G0-shared. 역량 분석 공통 헬퍼
 // ============================================
 
@@ -349,40 +359,163 @@ async function runAggregateForGrade(
 }
 
 // ============================================
-// G1-a. 학년별 세특 역량 분석
+// G1-internal. 타입별 디스패치 제네릭 구현
 // ============================================
 
-export async function runCompetencySetekForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+type CompetencyRecordType = "setek" | "changche" | "haengteuk";
+type AnalysisRecord = { type: CompetencyRecordType; id: string; content: string; grade: number; subjectName?: string };
+
+/** 공통 레코드 빌더: ctx[cacheKey]에서 targetGrade 레코드를 AnalysisRecord[]로 변환 */
+function buildAnalysisRecords(ctx: PipelineContext, recordType: CompetencyRecordType): AnalysisRecord[] {
+  const config = COMPETENCY_TYPE_CONFIG[recordType];
+  const records = ctx[config.cacheKey] ?? [];
+  const { targetGrade } = ctx;
+  const result: AnalysisRecord[] = [];
+  for (const rec of records) {
+    if (rec.grade !== targetGrade) continue;
+    const effectiveContent = rec.imported_content?.trim() ? rec.imported_content : null;
+    if (!effectiveContent || effectiveContent.length < 20) continue;
+    const subjectName = "subject" in rec ? (rec as { subject?: { name?: string } }).subject?.name : undefined;
+    result.push({ type: recordType, id: rec.id, content: effectiveContent, grade: rec.grade, subjectName });
+  }
+  return result;
+}
+
+/** 행특 완료 후 전 영역 집계를 수행하는 헬퍼 */
+async function runHaengteukAggregate(
+  ctx: PipelineContext,
+  targetGrade: number,
+  currentResults: Map<string, import("./llm/types").HighlightAnalysisResult>,
+): Promise<void> {
+  const allForAggregate = new Map<string, import("./llm/types").HighlightAnalysisResult>();
+  const { computeRecordContentHash } = await import("./content-hash");
+  const allRecordIds: string[] = [];
+  for (const s of (ctx.cachedSeteks ?? [])) {
+    if (s.grade === targetGrade && (s.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(s.id);
+  }
+  for (const c of (ctx.cachedChangche ?? [])) {
+    if (c.grade === targetGrade && (c.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(c.id);
+  }
+  for (const h of (ctx.cachedHaengteuk ?? [])) {
+    if (h.grade === targetGrade && (h.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(h.id);
+  }
+  if (allRecordIds.length > 0) {
+    const cached = await competencyRepo.findAnalysisCacheByRecordIds(allRecordIds, ctx.tenantId, "ai");
+    for (const entry of cached) {
+      if (entry.analysis_result) {
+        allForAggregate.set(entry.record_id, entry.analysis_result as import("./llm/types").HighlightAnalysisResult);
+      }
+    }
+  }
+  // 방금 분석한 행특 결과도 포함
+  for (const [id, result] of currentResults) {
+    allForAggregate.set(id, result);
+  }
+  void computeRecordContentHash; // 사용됨을 lint에 알림
+  await runAggregateForGrade(ctx, targetGrade, allForAggregate);
+}
+
+/**
+ * 역량 분석 ForGrade 제네릭 구현 (setek/changche/haengteuk 공통).
+ * haengteuk은 완료 후 전 영역 집계를 추가 실행한다.
+ */
+async function runCompetencyForType(ctx: PipelineContext, recordType: CompetencyRecordType): Promise<TaskRunnerOutput> {
   assertGradeCtx(ctx);
   const { targetGrade } = ctx;
+  const config = COMPETENCY_TYPE_CONFIG[recordType];
 
   const gradeResolved = ctx.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
-    return `${targetGrade}학년 NEIS 기록 없음 — 세특 역량 분석 건너뜀`;
+    return `${targetGrade}학년 NEIS 기록 없음 — ${config.label} 역량 분석 건너뜀`;
   }
 
-  type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
-  const analysisRecords: AnalysisRecord[] = [];
-  for (const s of (ctx.cachedSeteks ?? [])) {
-    if (s.grade !== targetGrade) continue;
-    const effectiveContent = s.imported_content?.trim() ? s.imported_content : null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
-    analysisRecords.push({ type: "setek", id: s.id, content: effectiveContent, grade: s.grade, subjectName: s.subject?.name });
-  }
+  const analysisRecords = buildAnalysisRecords(ctx, recordType);
 
-  const { succeeded, failed, skipped, allResults } = await runCompetencyForRecords(ctx, targetGrade, "setek", analysisRecords, { taskKey: "competency_setek" });
+  const { succeeded, failed, skipped, allResults } = await runCompetencyForRecords(
+    ctx, targetGrade, recordType, analysisRecords, { taskKey: config.taskKey },
+  );
 
   // Phase 간 맥락 전달: 분석 결과를 ctx.analysisContext에 축적
-  collectAnalysisContext(ctx, targetGrade, "setek", analysisRecords, allResults);
+  collectAnalysisContext(ctx, targetGrade, recordType, analysisRecords, allResults);
+
+  // 행특이 마지막 역량 분석 Phase이므로 여기서 전 영역 집계를 실행
+  if (recordType === "haengteuk") {
+    await runHaengteukAggregate(ctx, targetGrade, allResults);
+  }
 
   const total = succeeded + skipped + failed;
   const parts = [`${succeeded}건 분석`];
   if (skipped > 0) parts.push(`${skipped}건 캐시`);
   if (failed > 0) parts.push(`${failed}건 실패`);
+  if (recordType === "haengteuk") parts.push("집계 완료");
   return {
-    preview: `${targetGrade}학년 세특 역량 분석 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
+    preview: `${targetGrade}학년 ${config.label} 역량 분석 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
     result: { allCached: total > 0 && skipped === total },
   };
+}
+
+/**
+ * 역량 분석 ChunkForGrade 제네릭 구현 (setek/changche/haengteuk 공통).
+ * haengteuk은 마지막 청크(!hasMore)에서만 전 영역 집계를 실행한다.
+ */
+async function runCompetencyChunkForType(
+  ctx: PipelineContext,
+  recordType: CompetencyRecordType,
+  chunkSize: number,
+): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
+  const { targetGrade } = ctx;
+  const config = COMPETENCY_TYPE_CONFIG[recordType];
+
+  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  if (!gradeResolved?.hasAnyNeis) {
+    return {
+      preview: `${targetGrade}학년 NEIS 기록 없음 — ${config.label} 역량 분석 건너뜀`,
+      result: { allCached: false },
+      hasMore: false,
+      totalUncached: 0,
+      chunkProcessed: 0,
+    };
+  }
+
+  const analysisRecords = buildAnalysisRecords(ctx, recordType);
+
+  const { succeeded, failed, skipped, allResults, hasMore, totalUncached } = await runCompetencyForRecords(
+    ctx, targetGrade, recordType, analysisRecords,
+    { taskKey: config.taskKey },
+    { chunkSize },
+  );
+
+  // Phase 간 맥락 전달: 청크 결과도 ctx.analysisContext에 축적
+  collectAnalysisContext(ctx, targetGrade, recordType, analysisRecords, allResults);
+
+  // 행특: 마지막 청크에서만 집계 실행
+  if (recordType === "haengteuk" && !hasMore) {
+    await runHaengteukAggregate(ctx, targetGrade, allResults);
+  }
+
+  const total = succeeded + skipped + failed;
+  const parts = [`${succeeded}건 분석`];
+  if (skipped > 0) parts.push(`${skipped}건 캐시`);
+  if (failed > 0) parts.push(`${failed}건 실패`);
+  if (recordType === "haengteuk" && !hasMore) parts.push("집계 완료");
+  if (hasMore) parts.push(`잔여 ${totalUncached - chunkSize}건`);
+
+  return {
+    preview: `${targetGrade}학년 ${config.label} 역량 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
+    result: { allCached: total > 0 && skipped === total },
+    hasMore,
+    totalUncached,
+    chunkProcessed: succeeded + failed,
+  };
+}
+
+// ============================================
+// G1-a. 학년별 세특 역량 분석
+// ============================================
+
+export async function runCompetencySetekForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  return runCompetencyForType(ctx, "setek");
 }
 
 // ============================================
@@ -393,51 +526,7 @@ export async function runCompetencySetekChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number,
 ): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
-  assertGradeCtx(ctx);
-  const { targetGrade } = ctx;
-
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
-  if (!gradeResolved?.hasAnyNeis) {
-    return {
-      preview: `${targetGrade}학년 NEIS 기록 없음 — 세특 역량 분석 건너뜀`,
-      result: { allCached: false },
-      hasMore: false,
-      totalUncached: 0,
-      chunkProcessed: 0,
-    };
-  }
-
-  type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
-  const analysisRecords: AnalysisRecord[] = [];
-  for (const s of (ctx.cachedSeteks ?? [])) {
-    if (s.grade !== targetGrade) continue;
-    const effectiveContent = s.imported_content?.trim() ? s.imported_content : null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
-    analysisRecords.push({ type: "setek", id: s.id, content: effectiveContent, grade: s.grade, subjectName: s.subject?.name });
-  }
-
-  const { succeeded, failed, skipped, allResults, hasMore, totalUncached } = await runCompetencyForRecords(
-    ctx, targetGrade, "setek", analysisRecords,
-    { taskKey: "competency_setek" },
-    { chunkSize },
-  );
-
-  // Phase 간 맥락 전달: 청크 결과도 ctx.analysisContext에 축적
-  collectAnalysisContext(ctx, targetGrade, "setek", analysisRecords, allResults);
-
-  const total = succeeded + skipped + failed;
-  const parts = [`${succeeded}건 분석`];
-  if (skipped > 0) parts.push(`${skipped}건 캐시`);
-  if (failed > 0) parts.push(`${failed}건 실패`);
-  if (hasMore) parts.push(`잔여 ${totalUncached - chunkSize}건`);
-
-  return {
-    preview: `${targetGrade}학년 세특 역량 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
-    result: { allCached: total > 0 && skipped === total },
-    hasMore,
-    totalUncached,
-    chunkProcessed: succeeded + failed,
-  };
+  return runCompetencyChunkForType(ctx, "setek", chunkSize);
 }
 
 // ============================================
@@ -445,36 +534,7 @@ export async function runCompetencySetekChunkForGrade(
 // ============================================
 
 export async function runCompetencyChangcheForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
-  assertGradeCtx(ctx);
-  const { targetGrade } = ctx;
-
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
-  if (!gradeResolved?.hasAnyNeis) {
-    return `${targetGrade}학년 NEIS 기록 없음 — 창체 역량 분석 건너뜀`;
-  }
-
-  type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
-  const analysisRecords: AnalysisRecord[] = [];
-  for (const c of (ctx.cachedChangche ?? [])) {
-    if (c.grade !== targetGrade) continue;
-    const effectiveContent = c.imported_content?.trim() ? c.imported_content : null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
-    analysisRecords.push({ type: "changche", id: c.id, content: effectiveContent, grade: c.grade });
-  }
-
-  const { succeeded, failed, skipped, allResults: changcheResults } = await runCompetencyForRecords(ctx, targetGrade, "changche", analysisRecords, { taskKey: "competency_changche" });
-
-  // Phase 간 맥락 전달
-  collectAnalysisContext(ctx, targetGrade, "changche", analysisRecords, changcheResults);
-
-  const total = succeeded + skipped + failed;
-  const parts = [`${succeeded}건 분석`];
-  if (skipped > 0) parts.push(`${skipped}건 캐시`);
-  if (failed > 0) parts.push(`${failed}건 실패`);
-  return {
-    preview: `${targetGrade}학년 창체 역량 분석 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
-    result: { allCached: total > 0 && skipped === total },
-  };
+  return runCompetencyForType(ctx, "changche");
 }
 
 // ============================================
@@ -485,47 +545,7 @@ export async function runCompetencyChangcheChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number,
 ): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
-  assertGradeCtx(ctx);
-  const { targetGrade } = ctx;
-
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
-  if (!gradeResolved?.hasAnyNeis) {
-    return {
-      preview: `${targetGrade}학년 NEIS 기록 없음 — 창체 역량 분석 건너뜀`,
-      result: { allCached: false },
-      hasMore: false, totalUncached: 0, chunkProcessed: 0,
-    };
-  }
-
-  type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
-  const analysisRecords: AnalysisRecord[] = [];
-  for (const c of (ctx.cachedChangche ?? [])) {
-    if (c.grade !== targetGrade) continue;
-    const effectiveContent = c.imported_content?.trim() ? c.imported_content : null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
-    analysisRecords.push({ type: "changche", id: c.id, content: effectiveContent, grade: c.grade });
-  }
-
-  const { succeeded, failed, skipped, allResults: changcheChunkResults, hasMore, totalUncached } = await runCompetencyForRecords(
-    ctx, targetGrade, "changche", analysisRecords,
-    { taskKey: "competency_changche" },
-    { chunkSize },
-  );
-
-  // Phase 간 맥락 전달
-  collectAnalysisContext(ctx, targetGrade, "changche", analysisRecords, changcheChunkResults);
-
-  const total = succeeded + skipped + failed;
-  const parts = [`${succeeded}건 분석`];
-  if (skipped > 0) parts.push(`${skipped}건 캐시`);
-  if (failed > 0) parts.push(`${failed}건 실패`);
-  if (hasMore) parts.push(`잔여 ${totalUncached - chunkSize}건`);
-
-  return {
-    preview: `${targetGrade}학년 창체 역량 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
-    result: { allCached: total > 0 && skipped === total },
-    hasMore, totalUncached, chunkProcessed: succeeded + failed,
-  };
+  return runCompetencyChunkForType(ctx, "changche", chunkSize);
 }
 
 // ============================================
@@ -533,72 +553,7 @@ export async function runCompetencyChangcheChunkForGrade(
 // ============================================
 
 export async function runCompetencyHaengteukForGrade(ctx: PipelineContext): Promise<TaskRunnerOutput> {
-  assertGradeCtx(ctx);
-  const { targetGrade } = ctx;
-
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
-  if (!gradeResolved?.hasAnyNeis) {
-    return `${targetGrade}학년 NEIS 기록 없음 — 행특 역량 분석 건너뜀`;
-  }
-
-  type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
-  const analysisRecords: AnalysisRecord[] = [];
-  for (const h of (ctx.cachedHaengteuk ?? [])) {
-    if (h.grade !== targetGrade) continue;
-    const effectiveContent = h.imported_content?.trim() ? h.imported_content : null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
-    analysisRecords.push({ type: "haengteuk", id: h.id, content: effectiveContent, grade: h.grade });
-  }
-
-  const { succeeded, failed, skipped, allResults } = await runCompetencyForRecords(ctx, targetGrade, "haengteuk", analysisRecords, { taskKey: "competency_haengteuk" });
-
-  // 모든 영역(세특+창체+행특) 분석 완료 후 종합 집계
-  // 행특이 마지막 역량 분석 Phase이므로 여기서 집계를 실행
-  // allResults에는 행특 결과만 있으므로 전체 allResults를 수집해 집계
-  const allForAggregate = new Map<string, HighlightAnalysisResult>();
-
-  // 전체 학년 레코드에서 캐시된 분석 결과 수집 (집계용)
-  {
-    const { computeRecordContentHash } = await import("./content-hash");
-    const allRecordIds: string[] = [];
-    for (const s of (ctx.cachedSeteks ?? [])) {
-      if (s.grade === targetGrade && (s.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(s.id);
-    }
-    for (const c of (ctx.cachedChangche ?? [])) {
-      if (c.grade === targetGrade && (c.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(c.id);
-    }
-    for (const h of (ctx.cachedHaengteuk ?? [])) {
-      if (h.grade === targetGrade && (h.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(h.id);
-    }
-
-    if (allRecordIds.length > 0) {
-      const cached = await competencyRepo.findAnalysisCacheByRecordIds(allRecordIds, ctx.tenantId, "ai");
-      for (const entry of cached) {
-        if (entry.analysis_result) {
-          allForAggregate.set(entry.record_id, entry.analysis_result as HighlightAnalysisResult);
-        }
-      }
-    }
-    // 방금 분석한 행특 결과도 포함
-    for (const [id, result] of allResults) {
-      allForAggregate.set(id, result);
-    }
-    void computeRecordContentHash; // 사용됨을 lint에 알림
-  }
-
-  await runAggregateForGrade(ctx, targetGrade, allForAggregate);
-
-  // Phase 간 맥락 전달: 행특 결과 + 전체 집계 결과를 ctx.analysisContext에 축적
-  collectAnalysisContext(ctx, targetGrade, "haengteuk", analysisRecords, allResults);
-
-  const total = succeeded + skipped + failed;
-  const parts = [`${succeeded}건 분석`];
-  if (skipped > 0) parts.push(`${skipped}건 캐시`);
-  if (failed > 0) parts.push(`${failed}건 실패`);
-  return {
-    preview: `${targetGrade}학년 행특 역량 분석 ${total === 0 ? "대상 없음" : parts.join(", ")} (집계 완료)`,
-    result: { allCached: total > 0 && skipped === total },
-  };
+  return runCompetencyForType(ctx, "haengteuk");
 }
 
 // ============================================
@@ -609,72 +564,7 @@ export async function runCompetencyHaengteukChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number,
 ): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
-  assertGradeCtx(ctx);
-  const { targetGrade } = ctx;
-
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
-  if (!gradeResolved?.hasAnyNeis) {
-    return {
-      preview: `${targetGrade}학년 NEIS 기록 없음 — 행특 역량 분석 건너뜀`,
-      result: { allCached: false },
-      hasMore: false, totalUncached: 0, chunkProcessed: 0,
-    };
-  }
-
-  type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
-  const analysisRecords: AnalysisRecord[] = [];
-  for (const h of (ctx.cachedHaengteuk ?? [])) {
-    if (h.grade !== targetGrade) continue;
-    const effectiveContent = h.imported_content?.trim() ? h.imported_content : null;
-    if (!effectiveContent || effectiveContent.length < 20) continue;
-    analysisRecords.push({ type: "haengteuk", id: h.id, content: effectiveContent, grade: h.grade });
-  }
-
-  const { succeeded, failed, skipped, allResults, hasMore, totalUncached } = await runCompetencyForRecords(
-    ctx, targetGrade, "haengteuk", analysisRecords,
-    { taskKey: "competency_haengteuk" },
-    { chunkSize },
-  );
-
-  // 마지막 청크에서만 집계 실행
-  if (!hasMore) {
-    const allForAggregate = new Map<string, HighlightAnalysisResult>();
-    const allRecordIds: string[] = [];
-    for (const s of (ctx.cachedSeteks ?? [])) {
-      if (s.grade === targetGrade && (s.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(s.id);
-    }
-    for (const c of (ctx.cachedChangche ?? [])) {
-      if (c.grade === targetGrade && (c.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(c.id);
-    }
-    for (const h of (ctx.cachedHaengteuk ?? [])) {
-      if (h.grade === targetGrade && (h.imported_content?.trim()?.length ?? 0) >= 20) allRecordIds.push(h.id);
-    }
-    if (allRecordIds.length > 0) {
-      const cached = await competencyRepo.findAnalysisCacheByRecordIds(allRecordIds, ctx.tenantId, "ai");
-      for (const entry of cached) {
-        if (entry.analysis_result) {
-          allForAggregate.set(entry.record_id, entry.analysis_result as HighlightAnalysisResult);
-        }
-      }
-    }
-    for (const [id, result] of allResults) {
-      allForAggregate.set(id, result);
-    }
-    await runAggregateForGrade(ctx, targetGrade, allForAggregate);
-  }
-
-  const total = succeeded + skipped + failed;
-  const parts = [`${succeeded}건 분석`];
-  if (skipped > 0) parts.push(`${skipped}건 캐시`);
-  if (failed > 0) parts.push(`${failed}건 실패`);
-  if (!hasMore) parts.push("집계 완료");
-  if (hasMore) parts.push(`잔여 ${totalUncached - chunkSize}건`);
-
-  return {
-    preview: `${targetGrade}학년 행특 역량 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
-    result: { allCached: total > 0 && skipped === total },
-    hasMore, totalUncached, chunkProcessed: succeeded + failed,
-  };
+  return runCompetencyChunkForType(ctx, "haengteuk", chunkSize);
 }
 
 

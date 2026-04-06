@@ -13,6 +13,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { handleLlmActionError } from "../error-handler";
 import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -196,11 +197,6 @@ export async function generateSetekDraftAction(
     // 3. 즉시 반환 — UI에서 폴링으로 완료 감지
     return { success: true, data: { generating: true } };
   } catch (error) {
-    logActionError(LOG_CTX, error);
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
-      return { success: false, error: "AI 요청 한도에 도달했습니다." };
-    }
-    return { success: false, error: "세특 초안 생성 시작에 실패했습니다." };
+    return handleLlmActionError(error, "세특 초안 생성 시작", LOG_CTX);
   }
 }

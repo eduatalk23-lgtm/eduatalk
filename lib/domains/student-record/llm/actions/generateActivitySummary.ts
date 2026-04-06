@@ -6,6 +6,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
+import { handleLlmActionError } from "../error-handler";
 import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -213,16 +214,6 @@ export async function generateActivitySummary(
       data: { ...parsed, summaryId: inserted.id },
     };
   } catch (error) {
-    logActionError(LOG_CTX, error);
-
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
-      return { success: false, error: "AI 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요." };
-    }
-    if (error instanceof SyntaxError || msg.includes("JSON")) {
-      return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
-    }
-
-    return { success: false, error: "활동 요약서 생성 중 오류가 발생했습니다." };
+    return handleLlmActionError(error, "활동 요약서 생성", LOG_CTX);
   }
 }

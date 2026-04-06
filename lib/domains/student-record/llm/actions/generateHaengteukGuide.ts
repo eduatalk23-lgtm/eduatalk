@@ -7,10 +7,13 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
+import { handleLlmActionError } from "../error-handler";
 import { generateTextWithRateLimit } from "../ai-client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
+import { resolveEffectiveContent } from "../../pipeline-data-resolver";
+import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus } from "./guide-helpers";
 import {
   SYSTEM_PROMPT,
   buildUserPrompt,
@@ -18,7 +21,7 @@ import {
 } from "../prompts/haengteukGuide";
 import type { HaengteukGuideInput, HaengteukGuideResult } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
-import { syncPipelineTaskStatus } from "../../actions/pipeline";
+
 import { formatHaengteukItemNames } from "../../evaluation-criteria/defaults";
 
 const LOG_CTX = { domain: "student-record", action: "generateHaengteukGuide" };
@@ -136,19 +139,12 @@ ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n
   }
 
   // 기존 AI 가이드 삭제 (prospective 범위만)
-  const { error: deleteError } = await supabase
-    .from("student_record_haengteuk_guides")
-    .delete()
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("school_year", currentSchoolYear)
-    .eq("source", "ai")
-    .eq("guide_mode", "prospective");
-
-  if (deleteError) {
-    logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert_prospective" });
-    return { success: false, error: `기존 가이드 삭제 실패: ${deleteError.message}` };
-  }
+  const deleteResult = await deleteExistingGuides(
+    "student_record_haengteuk_guides",
+    { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", guideMode: "prospective" },
+    LOG_CTX,
+  );
+  if (deleteResult) return deleteResult;
 
   const row = {
     tenant_id: tenantId,
@@ -180,9 +176,7 @@ ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n
     return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
   }
 
-  syncPipelineTaskStatus(studentId, "haengteuk_guide").catch((err) =>
-      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "haengteuk_guide", error: String(err) }),
-    );
+  syncGuideTaskStatus(studentId, "haengteuk_guide", LOG_CTX);
 
   return {
     success: true,
@@ -229,20 +223,7 @@ export async function generateHaengteukGuide(
 
     // subject_id → 과목명 매핑 (세특 참고용)
     const supabase = await createSupabaseServerClient();
-    const allSubjectIds = new Set<string>();
-    for (const grade of grades) {
-      const data = report.recordDataByGrade[grade];
-      if (!data) continue;
-      for (const s of data.seteks) allSubjectIds.add(s.subject_id);
-    }
-    const subjectMap = new Map<string, string>();
-    if (allSubjectIds.size > 0) {
-      const { data: subjects } = await supabase
-        .from("subjects")
-        .select("id, name")
-        .in("id", [...allSubjectIds]);
-      for (const s of subjects ?? []) subjectMap.set(s.id, s.name);
-    }
+    const subjectMap = await buildSubjectMap(report.recordDataByGrade, grades);
 
     // RecordTabData → HaengteukGuideInput 변환
     const recordDataByGrade: HaengteukGuideInput["recordDataByGrade"] = {};
@@ -250,41 +231,26 @@ export async function generateHaengteukGuide(
       const data = report.recordDataByGrade[grade];
       if (!data) continue;
 
+      const haengteukText = data.haengteuk ? resolveEffectiveContent(data.haengteuk).text : "";
       recordDataByGrade[grade] = {
-        haengteuk: (data.haengteuk?.imported_content?.trim() || data.haengteuk?.content)
-          ? { content: data.haengteuk?.imported_content?.trim() ? data.haengteuk.imported_content : (data.haengteuk?.content ?? "") }
-          : null,
+        haengteuk: haengteukText.length > 0 ? { content: haengteukText } : null,
         changche: data.changche
-          .filter((c) => c.content || c.imported_content)
+          .filter((c) => resolveEffectiveContent(c).text.length > 0)
           .map((c) => ({
             activity_type: c.activity_type,
-            content: c.imported_content?.trim() ? c.imported_content : (c.content || ""),
+            content: resolveEffectiveContent(c).text,
           })),
         seteks: data.seteks
-          .filter((s) => s.content || s.imported_content)
+          .filter((s) => resolveEffectiveContent(s).text.length > 0)
           .map((s) => ({
             subject_name: subjectMap.get(s.subject_id) ?? "과목 미정",
-            content: s.imported_content?.trim() ? s.imported_content : (s.content || ""),
+            content: resolveEffectiveContent(s).text,
           })),
       };
     }
 
     // 역량 진단 데이터 변환 (컨설턴트 진단 우선, 없으면 AI 진단)
-    const diagnosisData = report.diagnosisData;
-    const competencyScores = (
-      diagnosisData.competencyScores.consultant.length > 0
-        ? diagnosisData.competencyScores.consultant
-        : diagnosisData.competencyScores.ai
-    ).map((cs) => ({
-      item: cs.competency_item,
-      grade: cs.grade_value,
-      narrative: cs.narrative ?? undefined,
-    }));
-
-    // 강점/약점 추출 (컨설턴트 진단 우선)
-    const diagnosis = diagnosisData.consultantDiagnosis ?? diagnosisData.aiDiagnosis;
-    const strengths = diagnosis?.strengths as string[] | undefined;
-    const weaknesses = diagnosis?.weaknesses as string[] | undefined;
+    const { competencyScores, strengths, weaknesses } = extractDiagnosisContext(report.diagnosisData);
 
     // D→B단계: fetchReportData 결과에서 역량 분석 맥락 구성
     const analysisContext = pipelineAnalysisContext ?? await (async () => {
@@ -338,19 +304,12 @@ export async function generateHaengteukGuide(
     const currentSchoolYear = targetSchoolYear ?? calculateSchoolYear();
 
     // 기존 AI 가이드 삭제 (재생성 시 중복 방지 — retrospective 범위만)
-    const { error: deleteError } = await supabase
-      .from("student_record_haengteuk_guides")
-      .delete()
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", currentSchoolYear)
-      .eq("source", "ai")
-      .eq("guide_mode", "retrospective");
-
-    if (deleteError) {
-      logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert" });
-      return { success: false, error: `기존 가이드 삭제 실패: ${deleteError.message}` };
-    }
+    const deleteResult = await deleteExistingGuides(
+      "student_record_haengteuk_guides",
+      { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", guideMode: "retrospective" },
+      LOG_CTX,
+    );
+    if (deleteResult) return deleteResult;
 
     const row = {
       tenant_id: tenantId,
@@ -382,26 +341,13 @@ export async function generateHaengteukGuide(
       return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
     }
 
-    // 파이프라인 상태 동기화 (fire-and-forget)
-    syncPipelineTaskStatus(studentId, "haengteuk_guide").catch((err) =>
-      logActionWarn(LOG_CTX, "파이프라인 상태 동기화 실패", { studentId, task: "haengteuk_guide", error: String(err) }),
-    );
+    syncGuideTaskStatus(studentId, "haengteuk_guide", LOG_CTX);
 
     return {
       success: true,
       data: { ...parsed, summaryId: inserted.id },
     };
   } catch (error) {
-    logActionError(LOG_CTX, error);
-
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
-      return { success: false, error: "AI 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요." };
-    }
-    if (error instanceof SyntaxError || msg.includes("JSON")) {
-      return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
-    }
-
-    return { success: false, error: "행특 방향 가이드 생성 중 오류가 발생했습니다." };
+    return handleLlmActionError(error, "행특 방향 가이드 생성", LOG_CTX);
   }
 }
