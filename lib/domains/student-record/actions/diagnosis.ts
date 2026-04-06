@@ -663,16 +663,34 @@ export async function fetchCrossRefData(
       if (h.content) recordContentMap[h.id] = h.content as string;
     }
 
+    // S4: DB에서 직접 grade/recordType 맵 구성 (label regex 파싱 대체)
+    const recordGradeMap: Record<string, number> = {};
+    const recordTypeMap: Record<string, string> = {};
+    for (const s of seteksResult.data ?? []) {
+      recordGradeMap[s.id] = s.grade;
+      recordTypeMap[s.id] = "setek";
+    }
+    for (const c of changcheResult.data ?? []) {
+      recordGradeMap[c.id] = c.grade;
+      recordTypeMap[c.id] = "changche";
+    }
+    for (const h of haengteukResult.data ?? []) {
+      recordGradeMap[h.id] = h.grade;
+      recordTypeMap[h.id] = "haengteuk";
+    }
+
     return {
       storylineLinks: storylineLinksResult as import("../types").StorylineLink[],
       readingLinks: readingLinksResult as import("../types").ReadingLink[],
       readingLabelMap,
       recordLabelMap,
       recordContentMap,
+      recordGradeMap,
+      recordTypeMap,
     };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchCrossRefData" }, error, { studentId });
-    return { storylineLinks: [], readingLinks: [], readingLabelMap: {}, recordLabelMap: {}, recordContentMap: {} };
+    return { storylineLinks: [], readingLinks: [], readingLabelMap: {}, recordLabelMap: {}, recordContentMap: {}, recordGradeMap: {}, recordTypeMap: {} };
   }
 }
 

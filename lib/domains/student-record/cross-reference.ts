@@ -299,6 +299,7 @@ export function detectThemeConvergence(
   recordContentMap: Map<string, string>,
   recordLabelMap: Map<string, string>,
   allTags: ActivityTag[],
+  recordTypeMap?: Map<string, RecordType>,
 ): CrossRefEdge[] {
   // 현재 영역 텍스트 합산
   const currentTexts: string[] = [];
@@ -320,11 +321,16 @@ export function detectThemeConvergence(
   // recordContentMap에 있지만 tags에 없는 레코드도 추가
   for (const [id] of recordContentMap) {
     if (!currentRecordIds.has(id) && !otherRecords.has(id)) {
-      const label = recordLabelMap.get(id) ?? "";
-      // label 패턴으로 record_type 추론
-      if (label.includes("세특")) otherRecords.set(id, "setek");
-      else if (label.includes("활동")) otherRecords.set(id, "changche");
-      else if (label.includes("행동") || label.includes("행특")) otherRecords.set(id, "haengteuk");
+      // recordTypeMap 우선, 없으면 label 패턴 폴백
+      const typeFromMap = recordTypeMap?.get(id);
+      if (typeFromMap) {
+        otherRecords.set(id, typeFromMap);
+      } else {
+        const label = recordLabelMap.get(id) ?? "";
+        if (label.includes("세특")) otherRecords.set(id, "setek");
+        else if (label.includes("활동")) otherRecords.set(id, "changche");
+        else if (label.includes("행동") || label.includes("행특")) otherRecords.set(id, "haengteuk");
+      }
     }
   }
 
@@ -366,13 +372,17 @@ export function detectTeacherValidation(
   currentRecordType: RecordType,
   recordContentMap: Map<string, string>,
   recordLabelMap: Map<string, string>,
+  recordTypeMap?: Map<string, RecordType>,
 ): CrossRefEdge[] {
-  // 행특 텍스트 찾기
+  // 행특 텍스트 찾기 — recordTypeMap 우선, 없으면 label 폴백
   const haengteukEntries: Array<{ id: string; content: string }> = [];
   for (const [id, content] of recordContentMap) {
-    const label = recordLabelMap.get(id) ?? "";
-    if (label.includes("행동") || label.includes("행특")) {
-      haengteukEntries.push({ id, content });
+    const type = recordTypeMap?.get(id);
+    if (type) {
+      if (type === "haengteuk") haengteukEntries.push({ id, content });
+    } else {
+      const label = recordLabelMap.get(id) ?? "";
+      if (label.includes("행동") || label.includes("행특")) haengteukEntries.push({ id, content });
     }
   }
   if (haengteukEntries.length === 0) return [];
@@ -386,9 +396,13 @@ export function detectTeacherValidation(
     const otherTexts = new Map<string, { texts: string[]; firstId: string }>();
     for (const [id, content] of recordContentMap) {
       if (currentRecordIds.has(id)) continue;
-      const label = recordLabelMap.get(id) ?? "";
-      if (label.includes("행동") || label.includes("행특")) continue;
-      const type = label.includes("세특") ? "setek" : label.includes("활동") ? "changche" : null;
+      const typeFromMap = recordTypeMap?.get(id);
+      if (typeFromMap === "haengteuk") continue;
+      const type = typeFromMap ?? (() => {
+        const label = recordLabelMap.get(id) ?? "";
+        if (label.includes("행동") || label.includes("행특")) return null;
+        return label.includes("세특") ? "setek" as const : label.includes("활동") ? "changche" as const : null;
+      })();
       if (!type) continue;
       const entry = otherTexts.get(type) ?? { texts: [], firstId: id };
       entry.texts.push(content);
@@ -454,6 +468,10 @@ export interface CrossRefInput {
   readingLabelMap: Map<string, string>;
   /** G3-5: record_id → content 텍스트 */
   recordContentMap?: Map<string, string>;
+  /** record_id → grade (label 파싱 대신 DB 직접 전달, optional 폴백) */
+  recordGradeMap?: Map<string, number>;
+  /** record_id → record_type (label 파싱 대신 DB 직접 전달, optional 폴백) */
+  recordTypeMap?: Map<string, RecordType>;
 }
 
 export function detectAllCrossReferences(input: CrossRefInput): CrossRefEdge[] {
@@ -501,6 +519,7 @@ export function detectAllCrossReferences(input: CrossRefInput): CrossRefEdge[] {
         input.recordContentMap,
         input.recordLabelMap,
         input.allTags,
+        input.recordTypeMap,
       ),
     );
 
@@ -510,6 +529,7 @@ export function detectAllCrossReferences(input: CrossRefInput): CrossRefEdge[] {
         input.currentRecordType,
         input.recordContentMap,
         input.recordLabelMap,
+        input.recordTypeMap,
       ),
     );
   }
@@ -544,6 +564,10 @@ export interface CrossRefGlobalInput {
   readingLabelMap: Map<string, string>;
   /** G3-5: record_id → content 텍스트 */
   recordContentMap?: Map<string, string>;
+  /** record_id → grade (label 파싱 대신 DB 직접 전달, optional 폴백) */
+  recordGradeMap?: Map<string, number>;
+  /** record_id → record_type (label 파싱 대신 DB 직접 전달, optional 폴백) */
+  recordTypeMap?: Map<string, RecordType>;
 }
 
 /** 학생의 모든 레코드 노드를 열거하고 각 노드의 엣지를 감지 */
@@ -554,12 +578,16 @@ export function buildConnectionGraph(input: CrossRefGlobalInput): ConnectionGrap
   // activityTags에서 추출 (record_type 직접 제공)
   for (const tag of input.allTags) {
     if (!recordMeta.has(tag.record_id)) {
-      // grade는 label에서 파싱 (recordLabelMap: "2학년 수학 세특" → grade=2)
-      const label = input.recordLabelMap.get(tag.record_id) ?? "";
-      const gradeMatch = label.match(/^(\d)학년/);
+      // grade: DB 맵 우선, 없으면 label 파싱 폴백
+      const gradeFromMap = input.recordGradeMap?.get(tag.record_id);
+      const grade = gradeFromMap ?? (() => {
+        const label = input.recordLabelMap.get(tag.record_id) ?? "";
+        const m = label.match(/^(\d)학년/);
+        return m ? Number(m[1]) : 1;
+      })();
       recordMeta.set(tag.record_id, {
-        recordType: tag.record_type as RecordType,
-        grade: gradeMatch ? Number(gradeMatch[1]) : 1, // 파싱 실패 시 1학년 기본값 (0은 TEMPORAL_GROWTH 오탐 유발)
+        recordType: (input.recordTypeMap?.get(tag.record_id) ?? tag.record_type) as RecordType,
+        grade,
       });
     }
   }
