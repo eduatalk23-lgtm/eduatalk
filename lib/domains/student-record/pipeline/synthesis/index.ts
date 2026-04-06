@@ -3,9 +3,6 @@
 // 기존 pipeline-task-runners-synthesis.ts 에서 분리된 모든 함수를 re-export
 // ============================================
 
-// legacy: runCompetencyAnalysis
-export { runCompetencyAnalysis } from "./legacy";
-
 // S1
 export { runStorylineGeneration } from "./phase-s1-storyline";
 

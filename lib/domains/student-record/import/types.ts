@@ -196,6 +196,8 @@ export interface ImportResult {
     reason: string;
     items: string[];
   }[];
+  /** 부분 실패한 레코드 (전체 성공=빈 배열, 일부 실패 시 사유 포함) */
+  partialFailures?: string[];
 }
 
 // ============================================

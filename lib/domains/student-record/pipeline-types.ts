@@ -17,8 +17,9 @@
 export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "timeout";
 export type PipelineTaskStatus = "pending" | "running" | "completed" | "failed";
 
+/** @deprecated 레거시 단일 파이프라인용. 신규는 GRADE_PIPELINE_TASK_KEYS / SYNTHESIS_PIPELINE_TASK_KEYS 사용. */
 export const PIPELINE_TASK_KEYS = [
-  "competency_analysis",     // 1st: 역량 태그 + 등급 생성
+  "competency_analysis",     // 1st: 역량 태그 + 등급 ��성
   "storyline_generation",    // 2nd: 기록 분석 → 스토리라인 감지 (진단보다 먼저)
   "edge_computation",        // 3rd: 태그+스토리라인 → 7종 엣지 영속화
   "ai_diagnosis",            // 4th: 역량+엣지 → 종합진단(강점/약점)
@@ -440,8 +441,8 @@ export interface PipelineContext {
   neisGrades?: number[];
   consultingGrades?: number[];
   // 학년 단위 파이프라인 (Step 1: grade partitioning)
-  /** 파이프라인 유형. legacy = 기존 단일 파이프라인, grade = 학년별, synthesis = 종합. */
-  pipelineType: "legacy" | "grade" | "synthesis";
+  /** 파이프라인 유형. grade = 학년별, synthesis = 종합. */
+  pipelineType: "grade" | "synthesis";
   /** grade 파이프라인일 때 처리 대상 학년 (1/2/3). */
   targetGrade?: number;
   /** synthesis 파이프라인일 때 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용). */

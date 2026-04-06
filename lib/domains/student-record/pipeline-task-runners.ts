@@ -4,7 +4,6 @@
 // 기존 import 경로 호환을 위해 모든 exported 함수를 이 파일에서 re-export한다.
 // 각 함수의 실제 구현은 하위 모듈에 있음:
 //   - pipeline-task-runners-shared.ts   : 공용 헬퍼 (runWithConcurrency, collectAnalysisContext 등)
-//   - pipeline-task-runners-synthesis.ts : Synthesis 파이프라인 태스크 (S1-S6 + legacy)
 //   - pipeline-task-runners-guide.ts     : 가이드 생성 태스크 (P4-P6 + slot + ForGrade 변형 G2-G4)
 //   - pipeline-task-runners-competency.ts: 역량 분석 태스크 (P1-P3 + G1 ForGrade 변형)
 //   - pipeline-task-runners-slot.ts      : 슬롯 생성 태스크 (G5 ForGrade 변형)
@@ -19,9 +18,8 @@ export {
   buildGuideAnalysisContextFromReport,
 } from "./pipeline-task-runners-shared";
 
-// Synthesis Pipeline (S1-S6 + legacy competency_analysis)
+// Synthesis Pipeline (S1-S6)
 export {
-  runCompetencyAnalysis,
   runStorylineGeneration,
   runEdgeComputation,
   runAiDiagnosis,
@@ -48,9 +46,8 @@ export {
 // Slot Pipeline — Grade 변형 (G5)
 export { runSlotGenerationForGrade } from "./pipeline-task-runners-slot";
 
-// Competency Pipeline — Grade 변형 (G1 P1-P3 ForGrade)
+// Competency Pipeline — Grade 변형 (P1-P3 ForGrade)
 export {
-  runCompetencyAnalysisForGrade,
   runCompetencySetekForGrade,
   runCompetencySetekChunkForGrade,
   runCompetencyChangcheForGrade,

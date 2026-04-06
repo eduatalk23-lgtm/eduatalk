@@ -231,10 +231,12 @@ export async function loadPipelineContext(
   const tenantId: string = row.tenant_id;
 
   // pipeline_type 복원
-  const pipelineType: "legacy" | "grade" | "synthesis" =
-    row.pipeline_type === "grade" || row.pipeline_type === "synthesis"
-      ? row.pipeline_type
-      : "legacy";
+  const rawPipelineType: string = row.pipeline_type ?? "legacy";
+  if (rawPipelineType === "legacy") {
+    throw new Error("레거시 파이프라인은 지원 중단되었습니다. Grade/Synthesis 파이프라인을 사용하세요.");
+  }
+  const pipelineType: "grade" | "synthesis" =
+    rawPipelineType === "grade" ? "grade" : "synthesis";
   const targetGrade: number | undefined =
     pipelineType === "grade" && row.grade != null ? (row.grade as number) : undefined;
 
@@ -246,13 +248,8 @@ export async function loadPipelineContext(
     for (const key of GRADE_PIPELINE_TASK_KEYS) {
       tasks[key] = rawTasks[key] ?? "pending";
     }
-  } else if (pipelineType === "synthesis") {
-    for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
-      tasks[key] = rawTasks[key] ?? "pending";
-    }
   } else {
-    // legacy: 기존 전체 키 사용
-    for (const key of PIPELINE_TASK_KEYS) {
+    for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
       tasks[key] = rawTasks[key] ?? "pending";
     }
   }

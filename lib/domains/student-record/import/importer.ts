@@ -58,23 +58,37 @@ export async function executeImport(
     });
   }
 
+  const partialFailures: string[] = [];
+
   try {
     // 세특 upsert — imported_content에 저장, content 비어있으면 편집 시작점으로 복사
     for (const setek of mapped.seteks.items) {
-      await repo.upsertSetekImport(setek);
-      counts.seteks++;
+      try {
+        await repo.upsertSetekImport(setek);
+        counts.seteks++;
+      } catch (err) {
+        partialFailures.push(`세특(${setek.subject_id ?? "?"}): ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
     // 창체 upsert
     for (const changche of mapped.changche) {
-      await repo.upsertChangcheImport(changche);
-      counts.changche++;
+      try {
+        await repo.upsertChangcheImport(changche);
+        counts.changche++;
+      } catch (err) {
+        partialFailures.push(`창체(${changche.activity_type ?? "?"}): ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
     // 행특 upsert
     for (const haengteuk of mapped.haengteuk) {
-      await repo.upsertHaengteukImport(haengteuk);
-      counts.haengteuk++;
+      try {
+        await repo.upsertHaengteukImport(haengteuk);
+        counts.haengteuk++;
+      } catch (err) {
+        partialFailures.push(`행특(${haengteuk.grade}학년): ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
     // ── 독서/수상/봉사: insert-first-delete-after 패턴 ──
@@ -291,9 +305,20 @@ export async function executeImport(
       }
     }
 
-    return { success: true, counts, skipped };
+    return {
+      success: true,
+      counts,
+      skipped,
+      ...(partialFailures.length > 0 ? { partialFailures } : {}),
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
-    return { success: false, error: message, counts, skipped };
+    return {
+      success: false,
+      error: message,
+      counts,
+      skipped,
+      ...(partialFailures.length > 0 ? { partialFailures } : {}),
+    };
   }
 }
