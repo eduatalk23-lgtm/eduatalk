@@ -413,6 +413,16 @@ export async function proxy(request: NextRequest) {
   const isServerAction = request.method === "POST" && request.headers.has("Next-Action");
 
   if (isServerAction) {
+    // Auth 페이지(login/signup 등)에서 호출된 Server Action은 인증 불필요 (signIn, signUp 등)
+    // - getUser() 호출 시 stale refresh token 에러 + 쿠키 조작으로 signIn 응답과 충돌 방지
+    // - Server Action POST의 URL은 현재 페이지 경로 (next-url 헤더는 interception route에서만 전송)
+    // ⚠️ pathname만으로 바이패스하므로, 모든 Server Action은 자체 인증 가드 필수
+    const isFromAuthPage = AUTH_ONLY_PAGES.some((path) => pathname.startsWith(path));
+
+    if (isFromAuthPage) {
+      return NextResponse.next({ request: { headers: request.headers } });
+    }
+
     if (!hasAuthCookies(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

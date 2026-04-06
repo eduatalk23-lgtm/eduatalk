@@ -779,7 +779,9 @@ async function _signOut(): Promise<void> {
 
   const { error } = await supabase.auth.signOut();
 
-  if (error) {
+  // 세션이 이미 만료/삭제된 상태에서 signOut 호출 시 "Auth session missing!" 에러 발생
+  // 이 경우 이미 로그아웃 상태이므로 쿠키 정리 후 정상 진행
+  if (error && !error.message?.includes("Auth session missing")) {
     throw new AppError(
       error.message || "로그아웃에 실패했습니다.",
       ErrorCode.INTERNAL_ERROR,

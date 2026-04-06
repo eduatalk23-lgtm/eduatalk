@@ -70,7 +70,11 @@ export function ProfileMenu({
 
   const handleSignOut = () => {
     startTransition(async () => {
-      await signOut();
+      try {
+        await signOut();
+      } catch {
+        // 세션 만료 등으로 signOut 실패해도 로그아웃 진행
+      }
       window.location.href = "/login";
     });
   };

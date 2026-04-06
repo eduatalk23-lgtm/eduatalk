@@ -13,6 +13,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { invalidateCalendarSchedule } from "@/lib/cache/calendarCache";
+import {
+  checkCalendarAccess,
+  checkCalendarAccessByCalendarId,
+  checkCalendarAccessByEventId,
+  checkCalendarAccessByPlanGroupId,
+} from "./calendarAuth";
 import type { Json } from "@/lib/supabase/database.types";
 import type {
   CalendarEvent,
@@ -151,6 +157,7 @@ async function _getEventsByCalendar(
     includeStudyData?: boolean;
   }
 ): Promise<CalendarEventWithStudyData[]> {
+  await checkCalendarAccessByCalendarId(calendarId);
   const supabase = await createSupabaseServerClient();
 
   // NOTE: includeStudyData=false 시 JOIN 생략하려면 반환 타입도 분리 필요
@@ -203,6 +210,7 @@ async function _getUnfinishedEvents(
   calendarId: string,
   beforeDate: string
 ): Promise<CalendarEventWithStudyData[]> {
+  await checkCalendarAccessByCalendarId(calendarId);
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -239,6 +247,7 @@ export const getUnfinishedEventsAction = withErrorHandling(
 async function _createEvent(
   input: CreateEventInput
 ): Promise<CalendarEvent> {
+  await checkCalendarAccess(input.studentId);
   const supabase = await createSupabaseServerClient();
 
   // created_by / creator_role 자동 설정
@@ -358,6 +367,9 @@ export const createStudyEventAction = withErrorHandling(_createStudyEvent);
 async function _createEventsBatch(
   events: CalendarEventInsert[]
 ): Promise<{ count: number }> {
+  if (events.length === 0) return { count: 0 };
+  // 배치의 첫 이벤트 기준으로 접근 권한 확인
+  await checkCalendarAccess(events[0].student_id);
   const supabase = await createSupabaseServerClient();
 
   const BATCH_SIZE = 500;
@@ -401,6 +413,7 @@ async function _updateEvent(
   eventId: string,
   updates: UpdateEventInput
 ): Promise<CalendarEvent> {
+  await checkCalendarAccessByEventId(eventId);
   const supabase = await createSupabaseServerClient();
 
   const updateData: CalendarEventUpdate = {};
@@ -462,6 +475,7 @@ async function _updateStudyData(
   eventId: string,
   updates: UpdateStudyDataInput
 ): Promise<EventStudyData> {
+  await checkCalendarAccessByEventId(eventId);
   const supabase = await createSupabaseServerClient();
 
   const updateData: EventStudyDataUpdate = {};
@@ -510,6 +524,7 @@ async function _updateEventStatus(
   eventId: string,
   status: EventStatus
 ): Promise<void> {
+  await checkCalendarAccessByEventId(eventId);
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
@@ -535,6 +550,7 @@ export const updateEventStatusAction = withErrorHandling(_updateEventStatus);
 // ============================================
 
 async function _deleteEvent(eventId: string): Promise<void> {
+  await checkCalendarAccessByEventId(eventId);
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -566,6 +582,7 @@ export const deleteEventAction = withErrorHandling(_deleteEvent);
 async function _deleteEventsByPlanGroup(
   planGroupId: string
 ): Promise<{ deletedCount: number }> {
+  await checkCalendarAccessByPlanGroupId(planGroupId);
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase

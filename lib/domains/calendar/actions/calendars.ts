@@ -288,36 +288,7 @@ import {
 import { ensureStudentPrimaryCalendar, mapExclusionType } from "../helpers";
 import { extractTimeHHMM, extractDateYMD } from "../adapters";
 import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
-
-/**
- * 권한 체크 (Admin/Consultant, 해당 학생 본인, 또는 연결된 학부모)
- */
-async function checkCalendarAccess(targetStudentId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  if (!user.tenantId) throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
-
-  if (user.role === "admin" || user.role === "consultant") {
-    return { user, tenantId: user.tenantId, isAdmin: true };
-  }
-  if (user.role === "student" && user.userId === targetStudentId) {
-    return { user, tenantId: user.tenantId, isAdmin: false };
-  }
-  // 학부모: parent_student_links를 통한 연결 확인
-  if (user.role === "parent") {
-    const supabase = await createSupabaseServerClient();
-    const { data: link } = await supabase
-      .from("parent_student_links")
-      .select("id")
-      .eq("parent_id", user.userId)
-      .eq("student_id", targetStudentId)
-      .maybeSingle();
-    if (link) {
-      return { user, tenantId: user.tenantId, isAdmin: false };
-    }
-  }
-  throw new AppError("접근 권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-}
+import { checkCalendarAccess } from "./calendarAuth";
 
 // mapCalendarSettingsFromDB → imported from ../mapCalendarSettings
 

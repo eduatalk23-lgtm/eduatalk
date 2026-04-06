@@ -14,6 +14,7 @@
  */
 
 import { requireAdmin, requireAdminOrConsultant } from "@/lib/auth/guards";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logActionError, logActionSuccess } from "@/lib/logging/actionLogger";
@@ -454,6 +455,16 @@ export async function acceptInvitation(
   userId: string,
   options?: { relation?: string; consents?: ConsentData }
 ): Promise<AcceptInvitationResult> {
+  // userId 파라미터가 인증된 사용자와 일치하는지 검증 (IDOR 방지)
+  // signup 직후 호출 시 user_profiles 미존재 가능 → JWT만 확인하는 getCachedAuthUser 사용
+  const authUser = await getCachedAuthUser();
+  if (!authUser) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+  if (authUser.id !== userId) {
+    return { success: false, error: "인증된 사용자 정보가 일치하지 않습니다." };
+  }
+
   const adminClient = createSupabaseAdminClient();
   if (!adminClient) {
     return { success: false, error: "서버 오류가 발생했습니다." };

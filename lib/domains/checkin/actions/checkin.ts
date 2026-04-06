@@ -104,15 +104,15 @@ async function resolveTitle(
  * 학생 레이아웃에서 호출 — 어떤 페이지든 접속하면 출석 기록됨.
  * 스트릭/칭호 계산 없이 upsert만 수행하므로 오버헤드 최소.
  */
-export async function ensureDailyCheckIn(
-  studentId: string,
-  tenantId: string
-): Promise<void> {
+export async function ensureDailyCheckIn(): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") return;
+
   const supabase = await createSupabaseServerClient();
   const today = getTodayKST();
 
   await supabase.from("daily_check_ins").upsert(
-    { student_id: studentId, tenant_id: tenantId, check_date: today },
+    { student_id: user.userId, tenant_id: user.tenantId ?? "", check_date: today },
     { onConflict: "student_id,check_date", ignoreDuplicates: true }
   );
 }
@@ -280,16 +280,16 @@ export async function getMonthlyCheckIns(
   targetStudentId?: string
 ): Promise<CheckInActionResult<string[]>> {
   try {
-    // targetStudentId가 제공되면 auth 호출 스킵 (불필요한 getCurrentUser + user_profiles 쿼리 제거)
-    let studentId: string;
-    if (targetStudentId) {
-      studentId = targetStudentId;
-    } else {
-      const user = await getCurrentUser();
-      if (!user) {
-        return { success: false, error: "로그인이 필요합니다." };
-      }
-      studentId = user.userId;
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    const studentId = targetStudentId || user.userId;
+
+    // IDOR 방지: 학생은 자기 데이터만 조회 가능
+    if (user.role === "student" && studentId !== user.userId) {
+      return { success: false, error: "접근 권한이 없습니다." };
     }
 
     const supabase = await createSupabaseServerClient();
