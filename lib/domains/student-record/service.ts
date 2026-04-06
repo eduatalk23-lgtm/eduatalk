@@ -136,7 +136,7 @@ export async function saveSetek(
     }
 
     const id = await repository.upsertSetek({ ...input, content });
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "saveSetek" }, error, { studentId: input.student_id });
     return { success: false, error: "세특 저장 중 오류가 발생했습니다." };
@@ -167,7 +167,7 @@ export async function savePersonalSetek(
     }
 
     const id = await repository.insertPersonalSetek({ ...input, content });
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "savePersonalSetek" }, error);
     return { success: false, error: "개인 세특 저장 중 오류가 발생했습니다." };
@@ -223,11 +223,11 @@ export async function saveChangche(
         { ...input, content, char_limit: charLimit },
         options.expectedUpdatedAt,
       );
-      return { success: true, id: input.id };
+      return { success: true, data: { id: input.id } };
     }
 
     const id = await repository.upsertChangche({ ...input, content, char_limit: charLimit });
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("CONFLICT")) {
       return { success: false, error: error.message };
@@ -263,11 +263,11 @@ export async function saveHaengteuk(
         { ...input, content, char_limit: charLimit },
         options.expectedUpdatedAt,
       );
-      return { success: true, id: input.id };
+      return { success: true, data: { id: input.id } };
     }
 
     const id = await repository.upsertHaengteuk({ ...input, content, char_limit: charLimit });
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("CONFLICT")) {
       return { success: false, error: error.message };
@@ -286,7 +286,7 @@ export async function addReading(
 ): Promise<StudentRecordActionResult> {
   try {
     const id = await repository.insertReading(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addReading" }, error);
     return { success: false, error: "독서 추가 중 오류가 발생했습니다." };
@@ -312,7 +312,7 @@ export async function saveAttendance(
 ): Promise<StudentRecordActionResult> {
   try {
     const id = await repository.upsertAttendance(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "saveAttendance" }, error);
     return { success: false, error: "출결 저장 중 오류가 발생했습니다." };
@@ -353,7 +353,7 @@ export async function saveStoryline(
       return { success: false, error: "스토리라인 제목을 입력해주세요." };
     }
     const id = await repository.insertStoryline(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "saveStoryline" }, error);
     return { success: false, error: "스토리라인 저장 중 오류가 발생했습니다." };
@@ -366,7 +366,7 @@ export async function updateStoryline(
 ): Promise<StudentRecordActionResult> {
   try {
     await repository.updateStorylineById(id, updates);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "updateStoryline" }, error);
     return { success: false, error: "스토리라인 수정 중 오류가 발생했습니다." };
@@ -392,7 +392,7 @@ export async function addStorylineLink(
 ): Promise<StudentRecordActionResult> {
   try {
     const id = await repository.insertStorylineLink(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addStorylineLink" }, error);
     return { success: false, error: "활동 연결 중 오류가 발생했습니다." };
@@ -421,7 +421,7 @@ export async function saveRoadmapItem(
       return { success: false, error: "계획 내용을 입력해주세요." };
     }
     const id = await repository.insertRoadmapItem(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "saveRoadmapItem" }, error);
     return { success: false, error: "로드맵 항목 저장 중 오류가 발생했습니다." };
@@ -434,7 +434,7 @@ export async function updateRoadmapItem(
 ): Promise<StudentRecordActionResult> {
   try {
     await repository.updateRoadmapItemById(id, updates);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "updateRoadmapItem" }, error);
     return { success: false, error: "로드맵 항목 수정 중 오류가 발생했습니다." };
@@ -509,7 +509,7 @@ export async function addApplication(
     }
 
     const id = await repository.insertApplication(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addApplication" }, error);
     return { success: false, error: "지원 추가 중 오류가 발생했습니다." };
@@ -522,7 +522,7 @@ export async function updateApplication(
 ): Promise<StudentRecordActionResult> {
   try {
     await repository.updateApplicationById(id, updates);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "updateApplication" }, error);
     return { success: false, error: "지원 수정 중 오류가 발생했습니다." };
@@ -549,7 +549,7 @@ export async function addAward(input: RecordAwardInsert): Promise<StudentRecordA
       return { success: false, error: "수상명을 입력해주세요." };
     }
     const id = await repository.insertAward(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addAward" }, error);
     return { success: false, error: "수상 추가 중 오류가 발생했습니다." };
@@ -572,7 +572,7 @@ export async function addVolunteer(input: RecordVolunteerInsert): Promise<Studen
       return { success: false, error: "봉사 시간을 입력해주세요." };
     }
     const id = await repository.insertVolunteer(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addVolunteer" }, error);
     return { success: false, error: "봉사 추가 중 오류가 발생했습니다." };
@@ -595,7 +595,7 @@ export async function addDisciplinary(input: RecordDisciplinaryInsert): Promise<
       return { success: false, error: "조치 유형을 입력해주세요." };
     }
     const id = await repository.insertDisciplinary(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addDisciplinary" }, error);
     return { success: false, error: "징계 추가 중 오류가 발생했습니다." };
@@ -652,7 +652,7 @@ export async function addMinScoreTarget(
       return { success: false, error: "학과를 입력해주세요." };
     }
     const id = await repository.insertMinScoreTarget(input);
-    return { success: true, id };
+    return { success: true, data: { id } };
   } catch (error) {
     logActionError({ domain: DOMAIN, action: "addMinScoreTarget" }, error);
     return { success: false, error: "최저 목표 추가 중 오류가 발생했습니다." };

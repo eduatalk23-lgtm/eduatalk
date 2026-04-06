@@ -142,7 +142,7 @@ describe("saveSetek", () => {
   it("정상 저장 — success + id 반환", async () => {
     mockRepository.upsertSetek.mockResolvedValue("rec-1");
     const result = await saveSetek(BASE_SETEK);
-    expect(result).toEqual({ success: true, id: "rec-1" });
+    expect(result).toEqual({ success: true, data: { id: "rec-1" } });
     expect(mockRepository.upsertSetek).toHaveBeenCalledOnce();
   });
 
@@ -221,7 +221,7 @@ describe("savePersonalSetek", () => {
       ...BASE_SETEK,
       content: "개인 세특 내용입니다.",
     });
-    expect(result).toEqual({ success: true, id: "ps-1" });
+    expect(result).toEqual({ success: true, data: { id: "ps-1" } });
   });
 
   it("바이트 초과 → 에러", async () => {
@@ -242,7 +242,7 @@ describe("saveChangche", () => {
   it("정상 저장 (upsert)", async () => {
     mockRepository.upsertChangche.mockResolvedValue("ch-1");
     const result = await saveChangche(BASE_CHANGCHE, 2025);
-    expect(result).toEqual({ success: true, id: "ch-1" });
+    expect(result).toEqual({ success: true, data: { id: "ch-1" } });
   });
 
   it("충돌 감지 (expectedUpdatedAt) → CONFLICT 에러 전파", async () => {
@@ -276,7 +276,7 @@ describe("saveHaengteuk", () => {
   it("정상 저장 (upsert)", async () => {
     mockRepository.upsertHaengteuk.mockResolvedValue("ht-1");
     const result = await saveHaengteuk(BASE_HAENGTEUK, 2025);
-    expect(result).toEqual({ success: true, id: "ht-1" });
+    expect(result).toEqual({ success: true, data: { id: "ht-1" } });
   });
 
   it("충돌 감지 → CONFLICT", async () => {
@@ -352,7 +352,7 @@ describe("addReading / removeReading / saveAttendance", () => {
   it("addReading — 성공", async () => {
     mockRepository.insertReading.mockResolvedValue("rd-1");
     const r = await addReading({ student_id: "s1", tenant_id: "t1", school_year: 2025, book_title: "책" });
-    expect(r).toEqual({ success: true, id: "rd-1" });
+    expect(r).toEqual({ success: true, data: { id: "rd-1" } });
   });
 
   it("removeReading — 성공", async () => {
@@ -364,7 +364,7 @@ describe("addReading / removeReading / saveAttendance", () => {
   it("saveAttendance — 성공", async () => {
     mockRepository.upsertAttendance.mockResolvedValue("att-1");
     const r = await saveAttendance({ student_id: "s1", tenant_id: "t1", school_year: 2025 });
-    expect(r).toEqual({ success: true, id: "att-1" });
+    expect(r).toEqual({ success: true, data: { id: "att-1" } });
   });
 });
 
@@ -388,7 +388,7 @@ describe("storyline CRUD", () => {
   it("updateStoryline — 성공", async () => {
     mockRepository.updateStorylineById.mockResolvedValue(undefined);
     const r = await updateStoryline("sl-1", { title: "수정" });
-    expect(r).toEqual({ success: true, id: "sl-1" });
+    expect(r).toEqual({ success: true, data: { id: "sl-1" } });
   });
 
   it("removeStoryline — 성공", async () => {
@@ -406,7 +406,7 @@ describe("storyline link CRUD", () => {
   it("addStorylineLink", async () => {
     mockRepository.insertStorylineLink.mockResolvedValue("link-1");
     const r = await addStorylineLink({ storyline_id: "sl-1", record_id: "r-1", record_type: "setek", tenant_id: "t1" });
-    expect(r).toEqual({ success: true, id: "link-1" });
+    expect(r).toEqual({ success: true, data: { id: "link-1" } });
   });
 
   it("removeStorylineLink", async () => {
@@ -436,7 +436,7 @@ describe("roadmap CRUD", () => {
   it("updateRoadmapItem", async () => {
     mockRepository.updateRoadmapItemById.mockResolvedValue(undefined);
     const r = await updateRoadmapItem("rm-1", { plan_content: "변경" });
-    expect(r).toEqual({ success: true, id: "rm-1" });
+    expect(r).toEqual({ success: true, data: { id: "rm-1" } });
   });
 
   it("removeRoadmapItem", async () => {
