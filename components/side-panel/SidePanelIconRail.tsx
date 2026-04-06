@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 import { StickyNote, MessageSquare, BarChart2, Network, Gauge, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useSidePanel } from "./SidePanelContext";
-import { SIDE_PANEL_APPS } from "./types";
+import { BASE_SIDE_PANEL_APPS, type SidePanelAppConfig } from "./types";
 import { useTotalUnreadCount } from "@/lib/domains/chat/hooks/useTotalUnreadCount";
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -17,9 +17,10 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 const RAIL_WIDTH = 48;
 
-export function SidePanelIconRail({ extraButtons }: { extraButtons?: ReactNode }) {
+export function SidePanelIconRail({ apps, extraButtons }: { apps?: SidePanelAppConfig[]; extraButtons?: ReactNode }) {
   const { activeApp, isMobile, toggleApp } = useSidePanel();
   const unreadCount = useTotalUnreadCount();
+  const appList = apps ?? BASE_SIDE_PANEL_APPS;
 
   if (isMobile) return null;
 
@@ -28,7 +29,7 @@ export function SidePanelIconRail({ extraButtons }: { extraButtons?: ReactNode }
       className="flex-shrink-0 flex flex-col items-center bg-[rgb(var(--color-secondary-100))] py-2 gap-1"
       style={{ width: RAIL_WIDTH }}
     >
-      {SIDE_PANEL_APPS.map((app) => {
+      {appList.map((app) => {
         const Icon = ICON_MAP[app.icon];
         if (!Icon) return null;
         const badge = app.id === "chat" && unreadCount > 0 ? unreadCount : 0;

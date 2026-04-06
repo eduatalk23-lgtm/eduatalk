@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Bot } from "lucide-react";
 import { useSidePanel, SidePanelContent, SidePanelIconRail, RailButton } from "@/components/side-panel";
+import { RECORD_SIDE_PANEL_APPS } from "@/components/side-panel/types";
 import { useStudentRecordContext } from "../StudentRecordContext";
 
 const RecordMemoPanelApp = dynamic(
@@ -63,6 +64,7 @@ export function RecordSidePanelContainer() {
         )}
       </SidePanelContent>
       <SidePanelIconRail
+        apps={RECORD_SIDE_PANEL_APPS}
         extraButtons={
           <RailButton
             icon={Bot}

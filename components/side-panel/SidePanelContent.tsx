@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useSidePanel } from "./SidePanelContext";
-import { SIDE_PANEL_APPS } from "./types";
+import { RECORD_SIDE_PANEL_APPS } from "./types";
 
 const PANEL_WIDTH = 360;
 const PANEL_WIDTH_WIDE = "66vw"; // 2/3 화면
@@ -16,7 +16,7 @@ export function SidePanelContent({
   const { activeApp, isPanelOpen, isWideDesktop, isMobile, closePanel } =
     useSidePanel();
 
-  const activeConfig = SIDE_PANEL_APPS.find((a) => a.id === activeApp);
+  const activeConfig = RECORD_SIDE_PANEL_APPS.find((a) => a.id === activeApp);
   const isWide = activeConfig?.wide ?? false;
   const panelWidth = isWide ? PANEL_WIDTH_WIDE : PANEL_WIDTH;
 
