@@ -325,7 +325,7 @@ export async function loadLegacyIdMap(
   const PAGE_SIZE = 1000;
   let offset = 0;
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const { data, error } = await adminClient
       .from("university_departments")

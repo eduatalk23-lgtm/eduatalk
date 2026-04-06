@@ -210,7 +210,7 @@ export async function GET(
       grade: number | null;
       semester: number | null;
     }> => {
-      let termId: string | null = termIdParam || null;
+      const termId: string | null = termIdParam || null;
       let g: number | null = null;
       let s: number | null = null;
 

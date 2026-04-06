@@ -80,10 +80,10 @@ export function resolveAllSubjects(
   const englishConverted = scores.english != null ? lookup(table, "영어", scores.english) : 0;
 
   // 한국사 (등급 기반)
-  let historyConverted = scores.history != null ? lookup(table, "한국사", scores.history) : 0;
+  const historyConverted = scores.history != null ? lookup(table, "한국사", scores.history) : 0;
 
   // 제2외국어 (등급 기반)
-  let foreignConverted = scores.foreignLang != null ? lookup(table, "제2외국어", scores.foreignLang) : 0;
+  const foreignConverted = scores.foreignLang != null ? lookup(table, "제2외국어", scores.foreignLang) : 0;
 
   // 탐구 top-N
   const inquiryCount = config.inquiryCount;

@@ -234,7 +234,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${notoSerif.variable} antialiased`}
       >
         {/* 인라인 스플래시: JS 번들 로딩 전 즉시 렌더링되어 White Flash 방지 */}
-        {/* eslint-disable-next-line react/no-danger */}
+        { }
         <style dangerouslySetInnerHTML={{ __html: `
           #pwa-splash {
             position: fixed; inset: 0; z-index: 9999;

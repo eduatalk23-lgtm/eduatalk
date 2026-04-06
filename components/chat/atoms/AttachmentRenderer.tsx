@@ -443,7 +443,7 @@ function AudioPlayer({
         ) : loadState === "failed" ? (
           <p className="text-xs text-text-tertiary mt-1">재생할 수 없는 오디오</p>
         ) : (
-          /* eslint-disable-next-line jsx-a11y/media-has-caption */
+           
           <audio
             src={src}
             controls

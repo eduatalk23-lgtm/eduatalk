@@ -45,14 +45,12 @@ export function MobileSidebar({
 
   useEffect(() => {
     if (isMobileOpen) {
-      // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect, react-hooks/set-state-in-effect -- 트랜지션을 위해 동기 마운트 필수
       setOverlayMounted(true);
       const id = requestAnimationFrame(() => {
         requestAnimationFrame(() => setOverlayVisible(true));
       });
       return () => cancelAnimationFrame(id);
     }
-    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- 트랜지션을 위해 동기 해제 필수
     setOverlayVisible(false);
     const timer = setTimeout(() => setOverlayMounted(false), 200);
     return () => clearTimeout(timer);

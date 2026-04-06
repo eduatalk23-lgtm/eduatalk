@@ -909,7 +909,7 @@ function ChatRoomComponent({
         });
       });
     }
-  }, [messages.length, modeState.mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [messages.length, modeState.mode]);  
 
   // ============================================
   // Two-Pass Rendering: archive 모드 초기 측정 안정화

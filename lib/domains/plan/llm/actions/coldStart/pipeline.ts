@@ -170,6 +170,7 @@ export async function runColdStartPipeline(
   };
 
   // 검색 결과 저장 (파싱 실패 시 로깅용)
+   
   let lastRawContent: string | undefined;
 
   // 메트릭스 빌더 초기화

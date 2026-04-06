@@ -268,7 +268,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   useEffect(() => {
     if (!hydratedRef.current) return;
     setIsDirty(true);
-  }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]);  
 
   // AI 처리 중 상태 — 자동 갱신 (3초 폴링)
   // ⚠️ 조건부 early return 앞에 위치해야 React Hooks 규칙 준수

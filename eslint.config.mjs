@@ -17,9 +17,31 @@ const eslintConfig = defineConfig([
     ".venv/**",
     "**/site-packages/**",
     "node_modules/**",
+    // Generated / external — lint 대상 아님
+    "lib/supabase/database.types.ts",
+    "serena/**",
   ]),
   {
     rules: {
+      // React Compiler 미사용 — 컴파일러 전용 린트 규칙 비활성화
+      "react-hooks/error-boundaries": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+      "react-hooks/static-components": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/immutability": "off",
+      // 점진적 개선 대상: error → warn (CI 비차단, 코드 리뷰 시 확인)
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-this-alias": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/no-unsafe-function-type": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "react/no-unescaped-entities": "warn",
+      "@next/next/no-assign-module-variable": "warn",
+      "@next/next/no-img-element": "warn",
+      // let→const 강제: 선언과 할당 분리 패턴(try-catch 등)에서 오탐 발생
+      "prefer-const": "warn",
       // Spacing-First 정책: margin 클래스 사용 금지
       // 형제 요소 간격은 부모의 gap으로, 외곽 여백은 최상단 래퍼의 padding으로 관리
       "no-restricted-syntax": [

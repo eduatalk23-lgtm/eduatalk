@@ -420,7 +420,6 @@ function SlideOverPanelComponent({
 
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- 트랜지션을 위해 동기 마운트 필수
       setMounted(true);
       // 다음 프레임에서 visible 전환 → CSS transition 트리거
       const id = requestAnimationFrame(() => {
@@ -428,7 +427,6 @@ function SlideOverPanelComponent({
       });
       return () => cancelAnimationFrame(id);
     }
-    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- 트랜지션을 위해 동기 해제 필수
     setVisible(false);
     // 트랜지션 완료(200ms) 후 언마운트
     const timer = setTimeout(() => setMounted(false), 250);

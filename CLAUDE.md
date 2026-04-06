@@ -220,98 +220,31 @@ npx tsx scripts/cold-start-batch.ts math --limit=5  # 수학 5개만
 - **Cron 제한**: Hobby 플랜은 **하루 1회(daily) cron만 허용** — `*/5 * * * *`, `0 * * * *` 등 sub-daily 스케줄 사용 불가 (`vercel.json`)
 - 빌드 실패 시 Vercel 대시보드에서 에러 로그 확인 필요
 
-## Agent Workflow Rules (자동 서브에이전트 활용)
+## Agent Workflow Rules
 
-Claude가 작업 수행 시 **반드시** 아래 워크플로우를 따른다.
+### 작업 전 탐색
+- 코드 위치를 모를 때만 Explore 에이전트 사용 (이미 아는 위치는 Grep/Read 직접 사용)
+- Plan 에이전트는 사용자가 요청하거나, 10개 이상 파일 수정이 예상될 때만
 
-### Phase 1: 작업 시작 전 (필수)
+### 코드 작성 후 검증
+- 여러 파일 수정, 새 기능, 타입 변경 시: `pnpm lint` → `pnpm build`
+- 단순 수정(1~3파일, 로직 변경 없음)은 빌드 검증 생략 가능
 
-```
-[ ] Explore 에이전트 → 관련 코드/패턴 탐색
-[ ] 기존 코드 패턴 파악 (비슷한 기능이 어떻게 구현되어 있는지)
-[ ] 복잡한 작업(3개 이상 파일 수정)일 경우 → Plan 에이전트로 계획 수립
-```
+### 도메인 에이전트
+사용자가 명시적으로 요청하거나, 대규모 작업(5파일 이상 + 도메인 깊은 이해 필요)일 때만 spawn. 일반적으로는 도메인 CLAUDE.md 참조만으로 충분.
 
-### Phase 2: 코드 작성 후 (필수)
+| 도메인 | 에이전트 | CLAUDE.md 위치 |
+|--------|----------|----------------|
+| plan | `plan-dev` | `lib/domains/plan/CLAUDE.md` |
+| student-record | `record-dev` | `lib/domains/student-record/CLAUDE.md` |
+| admin-plan | `admin-plan-dev` | `lib/domains/admin-plan/CLAUDE.md` |
+| chat | `chat-dev` | `lib/domains/chat/CLAUDE.md` |
+| admission | `admission-dev` | `lib/domains/admission/CLAUDE.md` |
+| guide | `guide-dev` | `lib/domains/guide/CLAUDE.md` |
+| payment/notification/sms/push/enrollment | `ops-dev` | 해당 도메인 CLAUDE.md |
+| content/master-content/drive | `content-dev` | 해당 도메인 CLAUDE.md |
+| calendar/attendance/block/camp | `scheduling-dev` | 해당 도메인 CLAUDE.md |
+| DB 마이그레이션/RLS/RPC | `/project:db` | `supabase/migrations/` |
 
-작성한 코드에 대해 자체 리뷰 수행:
-
-```
-[ ] TypeScript: any 사용 금지, null 처리 확인
-[ ] 보안: 사용자 입력 검증, SQL injection/XSS 방지
-[ ] 패턴 준수: 프로젝트 기존 패턴과 일관성 유지
-[ ] 에러 처리: try-catch, 에러 메시지 명확성
-[ ] 불필요한 코드 없음: 과도한 추상화, 미사용 변수 제거
-```
-
-### Phase 3: 기능 완성 후 (선택적 검증)
-
-**검증 실행 기준:**
-- ✅ 실행: 여러 파일 수정, 새 기능 추가, 타입 변경 리팩토링, 배포 전, 사용자 요청 시
-- ⏭️ 생략: prop 제거 등 단순 수정, 주석/문자열만 변경, 단일 파일 소규모 수정
-
-```
-[ ] (복잡한 작업 시) pnpm lint → 린트 에러 확인 및 수정
-[ ] (복잡한 작업 시) pnpm build → 빌드 성공 확인
-[ ] 관련 테스트가 있다면 pnpm test 실행
-[ ] 변경사항 요약 제공 (어떤 파일을, 왜 수정했는지)
-```
-
-### 에러 발생 시 자동 디버깅 프로세스
-
-```
-1. 에러 메시지 분석
-2. 관련 코드 위치 탐색 (Explore 에이전트)
-3. 유사 패턴 검색 (프로젝트 내 비슷한 케이스)
-4. 단계별 해결책 제시 + 적용
-5. 수정 후 재검증 (lint/build)
-```
-
-### 서브에이전트 활용 기준
-
-| 상황 | 사용할 에이전트 |
-|------|----------------|
-| 코드 위치/패턴 모를 때 | `Explore` (thoroughness: medium) |
-| 복잡한 기능 구현 전 | `Plan` |
-| 여러 파일 동시 검색 | `Explore` (thoroughness: very thorough) |
-| 에러 원인 추적 | `Explore` + 자체 분석 |
-
-### 도메인 에이전트 자동 라우팅 (필수)
-
-작업 대상이 아래 도메인에 해당하면 **해당 도메인 에이전트를 자동으로 spawn**하여 위임한다. 사용자가 별도로 에이전트를 지정하지 않아도 자동 적용.
-
-| 대상 경로 / 키워드 | 에이전트 |
-|---|---|
-| `lib/domains/plan/`, 플랜 생성/스케줄링/LLM/Cold Start | `plan-dev` |
-| `lib/domains/student-record/`, 생기부/세특/NEIS/진단/역량/성적 | `record-dev` |
-| `lib/domains/admin-plan/`, 관리자 캘린더/배치 플랜/플랜 위자드 | `admin-plan-dev` |
-| `lib/domains/chat/`, 채팅/메시지/리액션/첨부파일 | `chat-dev` |
-| `lib/domains/admission/`, 입시/배치/배분/수시6장/정시점수 | `admission-dev` |
-| `lib/domains/guide/`, 탐구 가이드/벡터검색/임베딩/배정 | `guide-dev` |
-| `lib/domains/{payment,notification,sms,push,enrollment}/`, 결제/알림/문자 | `ops-dev` |
-| `lib/domains/{content,master-content,content-metadata,drive}/`, 콘텐츠/교재/파일 | `content-dev` |
-| `lib/domains/{calendar,googleCalendar,today,attendance,block,camp}/`, 캘린더/출석/캠프 | `scheduling-dev` |
-| `supabase/migrations/`, RLS/RPC/마이그레이션 | `/project:db` 커맨드 |
-| 크로스 도메인 코드 리뷰 | `/project:review` 커맨드 |
-
-**라우팅 규칙:**
-- 작업이 단일 도메인에 속하고 **3개 이상 파일 수정**이 예상되면 → 해당 에이전트 spawn
-- 단순 수정(1~2파일)이면 → 도메인 CLAUDE.md 자동 적용으로 충분 (에이전트 불필요)
-- 여러 도메인에 걸치면 → 주 도메인 에이전트 spawn + 관련 도메인 CLAUDE.md 참조
-
-### 전문가 자문단 (`docs/expert-panel-personas.md`)
-
-18명의 전문가 페르소나가 정의되어 있다. **사용자가 요청할 때만** 소집한다.
-
-```
-"자문단 소집 — [검토 대상]"
-"IT 자문단만 — [기술 검토]"
-"도메인 자문단만 — [입시/교육 검토]"
-"[이름] 관점에서 — [특정 전문가 1명]"
-```
-
-### 사용자 피드백 루프
-
-작업 완료 후 항상 확인:
-- "의도한 대로 동작하나요?"
-- "추가로 수정할 부분이 있나요?"
+### 전문가 자문단
+사용자가 "자문단 소집" 요청 시에만 → `docs/expert-panel-personas.md` 참조

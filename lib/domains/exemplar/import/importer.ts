@@ -52,6 +52,7 @@ export async function importExemplarToDb(
       .eq("enrollment_year", enrollmentYear)
       .maybeSingle();
 
+     
     let exemplarId: string;
 
     if (existing) {

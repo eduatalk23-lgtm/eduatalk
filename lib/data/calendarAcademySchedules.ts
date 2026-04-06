@@ -13,7 +13,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 import { logActionDebug } from "@/lib/logging/actionLogger";
 import {
   reconstructAcademyPatternsFromCalendarEvents,

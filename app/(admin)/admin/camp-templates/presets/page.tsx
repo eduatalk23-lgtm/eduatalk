@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getSlotTemplatePresets } from "@/lib/domains/camp/actions";
@@ -16,9 +17,9 @@ export default async function SlotPresetsPage() {
     <div className="flex flex-col gap-8 p-6 md:p-10">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-sm text-gray-500">
-          <a href="/admin/camp-templates" className="hover:text-indigo-600">
+          <Link href="/admin/camp-templates" className="hover:text-indigo-600">
             캠프 템플릿
-          </a>
+          </Link>
           <span>/</span>
           <span>슬롯 프리셋</span>
         </div>
