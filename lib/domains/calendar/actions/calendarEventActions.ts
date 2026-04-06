@@ -246,7 +246,7 @@ export async function updatePlanStatus({
     const { error: planError } = await admin
       .from('student_plan')
       .update({
-        status: done ? 'completed' : 'pending',
+        status,
         actual_end_time: done ? now : null,
         updated_at: now,
       })

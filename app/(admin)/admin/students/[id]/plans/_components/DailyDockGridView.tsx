@@ -837,9 +837,10 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         }
       } else {
         rollback();
+        showToast(result.error ?? '상태 변경에 실패했습니다.', 'error');
       }
     },
-    [optimisticStatusChange, revalidate, pushUndoable]
+    [optimisticStatusChange, revalidate, pushUndoable, showToast]
   );
 
   const handleBlockClick = useCallback(

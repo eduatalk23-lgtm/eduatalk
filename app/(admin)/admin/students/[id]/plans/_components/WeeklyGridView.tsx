@@ -1209,9 +1209,10 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         }
       } else {
         rollback();
+        showToast(result.error ?? '상태 변경에 실패했습니다.', 'error');
       }
     },
-    [optimisticStatusChange, revalidate, pushUndoable],
+    [optimisticStatusChange, revalidate, pushUndoable, showToast],
   );
 
   // 반복 이벤트 scope 선택 핸들러

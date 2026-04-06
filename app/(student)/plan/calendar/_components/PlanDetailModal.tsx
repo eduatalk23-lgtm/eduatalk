@@ -19,10 +19,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  updateStudentPlan,
-  deleteStudentPlan,
-} from "@/lib/domains/plan/actions/core";
+import { deleteStudentPlan } from "@/lib/domains/plan/actions/core";
+import { updatePlanStatus } from "@/lib/domains/plan/actions/dock";
+import type { PlanStatus } from "@/lib/types/plan";
 import type { PlanWithContent } from "../_types/plan";
 
 type PlanDetailModalProps = {
@@ -34,7 +33,7 @@ type PlanDetailModalProps = {
 };
 
 const STATUS_CONFIG = {
-  scheduled: {
+  pending: {
     label: "예정",
     icon: Calendar,
     bgClass: "bg-gray-100 dark:bg-gray-700",
@@ -52,7 +51,7 @@ const STATUS_CONFIG = {
     bgClass: "bg-green-100 dark:bg-green-900/30",
     textClass: "text-green-700 dark:text-green-300",
   },
-  skipped: {
+  cancelled: {
     label: "건너뜀",
     icon: ArrowRightLeft,
     bgClass: "bg-yellow-100 dark:bg-yellow-900/30",
@@ -90,8 +89,13 @@ export function PlanDetailModal({
     setShowDeleteConfirm(false);
   };
 
-  const statusKey = (plan.status || "scheduled") as keyof typeof STATUS_CONFIG;
-  const statusConfig = STATUS_CONFIG[statusKey] || STATUS_CONFIG.scheduled;
+  // DB에 "scheduled"/"skipped"으로 저장된 레거시 데이터 호환
+  const rawStatus = plan.status || "pending";
+  const normalizedStatus = rawStatus === "scheduled" ? "pending"
+    : rawStatus === "skipped" ? "cancelled"
+    : rawStatus;
+  const statusKey = normalizedStatus as keyof typeof STATUS_CONFIG;
+  const statusConfig = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
   const StatusIcon = statusConfig.icon;
 
   // 콘텐츠 타입 아이콘
@@ -125,7 +129,10 @@ export function PlanDetailModal({
   const handleStatusChange = (newStatus: string) => {
     startTransition(async () => {
       try {
-        const result = await updateStudentPlan(plan.id, { status: newStatus });
+        const result = await updatePlanStatus({
+          planId: plan.id,
+          status: newStatus as PlanStatus,
+        });
 
         if (result.success) {
           showToast(
@@ -225,9 +232,9 @@ export function PlanDetailModal({
                   완료
                 </button>
               )}
-              {statusKey !== "skipped" && statusKey !== "completed" && (
+              {statusKey !== "cancelled" && statusKey !== "completed" && (
                 <button
-                  onClick={() => handleStatusChange("skipped")}
+                  onClick={() => handleStatusChange("cancelled")}
                   disabled={isPending}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50 disabled:opacity-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
                   title="건너뛰기"
@@ -236,9 +243,9 @@ export function PlanDetailModal({
                   건너뜀
                 </button>
               )}
-              {(statusKey === "completed" || statusKey === "skipped") && (
+              {(statusKey === "completed" || statusKey === "cancelled") && (
                 <button
-                  onClick={() => handleStatusChange("scheduled")}
+                  onClick={() => handleStatusChange("pending")}
                   disabled={isPending}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
                   title="예정으로 되돌리기"
