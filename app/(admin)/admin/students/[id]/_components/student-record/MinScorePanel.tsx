@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addMinScoreTargetAction,
   removeMinScoreTargetAction,
@@ -15,6 +15,7 @@ import type {
   MinScoreCriteria,
 } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
+import { DesiredUniversityChips } from "./shared/DesiredUniversityChips";
 
 type MinScorePanelProps = {
   targets: MinScoreTarget[];
@@ -279,6 +280,11 @@ function AddTargetForm({
         <button onClick={onClose} className="text-xs text-[var(--text-tertiary)]">취소</button>
       </div>
       <div className="flex flex-col gap-3">
+        <DesiredUniversityChips
+          studentId={studentId}
+          onSelect={(name) => setUniversityName(name)}
+          selectedName={universityName}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <input value={universityName} onChange={(e) => setUniversityName(e.target.value)} placeholder="대학명 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="학과 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
@@ -330,6 +336,26 @@ function SimulationForm({
   const [examTitle, setExamTitle] = useState("");
   const [examDate, setExamDate] = useState("");
   const [grades, setGrades] = useState<Record<string, number>>({});
+  const [autoLoaded, setAutoLoaded] = useState(false);
+
+  // 최신 모의고사 자동 로드
+  const { data: latestMock } = useQuery({
+    queryKey: ["mockScores", "latestGrades", studentId, tenantId],
+    queryFn: async () => {
+      const { fetchLatestMockGradesAction } = await import("@/lib/domains/score/actions/core");
+      return fetchLatestMockGradesAction(studentId, tenantId);
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  useEffect(() => {
+    if (latestMock && !autoLoaded && Object.keys(grades).length === 0) {
+      setExamTitle(latestMock.examTitle);
+      setExamDate(latestMock.examDate);
+      setGrades(latestMock.grades);
+      setAutoLoaded(true);
+    }
+  }, [latestMock, autoLoaded, grades]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -363,6 +389,12 @@ function SimulationForm({
         <button onClick={onClose} className="text-xs text-[var(--text-tertiary)]">취소</button>
       </div>
       <div className="flex flex-col gap-3">
+        {autoLoaded && (
+          <div className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+            <span>최근 모의고사에서 불러옴 ({latestMock?.examTitle})</span>
+            <button type="button" onClick={() => { setExamTitle(""); setExamDate(""); setGrades({}); setAutoLoaded(false); }} className="underline">초기화</button>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <input value={examTitle} onChange={(e) => setExamTitle(e.target.value)} placeholder="시험명 (예: 6월 모평) *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />

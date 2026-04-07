@@ -112,3 +112,51 @@ export async function removeMinScoreSimulationAction(
     return createErrorResponse("시뮬레이션 삭제 중 오류가 발생했습니다.");
   }
 }
+
+// ============================================
+// 희망대학 조회 (프로필 → 생기부 자동 연동용)
+// ============================================
+
+export interface DesiredUniversity {
+  id: string;
+  name: string;
+  rank: number;
+}
+
+/**
+ * 학생 프로필의 desired_university_ids를 대학명으로 해석.
+ * MinScorePanel/ApplicationBoard에서 칩 표시에 사용.
+ */
+export async function fetchDesiredUniversitiesAction(
+  studentId: string,
+): Promise<DesiredUniversity[]> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("desired_university_ids")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    const ids = student?.desired_university_ids as string[] | null;
+    if (!ids || ids.length === 0) return [];
+
+    const { getSchoolById } = await import("@/lib/domains/school/actions/student");
+    const results: DesiredUniversity[] = [];
+
+    for (let i = 0; i < ids.length; i++) {
+      const school = await getSchoolById(ids[i]);
+      if (school) {
+        results.push({ id: ids[i], name: school.name, rank: i + 1 });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchDesiredUniversitiesAction" }, error);
+    return [];
+  }
+}

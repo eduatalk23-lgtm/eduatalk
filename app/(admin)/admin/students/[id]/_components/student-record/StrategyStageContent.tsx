@@ -77,7 +77,7 @@ export function StrategyStageContent({
       </StrategySection>
 
       <StrategySection id="sec-placement" title="정시 배치 분석">
-        <PlacementDashboard studentId={studentId} />
+        <PlacementDashboard studentId={studentId} tenantId={tenantId} />
       </StrategySection>
 
       <StrategySection id="sec-allocation" title="수시 6장 배분 시뮬레이션">

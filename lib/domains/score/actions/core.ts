@@ -880,3 +880,184 @@ export async function getScoreTrendAction(
 }> {
   return service.getScoreTrendBySubject(studentId, subjectGroupId, tenantId);
 }
+
+// ============================================
+// 모의고사 최신 데이터 조회 (생기부 자동 연동용)
+// ============================================
+
+export interface LatestMockGrades {
+  examDate: string;
+  examTitle: string;
+  /** 과목명 → 등급 (1-9) 매핑. MinScorePanel SimulationForm용 */
+  grades: Record<string, number>;
+}
+
+/**
+ * 학생의 최신 모의고사 등급 조회.
+ * MinScorePanel SimulationForm이 수동 재입력 없이 자동으로 등급을 채우기 위해 사용.
+ */
+export interface LatestMockScoreInput {
+  examDate: string;
+  examTitle: string;
+  /** PlacementDashboard MockScoreInput 형식 */
+  scoreInput: import("@/lib/domains/admission/placement/score-converter").MockScoreInput;
+}
+
+/**
+ * PlacementDashboard용 최신 모의고사 조회.
+ * MockScoreInput 형식으로 변환하여 점수 입력 폼을 자동 채움.
+ */
+export async function fetchLatestMockScoreInputAction(
+  studentId: string,
+  tenantId: string,
+): Promise<LatestMockScoreInput | null> {
+  const { userId } = await getCurrentUser();
+  if (!userId) return null;
+
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  const supabase = await createSupabaseServerClient();
+
+  // 최신 시험 날짜
+  const { data: latest } = await supabase
+    .from("student_mock_scores")
+    .select("exam_date, exam_title")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .not("exam_date", "is", null)
+    .order("exam_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!latest?.exam_date) return null;
+
+  // 해당 시험의 과목별 데이터
+  const { data: rows } = await supabase
+    .from("student_mock_scores")
+    .select(`
+      raw_score, standard_score, grade_score, math_variant,
+      subject:subjects ( name, subject_group:subject_groups ( name ) )
+    `)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("exam_date", latest.exam_date);
+
+  if (!rows || rows.length === 0) return null;
+
+  const { createEmptyMockScoreInput } = await import("@/lib/domains/admission");
+  const scoreInput = createEmptyMockScoreInput();
+  let inquiryIndex = 1;
+
+  for (const row of rows) {
+    const subjectData = row.subject as { name?: string; subject_group?: { name?: string } } | null;
+    const groupName = subjectData?.subject_group?.name ?? "";
+    const subjectName = subjectData?.name ?? "";
+
+    switch (groupName) {
+      case "국어":
+        scoreInput.koreanRaw = row.raw_score as number | null;
+        scoreInput.korean = row.standard_score as number | null;
+        break;
+      case "수학":
+        scoreInput.mathRaw = row.raw_score as number | null;
+        scoreInput.math = row.standard_score as number | null;
+        if (row.math_variant) scoreInput.mathType = row.math_variant as typeof scoreInput.mathType;
+        break;
+      case "영어":
+        scoreInput.english = row.grade_score as number | null;
+        break;
+      case "사회":
+      case "과학":
+        if (inquiryIndex === 1) {
+          scoreInput.inquiry1Subject = subjectName;
+          scoreInput.inquiry1Raw = row.raw_score as number | null;
+          inquiryIndex++;
+        } else if (inquiryIndex === 2) {
+          scoreInput.inquiry2Subject = subjectName;
+          scoreInput.inquiry2Raw = row.raw_score as number | null;
+          inquiryIndex++;
+        }
+        break;
+      default:
+        if (subjectName.includes("한국사")) scoreInput.history = row.grade_score as number | null;
+        else if (["제2외국어", "한문", "아랍어", "일본어", "중국어", "프랑스어", "독일어", "스페인어"].some(k => subjectName.includes(k))) {
+          scoreInput.foreignLang = row.grade_score as number | null;
+        }
+        break;
+    }
+  }
+
+  return { examDate: latest.exam_date, examTitle: latest.exam_title ?? "", scoreInput };
+}
+
+export async function fetchLatestMockGradesAction(
+  studentId: string,
+  tenantId: string,
+): Promise<LatestMockGrades | null> {
+  const { userId } = await getCurrentUser();
+  if (!userId) return null;
+
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  const supabase = await createSupabaseServerClient();
+
+  // 1. 최신 시험 날짜 조회
+  const { data: latest } = await supabase
+    .from("student_mock_scores")
+    .select("exam_date, exam_title")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .not("exam_date", "is", null)
+    .order("exam_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!latest?.exam_date) return null;
+
+  // 2. 해당 시험의 과목별 등급 조회
+  const { data: rows } = await supabase
+    .from("student_mock_scores")
+    .select(`
+      grade_score,
+      subject:subjects (
+        name,
+        subject_group:subject_groups ( name )
+      )
+    `)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("exam_date", latest.exam_date);
+
+  if (!rows || rows.length === 0) return null;
+
+  // 3. SimulationForm SUBJECTS 형식으로 변환: "국어","수학","영어","탐구1","탐구2","한국사"
+  const grades: Record<string, number> = {};
+  let inquiryIndex = 1;
+
+  for (const row of rows) {
+    const subjectData = row.subject as { name?: string; subject_group?: { name?: string } } | null;
+    const groupName = subjectData?.subject_group?.name ?? "";
+    const grade = row.grade_score as number | null;
+    if (grade == null || grade < 1 || grade > 9) continue;
+
+    switch (groupName) {
+      case "국어": grades["국어"] = grade; break;
+      case "수학": grades["수학"] = grade; break;
+      case "영어": grades["영어"] = grade; break;
+      case "사회":
+      case "과학":
+        if (inquiryIndex <= 2) {
+          grades[`탐구${inquiryIndex}`] = grade;
+          inquiryIndex++;
+        }
+        break;
+      default:
+        if (subjectData?.name?.includes("한국사")) grades["한국사"] = grade;
+        break;
+    }
+  }
+
+  return {
+    examDate: latest.exam_date,
+    examTitle: latest.exam_title ?? "",
+    grades,
+  };
+}

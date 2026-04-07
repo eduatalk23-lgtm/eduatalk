@@ -11,6 +11,7 @@ import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { APPLICATION_ROUND_LABELS } from "@/lib/domains/student-record";
 import type { RecordApplication, InterviewConflict, ApplicationResult } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
+import { DesiredUniversityChips } from "./shared/DesiredUniversityChips";
 
 type ApplicationBoardProps = {
   applications: RecordApplication[];
@@ -376,6 +377,11 @@ function AddApplicationForm({
         <p className="mb-2 text-xs text-red-600">수시 6장이 모두 등록되어 있습니다. 정시/기타만 추가 가능합니다.</p>
       )}
       <div className="flex flex-col gap-3">
+        <DesiredUniversityChips
+          studentId={studentId}
+          onSelect={(name) => setUniversityName(name)}
+          selectedName={universityName}
+        />
         <div className={cn("grid grid-cols-2 gap-3", isRegular ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
           <select
             value={round}

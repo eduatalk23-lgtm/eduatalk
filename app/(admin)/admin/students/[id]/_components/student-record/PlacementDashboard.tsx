@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { BarChart3 } from "lucide-react";
@@ -26,6 +26,7 @@ import { PlacementResults } from "./PlacementResults";
 
 type PlacementDashboardProps = {
   studentId: string;
+  tenantId?: string;
 };
 
 const ALL_LEVELS: PlacementLevel[] = ["safe", "possible", "bold", "unstable", "danger"];
@@ -34,12 +35,32 @@ const INQUIRY_SUBJECTS = [...SOCIAL_INQUIRY, ...SCIENCE_INQUIRY];
 
 // ─── 메인 컴포넌트 ─────────────────────────────────
 
-export function PlacementDashboard({ studentId }: PlacementDashboardProps) {
+export function PlacementDashboard({ studentId, tenantId }: PlacementDashboardProps) {
   const [scoreInput, setScoreInput] = useState<MockScoreInput>(createEmptyMockScoreInput);
   const [examType, setExamType] = useState<ExamType>("estimated");
   const [estimatedSnapshot, setEstimatedSnapshot] = useState<PlacementSnapshot | null>(null);
   const [actualSnapshot, setActualSnapshot] = useState<PlacementSnapshot | null>(null);
+  const [autoLoaded, setAutoLoaded] = useState(false);
   const queryClient = useQueryClient();
+
+  // 최신 모의고사 자동 로드
+  const { data: latestMockInput } = useQuery({
+    queryKey: ["mockScores", "latestScoreInput", studentId, tenantId],
+    queryFn: async () => {
+      if (!tenantId) return null;
+      const { fetchLatestMockScoreInputAction } = await import("@/lib/domains/score/actions/core");
+      return fetchLatestMockScoreInputAction(studentId, tenantId);
+    },
+    staleTime: 5 * 60_000,
+    enabled: !!tenantId,
+  });
+
+  useEffect(() => {
+    if (latestMockInput && !autoLoaded && scoreInput.koreanRaw == null && scoreInput.mathRaw == null) {
+      setScoreInput(latestMockInput.scoreInput);
+      setAutoLoaded(true);
+    }
+  }, [latestMockInput, autoLoaded, scoreInput.koreanRaw, scoreInput.mathRaw]);
 
   const suneungScores = useMemo(() => {
     // 최소 국어 or 수학 입력 여부 확인
@@ -108,6 +129,13 @@ export function PlacementDashboard({ studentId }: PlacementDashboardProps) {
           <span className="text-xs text-blue-600">실채점 저장됨</span>
         )}
       </div>
+
+      {autoLoaded && latestMockInput && (
+        <div className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+          <span>최근 모의고사에서 불러옴 ({latestMockInput.examTitle}, {latestMockInput.examDate})</span>
+          <button type="button" onClick={() => { setScoreInput(createEmptyMockScoreInput()); setAutoLoaded(false); }} className="underline">초기화</button>
+        </div>
+      )}
 
       <ScoreInputForm
         value={scoreInput}
