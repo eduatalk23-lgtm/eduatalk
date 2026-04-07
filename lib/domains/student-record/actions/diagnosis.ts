@@ -133,7 +133,7 @@ export async function fetchDiagnosisTabData(
         competencyRepo.findActivityTags(studentId, tenantId),
         diagnosisRepo.findDiagnosisPair(studentId, schoolYear, tenantId),
         diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
-        supabase.from("students").select("target_major, school_name, target_sub_classification_id, grade").eq("id", studentId).maybeSingle(),
+        supabase.from("students").select("target_major, school_name, target_sub_classification_id, grade, desired_career_field").eq("id", studentId).maybeSingle(),
         supabase.from("student_internal_scores")
           .select("subject:subject_id(name)")
           .eq("student_id", studentId)
@@ -153,6 +153,7 @@ export async function fetchDiagnosisTabData(
     const fourAxisDiagnosis =
       (pipelineResult.data?.task_results as Record<string, unknown> | null)?._fourAxisDiagnosis ?? null;
 
+    const careerField = studentResult.data?.desired_career_field ?? null;
     const targetMajor = studentResult.data?.target_major ?? null;
     const schoolName = studentResult.data?.school_name ?? null;
     const targetSubClassificationId = studentResult.data?.target_sub_classification_id ?? null;
@@ -204,7 +205,8 @@ export async function fetchDiagnosisTabData(
       activityTags,
       aiDiagnosis: diagnosisPair.ai,
       consultantDiagnosis: diagnosisPair.consultant,
-      strategies, courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
+      strategies, courseAdequacy, takenSubjects, offeredSubjects,
+      careerField, targetMajor,
       targetSubClassificationId, targetSubClassificationName,
       qualityScores,
       fourAxisDiagnosis: fourAxisDiagnosis as import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null,
@@ -217,7 +219,8 @@ export async function fetchDiagnosisTabData(
       activityTags: [],
       aiDiagnosis: null, consultantDiagnosis: null,
       strategies: [], courseAdequacy: null,
-      takenSubjects: [], offeredSubjects: null, targetMajor: null,
+      takenSubjects: [], offeredSubjects: null,
+      careerField: null, targetMajor: null,
       targetSubClassificationId: null, targetSubClassificationName: null,
       qualityScores: [],
       fourAxisDiagnosis: null,

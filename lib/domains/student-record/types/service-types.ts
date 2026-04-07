@@ -110,6 +110,7 @@ export interface DiagnosisTabData {
   courseAdequacy: CourseAdequacyResult | null;
   takenSubjects: string[];
   offeredSubjects: string[] | null;
+  careerField: string | null;
   targetMajor: string | null;
   targetSubClassificationId: number | null;
   targetSubClassificationName: string | null;

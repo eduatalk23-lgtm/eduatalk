@@ -86,8 +86,10 @@ export function MockScoreSection({
       if (!result.success) throw new Error(result.error ?? "삭제 실패");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mockScores"] });
-      queryClient.invalidateQueries({ queryKey: ["scoreTrends"] });
+      queryClient.invalidateQueries({ queryKey: ["mockScores", "list", studentId, tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["mockScores", "latestGrades", studentId, tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["mockScores", "latestScoreInput", studentId, tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["scoreTrends", studentId, tenantId] });
     },
   });
 

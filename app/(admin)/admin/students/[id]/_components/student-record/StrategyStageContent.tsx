@@ -63,7 +63,9 @@ export function StrategyStageContent({
 
   const handleMockSaveSuccess = useCallback(() => {
     // 모의고사 관련 쿼리 모두 갱신
-    queryClient.invalidateQueries({ queryKey: ["mockScores"] });
+    queryClient.invalidateQueries({ queryKey: ["mockScores", "list", studentId, tenantId] });
+    queryClient.invalidateQueries({ queryKey: ["mockScores", "latestGrades", studentId, tenantId] });
+    queryClient.invalidateQueries({ queryKey: ["mockScores", "latestScoreInput", studentId, tenantId] });
     queryClient.invalidateQueries({ queryKey: ["scoreTrends"] });
     queryClient.invalidateQueries({ queryKey: ["scorePanelData"] });
     setShowMockInput(false);
