@@ -989,6 +989,92 @@ export async function fetchLatestMockScoreInputAction(
   return { examDate: latest.exam_date, examTitle: latest.exam_title ?? "", scoreInput };
 }
 
+// ============================================
+// 성적 추이 데이터 조회 (생기부 차트용)
+// ============================================
+
+export interface ScoreTrendData {
+  /** 학기별 내신 GPA 추이 */
+  gpaByTerm: Array<{ grade: number; semester: number; gpa: number; term: string }>;
+  /** 모의고사 백분위 추이 */
+  mockTrend: Array<{ exam_date: string; exam_title: string; percentile: number }>;
+}
+
+/**
+ * 학생의 내신 GPA 추이 + 모의고사 백분위 추이 조회.
+ * 생기부 기록탭 성적 차트에서 사용.
+ */
+export async function fetchScoreTrendsAction(
+  studentId: string,
+  tenantId: string,
+): Promise<ScoreTrendData> {
+  const { userId } = await getCurrentUser();
+  if (!userId) return { gpaByTerm: [], mockTrend: [] };
+
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  const supabase = await createSupabaseServerClient();
+
+  // 내신 GPA: 학기별 평균 등급
+  const { data: internalScores } = await supabase
+    .from("student_internal_scores")
+    .select("grade, semester, rank_grade, credit_hours")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .not("rank_grade", "is", null)
+    .order("grade")
+    .order("semester");
+
+  const gpaByTerm: ScoreTrendData["gpaByTerm"] = [];
+  if (internalScores && internalScores.length > 0) {
+    const grouped = new Map<string, { totalWeighted: number; totalCredits: number }>();
+    for (const s of internalScores) {
+      const key = `${s.grade}-${s.semester}`;
+      const entry = grouped.get(key) ?? { totalWeighted: 0, totalCredits: 0 };
+      const credits = s.credit_hours ?? 1;
+      entry.totalWeighted += (s.rank_grade ?? 0) * credits;
+      entry.totalCredits += credits;
+      grouped.set(key, entry);
+    }
+    for (const [key, entry] of grouped) {
+      const [grade, semester] = key.split("-").map(Number);
+      const gpa = entry.totalCredits > 0 ? Math.round((entry.totalWeighted / entry.totalCredits) * 100) / 100 : 0;
+      gpaByTerm.push({ grade, semester, gpa, term: `${grade}-${semester}` });
+    }
+    gpaByTerm.sort((a, b) => a.grade - b.grade || a.semester - b.semester);
+  }
+
+  // 모의고사 백분위: 시험별 평균 백분위
+  const { data: mockScores } = await supabase
+    .from("student_mock_scores")
+    .select("exam_date, exam_title, percentile")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .not("exam_date", "is", null)
+    .not("percentile", "is", null)
+    .order("exam_date");
+
+  const mockTrend: ScoreTrendData["mockTrend"] = [];
+  if (mockScores && mockScores.length > 0) {
+    const grouped = new Map<string, { sum: number; count: number; title: string }>();
+    for (const s of mockScores) {
+      const key = s.exam_date as string;
+      const entry = grouped.get(key) ?? { sum: 0, count: 0, title: s.exam_title ?? "" };
+      entry.sum += s.percentile as number;
+      entry.count += 1;
+      grouped.set(key, entry);
+    }
+    for (const [date, entry] of grouped) {
+      mockTrend.push({
+        exam_date: date,
+        exam_title: entry.title,
+        percentile: Math.round(entry.sum / entry.count),
+      });
+    }
+  }
+
+  return { gpaByTerm, mockTrend };
+}
+
 export async function fetchLatestMockGradesAction(
   studentId: string,
   tenantId: string,

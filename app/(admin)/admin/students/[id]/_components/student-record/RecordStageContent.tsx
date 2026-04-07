@@ -11,6 +11,7 @@ import { SupplementaryEditor } from "./SupplementaryEditor";
 import { ReadingEditor } from "./ReadingEditor";
 import { HaengteukEditor } from "./HaengteukEditor";
 import { GradesAndSetekSection } from "./GradesAndSetekSection";
+import { ScoreTrendCharts } from "./ScoreTrendCharts";
 
 // ─── Types ────────────────────────────────────────────
 
@@ -292,6 +293,9 @@ export function RecordStageContent({
 
       {/* ─── 7. 교과학습발달상황 ─────────────── */}
       <DocSection id="sec-7" number="7" title="교과학습발달상황">
+        {/* 성적 추이 차트 (전 학년 통합) */}
+        <ScoreTrendCharts studentId={studentId} tenantId={tenantId} />
+
         {/* 진단 약점 안내 배너 */}
         {diagnosisData?.consultantDiagnosis?.weaknesses && (diagnosisData.consultantDiagnosis.weaknesses as string[]).length > 0 && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/10">
