@@ -61,34 +61,24 @@ export async function executeImport(
   const partialFailures: string[] = [];
 
   try {
-    // 세특 upsert — imported_content에 저장, content 비어있으면 편집 시작점으로 복사
-    for (const setek of mapped.seteks.items) {
-      try {
-        await repo.upsertSetekImport(setek);
-        counts.seteks++;
-      } catch (err) {
-        partialFailures.push(`세특(${setek.subject_id ?? "?"}): ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-
-    // 창체 upsert
-    for (const changche of mapped.changche) {
-      try {
-        await repo.upsertChangcheImport(changche);
-        counts.changche++;
-      } catch (err) {
-        partialFailures.push(`창체(${changche.activity_type ?? "?"}): ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-
-    // 행특 upsert
-    for (const haengteuk of mapped.haengteuk) {
-      try {
-        await repo.upsertHaengteukImport(haengteuk);
-        counts.haengteuk++;
-      } catch (err) {
-        partialFailures.push(`행특(${haengteuk.grade}학년): ${err instanceof Error ? err.message : String(err)}`);
-      }
+    // 세특/창체/행특 원자적 배치 upsert (S9: 하나라도 실패 시 전체 롤백)
+    try {
+      const batchResult = await repo.importRecordBatch(
+        mapped.seteks.items,
+        mapped.changche,
+        mapped.haengteuk,
+      );
+      counts.seteks = batchResult.setek_ids.length;
+      counts.changche = batchResult.changche_ids.length;
+      counts.haengteuk = batchResult.haengteuk_ids.length;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      partialFailures.push(`세특/창체/행특 배치 upsert 실패 (전�� 롤백됨): ${msg}`);
+      logActionError(LOG_CTX, `importRecordBatch failed: ${msg}`, {
+        setekCount: mapped.seteks.items.length,
+        changcheCount: mapped.changche.length,
+        haengteukCount: mapped.haengteuk.length,
+      });
     }
 
     // ── 독서/수상/봉사: insert-first-delete-after 패턴 ──

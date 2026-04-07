@@ -327,3 +327,32 @@ export async function findSubjectPair(
   if (error) throw error;
   return data as SubjectPair | null;
 }
+
+// ============================================
+// S9: 세특/창체/행특 원자적 배치 upsert (RPC)
+// ============================================
+
+interface ImportBatchResult {
+  setek_ids: string[];
+  changche_ids: string[];
+  haengteuk_ids: string[];
+}
+
+/**
+ * 세특/창체/행특 3종을 단일 트랜잭션으로 upsert.
+ * 하나라도 실패하면 전체 롤백.
+ */
+export async function importRecordBatch(
+  seteks: RecordSetekInsert[],
+  changches: RecordChangcheInsert[],
+  haengteuk: RecordHaengteukInsert[],
+): Promise<ImportBatchResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("import_record_batch", {
+    p_seteks: JSON.parse(JSON.stringify(seteks)),
+    p_changches: JSON.parse(JSON.stringify(changches)),
+    p_haengteuk: JSON.parse(JSON.stringify(haengteuk)),
+  });
+  if (error) throw error;
+  return data as unknown as ImportBatchResult;
+}
