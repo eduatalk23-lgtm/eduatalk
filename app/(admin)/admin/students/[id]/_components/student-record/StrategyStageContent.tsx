@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StrategyTabData } from "@/lib/domains/student-record";
 import { useStudentRecordContext } from "./StudentRecordContext";
@@ -11,8 +11,7 @@ import { PlacementDashboard } from "./PlacementDashboard";
 import { AllocationSimulator } from "./AllocationSimulator";
 import { InterviewQuestionPanel } from "./InterviewQuestionPanel";
 import { AlumniSearch } from "./AlumniSearch";
-
-const MockScoreInput = lazy(() => import("@/app/(student)/scores/input/_components/MockScoreInput"));
+import { MockScoreSection } from "./MockScoreSection";
 
 // ─── Types ────────────────────────────────────────────
 
@@ -101,41 +100,17 @@ export function StrategyStageContent({
         ) : null}
       </StrategySection>
 
-      {/* ─── 모의고사 입력 ────────────────── */}
-      <StrategySection id="sec-mock-input" title="모의고사 성적 입력">
-        {showMockInput ? (
-          <Suspense fallback={<SectionSkeleton />}>
-            {scorePanelLoading || !scorePanelData ? (
-              <SectionSkeleton />
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowMockInput(false)}
-                    className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                  >
-                    접기
-                  </button>
-                </div>
-                <MockScoreInput
-                  studentId={studentId}
-                  tenantId={tenantId}
-                  subjectGroups={scorePanelData.curriculumOptions?.[0]?.subjectGroups ?? scorePanelData.subjectGroups ?? []}
-                  onSuccess={handleMockSaveSuccess}
-                />
-              </div>
-            )}
-          </Suspense>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowMockInput(true)}
-            className="w-full rounded-lg border border-dashed border-gray-300 p-4 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600"
-          >
-            + 모의고사 성적 입력
-          </button>
-        )}
+      {/* ─── 모의고사 성적 관리 ────────────── */}
+      <StrategySection id="sec-mock-scores" title="모의고사 성적">
+        <MockScoreSection
+          studentId={studentId}
+          tenantId={tenantId}
+          showInput={showMockInput}
+          onToggleInput={() => setShowMockInput(!showMockInput)}
+          scorePanelData={scorePanelData}
+          scorePanelLoading={scorePanelLoading}
+          onSaveSuccess={handleMockSaveSuccess}
+        />
       </StrategySection>
 
       <StrategySection id="sec-placement" title="정시 배치 분석">
