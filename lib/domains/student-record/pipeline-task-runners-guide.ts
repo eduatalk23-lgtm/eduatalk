@@ -43,16 +43,19 @@ async function buildImprovementsSection(
   return `## 개선 우선순위 (세특 방향에 반영)\n${imps.map((i) => `- [${i.priority}] ${i.area}: ${i.action}`).join("\n")}`;
 }
 
-/** report 1회 fetch + 에러 처리 */
+/** report 1회 fetch + 에러 처리 (ctx 전달 시 캐시하여 Phase 4-6 간 재사용) */
 async function fetchReportOrThrow(
   studentId: string,
   errorLabel: string,
+  ctx?: PipelineContext,
 ): Promise<import("./actions/report").ReportData> {
+  if (ctx?.cachedReport) return ctx.cachedReport;
   const { fetchReportData } = await import("./actions/report");
   const result = await fetchReportData(studentId);
   if (!result.success || !result.data) {
     throw new Error(result.success === false ? result.error : `${errorLabel} 리포트 데이터 수집 실패`);
   }
+  if (ctx) ctx.cachedReport = result.data;
   return result.data;
 }
 
@@ -86,7 +89,7 @@ export async function runSetekGuide(
   // report 1회 fetch — NEIS+consulting 양쪽에서 공유
   let sharedReport: import("./actions/report").ReportData | undefined;
   if (hasNeisGrades || hasConsultingGrades) {
-    sharedReport = await fetchReportOrThrow(studentId, "세특 방향");
+    sharedReport = await fetchReportOrThrow(studentId, "세특 방향", ctx);
   }
 
   // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
@@ -146,7 +149,7 @@ export async function runChangcheGuide(
   const { supabase, studentId, tenantId, coursePlanData } = ctx;
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
-  const report = await fetchReportOrThrow(studentId, "창체 방향");
+  const report = await fetchReportOrThrow(studentId, "창체 방향", ctx);
 
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
@@ -221,7 +224,7 @@ export async function runHaengteukGuide(
   const { supabase, studentId, tenantId, coursePlanData } = ctx;
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
-  const report = await fetchReportOrThrow(studentId, "행특 방향");
+  const report = await fetchReportOrThrow(studentId, "행특 방향", ctx);
 
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
@@ -350,7 +353,7 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   const extraSections = [guideContextSection, improvementsSection].filter(Boolean).join("\n") || undefined;
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
-  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`);
+  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`, ctx);
 
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 세특 가이드
@@ -417,7 +420,7 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   }
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
-  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`);
+  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`, ctx);
 
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 창체 가이드
@@ -489,7 +492,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   }
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
-  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`);
+  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`, ctx);
 
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 행특 가이드

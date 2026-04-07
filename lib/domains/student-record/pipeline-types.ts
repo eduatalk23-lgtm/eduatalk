@@ -253,6 +253,8 @@ export interface PipelineContext {
   leveling?: import("./leveling/types").LevelingResult;
   /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
   qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
+  /** C3: fetchReportData 결과 캐시 — Phase 4-6 간 공유하여 중복 호출 방지 */
+  cachedReport?: import("./actions/report").ReportData;
 }
 
 // ============================================
