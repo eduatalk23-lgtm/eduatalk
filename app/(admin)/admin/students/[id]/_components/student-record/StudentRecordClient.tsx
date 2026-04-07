@@ -21,7 +21,7 @@ import type { UIStateSnapshot } from "@/lib/agents/ui-state";
 import type { AgentAction } from "@/lib/agents/agent-actions";
 import { RecordYearSelector } from "./RecordYearSelector";
 import { ImportDialog } from "./ImportDialog";
-import { CareerSetupBanner } from "./CareerSetupBanner";
+import { CareerProfilePanel } from "./CareerProfilePanel";
 import { RecordStageContent } from "./RecordStageContent";
 import { DiagnosisStageContent } from "./DiagnosisStageContent";
 import { DesignStageContent } from "./DesignStageContent";
@@ -553,12 +553,15 @@ export function StudentRecordClient({
             </div>
           </div>
 
-          {/* ─── 진로 미설정 배너 ─────────────────── */}
-          {!diagnosisLoading && diagnosisData && !diagnosisData.targetMajor && (
-            <CareerSetupBanner
+          {/* ─── 진로/대학 프로필 패널 (항상 표시) ─── */}
+          {!diagnosisLoading && diagnosisData && (
+            <CareerProfilePanel
               studentId={studentId}
               tenantId={tenantId}
-              onComplete={() => queryClient.invalidateQueries({ queryKey: studentRecordKeys.all })}
+              currentCareerField={diagnosisData.careerField ?? null}
+              currentTargetMajor={diagnosisData.targetMajor ?? null}
+              currentSubClassificationName={diagnosisData.targetSubClassificationName ?? null}
+              onUpdate={() => queryClient.invalidateQueries({ queryKey: studentRecordKeys.all })}
             />
           )}
 
