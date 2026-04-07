@@ -402,6 +402,10 @@ export async function loadPipelineContext(
     ? (diagResult.qualityPatterns as Array<{ pattern: string; count: number; subjects: string[] }>)
     : undefined;
 
+  // P2: analysisContext를 task_results._analysisContext에서 복원 (Phase 4-6 재시작 시 사용)
+  const persistedAnalysisContext = results._analysisContext as
+    import("./pipeline-types").AnalysisContextByGrade | undefined;
+
   return {
     pipelineId,
     studentId,
@@ -424,6 +428,7 @@ export async function loadPipelineContext(
     targetGrade,
     gradeMode,
     qualityPatterns,
+    analysisContext: persistedAnalysisContext,
   };
 }
 

@@ -8,6 +8,7 @@
 import { assertGradeCtx, type PipelineContext } from "./pipeline-types";
 import type { TaskRunnerOutput } from "./pipeline-executor";
 import { generateTextWithRateLimit } from "./llm/ai-client";
+import * as guideRepo from "./repository/guide-repository";
 import { withRetry } from "./llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { getCharLimit, PIPELINE_THRESHOLDS } from "./constants";
@@ -143,15 +144,13 @@ export async function runDraftGenerationForGrade(
 
   if (setekRecords && setekRecords.length > 0) {
     // 방향 가이드 조회
-    const { data: setekGuides } = await supabase
-      .from("student_record_setek_guides")
-      .select("subject_id, direction, keywords")
-      .eq("student_id", studentId)
-      .eq("school_year", targetSchoolYear)
-      .eq("guide_mode", "prospective");
+    const setekGuides = await guideRepo.findSetekGuideDirectionsForDraft(
+      { studentId, schoolYear: targetSchoolYear, guideMode: "prospective" },
+      supabase,
+    );
 
     const guideMap = new Map<string, { direction: string; keywords: string[] }>();
-    for (const g of setekGuides ?? []) {
+    for (const g of setekGuides) {
       guideMap.set(g.subject_id, { direction: g.direction, keywords: g.keywords ?? [] });
     }
 
@@ -218,15 +217,13 @@ export async function runDraftGenerationForGrade(
     .eq("school_year", targetSchoolYear);
 
   if (changcheRecords && changcheRecords.length > 0) {
-    const { data: changcheGuides } = await supabase
-      .from("student_record_changche_guides")
-      .select("activity_type, direction, keywords, competency_focus, teacher_points")
-      .eq("student_id", studentId)
-      .eq("school_year", targetSchoolYear)
-      .eq("guide_mode", "prospective");
+    const changcheGuides = await guideRepo.findChangcheGuideDirectionsForDraft(
+      { studentId, schoolYear: targetSchoolYear, guideMode: "prospective" },
+      supabase,
+    );
 
     const changcheGuideMap = new Map<string, { direction: string; keywords: string[]; teacherPoints: string[] }>();
-    for (const g of changcheGuides ?? []) {
+    for (const g of changcheGuides) {
       changcheGuideMap.set(g.activity_type, {
         direction: g.direction,
         keywords: g.keywords ?? [],
@@ -277,14 +274,10 @@ export async function runDraftGenerationForGrade(
     .maybeSingle();
 
   if (haengteukRecord && !haengteukRecord.ai_draft_content?.trim()) {
-    const { data: haengteukGuides } = await supabase
-      .from("student_record_haengteuk_guides")
-      .select("direction, keywords, competency_focus, evaluation_items, teacher_points")
-      .eq("student_id", studentId)
-      .eq("school_year", targetSchoolYear)
-      .eq("guide_mode", "prospective")
-      .limit(1)
-      .maybeSingle();
+    const haengteukGuides = await guideRepo.findHaengteukGuideDirectionForDraft(
+      { studentId, schoolYear: targetSchoolYear, guideMode: "prospective" },
+      supabase,
+    );
 
     if (haengteukGuides?.direction) {
       const charLimit = getCharLimit("haengteuk", targetSchoolYear);

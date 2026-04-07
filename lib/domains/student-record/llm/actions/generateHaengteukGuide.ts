@@ -14,6 +14,7 @@ import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
 import { resolveEffectiveContent } from "../../pipeline-data-resolver";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
+import { findSetekGuideSummary, insertHaengteukGuide } from "../../repository/guide-repository";
 import {
   SYSTEM_PROMPT,
   buildUserPrompt,
@@ -74,15 +75,11 @@ export async function generateProspectiveHaengteukGuide(
   // setek_guide 컨텍스트 조회 (있으면 방향 보강)
   let setekGuideContext = "";
   try {
-    const { data: setekRows } = await supabase
-      .from("student_record_setek_guides")
-      .select("direction, keywords")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", currentSchoolYear)
-      .eq("source", "ai")
-      .limit(3);
-    if (setekRows && setekRows.length > 0) {
+    const setekRows = await findSetekGuideSummary(
+      { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", limit: 3 },
+      supabase,
+    );
+    if (setekRows.length > 0) {
       const lines = setekRows.map((r) => `- ${r.direction?.slice(0, 80) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`);
       setekGuideContext = `## 세특 방향 요약\n${lines.join("\n")}`;
     }
@@ -154,15 +151,12 @@ ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n
     created_by: userId,
   };
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("student_record_haengteuk_guides")
-    .insert(row)
-    .select("id")
-    .single();
-
-  if (insertError || !inserted) {
+  let inserted: { id: string };
+  try {
+    inserted = await insertHaengteukGuide(row as Record<string, unknown>, supabase);
+  } catch (insertError) {
     logActionError(LOG_CTX, insertError, { studentId, mode: "prospective" });
-    return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
+    return { success: false, error: `가이드 저장 실패: ${insertError instanceof Error ? insertError.message : "결과 없음"}` };
   }
 
   syncGuideTaskStatus(studentId, "haengteuk_guide", LOG_CTX);
@@ -306,15 +300,12 @@ export async function generateHaengteukGuide(
       created_by: userId,
     };
 
-    const { data: inserted, error: insertError } = await supabase
-      .from("student_record_haengteuk_guides")
-      .insert(row)
-      .select("id")
-      .single();
-
-    if (insertError || !inserted) {
+    let inserted: { id: string };
+    try {
+      inserted = await insertHaengteukGuide(row as Record<string, unknown>, supabase);
+    } catch (insertError) {
       logActionError(LOG_CTX, insertError, { studentId });
-      return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
+      return { success: false, error: `가이드 저장 실패: ${insertError instanceof Error ? insertError.message : "결과 없음"}` };
     }
 
     syncGuideTaskStatus(studentId, "haengteuk_guide", LOG_CTX);

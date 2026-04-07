@@ -14,6 +14,7 @@ import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
 import { resolveEffectiveContent } from "../../pipeline-data-resolver";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
+import { insertSetekGuides } from "../../repository/guide-repository";
 import {
   SYSTEM_PROMPT,
   buildUserPrompt,
@@ -179,14 +180,16 @@ export async function generateSetekGuide(
       return { success: false, error: "매칭 가능한 과목이 없습니다." };
     }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from("student_record_setek_guides")
-      .insert(rows)
-      .select("id");
-
-    if (insertError || !inserted?.length) {
+    let inserted: { id: string }[];
+    try {
+      inserted = await insertSetekGuides(rows as Record<string, unknown>[], supabase);
+    } catch (insertError) {
       logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length });
-      return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
+      return { success: false, error: `가이드 저장 실패: ${insertError instanceof Error ? insertError.message : "결과 없음"}` };
+    }
+
+    if (inserted.length === 0) {
+      return { success: false, error: "가이드 저장 실패: 결과 없음" };
     }
 
     syncGuideTaskStatus(studentId, "setek_guide", LOG_CTX);
@@ -290,19 +293,12 @@ export async function generateProspectiveSetekGuide(
   }
 
   // 기존 AI 가이드 삭제
-  const { error: deleteError } = await supabase
-    .from("student_record_setek_guides")
-    .delete()
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("school_year", currentSchoolYear)
-    .eq("source", "ai")
-    .eq("guide_mode", "prospective");
-
-  if (deleteError) {
-    logActionError(LOG_CTX, deleteError, { studentId, phase: "delete_before_insert_prospective" });
-    return { success: false, error: `기존 가이드 삭제 실패: ${deleteError.message}` };
-  }
+  const prospDeleteResult = await deleteExistingGuides(
+    "student_record_setek_guides",
+    { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", guideMode: "prospective" },
+    LOG_CTX,
+  );
+  if (prospDeleteResult) return prospDeleteResult;
 
   const rows = parsed.guides
     .map((g, i) => {
@@ -333,14 +329,16 @@ export async function generateProspectiveSetekGuide(
     return { success: false, error: "매칭 가능한 과목이 없습니다." };
   }
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("student_record_setek_guides")
-    .insert(rows)
-    .select("id");
-
-  if (insertError || !inserted?.length) {
+  let inserted: { id: string }[];
+  try {
+    inserted = await insertSetekGuides(rows as Record<string, unknown>[], supabase);
+  } catch (insertError) {
     logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length, mode: "prospective" });
-    return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
+    return { success: false, error: `가이드 저장 실패: ${insertError instanceof Error ? insertError.message : "결과 없음"}` };
+  }
+
+  if (inserted.length === 0) {
+    return { success: false, error: "가이드 저장 실패: 결과 없음" };
   }
 
   syncGuideTaskStatus(studentId, "setek_guide", LOG_CTX);

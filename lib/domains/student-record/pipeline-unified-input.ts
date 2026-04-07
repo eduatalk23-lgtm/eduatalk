@@ -16,6 +16,7 @@ import type { RecordSummary } from "./llm/prompts/inquiryLinking";
 import { logActionDebug } from "@/lib/logging/actionLogger";
 import { PIPELINE_THRESHOLDS } from "./constants";
 import { findContentQualityByStudent } from "./repository/competency-repository";
+import * as guideRepo from "./repository/guide-repository";
 
 const LOG_CTX = { domain: "student-record", action: "unified-input" };
 
@@ -154,7 +155,8 @@ export async function buildUnifiedGradeInput(params: {
   const allGrades = [...analysisGrades, ...designGrades].sort();
 
   // 2. 공통 데이터 병렬 조회
-  const [seteksRes, changcheRes, haengteukRes, guidesSetekRes, guidesChangcheRes, guidesHaengteukRes, coursePlansRes] = await Promise.all([
+  const guideParams = { studentId, tenantId, source: "ai" as const };
+  const [seteksRes, changcheRes, haengteukRes, guidesSetekData, guidesChangcheData, guidesHaengteukData, coursePlansRes] = await Promise.all([
     supabase.from("student_record_seteks")
       .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
       .eq("student_id", studentId).eq("tenant_id", tenantId).is("deleted_at", null),
@@ -164,15 +166,9 @@ export async function buildUnifiedGradeInput(params: {
     supabase.from("student_record_haengteuk")
       .select("id, content, confirmed_content, imported_content, ai_draft_content, grade")
       .eq("student_id", studentId).eq("tenant_id", tenantId),
-    supabase.from("student_record_setek_guides")
-      .select("id, school_year, direction, keywords, competency_focus, teacher_points, subject:subject_id(name)")
-      .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
-    supabase.from("student_record_changche_guides")
-      .select("id, school_year, activity_type, direction, keywords, competency_focus, teacher_points")
-      .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
-    supabase.from("student_record_haengteuk_guides")
-      .select("id, school_year, direction, keywords, competency_focus, teacher_points")
-      .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
+    guideRepo.findAllSetekGuides(guideParams, supabase),
+    guideRepo.findAllChangcheGuides(guideParams, supabase),
+    guideRepo.findAllHaengteukGuides(guideParams, supabase),
     supabase.from("student_course_plans")
       .select("grade, semester, plan_status, subject:subject_id(name, subject_type:subject_type_id(name))")
       .eq("student_id", studentId).in("plan_status", ["confirmed", "recommended"]),
@@ -204,9 +200,9 @@ export async function buildUnifiedGradeInput(params: {
 
   // 4. 가이드를 학년별로 그룹핑
   type GuideRow = { id: string; school_year: number; direction: string | null; keywords: string[] | null; competency_focus: string[] | null; teacher_points: string[] | null; subject?: { name: string } | null; activity_type?: string | null };
-  const groupGuidesByGrade = (rows: GuideRow[] | null, type: "setek" | "changche" | "haengteuk"): Map<number, DirectionGuideSummary[]> => {
+  const groupGuidesByGrade = (rows: GuideRow[], type: "setek" | "changche" | "haengteuk"): Map<number, DirectionGuideSummary[]> => {
     const map = new Map<number, DirectionGuideSummary[]>();
-    for (const r of rows ?? []) {
+    for (const r of rows) {
       const grade = Math.min(3, Math.max(1, r.school_year - currentSchoolYear + studentGrade));
       if (!map.has(grade)) map.set(grade, []);
       map.get(grade)!.push({
@@ -225,9 +221,9 @@ export async function buildUnifiedGradeInput(params: {
     return map;
   };
 
-  const setekGuidesByGrade = groupGuidesByGrade(guidesSetekRes.data as GuideRow[] | null, "setek");
-  const changcheGuidesByGrade = groupGuidesByGrade(guidesChangcheRes.data as GuideRow[] | null, "changche");
-  const haengteukGuidesByGrade = groupGuidesByGrade(guidesHaengteukRes.data as GuideRow[] | null, "haengteuk");
+  const setekGuidesByGrade = groupGuidesByGrade(guidesSetekData as GuideRow[], "setek");
+  const changcheGuidesByGrade = groupGuidesByGrade(guidesChangcheData as GuideRow[], "changche");
+  const haengteukGuidesByGrade = groupGuidesByGrade(guidesHaengteukData as GuideRow[], "haengteuk");
 
   // 5. 레코드를 학년별로 그룹핑 + effectiveContent 해소
   //    콘텐츠 우선순위: imported_content(NEIS) > confirmed_content(확정본) > content(가안) > ai_draft_content(P7 가안)

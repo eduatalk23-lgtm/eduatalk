@@ -14,3 +14,4 @@ export * from "./score-query";
 export * from "./competency-repository";
 export * from "./diagnosis-repository";
 export * from "./edge-repository";
+export * from "./guide-repository";

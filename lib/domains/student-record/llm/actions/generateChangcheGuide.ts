@@ -14,6 +14,7 @@ import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
 import { resolveEffectiveContent } from "../../pipeline-data-resolver";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
+import { insertChangcheGuides } from "../../repository/guide-repository";
 import {
   SYSTEM_PROMPT,
   buildUserPrompt,
@@ -150,14 +151,16 @@ ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n
     created_by: userId,
   }));
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("student_record_changche_guides")
-    .insert(rows)
-    .select("id");
-
-  if (insertError || !inserted?.length) {
+  let inserted: { id: string }[];
+  try {
+    inserted = await insertChangcheGuides(rows as Record<string, unknown>[], supabase);
+  } catch (insertError) {
     logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length, mode: "prospective" });
-    return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
+    return { success: false, error: `가이드 저장 실패: ${insertError instanceof Error ? insertError.message : "결과 없음"}` };
+  }
+
+  if (inserted.length === 0) {
+    return { success: false, error: "가이드 저장 실패: 결과 없음" };
   }
 
   syncGuideTaskStatus(studentId, "changche_guide", LOG_CTX);
@@ -303,14 +306,16 @@ export async function generateChangcheGuide(
       created_by: userId,
     }));
 
-    const { data: inserted, error: insertError } = await supabase
-      .from("student_record_changche_guides")
-      .insert(rows)
-      .select("id");
-
-    if (insertError || !inserted?.length) {
+    let inserted: { id: string }[];
+    try {
+      inserted = await insertChangcheGuides(rows as Record<string, unknown>[], supabase);
+    } catch (insertError) {
       logActionError(LOG_CTX, insertError, { studentId, rowCount: rows.length });
-      return { success: false, error: `가이드 저장 실패: ${insertError?.message ?? "결과 없음"}` };
+      return { success: false, error: `가이드 저장 실패: ${insertError instanceof Error ? insertError.message : "결과 없음"}` };
+    }
+
+    if (inserted.length === 0) {
+      return { success: false, error: "가이드 저장 실패: 결과 없음" };
     }
 
     syncGuideTaskStatus(studentId, "changche_guide", LOG_CTX);

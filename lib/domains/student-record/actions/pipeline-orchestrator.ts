@@ -590,6 +590,16 @@ export async function rerunGradePipelineTasks(
             )]
           : []),
       ]);
+
+      // P2: 영속화된 analysisContext도 클린업 (재분석 시 stale 맥락 방지)
+      const taskResults = (pipeline.task_results ?? {}) as Record<string, unknown>;
+      if (taskResults._analysisContext) {
+        delete taskResults._analysisContext;
+        await supabase
+          .from("student_record_analysis_pipelines")
+          .update({ task_results: taskResults })
+          .eq("id", pipelineId);
+      }
     }
 
     // 해당 학생의 synthesis 파이프라인이 있으면 전체 pending으로 리셋

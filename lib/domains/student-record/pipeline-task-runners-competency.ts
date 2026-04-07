@@ -439,6 +439,11 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
   // 행특이 마지막 역량 분석 Phase이므로 여기서 전 영역 집계를 실행
   if (recordType === "haengteuk") {
     await runHaengteukAggregate(ctx, targetGrade, allResults);
+
+    // P2: analysisContext를 task_results에 영속화 → Phase 분할 재시작 시 복원 가능
+    if (ctx.analysisContext) {
+      ctx.results["_analysisContext"] = ctx.analysisContext;
+    }
   }
 
   const total = succeeded + skipped + failed;
@@ -490,6 +495,11 @@ async function runCompetencyChunkForType(
   // 행특: 마지막 청크에서만 집계 실행
   if (recordType === "haengteuk" && !hasMore) {
     await runHaengteukAggregate(ctx, targetGrade, allResults);
+
+    // P2: analysisContext를 task_results에 영속화 → Phase 분할 재시작 시 복원 가능
+    if (ctx.analysisContext) {
+      ctx.results["_analysisContext"] = ctx.analysisContext;
+    }
   }
 
   const total = succeeded + skipped + failed;

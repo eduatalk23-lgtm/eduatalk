@@ -19,6 +19,7 @@ import {
 import type { PersistedEdge } from "./repository/edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
 import * as diagnosisRepo from "./repository/diagnosis-repository";
+import * as guideRepo from "./repository/guide-repository";
 import { ACTIVITY_TYPE_LABELS } from "./constants";
 import { toGuideAnalysisContext, mergeGuideAnalysisContexts } from "./pipeline-task-runners-shared";
 
@@ -154,15 +155,11 @@ export async function runChangcheGuide(
     // 세특 방향 컨텍스트 (setek_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let setekCtx: string | undefined;
-    const { data: setekRows } = await supabase
-      .from("student_record_setek_guides")
-      .select("direction, keywords")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", currentYear)
-      .eq("source", "ai")
-      .limit(4);
-    if (setekRows && setekRows.length > 0) {
+    const setekRows = await guideRepo.findSetekGuideSummary(
+      { studentId, tenantId, schoolYear: currentYear, source: "ai", limit: 4 },
+      supabase,
+    );
+    if (setekRows.length > 0) {
       const lines = setekRows.map((r) =>
         `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
       );
@@ -192,17 +189,13 @@ export async function runChangcheGuide(
   // 세특 방향 컨텍스트 — setek_guide DB 결과에서 요약 구성
   let setekGuideContext: string | undefined;
   const currentYear = calculateSchoolYear();
-  const { data: setekRows } = await supabase
-    .from("student_record_setek_guides")
-    .select("subject:subject_id(id, name), direction, keywords, competency_focus")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("school_year", currentYear)
-    .eq("source", "ai")
-    .limit(6);
-  if (setekRows && setekRows.length > 0) {
-    const lines = setekRows.map((r) => {
-      const sub = r.subject as { id: string; name: string } | null;
+  const setekDetailRows = await guideRepo.findSetekGuideWithSubject(
+    { studentId, tenantId, schoolYear: currentYear, source: "ai", limit: 6 },
+    supabase,
+  );
+  if (setekDetailRows.length > 0) {
+    const lines = setekDetailRows.map((r) => {
+      const sub = r.subject;
       return `- ${sub?.name ?? sub?.id ?? "미상"}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`;
     });
     setekGuideContext = `## 세특 방향 요약\n${lines.join("\n")}`;
@@ -237,15 +230,11 @@ export async function runHaengteukGuide(
     // 창체 방향 컨텍스트 (changche_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let changcheCtx: string | undefined;
-    const { data: changcheRows } = await supabase
-      .from("student_record_changche_guides")
-      .select("activity_type, direction, keywords")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", currentYear)
-      .eq("source", "ai")
-      .limit(3);
-    if (changcheRows && changcheRows.length > 0) {
+    const changcheRows = await guideRepo.findChangcheGuideSummary(
+      { studentId, tenantId, schoolYear: currentYear, source: "ai", limit: 3 },
+      supabase,
+    );
+    if (changcheRows.length > 0) {
       const lines = changcheRows.map((r) =>
         `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
       );
@@ -274,16 +263,12 @@ export async function runHaengteukGuide(
   // 창체 방향 컨텍스트 — changche_guide DB 결과에서 요약 구성
   let changcheGuideContext: string | undefined;
   const currentYear = calculateSchoolYear();
-  const { data: changcheRows } = await supabase
-    .from("student_record_changche_guides")
-    .select("activity_type, direction, keywords")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("school_year", currentYear)
-    .eq("source", "ai")
-    .limit(3);
-  if (changcheRows && changcheRows.length > 0) {
-    const lines = changcheRows.map((r) =>
+  const changcheDetailRows = await guideRepo.findChangcheGuideSummary(
+    { studentId, tenantId, schoolYear: currentYear, source: "ai", limit: 3 },
+    supabase,
+  );
+  if (changcheDetailRows.length > 0) {
+    const lines = changcheDetailRows.map((r) =>
       `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
     );
     changcheGuideContext = `## 창체 방향 요약\n${lines.join("\n")}`;
@@ -345,15 +330,12 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   // 캐시 체크: 상위 역량 분석이 모두 캐시 + 기존 AI 가이드 존재 → LLM 스킵
   const setekUpstream = ctx.results["competency_setek"] as Record<string, unknown> | undefined;
   if (setekUpstream?.allCached === true) {
-    const { count } = await ctx.supabase
-      .from("student_record_setek_guides")
-      .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", targetSchoolYear)
-      .eq("source", "ai");
+    const count = await guideRepo.countSetekGuides(
+      { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
+      ctx.supabase,
+    );
 
-    if (count && count > 0) {
+    if (count > 0) {
       return {
         preview: `${targetGrade}학년 세특 방향 ${count}과목 (캐시)`,
         result: { cached: true },
@@ -421,17 +403,14 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   const changcheUpstream = ctx.results["competency_changche"] as Record<string, unknown> | undefined;
   const setekGuideStable = (ctx.results["setek_guide"] as Record<string, unknown> | undefined)?.cached === true;
   if (changcheUpstream?.allCached === true && setekGuideStable) {
-    const { count } = await ctx.supabase
-      .from("student_record_changche_guides")
-      .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", targetSchoolYear)
-      .eq("source", "ai");
+    const changcheCount = await guideRepo.countChangcheGuides(
+      { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
+      ctx.supabase,
+    );
 
-    if (count && count > 0) {
+    if (changcheCount > 0) {
       return {
-        preview: `${targetGrade}학년 창체 ${count}개 활동유형 방향 (캐시)`,
+        preview: `${targetGrade}학년 창체 ${changcheCount}개 활동유형 방향 (캐시)`,
         result: { cached: true },
       };
     }
@@ -456,15 +435,11 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   const { userId: guideUserId } = await reqAuth();
 
   // 세특 방향 컨텍스트 (해당 학년 school_year 기준)
-  const { data: setekCtxRows } = await ctx.supabase
-    .from("student_record_setek_guides")
-    .select("direction, keywords")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("school_year", targetSchoolYear)
-    .eq("source", "ai")
-    .limit(4);
-  const setekCtx = setekCtxRows?.length
+  const setekCtxRows = await guideRepo.findSetekGuideSummary(
+    { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai", limit: 4 },
+    ctx.supabase,
+  );
+  const setekCtx = setekCtxRows.length > 0
     ? `## 세특 방향 요약\n${setekCtxRows.map((r) => `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
@@ -500,15 +475,12 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   const haengteukUpstream = ctx.results["competency_haengteuk"] as Record<string, unknown> | undefined;
   const changcheGuideStable = (ctx.results["changche_guide"] as Record<string, unknown> | undefined)?.cached === true;
   if (haengteukUpstream?.allCached === true && changcheGuideStable) {
-    const { count } = await ctx.supabase
-      .from("student_record_haengteuk_guides")
-      .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("school_year", targetSchoolYear)
-      .eq("source", "ai");
+    const haengteukCount = await guideRepo.countHaengteukGuides(
+      { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
+      ctx.supabase,
+    );
 
-    if (count && count > 0) {
+    if (haengteukCount > 0) {
       return {
         preview: `${targetGrade}학년 행특 방향 (캐시)`,
         result: { cached: true },
@@ -534,15 +506,11 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   const { userId: guideUserId } = await reqAuth();
 
   // 창체 방향 컨텍스트 (해당 학년 school_year 기준)
-  const { data: changcheCtxRows } = await ctx.supabase
-    .from("student_record_changche_guides")
-    .select("activity_type, direction, keywords")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .eq("school_year", targetSchoolYear)
-    .eq("source", "ai")
-    .limit(3);
-  const changcheCtx = changcheCtxRows?.length
+  const changcheCtxRows = await guideRepo.findChangcheGuideSummary(
+    { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai", limit: 3 },
+    ctx.supabase,
+  );
+  const changcheCtx = changcheCtxRows.length > 0
     ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
