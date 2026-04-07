@@ -85,6 +85,29 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const editMutation = useMutation({
+    mutationFn: async ({ scoreId, updates }: { scoreId: string; updates: Partial<Score> }) => {
+      const { error } = await supabase
+        .from("student_internal_scores")
+        .update({
+          raw_score: updates.raw_score ?? null,
+          avg_score: updates.avg_score ?? null,
+          rank_grade: updates.rank_grade ?? null,
+          achievement_level: updates.achievement_level ?? null,
+          total_students: updates.total_students ?? null,
+          credit_hours: updates.credit_hours ?? 1,
+        })
+        .eq("id", scoreId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      setEditingId(null);
+    },
+  });
+
   const addMutation = useMutation({
     mutationFn: async (input: AddScoreInput) => {
       if (studentGrade < 1) throw new Error("유효하지 않은 학년");
@@ -159,8 +182,8 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       <div className="flex flex-col gap-4">
         {combined.length === 0 ? <EmptyGradeTable variant="general" /> : (
           <>
-            {grouped.general.length > 0 && <GradesTable scores={grouped.general} variant="general" tenantId={tenantId} onDelete={onDel} />}
-            {grouped.liberal.length > 0 && <GradesTable scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={onDel} />}
+            {grouped.general.length > 0 && <GradesTable scores={grouped.general} variant="general" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />}
+            {grouped.liberal.length > 0 && <GradesTable scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />}
           </>
         )}
         {addForm}
@@ -171,7 +194,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
     return (
       <div className="flex flex-col gap-4">
         {grouped.elective.length === 0 ? <EmptyGradeTable variant="elective" /> : (
-          <GradesTable scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={onDel} />
+          <GradesTable scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />
         )}
         {addForm}
       </div>
@@ -181,7 +204,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
     return (
       <div className="flex flex-col gap-4">
         {grouped.pe_art.length === 0 ? <EmptyGradeTable variant="pe_art" /> : (
-          <GradesTable scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={onDel} />
+          <GradesTable scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />
         )}
         {addForm}
       </div>
@@ -192,16 +215,16 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
   return (
     <div className="flex flex-col gap-6">
       {grouped.general.length > 0 && (
-        <GradesTable scores={grouped.general} variant="general" tenantId={tenantId} onDelete={onDel} />
+        <GradesTable scores={grouped.general} variant="general" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />
       )}
       {grouped.elective.length > 0 && (
-        <GradesTable scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={onDel} />
+        <GradesTable scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />
       )}
       {grouped.pe_art.length > 0 && (
-        <GradesTable scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={onDel} />
+        <GradesTable scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />
       )}
       {grouped.liberal.length > 0 && (
-        <GradesTable scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={onDel} />
+        <GradesTable scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={onDel} editingId={editingId} onEdit={setEditingId} onSaveEdit={(id, upd) => editMutation.mutate({ scoreId: id, updates: upd })} isEditPending={editMutation.isPending} />
       )}
 
       {addForm}
@@ -279,8 +302,10 @@ function EmptyGradeTable({ variant = "general" }: { variant?: Variant }) {
   );
 }
 
-function GradesTable({ scores, variant, tenantId, onDelete }: {
+function GradesTable({ scores, variant, tenantId, onDelete, editingId, onEdit, onSaveEdit, isEditPending }: {
   scores: Score[]; variant: Variant; tenantId?: string; onDelete?: (id: string) => void;
+  editingId?: string | null; onEdit?: (id: string | null) => void;
+  onSaveEdit?: (scoreId: string, updates: Partial<Score>) => void; isEditPending?: boolean;
 }) {
   const totalCredits = scores.reduce((sum, s) => sum + s.credit_hours, 0);
   const isPeArt = variant === "pe_art";
@@ -315,37 +340,43 @@ function GradesTable({ scores, variant, tenantId, onDelete }: {
             </tr>
           </thead>
           <tbody>
-            {scores.map((s) => (
-              <tr key={s.id} className={tenantId ? "group" : ""}>
-                <Td center>{s.grade}</Td>
-                <Td center>{s.semester}</Td>
-                <Td center>{s.subject_group?.name ?? "-"}</Td>
-                <Td center bold>{s.subject?.name ?? "-"}</Td>
-                <Td center>{s.credit_hours}</Td>
-                {isSimple ? (
-                  <Td center>{isLiberal ? (s.achievement_level ?? "P") : (s.achievement_level ?? "-")}</Td>
-                ) : (
-                  <>
-                    <Td center>{s.raw_score ?? "-"}</Td>
-                    <Td center>{s.avg_score ?? "-"}</Td>
-                    <Td center>{s.achievement_level ?? "-"}</Td>
-                    <Td center><RatioBadges score={s} /></Td>
-                    {variant !== "elective" && <Td center>{s.rank_grade ?? "-"}</Td>}
-                    <Td center>{s.total_students ?? "-"}</Td>
-                  </>
-                )}
-                <td className={`${B} px-1.5 py-1 text-center text-xs text-[var(--text-secondary)] relative`}>
-                  {tenantId && onDelete && (
-                    <button
-                      onClick={() => onDelete(s.id)}
-                      className="invisible rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-500 transition-all hover:bg-red-100 hover:text-red-700 group-hover:visible dark:bg-red-950/30 dark:hover:bg-red-950/50"
-                    >
-                      삭제
-                    </button>
+            {scores.map((s) =>
+              editingId === s.id ? (
+                <EditableRow key={s.id} score={s} variant={variant} isSimple={isSimple} isLiberal={isLiberal}
+                  onSave={(updates) => onSaveEdit?.(s.id, updates)} onCancel={() => onEdit?.(null)} isPending={isEditPending} />
+              ) : (
+                <tr key={s.id} className={tenantId ? "group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" : ""}
+                  onClick={() => tenantId && onEdit?.(s.id)}>
+                  <Td center>{s.grade}</Td>
+                  <Td center>{s.semester}</Td>
+                  <Td center>{s.subject_group?.name ?? "-"}</Td>
+                  <Td center bold>{s.subject?.name ?? "-"}</Td>
+                  <Td center>{s.credit_hours}</Td>
+                  {isSimple ? (
+                    <Td center>{isLiberal ? (s.achievement_level ?? "P") : (s.achievement_level ?? "-")}</Td>
+                  ) : (
+                    <>
+                      <Td center>{s.raw_score ?? "-"}</Td>
+                      <Td center>{s.avg_score ?? "-"}</Td>
+                      <Td center>{s.achievement_level ?? "-"}</Td>
+                      <Td center><RatioBadges score={s} /></Td>
+                      {variant !== "elective" && <Td center>{s.rank_grade ?? "-"}</Td>}
+                      <Td center>{s.total_students ?? "-"}</Td>
+                    </>
                   )}
-                </td>
-              </tr>
-            ))}
+                  <td className={`${B} px-1.5 py-1 text-center text-xs text-[var(--text-secondary)] relative`}>
+                    {tenantId && onDelete && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                        className="invisible rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-500 transition-all hover:bg-red-100 hover:text-red-700 group-hover:visible dark:bg-red-950/30 dark:hover:bg-red-950/50"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ),
+            )}
           </tbody>
           <tfoot>
             <tr>
@@ -496,6 +527,77 @@ function Td({ children, center, bold }: { children?: React.ReactNode; center?: b
     <td className={cn(`${B} px-1.5 py-1`, center && "text-center", bold ? "text-xs font-medium text-[var(--text-primary)]" : "text-xs text-[var(--text-secondary)]")}>
       {children}
     </td>
+  );
+}
+
+// ─── Inline Edit Row ──────────────────────────────
+
+function EditableRow({ score, variant, isSimple, isLiberal, onSave, onCancel, isPending }: {
+  score: Score; variant: Variant; isSimple: boolean; isLiberal: boolean;
+  onSave: (updates: Partial<Score>) => void; onCancel: () => void; isPending?: boolean;
+}) {
+  const [rawScore, setRawScore] = useState(score.raw_score?.toString() ?? "");
+  const [avgScore, setAvgScore] = useState(score.avg_score?.toString() ?? "");
+  const [rankGrade, setRankGrade] = useState(score.rank_grade?.toString() ?? "");
+  const [achievementLevel, setAchievementLevel] = useState(score.achievement_level ?? "");
+  const [totalStudents, setTotalStudents] = useState(score.total_students?.toString() ?? "");
+  const [creditHours, setCreditHours] = useState(score.credit_hours.toString());
+
+  const handleSave = () => {
+    onSave({
+      raw_score: rawScore ? Number(rawScore) : null,
+      avg_score: avgScore ? Number(avgScore) : null,
+      rank_grade: rankGrade ? Number(rankGrade) : null,
+      achievement_level: achievementLevel || null,
+      total_students: totalStudents ? Number(totalStudents) : null,
+      credit_hours: Number(creditHours) || 1,
+    });
+  };
+
+  const inputCls = `w-full rounded border border-indigo-300 bg-indigo-50/30 px-1 py-0.5 text-center text-xs dark:border-indigo-700 dark:bg-indigo-950/20`;
+
+  return (
+    <tr className="bg-indigo-50/50 dark:bg-indigo-950/10">
+      <Td center>{score.grade}</Td>
+      <Td center>{score.semester}</Td>
+      <Td center>{score.subject_group?.name ?? "-"}</Td>
+      <Td center bold>{score.subject?.name ?? "-"}</Td>
+      <td className={`${B} px-1 py-0.5`}><input type="number" value={creditHours} onChange={(e) => setCreditHours(e.target.value)} className={inputCls} min={1} /></td>
+      {isSimple ? (
+        <td className={`${B} px-1 py-0.5`}>
+          <select value={achievementLevel} onChange={(e) => setAchievementLevel(e.target.value)} className={inputCls}>
+            <option value="">-</option>
+            {(isLiberal ? ["P", "F"] : ["A", "B", "C", "D", "E"]).map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </td>
+      ) : (
+        <>
+          <td className={`${B} px-1 py-0.5`}><input type="number" value={rawScore} onChange={(e) => setRawScore(e.target.value)} className={inputCls} /></td>
+          <td className={`${B} px-1 py-0.5`}><input type="number" value={avgScore} onChange={(e) => setAvgScore(e.target.value)} className={inputCls} /></td>
+          <td className={`${B} px-1 py-0.5`}>
+            <select value={achievementLevel} onChange={(e) => setAchievementLevel(e.target.value)} className={inputCls}>
+              <option value="">-</option>
+              {["A", "B", "C", "D", "E"].map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </td>
+          <td className={`${B} px-1 py-0.5 text-center text-xs text-[var(--text-tertiary)]`}>-</td>
+          {variant !== "elective" && (
+            <td className={`${B} px-1 py-0.5`}><input type="number" value={rankGrade} onChange={(e) => setRankGrade(e.target.value)} className={inputCls} min={1} max={9} /></td>
+          )}
+          <td className={`${B} px-1 py-0.5`}><input type="number" value={totalStudents} onChange={(e) => setTotalStudents(e.target.value)} className={inputCls} /></td>
+        </>
+      )}
+      <td className={`${B} px-1 py-0.5 text-center`}>
+        <div className="flex items-center justify-center gap-1">
+          <button onClick={handleSave} disabled={isPending} className="rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+            {isPending ? "..." : "저장"}
+          </button>
+          <button onClick={onCancel} className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300">
+            취소
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 
