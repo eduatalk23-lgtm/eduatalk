@@ -388,17 +388,17 @@ export function buildReportExportData(data: ReportData): ReportExportData {
       narrative: data.executiveSummary.narrative,
     } : null,
 
-    timeSeriesAnalysis: data.timeSeriesAnalysis ? {
-      overallGrowthRate: data.timeSeriesAnalysis.overallGrowthRate,
-      strongestName: data.timeSeriesAnalysis.trends.find(
-        (t) => t.competencyId === data.timeSeriesAnalysis!.strongestCompetency,
-      )?.competencyName ?? "",
-      weakestName: data.timeSeriesAnalysis.trends.find(
-        (t) => t.competencyId === data.timeSeriesAnalysis!.weakestCompetency,
-      )?.competencyName ?? "",
-      anomalyCount: data.timeSeriesAnalysis.anomalies.length,
-      summary: data.timeSeriesAnalysis.summary,
-    } : null,
+    timeSeriesAnalysis: (() => {
+      const ts = data.timeSeriesAnalysis;
+      if (!ts) return null;
+      return {
+        overallGrowthRate: ts.overallGrowthRate,
+        strongestName: ts.trends.find((t) => t.competencyId === ts.strongestCompetency)?.competencyName ?? "",
+        weakestName: ts.trends.find((t) => t.competencyId === ts.weakestCompetency)?.competencyName ?? "",
+        anomalyCount: ts.anomalies.length,
+        summary: ts.summary,
+      };
+    })(),
 
     universityMatch: data.universityMatch ? {
       topMatch: {
