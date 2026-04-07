@@ -35,7 +35,7 @@ export function DesiredUniversityChips({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
-      <span className="text-[10px] text-[var(--text-tertiary)]">희망대학:</span>
+      <span className="text-[10px] text-[var(--text-tertiary)]">빠른 선택:</span>
       {universities.map((u) => (
         <button
           key={u.id}

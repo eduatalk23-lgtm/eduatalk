@@ -152,7 +152,7 @@ export function MockScoreSection({
                 subjectGroups={scorePanelData.curriculumOptions?.[0]?.subjectGroups ?? scorePanelData.subjectGroups ?? []}
                 onSuccess={() => {
                   onSaveSuccess();
-                  queryClient.invalidateQueries({ queryKey: ["mockScores", "list"] });
+                  queryClient.invalidateQueries({ queryKey: ["mockScores", "list", studentId, tenantId] });
                 }}
               />
             </div>

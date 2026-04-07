@@ -5,7 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/cn";
 
-import { adminDeleteInternalScore } from "@/lib/domains/score/actions/core";
+import {
+  adminDeleteInternalScore,
+  adminUpdateInternalScore,
+  adminCreateInternalScore,
+} from "@/lib/domains/score/actions/core";
 
 // ─── Types ──────────────────────────────────────────
 
@@ -89,18 +93,16 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
 
   const editMutation = useMutation({
     mutationFn: async ({ scoreId, updates }: { scoreId: string; updates: Partial<Score> }) => {
-      const { error } = await supabase
-        .from("student_internal_scores")
-        .update({
-          raw_score: updates.raw_score ?? null,
-          avg_score: updates.avg_score ?? null,
-          rank_grade: updates.rank_grade ?? null,
-          achievement_level: updates.achievement_level ?? null,
-          total_students: updates.total_students ?? null,
-          credit_hours: updates.credit_hours ?? 1,
-        })
-        .eq("id", scoreId);
-      if (error) throw error;
+      if (!tenantId) throw new Error("테넌트 정보 없음");
+      const result = await adminUpdateInternalScore(scoreId, studentId, tenantId, {
+        raw_score: updates.raw_score ?? null,
+        avg_score: updates.avg_score ?? null,
+        rank_grade: updates.rank_grade ?? null,
+        achievement_level: updates.achievement_level ?? null,
+        total_students: updates.total_students ?? null,
+        credit_hours: updates.credit_hours ?? 1,
+      });
+      if (!result.success) throw new Error(result.error ?? "수정 실패");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
@@ -111,9 +113,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
   const addMutation = useMutation({
     mutationFn: async (input: AddScoreInput) => {
       if (studentGrade < 1) throw new Error("유효하지 않은 학년");
-      const { error } = await supabase.from("student_internal_scores").insert({
-        student_id: studentId,
-        tenant_id: input.tenantId,
+      const result = await adminCreateInternalScore(studentId, input.tenantId, {
         grade: studentGrade,
         semester: input.semester,
         credit_hours: input.creditHours,
@@ -127,7 +127,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
         subject_type_id: input.subjectTypeId,
         curriculum_revision_id: input.curriculumRevisionId,
       });
-      if (error) throw error;
+      if (!result.success) throw new Error(result.error ?? "추가 실패");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });

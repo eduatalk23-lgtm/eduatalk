@@ -854,6 +854,79 @@ export async function adminDeleteMockScore(
 }
 
 // ============================================
+// Admin용 내신 성적 편집/추가 (생기부 인라인 편집용)
+// ============================================
+
+export interface AdminScoreUpdateInput {
+  raw_score?: number | null;
+  avg_score?: number | null;
+  rank_grade?: number | null;
+  achievement_level?: string | null;
+  total_students?: number | null;
+  credit_hours?: number;
+}
+
+/**
+ * Admin용 내신 성적 수정 (JSON 기반, FormData 아님)
+ * 생기부 RecordGradesDisplay 인라인 편집에서 사용.
+ */
+export async function adminUpdateInternalScore(
+  scoreId: string,
+  studentId: string,
+  tenantId: string,
+  updates: AdminScoreUpdateInput,
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "로그인이 필요합니다." };
+
+  const result = await updateInternalScoreData(scoreId, user.userId, tenantId, updates);
+  if (!result.success) return { success: false, error: result.error ?? "수정 실패" };
+
+  triggerRiskAnalysis(studentId, tenantId);
+  revalidatePath(`/admin/students/${studentId}`);
+  return { success: true };
+}
+
+export interface AdminScoreCreateInput {
+  grade: number;
+  semester: number;
+  credit_hours: number;
+  raw_score?: number | null;
+  avg_score?: number | null;
+  achievement_level?: string | null;
+  rank_grade?: number | null;
+  total_students?: number | null;
+  subject_id: string;
+  subject_group_id: string;
+  subject_type_id: string;
+  curriculum_revision_id: string;
+}
+
+/**
+ * Admin용 내신 성적 추가 (JSON 기반)
+ * 생기부 RecordGradesDisplay AddScoreForm에서 사용.
+ */
+export async function adminCreateInternalScore(
+  studentId: string,
+  tenantId: string,
+  input: AdminScoreCreateInput,
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "로그인이 필요합니다." };
+
+  const result = await createInternalScoreData({
+    student_id: studentId,
+    tenant_id: tenantId,
+    ...input,
+  });
+  if (!result.success) return { success: false, error: result.error ?? "추가 실패" };
+
+  triggerRiskAnalysis(studentId, tenantId);
+  revalidatePath(`/admin/students/${studentId}`);
+  return { success: true };
+}
+
+// ============================================
 // 비즈니스 로직 Actions
 // ============================================
 
