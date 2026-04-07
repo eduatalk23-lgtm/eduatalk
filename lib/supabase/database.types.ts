@@ -13317,6 +13317,7 @@ export type Database = {
           reading_id: string
           record_id: string
           record_type: string
+          tenant_id: string
         }
         Insert: {
           connection_note?: string | null
@@ -13325,6 +13326,7 @@ export type Database = {
           reading_id: string
           record_id: string
           record_type: string
+          tenant_id: string
         }
         Update: {
           connection_note?: string | null
@@ -13333,6 +13335,7 @@ export type Database = {
           reading_id?: string
           record_id?: string
           record_type?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -13340,6 +13343,13 @@ export type Database = {
             columns: ["reading_id"]
             isOneToOne: false
             referencedRelation: "student_record_reading"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_reading_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -13675,6 +13685,7 @@ export type Database = {
           record_type: string
           sort_order: number
           storyline_id: string
+          tenant_id: string
         }
         Insert: {
           connection_note?: string | null
@@ -13685,6 +13696,7 @@ export type Database = {
           record_type: string
           sort_order?: number
           storyline_id: string
+          tenant_id: string
         }
         Update: {
           connection_note?: string | null
@@ -13695,6 +13707,7 @@ export type Database = {
           record_type?: string
           sort_order?: number
           storyline_id?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -13702,6 +13715,13 @@ export type Database = {
             columns: ["storyline_id"]
             isOneToOne: false
             referencedRelation: "student_record_storylines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_storyline_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]

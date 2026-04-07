@@ -11,6 +11,9 @@ interface StudentRecordContextValue {
   studentId: string;
   tenantId: string;
   studentName?: string;
+  studentGrade: number;
+  initialSchoolYear: number;
+  schoolName?: string;
   /** G1: 현재 활성 과목 ID (세특 레이어 탭 ↔ 사이드 패널 연결용) */
   activeSubjectId?: string | null;
   setActiveSubjectId?: (id: string | null) => void;

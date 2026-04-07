@@ -2,7 +2,7 @@
 // Synthesis 파이프라인 — 공통 헬퍼
 // ============================================
 
-import type { PipelineContext } from "../../pipeline-types";
+import type { PipelineContext, CorePipelineFields } from "../../pipeline-types";
 
 // ============================================
 // 헬퍼: eval 연결 (시계열 + 대학 프로필 매칭)
@@ -128,7 +128,7 @@ export function buildUniversityMatchPromptSection(
  * @returns repeatingPatterns — issues[]의 반복 항목 (2건 이상)
  * @returns qualityPatternSection — 프롬프트 주입용 마크다운 섹션 (데이터 없으면 "")
  */
-export async function aggregateQualityPatterns(ctx: PipelineContext): Promise<{
+export async function aggregateQualityPatterns(ctx: Pick<CorePipelineFields, "supabase" | "studentId" | "tenantId">): Promise<{
   repeatingPatterns: Array<{ pattern: string; count: number; subjects: string[] }>;
   qualityPatternSection: string;
 }> {

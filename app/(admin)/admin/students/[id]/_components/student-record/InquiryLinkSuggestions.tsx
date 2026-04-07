@@ -147,6 +147,7 @@ export function InquiryLinkSuggestions({ records, storylines, studentId, tenantI
           if (!originalRecord) continue;
           await addStorylineLinkAction({
             storyline_id: storylineId,
+            tenant_id: tenantId,
             record_type: originalRecord.type,
             record_id: rec.id,
             grade: rec.grade ?? 1,

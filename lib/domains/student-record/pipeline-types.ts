@@ -210,35 +210,48 @@ export interface GradeAnalysisContext {
 /** 전체 학년에 걸친 역량 분석 맥락 (학년 번호 → 맥락) */
 export type AnalysisContextByGrade = Record<number, GradeAnalysisContext>;
 
-/** Phase 분할 실행을 위한 파이프라인 실행 컨텍스트 */
+/**
+ * Phase 분할 실행을 위한 파이프라인 실행 컨텍스트.
+ *
+ * 필드 그룹:
+ * - **Core** (9필드): 모든 Phase 공유 — pipelineId~errors
+ * - **공유 데이터** (3필드): Grade/Synthesis 양쪽 사용 — studentGrade, snapshot, coursePlanData
+ * - **Grade Pipeline** (10필드): targetGrade~cachedReport
+ * - **Synthesis Pipeline** (2필드): unifiedInput, gradePipelineIds
+ *
+ * Phase별 narrowed 타입은 아래 `GradeAnalysisCompleteCtx`, `SynthesisCtx` 등 참조.
+ */
 export interface PipelineContext {
+  // ── Core (모든 Phase 공유, 9필드) ─────────────────────
   pipelineId: string;
   studentId: string;
   tenantId: string;
   supabase: import("@supabase/supabase-js").SupabaseClient<import("@/lib/supabase/database.types").Database>;
-  studentGrade: number;
-  snapshot: Record<string, unknown> | null;
-  // 태스크 상태 (매 태스크 완료 시 DB 저장)
+  /** 파이프라인 유형. grade = 학년별, synthesis = 종합. */
+  pipelineType: "grade" | "synthesis";
+  /** 태스크 상태 (매 태스크 완료 시 DB 저장) */
   tasks: Record<string, PipelineTaskStatus>;
   previews: Record<string, string>;
   results: PipelineTaskResults;
   errors: Record<string, string>;
-  // 캐시 (Phase 간 DB 재조회)
+
+  // ── 공유 데이터 (Grade + Synthesis 양쪽 사용) ─────────
+  studentGrade: number;
+  snapshot: Record<string, unknown> | null;
+  coursePlanData?: import("./types").CoursePlanTabData | null;
+  /** NEIS 기반: 분석 경로 대상 학년 (resolveRecords 이후 세팅) */
+  neisGrades?: number[];
+
+  // ── Grade Pipeline 전용 ───────────────────────────────
+  /** 처리 대상 학년 (1/2/3) */
+  targetGrade?: number;
+  /** 레코드 캐시 (Phase 간 DB 재조회 방지) */
   cachedSeteks?: CachedSetek[] | null;
   cachedChangche?: CachedChangche[] | null;
   cachedHaengteuk?: CachedHaengteuk[] | null;
-  coursePlanData?: import("./types").CoursePlanTabData | null;
-  // NEIS 기반 해소 데이터 (Step 1 이후 항상 세팅)
+  /** NEIS 기반 해소 데이터 (Step 1 이후 항상 세팅) */
   resolvedRecords?: ResolvedRecordsByGrade;
-  neisGrades?: number[];
   consultingGrades?: number[];
-  // 학년 단위 파이프라인 (Step 1: grade partitioning)
-  /** 파이프라인 유형. grade = 학년별, synthesis = 종합. */
-  pipelineType: "grade" | "synthesis";
-  /** grade 파이프라인일 때 처리 대상 학년 (1/2/3). */
-  targetGrade?: number;
-  /** synthesis 파이프라인일 때 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용). */
-  gradePipelineIds?: string[];
   /**
    * Phase 1-3(역량 분석) 완료 후 수집된 분석 맥락.
    * Phase 4-6(가이드 생성)에서 직접 참조하여 약점/이슈 기반 가이드 작성.
@@ -247,15 +260,25 @@ export interface PipelineContext {
   analysisContext?: AnalysisContextByGrade;
   /** Grade Pipeline의 모드: analysis(NEIS) 또는 design(수강계획 기반 설계) */
   gradeMode?: "analysis" | "design";
-  /** Synthesis Pipeline용 통합 학년 입력 (buildUnifiedGradeInput으로 1회 구성) */
-  unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
   /** 레벨링 결과 캐시 (P7에서 1회 산출, P8/Synthesis에서 재사용) */
   leveling?: import("./leveling/types").LevelingResult;
-  /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
-  qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
   /** C3: fetchReportData 결과 캐시 — Phase 4-6 간 공유하여 중복 호출 방지 */
   cachedReport?: import("./actions/report").ReportData;
+
+  // ── Synthesis Pipeline 전용 ───────────────────────────
+  /** 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용) */
+  gradePipelineIds?: string[];
+  /** 통합 학년 입력 (buildUnifiedGradeInput으로 1회 구성) */
+  unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
+  /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
+  qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
 }
+
+/** Core 9필드 — 모든 Phase에서 공유하는 인프라 필드 */
+export type CorePipelineFields = Pick<
+  PipelineContext,
+  "pipelineId" | "studentId" | "tenantId" | "supabase" | "pipelineType" | "tasks" | "previews" | "results" | "errors"
+>;
 
 // ============================================
 // Phase별 narrowed 타입 — 특정 Phase 이후 보장되는 필드

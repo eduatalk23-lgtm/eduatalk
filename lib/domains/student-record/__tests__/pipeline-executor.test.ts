@@ -25,6 +25,7 @@ import {
   getNextPhase,
   getNextGradePhase,
   getNextSynthesisPhase,
+  validatePhasePrerequisites,
 } from "../pipeline-executor";
 import type { PipelineContext, PipelineTaskStatus } from "../pipeline-types";
 
@@ -946,5 +947,119 @@ describe("getNextSynthesisPhase()", () => {
         guide_matching: "completed",
       }),
     ).toBe(2);
+  });
+});
+
+// ============================================
+// 8. validatePhasePrerequisites()
+// ============================================
+
+describe("validatePhasePrerequisites()", () => {
+  // Grade Pipeline
+  describe("Grade Pipeline", () => {
+    it("Phase 1은 선행 조건 없으므로 항상 통과한다", () => {
+      const ctx = makeCtx({ tasks: {} });
+      expect(validatePhasePrerequisites(ctx, 1, "grade")).toBeNull();
+    });
+
+    it("Phase 4: P1-P3 모두 completed이면 통과한다", () => {
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+        },
+      });
+      expect(validatePhasePrerequisites(ctx, 4, "grade")).toBeNull();
+    });
+
+    it("Phase 4: P1-P3 중 failed도 통과한다 (skipIfPrereqFailed가 처리)", () => {
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "failed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+        },
+      });
+      expect(validatePhasePrerequisites(ctx, 4, "grade")).toBeNull();
+    });
+
+    it("Phase 4: P2가 pending이면 거부한다", () => {
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "pending",
+          competency_haengteuk: "completed",
+        },
+      });
+      const result = validatePhasePrerequisites(ctx, 4, "grade");
+      expect(result).toContain("Phase 4 실행 불가");
+      expect(result).toContain("Phase 2 미완료");
+    });
+
+    it("Phase 4: P1이 running이면 거부한다", () => {
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "running",
+        },
+      });
+      const result = validatePhasePrerequisites(ctx, 4, "grade");
+      expect(result).toContain("Phase 1 미완료");
+    });
+
+    it("Phase 8: P1-P7 모두 완료/실패이면 통과한다", () => {
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "failed",
+          haengteuk_guide: "failed",
+          draft_generation: "failed",
+        },
+      });
+      expect(validatePhasePrerequisites(ctx, 8, "grade")).toBeNull();
+    });
+  });
+
+  // Synthesis Pipeline
+  describe("Synthesis Pipeline", () => {
+    it("Phase 1은 항상 통과한다", () => {
+      const ctx = makeCtx({ tasks: {}, pipelineType: "synthesis" });
+      expect(validatePhasePrerequisites(ctx, 1, "synthesis")).toBeNull();
+    });
+
+    it("Phase 3: S1-S2 모두 completed이면 통과한다", () => {
+      const ctx = makeCtx({
+        tasks: {
+          storyline_generation: "completed",
+          edge_computation: "completed",
+          guide_matching: "completed",
+        },
+        pipelineType: "synthesis",
+      });
+      expect(validatePhasePrerequisites(ctx, 3, "synthesis")).toBeNull();
+    });
+
+    it("Phase 6: 이전 Phase pending 시 거부한다", () => {
+      const ctx = makeCtx({
+        tasks: {
+          storyline_generation: "completed",
+          edge_computation: "completed",
+          guide_matching: "completed",
+          ai_diagnosis: "completed",
+          course_recommendation: "completed",
+          bypass_analysis: "completed",
+          activity_summary: "running", // Phase 5 미완료
+          ai_strategy: "pending",
+        },
+        pipelineType: "synthesis",
+      });
+      const result = validatePhasePrerequisites(ctx, 6, "synthesis");
+      expect(result).toContain("Phase 6 실행 불가");
+      expect(result).toContain("Phase 5 미완료");
+    });
   });
 });

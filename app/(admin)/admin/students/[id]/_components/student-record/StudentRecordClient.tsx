@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StudentSwitcher } from "@/app/(admin)/admin/calendar/_components/StudentSwitcher";
@@ -9,7 +9,6 @@ import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
 import { Menu, User, ChevronDown, ChevronUp, FileText, ClipboardList, Search, Compass, Target } from "lucide-react";
-import type { RecordSetek, RecordPersonalSetek } from "@/lib/domains/student-record";
 import {
   recordTabQueryOptions,
   storylineTabQueryOptions,
@@ -26,53 +25,19 @@ import { StudentRecordProvider } from "./StudentRecordContext";
 import { GlobalLayerBar } from "./GlobalLayerBar";
 import { ContextGridBottomSheet } from "./ContextGridBottomSheet";
 import { ContextTopSheet } from "./ContextTopSheet";
-import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 import { RecordSidePanelContainer } from "./side-panel/RecordSidePanelContainer";
 import { AgentUIBridgeProvider } from "./AgentUIBridge";
 import type { UIStateSnapshot } from "@/lib/agents/ui-state";
 import type { AgentAction } from "@/lib/agents/agent-actions";
 import { RecordYearSelector } from "./RecordYearSelector";
-import { SetekEditor } from "./SetekEditor";
-import { ChangcheEditor } from "./ChangcheEditor";
-import { HaengteukEditor } from "./HaengteukEditor";
-import { ReadingEditor } from "./ReadingEditor";
-import { PersonalSetekEditor } from "./PersonalSetekEditor";
-import { AttendanceEditor, AttendanceTableHeader } from "./AttendanceEditor";
-import { StorylineManager } from "./StorylineManager";
-import { InquiryLinkSuggestions } from "./InquiryLinkSuggestions";
-import { RecordWarningPanel } from "./RecordWarningPanel";
-import { InterviewQuestionPanel } from "./InterviewQuestionPanel";
 import { computeWarnings } from "@/lib/domains/student-record/warnings/engine";
 import type { WarningCheckInput } from "@/lib/domains/student-record/warnings/engine";
-import { StorylineTimeline } from "./StorylineTimeline";
-import { RoadmapEditor } from "./RoadmapEditor";
-import { ApplicationBoard } from "./ApplicationBoard";
-import { SupplementaryEditor } from "./SupplementaryEditor";
-import { MinScorePanel } from "./MinScorePanel";
 import { ImportDialog } from "./ImportDialog";
-import { RecordGradesDisplay } from "./RecordGradesDisplay";
-import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
-import { CrossReferenceChips } from "./CrossReferenceChips";
-import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
-import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
-import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
-import { StrategyEditor as StrategyEditorPanel } from "./StrategyEditor";
-import { PlacementDashboard } from "./PlacementDashboard";
-import { AllocationSimulator } from "./AllocationSimulator";
-import { AlumniSearch } from "./AlumniSearch";
-const ActivitySummaryPanel = lazy(() => import("./ActivitySummaryPanel").then((m) => ({ default: m.ActivitySummaryPanel })));
-const SetekGuidePanel = lazy(() => import("./SetekGuidePanel").then((m) => ({ default: m.SetekGuidePanel })));
 import { CareerSetupBanner } from "./CareerSetupBanner";
-const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then((m) => ({ default: m.ExplorationGuidePanel })));
-const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
-import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
-import { FourAxisDiagnosisCard } from "./FourAxisDiagnosisCard";
-import { LevelingCard } from "./LevelingCard";
-import { GradeLabel, DocSection, StrategySection, SubHeader, InfoRow, EmptyTable, SectionSkeleton, StageDivider } from "./StudentRecordHelpers";
-import { GradesAndSetekSection } from "./GradesAndSetekSection";
-
-const CoursePlanEditor = lazy(() => import("./CoursePlanEditor"));
-const ProjectedAnalysisSection = lazy(() => import("../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })));
+import { RecordStageContent } from "./RecordStageContent";
+import { DiagnosisStageContent } from "./DiagnosisStageContent";
+import { DesignStageContent } from "./DesignStageContent";
+import { StrategyStageContent } from "./StrategyStageContent";
 
 type Subject = {
   id: string;
@@ -934,7 +899,7 @@ export function StudentRecordClient({
       })();
 
   return (
-    <StudentRecordProvider value={{ studentId, tenantId, studentName, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName, scrollToSection, hasTargetMajor: !!diagnosisData?.targetMajor }}>
+    <StudentRecordProvider value={{ studentId, tenantId, studentName, studentGrade, initialSchoolYear, schoolName, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName, scrollToSection, hasTargetMajor: !!diagnosisData?.targetMajor }}>
     <SidePanelProvider storageKey="recordSidePanelApp">
     <AgentUIBridgeProvider value={agentUIBridgeValue}>
     <TopBarCenterSlotPortal>
@@ -1181,595 +1146,56 @@ export function StudentRecordClient({
             );
           })()}
 
-          {/* ─── 1. 인적·학적사항 (실제 생기부 원본 구조) ──── */}
-          <DocSection id="sec-1" number="1" title="인적·학적사항">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <tbody>
-                  <tr>
-                    <td rowSpan={2} className="w-20 border border-gray-400 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)] dark:border-gray-500">
-                      학생정보
-                    </td>
-                    <td colSpan={3} className="border border-gray-400 px-0 py-0 dark:border-gray-500">
-                      <div className="grid grid-cols-3">
-                        <span className="border-r border-gray-400 px-3 py-1.5 text-sm text-[var(--text-primary)] dark:border-gray-500">
-                          성명: {studentName ?? "-"}
-                        </span>
-                        <span className="border-r border-gray-400 px-3 py-1.5 text-sm text-[var(--text-primary)] dark:border-gray-500">
-                          성별: -
-                        </span>
-                        <span className="px-3 py-1.5 text-sm text-[var(--text-primary)]">
-                          주민등록번호: -
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colSpan={3} className="border border-gray-400 px-3 py-1.5 text-sm text-[var(--text-primary)] dark:border-gray-500">
-                      주소: -
-                    </td>
-                  </tr>
-                  <InfoRow
-                    label="학적사항"
-                    value={schoolName ? `${schoolName} 제${studentGrade}학년 재학` : "-"}
-                  />
-                  <InfoRow label="특기사항" value="-" />
-                </tbody>
-              </table>
-            </div>
-          </DocSection>
+          {/* ─── 📋 기록 스테이지 ──────────────── */}
+          <RecordStageContent
+            subjects={subjects}
+            visiblePairs={visiblePairs}
+            recordByGrade={recordByGrade}
+            anyRecordLoading={anyRecordLoading}
+            anySuppLoading={anySuppLoading}
+            mergedSupplementary={mergedSupplementary}
+            mergedReadings={mergedReadings}
+            diagnosisData={diagnosisData}
+            coursePlanData={coursePlanData}
+            globalSetekTab={globalSetekTab}
+            onSetekTabChange={setGlobalSetekTab}
+            guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
+            setekGuideItems={transformedSetekGuideItems}
+            changcheGuideItems={transformedChangcheGuideItems}
+            haengteukGuideItems={transformedHaengteukGuideItems}
+          />
 
-          {/* ─── 2. 출결상황 (전학년 단일 테이블 — 실제 생기부 원본) ──── */}
-          <DocSection id="sec-2" number="2" title="출결상황">
-            {anyRecordLoading ? <SectionSkeleton /> : visiblePairs.length > 1 ? (
-              /* 전학년/다학년: 헤더 1번 + 학년별 row */
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <AttendanceTableHeader />
-                  <tbody>
-                    {visiblePairs.map((p) => {
-                      const entry = recordByGrade.get(p.grade);
-                      return (
-                        <AttendanceEditor
-                          key={p.grade}
-                          attendance={entry?.data.schoolAttendance ?? null}
-                          studentId={studentId}
-                          schoolYear={p.schoolYear}
-                          tenantId={tenantId}
-                          grade={p.grade}
-                          variant="row"
-                        />
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              /* 단일 학년: 기존 standalone */
-              (() => {
-                const p = visiblePairs[0];
-                const entry = p ? recordByGrade.get(p.grade) : undefined;
-                return p ? (
-                  <AttendanceEditor
-                    attendance={entry?.data.schoolAttendance ?? null}
-                    studentId={studentId}
-                    schoolYear={p.schoolYear}
-                    tenantId={tenantId}
-                    grade={p.grade}
-                  />
-                ) : null;
-              })()
-            )}
-          </DocSection>
+          {/* ─── 🔍 진단 스테이지 ──────────────── */}
+          <DiagnosisStageContent
+            diagnosisData={diagnosisData}
+            diagnosisLoading={diagnosisLoading}
+            anyRecordLoading={anyRecordLoading}
+            filteredActivityTags={filteredActivityTags}
+            allRecordSummaries={allRecordSummaries}
+            currentYearTagIds={currentYearTagIds}
+            recordByGrade={recordByGrade}
+            isPipelineRunning={isPipelineRunning}
+            warnings={warnings}
+          />
 
-          {/* ─── 3. 수상경력 (봉사 제외 — 봉사는 6번 하위) ── */}
-          <DocSection id="sec-3" number="3" title="수상경력">
-            {anySuppLoading ? <SectionSkeleton /> : (
-              <SupplementaryEditor
-                awards={mergedSupplementary.awards}
-                volunteer={[]}
-                disciplinary={mergedSupplementary.disciplinary}
-                studentId={studentId}
-                schoolYear={visiblePairs[0]?.schoolYear ?? initialSchoolYear}
-                tenantId={tenantId}
-                grade={visiblePairs[0]?.grade ?? studentGrade}
-                show={["awards", "disciplinary"]}
-              />
-            )}
-          </DocSection>
+          {/* ─── 📐 설계 스테이지 ──────────────── */}
+          <DesignStageContent
+            diagnosisData={diagnosisData}
+            diagnosisLoading={diagnosisLoading}
+            storylineData={storylineData}
+            storylineLoading={storylineLoading}
+            allRecordSummaries={allRecordSummaries}
+            pipelineData={pipelineData}
+          />
 
-          {/* ─── 4. 자격증 및 인증 취득상황 ───────── */}
-          <DocSection id="sec-4" number="4" title="자격증 및 인증 취득상황">
-            <div className="flex flex-col gap-4">
-              <EmptyTable
-                title="자격증 및 인증 취득상황"
-                headers={["구분", "명칭 또는 종류", "번호 또는 내용", "취득연월일", "발급기관"]}
-              />
-              <EmptyTable
-                title="국가직무능력표준 이수상황"
-                headers={["학년", "학기", "세분류", "능력단위(코드)", "이수시간", "원점수", "성취도", "비고"]}
-              />
-            </div>
-          </DocSection>
-
-          {/* ─── 5. 학교폭력 조치사항 관리 ───────── */}
-          <DocSection id="sec-5" number="5" title="학교폭력 조치사항 관리">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th className="border border-gray-400 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)] dark:border-gray-500">학년</th>
-                    <th className="border border-gray-400 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)] dark:border-gray-500">조치결정 일자</th>
-                    <th className="border border-gray-400 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)] dark:border-gray-500">조치사항</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visiblePairs.map((p) => (
-                    <tr key={p.grade}>
-                      <td className="border border-gray-400 px-3 py-1.5 text-center text-sm text-[var(--text-primary)] dark:border-gray-500">{p.grade}</td>
-                      <td className="border border-gray-400 px-3 py-1.5 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-500" />
-                      <td className="border border-gray-400 px-3 py-1.5 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-500" />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </DocSection>
-
-          {/* ─── 6. 창의적 체험활동상황 ──────────── */}
-          <DocSection id="sec-6" number="6" title="창의적 체험활동상황">
-            {anyRecordLoading ? <SectionSkeleton /> : (
-              <div className="flex flex-col gap-4">
-                {visiblePairs.map((p) => {
-                  const entry = recordByGrade.get(p.grade);
-                  return (
-                    <div key={p.grade}>
-                      {visiblePairs.length > 1 && (
-                        <GradeLabel grade={p.grade} schoolYear={p.schoolYear} />
-                      )}
-                      <ChangcheEditor
-                        changche={entry?.data.changche ?? []}
-                        studentId={studentId}
-                        schoolYear={p.schoolYear}
-                        tenantId={tenantId}
-                        grade={p.grade}
-                        diagnosisActivityTags={diagnosisData?.activityTags}
-                        guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
-                        changcheGuideItems={transformedChangcheGuideItems}
-                        activeTab={globalSetekTab}
-                        onTabChange={setGlobalSetekTab}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* 봉사활동실적 — 실제 생기부에서 6번 창체 하위 */}
-            <div data-section-id="sec-6-volunteer" className="mt-6">
-              {anySuppLoading ? <SectionSkeleton /> : (
-                <SupplementaryEditor
-                  awards={[]}
-                  volunteer={mergedSupplementary.volunteer}
-                  disciplinary={[]}
-                  studentId={studentId}
-                  schoolYear={visiblePairs[0]?.schoolYear ?? initialSchoolYear}
-                  tenantId={tenantId}
-                  grade={visiblePairs[0]?.grade ?? studentGrade}
-                  show={["volunteer"]}
-                />
-              )}
-            </div>
-          </DocSection>
-
-          {/* ─── 7. 교과학습발달상황 ─────────────── */}
-          <DocSection id="sec-7" number="7" title="교과학습발달상황">
-            {/* 진단 약점 안내 배너 */}
-            {diagnosisData?.consultantDiagnosis?.weaknesses && (diagnosisData.consultantDiagnosis.weaknesses as string[]).length > 0 && (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/10">
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                  종합진단 약점 — 세특 작성 시 아래 항목을 보완하세요:
-                </p>
-                <ul className="mt-1 flex flex-wrap gap-1.5">
-                  {(diagnosisData.consultantDiagnosis.weaknesses as string[]).map((w) => (
-                    <li key={w} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                      {w}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {visiblePairs.map((p) => {
-              const entry = recordByGrade.get(p.grade);
-              // P1: 해당 학년의 confirmed plans
-              const confirmedForGrade = coursePlanData?.plans
-                ?.filter((cp) => cp.plan_status === "confirmed" && cp.grade === p.grade)
-                .map((cp) => ({
-                  subjectId: cp.subject_id,
-                  subjectName: cp.subject.name,
-                  semester: cp.semester,
-                  subjectGroupName: cp.subject.subject_group?.name ?? "",
-                  subjectTypeName: cp.subject.subject_type?.name ?? "",
-                }));
-              return (
-                <div key={p.grade} className="mb-8 last:mb-0">
-                  {visiblePairs.length > 1 && (
-                    <GradeLabel grade={p.grade} schoolYear={p.schoolYear} />
-                  )}
-                  <GradesAndSetekSection
-                    studentId={studentId}
-                    schoolYear={p.schoolYear}
-                    studentGrade={p.grade}
-                    tenantId={tenantId}
-                    subjects={subjects}
-                    seteks={entry?.data.seteks}
-                    personalSeteks={entry?.data.personalSeteks}
-                    isLoading={anyRecordLoading}
-                    showSectionAnchors={p.grade === visiblePairs[0]?.grade}
-                    diagnosisActivityTags={diagnosisData?.activityTags}
-                    setekGuideItems={transformedSetekGuideItems}
-                    guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
-                    confirmedPlansForGrade={confirmedForGrade}
-                    studentClassificationId={diagnosisData?.targetSubClassificationId}
-                    studentClassificationName={diagnosisData?.targetSubClassificationName}
-                    schoolName={schoolName}
-                    courseAdequacy={diagnosisData?.courseAdequacy}
-                    activeSetekTab={globalSetekTab}
-                    onSetekTabChange={setGlobalSetekTab}
-
-                  />
-                </div>
-              );
-            })}
-          </DocSection>
-
-          {/* ─── 8. 독서활동상황 ──────────────────── */}
-          <DocSection id="sec-8" number="8" title="독서활동상황">
-            <p className="mb-2 text-xs text-[var(--text-tertiary)]">※ 기재는 되나, 대입에 미반영되는 영역</p>
-            {anyRecordLoading ? <SectionSkeleton /> : (
-              <ReadingEditor
-                readings={mergedReadings}
-                studentId={studentId}
-                schoolYear={visiblePairs[0]?.schoolYear ?? initialSchoolYear}
-                tenantId={tenantId}
-                grade={visiblePairs[0]?.grade ?? studentGrade}
-                diagnosisActivityTags={diagnosisData?.activityTags}
-              />
-            )}
-          </DocSection>
-
-          {/* ─── 9. 행동특성 및 종합의견 ──────────── */}
-          <DocSection id="sec-9" number="9" title="행동특성 및 종합의견">
-            <p className="mb-2 text-xs text-[var(--text-tertiary)]">※ 재학생의 경우, 3-1학기는 기재되지 않습니다.</p>
-            {anyRecordLoading ? <SectionSkeleton /> : (
-              <div className="flex flex-col gap-4">
-                {visiblePairs.map((p) => {
-                  const entry = recordByGrade.get(p.grade);
-                  return (
-                    <div key={p.grade}>
-                      {visiblePairs.length > 1 && (
-                        <GradeLabel grade={p.grade} schoolYear={p.schoolYear} />
-                      )}
-                      <HaengteukEditor
-                        haengteuk={entry?.data.haengteuk ?? null}
-                        studentId={studentId}
-                        schoolYear={p.schoolYear}
-                        tenantId={tenantId}
-                        grade={p.grade}
-                        diagnosisActivityTags={diagnosisData?.activityTags}
-                        guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
-                        haengteukGuideItem={transformedHaengteukGuideItems?.find((g) => g.schoolYear === p.schoolYear)}
-                        activeTab={globalSetekTab}
-                        onTabChange={setGlobalSetekTab}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </DocSection>
-
-          {/* ─── 🔍 진단 스테이지 구분선 ──────────── */}
-          <StageDivider emoji="🔍" label="진단" />
-
-          <StrategySection id="sec-diagnosis-analysis" title="역량 분석">
-            {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
-              <CompetencyAnalysisSection
-                competencyScores={[...(diagnosisData?.competencyScores.ai ?? []), ...(diagnosisData?.competencyScores.consultant ?? [])]}
-                activityTags={filteredActivityTags}
-                records={allRecordSummaries}
-                studentId={studentId}
-                tenantId={tenantId}
-                schoolYear={initialSchoolYear}
-                isPipelineRunning={isPipelineRunning}
-                targetMajor={diagnosisData?.targetMajor}
-                takenSubjects={diagnosisData?.takenSubjects}
-                qualityScores={diagnosisData?.qualityScores}
-              />
-            )}
-          </StrategySection>
-
-          {/* 동일과목 세특 비교 + 크로스레퍼런스 */}
-          <StrategySection id="sec-diagnosis-crossref" title="교차 분석">
-            <p className="mb-3 text-xs text-[var(--text-tertiary)]">
-              AI가 세특·창체·행특 간 자동 감지한 연결입니다. 이를 바탕으로 설계 탭의 &ldquo;스토리라인&rdquo;을 구성할 수 있습니다.
-            </p>
-            {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
-              <div className="flex flex-col gap-4">
-                {/* 같은 학교 동일 과목 세특 참고 */}
-                {schoolName && allRecordSummaries.filter((r) => r.type === "setek").length > 0 && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">같은 학교 동일 과목 세특</p>
-                    {[...new Set(allRecordSummaries.filter((r) => r.type === "setek").map((r) => r.subjectName))].map((subjectName) => {
-                      const rec = allRecordSummaries.find((r) => r.type === "setek" && r.subjectName === subjectName);
-                      if (!rec) return null;
-                      // subject_id가 필요 — recordByGrade에서 찾기
-                      const setekRecord = [...recordByGrade.values()].flatMap((e) => e.data.seteks).find((s) => s.id === rec.id);
-                      if (!setekRecord) return null;
-                      return (
-                        <SameSchoolSetekInfo
-                          key={setekRecord.subject_id}
-                          studentId={studentId}
-                          subjectId={setekRecord.subject_id}
-                          schoolYear={initialSchoolYear}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-                {/* 크로스레퍼런스 */}
-                <CrossReferenceChips
-                  studentId={studentId}
-                  tenantId={tenantId}
-                  currentRecordIds={currentYearTagIds}
-                  currentRecordType="setek"
-                  currentGrade={studentGrade}
-                  allTags={filteredActivityTags as import("@/lib/domains/student-record").ActivityTag[]}
-                  courseAdequacy={diagnosisData?.courseAdequacy ?? null}
-                />
-              </div>
-            )}
-          </StrategySection>
-
-          {/* 4축 합격 진단 프로필 (파이프라인 synthesis 완료 시만 표시) */}
-          {!diagnosisLoading && diagnosisData?.fourAxisDiagnosis && (
-            <StrategySection id="sec-diagnosis-four-axis" title="4축 합격 진단">
-              <FourAxisDiagnosisCard diagnosis={diagnosisData.fourAxisDiagnosis} />
-            </StrategySection>
-          )}
-
-          {/* 레벨링 분석 (설계 모드 학생만) */}
-          {!diagnosisLoading && diagnosisData?.projectedData?.leveling && (
-            <StrategySection id="sec-leveling" title="레벨링 분석">
-              <LevelingCard leveling={diagnosisData.projectedData.leveling} />
-            </StrategySection>
-          )}
-
-          {/* 설계 모드 예상 분석 (P8 가안 + 레벨링) */}
-          {!diagnosisLoading && diagnosisData?.projectedData && (
-            <StrategySection id="sec-projected-analysis" title="설계 모드 예상 분석">
-              <Suspense fallback={<SectionSkeleton />}>
-                <ProjectedAnalysisSection
-                  projectedScores={diagnosisData.projectedData.competencyScores}
-                  projectedEdges={diagnosisData.projectedData.edges}
-                  leveling={diagnosisData.projectedData.leveling}
-                  designGrades={diagnosisData.projectedData.designGrades}
-                  contentQuality={diagnosisData.projectedData.contentQuality}
-                />
-              </Suspense>
-            </StrategySection>
-          )}
-
-          <StrategySection id="sec-diagnosis-overall" title="종합진단">
-            {diagnosisLoading ? <SectionSkeleton /> : (
-              <DiagnosisComparisonView
-                aiDiagnosis={diagnosisData?.aiDiagnosis ?? null}
-                consultantDiagnosis={diagnosisData?.consultantDiagnosis ?? null}
-                aiScores={diagnosisData?.competencyScores.ai ?? []}
-                consultantScores={diagnosisData?.competencyScores.consultant ?? []}
-                activityTags={filteredActivityTags}
-                studentId={studentId}
-                tenantId={tenantId}
-                schoolYear={initialSchoolYear}
-                targetMajor={diagnosisData?.targetMajor}
-                schoolName={schoolName}
-              />
-            )}
-          </StrategySection>
-
-          <StrategySection id="sec-diagnosis-adequacy" title="교과이수적합도">
-            {diagnosisLoading ? <SectionSkeleton /> : (
-              <CourseAdequacyDisplay
-                initialResult={diagnosisData?.courseAdequacy ?? null}
-                takenSubjects={diagnosisData?.takenSubjects ?? []}
-                offeredSubjects={diagnosisData?.offeredSubjects ?? null}
-                initialMajor={diagnosisData?.targetMajor ?? null}
-                curriculumYear={(initialSchoolYear - studentGrade + 1) >= 2025 ? 2022 : 2015}
-              />
-            )}
-          </StrategySection>
-
-          <StrategySection id="sec-warnings" title="조기 경보">
-            <RecordWarningPanel warnings={warnings} />
-          </StrategySection>
-
-          {/* ─── 📐 설계 스테이지 구분선 ──────────── */}
-          <StageDivider emoji="📐" label="설계" hint="전체 학년 통합 뷰" />
-
-          {/* Phase B: AI 초기 분석 결과 패널 */}
-          <div data-section-id="sec-pipeline-results">
-            <DesignPipelineResultsPanel studentId={studentId} tenantId={tenantId} />
-          </div>
-
-          {/* ─── 설계: 계획 그룹 ──────────────────── */}
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">계획</p>
-
-          {/* ─── 수강 계획 ──────────────────────────── */}
-          <StrategySection id="sec-course-plan" title="수강 계획">
-            <Suspense fallback={<SectionSkeleton />}>
-              <CoursePlanEditor studentId={studentId} tenantId={tenantId} />
-            </Suspense>
-          </StrategySection>
-
-          {/* ─── 스토리라인 ───────────────────────── */}
-          <StrategySection id="sec-storyline" title="스토리라인">
-            <p className="mb-3 text-xs text-[var(--text-tertiary)]">
-              학생의 3개년 성장 서사를 직접 구성합니다. AI가 감지한 활동 간 연결은 진단 탭의 &ldquo;교차 분석&rdquo;에서 확인할 수 있습니다.
-            </p>
-            {storylineLoading ? <SectionSkeleton /> : storylineData ? (
-              <div className="flex flex-col gap-6">
-                <StorylineManager storylines={storylineData.storylines} studentId={studentId} tenantId={tenantId} />
-                <InquiryLinkSuggestions
-                  records={allRecordSummaries}
-                  storylines={storylineData.storylines}
-                  studentId={studentId}
-                  tenantId={tenantId}
-                  cachedResult={(pipelineData?.taskResults?.storyline_generation as import("@/lib/domains/student-record/llm/prompts/inquiryLinking").InquiryLinkResult) ?? null}
-                />
-                {storylineData.storylines.length > 0 && (
-                  <div>
-                    <h4 className="mb-3 text-sm font-medium text-[var(--text-primary)]">타임라인 미리보기</h4>
-                    <StorylineTimeline storylines={storylineData.storylines} roadmapItems={storylineData.roadmapItems} />
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </StrategySection>
-
-          {/* ─── 로드맵 ──────────────────────────── */}
-          <StrategySection id="sec-roadmap" title="로드맵">
-            {storylineLoading ? <SectionSkeleton /> : storylineData ? (
-              <RoadmapEditor
-                roadmapItems={storylineData.roadmapItems}
-                storylines={storylineData.storylines}
-                studentId={studentId}
-                schoolYear={initialSchoolYear}
-                tenantId={tenantId}
-                grade={studentGrade}
-              />
-            ) : null}
-          </StrategySection>
-
-          {/* ─── 보완전략 ──────────────────────────── */}
-          <StrategySection id="sec-compensation" title="보완전략">
-            {diagnosisLoading ? <SectionSkeleton /> : (
-              <StrategyEditorPanel
-                strategies={diagnosisData?.strategies ?? []}
-                studentId={studentId}
-                tenantId={tenantId}
-                schoolYear={initialSchoolYear}
-                grade={studentGrade}
-                aiScores={diagnosisData?.competencyScores.ai}
-                aiDiagnosis={diagnosisData?.aiDiagnosis}
-                targetMajor={diagnosisData?.targetMajor}
-                notTakenSubjects={diagnosisData?.courseAdequacy?.notTaken}
-              />
-            )}
-          </StrategySection>
-
-          {/* ─── 설계: AI 리포트 그룹 ────────────── */}
-          <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">AI 리포트</p>
-
-          {/* ─── 활동 요약서 ──────────────────────── */}
-          <StrategySection id="sec-activity-summary" title="활동 요약서">
-            <Suspense fallback={<SectionSkeleton />}>
-              <ActivitySummaryPanel
-                studentId={studentId}
-                studentGrade={studentGrade}
-                studentName={studentName}
-              />
-            </Suspense>
-          </StrategySection>
-
-          {/* ─── 세특 방향 가이드 ─────────────────── */}
-          <StrategySection id="sec-setek-guide" title="세특 방향 가이드">
-            <Suspense fallback={<SectionSkeleton />}>
-              <SetekGuidePanel
-                studentId={studentId}
-                studentGrade={studentGrade}
-                studentName={studentName}
-              />
-            </Suspense>
-          </StrategySection>
-
-          {/* ─── 설계: 가이드 그룹 ─────────────── */}
-          <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">가이드</p>
-
-          {/* ─── 활동 가이드 (탐구 가이드 배정) ──── */}
-          <StrategySection id="sec-exploration-guide" title="활동 가이드">
-            <Suspense fallback={<SectionSkeleton />}>
-              <ExplorationGuidePanel
-                studentId={studentId}
-                studentGrade={studentGrade}
-                tenantId={tenantId}
-                schoolName={schoolName}
-                schoolYear={initialSchoolYear}
-                studentClassificationId={diagnosisData?.targetSubClassificationId ?? undefined}
-                studentClassificationName={diagnosisData?.targetSubClassificationName ?? undefined}
-              />
-            </Suspense>
-          </StrategySection>
-
-          {/* ─── 우회학과 탐색 (CMS C1.5) ────────── */}
-          <StrategySection id="sec-bypass-major" title="우회학과 탐색">
-            <Suspense fallback={<SectionSkeleton />}>
-              <BypassMajorPanel
-                studentId={studentId}
-                studentGrade={studentGrade}
-                tenantId={tenantId}
-              />
-            </Suspense>
-          </StrategySection>
-
-          {/* ─── 🎯 전략 스테이지 구분선 ──────────── */}
-          <StageDivider emoji="🎯" label="전략" hint="전체 학년 통합 뷰" />
-
-          {/* ─── 지원현황 ────────────────────────── */}
-          <StrategySection id="sec-applications" title="지원현황">
-            {anySuppLoading ? <SectionSkeleton /> : (
-              <ApplicationBoard
-                applications={mergedSupplementary.applications}
-                interviewConflicts={mergedSupplementary.interviewConflicts}
-                studentId={studentId}
-                schoolYear={initialSchoolYear}
-                tenantId={tenantId}
-              />
-            )}
-          </StrategySection>
-
-          {/* ─── 최저시뮬 ────────────────────────── */}
-          <StrategySection id="sec-minscore" title="최저 학력 시뮬레이션">
-            {strategyLoading ? <SectionSkeleton /> : strategyData ? (
-              <MinScorePanel
-                targets={strategyData.minScoreTargets}
-                simulations={strategyData.minScoreSimulations}
-                studentId={studentId}
-                schoolYear={initialSchoolYear}
-                tenantId={tenantId}
-              />
-            ) : null}
-          </StrategySection>
-
-          <StrategySection id="sec-placement" title="정시 배치 분석">
-            <PlacementDashboard studentId={studentId} />
-          </StrategySection>
-
-          <StrategySection id="sec-allocation" title="수시 6장 배분 시뮬레이션">
-            {anySuppLoading ? <SectionSkeleton /> : (
-              <AllocationSimulator
-                studentId={studentId}
-                existingApplications={mergedSupplementary.applications}
-              />
-            )}
-          </StrategySection>
-
-          <StrategySection id="sec-interview" title="면접 예상 질문">
-            <InterviewQuestionPanel records={allRecordSummaries} />
-          </StrategySection>
-
-          <StrategySection id="sec-alumni" title="졸업생 입시 DB 검색">
-            <AlumniSearch />
-          </StrategySection>
+          {/* ─── 🎯 전략 스테이지 ──────────────── */}
+          <StrategyStageContent
+            strategyData={strategyData}
+            strategyLoading={strategyLoading}
+            anySuppLoading={anySuppLoading}
+            mergedApplications={{ applications: mergedSupplementary.applications, interviewConflicts: mergedSupplementary.interviewConflicts }}
+            allRecordSummaries={allRecordSummaries}
+          />
 
           <div className="h-24" />
         </div>

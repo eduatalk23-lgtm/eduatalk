@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useRef, useEffect } from "react";
+import { useState, useTransition, useCallback, useRef, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import {
@@ -137,6 +137,43 @@ export function BypassCandidateList({
     setNoteText(candidate.consultant_notes ?? "");
   }
 
+  // ─── 필터링 + 정렬 (useMemo: 카드 펼침/노트 편집 시 재계산 방지) ──
+  const filtered = useMemo(() => candidates.filter((c) => {
+    if (filterTier !== "all" && getUniversityTier(c.candidate_department.university_name) !== filterTier) return false;
+    if (filterPlacement && c.placement_grade !== filterPlacement) return false;
+    return true;
+  }), [candidates, filterTier, filterPlacement]);
+
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
+    switch (sortKey) {
+      case "composite": return Number(b.composite_score ?? 0) - Number(a.composite_score ?? 0);
+      case "similarity": return Number(b.curriculum_similarity_score ?? 0) - Number(a.curriculum_similarity_score ?? 0);
+      case "competency": return Number(b.competency_fit_score ?? 0) - Number(a.competency_fit_score ?? 0);
+      case "university": return a.candidate_department.university_name.localeCompare(b.candidate_department.university_name);
+      default: return 0;
+    }
+  }), [filtered, sortKey]);
+
+  // 그룹 분류
+  const shortlisted = useMemo(() => sorted.filter((c) => c.status === "shortlisted"), [sorted]);
+  const active = useMemo(() => sorted.filter((c) => c.status === "candidate"), [sorted]);
+  const rejected = useMemo(() => sorted.filter((c) => c.status === "rejected"), [sorted]);
+
+  // 티어별 그룹
+  const tierGroups = useMemo(() => groupMode === "tier"
+    ? UNIVERSITY_TIER_ORDER.map((tier) => ({
+        tier,
+        label: UNIVERSITY_TIER_LABELS[tier],
+        items: sorted.filter((c) => getUniversityTier(c.candidate_department.university_name) === tier),
+      })).filter((g) => g.items.length > 0)
+    : null,
+  [sorted, groupMode]);
+
+  // 배치 등급 종류 (필터 칩용)
+  const availablePlacements = useMemo(() =>
+    [...new Set(candidates.map((c) => c.placement_grade).filter(Boolean))] as string[],
+  [candidates]);
+
   if (candidates.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-8">
@@ -172,40 +209,6 @@ export function BypassCandidateList({
       </div>
     );
   }
-
-  // ─── 필터링 + 정렬 ─────────────────────────────────
-  const filtered = candidates.filter((c) => {
-    if (filterTier !== "all" && getUniversityTier(c.candidate_department.university_name) !== filterTier) return false;
-    if (filterPlacement && c.placement_grade !== filterPlacement) return false;
-    return true;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sortKey) {
-      case "composite": return Number(b.composite_score ?? 0) - Number(a.composite_score ?? 0);
-      case "similarity": return Number(b.curriculum_similarity_score ?? 0) - Number(a.curriculum_similarity_score ?? 0);
-      case "competency": return Number(b.competency_fit_score ?? 0) - Number(a.competency_fit_score ?? 0);
-      case "university": return a.candidate_department.university_name.localeCompare(b.candidate_department.university_name);
-      default: return 0;
-    }
-  });
-
-  // 그룹 분류
-  const shortlisted = sorted.filter((c) => c.status === "shortlisted");
-  const active = sorted.filter((c) => c.status === "candidate");
-  const rejected = sorted.filter((c) => c.status === "rejected");
-
-  // 티어별 그룹
-  const tierGroups = groupMode === "tier"
-    ? UNIVERSITY_TIER_ORDER.map((tier) => ({
-        tier,
-        label: UNIVERSITY_TIER_LABELS[tier],
-        items: sorted.filter((c) => getUniversityTier(c.candidate_department.university_name) === tier),
-      })).filter((g) => g.items.length > 0)
-    : null;
-
-  // 배치 등급 종류 (필터 칩용)
-  const availablePlacements = [...new Set(candidates.map((c) => c.placement_grade).filter(Boolean))] as string[];
 
   return (
     <div

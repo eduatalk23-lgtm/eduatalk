@@ -180,6 +180,50 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `student_record_strategies` | 보완전략 | S5 출력 |
 | `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
 
+### 분석 데이터 3중 저장 전략 (D2)
+
+P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통합/제거 불필요.**
+
+```
+① analysis_cache (LLM 원본)
+   - content_hash 기반 증분 캐시: 세특 내용 변경 없으면 LLM 재호출 스킵
+   - 전체 JSON 저장 (디버깅/재파싱용)
+   - 재실행 시: 해당 학년 전체 삭제 → LLM 강제 재호출
+
+② activity_tags + competency_scores (구조화 데이터)
+   - ①에서 파싱한 역량 태그, 등급, 루브릭 점수
+   - UI 직접 표시 + Phase 4-6 가이드 입력
+   - 재실행 시: deleteAnalysisResultsByGrade()로 삭제
+
+③ content_quality (5축 품질 점수)
+   - ①에서 파싱한 specificity/coherence/depth/grammar/scientific_validity
+   - UI 표시 + Phase 4-6 프롬프트 주입 (issues/feedback)
+   - 재실행 시: ②와 함께 삭제
+```
+
+**무결성 보장**: ①→②③ 파싱은 단일 트랜잭션(`runCompetencyForRecords`)에서 실행.
+재실행 시 ①②③ 동시 삭제 후 재생성하므로 불일치 불가.
+
+### 삭제 정책 (D4)
+
+| 테이블 그룹 | 전략 | 이유 |
+|------------|------|------|
+| **코어 레코드** (seteks, personal_seteks, changche, haengteuk) | **소프트 삭제** (`deleted_at`) | RLS에서 `deleted_at IS NULL` 필터, undo 가능 |
+| **독서** (reading) | **하드 삭제** (import 시 덮어쓰기) | PDF import 마다 전량 교체 |
+| **파생/분석** (activity_tags, competency_scores, content_quality, edges) | **하드 삭제** | 파이프라인 재실행 시 전량 재생성 |
+| **가이드** (setek/changche/haengteuk_guides) | **하드 삭제** (upsert) | 생성 시 기존 삭제 후 재삽입 |
+| **링크** (storyline_links, reading_links) | **CASCADE 하드 삭제** | 부모(storylines/reading) 삭제 시 자동 삭제 |
+| **캐시** (analysis_cache) | **하드 삭제** | content_hash 기반 증분 갱신 |
+| **징계** (disciplinary) | **하드 삭제** | 관리자 직접 관리, 학생/학부모 열람 불가 |
+
+### Polymorphic FK 패턴 (D3)
+
+`activity_tags`, `storyline_links`, `reading_links`는 `record_type + record_id`로 세특/창체/행특을 다형 참조.
+실제 FK 제약조건 없음 (PostgreSQL은 다형 FK 미지원). 대신:
+- **트리거 `cleanup_polymorphic_refs()`** (core.sql): 부모 레코드 DELETE 시 자동 정리
+- **CHECK 제약**: `record_type IN ('setek', 'personal_setek', 'changche', 'haengteuk', ...)`
+- **코어 레코드 소프트 삭제**: 실제 행 삭제는 거의 발생하지 않아 고아 레코드 위험 최소
+
 ### 설계/분석 레이어 패턴 (L0~L6)
 
 | 테이블 | 구분자 | 분석(NEIS 기반) | 설계(AI 가안) |
