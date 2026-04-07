@@ -9,7 +9,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { useSidePanel } from "@/components/side-panel";
-import { upsertDiagnosisAction, confirmDiagnosisAction, findDiagnosisSnapshotsAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { upsertDiagnosisAction, confirmDiagnosisAction } from "@/lib/domains/student-record/actions/diagnosis";
 import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/generateDiagnosis";
 import { buildEdgeSummaryForPrompt } from "@/lib/domains/student-record/llm/edge-summary";
 import { fetchPersistedEdges } from "@/lib/domains/student-record/actions/diagnosis-helpers";
@@ -22,6 +22,8 @@ import { RecommendedCourses } from "./GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { Sparkles, Copy, Check, Loader2, History } from "lucide-react";
 import { useAutoSave } from "./useAutoSave";
+import { Row, TagList, FormRow, ImprovementsList } from "./DiagnosisSharedComponents";
+import { DiagnosisHistoryPanel } from "./DiagnosisHistoryPanel";
 
 type Props = {
   aiDiagnosis: Diagnosis | null;
@@ -560,147 +562,3 @@ export function DiagnosisComparisonView({
   );
 }
 
-// ─── 보조 컴포넌트 ──────────────────────────
-
-function Row({ label, value, diff }: { label: string; value: string; diff?: boolean }) {
-  return (
-    <div className="flex gap-2">
-      <span className="w-16 shrink-0 text-[var(--text-tertiary)]">{label}</span>
-      <span className={cn("text-[var(--text-primary)]", diff && "font-medium text-amber-600 dark:text-amber-400")}>{value}</span>
-      {diff && <span className="text-amber-500" title="AI와 차이 있음">⚡ <span className="sr-only">차이</span></span>}
-    </div>
-  );
-}
-
-function TagList({ label, items, matchItems }: { label: string; items: string[]; matchItems?: string[] }) {
-  return (
-    <div className="flex gap-2">
-      <span className="w-16 shrink-0 text-[var(--text-tertiary)]">{label}</span>
-      <div className="flex flex-wrap gap-1">
-        {items.map((s) => {
-          const isMatch = matchItems?.includes(s);
-          return (
-            <span key={s} className={cn("rounded-full px-1.5 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
-              {isMatch && "✓ "}{s}
-            </span>
-          );
-        })}
-        {items.length === 0 && <span className="text-[var(--text-tertiary)]">-</span>}
-      </div>
-    </div>
-  );
-}
-
-
-function FormRow({ label, children, diff }: { label: string; children: React.ReactNode; diff?: boolean }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className={cn("w-16 shrink-0 pt-1 text-xs", diff ? "font-medium text-amber-600 dark:text-amber-400" : "text-[var(--text-tertiary)]")}>
-        {label} {diff && <span title="AI와 차이 있음">⚡</span>}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-const PRIORITY_COLORS: Record<string, string> = {
-  "높음": "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400",
-  "중간": "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
-  "낮음": "text-gray-500 bg-gray-50 dark:bg-gray-800 dark:text-gray-400",
-};
-
-function ImprovementsList({ items }: { items: Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> }) {
-  return (
-    <div className="flex gap-2">
-      <span className="w-16 shrink-0 text-[var(--text-tertiary)]">개선전략</span>
-      <div className="flex flex-1 flex-col gap-1.5">
-        {items.map((imp, i) => (
-          <div key={i} className="rounded border border-gray-200 p-1.5 dark:border-gray-700">
-            <div className="flex items-center gap-1.5">
-              <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", PRIORITY_COLORS[imp.priority] ?? PRIORITY_COLORS["중간"])}>
-                {imp.priority}
-              </span>
-              <span className="text-[10px] font-medium text-[var(--text-primary)]">{imp.area}</span>
-            </div>
-            {imp.gap && <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{imp.gap}</p>}
-            <p className="mt-0.5 text-[10px] text-blue-600 dark:text-blue-400">{imp.action}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── P2-4: 진단 변경 히스토리 패널 ──────────────────────────
-
-const GRADE_LABELS: Record<string, string> = { "A+": "A+", "A-": "A-", "B+": "B+", B: "B", "B-": "B-", C: "C" };
-
-function DiagnosisHistoryPanel({ studentId, schoolYear }: { studentId: string; schoolYear: number }) {
-  const { data: snapshots, isLoading } = useQuery({
-    queryKey: ["diagnosis-snapshots", studentId, schoolYear],
-    queryFn: () => findDiagnosisSnapshotsAction(studentId, schoolYear, "ai"),
-    staleTime: 60_000,
-  });
-
-  const [selected, setSelected] = useState<number | null>(null);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-4">
-        <Loader2 className="h-4 w-4 animate-spin text-[var(--text-tertiary)]" />
-      </div>
-    );
-  }
-
-  if (!snapshots?.length) {
-    return (
-      <div className="rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] px-3 py-2 text-center text-xs text-[var(--text-tertiary)]">
-        변경 이력이 없습니다 (다음 AI 재생성 시 기록됩니다)
-      </div>
-    );
-  }
-
-  const selectedSnap = selected !== null ? snapshots[selected]?.snapshot : null;
-
-  return (
-    <div className="rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-3">
-      <p className="mb-2 text-[10px] font-semibold text-[var(--text-primary)]">AI 진단 변경 이력 ({snapshots.length}건)</p>
-
-      {/* 타임라인 */}
-      <div className="flex flex-wrap gap-1.5">
-        {snapshots.map((snap, i) => {
-          const d = new Date(snap.created_at);
-          const grade = (snap.snapshot as Record<string, unknown>).overall_grade as string;
-          return (
-            <button
-              key={snap.id}
-              type="button"
-              onClick={() => setSelected(selected === i ? null : i)}
-              className={cn(
-                "rounded-md border px-2 py-1 text-[10px] transition",
-                selected === i
-                  ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300"
-                  : "border-[var(--border-secondary)] text-[var(--text-secondary)] hover:border-gray-400",
-              )}
-            >
-              {d.getMonth() + 1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2, "0")}
-              {grade && ` (${GRADE_LABELS[grade] ?? grade})`}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 선택된 스냅샷 상세 */}
-      {selectedSnap && (
-        <div className="mt-2 space-y-1 rounded border border-gray-200 bg-white p-2 text-[10px] dark:border-gray-700 dark:bg-gray-900">
-          <Row label="등급" value={String((selectedSnap as Record<string, unknown>).overall_grade ?? "-")} />
-          <Row label="방향" value={String((selectedSnap as Record<string, unknown>).record_direction ?? "-")} />
-          <Row label="강도" value={STRENGTH_LABELS[String((selectedSnap as Record<string, unknown>).direction_strength ?? "moderate")] ?? "-"} />
-          <TagList label="강점" items={((selectedSnap as Record<string, unknown>).strengths as string[]) ?? []} />
-          <TagList label="약점" items={((selectedSnap as Record<string, unknown>).weaknesses as string[]) ?? []} />
-          <TagList label="추천전공" items={((selectedSnap as Record<string, unknown>).recommended_majors as string[]) ?? []} />
-        </div>
-      )}
-    </div>
-  );
-}

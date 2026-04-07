@@ -59,6 +59,8 @@ export type CompetencyScope = "yearly" | "cumulative";
 
 export type DiagnosisSource = "ai" | "manual";
 
+export type TagContext = "analysis" | "draft_analysis";
+
 export type ActivityTagStatus = "suggested" | "confirmed";
 
 export type DiagnosisStatus = "draft" | "confirmed";

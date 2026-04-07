@@ -1,0 +1,151 @@
+"use server";
+
+// ============================================
+// 파이프라인 상태 조회 (7-4)
+//   fetchGradeAwarePipelineStatus — grade + synthesis 파이프라인 상태 조회
+// ============================================
+
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
+import type {
+  CachedSetek,
+  CachedChangche,
+  CachedHaengteuk,
+} from "../pipeline-types";
+import { GRADE_PIPELINE_TASK_KEYS } from "../pipeline-types";
+import { resolveRecordData, deriveGradeCategories } from "../pipeline-data-resolver";
+import type { GradeAwarePipelineStatus } from "./pipeline-orchestrator-types";
+
+const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };
+
+// ============================================
+// 7-4. fetchGradeAwarePipelineStatus
+// ============================================
+
+/**
+ * 해당 학생의 최근 grade + synthesis 파이프라인 상태를 모두 조회.
+ */
+export async function fetchGradeAwarePipelineStatus(
+  studentId: string,
+): Promise<ActionResponse<GradeAwarePipelineStatus>> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: rows, error } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, status, pipeline_type, grade, mode, tasks, task_previews, task_results, error_details")
+      .eq("student_id", studentId)
+      .in("pipeline_type", ["grade", "synthesis"])
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    const gradePipelines: GradeAwarePipelineStatus["gradePipelines"] = {};
+    let synthesisPipeline: GradeAwarePipelineStatus["synthesisPipeline"] = null;
+
+    for (const row of rows ?? []) {
+      const tasks = (row.tasks ?? {}) as Record<string, string>;
+      const previews = (row.task_previews ?? {}) as Record<string, string>;
+      const results = (row.task_results ?? {}) as Record<string, Record<string, unknown>>;
+      const errors = (row.error_details ?? {}) as Record<string, string>;
+
+      // 태스크별 소요시간 추출
+      const elapsed: Record<string, number> = {};
+      for (const [k, v] of Object.entries(results)) {
+        if (v && typeof v === "object" && "elapsedMs" in v && typeof v.elapsedMs === "number") {
+          elapsed[k] = v.elapsedMs;
+        }
+      }
+
+      if (row.pipeline_type === "grade" && row.grade != null) {
+        const gradeNum = row.grade as number;
+        // 학년당 가장 최근 파이프라인만 유지 (order by created_at desc 이미 적용)
+        if (!(gradeNum in gradePipelines)) {
+          // 하위 호환: 기존 7-task 파이프라인에 신규 키 보정
+          // 이미 completed인 파이프라인은 신규 태스크도 completed로 간주 (P7/P8은 해당 시점에 없었으므로)
+          const isCompleted = row.status === "completed";
+          for (const key of GRADE_PIPELINE_TASK_KEYS) {
+            if (!(key in tasks)) {
+              tasks[key] = isCompleted ? "completed" : "pending";
+            }
+          }
+          gradePipelines[gradeNum] = {
+            pipelineId: row.id as string,
+            grade: gradeNum,
+            status: row.status as string,
+            mode: (row.mode === "design" ? "design" : "analysis") as "analysis" | "design",
+            tasks,
+            previews,
+            elapsed,
+            errors,
+          };
+        }
+      } else if (row.pipeline_type === "synthesis" && !synthesisPipeline) {
+        synthesisPipeline = {
+          pipelineId: row.id as string,
+          status: row.status as string,
+          tasks,
+          previews,
+          elapsed,
+          errors,
+        };
+      }
+    }
+
+    // 파이프라인 실행 전에도 학년별 예상 mode 산출 (NEIS 유무 기반)
+    const expectedModes: Record<number, "analysis" | "design"> = {};
+    const { data: student } = await supabase
+      .from("students")
+      .select("grade, tenant_id")
+      .eq("id", studentId)
+      .single();
+
+    if (student) {
+      const tenantId = student.tenant_id as string;
+      const [sRes, cRes, hRes, cpRes] = await Promise.all([
+        supabase.from("student_record_seteks")
+          .select("grade, imported_content")
+          .eq("student_id", studentId).eq("tenant_id", tenantId).is("deleted_at", null),
+        supabase.from("student_record_changche")
+          .select("grade, imported_content")
+          .eq("student_id", studentId).eq("tenant_id", tenantId),
+        supabase.from("student_record_haengteuk")
+          .select("grade, imported_content")
+          .eq("student_id", studentId).eq("tenant_id", tenantId),
+        supabase.from("student_course_plans")
+          .select("grade")
+          .eq("student_id", studentId).in("plan_status", ["confirmed", "recommended"]),
+      ]);
+
+      const resolvedRecords = resolveRecordData(
+        (sRes.data ?? []) as CachedSetek[],
+        (cRes.data ?? []) as CachedChangche[],
+        (hRes.data ?? []) as CachedHaengteuk[],
+      );
+      const { neisGrades } = deriveGradeCategories(resolvedRecords);
+      const coursePlanGrades = [...new Set(
+        ((cpRes.data ?? []) as { grade: number }[]).map((r) => r.grade).filter((g) => g >= 1 && g <= 3),
+      )];
+
+      // 레코드 또는 수강계획이 있는 모든 학년에 대해 mode 계산
+      const allGrades = [...new Set([
+        ...Object.keys(resolvedRecords).map(Number),
+        ...coursePlanGrades,
+      ])].filter((g) => g >= 1 && g <= 3);
+
+      for (const grade of allGrades) {
+        expectedModes[grade] = neisGrades.includes(grade) ? "analysis" : "design";
+      }
+    }
+
+    return createSuccessResponse({ gradePipelines, synthesisPipeline, expectedModes });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchGradeAwarePipelineStatus" }, error, { studentId });
+    return createErrorResponse("학년별 파이프라인 상태 조회 실패");
+  }
+}

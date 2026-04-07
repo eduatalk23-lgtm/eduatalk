@@ -4,6 +4,10 @@
 // - 데이터 변환 및 가공
 // - 비즈니스 규칙 적용 (글자수 검증, 공통과목 쌍 등)
 // - Repository 호출 및 에러 처리
+//
+// 분리된 모듈:
+//   service-supplementary.ts — 지원현황/수상/봉사/징계
+//   service-strategy.ts     — 전략탭/수능최저 목표+시뮬레이션
 // ============================================
 
 import { logActionError } from "@/lib/logging/actionLogger";
@@ -22,22 +26,39 @@ import type {
   StorylineLinkInsert,
   RoadmapItemInsert,
   RoadmapItemUpdate,
-  RecordApplicationInsert,
-  RecordApplicationUpdate,
-  RecordAwardInsert,
-  RecordVolunteerInsert,
-  RecordDisciplinaryInsert,
-  MinScoreTargetInsert,
-  MinScoreTargetUpdate,
-  MinScoreSimulationInsert,
-  MinScoreCriteria,
   RecordTabData,
   StorylineTabData,
-  StrategyTabData,
   StudentRecordActionResult,
 } from "./types";
-import { checkInterviewConflicts } from "./interview-conflict-checker";
-import { simulateMinScore } from "./min-score-simulator";
+// Note: RecordApplication*, RecordAward*, RecordVolunteer*, RecordDisciplinary*, MinScore*, StrategyTabData
+// are used in service-supplementary.ts and service-strategy.ts respectively.
+
+// ============================================
+// 분리된 모듈 re-export (외부 호환 유지)
+// ============================================
+
+export type { SupplementaryTabData } from "./service-supplementary";
+export {
+  getSupplementaryTabData,
+  addApplication,
+  updateApplication,
+  removeApplication,
+  addAward,
+  removeAward,
+  addVolunteer,
+  removeVolunteer,
+  addDisciplinary,
+  removeDisciplinary,
+} from "./service-supplementary";
+
+export {
+  getStrategyTabData,
+  addMinScoreTarget,
+  updateMinScoreTarget,
+  removeMinScoreTarget,
+  runMinScoreSimulation,
+  removeMinScoreSimulation,
+} from "./service-strategy";
 
 const DOMAIN = "student-record";
 
@@ -435,271 +456,3 @@ export async function removeRoadmapItem(id: string): Promise<StudentRecordAction
   }
 }
 
-// ============================================
-// 지원현황 + 보조 기록 탭 데이터 조회
-// ============================================
-
-export interface SupplementaryTabData {
-  applications: import("./types").RecordApplication[];
-  interviewConflicts: import("./types").InterviewConflict[];
-  awards: import("./types").RecordAward[];
-  volunteer: import("./types").RecordVolunteer[];
-  disciplinary: import("./types").RecordDisciplinary[];
-}
-
-export async function getSupplementaryTabData(
-  studentId: string,
-  schoolYear: number,
-  tenantId: string,
-): Promise<SupplementaryTabData> {
-  try {
-    const [applications, awards, volunteer, disciplinary] = await Promise.all([
-      repository.findApplicationsByStudentYear(studentId, schoolYear, tenantId),
-      repository.findAwardsByStudentYear(studentId, schoolYear, tenantId),
-      repository.findVolunteerByStudentYear(studentId, schoolYear, tenantId),
-      repository.findDisciplinaryByStudentYear(studentId, schoolYear, tenantId),
-    ]);
-
-    const interviewConflicts = checkInterviewConflicts(applications);
-
-    return { applications, interviewConflicts, awards, volunteer, disciplinary };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "getSupplementaryTabData" }, error, { studentId, schoolYear });
-    return { applications: [], interviewConflicts: [], awards: [], volunteer: [], disciplinary: [] };
-  }
-}
-
-// ============================================
-// 지원현황 CRUD (수시 6장 제한 포함)
-// ============================================
-
-const MAX_EARLY_APPLICATIONS = 6;
-
-export async function addApplication(
-  input: RecordApplicationInsert,
-): Promise<StudentRecordActionResult> {
-  try {
-    // 수시 6장 제한 체크
-    if (input.round?.startsWith("early_")) {
-      const existing = await repository.findApplicationsByStudentYear(
-        input.student_id,
-        input.school_year,
-        input.tenant_id,
-      );
-      const earlyCount = existing.filter((a) => a.round.startsWith("early_")).length;
-      if (earlyCount >= MAX_EARLY_APPLICATIONS) {
-        return { success: false, error: `수시 지원은 최대 ${MAX_EARLY_APPLICATIONS}장까지 가능합니다.` };
-      }
-    }
-
-    const id = await repository.insertApplication(input);
-    return { success: true, data: { id } };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "addApplication" }, error);
-    return { success: false, error: "지원 추가 중 오류가 발생했습니다." };
-  }
-}
-
-export async function updateApplication(
-  id: string,
-  updates: RecordApplicationUpdate,
-): Promise<StudentRecordActionResult> {
-  try {
-    await repository.updateApplicationById(id, updates);
-    return { success: true, data: { id } };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "updateApplication" }, error);
-    return { success: false, error: "지원 수정 중 오류가 발생했습니다." };
-  }
-}
-
-export async function removeApplication(id: string): Promise<StudentRecordActionResult> {
-  try {
-    await repository.deleteApplicationById(id);
-    return { success: true };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "removeApplication" }, error);
-    return { success: false, error: "지원 삭제 중 오류가 발생했습니다." };
-  }
-}
-
-// ============================================
-// 수상/봉사/징계 CRUD
-// ============================================
-
-export async function addAward(input: RecordAwardInsert): Promise<StudentRecordActionResult> {
-  try {
-    if (!input.award_name?.trim()) {
-      return { success: false, error: "수상명을 입력해주세요." };
-    }
-    const id = await repository.insertAward(input);
-    return { success: true, data: { id } };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "addAward" }, error);
-    return { success: false, error: "수상 추가 중 오류가 발생했습니다." };
-  }
-}
-
-export async function removeAward(id: string): Promise<StudentRecordActionResult> {
-  try {
-    await repository.deleteAwardById(id);
-    return { success: true };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "removeAward" }, error);
-    return { success: false, error: "수상 삭제 중 오류가 발생했습니다." };
-  }
-}
-
-export async function addVolunteer(input: RecordVolunteerInsert): Promise<StudentRecordActionResult> {
-  try {
-    if (!input.hours || input.hours <= 0) {
-      return { success: false, error: "봉사 시간을 입력해주세요." };
-    }
-    const id = await repository.insertVolunteer(input);
-    return { success: true, data: { id } };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "addVolunteer" }, error);
-    return { success: false, error: "봉사 추가 중 오류가 발생했습니다." };
-  }
-}
-
-export async function removeVolunteer(id: string): Promise<StudentRecordActionResult> {
-  try {
-    await repository.deleteVolunteerById(id);
-    return { success: true };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "removeVolunteer" }, error);
-    return { success: false, error: "봉사 삭제 중 오류가 발생했습니다." };
-  }
-}
-
-export async function addDisciplinary(input: RecordDisciplinaryInsert): Promise<StudentRecordActionResult> {
-  try {
-    if (!input.action_type?.trim()) {
-      return { success: false, error: "조치 유형을 입력해주세요." };
-    }
-    const id = await repository.insertDisciplinary(input);
-    return { success: true, data: { id } };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "addDisciplinary" }, error);
-    return { success: false, error: "징계 추가 중 오류가 발생했습니다." };
-  }
-}
-
-export async function removeDisciplinary(id: string): Promise<StudentRecordActionResult> {
-  try {
-    await repository.deleteDisciplinaryById(id);
-    return { success: true };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "removeDisciplinary" }, error);
-    return { success: false, error: "징계 삭제 중 오류가 발생했습니다." };
-  }
-}
-
-// ============================================
-// 전략 탭 데이터 조회 (지원현황 + 최저 시뮬)
-// ============================================
-
-export async function getStrategyTabData(
-  studentId: string,
-  schoolYear: number,
-  tenantId: string,
-): Promise<StrategyTabData> {
-  try {
-    const [applications, minScoreTargets, minScoreSimulations] = await Promise.all([
-      repository.findApplicationsByStudentYear(studentId, schoolYear, tenantId),
-      repository.findMinScoreTargetsByStudent(studentId, tenantId),
-      repository.findMinScoreSimulationsByStudent(studentId, tenantId),
-    ]);
-
-    const interviewConflicts = checkInterviewConflicts(applications);
-
-    return { applications, minScoreTargets, minScoreSimulations, interviewConflicts };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "getStrategyTabData" }, error, { studentId, schoolYear });
-    return { applications: [], minScoreTargets: [], minScoreSimulations: [], interviewConflicts: [] };
-  }
-}
-
-// ============================================
-// 수능최저 목표 CRUD
-// ============================================
-
-export async function addMinScoreTarget(
-  input: MinScoreTargetInsert,
-): Promise<StudentRecordActionResult> {
-  try {
-    if (!input.university_name?.trim()) {
-      return { success: false, error: "대학명을 입력해주세요." };
-    }
-    if (!input.department?.trim()) {
-      return { success: false, error: "학과를 입력해주세요." };
-    }
-    const id = await repository.insertMinScoreTarget(input);
-    return { success: true, data: { id } };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "addMinScoreTarget" }, error);
-    return { success: false, error: "최저 목표 추가 중 오류가 발생했습니다." };
-  }
-}
-
-export async function updateMinScoreTarget(
-  id: string,
-  updates: MinScoreTargetUpdate,
-): Promise<StudentRecordActionResult> {
-  try {
-    await repository.updateMinScoreTargetById(id, updates);
-    return { success: true, id };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "updateMinScoreTarget" }, error);
-    return { success: false, error: "최저 목표 수정 중 오류가 발생했습니다." };
-  }
-}
-
-export async function removeMinScoreTarget(id: string): Promise<StudentRecordActionResult> {
-  try {
-    await repository.deleteMinScoreTargetById(id);
-    return { success: true };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "removeMinScoreTarget" }, error);
-    return { success: false, error: "최저 목표 삭제 중 오류가 발생했습니다." };
-  }
-}
-
-// ============================================
-// 수능최저 시뮬레이션 실행
-// ============================================
-
-export async function runMinScoreSimulation(
-  input: Omit<MinScoreSimulationInsert, "is_met" | "grade_sum" | "gap" | "bottleneck_subjects" | "what_if">,
-  criteria: MinScoreCriteria,
-): Promise<StudentRecordActionResult> {
-  try {
-    const grades = (input.actual_grades ?? {}) as Record<string, number>;
-    const result = simulateMinScore(criteria, grades);
-
-    const id = await repository.insertMinScoreSimulation({
-      ...input,
-      is_met: result.isMet,
-      grade_sum: result.gradeSum,
-      gap: result.gap,
-      bottleneck_subjects: result.bottleneckSubjects,
-      what_if: (await import("./types")).toDbJson(result.whatIf),
-    });
-
-    return { success: true, id };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "runMinScoreSimulation" }, error);
-    return { success: false, error: "시뮬레이션 실행 중 오류가 발생했습니다." };
-  }
-}
-
-export async function removeMinScoreSimulation(id: string): Promise<StudentRecordActionResult> {
-  try {
-    await repository.deleteMinScoreSimulationById(id);
-    return { success: true };
-  } catch (error) {
-    logActionError({ domain: DOMAIN, action: "removeMinScoreSimulation" }, error);
-    return { success: false, error: "시뮬레이션 삭제 중 오류가 발생했습니다." };
-  }
-}

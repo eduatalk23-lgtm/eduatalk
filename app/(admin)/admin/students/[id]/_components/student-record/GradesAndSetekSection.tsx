@@ -22,7 +22,7 @@ type Subject = {
 const PE_ART_GROUPS = new Set(["체육", "예술"]);
 const ELECTIVE_TYPES = new Set(["진로선택", "진로 선택", "융합선택", "융합 선택"]);
 
-function classifySubjectId(subjectId: string, subjects: Subject[]): "general" | "elective" | "pe_art" | "liberal" {
+export function classifySubjectId(subjectId: string, subjects: Subject[]): "general" | "elective" | "pe_art" | "liberal" {
   const subj = subjects.find((s) => s.id === subjectId);
   if (!subj) return "general";
   const groupName = subj.subject_group?.name ?? "";

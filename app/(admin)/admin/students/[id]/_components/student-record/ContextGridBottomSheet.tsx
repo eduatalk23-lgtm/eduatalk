@@ -24,6 +24,20 @@ import type { RecordSetek, RecordChangche, RecordHaengteuk } from "@/lib/domains
 import type { MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
 import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
 import type { SubjectNavItem } from "./StudentRecordClient";
+import {
+  type GridColumnKey,
+  type CategoryFilter,
+  DEFAULT_COLUMNS_ANALYSIS,
+  DEFAULT_COLUMNS_DESIGN,
+  MAX_COLUMNS,
+  SELECTABLE_COLS,
+  COL_LABELS,
+  LS_KEY_COLUMNS,
+  LS_KEY_GRADE,
+  LS_KEY_CATEGORY,
+  readLS,
+  writeLS,
+} from "./contextGridConfig";
 
 // ─── ID 종류 감지 ──
 
@@ -36,47 +50,7 @@ function detectIdKind(id: string | null | undefined): ActiveIdKind | null {
   return "setek";
 }
 
-// ─── ContextGrid 전용 열 타입 (에디터 탭과 별개) ──
-
-export type GridColumnKey =
-  | "chat" | "guide"
-  | "design_direction" | "draft" | "draft_analysis"
-  | "neis" | "analysis" | "improve_direction"
-  | "memo";
-
-const DEFAULT_COLUMNS_ANALYSIS: GridColumnKey[] = ["draft", "neis", "analysis"];
-const DEFAULT_COLUMNS_DESIGN: GridColumnKey[] = ["design_direction", "draft", "draft_analysis"];
-const MAX_COLUMNS = 3;
-const SELECTABLE_COLS: GridColumnKey[] = [
-  "chat", "guide", "design_direction", "draft", "draft_analysis",
-  "neis", "analysis", "improve_direction", "memo",
-];
-const COL_LABELS: Record<GridColumnKey, string> = {
-  chat: "논의", guide: "가이드", design_direction: "설계방향",
-  draft: "가안", draft_analysis: "가안분석",
-  neis: "NEIS", analysis: "분석", improve_direction: "보완방향", memo: "메모",
-};
-
-const LS_KEY_COLUMNS = "contextGrid:selectedColumns";
-const LS_KEY_GRADE = "contextGrid:gradeFilter";
-const LS_KEY_CATEGORY = "contextGrid:categoryFilter";
-
-type CategoryFilter = "all" | "general" | "elective" | "pe_art";
-
-function readLS<T>(key: string, fallback: T, parse: (v: string) => T | null): T {
-  if (typeof window === "undefined") return fallback;
-  const raw = localStorage.getItem(key);
-  if (raw == null) return fallback;
-  try {
-    return parse(raw) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeLS(key: string, value: string) {
-  if (typeof window !== "undefined") localStorage.setItem(key, value);
-}
+export type { GridColumnKey };
 
 // ─── Props ──
 
@@ -564,100 +538,3 @@ export function ContextGridBottomSheet({
   );
 }
 
-// ─── 간소화 레코드 뷰 (창체/행특용) ──
-
-function SimplifiedRecordView({
-  title,
-  content,
-  tags,
-  charLimit,
-  selectedColumns,
-  draftContent,
-  consultantContent,
-  confirmedContent,
-}: {
-  title: string;
-  content: string;
-  tags: AnalysisTagLike[];
-  charLimit: number;
-  selectedColumns: GridColumnKey[];
-  draftContent: string | null;
-  consultantContent: string | null;
-  confirmedContent: string | null;
-}) {
-  return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto">
-      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
-      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${selectedColumns.length}, 1fr)` }}>
-        {selectedColumns.map((col) => (
-          <div key={col} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">{COL_LABELS[col]}</span>
-            {col === "neis" && (
-              <div className="text-sm text-[var(--text-primary)] whitespace-pre-wrap">
-                {content || <span className="text-[var(--text-placeholder)]">기록 없음</span>}
-                {content && charLimit > 0 && (
-                  <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                    {content.length}자 / {charLimit}자
-                  </p>
-                )}
-              </div>
-            )}
-            {col === "draft" && (
-              <div className="flex flex-col gap-2 text-sm">
-                {draftContent && (
-                  <div className="rounded bg-violet-50 p-2 dark:bg-violet-900/20">
-                    <span className="text-xs font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
-                    <p className="mt-0.5 text-violet-600 dark:text-violet-300 line-clamp-4">{draftContent}</p>
-                  </div>
-                )}
-                {consultantContent?.trim() && (
-                  <div className="rounded bg-blue-50 p-2 dark:bg-blue-900/20">
-                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">컨설턴트 가안</span>
-                    <p className="mt-0.5 text-blue-600 dark:text-blue-300 line-clamp-4">{consultantContent}</p>
-                  </div>
-                )}
-                {confirmedContent?.trim() && (
-                  <div className="rounded bg-emerald-50 p-2 dark:bg-emerald-900/20">
-                    <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">확정본</span>
-                    <p className="mt-0.5 text-emerald-600 dark:text-emerald-300 line-clamp-4">{confirmedContent}</p>
-                  </div>
-                )}
-                {!draftContent && !consultantContent?.trim() && !confirmedContent?.trim() && (
-                  <span className="text-[var(--text-placeholder)]">가안 없음</span>
-                )}
-              </div>
-            )}
-            {col === "analysis" && (
-              <div className="flex flex-wrap gap-1">
-                {tags.length > 0 ? tags.map((t, i) => (
-                  <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
-                    t.evaluation === "positive" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                      : t.evaluation === "negative" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                  )}>
-                    {t.competency_item}
-                  </span>
-                )) : <span className="text-[var(--text-placeholder)]">태그 없음</span>}
-              </div>
-            )}
-            {col === "guide" && (
-              <span className="text-sm text-[var(--text-placeholder)]">가이드 데이터 없음</span>
-            )}
-            {col === "design_direction" && (
-              <span className="text-sm text-[var(--text-placeholder)]">설계방향 없음</span>
-            )}
-            {col === "improve_direction" && (
-              <span className="text-sm text-[var(--text-placeholder)]">보완방향 없음</span>
-            )}
-            {col === "draft_analysis" && (
-              <span className="text-sm text-[var(--text-placeholder)]">가안분석 없음</span>
-            )}
-            {col === "memo" && (
-              <span className="text-sm text-[var(--text-placeholder)]">메모는 에디터에서 확인</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

@@ -1,30 +1,16 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { saveSetekAction } from "@/lib/domains/student-record/actions/record";
-import { studentRecordKeys } from "@/lib/query-options/studentRecord";
+import { useMemo, useState } from "react";
 import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordSetek } from "@/lib/domains/student-record";
-import { CharacterCounter } from "./CharacterCounter";
-import { SaveStatusIndicator } from "./SaveStatusIndicator";
-import { useAutoSave } from "./useAutoSave";
-import { useStudentRecordContext } from "./StudentRecordContext";
-import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, Compass, MessageSquare, ClipboardList, PenLine, ChevronDown, Trash2, Check } from "lucide-react";
-import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
-import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
-import { AnalysisBlock, toHighlightTags } from "./shared/AnalysisBlocks";
-import { buildSegments, getAreaOfItem, groupTagsByCompetency, EVAL_LABELS, MultiTagSpan } from "./HighlightedSetekView";
-import { TextSelectionTagger } from "./TextSelectionTagger";
-import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record/llm/types";
-import type { CompetencyItemCode, CompetencyArea } from "@/lib/domains/student-record";
-import type { CourseAdequacyResult } from "@/lib/domains/student-record";
+import { FileText, Search, Compass, PenLine } from "lucide-react";
+import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
+import { COMPETENCY_LABELS } from "./shared/AnalysisBlocks";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
-import { InlineAreaMemos } from "./InlineAreaMemos";
-import { MultiRecordDraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
-import { computeRecordStage, GRADE_STAGE_CONFIG } from "@/lib/domains/student-record/grade-stage";
+import type { CourseAdequacyResult } from "@/lib/domains/student-record";
+import { SetekTableRow } from "./setek/SetekTableRow";
+import { PlannedSubjectRow, AddSetekForm } from "./setek/SetekFormParts";
 
 type Subject = { id: string; name: string };
 
@@ -86,7 +72,6 @@ export type MergedSetekRow = {
 };
 
 function mergeSeteksBySemester(seteks: RecordSetek[], subjects: Subject[]): MergedSetekRow[] {
-  // subject_id 기준으로 그룹화 (같은 과목의 1학기+2학기를 합산)
   const bySubject = new Map<string, RecordSetek[]>();
   for (const s of seteks) {
     const arr = bySubject.get(s.subject_id) ?? [];
@@ -97,7 +82,6 @@ function mergeSeteksBySemester(seteks: RecordSetek[], subjects: Subject[]): Merg
   const rows: MergedSetekRow[] = [];
   for (const [subjectId, records] of bySubject) {
     const subjectName = subjects.find((s) => s.id === subjectId)?.name ?? "알 수 없는 과목";
-    // 같은 과목이 2학기분이면 합산 표시, 아니면 단독
     const sorted = records.sort((a, b) => a.semester - b.semester);
     rows.push({
       displayName: subjectName,
@@ -120,18 +104,6 @@ const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[]
 const COL_HEADER_LABEL: Record<SetekLayerTab, string> = {
   neis: "세부능력 및 특기사항", draft: "세특 가안", direction: "작성 방향",
   analysis: "역량 분석",
-};
-
-const COMPETENCY_LABELS: Record<string, string> = {
-  academic_achievement: "학업성취도", academic_attitude: "학업태도", academic_inquiry: "탐구력",
-  career_course_effort: "과목이수노력", career_course_achievement: "과목성취도", career_exploration: "진로탐색",
-  community_collaboration: "협업", community_caring: "배려", community_integrity: "성실성", community_leadership: "리더십",
-};
-
-const EVAL_COLORS: Record<string, string> = {
-  positive: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  negative: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  needs_review: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
 };
 
 export function SetekEditor({
@@ -165,16 +137,13 @@ export function SetekEditor({
     (s) => !existingSubjectIds.has(s.id) && !plannedSubjectIds.has(s.id),
   );
 
-  // 세특 미존재인 계획 과목만 필터
   const pendingPlanned = useMemo(
     () => (plannedSubjects ?? []).filter((p) => !existingSubjectIds.has(p.subjectId)),
     [plannedSubjects, existingSubjectIds],
   );
 
-  // 모든 세특 ID (분석 탭 필터용)
   const allSetekIds = useMemo(() => new Set(seteks.map((s) => s.id)), [seteks]);
 
-  // 과목별 태그 필터
   const filteredTags = useMemo(() => {
     if (!diagnosisActivityTags) return [];
     return diagnosisActivityTags.filter(
@@ -182,7 +151,6 @@ export function SetekEditor({
     );
   }, [diagnosisActivityTags, allSetekIds]);
 
-  // 과목별 가이드 방향 필터
   const subjectNames = useMemo(() => new Set(mergedRows.map((r) => r.displayName)), [mergedRows]);
   const filteredGuideItems = useMemo(() => {
     if (!setekGuideItems) return [];
@@ -200,15 +168,10 @@ export function SetekEditor({
     return calculateReflectionSummary(filteredGuideItems, textMap);
   }, [filteredGuideItems, mergedRows]);
 
-  // 과목별 반영률 빠른 조회
   const reflectionBySubject = useMemo(() => {
     if (!reflectionSummary) return new Map<string, SubjectReflectionRate>();
     return new Map(reflectionSummary.subjects.map((s) => [s.subjectName, s]));
   }, [reflectionSummary]);
-
-  // 사이드 패널 연결
-  const { setActiveSubjectId } = useStudentRecordContext();
-  const sidePanel = useSidePanel();
 
   return (
     <div className="flex flex-col gap-3">
@@ -243,7 +206,7 @@ export function SetekEditor({
         })}
       </div>}
 
-      {/* ─── 생기부 모형 테이블 (과목별 그리드 삽입을 위해 행 사이에 전체폭 div 삽입) ── */}
+      {/* ─── 생기부 모형 테이블 ─────────────────────────────────────────── */}
       {mergedRows.length === 0 && pendingPlanned.length === 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
@@ -257,7 +220,6 @@ export function SetekEditor({
         </div>
       ) : (
         <>
-          {/* 헤더 행 */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead><tr>
@@ -296,7 +258,6 @@ export function SetekEditor({
               </tbody>
             </table>
           </div>
-
         </>
       )}
 
@@ -324,7 +285,7 @@ export function SetekEditor({
         </>
       )}
 
-      {/* ─── 🔍 분석 탭: 테이블 하단 — 반영률 요약만 유지 ──────────────────── */}
+      {/* ─── 분석 탭: 반영률 요약 ──────────────────────────────────────── */}
       {activeTab === "analysis" && reflectionSummary && reflectionSummary.totalKeywords > 0 && (
         <div className="rounded-lg border border-[var(--border-secondary)] p-3">
           <div className="flex items-center gap-2 pb-2">
@@ -367,7 +328,7 @@ export function SetekEditor({
         </div>
       )}
 
-      {/* ─── 📝 방향 탭 (+ 가이드 배정 목록 통합) ──────────────────────────── */}
+      {/* ─── 방향 탭 (+ 가이드 배정 목록 통합) ────────────────────────── */}
       {activeTab === "direction" && (
         <div className="flex flex-col gap-3">
           {filteredGuideItems.length === 0 ? (
@@ -384,7 +345,6 @@ export function SetekEditor({
                       {COMPETENCY_LABELS[c] ?? c}
                     </span>
                   ))}
-                  {/* G3-6: 반영률 배지 */}
                   {(() => {
                     const sr = reflectionBySubject.get(item.subjectName);
                     if (!sr || sr.totalKeywords === 0) return null;
@@ -437,7 +397,6 @@ export function SetekEditor({
             ))
           )}
 
-          {/* 가이드 배정 목록 */}
           {guideAssignments && guideAssignments.length > 0 && (
             <div className="flex flex-col gap-1.5 border-t border-[var(--border-secondary)] pt-3">
               <p className="text-xs font-medium text-[var(--text-secondary)]">배정된 탐구 가이드</p>
@@ -456,885 +415,6 @@ export function SetekEditor({
         </div>
       )}
 
-    </div>
-  );
-}
-
-// ─── 계획됨 placeholder 행 ──────────────────────────
-
-function PlannedSubjectRow({
-  planned,
-  studentId,
-  schoolYear,
-  tenantId,
-  grade,
-  charLimit,
-}: {
-  planned: PlannedSubject;
-  studentId: string;
-  schoolYear: number;
-  tenantId: string;
-  grade: number;
-  charLimit: number;
-}) {
-  const queryClient = useQueryClient();
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const result = await saveSetekAction({
-        student_id: studentId,
-        school_year: schoolYear,
-        tenant_id: tenantId,
-        grade,
-        semester: planned.semester,
-        subject_id: planned.subjectId,
-        content: "",
-        char_limit: charLimit,
-      });
-      if (!result.success) throw new Error("error" in result ? result.error : "세특 생성 실패");
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: studentRecordKeys.recordTab(studentId, schoolYear),
-      });
-    },
-  });
-
-  return (
-    <tr className="align-top">
-      <td className="border border-dashed border-blue-200 bg-blue-50/30 px-2 py-2 text-center align-middle text-sm text-blue-400 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-500">
-        {grade}
-      </td>
-      <td className="border border-dashed border-blue-200 bg-blue-50/30 px-3 py-2 text-center align-middle dark:border-blue-800 dark:bg-blue-950/20">
-        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-          {planned.subjectName}
-        </span>
-        <span className="ml-1.5 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
-          계획됨
-        </span>
-      </td>
-      <td className="border border-dashed border-blue-200 bg-blue-50/30 p-2 dark:border-blue-800 dark:bg-blue-950/20">
-        <div className="flex items-center gap-2 py-1">
-          <ClipboardList className="h-4 w-4 shrink-0 text-blue-400" />
-          <span className="text-xs text-blue-500 dark:text-blue-400">
-            수강 계획 확정 · {planned.semester}학기
-          </span>
-          <button
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
-            className="ml-auto rounded-md bg-blue-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-          >
-            {createMutation.isPending ? "생성 중..." : "세특 생성"}
-          </button>
-        </div>
-        {createMutation.isError && (
-          <p className="mt-1 text-xs text-red-600">{createMutation.error.message}</p>
-        )}
-      </td>
-    </tr>
-  );
-}
-
-// ─── 세특 테이블 행 (2열: 과목 | 내용) ─────────────
-
-function SetekTableRow({
-  row,
-  charLimit,
-  studentId,
-  schoolYear,
-  tenantId,
-  grade,
-  activeTab,
-  subjectTags,
-  subjectReflection,
-  subjectGuides,
-  subjectDirection,
-}: {
-  row: MergedSetekRow;
-  charLimit: number;
-  studentId: string;
-  schoolYear: number;
-  tenantId: string;
-  grade: number;
-  activeTab: SetekLayerTab;
-  subjectTags: ActivityTagLike[];
-  subjectReflection?: SubjectReflectionRate;
-  subjectGuides: Array<{ id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
-  subjectDirection: SetekGuideItemLike[];
-}) {
-  const ctx = useStudentRecordContext();
-  const sidePanel = useSidePanel();
-  const queryClient = useQueryClient();
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const { removeSetekAction } = await import("@/lib/domains/student-record/actions/record");
-      for (const r of row.records) {
-        const res = await removeSetekAction(r.id);
-        if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-    },
-    onError: () => { /* 에러는 mutation.isError로 표시 */ },
-  });
-
-  const isGridActive = ctx?.activeSubjectId === row.subjectId;
-  const toggleContextGrid = () => {
-    if (isGridActive) {
-      ctx?.setActiveSubjectId?.(null);
-      ctx?.setActiveSchoolYear?.(null);
-      ctx?.setActiveSubjectName?.(null);
-    } else {
-      ctx?.setActiveSubjectId?.(row.subjectId);
-      ctx?.setActiveSchoolYear?.(schoolYear);
-      ctx?.setActiveSubjectName?.(row.displayName);
-    }
-  };
-
-  // B7: 과목 기준 단계 계산 (가장 높은 단계 기준)
-  const rowStage = (() => {
-    const stages = row.records.map(computeRecordStage);
-    const order = ["final", "confirmed", "consultant", "ai_draft", "prospective"] as const;
-    for (const s of order) {
-      if (stages.includes(s)) return s;
-    }
-    return "prospective" as const;
-  })();
-  const stageConfig = GRADE_STAGE_CONFIG[rowStage];
-
-  const subjectCell = (rowSpan?: number) => (
-    <td rowSpan={rowSpan} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>
-      <div className="flex flex-col items-center gap-0.5">
-        <span>{row.displayName}</span>
-        <span className={cn("inline-block rounded-full px-1.5 py-0 text-xs font-medium", stageConfig.bgClass, stageConfig.textClass)}>
-          {stageConfig.label}
-        </span>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={toggleContextGrid}
-            className={cn(
-              "text-xs transition-colors",
-              isGridActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
-            )}
-            title={isGridActive ? "그리드 닫기" : "컨텍스트 그리드 열기"}
-          >
-            {isGridActive ? "⤡" : "⤢"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { if (confirm(`${row.displayName} 세특을 삭제하시겠습니까?`)) deleteMutation.mutate(); }}
-            disabled={deleteMutation.isPending}
-            className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
-          >
-            {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-          </button>
-          {deleteMutation.isError && <span className="text-[11px] text-red-500">{deleteMutation.error.message}</span>}
-        </div>
-      </div>
-    </td>
-  );
-
-  // neis 탭: 학기별 행 (기존 동작)
-  if (activeTab === "neis") {
-    return (
-      <>
-        {row.records.map((setek, idx) => (
-          <tr key={setek.id} className="align-top">
-            {idx === 0 && (
-              <>
-                <td rowSpan={row.records.length} className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
-                {subjectCell(row.records.length)}
-              </>
-            )}
-            <td className={`${B} p-1`}>
-              {row.records.length > 1 && (
-                <p className="mb-1 px-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
-              )}
-              <SetekInlineEditor setek={setek} charLimit={charLimit} studentId={studentId} schoolYear={schoolYear} tenantId={tenantId} grade={grade} showSemesterLabel={false} />
-            </td>
-          </tr>
-        ))}
-      </>
-    );
-  }
-
-  // 비-record 탭: 과목당 1행 (학기 구분 없이 과목 단위)
-  return (
-    <tr className="align-top">
-        <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
-        {subjectCell()}
-        <td className={`${B} p-2`}>
-          {activeTab === "analysis" && (
-            <AnalysisExpandableCell
-              subjectTags={subjectTags}
-              subjectReflection={subjectReflection}
-              row={row}
-              studentId={studentId}
-              tenantId={tenantId}
-              schoolYear={schoolYear}
-            />
-          )}
-
-          {activeTab === "guide" && (
-            <div className="flex flex-col gap-1">
-              {subjectGuides.length > 0 ? subjectGuides.map((g) => (
-                <div key={g.id} className="flex items-center gap-1.5">
-                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", g.status === "completed" ? "bg-emerald-500" : g.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
-                  <span className="truncate text-xs text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
-                  <span className="shrink-0 text-xs text-[var(--text-tertiary)]">{g.status === "completed" ? "완료" : g.status === "in_progress" ? "진행" : "배정"}</span>
-                </div>
-              )) : (
-                <span className="text-xs text-[var(--text-placeholder)]">배정된 가이드 없음</span>
-              )}
-            </div>
-          )}
-
-          {activeTab === "direction" && (
-            <div className="flex flex-col gap-1.5">
-              {subjectDirection.length > 0 ? subjectDirection.map((d, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  <p className="text-xs text-[var(--text-primary)] line-clamp-2">{d.direction}</p>
-                  {d.keywords.length > 0 && (
-                    <div className="flex flex-wrap gap-0.5">
-                      {d.keywords.slice(0, 5).map((kw) => (
-                        <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
-                      ))}
-                    </div>
-                  )}
-                  {d.teacherPoints && d.teacherPoints.length > 0 && (
-                    <p className="text-xs text-[var(--text-tertiary)]">교사: {d.teacherPoints[0]}</p>
-                  )}
-                </div>
-              )) : (
-                <span className="text-xs text-[var(--text-placeholder)]">방향 가이드 없음</span>
-              )}
-            </div>
-          )}
-
-          {activeTab === "draft" && (
-            <DraftExpandableCell
-              records={row.records}
-              studentId={studentId}
-              schoolYear={schoolYear}
-              tenantId={tenantId}
-              grade={grade}
-              charLimit={charLimit}
-            />
-          )}
-        </td>
-    </tr>
-  );
-}
-
-// ─── 인라인 세특 에디터 (테이블 내부) ───────────────
-
-function SetekInlineEditor({
-  setek,
-  charLimit,
-  studentId,
-  schoolYear,
-  tenantId,
-  grade,
-  showSemesterLabel,
-}: {
-  setek: RecordSetek;
-  charLimit: number;
-  studentId: string;
-  schoolYear: number;
-  tenantId: string;
-  grade: number;
-  showSemesterLabel: boolean;
-}) {
-  // content가 비어있으면 imported_content(NEIS 원문)를 표시
-  const displayContent = setek.content?.trim() ? setek.content : (setek.imported_content ?? "");
-  const [content, setContent] = useState(displayContent);
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const next = setek.content?.trim() ? setek.content : (setek.imported_content ?? "");
-    setContent(next);
-  }, [setek.content, setek.imported_content]);
-
-  const handleSave = useCallback(
-    async (data: string) => {
-      const result = await saveSetekAction({
-        student_id: studentId,
-        school_year: schoolYear,
-        tenant_id: tenantId,
-        grade,
-        semester: setek.semester,
-        subject_id: setek.subject_id,
-        content: data,
-        char_limit: charLimit,
-      });
-      if (result.success) {
-        queryClient.invalidateQueries({
-          queryKey: studentRecordKeys.recordTab(studentId, schoolYear),
-        });
-      }
-      return { success: result.success, error: !result.success && "error" in result ? result.error : undefined };
-    },
-    [studentId, schoolYear, tenantId, grade, setek.semester, setek.subject_id, charLimit, queryClient],
-  );
-
-  const { status, error, saveNow } = useAutoSave({
-    data: content,
-    onSave: handleSave,
-    enabled: true,
-  });
-
-  // H1: AI 초안 생성 + 수용
-  const [draftGenerating, setDraftGenerating] = useState(false);
-  const hasDraft = !!setek.ai_draft_content;
-  const draftContent = setek.ai_draft_content ?? null;
-
-  async function handleGenerateDraft() {
-    setDraftGenerating(true);
-    try {
-      const { generateSetekDraftAction } = await import(
-        "@/lib/domains/student-record/llm/actions/generateSetekDraft"
-      );
-      const subjectName = setek.subject_id;
-      const result = await generateSetekDraftAction(setek.id, {
-        subjectName,
-        grade,
-        existingContent: content || undefined,
-      });
-      if (result.success && result.data) {
-        queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-      }
-    } finally {
-      setDraftGenerating(false);
-    }
-  }
-
-  async function handleAcceptDraft() {
-    const { acceptAiDraftAction } = await import(
-      "@/lib/domains/student-record/actions/confirm"
-    );
-    // E1: 먼저 force=false 로 호출 — 기존 content 가 있으면 CONTENT_EXISTS 반환
-    const result = await acceptAiDraftAction(setek.id, "setek");
-    if (!result.success) {
-      if ("error" in result && result.error === "CONTENT_EXISTS") {
-        if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
-        const forced = await acceptAiDraftAction(setek.id, "setek", true);
-        if (!forced.success) return;
-      } else if ("error" in result && result.error === "CONFLICT") {
-        alert("다른 사용자가 이미 수정했습니다. 페이지를 새로고침하세요.");
-        return;
-      } else {
-        return;
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-  }
-
-  return (
-    <>
-      {showSemesterLabel && (
-        <p className="mb-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
-      )}
-      {/* H1: AI 초안 배너 */}
-      {hasDraft && draftContent && !content && (
-        <div className="mb-1 rounded bg-violet-50 p-2 text-xs dark:bg-violet-900/20">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
-            <button type="button" onClick={handleAcceptDraft} className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700">수용</button>
-          </div>
-          <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{draftContent.slice(0, 200)}...</p>
-        </div>
-      )}
-      <AutoResizeTextarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="w-full min-h-16 resize-none border-0 bg-transparent p-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none"
-        placeholder="세특 내용을 입력하세요..."
-      />
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <SaveStatusIndicator status={status} error={error} />
-          {status === "error" && (
-            <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
-          )}
-          {!content && !hasDraft && (
-            <button
-              type="button"
-              onClick={handleGenerateDraft}
-              disabled={draftGenerating}
-              className="text-xs text-violet-600 hover:text-violet-800 dark:text-violet-400 disabled:opacity-50"
-            >
-              {draftGenerating ? "생성 중..." : "AI 초안 생성"}
-            </button>
-          )}
-        </div>
-        <CharacterCounter content={content} charLimit={charLimit} />
-      </div>
-    </>
-  );
-}
-
-// ─── 과목 추가 폼 ──────────────────────────────────
-
-function AddSetekForm({
-  subjects,
-  studentId,
-  schoolYear,
-  tenantId,
-  grade,
-  charLimit,
-  onClose,
-}: {
-  subjects: { id: string; name: string }[];
-  studentId: string;
-  schoolYear: number;
-  tenantId: string;
-  grade: number;
-  charLimit: number;
-  onClose: () => void;
-}) {
-  const [selectedSubjectId, setSelectedSubjectId] = useState("");
-  const [semester, setSemester] = useState(1);
-  const [content, setContent] = useState("");
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedSubjectId) throw new Error("과목을 선택해주세요.");
-      const result = await saveSetekAction({
-        student_id: studentId,
-        school_year: schoolYear,
-        tenant_id: tenantId,
-        grade,
-        semester,
-        subject_id: selectedSubjectId,
-        content,
-        char_limit: charLimit,
-      });
-      if (!result.success) throw new Error("error" in result ? result.error : "저장 실패");
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: studentRecordKeys.recordTab(studentId, schoolYear),
-      });
-      onClose();
-    },
-  });
-
-  return (
-    <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800 dark:bg-indigo-950/20">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-medium text-[var(--text-primary)]">과목 추가</span>
-        <button onClick={onClose} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
-          취소
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <div className="flex gap-3">
-          <select
-            value={selectedSubjectId}
-            onChange={(e) => setSelectedSubjectId(e.target.value)}
-            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          >
-            <option value="">과목 선택...</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <select
-            value={semester}
-            onChange={(e) => setSemester(Number(e.target.value))}
-            className="w-28 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          >
-            <option value={1}>1학기</option>
-            <option value={2}>2학기</option>
-          </select>
-        </div>
-
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={4}
-          className="w-full resize-y rounded-md border border-gray-200 bg-white p-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
-          placeholder="세특 내용을 입력하세요..."
-        />
-        <div className="flex items-center justify-between">
-          <CharacterCounter content={content} charLimit={charLimit} />
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={!selectedSubjectId || mutation.isPending}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {mutation.isPending ? "저장 중..." : "추가"}
-          </button>
-        </div>
-        {mutation.isError && (
-          <p className="text-xs text-red-600">{mutation.error.message}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AutoResizeTextarea({ onChange, className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const resize = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "0";
-    el.style.height = `${el.scrollHeight}px`;
-  }, []);
-  useEffect(resize, [props.value, resize]);
-  return <textarea ref={ref} {...props} className={cn("overflow-hidden", className)} onChange={(e) => { onChange?.(e); resize(); }} />;
-}
-
-// ─── 🔍분석 탭: 공용 AnalysisBlock 사용 (shared/AnalysisBlocks.tsx) ──
-// (내부 중복 함수 제거됨 — CompactCompetencyView, HighlightedInlineText, AnalysisBlock)
-
-// ─── AnalysisExpandableCell: 3개 독립 블록을 감싸는 셀 ──
-
-function AnalysisExpandableCell({
-  subjectTags,
-  subjectReflection,
-  row,
-  studentId,
-  tenantId,
-  schoolYear,
-}: {
-  subjectTags: ActivityTagLike[];
-  subjectReflection?: SubjectReflectionRate;
-  row: MergedSetekRow;
-  studentId: string;
-  tenantId: string;
-  schoolYear: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [aiMode, setAiMode] = useState<AnalysisBlockMode>("competency");
-  const [consultantMode, setConsultantMode] = useState<AnalysisBlockMode>("tagging");
-  const [confirmedMode, setConfirmedMode] = useState<AnalysisBlockMode>("tagging");
-  const queryClient = useQueryClient();
-
-  const aiTags = useMemo(() => subjectTags.filter((t) => t.source === "ai"), [subjectTags]);
-  const manualTags = useMemo(() => subjectTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [subjectTags]);
-  const confirmedTags = useMemo(() => subjectTags.filter((t) => t.status === "confirmed"), [subjectTags]);
-
-  // 분석 원문: content(컨설턴트 가안) → imported_content(NEIS 원문) fallback
-  const combinedContent = useMemo(
-    () => row.records.map((r) => r.content?.trim() || r.imported_content || "").filter(Boolean).join("\n\n"),
-    [row.records],
-  );
-
-  const taggerProps: TaggerProps = useMemo(() => ({
-    studentId, tenantId, schoolYear,
-    records: row.records,
-    displayName: row.displayName,
-    recordType: "setek" as const,
-  }), [studentId, tenantId, schoolYear, row]);
-
-  const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
-
-  const [tagError, setTagError] = useState<string | null>(null);
-  const onTagError = useCallback((err: Error) => setTagError(err.message), []);
-  const clearTagError = useCallback(() => setTagError(null), []);
-
-  // AI 태그 → 컨설턴트로 복사 (중복 방지: competency_item + record_id 기준 이미 있으면 건너뜀)
-  const importAiMutation = useMutation({
-    mutationFn: async () => {
-      const { addActivityTagsBatchAction } = await import("@/lib/domains/student-record/actions/diagnosis");
-      const existingKeys = new Set(manualTags.map((t) => `${t.record_id}:${t.competency_item}:${t.evaluation}`));
-      const inputs = aiTags
-        .filter((t) => !existingKeys.has(`${t.record_id}:${t.competency_item}:${t.evaluation}`))
-        .map((t) => ({
-          tenant_id: tenantId,
-          student_id: studentId,
-          record_type: t.record_type as "setek",
-          record_id: t.record_id,
-          competency_item: t.competency_item,
-          evaluation: t.evaluation as "positive" | "negative" | "needs_review",
-          evidence_summary: t.evidence_summary ?? null,
-          source: "manual" as const,
-          status: "suggested" as const,
-        }));
-      if (inputs.length > 0) {
-        const res = await addActivityTagsBatchAction(inputs);
-        if (!res.success) throw new Error("error" in res ? res.error : "복사 실패");
-      }
-    },
-    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
-    onError: onTagError,
-  });
-
-  // 컨설턴트 태그 → 확정
-  const importConsultantMutation = useMutation({
-    mutationFn: async () => {
-      const { confirmActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
-      for (const t of manualTags) {
-        const res = await confirmActivityTagAction(t.id);
-        if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
-      }
-    },
-    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
-    onError: onTagError,
-  });
-
-  // 개별 태그 삭제
-  const deleteTagMutation = useMutation({
-    mutationFn: async (tag: ActivityTagLike) => {
-      const { deleteActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
-      const res = await deleteActivityTagAction(tag.id);
-      if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
-    },
-    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
-    onError: onTagError,
-  });
-
-  // 전체 태그 삭제
-  const deleteAllMutation = useMutation({
-    mutationFn: async (tagsToDelete: ActivityTagLike[]) => {
-      const { deleteActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
-      for (const t of tagsToDelete) {
-        await deleteActivityTagAction(t.id);
-      }
-    },
-    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
-    onError: onTagError,
-  });
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {tagError && (
-        <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
-          {tagError}
-          <button type="button" className="ml-2 underline" onClick={clearTagError}>닫기</button>
-        </p>
-      )}
-      {/* 접힌 상태: 요약 */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        <div className="flex flex-1 flex-wrap items-center gap-1.5">
-          {subjectReflection && (
-            <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
-              subjectReflection.rate >= 70 ? "bg-emerald-50 text-emerald-600" : subjectReflection.rate >= 40 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600",
-            )}>
-              반영 {subjectReflection.rate}%
-            </span>
-          )}
-          {subjectTags.length > 0 ? subjectTags.slice(0, 4).map((t, i) => (
-            <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
-              EVAL_COLORS[t.evaluation || "needs_review"],
-            )}>
-              {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
-            </span>
-          )) : (
-            <span className="text-sm text-[var(--text-placeholder)]">태그 없음</span>
-          )}
-          {subjectTags.length > 4 && (
-            <span className="text-xs text-[var(--text-tertiary)]">+{subjectTags.length - 4}</span>
-          )}
-        </div>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
-      </button>
-
-      {/* 펼친 상태: 3개 독립 블록 */}
-      {expanded && (
-        <div className="mt-1 flex flex-col gap-3">
-          <AnalysisBlock
-            label="AI"
-            tags={aiTags}
-            content={combinedContent}
-            mode={aiMode}
-            setMode={setAiMode}
-          />
-          <AnalysisBlock
-            label="컨설턴트"
-            tags={manualTags}
-            content={combinedContent}
-            mode={consultantMode}
-            setMode={setConsultantMode}
-            importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
-            importLabel="AI 가져오기"
-            isImporting={importAiMutation.isPending}
-            taggerProps={taggerProps}
-            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
-            onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${manualTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(manualTags); }}
-          />
-          <AnalysisBlock
-            label="확정"
-            tags={confirmedTags}
-            content={combinedContent}
-            mode={confirmedMode}
-            setMode={setConfirmedMode}
-            importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
-            importLabel="컨설턴트 가져오기"
-            isImporting={importConsultantMutation.isPending}
-            taggerProps={taggerProps}
-            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
-            onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── ✏️가안 탭: DraftExpandableCell (shared/DraftBlocks 사용) ──────
-
-function DraftExpandableCell({
-  records,
-  studentId,
-  schoolYear,
-  tenantId,
-  grade,
-  charLimit,
-}: {
-  records: RecordSetek[];
-  studentId: string;
-  schoolYear: number;
-  tenantId: string;
-  grade: number;
-  charLimit: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const queryClient = useQueryClient();
-  const recordQk = ["studentRecord", "recordTab", studentId] as const;
-
-  const hasAny = records.some((s) => s.ai_draft_content || s.content || s.confirmed_content);
-  const summaryParts: string[] = [];
-  if (records.some((s) => s.ai_draft_content)) summaryParts.push(`AI ${records.filter((s) => s.ai_draft_content).length}건`);
-  if (records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
-  if (records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
-
-  const [draftError, setDraftError] = useState<string | null>(null);
-
-  // AI 초안 → 컨설턴트 가안 수용 (E1: content 보호, E4: 낙관적 잠금)
-  const acceptAiMutation = useMutation({
-    mutationFn: async () => {
-      const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
-      for (const r of records) {
-        if (!r.ai_draft_content) continue;
-        const res = await acceptAiDraftAction(r.id, "setek");
-        if (!res.success) {
-          if ("error" in res && res.error === "CONTENT_EXISTS") {
-            if (!confirm(`${r.semester}학기 세특에 기존 가안이 있습니다. AI 초안으로 덮어쓰시겠습니까?`)) continue;
-            const forced = await acceptAiDraftAction(r.id, "setek", true);
-            if (!forced.success && "error" in forced && forced.error === "CONFLICT") {
-              throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
-            }
-          } else if ("error" in res && res.error === "CONFLICT") {
-            throw new Error("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도해주세요.");
-          } else {
-            throw new Error("error" in res ? res.error : "수용 실패");
-          }
-        }
-      }
-    },
-    onSuccess: async () => { setDraftError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
-    onError: (err: Error) => setDraftError(err.message),
-  });
-
-  // 컨설턴트 가안 → 확정
-  const confirmMutation = useMutation({
-    mutationFn: async () => {
-      const { confirmDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
-      for (const r of records) {
-        if (r.content?.trim()) {
-          const res = await confirmDraftAction(r.id, "setek");
-          if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
-        }
-      }
-    },
-    onSuccess: async () => { setDraftError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
-    onError: (err: Error) => setDraftError(err.message),
-  });
-
-  // 컨설턴트 가안 저장
-  const handleSaveContent = useCallback(async (recordId: string, content: string) => {
-    const setek = records.find((r) => r.id === recordId);
-    if (!setek) return;
-    await saveSetekAction({
-      student_id: studentId,
-      school_year: schoolYear,
-      tenant_id: tenantId,
-      grade,
-      semester: setek.semester,
-      subject_id: setek.subject_id,
-      content,
-      char_limit: charLimit,
-    });
-    queryClient.invalidateQueries({ queryKey: recordQk });
-  }, [records, studentId, schoolYear, tenantId, grade, charLimit, queryClient, recordQk]);
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {draftError && (
-        <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
-          {draftError}
-          <button type="button" className="ml-2 underline" onClick={() => setDraftError(null)}>닫기</button>
-        </p>
-      )}
-      {/* 접힌 상태 */}
-      <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-2 text-left">
-        <span className="flex-1 text-xs text-[var(--text-secondary)]">
-          {hasAny ? summaryParts.join(" / ") : "가안 없음"}
-        </span>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
-      </button>
-
-      {/* 펼친 상태: 3개 독립 블록 */}
-      {expanded && (
-        <div className="mt-1 flex flex-col gap-3">
-          <MultiRecordDraftBlock
-            label="AI 초안"
-            style={DRAFT_BLOCK_STYLES.ai}
-            records={records}
-            getContent={(r) => r.ai_draft_content}
-          />
-          <MultiRecordDraftBlock
-            label="컨설턴트 가안"
-            style={DRAFT_BLOCK_STYLES.consultant}
-            records={records}
-            getContent={(r) => r.content}
-            editable
-            onSave={handleSaveContent}
-            charLimit={charLimit}
-            importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
-            importLabel={(() => {
-              // C9: 수용 대상 건수 표시
-              const acceptableCount = records.filter((r) => r.ai_draft_content && !r.content?.trim()).length;
-              return acceptableCount > 1 ? `AI 초안 수용 (${acceptableCount}건)` : "AI 초안 수용";
-            })()}
-            isImporting={acceptAiMutation.isPending}
-            neisHint
-          />
-          <MultiRecordDraftBlock
-            label="확정본"
-            style={DRAFT_BLOCK_STYLES.confirmed}
-            records={records}
-            getContent={(r) => r.confirmed_content}
-            importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
-            importLabel={(() => {
-              // C9: 확정 대상 건수 표시
-              const confirmableCount = records.filter((r) => r.content?.trim()).length;
-              return confirmableCount > 1 ? `가안 확정 (${confirmableCount}건)` : "가안 확정";
-            })()}
-            isImporting={confirmMutation.isPending}
-            staleWarning={
-              // E5: 확정본이 있으나 현재 가안과 내용이 다른 레코드가 하나라도 있으면 경고
-              records.some(
-                (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
-              ) ? "가안과 다름" : undefined
-            }
-          />
-        </div>
-      )}
     </div>
   );
 }

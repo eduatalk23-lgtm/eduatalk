@@ -43,7 +43,7 @@ export type {
   StorylineStrength, RecordType, RoadmapArea, RoadmapItemStatus,
   SchoolCategory, InterviewQuestionType, TagEvaluation,
   StrategyTargetArea, StrategyPriority, StrategyStatus,
-  CompetencyScope, DiagnosisSource, ActivityTagStatus, DiagnosisStatus,
+  CompetencyScope, DiagnosisSource, ActivityTagStatus, DiagnosisStatus, TagContext,
   ActivitySummaryStatus,
 } from "./types/enums";
 

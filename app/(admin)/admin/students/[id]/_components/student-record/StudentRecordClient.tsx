@@ -5,20 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StudentSwitcher } from "@/app/(admin)/admin/calendar/_components/StudentSwitcher";
 import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotContext";
-import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
-import { Menu, User, ChevronDown, ChevronUp, FileText, ClipboardList, Search, Compass, Target } from "lucide-react";
-import {
-  recordTabQueryOptions,
-  storylineTabQueryOptions,
-  supplementaryTabQueryOptions,
-  strategyTabQueryOptions,
-  diagnosisTabQueryOptions,
-  coursePlanTabQueryOptions,
-  pipelineStatusQueryOptions,
-  studentRecordKeys,
-} from "@/lib/query-options/studentRecord";
+import { Menu, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { RecordLayoutShell } from "./RecordLayoutShell";
 import { SidePanelProvider } from "@/components/side-panel";
 import { StudentRecordProvider } from "./StudentRecordContext";
@@ -30,14 +20,18 @@ import { AgentUIBridgeProvider } from "./AgentUIBridge";
 import type { UIStateSnapshot } from "@/lib/agents/ui-state";
 import type { AgentAction } from "@/lib/agents/agent-actions";
 import { RecordYearSelector } from "./RecordYearSelector";
-import { computeWarnings } from "@/lib/domains/student-record/warnings/engine";
-import type { WarningCheckInput } from "@/lib/domains/student-record/warnings/engine";
 import { ImportDialog } from "./ImportDialog";
 import { CareerSetupBanner } from "./CareerSetupBanner";
 import { RecordStageContent } from "./RecordStageContent";
 import { DiagnosisStageContent } from "./DiagnosisStageContent";
 import { DesignStageContent } from "./DesignStageContent";
 import { StrategyStageContent } from "./StrategyStageContent";
+import { RecordSidebar } from "./RecordSidebar";
+import { useStudentRecordData } from "./useStudentRecordData";
+import { classifySubjectId } from "./GradesAndSetekSection";
+import { STAGES } from "./recordStages";
+import type { StageId } from "./recordStages";
+import { User } from "lucide-react";
 
 type Subject = {
   id: string;
@@ -66,107 +60,6 @@ type StudentRecordClientProps = {
   studentNumber?: string;
 };
 
-// ─── TOC 섹션 정의 ────────────────────────────────────
-
-type TocItem = {
-  id: string;
-  label: string;
-  number?: string;
-  indent?: boolean;
-};
-
-// ─── 4단계 사이드바 그룹 ──────────────────────────────
-
-type StageId = "record" | "diagnosis" | "design" | "strategy";
-
-type StageConfig = {
-  id: StageId;
-  emoji: string;
-  label: string;
-  hasYearSelector: boolean;
-  sections: TocItem[];
-};
-
-const STAGES: StageConfig[] = [
-  {
-    id: "record",
-    emoji: "📋",
-    label: "기록",
-    hasYearSelector: true,
-    sections: [
-      { id: "sec-1", number: "1", label: "인적·학적사항" },
-      { id: "sec-2", number: "2", label: "출결상황" },
-      { id: "sec-3", number: "3", label: "수상경력" },
-      { id: "sec-4", number: "4", label: "자격증 및 인증" },
-      { id: "sec-5", number: "5", label: "학교폭력 조치사항" },
-      { id: "sec-6", number: "6", label: "창의적 체험활동" },
-      { id: "sec-6-volunteer", label: "봉사활동실적", indent: true },
-      { id: "sec-7", number: "7", label: "교과학습발달" },
-      { id: "sec-7-grades", label: "성적", indent: true },
-      { id: "sec-7-setek", label: "세특", indent: true },
-      { id: "sec-7-personal", label: "개인세특", indent: true },
-      { id: "sec-8", number: "8", label: "독서활동" },
-      { id: "sec-9", number: "9", label: "행동특성 및 종합의견" },
-    ],
-  },
-  {
-    id: "diagnosis",
-    emoji: "🔍",
-    label: "진단",
-    hasYearSelector: true,
-    sections: [
-      { id: "sec-diagnosis-analysis", label: "역량 분석" },
-      { id: "sec-diagnosis-crossref", label: "교차 분석" },
-      { id: "sec-diagnosis-four-axis", label: "4축 진단" },
-      { id: "sec-projected-analysis", label: "설계 예상" },
-      { id: "sec-diagnosis-overall", label: "종합진단" },
-      { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
-      { id: "sec-warnings", label: "경보" },
-    ],
-  },
-  {
-    id: "design",
-    emoji: "📐",
-    label: "설계",
-    hasYearSelector: false,
-    sections: [
-      { id: "sec-pipeline-results", label: "AI 분석 결과" },
-      { id: "sec-course-plan", label: "수강 계획" },
-      { id: "sec-storyline", label: "스토리라인" },
-      { id: "sec-roadmap", label: "로드맵" },
-      { id: "sec-compensation", label: "보완전략" },
-      { id: "sec-activity-summary", label: "활동 요약서" },
-      { id: "sec-setek-guide", label: "세특 방향 가이드" },
-      { id: "sec-exploration-guide", label: "활동 가이드" },
-      { id: "sec-bypass-major", label: "우회학과" },
-    ],
-  },
-  {
-    id: "strategy",
-    emoji: "🎯",
-    label: "전략",
-    hasYearSelector: false,
-    sections: [
-      { id: "sec-applications", label: "지원현황" },
-      { id: "sec-minscore", label: "최저시뮬" },
-      { id: "sec-placement", label: "배치 분석" },
-      { id: "sec-allocation", label: "배분 시뮬" },
-      { id: "sec-interview", label: "면접 질문" },
-      { id: "sec-alumni", label: "졸업생 DB" },
-    ],
-  },
-];
-
-/** 모든 섹션 ID 플랫 목록 (IntersectionObserver용) */
-const ALL_SECTION_IDS = STAGES.flatMap((s) => s.sections.map((sec) => sec.id));
-
-// ─── 학년-연도 쌍 타입 ──────────────────────────────────
-
-type GradeYearPair = {
-  grade: number;
-  schoolYear: number;
-};
-
 // ─── 메인 컴포넌트 ─────────────────────────────────────
 
 export function StudentRecordClient({
@@ -190,166 +83,45 @@ export function StudentRecordClient({
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  const currentSchoolYear = calculateSchoolYear();
+  // ─── 데이터 훅 ────────────────────────────────────
+  const {
+    yearGradePairs,
+    recordByGrade,
+    suppByGrade,
+    anyRecordLoading,
+    anySuppLoading,
+    storylineData,
+    storylineLoading,
+    strategyData,
+    strategyLoading,
+    diagnosisData,
+    diagnosisLoading,
+    diagnosisError,
+    pipelineData,
+    isPipelineRunning,
+    coursePlanData,
+    setekGuidesRes,
+    transformedSetekGuideItems,
+    transformedChangcheGuideItems,
+    transformedHaengteukGuideItems,
+    mergedReadings,
+    allRecordSummaries,
+    warnings,
+    progressCounts,
+    allFailed,
+    firstError,
+  } = useStudentRecordData({ studentId, tenantId, initialSchoolYear, studentGrade, subjects });
 
-  // ─── 학년-연도 쌍 계산 ───────────────────────────────
-  const yearGradePairs = useMemo<GradeYearPair[]>(() => {
-    const pairs: GradeYearPair[] = [];
-    for (let g = 1; g <= studentGrade; g++) {
-      const sy = gradeToSchoolYear(g, studentGrade, currentSchoolYear);
-      pairs.push({ grade: g, schoolYear: sy });
-    }
-    return pairs;
-  }, [studentGrade, currentSchoolYear]);
-
-  // viewMode에 따른 visible grades
+  // ─── viewMode에 따른 visible pairs ────────────────
   const visiblePairs = useMemo(() => {
     if (viewMode === "all") return yearGradePairs;
     return yearGradePairs.filter((p) => p.schoolYear === viewMode);
   }, [viewMode, yearGradePairs]);
 
-  // ─── 다년도 병렬 쿼리 (record) ──────────────────────
-
-  const recordQueries = useQueries({
-    queries: yearGradePairs.map((p) => recordTabQueryOptions(studentId, p.schoolYear)),
-  });
-
-  const supplementaryQueries = useQueries({
-    queries: yearGradePairs.map((p) => supplementaryTabQueryOptions(studentId, p.schoolYear)),
-  });
-
-  // storyline/strategy는 학년 무관 → 단일 쿼리
-  const { data: storylineData, isLoading: storylineLoading, error: storylineError } = useQuery(
-    storylineTabQueryOptions(studentId, initialSchoolYear),
-  );
-  const { data: strategyData, isLoading: strategyLoading, error: strategyError } = useQuery(
-    strategyTabQueryOptions(studentId, initialSchoolYear),
-  );
-  // 진단 데이터: 전 학년 prefetch (바텀시트 학년 전환 시 캐시 히트)
-  const diagnosisQueries = useQueries({
-    queries: yearGradePairs.map((p) => diagnosisTabQueryOptions(studentId, p.schoolYear, tenantId)),
-  });
-  // 기존 호환: initialSchoolYear에 해당하는 진단 데이터
-  const initialDiagIdx = yearGradePairs.findIndex((p) => p.schoolYear === initialSchoolYear);
-  const diagnosisData = diagnosisQueries[initialDiagIdx >= 0 ? initialDiagIdx : 0]?.data ?? null;
-  const diagnosisLoading = diagnosisQueries.some((q) => q.isLoading);
-  const diagnosisError = diagnosisQueries.find((q) => q.error)?.error ?? null;
-
-  // 파이프라인 상태 (수동 분석 중복 방지용)
-  const { data: pipelineData } = useQuery(pipelineStatusQueryOptions(studentId));
-  const isPipelineRunning = pipelineData?.status === "running";
-
-  // P1: 수강 계획 데이터 (세특 placeholder 연동)
-  const { data: coursePlanData } = useQuery(coursePlanTabQueryOptions(studentId));
-
-  // G1: 세특 레이어 탭용 추가 데이터
-  const { data: setekGuidesRes } = useQuery({
-    queryKey: ["studentRecord", "setekGuides", studentId],
-    queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchSetekGuides(studentId)),
-    staleTime: 60_000,
-    enabled: !!studentId,
-  });
-  const guideSchoolYear = viewMode === "all" ? undefined : viewMode;
-  const { data: guideAssignmentsRes } = useQuery({
-    queryKey: ["explorationGuide", "assignments", studentId, guideSchoolYear ?? "all"],
-    queryFn: () => import("@/lib/domains/guide/actions/assignment").then((m) => m.fetchAssignedGuidesAction(studentId, guideSchoolYear)),
-    staleTime: 60_000,
-    enabled: !!studentId,
-  });
-
-  // 레이어 뷰: 배정별 결과물 파일 수 (배치)
-  // setekGuideItems 변환 (GradesAndSetekSection + ContextGridBottomSheet 공용)
-  const transformedSetekGuideItems = useMemo(() => {
-    if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
-    const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
-    const items = setekGuidesRes.data.map((row) => ({
-      subjectName: subjectMap.get(row.subject_id) ?? row.subject_id,
-      schoolYear: row.school_year,
-      keywords: row.keywords ?? [],
-      direction: row.direction,
-      competencyFocus: row.competency_focus,
-      cautions: row.cautions ?? undefined,
-      teacherPoints: row.teacher_points,
-      guideMode: (row.guide_mode === "prospective" ? "prospective" : "retrospective") as "retrospective" | "prospective",
-    }));
-    return items.length > 0 ? items : undefined;
-  }, [setekGuidesRes, subjects]);
-
-  // ─── 창체/행특 방향 가이드 ──
-  const { data: changcheGuidesRes } = useQuery({
-    queryKey: ["studentRecord", "changcheGuides", studentId],
-    queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchChangcheGuides(studentId)),
-    staleTime: 60_000,
-    enabled: !!studentId,
-  });
-  const { data: haengteukGuideRes } = useQuery({
-    queryKey: ["studentRecord", "haengteukGuide", studentId],
-    queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchHaengteukGuide(studentId)),
-    staleTime: 60_000,
-    enabled: !!studentId,
-  });
-  const transformedChangcheGuideItems = useMemo(() => {
-    if (!changcheGuidesRes?.success || !changcheGuidesRes.data) return undefined;
-    const LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
-    const items = changcheGuidesRes.data.map((row) => ({
-      activityType: row.activity_type,
-      activityLabel: LABELS[row.activity_type] ?? row.activity_type,
-      schoolYear: row.school_year,
-      keywords: row.keywords ?? [],
-      direction: row.direction,
-      competencyFocus: row.competency_focus,
-      cautions: row.cautions ?? undefined,
-      teacherPoints: row.teacher_points,
-      guideMode: (row.guide_mode === "prospective" ? "prospective" : "retrospective") as "retrospective" | "prospective",
-    }));
-    return items.length > 0 ? items : undefined;
-  }, [changcheGuidesRes]);
-  const transformedHaengteukGuideItems = useMemo(() => {
-    if (!haengteukGuideRes?.success || !haengteukGuideRes.data) return undefined;
-    const rows = Array.isArray(haengteukGuideRes.data) ? haengteukGuideRes.data : [haengteukGuideRes.data];
-    const items = rows.map((row) => ({
-      schoolYear: row.school_year,
-      keywords: row.keywords ?? [],
-      direction: row.direction,
-      competencyFocus: row.competency_focus,
-      cautions: row.cautions ?? undefined,
-      teacherPoints: row.teacher_points,
-      evaluationItems: row.evaluation_items as Array<{ item: string; score: string; reasoning: string }> | undefined,
-      guideMode: (row.guide_mode === "prospective" ? "prospective" : "retrospective") as "retrospective" | "prospective",
-    }));
-    return items.length > 0 ? items : undefined;
-  }, [haengteukGuideRes]);
-
-  const assignmentIds = useMemo(
-    () => (guideAssignmentsRes?.success && guideAssignmentsRes.data ? guideAssignmentsRes.data.map((a) => a.id) : []),
-    [guideAssignmentsRes],
-  );
-  const { data: fileCountsRes } = useQuery({
-    queryKey: ["explorationGuide", "fileCounts", assignmentIds],
-    queryFn: () => import("@/lib/domains/guide/actions/deliverable").then((m) => m.getAssignmentFileCountsAction(assignmentIds)),
-    staleTime: 60_000,
-    enabled: assignmentIds.length > 0,
-  });
-
-  // ─── 학년별 데이터 맵 ─────────────────────────────────
-  // useQueries는 매 렌더마다 새 배열 참조 → .data만 추출하여 안정적 의존성 확보
-  const recordDataArray = recordQueries.map((q) => q.data);
-  const recordByGrade = useMemo(() => {
-    const map = new Map<number, { grade: number; schoolYear: number; data: NonNullable<(typeof recordQueries)[0]["data"]> }>();
-    yearGradePairs.forEach((p, i) => {
-      const d = recordDataArray[i];
-      if (d) {
-        map.set(p.grade, { grade: p.grade, schoolYear: p.schoolYear, data: d });
-      }
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recordDataArray 요소별 안정 참조
-  }, [yearGradePairs, ...recordDataArray]);
-
   // ─── 바텀시트 과목 네비게이션 리스트 ────────────────
   const subjectNavList = useMemo<SubjectNavItem[]>(() => {
     const items: SubjectNavItem[] = [];
-    const seen = new Set<string>(); // grade:subjectId 중복 방지
+    const seen = new Set<string>();
     for (const [, entry] of recordByGrade) {
       for (const setek of entry.data.seteks) {
         const key = `${entry.grade}:${setek.subject_id}`;
@@ -368,42 +140,39 @@ export function StudentRecordClient({
     return items.sort((a, b) => a.grade - b.grade || a.subjectName.localeCompare(b.subjectName, "ko"));
   }, [recordByGrade, subjects]);
 
-  const suppDataArray = supplementaryQueries.map((q) => q.data);
-  const suppByGrade = useMemo(() => {
-    const map = new Map<number, { grade: number; schoolYear: number; data: NonNullable<(typeof supplementaryQueries)[0]["data"]> }>();
-    yearGradePairs.forEach((p, i) => {
-      const d = suppDataArray[i];
-      if (d) {
-        map.set(p.grade, { grade: p.grade, schoolYear: p.schoolYear, data: d });
-      }
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- suppDataArray 요소별 안정 참조
-  }, [yearGradePairs, ...suppDataArray]);
+  // ─── 전학년 합산 supplementary ────────────────────
+  const mergedSupplementary = useMemo(() => {
+    const awards: NonNullable<ReturnType<typeof suppByGrade.get>>["data"]["awards"] = [];
+    const volunteer: NonNullable<ReturnType<typeof suppByGrade.get>>["data"]["volunteer"] = [];
+    const disciplinary: NonNullable<ReturnType<typeof suppByGrade.get>>["data"]["disciplinary"] = [];
+    const applications: NonNullable<ReturnType<typeof suppByGrade.get>>["data"]["applications"] = [];
+    const interviewConflicts: NonNullable<ReturnType<typeof suppByGrade.get>>["data"]["interviewConflicts"] = [];
+    for (const p of visiblePairs) {
+      const entry = suppByGrade.get(p.grade);
+      if (!entry) continue;
+      awards.push(...entry.data.awards);
+      volunteer.push(...entry.data.volunteer);
+      disciplinary.push(...entry.data.disciplinary);
+      applications.push(...entry.data.applications);
+      interviewConflicts.push(...entry.data.interviewConflicts);
+    }
+    return { awards, volunteer, disciplinary, applications, interviewConflicts };
+  }, [visiblePairs, suppByGrade]);
 
-  // ─── 로딩/에러 상태 ─────────────────────────────────
+  // ─── 진단 탭용 필터링 ────────────────────────────
+  const currentYearTagIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const rec of allRecordSummaries) ids.add(rec.id);
+    return ids;
+  }, [allRecordSummaries]);
 
-  const anyRecordLoading = recordQueries.some((q) => q.isLoading);
-  const anySuppLoading = supplementaryQueries.some((q) => q.isLoading);
-  // 섹션별 에러 (전역 에러 대신 부분 에러)
-  const recordErrorGrades = useMemo(() => {
-    const errors = new Map<number, Error>();
-    yearGradePairs.forEach((p, i) => {
-      const err = recordQueries[i]?.error;
-      if (err) errors.set(p.grade, err as Error);
-    });
-    return errors;
-  }, [yearGradePairs, recordQueries]);
-  const suppErrorGrades = useMemo(() => {
-    const errors = new Map<number, Error>();
-    yearGradePairs.forEach((p, i) => {
-      const err = supplementaryQueries[i]?.error;
-      if (err) errors.set(p.grade, err as Error);
-    });
-    return errors;
-  }, [yearGradePairs, supplementaryQueries]);
+  const filteredActivityTags = useMemo(() => {
+    const allTags = diagnosisData?.activityTags ?? [];
+    if (currentYearTagIds.size === 0) return allTags;
+    return allTags.filter((t) => currentYearTagIds.has(t.record_id));
+  }, [diagnosisData?.activityTags, currentYearTagIds]);
 
-  // ─── 현재 스테이지 계산 (activeSection → stageId) ────
+  // ─── 현재 스테이지 계산 ──────────────────────────
   const activeStage = useMemo<StageId>(() => {
     for (const stage of STAGES) {
       if (stage.sections.some((s) => s.id === activeSection)) return stage.id;
@@ -411,15 +180,23 @@ export function StudentRecordClient({
     return "record";
   }, [activeSection]);
 
-  // ─── IntersectionObserver ─────────────────────────
+  // ─── stageCompletions (탭 바 미니 바용) ─────────
+  const stageCompletions = useMemo<Record<string, number>>(() => {
+    const { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled } = progressCounts;
+    return {
+      record: recordTotal > 0 ? Math.round((recordFilled / recordTotal) * 100) : 0,
+      diagnosis: Math.round((diagnosisFilled / 1) * 100),
+      design: Math.round((designFilled / 7) * 100),
+      strategy: Math.round((strategyFilled / 6) * 100),
+    };
+  }, [progressCounts]);
 
+  // ─── IntersectionObserver ─────────────────────────
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-
     const sectionEls = container.querySelectorAll<HTMLElement>("[data-section-id]");
     if (sectionEls.length === 0) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         let topEntry: IntersectionObserverEntry | null = null;
@@ -437,13 +214,11 @@ export function StudentRecordClient({
       },
       { root: container, rootMargin: "-10% 0px -70% 0px", threshold: 0 },
     );
-
     sectionEls.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, [anyRecordLoading, anySuppLoading, storylineLoading, strategyLoading, viewMode]);
 
   // ─── TOC 클릭 → 스크롤 ───────────────────────────
-
   const scrollToSection = useCallback((sectionId: string) => {
     const container = scrollRef.current;
     if (!container) return;
@@ -472,7 +247,6 @@ export function StudentRecordClient({
     if (idx < allSectionIds.length - 1) scrollToSection(allSectionIds[idx + 1]);
   }, [activeSection, allSectionIds, scrollToSection]);
 
-  // ─── 브레드크럼: 현재 스테이지 → 스테이지 첫 섹션으로 이동 ──
   const scrollToStageFirst = useCallback((stageId: string) => {
     const stage = STAGES.find((s) => s.id === stageId);
     if (stage && stage.sections.length > 0) scrollToSection(stage.sections[0].id);
@@ -487,10 +261,30 @@ export function StudentRecordClient({
     return () => document.removeEventListener("keydown", handler);
   }, [jumpPrev, jumpNext]);
 
-  // G1: 활성 과목 ID (세특 레이어 탭 ↔ 사이드 패널 연결)
+  // ─── 활성 과목 상태 (세특 레이어 탭 ↔ 사이드 패널) ──
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [activeSchoolYear, setActiveSchoolYear] = useState<number | null>(null);
   const [activeSubjectName, setActiveSubjectName] = useState<string | null>(null);
+
+  // ─── 탐구 가이드 배정 쿼리 (viewMode 의존) ────────
+  const guideSchoolYear = viewMode === "all" ? undefined : viewMode;
+  const { data: guideAssignmentsRes } = useQuery({
+    queryKey: ["explorationGuide", "assignments", studentId, guideSchoolYear ?? "all"],
+    queryFn: () => import("@/lib/domains/guide/actions/assignment").then((m) => m.fetchAssignedGuidesAction(studentId, guideSchoolYear)),
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+  const assignmentIds = useMemo(
+    () => (guideAssignmentsRes?.success && guideAssignmentsRes.data ? guideAssignmentsRes.data.map((a) => a.id) : []),
+    [guideAssignmentsRes],
+  );
+  const { data: fileCountsRes } = useQuery({
+    queryKey: ["explorationGuide", "fileCounts", assignmentIds],
+    queryFn: () => import("@/lib/domains/guide/actions/deliverable").then((m) => m.getAssignmentFileCountsAction(assignmentIds)),
+    staleTime: 60_000,
+    enabled: assignmentIds.length > 0,
+  });
+  void fileCountsRes; // 현재 미사용, 향후 활용
 
   // ─── Agent UI Bridge ───────────────────────────────
   const getAgentSnapshot = useCallback((): UIStateSnapshot => ({
@@ -501,7 +295,7 @@ export function StudentRecordClient({
     focusedSubject: activeSubjectId
       ? { subjectId: activeSubjectId, subjectName: activeSubjectName ?? "", schoolYear: activeSchoolYear ?? 0 }
       : null,
-    sidePanelApp: null, // SidePanelContext 내부에서 별도 주입
+    sidePanelApp: null,
     bottomSheetOpen: !!activeSubjectId,
     topSheetOpen,
   }), [globalSetekTab, viewMode, activeSection, activeStage, activeSubjectId, activeSubjectName, activeSchoolYear, topSheetOpen]);
@@ -527,7 +321,6 @@ export function StudentRecordClient({
         setViewMode(action.viewMode);
         break;
       case "open_side_panel":
-        // SidePanelContext.openApp은 직접 접근 불가 — 무시
         break;
     }
   }, [scrollToSection, subjects]);
@@ -538,19 +331,15 @@ export function StudentRecordClient({
   }), [getAgentSnapshot, dispatchAgentAction]);
 
   // ─── BroadcastChannel: 팝아웃 에이전트 윈도우 동기화 ──
-  // 송신: UI 상태 변경 → 팝아웃으로 브로드캐스트
   useEffect(() => {
     try {
       const snapshot = getAgentSnapshot();
       const ch = new BroadcastChannel("agent-ui-state");
       ch.postMessage(snapshot);
       ch.close();
-    } catch {
-      // BroadcastChannel 미지원 환경 무시
-    }
+    } catch { /* BroadcastChannel 미지원 환경 무시 */ }
   }, [getAgentSnapshot]);
 
-  // 수신: 팝아웃 에이전트 → 메인 윈도우 네비게이션 액션
   useEffect(() => {
     try {
       const ch = new BroadcastChannel("agent-ui-action");
@@ -560,327 +349,11 @@ export function StudentRecordClient({
         }
       };
       return () => ch.close();
-    } catch {
-      // BroadcastChannel 미지원 환경 무시
-    }
+    } catch { /* BroadcastChannel 미지원 환경 무시 */ }
   }, [dispatchAgentAction]);
 
-  // ─── Sidebar Content ──────────────────────────────
-
-  // 사이드바 스테이지 접기/펼치기
-  const [expandedStages, setExpandedStages] = useState<Set<StageId>>(
-    () => new Set<StageId>(["record", "diagnosis", "design", "strategy"]),
-  );
-
-  const toggleStage = useCallback((stageId: StageId) => {
-    setExpandedStages((prev) => {
-      const next = new Set(prev);
-      if (next.has(stageId)) next.delete(stageId);
-      else next.add(stageId);
-      return next;
-    });
-  }, []);
-
-  // ─── G0-2 진행률 계산 (recordByGrade/suppByGrade + 파이프라인 태스크 상태) ──
-  const progressCounts = useMemo(() => {
-    // 파이프라인 태스크 완료 헬퍼
-    const taskDone = (key: string) => pipelineData?.tasks?.[key as keyof typeof pipelineData.tasks] === "completed";
-
-    let recordFilled = 0;
-    const recordTotal = 7; // sec-1~3, sec-6~9 (sec-4,5 항상 빈)
-    if (recordByGrade.size > 0) recordFilled++; // sec-1 (항상)
-    for (const [, entry] of recordByGrade) {
-      if (entry.data.schoolAttendance) { recordFilled++; break; }
-    }
-    // awards/disciplinary from suppByGrade
-    let hasAwards = false;
-    for (const [, entry] of suppByGrade) {
-      if (entry.data.awards.length > 0 || entry.data.disciplinary.length > 0) { hasAwards = true; break; }
-    }
-    if (hasAwards) recordFilled++;
-    for (const [, entry] of recordByGrade) {
-      if (entry.data.changche.length > 0) { recordFilled++; break; }
-    }
-    for (const [, entry] of recordByGrade) {
-      if (entry.data.seteks.length > 0) { recordFilled++; break; }
-    }
-    let hasReadings = false;
-    for (const [, entry] of recordByGrade) {
-      if (entry.data.readings.length > 0) { hasReadings = true; break; }
-    }
-    if (hasReadings) recordFilled++;
-    for (const [, entry] of recordByGrade) {
-      if (entry.data.haengteuk) { recordFilled++; break; }
-    }
-
-    const diagnosisFilled = diagnosisData ? 1 : 0;
-
-    // 설계 스테이지: 데이터 존재 + 파이프라인 태스크 완료 (total=7)
-    const designFilled = [
-      storylineData?.storylines?.length ?? 0,                  // 스토리라인
-      storylineData?.roadmapItems?.length ?? 0,                // 로드맵
-      taskDone("activity_summary") ? 1 : 0,                    // 활동 요약서
-      taskDone("setek_guide") ? 1 : 0,                         // 세특 방향
-      taskDone("guide_matching") ? 1 : 0,                      // 가이드 배정
-      taskDone("course_recommendation") ? 1 : 0,               // 수강 추천
-      taskDone("bypass_analysis") ? 1 : 0,                     // 우회학과
-    ].filter((n) => n > 0).length;
-
-    // 전략 스테이지: 수동 입력 + 파이프라인 태스크 완료 (total=6)
-    let hasApps = false;
-    for (const [, entry] of suppByGrade) {
-      if (entry.data.applications.length > 0) { hasApps = true; break; }
-    }
-    const strategyFilled = [
-      hasApps ? 1 : 0,                                          // 지원 현황
-      strategyData?.minScoreTargets?.length ? 1 : 0,            // 최저 목표
-      taskDone("ai_strategy") ? 1 : 0,                          // 보완전략
-      taskDone("interview_generation") ? 1 : 0,                  // 면접 질문
-      taskDone("roadmap_generation") ? 1 : 0,                    // 로드맵 생성
-      taskDone("ai_diagnosis") ? 1 : 0,                          // 종합 진단
-    ].filter((n) => n > 0).length;
-
-    return { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled };
-  }, [recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData, pipelineData]);
-
-  // ─── 스테이지 탭 진행률 (탭 하단 미니 바용) ─────────────
-  const stageCompletions = useMemo<Record<string, number>>(() => {
-    const { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled } = progressCounts;
-    return {
-      record: recordTotal > 0 ? Math.round((recordFilled / recordTotal) * 100) : 0,
-      diagnosis: Math.round((diagnosisFilled / 1) * 100),
-      design: Math.round((designFilled / 7) * 100),
-      strategy: Math.round((strategyFilled / 6) * 100),
-    };
-  }, [progressCounts]);
-
-  const sidebarContent = (
-    <div className="flex flex-col gap-0.5 p-3">
-      {/* 진행률 대시보드 — 전체 + 스테이지별 미니 바 */}
-      <div className="mb-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2.5">
-        {/* 전체 진행률 */}
-        {(() => {
-          const totalFilled = progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled;
-          const totalAll = progressCounts.recordTotal + 1 + 7 + 6;
-          const pct = Math.round((totalFilled / totalAll) * 100);
-          return (
-            <div className="mb-2 flex items-center justify-between pb-1.5 border-b border-[var(--border-secondary)]">
-              <span className="text-xs font-semibold text-[var(--text-primary)]">전체 진행</span>
-              <span className={`text-xs font-bold ${pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-gray-500"}`}>
-                {pct}% ({totalFilled}/{totalAll})
-              </span>
-            </div>
-          );
-        })()}
-        <div className="flex flex-col gap-1.5">
-          {([
-            { label: "기록", icon: ClipboardList, filled: progressCounts.recordFilled, total: progressCounts.recordTotal, color: "bg-blue-500" },
-            { label: "진단", icon: Search, filled: progressCounts.diagnosisFilled, total: 1, color: "bg-purple-500" },
-            { label: "설계", icon: Compass, filled: progressCounts.designFilled, total: 7, color: "bg-indigo-500" },
-            { label: "전략", icon: Target, filled: progressCounts.strategyFilled, total: 6, color: "bg-emerald-500" },
-          ] as const).map(({ label, icon: Icon, filled, total, color }) => (
-            <div key={label} className="flex items-center gap-2">
-              <span className="flex w-14 shrink-0 items-center gap-1 text-xs text-[var(--text-secondary)]">
-                <Icon className="h-3 w-3" />
-                {label}
-              </span>
-              <div className="flex-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${total > 0 ? Math.round((filled / total) * 100) : 0}%` }} />
-              </div>
-              <span className="w-8 text-right text-xs font-medium text-[var(--text-primary)]">{filled}/{total}</span>
-            </div>
-          ))}
-        </div>
-        {/* G4-5: 불완전함 보존 알림 */}
-        {((progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled) /
-          (progressCounts.recordTotal + 1 + 7 + 6)) >= 0.95 && (
-          <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-            완벽한 일관성보다 자연스러운 다양성이 설득력 있습니다
-          </p>
-        )}
-      </div>
-
-      {STAGES.map((stage) => {
-        const isExpanded = expandedStages.has(stage.id);
-        const hasActive = stage.sections.some((s) => s.id === activeSection);
-
-        return (
-          <div key={stage.id}>
-            {/* 스테이지 헤더 */}
-            <button
-              onClick={() => toggleStage(stage.id)}
-              className={cn(
-                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm font-semibold transition-colors",
-                hasActive && !isExpanded
-                  ? "text-indigo-700 dark:text-indigo-300"
-                  : "text-[var(--text-primary)]",
-                "hover:bg-[var(--surface-hover)]",
-              )}
-            >
-              <span>{stage.emoji} {stage.label}</span>
-              <ChevronDown
-                size={14}
-                className={cn(
-                  "text-[var(--text-tertiary)] transition-transform duration-150",
-                  isExpanded && "rotate-180",
-                )}
-              />
-            </button>
-
-            {/* 펼침 영역 */}
-            {isExpanded && (
-              <div className="flex flex-col gap-0.5 pb-1">
-                {/* 학년 선택 (기록/진단만) */}
-                {stage.hasYearSelector && (
-                  <div className="px-2 py-1">
-                    <RecordYearSelector compact value={viewMode} onChange={setViewMode} studentGrade={studentGrade} />
-                  </div>
-                )}
-                {/* 섹션 목록 */}
-                {stage.sections.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => scrollToSection(item.id)}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors",
-                      item.indent ? "pl-9" : "pl-7",
-                      activeSection === item.id
-                        ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
-                    )}
-                  >
-                    {item.number && (
-                      <span className="inline-flex size-5 flex-shrink-0 items-center justify-center rounded bg-gray-200 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        {item.number}
-                      </span>
-                    )}
-                    {item.indent && <span className="text-[var(--text-tertiary)]">├</span>}
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* PDF 가져오기 */}
-      <div className="mt-3 border-t border-[var(--border-secondary)] pt-3">
-        <button
-          type="button"
-          onClick={() => setImportOpen(true)}
-          className="w-full rounded-lg border border-[var(--border-primary)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
-        >
-          PDF 가져오기
-        </button>
-      </div>
-
-      {/* Report 생성 */}
-      <div className="mt-2">
-        <Link
-          href={`/admin/students/${studentId}/report`}
-          target="_blank"
-          className="block w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-center text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
-        >
-          Report 생성
-        </Link>
-      </div>
-    </div>
-  );
-
-  // ─── 전학년 합산 supplementary 데이터 ─────────────
-
-  const mergedSupplementary = useMemo(() => {
-    const awards: NonNullable<(typeof supplementaryQueries)[0]["data"]>["awards"] = [];
-    const volunteer: NonNullable<(typeof supplementaryQueries)[0]["data"]>["volunteer"] = [];
-    const disciplinary: NonNullable<(typeof supplementaryQueries)[0]["data"]>["disciplinary"] = [];
-    const applications: NonNullable<(typeof supplementaryQueries)[0]["data"]>["applications"] = [];
-    const interviewConflicts: NonNullable<(typeof supplementaryQueries)[0]["data"]>["interviewConflicts"] = [];
-
-    for (const p of visiblePairs) {
-      const entry = suppByGrade.get(p.grade);
-      if (!entry) continue;
-      awards.push(...entry.data.awards);
-      volunteer.push(...entry.data.volunteer);
-      disciplinary.push(...entry.data.disciplinary);
-      applications.push(...entry.data.applications);
-      interviewConflicts.push(...entry.data.interviewConflicts);
-    }
-    return { awards, volunteer, disciplinary, applications, interviewConflicts };
-  }, [visiblePairs, suppByGrade]);
-
-  // ─── 전학년 합산 readings ─────────────────────────
-
-  const mergedReadings = useMemo(() => {
-    const readings: NonNullable<(typeof recordQueries)[0]["data"]>["readings"] = [];
-    for (const p of visiblePairs) {
-      const entry = recordByGrade.get(p.grade);
-      if (!entry) continue;
-      readings.push(...entry.data.readings);
-    }
-    return readings;
-  }, [visiblePairs, recordByGrade]);
-
-  // ─── 진단 탭용: 전체 레코드 추출 ────────────────────
-
-  const allRecordSummaries = useMemo(() => {
-    const result: { id: string; type: "setek" | "personal_setek" | "changche" | "haengteuk"; label: string; content: string; subjectName?: string; grade?: number }[] = [];
-    for (const [g, entry] of recordByGrade) {
-      for (const s of entry.data.seteks) {
-        const text = s.content?.trim() || s.imported_content || "";
-        if (text) {
-          const subjectName = subjects.find((sub) => sub.id === s.subject_id)?.name ?? "과목";
-          result.push({ id: s.id, type: "setek", label: `${g}학년 ${subjectName}`, content: text, subjectName, grade: g });
-        }
-      }
-      for (const c of entry.data.changche) {
-        const text = c.content?.trim() || (c as unknown as { imported_content?: string }).imported_content || "";
-        if (text) result.push({ id: c.id, type: "changche", label: `${g}학년 ${c.activity_type}`, content: text, grade: g });
-      }
-      if (entry.data.haengteuk) {
-        const text = entry.data.haengteuk.content?.trim() || (entry.data.haengteuk as unknown as { imported_content?: string }).imported_content || "";
-        if (text) result.push({ id: entry.data.haengteuk.id, type: "haengteuk", label: `${g}학년 행특`, content: text, grade: g });
-      }
-    }
-    return result;
-  }, [recordByGrade, subjects]);
-
-  // ─── 현재 학년 레코드 기반 태그 필터 ─────────────
-  const currentYearTagIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const rec of allRecordSummaries) ids.add(rec.id);
-    return ids;
-  }, [allRecordSummaries]);
-
-  const filteredActivityTags = useMemo(() => {
-    const allTags = diagnosisData?.activityTags ?? [];
-    if (currentYearTagIds.size === 0) return allTags;
-    return allTags.filter((t) => currentYearTagIds.has(t.record_id));
-  }, [diagnosisData?.activityTags, currentYearTagIds]);
-
-  // ─── 경고 계산 ─────────────────────────────────
-  const warnings = useMemo(() => {
-    const recordsMap = new Map<number, import("@/lib/domains/student-record").RecordTabData>();
-    for (const [g, entry] of recordByGrade) {
-      recordsMap.set(g, entry.data);
-    }
-    const input: WarningCheckInput = {
-      recordsByGrade: recordsMap,
-      storylineData: storylineData ?? null,
-      diagnosisData: diagnosisData ?? null,
-      strategyData: strategyData ?? null,
-      currentGrade: studentGrade,
-      qualityScores: diagnosisData?.qualityScores,
-    };
-    return computeWarnings(input);
-  }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade]);
-
-  // 전체 치명적 에러 (모든 쿼리 실패) 시에만 페이지 차단
-  const allFailed = recordQueries.every((q) => !!q.error)
-    && supplementaryQueries.every((q) => !!q.error)
-    && !!storylineError && !!strategyError;
+  // ─── 전체 실패 시 에러 화면 ────────────────────────
   if (allFailed) {
-    const firstError = recordQueries[0]?.error ?? storylineError ?? strategyError;
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-400">
@@ -921,12 +394,24 @@ export function StudentRecordClient({
       </div>
     </TopBarCenterSlotPortal>
     <RecordLayoutShell
-      sidebar={sidebarContent}
+      sidebar={
+        <RecordSidebar
+          stages={STAGES}
+          activeSection={activeSection}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          studentGrade={studentGrade}
+          studentId={studentId}
+          progressCounts={progressCounts}
+          scrollToSection={scrollToSection}
+          onImportOpen={() => setImportOpen(true)}
+        />
+      }
       isSidebarOpen={sidebarOpen}
       onToggleSidebar={toggleSidebar}
       rightPanel={<RecordSidePanelContainer />}
     >
-      {/* ─── 스테이지 탭 바 (데스크톱) ────────────────── */}
+      {/* ─── 스테이지 탭 바 ────────────────────────── */}
       <div className="hidden shrink-0 border-b border-[var(--border-secondary)] bg-[var(--surface-secondary)] px-4 md:flex">
         {STAGES.map((stage) => {
           const completion = stageCompletions[stage.id] ?? 0;
@@ -950,10 +435,7 @@ export function StudentRecordClient({
                 {stage.label}
               </span>
               <div className="h-0.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                <div
-                  className="h-full rounded-full bg-indigo-400 transition-all duration-500"
-                  style={{ width: `${completion}%` }}
-                />
+                <div className="h-full rounded-full bg-indigo-400 transition-all duration-500" style={{ width: `${completion}%` }} />
               </div>
             </button>
           );
@@ -962,44 +444,31 @@ export function StudentRecordClient({
 
       {/* ─── 메인 문서 스크롤 영역 ────────────────── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {/* 빠른 섹션 이동 — 브레드크럼 (데스크톱) */}
+        {/* 브레드크럼 (데스크톱) */}
         {(() => {
           const currentStage = STAGES.find((s) => s.sections.some((sec) => sec.id === activeSection));
           const sectionIndex = currentStage?.sections.findIndex((s) => s.id === activeSection) ?? 0;
           const totalSections = currentStage?.sections.length ?? 0;
           return (
             <div className="sticky top-0 z-20 hidden items-center gap-1.5 border-b border-[var(--border-secondary)] bg-[var(--background)]/95 px-4 py-1 backdrop-blur md:flex">
-              {/* 스테이지 select */}
               <select
                 value={currentStage?.id ?? "record"}
                 onChange={(e) => scrollToStageFirst(e.target.value)}
                 className="rounded border border-[var(--border-primary)] bg-transparent px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
-                {STAGES.map((s) => (
-                  <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>
-                ))}
+                {STAGES.map((s) => <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>)}
               </select>
-
               <span className="text-[var(--text-tertiary)]">›</span>
-
-              {/* 섹션 select (현재 스테이지의 섹션만) */}
               <select
                 value={activeSection}
                 onChange={(e) => scrollToSection(e.target.value)}
                 className="rounded border border-[var(--border-primary)] bg-transparent px-2 py-0.5 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 {currentStage?.sections.map((sec) => (
-                  <option key={sec.id} value={sec.id}>
-                    {sec.number ? `${sec.number}. ` : ""}{sec.label}
-                  </option>
+                  <option key={sec.id} value={sec.id}>{sec.number ? `${sec.number}. ` : ""}{sec.label}</option>
                 ))}
               </select>
-
-              {/* 위치 표시 */}
-              <span className="text-xs text-[var(--text-placeholder)]">
-                ({sectionIndex + 1}/{totalSections})
-              </span>
-
+              <span className="text-xs text-[var(--text-placeholder)]">({sectionIndex + 1}/{totalSections})</span>
               <button type="button" onClick={jumpPrev} className="rounded p-0.5 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]" title="이전 섹션 (Alt+↑)">
                 <ChevronUp className="h-3.5 w-3.5" />
               </button>
@@ -1010,6 +479,7 @@ export function StudentRecordClient({
             </div>
           );
         })()}
+
         {/* 모바일 상단 컨트롤 */}
         <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border-secondary)] bg-[var(--background)]/95 px-4 py-2 backdrop-blur md:hidden">
           <button
@@ -1036,14 +506,11 @@ export function StudentRecordClient({
             <h1 className="text-xl font-bold tracking-wide text-[var(--text-primary)] md:text-2xl">
               학 교 생 활 기 록 부
             </h1>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              {headerSubtitle}
-            </p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
           </div>
 
-          {/* ─── 학반정보 + 사진 영역 (실제 생기부 원본 레이아웃) ── */}
+          {/* ─── 학반정보 + 사진 영역 ────────────── */}
           <div className="mb-6 flex items-stretch gap-4">
-            {/* 테이블 */}
             <div className="flex-1 overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
@@ -1079,7 +546,6 @@ export function StudentRecordClient({
                 </tbody>
               </table>
             </div>
-            {/* 증명사진 — NEIS 원본: 테이블 전체 높이에 맞춤 */}
             <div className="hidden shrink-0 sm:block">
               <div className="flex h-full w-[120px] items-center justify-center border border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800">
                 <User className="size-12 text-gray-300 dark:text-gray-600" />
@@ -1087,26 +553,23 @@ export function StudentRecordClient({
             </div>
           </div>
 
-          {/* ─── G2-3: 진로 미설정 배너 ──── */}
+          {/* ─── 진로 미설정 배너 ─────────────────── */}
           {!diagnosisLoading && diagnosisData && !diagnosisData.targetMajor && (
             <CareerSetupBanner
               studentId={studentId}
               tenantId={tenantId}
-              onComplete={() => {
-                queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
-              }}
+              onComplete={() => queryClient.invalidateQueries({ queryKey: studentRecordKeys.all })}
             />
           )}
 
-          {/* ─── 온보딩 체크리스트 (진로 설정 완료 + 기록 5건 미만) ──── */}
+          {/* ─── 온보딩 체크리스트 ───────────────── */}
           {diagnosisData?.targetMajor && (() => {
             const hasCoursePlan = (coursePlanData?.plans?.length ?? 0) > 0;
             const hasStoryline = (storylineData?.storylines?.length ?? 0) > 0;
             const hasRoadmap = (storylineData?.roadmapItems?.length ?? 0) > 0;
             const hasGuide = (setekGuidesRes?.success && (setekGuidesRes.data?.length ?? 0) > 0);
-            const totalRecords = Object.values(recordByGrade ?? {}).reduce((sum, d) => {
-              if (!d) return sum;
-              return sum + (d.seteks?.length ?? 0) + (d.changche?.length ?? 0);
+            const totalRecords = [...recordByGrade.values()].reduce((sum, d) => {
+              return sum + (d.data.seteks?.length ?? 0) + (d.data.changche?.length ?? 0);
             }, 0);
             const steps = [
               { done: true, label: "진로 설정", section: null },
@@ -1146,7 +609,7 @@ export function StudentRecordClient({
             );
           })()}
 
-          {/* ─── 📋 기록 스테이지 ──────────────── */}
+          {/* ─── 기록 스테이지 ───────────────────── */}
           <RecordStageContent
             subjects={subjects}
             visiblePairs={visiblePairs}
@@ -1165,7 +628,7 @@ export function StudentRecordClient({
             haengteukGuideItems={transformedHaengteukGuideItems}
           />
 
-          {/* ─── 🔍 진단 스테이지 ──────────────── */}
+          {/* ─── 진단 스테이지 ───────────────────── */}
           <DiagnosisStageContent
             diagnosisData={diagnosisData}
             diagnosisLoading={diagnosisLoading}
@@ -1178,7 +641,7 @@ export function StudentRecordClient({
             warnings={warnings}
           />
 
-          {/* ─── 📐 설계 스테이지 ──────────────── */}
+          {/* ─── 설계 스테이지 ───────────────────── */}
           <DesignStageContent
             diagnosisData={diagnosisData}
             diagnosisLoading={diagnosisLoading}
@@ -1188,7 +651,7 @@ export function StudentRecordClient({
             pipelineData={pipelineData}
           />
 
-          {/* ─── 🎯 전략 스테이지 ──────────────── */}
+          {/* ─── 전략 스테이지 ───────────────────── */}
           <StrategyStageContent
             strategyData={strategyData}
             strategyLoading={strategyLoading}
@@ -1201,7 +664,6 @@ export function StudentRecordClient({
         </div>
       </div>
 
-      {/* ─── Import Dialog ────────────────────────── */}
       <ImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
@@ -1230,4 +692,3 @@ export function StudentRecordClient({
     </StudentRecordProvider>
   );
 }
-
