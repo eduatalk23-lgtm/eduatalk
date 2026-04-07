@@ -16,6 +16,7 @@ import type {
 } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
 import { DesiredUniversityChips } from "./shared/DesiredUniversityChips";
+import SchoolSelect from "@/components/ui/SchoolSelect";
 
 type MinScorePanelProps = {
   targets: MinScoreTarget[];
@@ -286,7 +287,11 @@ function AddTargetForm({
           selectedName={universityName}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          <input value={universityName} onChange={(e) => setUniversityName(e.target.value)} placeholder="대학명 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+          <SchoolSelect
+            type="대학교"
+            placeholder="대학명 검색 *"
+            onSchoolSelect={(school) => setUniversityName(school.name)}
+          />
           <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="학과 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
         </div>
         <div className="grid grid-cols-4 gap-3">

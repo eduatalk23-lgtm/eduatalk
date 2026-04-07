@@ -22,6 +22,8 @@ type MockScoreInputProps = {
       subject_type?: string | null;
     }>;
   })[];
+  /** 저장 성공 시 콜백. 미지정 시 기본 redirect 동작. */
+  onSuccess?: () => void;
 };
 
 type ScoreRow = MockScoreInputForm & {
@@ -32,6 +34,7 @@ export default function MockScoreInput({
   studentId,
   tenantId,
   subjectGroups,
+  onSuccess,
 }: MockScoreInputProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
@@ -261,8 +264,12 @@ export default function MockScoreInput({
         showSuccess(`${savedCount}건의 성적이 저장되었습니다.`);
         setHasUnsavedChanges(false);
 
-        // 성공 시 통합 대시보드로 이동
-        router.push("/scores/dashboard/unified");
+        // 성공 시 콜백 또는 대시보드로 이동
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push("/scores/dashboard/unified");
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
         setError(errorMessage);

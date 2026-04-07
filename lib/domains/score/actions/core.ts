@@ -1075,6 +1075,43 @@ export async function fetchScoreTrendsAction(
   return { gpaByTerm, mockTrend };
 }
 
+/**
+ * 학생의 모의고사 시험 날짜 목록 조회.
+ * MinScorePanel SimulationForm의 "시험 선택" 드롭다운용.
+ */
+export async function fetchMockExamDatesAction(
+  studentId: string,
+  tenantId: string,
+): Promise<Array<{ examDate: string; examTitle: string }>> {
+  const { userId } = await getCurrentUser();
+  if (!userId) return [];
+
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  const supabase = await createSupabaseServerClient();
+
+  const { data } = await supabase
+    .from("student_mock_scores")
+    .select("exam_date, exam_title")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .not("exam_date", "is", null)
+    .order("exam_date", { ascending: false });
+
+  if (!data) return [];
+
+  // 중복 제거 (같은 날짜 여러 과목)
+  const seen = new Set<string>();
+  const result: Array<{ examDate: string; examTitle: string }> = [];
+  for (const row of data) {
+    const key = row.exam_date as string;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push({ examDate: key, examTitle: (row.exam_title as string) ?? "" });
+    }
+  }
+  return result;
+}
+
 export async function fetchLatestMockGradesAction(
   studentId: string,
   tenantId: string,
