@@ -258,6 +258,55 @@ export async function onGradeAdvanced(
 }
 
 /**
+ * 교육과정 변경 시 분석 결과를 stale 처리
+ *
+ * students.curriculum_revision 변경 후 호출.
+ * 기존 역량 분석/가이드/엣지가 이전 교육과정 기준이므로 재분석 필요.
+ * 각 단계는 fire-and-forget — 실패해도 다른 단계에 영향 없음.
+ */
+export async function onCurriculumRevisionChanged(
+  studentId: string,
+  tenantId: string,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return;
+
+  const reason = "curriculum_revision_changed";
+
+  // 1. 엣지 stale 마킹
+  await markAllStudentEdgesStale(studentId, reason).catch((err: unknown) =>
+    logActionWarn(LOG_CTX, "엣지 stale 마킹 실패 (교육과정 변경)", { error: err instanceof Error ? err.message : String(err) }),
+  );
+
+  // 2. 가이드 stale 마킹 (교육과정 변경 시 과목 체계 변동 가능)
+  await markRelatedGuidesStale(studentId, reason).catch((err: unknown) =>
+    logActionWarn(LOG_CTX, "가이드 stale 마킹 실패 (교육과정 변경)", { error: err instanceof Error ? err.message : String(err) }),
+  );
+
+  // 3. 가이드 배정 stale 마킹
+  await supabase
+    .from("exploration_guide_assignments")
+    .update({ is_stale: true, stale_reason: reason })
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("is_stale", false)
+    .then(() => {})
+    .catch((err: unknown) =>
+      logActionWarn(LOG_CTX, "가이드 배정 stale 마킹 실패 (교육과정 변경)", { error: err instanceof Error ? err.message : String(err) }),
+    );
+
+  // 4. 파이프라인 content_hash → null (다음 실행 시 무조건 재분석)
+  await supabase
+    .from("student_record_analysis_pipelines")
+    .update({ content_hash: null })
+    .eq("student_id", studentId)
+    .then(() => {})
+    .catch((err: unknown) =>
+      logActionWarn(LOG_CTX, "content_hash 초기화 실패 (교육과정 변경)", { error: err instanceof Error ? err.message : String(err) }),
+    );
+}
+
+/**
  * 파이프라인의 content_hash와 현재 레코드 상태를 비교하여 stale 여부 반환
  */
 export async function checkPipelineStaleness(

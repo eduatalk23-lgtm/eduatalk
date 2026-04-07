@@ -6,7 +6,8 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ScoreTypeTabs } from "../../_components/ScoreTypeTabs";
 import { DashboardSubTabs } from "../_components/DashboardSubTabs";
 import { getMockScores } from "@/lib/data/studentScores";
-import { getActiveCurriculumRevision, getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import type { MockScoreRow } from "@/lib/types/legacyScoreTypes";
 import { Card } from "@/components/molecules/Card";
@@ -96,10 +97,10 @@ export default async function MockScoresDashboardPage() {
     redirect("/login");
   }
 
-  // 활성 개정교육과정 조회
-  const curriculumRevision = await getActiveCurriculumRevision();
-  if (!curriculumRevision) {
-    console.error("[mock-dashboard] 활성 개정교육과정을 찾을 수 없습니다.");
+  // 학생 교육과정 resolve
+  const resolvedCurriculum = await resolveStudentCurriculumId(currentUser.userId);
+  if (!resolvedCurriculum) {
+    console.error("[mock-dashboard] 교육과정을 찾을 수 없습니다.");
     return (
       <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
@@ -109,7 +110,7 @@ export default async function MockScoresDashboardPage() {
           />
           <Card>
             <div className="p-8 text-center text-gray-600">
-              개정교육과정 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.
+              교육과정 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.
             </div>
           </Card>
         </div>
@@ -118,7 +119,7 @@ export default async function MockScoresDashboardPage() {
   }
 
   // 교과/과목 계층 구조 조회
-  const subjectHierarchy = await getSubjectHierarchyOptimized(curriculumRevision.id);
+  const subjectHierarchy = await getSubjectHierarchyOptimized(resolvedCurriculum.curriculumRevisionId);
 
   // 모의고사 성적 조회
   const mockScoresData = await getMockScores(currentUser.userId, tenantContext.tenantId);

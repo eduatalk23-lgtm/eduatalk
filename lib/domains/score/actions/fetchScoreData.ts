@@ -9,6 +9,7 @@ import {
   getInternalScoresByTerm,
   getMockScoresByPeriod,
 } from "@/lib/data/scoreDetails";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import type { SubjectGroup, SubjectType } from "@/lib/data/subjects";
 import type {
   InternalScoreWithRelations,
@@ -59,9 +60,11 @@ export async function fetchScorePanelData(
     getMockScoresByPeriod(studentId, student.tenant_id),
   ]);
 
-  const usedCurriculumId = internalScores[0]?.curriculum_revision_id;
-  const matchedCurriculum = usedCurriculumId
-    ? activeCurricula.find((c) => c.id === usedCurriculumId)
+  // 학생 교육과정 설정 기반으로 resolve (기존 성적 역추론 대신 중앙 resolver 사용)
+  const resolvedCurriculum = await resolveStudentCurriculumId(studentId);
+  const resolvedId = resolvedCurriculum?.curriculumRevisionId;
+  const matchedCurriculum = resolvedId
+    ? activeCurricula.find((c) => c.id === resolvedId)
     : null;
   const activeCurriculum = matchedCurriculum ?? activeCurricula[0];
 

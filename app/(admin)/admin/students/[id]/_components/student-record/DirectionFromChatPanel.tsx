@@ -7,7 +7,6 @@
 import { useState, useCallback } from "react";
 import { Compass, Send, Loader2, Check, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useStudentRecordContext } from "./StudentRecordContext";
 
 interface DirectionFromChatPanelProps {
@@ -32,33 +31,26 @@ export function DirectionFromChatPanel({
     setIsSubmitting(true);
 
     try {
-      const supabase = createSupabaseBrowserClient();
+      const { saveSetekDirectionAction } = await import("@/lib/domains/student-record/actions/record");
       const schoolYear = new Date().getFullYear();
       const keywordList = keywords
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean);
 
-      // setek_direction_guides에 upsert (과목별)
-      const { error } = await supabase
-        .from("setek_direction_guides")
-        .upsert(
-          {
-            student_id: studentId,
-            subject_id: subjectId,
-            school_year: schoolYear,
-            direction: direction.trim(),
-            keywords: keywordList,
-            source: "consultant_chat",
-          },
-          { onConflict: "student_id,subject_id,school_year" },
-        );
+      const result = await saveSetekDirectionAction({
+        studentId,
+        subjectId,
+        schoolYear,
+        direction: direction.trim(),
+        keywords: keywordList,
+      });
 
-      if (!error) {
+      if (result.success) {
         setSubmitted(true);
       }
     } catch {
-      // silent
+      // 서버 에러 시 UI에서 별도 표시하지 않음 (submitted 유지 안됨으로 재시도 가능)
     } finally {
       setIsSubmitting(false);
     }

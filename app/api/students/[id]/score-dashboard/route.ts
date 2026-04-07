@@ -283,21 +283,17 @@ export async function GET(
       return schoolInfo?.school_property ?? null;
     };
 
-    const [termResult, revisionResult, mock, schoolProperty] = await Promise.all([
+    const { resolveStudentCurriculumId } = await import("@/lib/domains/student/resolveStudentCurriculum");
+
+    const [termResult, resolvedCurriculum, mock, schoolProperty] = await Promise.all([
       resolveTerm(),
-      supabase
-        .from("curriculum_revisions")
-        .select("id")
-        .eq("is_active", true)
-        .order("year", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+      resolveStudentCurriculumId(studentId),
       getMockAnalysis(effectiveTenantId, studentId),
       resolveSchoolProperty(),
     ]);
 
     const { effectiveTermId, grade, semester } = termResult;
-    const curriculumRevisionId = revisionResult.data?.id || null;
+    const curriculumRevisionId = resolvedCurriculum?.curriculumRevisionId || null;
 
     // Phase 3: 내신 분석 (termId 의존)
     const internal = await getInternalAnalysis(

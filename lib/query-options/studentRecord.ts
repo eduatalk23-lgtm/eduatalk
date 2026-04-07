@@ -35,6 +35,12 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "gradeAwarePipelineStatus", studentId] as const,
   edges: (studentId: string) =>
     [...studentRecordKeys.all, "edges", studentId] as const,
+  setekGuides: (studentId: string) =>
+    [...studentRecordKeys.all, "setekGuides", studentId] as const,
+  changcheGuides: (studentId: string) =>
+    [...studentRecordKeys.all, "changcheGuides", studentId] as const,
+  haengteukGuide: (studentId: string) =>
+    [...studentRecordKeys.all, "haengteukGuide", studentId] as const,
 };
 
 // ============================================

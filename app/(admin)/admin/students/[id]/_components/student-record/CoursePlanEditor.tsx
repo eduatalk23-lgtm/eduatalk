@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useStudentRecordContext } from "./StudentRecordContext";
 import {
   coursePlanTabQueryOptions,
   studentRecordKeys,
@@ -569,26 +570,20 @@ function SubjectSearchInput({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const { subjects: ctxSubjects } = useStudentRecordContext();
   const [results, setResults] = useState<{ id: string; name: string }[]>([]);
 
-  const handleChange = useCallback(async (v: string) => {
+  const handleChange = useCallback((v: string) => {
     onChange(v);
     if (v.length < 1) { setResults([]); return; }
 
-    // 클라이언트에서 직접 검색 (간단 구현)
-    try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
-      const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase
-        .from("subjects")
-        .select("id, name")
-        .ilike("name", `%${v}%`)
-        .limit(8);
-      setResults(data ?? []);
-    } catch {
-      setResults([]);
-    }
-  }, [onChange]);
+    // context의 subjects에서 클라이언트 필터링 (직접 Supabase 쿼리 제거)
+    const filtered = (ctxSubjects ?? [])
+      .filter((s) => s.name.toLowerCase().includes(v.toLowerCase()))
+      .slice(0, 8)
+      .map((s) => ({ id: s.id, name: s.name }));
+    setResults(filtered);
+  }, [onChange, ctxSubjects]);
 
   return (
     <div className="mt-2 rounded-md border border-blue-200 bg-white p-2 dark:border-blue-800 dark:bg-gray-900">

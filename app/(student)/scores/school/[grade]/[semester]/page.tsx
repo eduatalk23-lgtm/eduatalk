@@ -5,7 +5,8 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ScoreTypeTabs } from "../../../_components/ScoreTypeTabs";
 import { getInternalScores } from "@/lib/data/studentScores";
 import type { InternalScore } from "@/lib/data/studentScores";
-import { getSubjectHierarchyOptimized, getActiveCurriculumRevision } from "@/lib/data/subjects";
+import { getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import { SchoolScoresView } from "./_components/SchoolScoresView";
 import { getContainerClass } from "@/lib/constants/layout";
 
@@ -48,14 +49,14 @@ export default async function SchoolScoresPage({
     semester: parseInt(semester),
   });
 
-  // 활성화된 개정교육과정 조회
-  const activeCurriculum = await getActiveCurriculumRevision();
-  if (!activeCurriculum) {
-    throw new Error("활성화된 개정교육과정을 찾을 수 없습니다.");
+  // 학생 교육과정 resolve
+  const resolvedCurriculum = await resolveStudentCurriculumId(currentUser.userId);
+  if (!resolvedCurriculum) {
+    throw new Error("교육과정을 찾을 수 없습니다.");
   }
 
-  // 교과/과목/과목구분 데이터 조회 (개정교육과정별)
-  const subjectHierarchy = await getSubjectHierarchyOptimized(activeCurriculum.id);
+  // 교과/과목/과목구분 데이터 조회 (교육과정별)
+  const subjectHierarchy = await getSubjectHierarchyOptimized(resolvedCurriculum.curriculumRevisionId);
   const subjectGroupsWithSubjects = subjectHierarchy.subjectGroups;
   const subjectTypes = subjectHierarchy.subjectTypes;
 

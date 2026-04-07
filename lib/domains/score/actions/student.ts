@@ -18,7 +18,8 @@ import {
 } from "@/lib/data/studentScores";
 import { recordHistory } from "@/lib/history/record";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSubjectGroupById, getActiveCurriculumRevision } from "@/lib/data/subjects";
+import { getSubjectGroupById } from "@/lib/data/subjects";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import type { MockScore } from "@/lib/domains/score/types";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
@@ -117,10 +118,10 @@ async function _addMockScore(formData: FormData): Promise<void> {
   const examDate = String(formData.get("exam_date") ?? "").trim() || new Date().toISOString().split("T")[0];
   const examTitle = String(formData.get("exam_title") ?? "").trim() || examType;
 
-  const curriculumRevision = await getActiveCurriculumRevision();
-  if (!curriculumRevision) {
+  const resolvedCurriculum = await resolveStudentCurriculumId(user.userId);
+  if (!resolvedCurriculum) {
     throw new AppError(
-      "개정교육과정을 찾을 수 없습니다. 관리자에게 문의해주세요.",
+      "교육과정을 찾을 수 없습니다. 관리자에게 문의해주세요.",
       ErrorCode.NOT_FOUND,
       404,
       true
@@ -135,7 +136,7 @@ async function _addMockScore(formData: FormData): Promise<void> {
     grade,
     subject_group_id: subjectGroupId,
     subject_id: subjectId,
-    curriculum_revision_id: curriculumRevision.id,
+    curriculum_revision_id: resolvedCurriculum.curriculumRevisionId,
     raw_score: rawScore,
     standard_score: standardScore,
     percentile: percentile,

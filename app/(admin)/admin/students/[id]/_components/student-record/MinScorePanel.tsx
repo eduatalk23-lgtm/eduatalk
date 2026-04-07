@@ -8,6 +8,7 @@ import {
   runMinScoreSimulationAction,
 } from "@/lib/domains/student-record/actions/strategy";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
+import { mockScoreKeys } from "@/lib/query-options/mockScores";
 import { simulateMinScore } from "@/lib/domains/student-record";
 import type {
   MinScoreTarget,
@@ -345,7 +346,7 @@ function SimulationForm({
 
   // 최신 모의고사 자동 로드
   const { data: latestMock } = useQuery({
-    queryKey: ["mockScores", "latestGrades", studentId, tenantId],
+    queryKey: mockScoreKeys.latestGrades(studentId, tenantId),
     queryFn: async () => {
       const { fetchLatestMockGradesAction } = await import("@/lib/domains/score/actions/core");
       return fetchLatestMockGradesAction(studentId, tenantId);

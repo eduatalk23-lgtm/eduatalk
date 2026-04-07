@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/cn";
+import { useStudentRecordContext } from "./StudentRecordContext";
+import { internalGradesQueryOptions } from "@/lib/query-options/scores";
+import { invalidateInternalScoreQueries } from "@/lib/query-options/scoreInvalidation";
 
 import {
   adminDeleteInternalScore,
@@ -51,34 +54,13 @@ const B = "border border-gray-400 dark:border-gray-500";
 // ─── Main Component ─────────────────────────────────
 
 export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGrade, subjects, variant = "all" }: RecordGradesDisplayProps) {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const queryClient = useQueryClient();
+  const { curriculumRevisionId: ctxCurriculumRevisionId } = useStudentRecordContext();
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // studentGrade는 이미 해당 학년(1,2,3)이 전달됨
-  const queryKey = ["studentRecord", "grades", studentId, schoolYear];
-
-  const { data: scores, isLoading } = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (studentGrade < 1 || studentGrade > 3) return [];
-
-      const { data, error } = await supabase
-        .from("student_internal_scores")
-        .select(
-          "id, semester, grade, credit_hours, raw_score, avg_score, std_dev, rank_grade, achievement_level, total_students, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, subject_group:subject_group_id(name), subject:subject_id(name), subject_type:subject_type_id(name, is_achievement_only)",
-        )
-        .eq("student_id", studentId)
-        .eq("grade", studentGrade)
-        .order("semester")
-        .order("subject_group_id");
-
-      if (error) throw error;
-      return (data ?? []) as unknown as Score[];
-    },
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
-  });
+  const { data: scores, isLoading } = useQuery(
+    internalGradesQueryOptions(studentId, schoolYear, studentGrade)
+  );
 
   const deleteMutation = useMutation({
     mutationFn: async (scoreId: string) => {
@@ -86,7 +68,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       const result = await adminDeleteInternalScore(scoreId, studentId, tenantId);
       if (!result.success) throw new Error(result.error ?? "삭제 실패");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => invalidateInternalScoreQueries(queryClient, studentId, schoolYear, tenantId),
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -105,7 +87,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       if (!result.success) throw new Error(result.error ?? "수정 실패");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      invalidateInternalScoreQueries(queryClient, studentId, schoolYear, tenantId);
       setEditingId(null);
     },
   });
@@ -116,6 +98,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       const result = await adminCreateInternalScore(studentId, input.tenantId, {
         grade: studentGrade,
         semester: input.semester,
+        school_year: schoolYear,
         credit_hours: input.creditHours,
         raw_score: input.rawScore || null,
         avg_score: input.avgScore || null,
@@ -130,7 +113,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       if (!result.success) throw new Error(result.error ?? "추가 실패");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      invalidateInternalScoreQueries(queryClient, studentId, schoolYear, tenantId);
       setShowAddForm(false);
     },
   });
@@ -140,6 +123,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       <AddScoreForm
         tenantId={tenantId}
         subjects={subjects}
+        curriculumRevisionId={ctxCurriculumRevisionId}
         onSubmit={(input) => addMutation.mutate(input)}
         onCancel={() => setShowAddForm(false)}
         isPending={addMutation.isPending}
@@ -413,9 +397,10 @@ type AddScoreInput = {
   curriculumRevisionId: string;
 };
 
-function AddScoreForm({ tenantId, subjects, onSubmit, onCancel, isPending, error }: {
+function AddScoreForm({ tenantId, subjects, curriculumRevisionId, onSubmit, onCancel, isPending, error }: {
   tenantId: string;
   subjects: { id: string; name: string; subject_group?: { name: string } | null }[];
+  curriculumRevisionId?: string;
   onSubmit: (input: AddScoreInput) => void;
   onCancel: () => void;
   isPending: boolean;
@@ -433,7 +418,7 @@ function AddScoreForm({ tenantId, subjects, onSubmit, onCancel, isPending, error
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const handleSubmit = async () => {
-    if (!subjectId) return;
+    if (!subjectId || !curriculumRevisionId) return;
 
     // subject에서 FK 조회
     const { data: subj } = await supabase
@@ -443,16 +428,6 @@ function AddScoreForm({ tenantId, subjects, onSubmit, onCancel, isPending, error
       .single();
 
     if (!subj) return;
-
-    // curriculum_revision_id 조회
-    const { data: revisions } = await supabase
-      .from("curriculum_revisions")
-      .select("id")
-      .order("year", { ascending: false })
-      .limit(1);
-
-    const curriculumRevisionId = revisions?.[0]?.id;
-    if (!curriculumRevisionId) return;
 
     // subject_type_id fallback
     let subjectTypeId = subj.subject_type_id;

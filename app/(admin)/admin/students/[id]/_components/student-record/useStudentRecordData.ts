@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
 import {
   recordTabQueryOptions,
@@ -12,6 +12,8 @@ import {
   coursePlanTabQueryOptions,
   pipelineStatusQueryOptions,
 } from "@/lib/query-options/studentRecord";
+import { scorePanelDataQueryOptions } from "@/lib/query-options/scores";
+import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { computeWarnings } from "@/lib/domains/student-record/warnings/engine";
 import type { WarningCheckInput } from "@/lib/domains/student-record/warnings/engine";
 import type { ProgressCounts } from "./RecordSidebar";
@@ -83,11 +85,35 @@ export function useStudentRecordData({
   const { data: pipelineData } = useQuery(pipelineStatusQueryOptions(studentId));
   const isPipelineRunning = pipelineData?.status === "running";
 
+  // ─── 파이프라인 완료 시 관련 쿼리 자동 갱신 ──────────
+  const queryClient = useQueryClient();
+  const prevPipelineRunningRef = useRef(false);
+  useEffect(() => {
+    const wasRunning = prevPipelineRunningRef.current;
+    prevPipelineRunningRef.current = isPipelineRunning;
+
+    // running → not running 전환 시 = 파이프라인 완료
+    if (wasRunning && !isPipelineRunning) {
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTabPrefix(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.strategyTab(studentId, initialSchoolYear) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.storylineTab(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.edges(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.setekGuides(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.changcheGuides(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.haengteukGuide(studentId) });
+    }
+  }, [isPipelineRunning, queryClient, studentId, initialSchoolYear]);
+
   const { data: coursePlanData } = useQuery(coursePlanTabQueryOptions(studentId));
+
+  // ─── 성적 패널 데이터 (전략 탭 prefetch) ────────────
+  const { data: scorePanelData, isLoading: scorePanelLoading } = useQuery(
+    scorePanelDataQueryOptions(studentId),
+  );
 
   // ─── 세특 가이드 데이터 ──────────────────────────────
   const { data: setekGuidesRes } = useQuery({
-    queryKey: ["studentRecord", "setekGuides", studentId],
+    queryKey: studentRecordKeys.setekGuides(studentId),
     queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchSetekGuides(studentId)),
     staleTime: 60_000,
     enabled: !!studentId,
@@ -95,13 +121,13 @@ export function useStudentRecordData({
 
   // ─── 창체/행특 가이드 데이터 ─────────────────────────
   const { data: changcheGuidesRes } = useQuery({
-    queryKey: ["studentRecord", "changcheGuides", studentId],
+    queryKey: studentRecordKeys.changcheGuides(studentId),
     queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchChangcheGuides(studentId)),
     staleTime: 60_000,
     enabled: !!studentId,
   });
   const { data: haengteukGuideRes } = useQuery({
-    queryKey: ["studentRecord", "haengteukGuide", studentId],
+    queryKey: studentRecordKeys.haengteukGuide(studentId),
     queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchHaengteukGuide(studentId)),
     staleTime: 60_000,
     enabled: !!studentId,
@@ -191,9 +217,12 @@ export function useStudentRecordData({
       strategyData: strategyData ?? null,
       currentGrade: studentGrade,
       qualityScores: diagnosisData?.qualityScores,
+      targetMajorField: diagnosisData?.targetMajor ?? null,
+      curriculumYear: scorePanelData?.curriculumYear ?? undefined,
+      roadmapItems: storylineData?.roadmapItems,
     };
     return computeWarnings(input);
-  }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade]);
+  }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade, scorePanelData?.curriculumYear]);
 
   // ─── 진행률 계산 ─────────────────────────────────
   const progressCounts = useMemo<ProgressCounts>(() => {
@@ -336,6 +365,8 @@ export function useStudentRecordData({
     pipelineData,
     isPipelineRunning,
     coursePlanData,
+    scorePanelData,
+    scorePanelLoading,
     setekGuidesRes,
     // 변환된 가이드 아이템
     transformedSetekGuideItems,

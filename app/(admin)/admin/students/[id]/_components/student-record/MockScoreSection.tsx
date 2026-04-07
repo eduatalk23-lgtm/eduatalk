@@ -3,12 +3,18 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { Trash2 } from "lucide-react";
+import { Trash2, Check, X } from "lucide-react";
 import { SectionSkeleton } from "./StudentRecordHelpers";
+import { useStudentRecordContext } from "./StudentRecordContext";
+import { mockScoreListQueryOptions } from "@/lib/query-options/mockScores";
+import { invalidateMockScoreQueries } from "@/lib/query-options/scoreInvalidation";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 import type { ScorePanelData } from "@/lib/domains/score/actions/fetchScoreData";
+import type { MockScoreListItem } from "@/lib/domains/score/actions/core";
 
 const MockScoreInput = lazy(() => import("@/app/(student)/scores/input/_components/MockScoreInput"));
+
+type MockScoreRow = MockScoreListItem;
 
 interface MockScoreSectionProps {
   studentId: string;
@@ -20,18 +26,6 @@ interface MockScoreSectionProps {
   onSaveSuccess: () => void;
 }
 
-type MockScoreRow = {
-  id: string;
-  exam_date: string | null;
-  exam_title: string | null;
-  subject_name: string | null;
-  subject_group_name: string | null;
-  raw_score: number | null;
-  standard_score: number | null;
-  percentile: number | null;
-  grade_score: number | null;
-};
-
 export function MockScoreSection({
   studentId,
   tenantId,
@@ -42,41 +36,12 @@ export function MockScoreSection({
   onSaveSuccess,
 }: MockScoreSectionProps) {
   const queryClient = useQueryClient();
+  const { curriculumRevisionId } = useStudentRecordContext();
 
-  // 모의고사 목록 조회
-  const { data: mockScores, isLoading: listLoading } = useQuery({
-    queryKey: ["mockScores", "list", studentId, tenantId],
-    queryFn: async () => {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
-      const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase
-        .from("student_mock_scores")
-        .select(`
-          id, exam_date, exam_title, raw_score, standard_score, percentile, grade_score,
-          subject:subjects ( name, subject_group:subject_groups ( name ) )
-        `)
-        .eq("student_id", studentId)
-        .eq("tenant_id", tenantId)
-        .order("exam_date", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      return (data ?? []).map((row) => {
-        const subjectData = row.subject as { name?: string; subject_group?: { name?: string } } | null;
-        return {
-          id: row.id,
-          exam_date: row.exam_date,
-          exam_title: row.exam_title,
-          subject_name: subjectData?.name ?? null,
-          subject_group_name: subjectData?.subject_group?.name ?? null,
-          raw_score: row.raw_score,
-          standard_score: row.standard_score,
-          percentile: row.percentile,
-          grade_score: row.grade_score,
-        } satisfies MockScoreRow;
-      });
-    },
-    staleTime: 30_000,
-  });
+  // 모의고사 목록 조회 (서버 액션 경유)
+  const { data: mockScores, isLoading: listLoading } = useQuery(
+    mockScoreListQueryOptions(studentId, tenantId)
+  );
 
   // 삭제 mutation
   const deleteMutation = useMutation({
@@ -85,11 +50,21 @@ export function MockScoreSection({
       const result = await adminDeleteMockScore(scoreId, studentId, tenantId);
       if (!result.success) throw new Error(result.error ?? "삭제 실패");
     },
+    onSuccess: () => invalidateMockScoreQueries(queryClient, studentId, tenantId),
+  });
+
+  // 편집 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const editMutation = useMutation({
+    mutationFn: async ({ scoreId, updates }: { scoreId: string; updates: { raw_score?: number | null; standard_score?: number | null; percentile?: number | null; grade_score?: number | null } }) => {
+      const { adminUpdateMockScore } = await import("@/lib/domains/score/actions/core");
+      const result = await adminUpdateMockScore(scoreId, studentId, tenantId, updates);
+      if (!result.success) throw new Error(result.error ?? "수정 실패");
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mockScores", "list", studentId, tenantId] });
-      queryClient.invalidateQueries({ queryKey: ["mockScores", "latestGrades", studentId, tenantId] });
-      queryClient.invalidateQueries({ queryKey: ["mockScores", "latestScoreInput", studentId, tenantId] });
-      queryClient.invalidateQueries({ queryKey: ["scoreTrends", studentId, tenantId] });
+      invalidateMockScoreQueries(queryClient, studentId, tenantId);
+      setEditingId(null);
     },
   });
 
@@ -126,6 +101,10 @@ export function MockScoreSection({
                 if (confirm("이 성적을 삭제하시겠습니까?")) deleteMutation.mutate(id);
               }}
               isDeleting={deleteMutation.isPending}
+              editingId={editingId}
+              onEdit={setEditingId}
+              onSaveEdit={(scoreId, updates) => editMutation.mutate({ scoreId, updates })}
+              isEditPending={editMutation.isPending}
             />
           ))}
         </div>
@@ -152,9 +131,10 @@ export function MockScoreSection({
                 studentId={studentId}
                 tenantId={tenantId}
                 subjectGroups={scorePanelData.curriculumOptions?.[0]?.subjectGroups ?? scorePanelData.subjectGroups ?? []}
+                curriculumRevisionId={curriculumRevisionId}
                 onSuccess={() => {
                   onSaveSuccess();
-                  queryClient.invalidateQueries({ queryKey: ["mockScores", "list", studentId, tenantId] });
+                  invalidateMockScoreQueries(queryClient, studentId, tenantId);
                 }}
               />
             </div>
@@ -179,10 +159,18 @@ function ExamGroupCard({
   group,
   onDelete,
   isDeleting,
+  editingId,
+  onEdit,
+  onSaveEdit,
+  isEditPending,
 }: {
   group: { examDate: string; examTitle: string; scores: MockScoreRow[] };
   onDelete: (id: string) => void;
   isDeleting: boolean;
+  editingId: string | null;
+  onEdit: (id: string | null) => void;
+  onSaveEdit: (scoreId: string, updates: { raw_score?: number | null; standard_score?: number | null; percentile?: number | null; grade_score?: number | null }) => void;
+  isEditPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -223,44 +211,109 @@ function ExamGroupCard({
                 <th className="px-3 py-1.5 text-right font-medium text-[var(--text-secondary)]">표준점수</th>
                 <th className="px-3 py-1.5 text-right font-medium text-[var(--text-secondary)]">백분위</th>
                 <th className="px-3 py-1.5 text-right font-medium text-[var(--text-secondary)]">등급</th>
-                <th className="w-8 px-2 py-1.5" />
+                <th className="w-16 px-2 py-1.5" />
               </tr>
             </thead>
             <tbody>
-              {group.scores.map((s) => (
-                <tr key={s.id} className="border-t border-gray-50 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
-                  <td className="px-3 py-1.5 text-[var(--text-secondary)]">{s.subject_group_name ?? "-"}</td>
-                  <td className="px-3 py-1.5 text-[var(--text-primary)]">{s.subject_name ?? "-"}</td>
-                  <td className="px-3 py-1.5 text-right text-[var(--text-primary)]">{s.raw_score ?? "-"}</td>
-                  <td className="px-3 py-1.5 text-right text-[var(--text-primary)]">{s.standard_score ?? "-"}</td>
-                  <td className="px-3 py-1.5 text-right text-[var(--text-primary)]">{s.percentile ?? "-"}</td>
-                  <td className="px-3 py-1.5 text-right">
-                    {s.grade_score != null ? (
-                      <span className={cn(
-                        "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                        s.grade_score <= 2 ? "bg-blue-100 text-blue-700" : s.grade_score <= 4 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600",
-                      )}>
-                        {s.grade_score}등급
-                      </span>
-                    ) : "-"}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <button
-                      type="button"
-                      onClick={() => onDelete(s.id)}
-                      disabled={isDeleting}
-                      className="rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {group.scores.map((s) =>
+                editingId === s.id ? (
+                  <EditableMockScoreRow
+                    key={s.id}
+                    score={s}
+                    onSave={(updates) => onSaveEdit(s.id, updates)}
+                    onCancel={() => onEdit(null)}
+                    isPending={isEditPending}
+                  />
+                ) : (
+                  <tr
+                    key={s.id}
+                    className="group cursor-pointer border-t border-gray-50 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                    onClick={() => onEdit(s.id)}
+                  >
+                    <td className="px-3 py-1.5 text-[var(--text-secondary)]">{s.subject_group_name ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-[var(--text-primary)]">{s.subject_name ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-right text-[var(--text-primary)]">{s.raw_score ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-right text-[var(--text-primary)]">{s.standard_score ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-right text-[var(--text-primary)]">{s.percentile ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      {s.grade_score != null ? (
+                        <span className={cn(
+                          "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          s.grade_score <= 2 ? "bg-blue-100 text-blue-700" : s.grade_score <= 4 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600",
+                        )}>
+                          {s.grade_score}등급
+                        </span>
+                      ) : "-"}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                        disabled={isDeleting}
+                        className="rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         </div>
       )}
     </div>
+  );
+}
+
+// ─── 모의고사 인라인 편집 행 ─────────────────────
+
+function EditableMockScoreRow({
+  score,
+  onSave,
+  onCancel,
+  isPending,
+}: {
+  score: MockScoreRow;
+  onSave: (updates: { raw_score?: number | null; standard_score?: number | null; percentile?: number | null; grade_score?: number | null }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const [rawScore, setRawScore] = useState(score.raw_score?.toString() ?? "");
+  const [standardScore, setStandardScore] = useState(score.standard_score?.toString() ?? "");
+  const [percentile, setPercentile] = useState(score.percentile?.toString() ?? "");
+  const [gradeScore, setGradeScore] = useState(score.grade_score?.toString() ?? "");
+
+  const handleSave = () => {
+    onSave({
+      raw_score: rawScore ? Number(rawScore) : null,
+      standard_score: standardScore ? Number(standardScore) : null,
+      percentile: percentile ? Number(percentile) : null,
+      grade_score: gradeScore ? Number(gradeScore) : null,
+    });
+  };
+
+  const inputCls = "w-full rounded border border-indigo-300 bg-indigo-50/30 px-1 py-0.5 text-right text-xs dark:border-indigo-700 dark:bg-indigo-950/20";
+
+  return (
+    <tr className="border-t border-gray-50 bg-indigo-50/50 dark:border-gray-800 dark:bg-indigo-950/10">
+      <td className="px-3 py-1.5 text-[var(--text-secondary)]">{score.subject_group_name ?? "-"}</td>
+      <td className="px-3 py-1.5 text-[var(--text-primary)]">{score.subject_name ?? "-"}</td>
+      <td className="px-3 py-1.5"><input type="number" value={rawScore} onChange={(e) => setRawScore(e.target.value)} className={inputCls} /></td>
+      <td className="px-3 py-1.5"><input type="number" value={standardScore} onChange={(e) => setStandardScore(e.target.value)} className={inputCls} /></td>
+      <td className="px-3 py-1.5"><input type="number" value={percentile} onChange={(e) => setPercentile(e.target.value)} min={0} max={100} className={inputCls} /></td>
+      <td className="px-3 py-1.5"><input type="number" value={gradeScore} onChange={(e) => setGradeScore(e.target.value)} min={1} max={9} className={inputCls} /></td>
+      <td className="px-2 py-1.5">
+        <div className="flex gap-1">
+          <button type="button" onClick={handleSave} disabled={isPending} className="rounded bg-indigo-600 p-0.5 text-white hover:bg-indigo-700 disabled:opacity-50">
+            <Check className="h-3 w-3" />
+          </button>
+          <button type="button" onClick={onCancel} className="rounded bg-gray-200 p-0.5 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 

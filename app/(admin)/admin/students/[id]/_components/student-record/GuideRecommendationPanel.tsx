@@ -9,7 +9,6 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Search, Plus, Check, Loader2, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useStudentRecordContext } from "./StudentRecordContext";
 
 interface GuideRecommendationPanelProps {
@@ -39,76 +38,28 @@ export function GuideRecommendationPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
 
-  // 채팅방 메시지에서 관심사 태그 수집
+  // 채팅방 메시지에서 관심사 태그 수집 (서버 액션 경유)
   const { data: interestKeywords } = useQuery({
     queryKey: ["chat-interest-tags", roomId],
     queryFn: async () => {
-      const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase
-        .from("chat_messages")
-        .select("metadata, content")
-        .eq("room_id", roomId)
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (!data) return [];
-
-      const keywords: string[] = [];
-      for (const msg of data) {
-        const meta = msg.metadata as { interestTags?: Array<{ keyword: string }> } | null;
-        if (meta?.interestTags) {
-          keywords.push(...meta.interestTags.map((t) => t.keyword));
-        }
-      }
-
-      // 태그가 없으면 최근 메시지 내용에서 키워드 추출 (간단한 fallback)
-      if (keywords.length === 0 && data.length > 0) {
-        const recentTexts = data.slice(0, 10).map((m) => m.content).join(" ");
-        // 과목명 + 최근 대화 내용을 검색 쿼리로 활용
-        return [subjectName, recentTexts.slice(0, 100)];
-      }
-
-      return [...new Set(keywords)];
+      const { fetchChatInterestTagsAction } = await import("@/lib/domains/guide/actions/crud");
+      const result = await fetchChatInterestTagsAction(roomId, subjectName);
+      return result.success ? result.data : [];
     },
     staleTime: 30_000,
   });
 
-  // 키워드 기반 가이드 벡터 검색
+  // 키워드 기반 가이드 텍스트 검색 (서버 액션 경유)
   const effectiveQuery = searchQuery.trim() || (interestKeywords?.join(" ") ?? subjectName);
 
-  const { data: guides, isLoading } = useQuery({
-    queryKey: ["guide-recommendations", effectiveQuery, subjectId],
-    queryFn: async () => {
-      const supabase = createSupabaseBrowserClient();
-      // 서버 RPC로 벡터 검색 (search_guides는 이미 존재)
-      const { data } = await supabase.rpc("search_guides", {
-        query_embedding: null as unknown as string, // 서버에서 임베딩 생성 필요
-        subject_filter: subjectId,
-        match_count: 8,
-        similarity_threshold: 0.3,
-      });
-      return (data ?? []) as GuideResult[];
-    },
-    enabled: false, // 수동 트리거 또는 벡터 검색 대신 텍스트 검색 사용
-  });
-
-  // 텍스트 기반 가이드 검색 (벡터 검색 대안 — 클라이언트에서 직접 가능)
   const { data: textGuides, isLoading: isSearching } = useQuery({
     queryKey: ["guide-text-search", effectiveQuery],
     queryFn: async () => {
-      const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase
-        .from("exploration_guides")
-        .select("id, title, guide_type, book_title")
-        .eq("status", "approved")
-        .or(`title.ilike.%${effectiveQuery}%`)
-        .limit(8);
-      return (data ?? []).map((g) => ({
-        guide_id: g.id,
-        title: g.title,
-        guide_type: g.guide_type,
-        book_title: g.book_title,
+      const { searchGuidesForRecommendationAction } = await import("@/lib/domains/guide/actions/crud");
+      const result = await searchGuidesForRecommendationAction(effectiveQuery);
+      if (!result.success) return [];
+      return result.data.map((g) => ({
+        ...g,
         motivation: null,
         score: 0,
       })) as GuideResult[];
@@ -117,7 +68,7 @@ export function GuideRecommendationPanel({
     staleTime: 30_000,
   });
 
-  const displayGuides = guides ?? textGuides ?? [];
+  const displayGuides = textGuides ?? [];
 
   // 가이드 배정 mutation
   const assignMutation = useMutation({

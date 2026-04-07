@@ -14,6 +14,17 @@ interface StudentRecordContextValue {
   studentGrade: number;
   initialSchoolYear: number;
   schoolName?: string;
+  /** 교육과정 UUID (curriculum_revisions.id) */
+  curriculumRevisionId?: string;
+  /** 교육과정 연도 (2015 | 2022 등) */
+  curriculumYear?: number;
+  /** 교육과정별 과목 목록 (하위 컴포넌트에서 context로 접근 가능) */
+  subjects?: Array<{
+    id: string;
+    name: string;
+    subject_group?: { name: string } | null;
+    subject_type?: { name: string; is_achievement_only: boolean } | null;
+  }>;
   /** G1: 현재 활성 과목 ID (세특 레이어 탭 ↔ 사이드 패널 연결용) */
   activeSubjectId?: string | null;
   setActiveSubjectId?: (id: string | null) => void;

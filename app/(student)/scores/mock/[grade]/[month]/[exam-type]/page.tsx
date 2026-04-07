@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ScoreTypeTabs } from "../../../../_components/ScoreTypeTabs";
 import { getMockScores } from "@/lib/data/studentScores";
-import { getSubjectHierarchyOptimized, getActiveCurriculumRevision } from "@/lib/data/subjects";
+import { getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import { MockScoresView } from "./_components/MockScoresView";
 import { getContainerClass } from "@/lib/constants/layout";
 import { MOCK_EXAM_MONTHS, MOCK_EXAM_TYPES } from "@/lib/constants/mock-exam";
@@ -51,14 +52,14 @@ export default async function MockScoresPage({
   // ✅ getMockScores는 이미 student_mock_scores 테이블을 사용합니다.
   const scores = await getMockScores(currentUser.userId, tenantContext.tenantId);
 
-  // 활성화된 개정교육과정 조회
-  const activeCurriculum = await getActiveCurriculumRevision();
-  if (!activeCurriculum) {
-    throw new Error("활성화된 개정교육과정을 찾을 수 없습니다.");
+  // 학생 교육과정 resolve
+  const resolvedCurriculum = await resolveStudentCurriculumId(currentUser.userId);
+  if (!resolvedCurriculum) {
+    throw new Error("교육과정을 찾을 수 없습니다.");
   }
 
-  // 교과/과목/과목구분 데이터 조회 (개정교육과정별)
-  const subjectHierarchy = await getSubjectHierarchyOptimized(activeCurriculum.id);
+  // 교과/과목/과목구분 데이터 조회 (교육과정별)
+  const subjectHierarchy = await getSubjectHierarchyOptimized(resolvedCurriculum.curriculumRevisionId);
   const subjectGroupsWithSubjects = subjectHierarchy.subjectGroups;
   const subjectTypes = subjectHierarchy.subjectTypes;
 

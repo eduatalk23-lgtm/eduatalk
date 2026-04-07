@@ -12,6 +12,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { calculateSchoolYear } from "@/lib/data/studentTerms";
 import {
   createInternalScore as createInternalScoreData,
@@ -609,14 +610,14 @@ async function _createMockScoresBatch(formData: FormData) {
     throw new AppError("필수 필드가 누락되었습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  // curriculum_revision_id가 없으면 활성 교육과정에서 자동 조회
+  // curriculum_revision_id가 없으면 학생의 교육과정 설정에서 resolve
   if (!curriculum_revision_id) {
-    const { getActiveCurriculumRevision } = await import("@/lib/data/subjects");
-    const activeCurriculum = await getActiveCurriculumRevision();
-    if (!activeCurriculum) {
-      throw new AppError("활성 교육과정을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    const { resolveStudentCurriculumId } = await import("@/lib/domains/student/resolveStudentCurriculum");
+    const resolved = await resolveStudentCurriculumId(student_id);
+    if (!resolved) {
+      throw new AppError("교육과정을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
     }
-    curriculum_revision_id = activeCurriculum.id;
+    curriculum_revision_id = resolved.curriculumRevisionId;
   }
 
   // lib/data/studentScores.ts의 createMockScoresBatch 사용
@@ -689,25 +690,26 @@ export async function createMockScoreAction(
     getFormString(formData, "exam_type") ||
     "모의고사";
 
-  // curriculum_revision_id 가져오기
-  const { getActiveCurriculumRevision } = await import("@/lib/data/subjects");
-  const curriculumRevision = await getActiveCurriculumRevision();
-  if (!curriculumRevision) {
+  // curriculum_revision_id: 학생 교육과정 설정에서 resolve
+  const studentId = getFormString(formData, "student_id") || user.userId;
+  const { resolveStudentCurriculumId } = await import("@/lib/domains/student/resolveStudentCurriculum");
+  const resolvedCurriculum = await resolveStudentCurriculumId(studentId);
+  if (!resolvedCurriculum) {
     return {
       success: false,
-      error: "개정교육과정을 찾을 수 없습니다. 관리자에게 문의해주세요.",
+      error: "교육과정을 찾을 수 없습니다. 관리자에게 문의해주세요.",
     };
   }
 
   const input = {
     tenant_id: getFormString(formData, "tenant_id") || user.tenantId || "",
-    student_id: getFormString(formData, "student_id") || user.userId,
+    student_id: studentId,
     exam_date: examDate,
     exam_title: examTitle,
     grade: getFormInt(formData, "grade") || 1,
     subject_id: getFormUuid(formData, "subject_id") || "",
     subject_group_id: getFormUuid(formData, "subject_group_id") || "",
-    curriculum_revision_id: curriculumRevision.id,
+    curriculum_revision_id: resolvedCurriculum.curriculumRevisionId,
     raw_score: getFormInt(formData, "raw_score"),
     standard_score: getFormInt(formData, "standard_score"),
     percentile: getFormInt(formData, "percentile"),
@@ -811,10 +813,7 @@ export async function adminDeleteInternalScore(
   studentId: string,
   tenantId: string
 ): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
+  await requireAdminOrConsultant();
 
   const result = await deleteInternalScoreData(scoreId, studentId, tenantId);
 
@@ -836,10 +835,7 @@ export async function adminDeleteMockScore(
   studentId: string,
   tenantId: string
 ): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
+  await requireAdminOrConsultant();
 
   const result = await deleteMockScoreData(scoreId, studentId, tenantId);
 
@@ -849,6 +845,38 @@ export async function adminDeleteMockScore(
 
   triggerRiskAnalysis(studentId, tenantId);
   revalidatePath("/scores");
+  revalidatePath(`/admin/students/${studentId}`);
+  return { success: true };
+}
+
+// ============================================
+// Admin용 모의고사 성적 편집 (생기부 인라인 편집용)
+// ============================================
+
+export interface AdminMockScoreUpdateInput {
+  raw_score?: number | null;
+  standard_score?: number | null;
+  percentile?: number | null;
+  grade_score?: number | null;
+}
+
+/**
+ * Admin용 모의고사 성적 수정 (JSON 기반)
+ * 생기부 MockScoreSection 인라인 편집에서 사용.
+ */
+export async function adminUpdateMockScore(
+  scoreId: string,
+  studentId: string,
+  tenantId: string,
+  updates: AdminMockScoreUpdateInput,
+): Promise<ScoreActionResult> {
+  await requireAdminOrConsultant();
+
+  const { updateMockScore } = await import("@/lib/data/studentScores");
+  const result = await updateMockScore(scoreId, studentId, tenantId, updates);
+  if (!result.success) return { success: false, error: result.error ?? "수정 실패" };
+
+  triggerRiskAnalysis(studentId, tenantId);
   revalidatePath(`/admin/students/${studentId}`);
   return { success: true };
 }
@@ -869,6 +897,7 @@ export interface AdminScoreUpdateInput {
 /**
  * Admin용 내신 성적 수정 (JSON 기반, FormData 아님)
  * 생기부 RecordGradesDisplay 인라인 편집에서 사용.
+ * 산출값(estimated_percentile, adjusted_grade 등)을 자동 재계산합니다.
  */
 export async function adminUpdateInternalScore(
   scoreId: string,
@@ -876,10 +905,32 @@ export async function adminUpdateInternalScore(
   tenantId: string,
   updates: AdminScoreUpdateInput,
 ): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { success: false, error: "로그인이 필요합니다." };
+  const { userId } = await requireAdminOrConsultant();
 
-  const result = await updateInternalScoreData(scoreId, user.userId, tenantId, updates);
+  // 기존 성적 조회 (산출값 재계산 위해 전체 필드 필요)
+  const supabase = await createSupabaseServerClient();
+  const { data: existing } = await supabase
+    .from("student_internal_scores")
+    .select("raw_score, avg_score, std_dev, rank_grade, achievement_level, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, total_students, class_rank, subject_type_id, curriculum_revision_id")
+    .eq("id", scoreId)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .single();
+
+  if (!existing) return { success: false, error: "성적을 찾을 수 없습니다." };
+
+  // 업데이트 필드를 merge한 후 산출값 재계산
+  const merged = { ...existing, ...updates };
+  const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+    existing.curriculum_revision_id,
+    existing.subject_type_id ? [existing.subject_type_id] : [],
+  );
+  const computed = computeFieldsForScore(merged, subjectTypeMap, curriculumYear);
+
+  const result = await updateInternalScoreData(scoreId, userId, tenantId, {
+    ...updates,
+    ...computed,
+  });
   if (!result.success) return { success: false, error: result.error ?? "수정 실패" };
 
   triggerRiskAnalysis(studentId, tenantId);
@@ -890,6 +941,7 @@ export async function adminUpdateInternalScore(
 export interface AdminScoreCreateInput {
   grade: number;
   semester: number;
+  school_year: number;
   credit_hours: number;
   raw_score?: number | null;
   avg_score?: number | null;
@@ -911,8 +963,7 @@ export async function adminCreateInternalScore(
   tenantId: string,
   input: AdminScoreCreateInput,
 ): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { success: false, error: "로그인이 필요합니다." };
+  await requireAdminOrConsultant();
 
   const result = await createInternalScoreData({
     student_id: studentId,
@@ -1331,4 +1382,107 @@ export async function fetchLatestMockGradesAction(
     examTitle: latest.exam_title ?? "",
     grades,
   };
+}
+
+// ============================================
+// 생기부 UI용 성적 조회 (직접 Supabase 쿼리 대체)
+// ============================================
+
+export type InternalScoreForDisplay = {
+  id: string;
+  semester: number;
+  grade: number;
+  credit_hours: number;
+  raw_score: number | null;
+  avg_score: number | null;
+  std_dev: number | null;
+  rank_grade: number | null;
+  achievement_level: string | null;
+  total_students: number | null;
+  achievement_ratio_a: number | null;
+  achievement_ratio_b: number | null;
+  achievement_ratio_c: number | null;
+  achievement_ratio_d: number | null;
+  achievement_ratio_e: number | null;
+  subject_group: { name: string } | null;
+  subject: { name: string } | null;
+  subject_type: { name: string; is_achievement_only: boolean } | null;
+};
+
+/**
+ * 내신 성적 학년별 조회 (생기부 RecordGradesDisplay용).
+ * 클라이언트 Supabase 쿼리를 대체하는 서버 액션.
+ */
+export async function fetchInternalScoresForGrade(
+  studentId: string,
+  studentGrade: number,
+): Promise<InternalScoreForDisplay[]> {
+  const { userId } = await getCurrentUser();
+  if (!userId) return [];
+  if (studentGrade < 1 || studentGrade > 3) return [];
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_internal_scores")
+    .select(
+      "id, semester, grade, credit_hours, raw_score, avg_score, std_dev, rank_grade, achievement_level, total_students, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, subject_group:subject_group_id(name), subject:subject_id(name), subject_type:subject_type_id(name, is_achievement_only)",
+    )
+    .eq("student_id", studentId)
+    .eq("grade", studentGrade)
+    .order("semester")
+    .order("subject_group_id");
+
+  if (error) throw error;
+  return (data ?? []) as unknown as InternalScoreForDisplay[];
+}
+
+export type MockScoreListItem = {
+  id: string;
+  exam_date: string | null;
+  exam_title: string | null;
+  subject_name: string | null;
+  subject_group_name: string | null;
+  raw_score: number | null;
+  standard_score: number | null;
+  percentile: number | null;
+  grade_score: number | null;
+};
+
+/**
+ * 모의고사 성적 목록 조회 (생기부 MockScoreSection용).
+ * 클라이언트 Supabase 쿼리를 대체하는 서버 액션.
+ */
+export async function fetchMockScoresList(
+  studentId: string,
+  tenantId: string,
+): Promise<MockScoreListItem[]> {
+  const { userId } = await getCurrentUser();
+  if (!userId) return [];
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("student_mock_scores")
+    .select(`
+      id, exam_date, exam_title, raw_score, standard_score, percentile, grade_score,
+      subject:subjects ( name, subject_group:subject_groups ( name ) )
+    `)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .order("exam_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((row) => {
+    const subjectData = row.subject as { name?: string; subject_group?: { name?: string } } | null;
+    return {
+      id: row.id,
+      exam_date: row.exam_date,
+      exam_title: row.exam_title,
+      subject_name: subjectData?.name ?? null,
+      subject_group_name: subjectData?.subject_group?.name ?? null,
+      raw_score: row.raw_score,
+      standard_score: row.standard_score,
+      percentile: row.percentile,
+      grade_score: row.grade_score,
+    };
+  });
 }

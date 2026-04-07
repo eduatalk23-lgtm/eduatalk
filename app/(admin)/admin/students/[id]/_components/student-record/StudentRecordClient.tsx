@@ -58,6 +58,8 @@ type StudentRecordClientProps = {
   schoolName?: string;
   studentClass?: string;
   studentNumber?: string;
+  curriculumRevisionId?: string;
+  curriculumYear?: number;
 };
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────
@@ -72,6 +74,8 @@ export function StudentRecordClient({
   schoolName,
   studentClass,
   studentNumber,
+  curriculumRevisionId,
+  curriculumYear,
 }: StudentRecordClientProps) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"all" | number>("all");
@@ -100,6 +104,8 @@ export function StudentRecordClient({
     pipelineData,
     isPipelineRunning,
     coursePlanData,
+    scorePanelData,
+    scorePanelLoading,
     setekGuidesRes,
     transformedSetekGuideItems,
     transformedChangcheGuideItems,
@@ -372,7 +378,7 @@ export function StudentRecordClient({
       })();
 
   return (
-    <StudentRecordProvider value={{ studentId, tenantId, studentName, studentGrade, initialSchoolYear, schoolName, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName, scrollToSection, hasTargetMajor: !!diagnosisData?.targetMajor }}>
+    <StudentRecordProvider value={{ studentId, tenantId, studentName, studentGrade, initialSchoolYear, schoolName, curriculumRevisionId, curriculumYear, subjects, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName, scrollToSection, hasTargetMajor: !!diagnosisData?.targetMajor }}>
     <SidePanelProvider storageKey="recordSidePanelApp">
     <AgentUIBridgeProvider value={agentUIBridgeValue}>
     <TopBarCenterSlotPortal>
@@ -661,6 +667,8 @@ export function StudentRecordClient({
             anySuppLoading={anySuppLoading}
             mergedApplications={{ applications: mergedSupplementary.applications, interviewConflicts: mergedSupplementary.interviewConflicts }}
             allRecordSummaries={allRecordSummaries}
+            scorePanelData={scorePanelData}
+            scorePanelLoading={scorePanelLoading}
           />
 
           <div className="h-24" />

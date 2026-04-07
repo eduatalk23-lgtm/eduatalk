@@ -22,6 +22,8 @@ type MockScoreInputProps = {
       subject_type?: string | null;
     }>;
   })[];
+  /** 교육과정 UUID. 미지정 시 서버에서 학생 설정 기반 자동 resolve. */
+  curriculumRevisionId?: string;
   /** 저장 성공 시 콜백. 미지정 시 기본 redirect 동작. */
   onSuccess?: () => void;
 };
@@ -34,6 +36,7 @@ export default function MockScoreInput({
   studentId,
   tenantId,
   subjectGroups,
+  curriculumRevisionId,
   onSuccess,
 }: MockScoreInputProps) {
   const router = useRouter();
@@ -134,6 +137,7 @@ export default function MockScoreInput({
       const formData = new FormData();
       formData.append("student_id", studentId);
       formData.append("tenant_id", tenantId);
+      if (curriculumRevisionId) formData.append("curriculum_revision_id", curriculumRevisionId);
       formData.append("scores", JSON.stringify([
         (() => {
           const { id, ...scoreData } = row;
@@ -246,6 +250,7 @@ export default function MockScoreInput({
         const formData = new FormData();
         formData.append("student_id", studentId);
         formData.append("tenant_id", tenantId);
+        if (curriculumRevisionId) formData.append("curriculum_revision_id", curriculumRevisionId);
         formData.append("scores", JSON.stringify(
           scores.map((s) => {
             const { id, ...scoreData } = s;

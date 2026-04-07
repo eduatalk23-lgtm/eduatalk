@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import { StudentRecordClient } from "./StudentRecordClient";
 
 type StudentRecordSectionProps = {
@@ -33,6 +34,9 @@ export async function StudentRecordSection({ studentId, studentName }: StudentRe
 
   const initialSchoolYear = calculateSchoolYear();
 
+  // 교육과정 문자열 → UUID resolve
+  const curriculumInfo = await resolveStudentCurriculumId(studentId);
+
   return (
     <StudentRecordClient
       studentId={studentId}
@@ -44,6 +48,8 @@ export async function StudentRecordSection({ studentId, studentName }: StudentRe
       schoolName={student.school_name ?? undefined}
       studentClass={student.class ?? undefined}
       studentNumber={student.student_number ?? undefined}
+      curriculumRevisionId={curriculumInfo?.curriculumRevisionId}
+      curriculumYear={curriculumInfo?.curriculumYear}
     />
   );
 }

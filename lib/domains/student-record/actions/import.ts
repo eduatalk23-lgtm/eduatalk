@@ -156,16 +156,13 @@ async function buildGradeMapperContext(
     });
   }
 
-  // 기본 curriculum_revision_id (최신 개정 사용)
-  const { data: revisions } = await supabase
-    .from("curriculum_revisions")
-    .select("id, year")
-    .order("year", { ascending: false })
-    .limit(1);
+  // 학생 교육과정 설정 기반 resolve (기존: 최신 개정 하드코딩)
+  const { resolveStudentCurriculumId } = await import("@/lib/domains/student/resolveStudentCurriculum");
+  const resolvedCurriculum = await resolveStudentCurriculumId(baseCtx.studentId);
+  if (!resolvedCurriculum) return undefined;
 
-  const curriculumRevisionId = revisions?.[0]?.id;
-  const curriculumYear = (revisions?.[0] as { year?: number } | undefined)?.year;
-  if (!curriculumRevisionId) return undefined;
+  const curriculumRevisionId = resolvedCurriculum.curriculumRevisionId;
+  const curriculumYear = resolvedCurriculum.curriculumYear;
 
   // 기본 subject_type_id (첫 번째 타입)
   const { data: types } = await supabase

@@ -1049,6 +1049,16 @@ export async function updateStudentInfo(
           } catch { /* fire-and-forget */ }
         })();
       }
+
+      // curriculum_revision 변경 시 분석 결과 stale 처리 (fire-and-forget)
+      if (payload.career?.curriculum_revision !== undefined) {
+        void (async () => {
+          try {
+            const { onCurriculumRevisionChanged } = await import("@/lib/domains/student-record/stale-detection");
+            await onCurriculumRevisionChanged(studentId, tenantContext.tenantId!);
+          } catch { /* fire-and-forget */ }
+        })();
+      }
     }
   }
 

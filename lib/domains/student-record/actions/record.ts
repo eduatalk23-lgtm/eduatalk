@@ -240,3 +240,45 @@ export async function saveAttendanceAction(
     return createErrorResponse("출결 저장 중 오류가 발생했습니다.");
   }
 }
+
+/**
+ * 세특 방향 설정 저장 (논의 패널에서 사용)
+ */
+export async function saveSetekDirectionAction(input: {
+  studentId: string;
+  subjectId: string;
+  schoolYear: number;
+  direction: string;
+  keywords: string[];
+}): Promise<ActionResponse<{ id: string }>> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const supabase = createSupabaseAdminClient();
+
+    const { data, error } = await supabase
+      .from("setek_direction_guides")
+      .upsert(
+        {
+          student_id: input.studentId,
+          subject_id: input.subjectId,
+          school_year: input.schoolYear,
+          direction: input.direction,
+          keywords: input.keywords,
+          source: "consultant_chat",
+        },
+        { onConflict: "student_id,subject_id,school_year" },
+      )
+      .select("id")
+      .single();
+
+    if (error) {
+      logActionWarn({ ...LOG_CTX, action: "saveSetekDirectionAction" }, error.message);
+      return createErrorResponse("방향 설정 저장에 실패했습니다.");
+    }
+    return createSuccessResponse({ id: data.id });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "saveSetekDirectionAction" }, error);
+    return createErrorResponse("방향 설정 저장 중 오류가 발생했습니다.");
+  }
+}

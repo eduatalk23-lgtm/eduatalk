@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
+import { mockScoreKeys } from "@/lib/query-options/mockScores";
 import { BarChart3 } from "lucide-react";
 import {
   PLACEMENT_LABELS,
@@ -45,7 +46,7 @@ export function PlacementDashboard({ studentId, tenantId }: PlacementDashboardPr
 
   // 최신 모의고사 자동 로드
   const { data: latestMockInput } = useQuery({
-    queryKey: ["mockScores", "latestScoreInput", studentId, tenantId],
+    queryKey: mockScoreKeys.latestScoreInput(studentId, tenantId),
     queryFn: async () => {
       if (!tenantId) return null;
       const { fetchLatestMockScoreInputAction } = await import("@/lib/domains/score/actions/core");

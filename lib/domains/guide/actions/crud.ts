@@ -680,3 +680,83 @@ export async function deleteTopicAction(
     return createErrorResponse("주제 삭제에 실패했습니다.");
   }
 }
+
+// ============================================
+// 가이드 추천 패널용 서버 액션
+// ============================================
+
+/**
+ * 채팅방 메시지에서 관심사 키워드 추출
+ */
+export async function fetchChatInterestTagsAction(
+  roomId: string,
+  subjectName: string,
+): Promise<ActionResponse<string[]>> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { data } = await supabase
+      .from("chat_messages")
+      .select("metadata, content")
+      .eq("room_id", roomId)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!data) return createSuccessResponse([]);
+
+    const keywords: string[] = [];
+    for (const msg of data) {
+      const meta = msg.metadata as { interestTags?: Array<{ keyword: string }> } | null;
+      if (meta?.interestTags) {
+        keywords.push(...meta.interestTags.map((t) => t.keyword));
+      }
+    }
+
+    if (keywords.length === 0 && data.length > 0) {
+      const recentTexts = data.slice(0, 10).map((m) => m.content).join(" ");
+      return createSuccessResponse([subjectName, recentTexts.slice(0, 100)]);
+    }
+
+    return createSuccessResponse([...new Set(keywords)]);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchChatInterestTags" }, error, { roomId });
+    return createErrorResponse("관심사 태그 추출에 실패했습니다.");
+  }
+}
+
+/**
+ * 가이드 텍스트 검색 (추천 패널용)
+ */
+export async function searchGuidesForRecommendationAction(
+  query: string,
+): Promise<ActionResponse<Array<{ guide_id: string; title: string; guide_type: string; book_title: string | null }>>> {
+  try {
+    await requireAdminOrConsultant();
+    if (query.trim().length < 2) return createSuccessResponse([]);
+
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { data } = await supabase
+      .from("exploration_guides")
+      .select("id, title, guide_type, book_title")
+      .eq("status", "approved")
+      .or(`title.ilike.%${query}%`)
+      .limit(8);
+
+    return createSuccessResponse(
+      (data ?? []).map((g) => ({
+        guide_id: g.id,
+        title: g.title,
+        guide_type: g.guide_type,
+        book_title: g.book_title,
+      })),
+    );
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "searchGuidesForRecommendation" }, error, { query });
+    return createErrorResponse("가이드 검색에 실패했습니다.");
+  }
+}

@@ -74,12 +74,11 @@ export async function findInternalScores(
  * student_terms를 조회/생성하여 student_term_id를 세팅합니다.
  */
 export async function insertInternalScore(
-  input: CreateInternalScoreInput & { school_year?: number }
+  input: CreateInternalScoreInput & { school_year: number }
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
 
-  // school_year 계산 (없으면 현재 날짜 기준)
-  const school_year = input.school_year ?? calculateSchoolYear();
+  const school_year = input.school_year;
 
   // student_term 조회 또는 생성
   const student_term_id = await getOrCreateStudentTerm({

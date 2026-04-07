@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
+import { scoreTrendsQueryOptions } from "@/lib/query-options/scores";
 import { cn } from "@/lib/cn";
 
 type ScoreTrendChartsProps = {
@@ -20,14 +21,7 @@ export function ScoreTrendCharts({ studentId, tenantId }: ScoreTrendChartsProps)
   const { recharts, loading: chartsLoading } = useRecharts();
   const [showSubjects, setShowSubjects] = useState<Set<string>>(new Set());
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["scoreTrends", studentId, tenantId],
-    queryFn: async () => {
-      const { fetchScoreTrendsAction } = await import("@/lib/domains/score/actions/core");
-      return fetchScoreTrendsAction(studentId, tenantId);
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data, isLoading } = useQuery(scoreTrendsQueryOptions(studentId, tenantId));
 
   if (isLoading || chartsLoading || !recharts) {
     return <ChartLoadingSkeleton height={160} />;

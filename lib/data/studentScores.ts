@@ -235,7 +235,7 @@ export async function createInternalScore(score: {
   achievement_ratio_d?: number | null;
   achievement_ratio_e?: number | null;
   class_rank?: number | null;
-  school_year?: number;
+  school_year: number;
   estimated_percentile?: number | null;
   estimated_std_dev?: number | null;
   converted_grade_9?: number | null;
@@ -243,8 +243,7 @@ export async function createInternalScore(score: {
 }): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  // school_year 계산 (없으면 현재 날짜 기준)
-  const school_year = score.school_year ?? calculateSchoolYear();
+  const school_year = score.school_year;
 
   // student_term 조회 또는 생성
   let student_term_id: string;
@@ -667,7 +666,7 @@ export async function createInternalScoresBatch(
     tenant_id: string;
     student_id: string;
     curriculum_revision_id: string;
-    school_year?: number;
+    school_year: number;
   }
 ): Promise<{ success: boolean; scores?: InternalScore[]; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -679,7 +678,7 @@ export async function createInternalScoresBatch(
     };
   }
 
-  const school_year = commonFields.school_year ?? calculateSchoolYear();
+  const school_year = commonFields.school_year;
 
   // 각 성적별로 student_term_id 조회/생성 및 저장
   const insertedScores: InternalScoreInsert[] = [];

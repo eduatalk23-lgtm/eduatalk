@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateMockScoreQueries } from "@/lib/query-options/scoreInvalidation";
 import type { StrategyTabData } from "@/lib/domains/student-record";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { StageDivider, StrategySection, SectionSkeleton } from "./StudentRecordHelpers";
@@ -35,6 +36,8 @@ export type StrategyStageContentProps = {
   anySuppLoading: boolean;
   mergedApplications: MergedApplications;
   allRecordSummaries: RecordSummary[];
+  scorePanelData?: import("@/lib/domains/score/actions/fetchScoreData").ScorePanelData | null;
+  scorePanelLoading?: boolean;
 };
 
 // ─── Component ────────────────────────────────────────
@@ -45,31 +48,17 @@ export function StrategyStageContent({
   anySuppLoading,
   mergedApplications,
   allRecordSummaries,
+  scorePanelData,
+  scorePanelLoading = false,
 }: StrategyStageContentProps) {
   const { studentId, tenantId, initialSchoolYear } = useStudentRecordContext();
   const queryClient = useQueryClient();
   const [showMockInput, setShowMockInput] = useState(false);
 
-  // 모의고사 입력에 필요한 교과 계층 데이터
-  const { data: scorePanelData, isLoading: scorePanelLoading } = useQuery({
-    queryKey: ["scorePanelData", studentId],
-    queryFn: async () => {
-      const { fetchScorePanelData } = await import("@/lib/domains/score/actions/fetchScoreData");
-      return fetchScorePanelData(studentId);
-    },
-    staleTime: 5 * 60_000,
-    enabled: showMockInput,
-  });
-
   const handleMockSaveSuccess = useCallback(() => {
-    // 모의고사 관련 쿼리 모두 갱신
-    queryClient.invalidateQueries({ queryKey: ["mockScores", "list", studentId, tenantId] });
-    queryClient.invalidateQueries({ queryKey: ["mockScores", "latestGrades", studentId, tenantId] });
-    queryClient.invalidateQueries({ queryKey: ["mockScores", "latestScoreInput", studentId, tenantId] });
-    queryClient.invalidateQueries({ queryKey: ["scoreTrends"] });
-    queryClient.invalidateQueries({ queryKey: ["scorePanelData"] });
+    invalidateMockScoreQueries(queryClient, studentId, tenantId);
     setShowMockInput(false);
-  }, [queryClient]);
+  }, [queryClient, studentId, tenantId]);
 
   return (
     <>
