@@ -225,6 +225,23 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
       }
     }
 
+    // ── 설계 모드 예상 분석 ──
+    if (data.projectedAnalysis) {
+      const pa = data.projectedAnalysis;
+      children.push(new Paragraph({ text: "설계 모드 예상 분석", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: "⚠ 아래는 희망 진로 및 학교권 기준 예상이며 실제와 다를 수 있습니다.", size: 18, color: "6b7280", italics: true })], spacing: { after: 60 } }));
+      children.push(new Paragraph({ children: [
+        new TextRun({ text: `목표 학교권: ${pa.tierLabel} · 적용 레벨: ${pa.levelLabel}`, size: 22, bold: true }),
+      ], spacing: { after: 40 } }));
+      if (pa.gap !== 0) {
+        const gapText = pa.gap > 0 ? `목표 대비 ${pa.gap}단계 부족` : `목표 대비 ${Math.abs(pa.gap)}단계 초과`;
+        children.push(new Paragraph({ children: [new TextRun({ text: gapText, size: 20, color: pa.gap > 0 ? "d97706" : "16a34a" })], spacing: { after: 40 } }));
+      } else {
+        children.push(new Paragraph({ children: [new TextRun({ text: "목표와 일치", size: 20, color: "16a34a" })], spacing: { after: 40 } }));
+      }
+      children.push(new Paragraph({ children: [new TextRun({ text: `대상 학년: ${pa.designGrades.join(", ")}학년 · 예상 역량 ${pa.projectedCompetencyCount}개 · 예상 연결 ${pa.projectedEdgeCount}개`, size: 20 })], spacing: { after: 100 } }));
+    }
+
     // 활동 요약서 섹션별 렌더링
     for (const sec of data.sections) {
       const label = SECTION_LABELS[sec.sectionType] ?? sec.title;

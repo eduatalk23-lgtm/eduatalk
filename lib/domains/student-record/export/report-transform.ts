@@ -177,6 +177,16 @@ export interface ReportExportData {
     issues: string[];
     feedback: string | null;
   }> | null;
+
+  /** 설계 모드 예상 분석 (P7/P8 가안 기반) */
+  projectedAnalysis?: {
+    designGrades: number[];
+    levelLabel: string;
+    gap: number;
+    tierLabel: string;
+    projectedCompetencyCount: number;
+    projectedEdgeCount: number;
+  } | null;
 }
 
 // ============================================
@@ -413,6 +423,15 @@ export function buildReportExportData(data: ReportData): ReportExportData {
           feedback: q.feedback,
         }))
       : null,
+
+    projectedAnalysis: data.projectedData ? {
+      designGrades: data.projectedData.designGrades,
+      levelLabel: data.projectedData.leveling?.levelLabel ?? "",
+      gap: data.projectedData.leveling?.gap ?? 0,
+      tierLabel: data.projectedData.leveling?.tierLabel ?? "",
+      projectedCompetencyCount: data.projectedData.competencyScores.length,
+      projectedEdgeCount: data.projectedData.edges.length,
+    } : null,
   };
 }
 

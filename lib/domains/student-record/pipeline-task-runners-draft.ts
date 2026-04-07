@@ -18,6 +18,7 @@ import {
   CHANGCHE_DRAFT_SYSTEM_PROMPT,
   HAENGTEUK_DRAFT_SYSTEM_PROMPT,
 } from "./llm/prompts/draft-system-prompts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LOG_CTX = { domain: "student-record", action: "draftGeneration" };
 
@@ -28,8 +29,7 @@ const LOG_CTX = { domain: "student-record", action: "draftGeneration" };
  * draft generation 내부 전용. 파이프라인 컨텍스트의 supabase 인스턴스를 그대로 받아 재사용.
  */
 async function fetchSubjectNames(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   subjectIds: string[],
 ): Promise<Map<string, string>> {
   if (subjectIds.length === 0) return new Map();
@@ -53,8 +53,7 @@ function withLevelDirective(basePrompt: string, levelDirective: string | null): 
  * @returns 생성 성공 시 true, 빈 응답이면 false
  */
 async function generateAndSaveDraft(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   tableName: string,
   recordId: string,
   systemPrompt: string,
@@ -343,8 +342,7 @@ export async function runDraftGenerationForGrade(
 
 /** contentQuality 저장 헬퍼 (P1-P3와 동일 패턴) */
 async function saveContentQuality(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   tenantId: string,
   studentId: string,
   targetSchoolYear: number,
@@ -391,8 +389,7 @@ async function analyzeAndCollectTags(
   opts: {
     recordType: "setek" | "changche" | "haengteuk";
     analyzeSetekWithHighlight: (input: { recordType: string; content: string; subjectName?: string; grade: number }) => Promise<{ success: boolean; data: { sections: Array<{ tags: Array<{ competencyItem: string; evaluation: string; reasoning: string; highlight: string }> }>; contentQuality?: { specificity: number; coherence: number; depth: number; grammar: number; scientificValidity?: number | null; overallScore: number; issues: string[]; feedback: string }; competencyGrades?: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> } }>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    supabase: any;
+    supabase: SupabaseClient;
     studentId: string;
     tenantId: string;
     targetGrade: number;

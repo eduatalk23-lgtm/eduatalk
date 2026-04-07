@@ -245,6 +245,23 @@ export function buildReportHtml(data: ReportExportData): string {
       body += `</div>`;
     }
 
+    // ── 설계 모드 예상 분석 ──
+    if (data.projectedAnalysis) {
+      const pa = data.projectedAnalysis;
+      body += `<div style="margin-bottom:20px;border:1px solid #8b5cf6;border-radius:8px;padding:12px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;color:#7c3aed;margin-bottom:8px;">설계 모드 예상 분석</h2>`;
+      body += `<p style="font-size:11px;color:#6b7280;margin-bottom:8px;">⚠ 아래는 희망 진로 및 학교권 기준 예상이며 실제와 다를 수 있습니다.</p>`;
+      body += `<p style="font-size:12px;">목표 학교권: <strong>${escapeHtml(pa.tierLabel)}</strong> · 적용 레벨: <strong>${escapeHtml(pa.levelLabel)}</strong></p>`;
+      if (pa.gap !== 0) {
+        const gapText = pa.gap > 0 ? `목표 대비 ${pa.gap}단계 부족` : `목표 대비 ${Math.abs(pa.gap)}단계 초과`;
+        body += `<p style="font-size:12px;color:${pa.gap > 0 ? "#d97706" : "#16a34a"};">${gapText}</p>`;
+      } else {
+        body += `<p style="font-size:12px;color:#16a34a;">목표와 일치</p>`;
+      }
+      body += `<p style="font-size:12px;margin-top:4px;">대상 학년: ${pa.designGrades.join(", ")}학년 · 예상 역량 ${pa.projectedCompetencyCount}개 · 예상 연결 ${pa.projectedEdgeCount}개</p>`;
+      body += `</div>`;
+    }
+
     // 활동 요약서 섹션
     for (const sec of data.sections) {
       const baseLabel = SECTION_LABELS[sec.sectionType] ?? sec.title;

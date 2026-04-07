@@ -32,6 +32,20 @@ export interface ParentRecordSummary {
     awardCount: number;
     volunteerHours: number;
   };
+  /** H3: 역량 등급 요약 (상세 루브릭 제외) */
+  competencyOverview: Array<{
+    area: string;
+    label: string;
+    grade: string;
+  }>;
+  /** H3: 콘텐츠 품질 개요 (이슈 상세 제외) */
+  qualityOverview: {
+    avgScore: number;
+    totalCount: number;
+    lowQualityCount: number;
+  };
+  /** H3: 활동 요약서 제목 목록 (본문 제외) */
+  activitySummaryTitles: string[];
 }
 
 export async function fetchParentRecordSummary(
@@ -74,6 +88,9 @@ export async function fetchParentRecordSummary(
       readingCountResult,
       awardCountResult,
       volunteerResult,
+      competencyScoresResult,
+      qualityResult,
+      summariesResult,
     ] = await Promise.all([
       supabase.from("student_record_applications").select("*").eq("student_id", studentId).eq("school_year", schoolYear).eq("tenant_id", tenantId),
       supabase.from("student_record_min_score_targets").select("*").eq("student_id", studentId).eq("tenant_id", tenantId).order("priority"),
@@ -86,9 +103,53 @@ export async function fetchParentRecordSummary(
       supabase.from("student_record_reading").select("id", { count: "exact", head: true }).eq("student_id", studentId).eq("school_year", schoolYear).eq("tenant_id", tenantId),
       supabase.from("student_record_awards").select("id", { count: "exact", head: true }).eq("student_id", studentId).eq("school_year", schoolYear).eq("tenant_id", tenantId),
       supabase.from("student_record_volunteer").select("hours").eq("student_id", studentId).eq("school_year", schoolYear).eq("tenant_id", tenantId),
+      // H3: 역량 점수 요약 (AI 생성분, 상세 루브릭 제외)
+      supabase.from("student_record_competency_scores")
+        .select("competency_item, competency_area, grade_value")
+        .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
+      // H3: 콘텐츠 품질 개요
+      supabase.from("student_record_content_quality")
+        .select("overall_score")
+        .eq("student_id", studentId).eq("tenant_id", tenantId).eq("source", "ai"),
+      // H3: 활동 요약서 제목 (본문 제외)
+      supabase.from("student_record_activity_summaries")
+        .select("summary_type, status, created_at")
+        .eq("student_id", studentId).eq("tenant_id", tenantId)
+        .in("status", ["approved", "draft"])
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
     const totalVolunteerHours = (volunteerResult.data ?? []).reduce((sum, v) => sum + (v.hours ?? 0), 0);
+
+    // H3: 역량 등급 요약 조립
+    const AREA_LABELS: Record<string, string> = {
+      academic_achievement: "학업성취도", academic_attitude: "학업태도", academic_inquiry: "탐구력",
+      career_course_effort: "교과 이수 노력", career_course_achievement: "교과 성취도", career_exploration: "진로 탐색",
+      community_collaboration: "협업·소통", community_caring: "나눔·배려", community_integrity: "성실성", community_leadership: "리더십",
+    };
+    const competencyScoresData = (competencyScoresResult as { data: Array<{ competency_item: string; competency_area: string; grade_value: string }> | null }).data ?? [];
+    const competencyOverview = competencyScoresData.map((s) => ({
+      area: s.competency_area,
+      label: AREA_LABELS[s.competency_item] ?? s.competency_item,
+      grade: s.grade_value,
+    }));
+
+    // H3: 품질 개요 조립
+    const qualityData = (qualityResult as { data: Array<{ overall_score: number }> | null }).data ?? [];
+    const avgScore = qualityData.length > 0
+      ? Math.round(qualityData.reduce((s, q) => s + q.overall_score, 0) / qualityData.length)
+      : 0;
+    const lowQualityCount = qualityData.filter((q) => q.overall_score < 60).length;
+
+    // H3: 활동 요약서 제목
+    const summaryTypeLabels: Record<string, string> = {
+      analysis: "분석형", guide_v1: "가이드형", full: "종합",
+    };
+    const summariesData = (summariesResult as { data: Array<{ summary_type: string; status: string }> | null }).data ?? [];
+    const activitySummaryTitles = summariesData.map((s) =>
+      `${summaryTypeLabels[s.summary_type] ?? s.summary_type} (${s.status === "approved" ? "확정" : "초안"})`,
+    );
 
     return createSuccessResponse<ParentRecordSummary>({
       applications: (applications.data ?? []) as RecordApplication[],
@@ -104,6 +165,9 @@ export async function fetchParentRecordSummary(
         awardCount: awardCountResult.count ?? 0,
         volunteerHours: totalVolunteerHours,
       },
+      competencyOverview,
+      qualityOverview: { avgScore, totalCount: qualityData.length, lowQualityCount },
+      activitySummaryTitles,
     });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchParentRecordSummary" }, error, { studentId });

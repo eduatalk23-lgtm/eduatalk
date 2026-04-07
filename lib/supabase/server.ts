@@ -6,36 +6,69 @@ import { env } from "@/lib/env";
 
 type ReadonlyRequestCookies = Awaited<ReturnType<typeof cookies>>;
 
+/** DB 쿼리 타임아웃 (ms) — Vercel Serverless 환경 기준 */
+const DB_QUERY_TIMEOUT_MS = 10_000;
+
 /**
- * Rate limit을 고려한 fetch wrapper
+ * Rate limit + 타임아웃을 고려한 fetch wrapper
  *
  * 이전 구현은 내부 5초 sleep + retryWithBackoff 이중 대기로
  * 단일 429에 최대 21초 지연이 발생했음 (5+2+5+4+5).
  * 개선: 1회 빠른 재시도 (500ms) 후 즉시 실패. 호출자가 재시도 결정.
+ * H2: 10초 타임아웃 추가 — DB 느릴 때 LLM 액션 전체 정지 방지.
  */
 async function rateLimitedFetch(
-  ...args: Parameters<typeof fetch>
+  input: RequestInfo | URL,
+  init?: RequestInit,
 ): Promise<Response> {
-  for (let attempt = 0; attempt <= 1; attempt++) {
-    const response = await fetch(...args);
+  // AbortController로 타임아웃 구현
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DB_QUERY_TIMEOUT_MS);
 
-    if (response.status === 429) {
-      if (attempt < 1) {
-        // 1회만 짧게 재시도 (500ms + jitter)
-        await new Promise((r) => setTimeout(r, 500 + Math.random() * 200));
-        continue;
+  // 호출자의 signal과 타임아웃 signal 병합
+  const mergedInit: RequestInit = {
+    ...init,
+    signal: init?.signal
+      ? anySignal([init.signal, controller.signal])
+      : controller.signal,
+  };
+
+  try {
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      const response = await fetch(input, mergedInit);
+
+      if (response.status === 429) {
+        if (attempt < 1) {
+          await new Promise((r) => setTimeout(r, 500 + Math.random() * 200));
+          continue;
+        }
+        const error = new Error("Rate limit reached");
+        (error as Error & { status?: number }).status = 429;
+        throw error;
       }
-      // 재시도 소진 → 즉시 에러 throw (호출자가 처리)
-      const error = new Error("Rate limit reached");
-      (error as Error & { status?: number }).status = 429;
-      throw error;
+
+      return response;
     }
 
-    return response;
+    throw new Error("Rate limit reached");
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`DB query timeout (${DB_QUERY_TIMEOUT_MS}ms)`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
 
-  // unreachable
-  throw new Error("Rate limit reached");
+/** 여러 AbortSignal 중 하나라도 abort되면 abort되는 signal 생성 */
+function anySignal(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) { controller.abort(signal.reason); return controller.signal; }
+    signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true });
+  }
+  return controller.signal;
 }
 
 /**
