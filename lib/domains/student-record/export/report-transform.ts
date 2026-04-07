@@ -149,6 +149,34 @@ export interface ReportExportData {
     evaluationFactors: Record<string, number> | null;
     keyTips: string[] | null;
   }> | null;
+
+  // Phase P3: 파이프라인 Eval 확장 필드
+  executiveSummary?: {
+    overallScore: number;
+    overallGrade: string;
+    growthTrend?: string;
+    topStrengths: Array<{ name: string; score: number }>;
+    topWeaknesses: Array<{ name: string; score: number }>;
+    narrative: string;
+  } | null;
+  timeSeriesAnalysis?: {
+    overallGrowthRate: number;
+    strongestName: string;
+    weakestName: string;
+    anomalyCount: number;
+    summary: string;
+  } | null;
+  universityMatch?: {
+    topMatch: { label: string; grade: string; score: number; recommendation: string };
+    matches: Array<{ label: string; grade: string; score: number }>;
+    summary: string;
+  } | null;
+  contentQualityDetail?: Array<{
+    recordType: string;
+    overallScore: number;
+    issues: string[];
+    feedback: string | null;
+  }> | null;
 }
 
 // ============================================
@@ -331,6 +359,58 @@ export function buildReportExportData(data: ReportData): ReportExportData {
           admissionType: s.admission_type,
           evaluationFactors: s.evaluation_factors,
           keyTips: s.key_tips,
+        }))
+      : null,
+
+    // Phase P3: 파이프라인 Eval 확장
+    executiveSummary: data.executiveSummary ? {
+      overallScore: data.executiveSummary.overallScore,
+      overallGrade: data.executiveSummary.overallGrade,
+      growthTrend: data.executiveSummary.growthTrend,
+      topStrengths: data.executiveSummary.topStrengths.map((s) => ({
+        name: s.competencyName,
+        score: s.score,
+      })),
+      topWeaknesses: data.executiveSummary.topWeaknesses.map((s) => ({
+        name: s.competencyName,
+        score: s.score,
+      })),
+      narrative: data.executiveSummary.narrative,
+    } : null,
+
+    timeSeriesAnalysis: data.timeSeriesAnalysis ? {
+      overallGrowthRate: data.timeSeriesAnalysis.overallGrowthRate,
+      strongestName: data.timeSeriesAnalysis.trends.find(
+        (t) => t.competencyId === data.timeSeriesAnalysis!.strongestCompetency,
+      )?.competencyName ?? "",
+      weakestName: data.timeSeriesAnalysis.trends.find(
+        (t) => t.competencyId === data.timeSeriesAnalysis!.weakestCompetency,
+      )?.competencyName ?? "",
+      anomalyCount: data.timeSeriesAnalysis.anomalies.length,
+      summary: data.timeSeriesAnalysis.summary,
+    } : null,
+
+    universityMatch: data.universityMatch ? {
+      topMatch: {
+        label: data.universityMatch.topMatch.label,
+        grade: data.universityMatch.topMatch.grade,
+        score: data.universityMatch.topMatch.matchScore,
+        recommendation: data.universityMatch.topMatch.recommendation,
+      },
+      matches: data.universityMatch.matches.map((m) => ({
+        label: m.label,
+        grade: m.grade,
+        score: m.matchScore,
+      })),
+      summary: data.universityMatch.summary,
+    } : null,
+
+    contentQualityDetail: data.contentQuality.length > 0
+      ? data.contentQuality.map((q) => ({
+          recordType: q.record_type,
+          overallScore: q.overall_score,
+          issues: q.issues,
+          feedback: q.feedback,
         }))
       : null,
   };

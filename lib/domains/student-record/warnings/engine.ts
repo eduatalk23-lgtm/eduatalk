@@ -152,5 +152,20 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
     pushAll(checkUnfinishedRoadmap(input.roadmapItems, input.currentGrade));
   }
 
+  // ─── 금칙어 관련 ───
+  try {
+    const { checkForbiddenExpressions } = require("./checkers-forbidden") as typeof import("./checkers-forbidden");
+    const allRecords = Object.values(input.recordsByGrade ?? {}).flatMap((data) => [
+      ...(data.seteks ?? []),
+      ...(data.changches ?? []),
+      ...(data.haengteuk ? [data.haengteuk] : []),
+    ]);
+    if (allRecords.length > 0) {
+      pushAll(checkForbiddenExpressions(allRecords));
+    }
+  } catch {
+    // 금칙어 모듈 로드 실패 시 무시 (graceful degradation)
+  }
+
   return warnings;
 }

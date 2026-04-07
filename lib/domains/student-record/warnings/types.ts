@@ -28,11 +28,17 @@ export type RecordWarningRuleId =
   | "setek_no_growth_curve"    // F10_성장부재 (학년 간 성장 곡선 부재)
   | "setek_career_overdose"    // F16_진로과잉도배 (모든 교과 진로 키워드 도배)
   | "setek_teacher_unobservable" // M1_교사관찰불가 (교사가 관찰 불가한 내면 상태 기술)
-  | "roadmap_unfinished_prev_grade";
+  | "roadmap_unfinished_prev_grade"
+  | "neis_forbidden_award"
+  | "neis_forbidden_university"
+  | "neis_forbidden_academy"
+  | "neis_forbidden_certification"
+  | "neis_forbidden_violence"
+  | "neis_forbidden_other";
 
 export type RecordWarningSeverity = "critical" | "high" | "medium" | "low";
 
-export type RecordWarningCategory = "record" | "course" | "storyline" | "min_score" | "strategy" | "quality" | "roadmap";
+export type RecordWarningCategory = "record" | "course" | "storyline" | "min_score" | "strategy" | "quality" | "roadmap" | "forbidden";
 
 export interface RecordWarning {
   ruleId: RecordWarningRuleId;
@@ -70,4 +76,10 @@ export const WARNING_LABELS: Record<RecordWarningRuleId, string> = {
   setek_career_overdose: "진로 키워드 과잉 도배",
   setek_teacher_unobservable: "교사 관찰 불가 표현",
   roadmap_unfinished_prev_grade: "이전 학년 미완료 로드맵",
+  neis_forbidden_award: "수상 내역 기재 감지",
+  neis_forbidden_university: "대학명 기재 감지",
+  neis_forbidden_academy: "사교육 기관명 감지",
+  neis_forbidden_certification: "자격증/시험 점수 감지",
+  neis_forbidden_violence: "학교폭력 관련 감지",
+  neis_forbidden_other: "NEIS 금칙어 감지",
 };

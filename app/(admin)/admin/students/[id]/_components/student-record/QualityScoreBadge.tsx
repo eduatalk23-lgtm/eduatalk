@@ -15,6 +15,11 @@ export type QualityScoreEntry = {
   overall_score: number;
   issues: string[];
   feedback: string | null;
+  specificity?: number;
+  coherence?: number;
+  depth?: number;
+  grammar?: number;
+  scientific_validity?: number | null;
 };
 
 // ─── 등급 계산 ────────────────────────────────
@@ -150,8 +155,58 @@ export function QualityScoreBadge({ entry }: QualityBadgeProps) {
               <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{entry.feedback}</p>
             </div>
           )}
+          {/* 5축 상세 바 차트 */}
+          {typeof entry.specificity === "number" && (
+            <QualityAxisBars entry={entry} />
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── 5축 상세 바 차트 ────────────────────────────
+
+const QUALITY_AXES = [
+  { key: "specificity" as const, label: "구체성", weight: 25 },
+  { key: "coherence" as const, label: "일관성", weight: 15 },
+  { key: "depth" as const, label: "깊이", weight: 25 },
+  { key: "grammar" as const, label: "표현", weight: 10 },
+  { key: "scientific_validity" as const, label: "연구정합성", weight: 25 },
+] as const;
+
+function axisColor(score: number): string {
+  if (score >= 4) return "bg-emerald-500";
+  if (score >= 3) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+function QualityAxisBars({ entry }: { entry: QualityScoreEntry }) {
+  return (
+    <div className="mt-2 space-y-1">
+      <p className="text-[10px] font-medium text-[var(--text-secondary)]">5축 평가</p>
+      {QUALITY_AXES.map(({ key, label, weight }) => {
+        const score = key === "scientific_validity"
+          ? (entry.scientific_validity ?? null)
+          : (entry[key] ?? 0);
+        if (score === null) return null;
+        return (
+          <div key={key} className="flex items-center gap-1.5">
+            <span className="w-14 shrink-0 text-[10px] text-[var(--text-tertiary)]">
+              {label} <span className="opacity-60">({weight}%)</span>
+            </span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div
+                className={cn("h-full rounded-full transition-all", axisColor(score))}
+                style={{ width: `${(score / 5) * 100}%` }}
+              />
+            </div>
+            <span className="w-5 shrink-0 text-right text-[10px] font-medium text-[var(--text-secondary)]">
+              {score}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -271,8 +326,55 @@ export function QualitySummaryCard({ qualityScores, recordLabelMap }: QualitySum
               </ul>
             </div>
           )}
+
+          {/* 전체 평균 5축 분포 */}
+          <AverageAxisBars qualityScores={qualityScores} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** 전체 품질 점수의 5축 평균 바 차트 */
+function AverageAxisBars({ qualityScores }: { qualityScores: QualityScoreEntry[] }) {
+  const withAxes = qualityScores.filter((q) => typeof q.specificity === "number");
+  if (withAxes.length === 0) return null;
+
+  const avg = (key: "specificity" | "coherence" | "depth" | "grammar" | "scientific_validity") => {
+    const vals = withAxes.map((q) => {
+      const v = q[key];
+      return typeof v === "number" ? v : 0;
+    }).filter((v) => v > 0);
+    return vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : 0;
+  };
+
+  const axes = [
+    { label: "구체성", score: avg("specificity") },
+    { label: "일관성", score: avg("coherence") },
+    { label: "깊이", score: avg("depth") },
+    { label: "표현", score: avg("grammar") },
+    { label: "연구정합성", score: avg("scientific_validity") },
+  ];
+
+  return (
+    <div className="col-span-full mt-1 border-t border-[var(--border-secondary)] pt-2">
+      <p className="mb-1.5 text-[11px] font-medium text-[var(--text-secondary)]">전체 평균 5축</p>
+      <div className="space-y-1">
+        {axes.map(({ label, score }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className="w-16 shrink-0 text-[10px] text-[var(--text-tertiary)]">{label}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div
+                className={cn("h-full rounded-full transition-all", axisColor(score))}
+                style={{ width: `${(score / 5) * 100}%` }}
+              />
+            </div>
+            <span className="w-6 shrink-0 text-right text-[10px] font-medium text-[var(--text-secondary)]">
+              {score.toFixed(1)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -87,6 +87,16 @@ export {
   calculateCourseAdequacy,
 } from "./course-adequacy";
 
+// 금칙어 검증 (client-safe)
+export {
+  detectForbiddenExpressions,
+  type ForbiddenExpressionMatch,
+  type ForbiddenExpressionResult,
+  type ForbiddenCategory,
+  type ForbiddenSeverity,
+  type DetectOptions,
+} from "./forbidden-expressions";
+
 // 리포트 단계별 전환 (client-safe)
 export type { GradeStage, GradeStageConfig } from "./grade-stage";
 export {

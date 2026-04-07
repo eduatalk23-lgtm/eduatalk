@@ -5,9 +5,8 @@
 // 서비스에서 DB 데이터를 주입하여 호출
 // ============================================
 
-import { getMajorRecommendedCourses } from "../constants";
+import { getMajorRecommendedCourses, LEARNING_SEQUENCE_CHAINS } from "../constants";
 import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
-import { LEARNING_SEQUENCE_CHAINS } from "../rubric-matcher";
 import type {
   RecommendedCourse,
   MatchedRecommendation,

@@ -85,6 +85,21 @@ export function validateNeisContent(
 }
 
 /**
+ * NEIS 종합 검증 (바이트 + 금칙어)
+ */
+export function validateNeisContentFull(
+  content: string,
+  charLimit: number,
+  options?: import("./forbidden-expressions").DetectOptions,
+) {
+  const base = validateNeisContent(content, charLimit);
+  // lazy import to keep validation.ts light for byte-only callers
+  const { detectForbiddenExpressions } = require("./forbidden-expressions") as typeof import("./forbidden-expressions");
+  const forbiddenExpressions = detectForbiddenExpressions(content, options);
+  return { ...base, forbiddenExpressions };
+}
+
+/**
  * 줄바꿈 정규화 (CRLF → LF)
  * DB 저장 전 호출하여 content_bytes(octet_length)와 countNeisBytes() 결과 일치 보장
  */

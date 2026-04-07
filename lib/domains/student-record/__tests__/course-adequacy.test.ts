@@ -241,3 +241,85 @@ describe("calculateCourseAdequacy", () => {
     expect(result!.fusionRate).toBeNull(); // 분모 0 → null
   });
 });
+
+// ============================================
+// S8-b: computeCourseEffortGrades / computeCourseAchievementGrades
+// ============================================
+
+import { computeCourseEffortGrades, computeCourseAchievementGrades } from "../course-adequacy";
+
+describe("computeCourseEffortGrades", () => {
+  const baseAdequacy = {
+    score: 80, majorCategory: "컴퓨터·소프트웨어", totalRecommended: 10, totalAvailable: 8,
+    taken: ["미적분", "확률과 통계", "정보", "프로그래밍"],
+    notTaken: ["인공지능 기초"], notOffered: ["데이터 과학"],
+    generalRate: 90, careerRate: 70, fusionRate: null,
+  };
+
+  it("기본 동작: Q0 + Q1 + Q2 루브릭 반환", () => {
+    const result = computeCourseEffortGrades(baseAdequacy);
+    expect(result.item).toBe("career_course_effort");
+    expect(result.rubricScores).toHaveLength(3);
+    expect(result.rubricScores[0].questionIndex).toBe(0);
+    expect(result.rubricScores[1].questionIndex).toBe(1);
+    expect(result.rubricScores[2].questionIndex).toBe(2);
+  });
+
+  it("gradedSubjects 있으면 Q2 학습단계 순서 검증", () => {
+    const result = computeCourseEffortGrades(baseAdequacy, [
+      { subjectName: "수학1", grade: 1, semester: 1 },
+      { subjectName: "수학2", grade: 1, semester: 2 },
+      { subjectName: "미적분", grade: 2, semester: 1 },
+    ]);
+    expect(result.rubricScores[2].grade).not.toBe("B"); // 기본값이 아님
+    expect(result.rubricScores[2].reasoning).toContain("학습단계");
+  });
+
+  it("학습단계 위반 시 점수 하락", () => {
+    const result = computeCourseEffortGrades(baseAdequacy, [
+      { subjectName: "미적분", grade: 1, semester: 1 },  // 선수 없이 먼저 이수
+      { subjectName: "수학2", grade: 2, semester: 1 },
+    ]);
+    expect(result.rubricScores[2].reasoning).toContain("위반");
+  });
+});
+
+describe("computeCourseAchievementGrades", () => {
+  const taken = ["물리학1", "화학1", "미적분"];
+  const scores = [
+    { subjectName: "물리학1", rankGrade: 2, grade: 2, semester: 1 },
+    { subjectName: "화학1", rankGrade: 3, grade: 2, semester: 2 },
+    { subjectName: "미적분", rankGrade: 1, grade: 3, semester: 1 },
+  ];
+
+  it("Q0 전공 관련 과목 평균 등급 반환", () => {
+    const result = computeCourseAchievementGrades(taken, scores);
+    expect(result.item).toBe("career_course_achievement");
+    expect(result.rubricScores[0].questionIndex).toBe(0);
+    expect(result.rubricScores[0].reasoning).toContain("과목 평균");
+  });
+
+  it("Q2 학기별 추이 분석 포함", () => {
+    const result = computeCourseAchievementGrades(taken, scores);
+    expect(result.rubricScores).toHaveLength(3);
+    expect(result.rubricScores[2].questionIndex).toBe(2);
+  });
+
+  it("성적 향상 추세 시 높은 등급", () => {
+    const improvingScores = [
+      { subjectName: "물리학1", rankGrade: 5, grade: 1, semester: 1 },
+      { subjectName: "화학1", rankGrade: 3, grade: 2, semester: 1 },
+      { subjectName: "미적분", rankGrade: 1, grade: 3, semester: 1 },
+    ];
+    const result = computeCourseAchievementGrades(taken, improvingScores);
+    const q2 = result.rubricScores.find((r) => r.questionIndex === 2)!;
+    expect(["A+", "A-"]).toContain(q2.grade);
+    expect(q2.reasoning).toContain("향상");
+  });
+
+  it("빈 성적 데이터 → 기본값", () => {
+    const result = computeCourseAchievementGrades(["없는과목"], []);
+    expect(result.grade).toBe("B");
+    expect(result.rubricScores).toHaveLength(3);
+  });
+});

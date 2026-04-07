@@ -119,6 +119,11 @@ export interface DiagnosisTabData {
     overall_score: number;
     issues: string[];
     feedback: string | null;
+    specificity: number;
+    coherence: number;
+    depth: number;
+    grammar: number;
+    scientific_validity: number | null;
   }>;
   fourAxisDiagnosis?: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null;
   projectedData?: {

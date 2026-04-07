@@ -177,6 +177,54 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
       }
     }
 
+    // ── AI 종합 분석 ──
+    if (data.executiveSummary) {
+      const es = data.executiveSummary;
+      children.push(new Paragraph({ text: "AI 종합 분석", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [
+        new TextRun({ text: `종합 점수: ${es.overallScore}점 (${es.overallGrade}등급)`, size: 22, bold: true }),
+        ...(es.growthTrend ? [new TextRun({ text: ` · 성장 추이: ${es.growthTrend}`, size: 20, color: "555555" })] : []),
+      ], spacing: { after: 80 } }));
+      if (es.topStrengths.length > 0) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `강점: ${es.topStrengths.map((s) => `${s.name}(${s.score})`).join(", ")}`, size: 20, color: "16a34a" })], spacing: { after: 40 } }));
+      }
+      if (es.topWeaknesses.length > 0) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `약점: ${es.topWeaknesses.map((s) => `${s.name}(${s.score})`).join(", ")}`, size: 20, color: "dc2626" })], spacing: { after: 40 } }));
+      }
+      children.push(new Paragraph({ children: [new TextRun({ text: es.narrative, size: 20, color: "555555" })], spacing: { after: 100 } }));
+    }
+
+    // ── 시계열 분석 ──
+    if (data.timeSeriesAnalysis) {
+      const ts = data.timeSeriesAnalysis;
+      children.push(new Paragraph({ text: "3년 성장 분석", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: `전체 성장률: ${ts.overallGrowthRate.toFixed(1)}% · 최강점: ${ts.strongestName} · 최약점: ${ts.weakestName}`, size: 20 })], spacing: { after: 60 } }));
+      if (ts.anomalyCount > 0) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `이상치 ${ts.anomalyCount}건 감지`, size: 20, color: "d97706" })], spacing: { after: 40 } }));
+      }
+      children.push(new Paragraph({ children: [new TextRun({ text: ts.summary, size: 20, color: "555555" })], spacing: { after: 100 } }));
+    }
+
+    // ── 계열별 적합도 ──
+    if (data.universityMatch) {
+      const um = data.universityMatch;
+      children.push(new Paragraph({ text: "계열별 적합도", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: `최적 계열: ${um.topMatch.label} (${um.topMatch.grade}등급, ${um.topMatch.score}점)`, size: 22, bold: true })], spacing: { after: 60 } }));
+      for (const m of um.matches) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `  ${m.label}: ${m.grade}등급 (${m.score}점)`, size: 20 })], spacing: { after: 30 } }));
+      }
+      children.push(new Paragraph({ children: [new TextRun({ text: um.summary, size: 20, color: "555555" })], spacing: { after: 100 } }));
+    }
+
+    // ── 콘텐츠 품질 상세 ──
+    if (data.contentQualityDetail && data.contentQualityDetail.length > 0) {
+      children.push(new Paragraph({ text: "콘텐츠 품질 상세", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      for (const q of data.contentQualityDetail) {
+        const issueText = q.issues.length > 0 ? ` — 이슈: ${q.issues.join(", ")}` : "";
+        children.push(new Paragraph({ children: [new TextRun({ text: `${q.recordType}: ${q.overallScore}점${issueText}`, size: 20 })], spacing: { after: 40 } }));
+      }
+    }
+
     // 활동 요약서 섹션별 렌더링
     for (const sec of data.sections) {
       const label = SECTION_LABELS[sec.sectionType] ?? sec.title;

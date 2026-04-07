@@ -67,6 +67,7 @@ const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then(
 const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
 import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
 import { FourAxisDiagnosisCard } from "./FourAxisDiagnosisCard";
+import { LevelingCard } from "./LevelingCard";
 
 const CoursePlanEditor = lazy(() => import("./CoursePlanEditor"));
 const ProjectedAnalysisSection = lazy(() => import("../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })));
@@ -1532,6 +1533,13 @@ export function StudentRecordClient({
           {!diagnosisLoading && diagnosisData?.fourAxisDiagnosis && (
             <StrategySection id="sec-diagnosis-four-axis" title="4축 합격 진단">
               <FourAxisDiagnosisCard diagnosis={diagnosisData.fourAxisDiagnosis} />
+            </StrategySection>
+          )}
+
+          {/* 레벨링 분석 (설계 모드 학생만) */}
+          {!diagnosisLoading && diagnosisData?.projectedData?.leveling && (
+            <StrategySection id="sec-leveling" title="레벨링 분석">
+              <LevelingCard leveling={diagnosisData.projectedData.leveling} />
             </StrategySection>
           )}
 

@@ -566,6 +566,14 @@ export async function rerunGradePipelineTasks(
     const hasCompetencyReset = GRADE_COMPETENCY_TASKS.some((k) => toReset.has(k));
     if (hasCompetencyReset) {
       const pipelineGrade = pipeline.grade as number;
+      // grade → school_year 변환 — 호출부에서 계산 (S7: repository에서 students 직접 조회 제거)
+      const { calculateSchoolYear, gradeToSchoolYear } = await import("@/lib/utils/schoolYear");
+      const currentSchoolYear = calculateSchoolYear();
+      const { data: studentRow } = await supabase
+        .from("students").select("grade").eq("id", pipeline.student_id as string).single();
+      const studentGrade = (studentRow?.grade as number) ?? 3;
+      const targetSchoolYear = gradeToSchoolYear(pipelineGrade, studentGrade, currentSchoolYear);
+
       await Promise.all([
         // LLM 캐시 삭제 → 강제 재호출
         competencyRepo.deleteAnalysisCacheByStudentId(
@@ -578,6 +586,7 @@ export async function rerunGradePipelineTasks(
               pipeline.student_id as string,
               pipeline.tenant_id as string,
               pipelineGrade,
+              targetSchoolYear,
             )]
           : []),
       ]);

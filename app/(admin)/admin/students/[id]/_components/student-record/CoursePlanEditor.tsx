@@ -112,7 +112,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
   // data?.plans를 안정 변수로 추출 (React Compiler 메모이제이션 호환)
   const plans = data?.plans ?? [];
 
-  // 그룹핑: grade → semester → plans
+  // 그룹핑: grade → semester → plans (AI 추천 항목 상단, priority 내림차순)
   const plansByGradeSemester = useMemo(() => {
     if (plans.length === 0) return {};
     const map: Record<number, Record<number, CoursePlanWithSubject[]>> = {};
@@ -120,6 +120,17 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
       if (!map[plan.grade]) map[plan.grade] = {};
       if (!map[plan.grade][plan.semester]) map[plan.grade][plan.semester] = [];
       map[plan.grade][plan.semester].push(plan);
+    }
+    // 학기 내 정렬: AI 추천(source=auto) 우선, 동일 source 내 priority 내림차순
+    for (const grade of Object.keys(map)) {
+      for (const semester of Object.keys(map[+grade])) {
+        map[+grade][+semester].sort((a, b) => {
+          const aIsAuto = a.source === "auto" ? 0 : 1;
+          const bIsAuto = b.source === "auto" ? 0 : 1;
+          if (aIsAuto !== bIsAuto) return aIsAuto - bIsAuto;
+          return (b.priority ?? 0) - (a.priority ?? 0);
+        });
+      }
     }
     return map;
   }, [plans]);
@@ -374,6 +385,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
                             status={plan.plan_status}
                             source={plan.source}
                             reason={plan.recommendation_reason}
+                            priority={plan.priority}
                             isSchoolOffered={plan.is_school_offered}
                             notes={plan.notes}
                             disabled={isPast}

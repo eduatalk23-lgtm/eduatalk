@@ -381,24 +381,17 @@ export async function deleteAnalysisCacheByStudentId(
 /**
  * 특정 학년의 AI 파생 분석 데이터 삭제 — 재실행 시 이전 결과 잔류 방지.
  * analysis_cache와 별개로 competency_scores, activity_tags, content_quality를 정리한다.
+ *
+ * @param targetSchoolYear - grade → school_year 변환값. 호출부에서 계산하여 전달.
+ *   `gradeToSchoolYear(grade, studentGrade, currentSchoolYear)` 사용.
  */
 export async function deleteAnalysisResultsByGrade(
   studentId: string,
   tenantId: string,
   grade: number,
+  targetSchoolYear: number,
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
-
-  // grade(1/2/3) → school_year(연도) 변환: 학생의 현재 학년 조회
-  const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
-  const currentSchoolYear = calculateSchoolYear();
-  const { data: student } = await supabase
-    .from("students")
-    .select("grade")
-    .eq("id", studentId)
-    .single();
-  const studentGrade = (student?.grade as number) ?? 3;
-  const targetSchoolYear = currentSchoolYear - studentGrade + grade;
 
   // 해당 학년의 record ID 일괄 조회
   const [sRes, cRes, hRes] = await Promise.all([

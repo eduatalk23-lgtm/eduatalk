@@ -11,6 +11,7 @@ interface CoursePlanCardProps {
   status: CoursePlanStatus;
   source?: CoursePlanSource;
   reason: string | null;
+  priority?: number;
   isSchoolOffered: boolean | null;
   notes: string | null;
   onConfirm?: () => void;
@@ -40,7 +41,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 };
 
 export function CoursePlanCard({
-  subjectName, subjectType, status, source, reason,
+  subjectName, subjectType, status, source, reason, priority,
   isSchoolOffered, notes, onConfirm, onRemove, onMoveUp, onMoveDown, disabled,
 }: CoursePlanCardProps) {
   const style = STATUS_STYLES[status];
@@ -76,11 +77,16 @@ export function CoursePlanCard({
           {style.label}
         </span>
 
-        {/* AI 추천 뱃지 */}
+        {/* AI 추천 뱃지 + 우선순위 */}
         {source === "auto" && (
           <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
             <Sparkles className="h-2.5 w-2.5" />
-            AI
+            AI 추천
+            {typeof priority === "number" && priority > 0 && (
+              <span className="ml-0.5 rounded-full bg-violet-200 px-1 text-[9px] font-bold text-violet-800 dark:bg-violet-800 dark:text-violet-200">
+                P{priority}
+              </span>
+            )}
           </span>
         )}
 
@@ -103,9 +109,15 @@ export function CoursePlanCard({
           </span>
         )}
 
-        {/* 추천 근거 */}
+        {/* 추천 근거 — AI 추천은 모바일에서도 표시 */}
         {reason && (
-          <span className="hidden truncate text-xs text-[var(--text-tertiary)] sm:inline" title={reason}>
+          <span
+            className={cn(
+              "truncate text-xs text-[var(--text-tertiary)]",
+              source !== "auto" && "hidden sm:inline",
+            )}
+            title={reason}
+          >
             {reason}
           </span>
         )}

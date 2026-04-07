@@ -182,6 +182,69 @@ export function buildReportHtml(data: ReportExportData): string {
       body += `</div>`;
     }
 
+    // ── AI 종합 분석 ──
+    if (data.executiveSummary) {
+      const es = data.executiveSummary;
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">AI 종합 분석</h2>`;
+      body += `<p style="font-size:13px;margin-bottom:6px;">종합 점수: <strong>${es.overallScore}점</strong> (${escapeHtml(es.overallGrade)}등급)`;
+      if (es.growthTrend) body += ` · 성장 추이: ${escapeHtml(es.growthTrend)}`;
+      body += `</p>`;
+      if (es.topStrengths.length > 0) {
+        body += `<p style="font-size:12px;color:#16a34a;">강점: ${es.topStrengths.map((s) => `${escapeHtml(s.name)}(${s.score})`).join(", ")}</p>`;
+      }
+      if (es.topWeaknesses.length > 0) {
+        body += `<p style="font-size:12px;color:#dc2626;">약점: ${es.topWeaknesses.map((s) => `${escapeHtml(s.name)}(${s.score})`).join(", ")}</p>`;
+      }
+      body += `<p style="font-size:12px;color:#555;margin-top:6px;line-height:1.6;">${escapeHtml(es.narrative)}</p>`;
+      body += `</div>`;
+    }
+
+    // ── 시계열 분석 ──
+    if (data.timeSeriesAnalysis) {
+      const ts = data.timeSeriesAnalysis;
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">3년 성장 분석</h2>`;
+      body += `<p style="font-size:12px;">전체 성장률: ${ts.overallGrowthRate.toFixed(1)}% · 최강점: ${escapeHtml(ts.strongestName)} · 최약점: ${escapeHtml(ts.weakestName)}</p>`;
+      if (ts.anomalyCount > 0) {
+        body += `<p style="font-size:12px;color:#d97706;">이상치 ${ts.anomalyCount}건 감지</p>`;
+      }
+      body += `<p style="font-size:12px;color:#555;margin-top:4px;">${escapeHtml(ts.summary)}</p>`;
+      body += `</div>`;
+    }
+
+    // ── 계열별 적합도 ──
+    if (data.universityMatch) {
+      const um = data.universityMatch;
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">계열별 적합도</h2>`;
+      body += `<p style="font-size:13px;margin-bottom:6px;">최적 계열: <strong>${escapeHtml(um.topMatch.label)}</strong> (${escapeHtml(um.topMatch.grade)}등급, ${um.topMatch.score}점)</p>`;
+      body += `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px;">`;
+      body += `<tr style="border-bottom:1px solid #eee;font-weight:600;"><td>계열</td><td>등급</td><td>점수</td></tr>`;
+      for (const m of um.matches) {
+        body += `<tr style="border-bottom:1px solid #f5f5f5;"><td>${escapeHtml(m.label)}</td><td>${escapeHtml(m.grade)}</td><td>${m.score}</td></tr>`;
+      }
+      body += `</table>`;
+      body += `<p style="font-size:12px;color:#555;">${escapeHtml(um.summary)}</p>`;
+      body += `</div>`;
+    }
+
+    // ── 콘텐츠 품질 상세 ──
+    if (data.contentQualityDetail && data.contentQualityDetail.length > 0) {
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">콘텐츠 품질 상세</h2>`;
+      body += `<table style="width:100%;border-collapse:collapse;font-size:11px;">`;
+      body += `<tr style="border-bottom:1px solid #eee;font-weight:600;"><td>유형</td><td>점수</td><td>이슈</td></tr>`;
+      for (const q of data.contentQualityDetail) {
+        body += `<tr style="border-bottom:1px solid #f5f5f5;">`;
+        body += `<td>${escapeHtml(q.recordType)}</td><td>${q.overallScore}</td>`;
+        body += `<td>${q.issues.length > 0 ? escapeHtml(q.issues.join(", ")) : "-"}</td>`;
+        body += `</tr>`;
+      }
+      body += `</table>`;
+      body += `</div>`;
+    }
+
     // 활동 요약서 섹션
     for (const sec of data.sections) {
       const baseLabel = SECTION_LABELS[sec.sectionType] ?? sec.title;

@@ -190,7 +190,7 @@ export async function fetchDiagnosisTabData(
     // 콘텐츠 품질 점수 조회 (경고 엔진용)
     const { data: qualityRows } = await supabase
       .from("student_record_content_quality")
-      .select("record_type, record_id, overall_score, issues, feedback")
+      .select("record_type, record_id, overall_score, issues, feedback, specificity, coherence, depth, grammar, scientific_validity")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId);
 
@@ -200,6 +200,11 @@ export async function fetchDiagnosisTabData(
       overall_score: r.overall_score as number,
       issues: (r.issues ?? []) as string[],
       feedback: (r.feedback as string) ?? null,
+      specificity: (r.specificity as number) ?? 0,
+      coherence: (r.coherence as number) ?? 0,
+      depth: (r.depth as number) ?? 0,
+      grammar: (r.grammar as number) ?? 0,
+      scientific_validity: (r.scientific_validity as number | null) ?? null,
     }));
 
     // ─── 설계 모드 projected 데이터 (P8 가안 분석 결과) ───
