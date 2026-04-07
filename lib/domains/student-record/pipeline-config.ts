@@ -62,6 +62,27 @@ type _SynthKey = (typeof SYNTHESIS_PIPELINE_TASK_KEYS)[number];
 type _LegacyKey = (typeof PIPELINE_TASK_KEYS)[number];
 
 // ============================================
+// 의존성 역산 유틸
+// ============================================
+
+/**
+ * DEPENDENTS(상류→하류[]) 맵에서 PREREQUISITES(하류→상류[]) 맵을 자동 생성.
+ * 수동 동기화 없이 DEPENDENTS만 관리하면 PREREQUISITES가 자동 파생된다.
+ */
+function invertDependents<T extends string>(
+  dependents: Partial<Record<T, T[]>>,
+): Partial<Record<T, T[]>> {
+  const prereqs: Partial<Record<T, T[]>> = {};
+  for (const [upstream, downstreams] of Object.entries(dependents) as [T, T[]][]) {
+    for (const downstream of downstreams) {
+      if (!prereqs[downstream]) prereqs[downstream] = [];
+      prereqs[downstream]!.push(upstream);
+    }
+  }
+  return prereqs;
+}
+
+// ============================================
 // 학년 내 의존 관계 (Grade Pipeline 내부)
 // ============================================
 
@@ -84,21 +105,16 @@ export const GRADE_TASK_DEPENDENTS: Partial<Record<_GradeKey, _GradeKey[]>> = {
 };
 
 // ============================================
-// Grade 선행 필수 태스크 (GRADE_TASK_DEPENDENTS의 역)
+// Grade 선행 필수 태스크 (GRADE_TASK_DEPENDENTS에서 자동 역산)
 // ============================================
 
 /**
  * 태스크별 선행 필수 태스크 목록.
  * 선행 태스크 중 하나라도 failed이면 해당 태스크를 자동 스킵한다.
+ * GRADE_TASK_DEPENDENTS에서 자동 생성 — 수동 동기화 불필요.
  */
-export const GRADE_TASK_PREREQUISITES: Partial<Record<_GradeKey, _GradeKey[]>> = {
-  slot_generation: ["competency_setek", "competency_changche", "competency_haengteuk"],
-  setek_guide: ["competency_setek"],
-  changche_guide: ["competency_setek", "competency_changche", "setek_guide"],
-  haengteuk_guide: ["competency_setek", "competency_changche", "competency_haengteuk", "setek_guide", "changche_guide"],
-  draft_generation: ["setek_guide", "changche_guide", "haengteuk_guide"],
-  draft_analysis: ["haengteuk_guide", "draft_generation"],
-};
+export const GRADE_TASK_PREREQUISITES: Partial<Record<_GradeKey, _GradeKey[]>> =
+  invertDependents(GRADE_TASK_DEPENDENTS);
 
 // ============================================
 // Synthesis 의존 관계 (Synthesis Pipeline 내부)
@@ -116,17 +132,11 @@ export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<_SynthKey, _SynthKey[]>> 
 };
 
 /**
- * Synthesis 파이프라인 선행 태스크 → 해당 태스크가 실행되려면 성공해야 하는 태스크 목록.
- * SYNTHESIS_TASK_DEPENDENTS의 역방향. 선행 태스크 중 하나라도 failed이면 자동 스킵.
+ * Synthesis 파이프라인 선행 태스크 목록.
+ * SYNTHESIS_TASK_DEPENDENTS에서 자동 생성 — 수동 동기화 불필요.
  */
-export const SYNTHESIS_TASK_PREREQUISITES: Partial<Record<_SynthKey, _SynthKey[]>> = {
-  edge_computation: ["storyline_generation"],
-  ai_diagnosis: ["storyline_generation", "edge_computation"],
-  activity_summary: ["storyline_generation", "edge_computation", "guide_matching"],
-  ai_strategy: ["storyline_generation", "edge_computation", "ai_diagnosis"],
-  interview_generation: ["storyline_generation", "edge_computation", "ai_diagnosis"],
-  roadmap_generation: ["storyline_generation", "edge_computation", "guide_matching", "ai_diagnosis"],
-};
+export const SYNTHESIS_TASK_PREREQUISITES: Partial<Record<_SynthKey, _SynthKey[]>> =
+  invertDependents(SYNTHESIS_TASK_DEPENDENTS);
 
 // ============================================
 // Grade Pipeline 전용 레이블/타임아웃
