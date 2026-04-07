@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { Trash2 } from "lucide-react";
 import { SectionSkeleton } from "./StudentRecordHelpers";
+import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 import type { ScorePanelData } from "@/lib/domains/score/actions/fetchScoreData";
 
 const MockScoreInput = lazy(() => import("@/app/(student)/scores/input/_components/MockScoreInput"));
@@ -126,6 +127,11 @@ export function MockScoreSection({
             />
           ))}
         </div>
+      )}
+
+      {/* 시험별 등급 비교 차트 */}
+      {examGroups.length >= 2 && (
+        <MockGradeComparisonChart examGroups={examGroups} />
       )}
 
       {/* 입력 토글 */}
@@ -252,6 +258,66 @@ function ExamGroupCard({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── 시험별 등급 비교 차트 ─────────────────────
+
+const GRADE_BAR_COLORS = ["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+function MockGradeComparisonChart({
+  examGroups,
+}: {
+  examGroups: Array<{ examDate: string; examTitle: string; scores: MockScoreRow[] }>;
+}) {
+  const { recharts, loading } = useRecharts();
+
+  const chartData = useMemo(() => {
+    // 주요 교과군만 추출
+    const mainGroups = ["국어", "수학", "영어"];
+    return examGroups.map((g) => {
+      const row: Record<string, unknown> = {
+        name: g.examTitle || g.examDate,
+      };
+      for (const s of g.scores) {
+        if (s.subject_group_name && mainGroups.includes(s.subject_group_name) && s.grade_score != null) {
+          row[s.subject_group_name] = s.grade_score;
+        }
+      }
+      // 탐구 평균
+      const inquiryScores = g.scores.filter(
+        (s) => (s.subject_group_name === "사회" || s.subject_group_name === "과학") && s.grade_score != null,
+      );
+      if (inquiryScores.length > 0) {
+        row["탐구"] = Math.round(inquiryScores.reduce((sum, s) => sum + (s.grade_score ?? 0), 0) / inquiryScores.length * 10) / 10;
+      }
+      return row;
+    });
+  }, [examGroups]);
+
+  if (loading || !recharts || chartData.length < 2) return null;
+
+  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } = recharts;
+  const subjects = ["국어", "수학", "영어", "탐구"];
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+      <span className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">시험별 주요 교과 등급 비교</span>
+      <div className="h-[160px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+            <YAxis domain={[0, 9]} reversed tick={{ fontSize: 11 }} width={25} />
+            <Tooltip formatter={(value: number, name: string) => [`${value}등급`, name]} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {subjects.map((subj, i) => (
+              <Bar key={subj} dataKey={subj} fill={GRADE_BAR_COLORS[i]} radius={[2, 2, 0, 0]} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
