@@ -996,6 +996,12 @@ export async function fetchLatestMockScoreInputAction(
 export interface ScoreTrendData {
   /** 학기별 내신 GPA 추이 */
   gpaByTerm: Array<{ grade: number; semester: number; gpa: number; term: string }>;
+  /** 주요 교과별 등급 추이 (국어/수학/영어) */
+  subjectTrends: Record<string, Array<{ term: string; gpa: number }>>;
+  /** 학기별 요약 (과목수, 평균등급, 총학점) */
+  termSummary: Array<{ term: string; grade: number; semester: number; subjectCount: number; avgGrade: number; totalCredits: number }>;
+  /** 취약 과목 (평균 등급 5 이상) */
+  weakSubjects: Array<{ name: string; avgGrade: number; count: number }>;
   /** 모의고사 백분위 추이 */
   mockTrend: Array<{ exam_date: string; exam_title: string; percentile: number }>;
 }
@@ -1009,15 +1015,15 @@ export async function fetchScoreTrendsAction(
   tenantId: string,
 ): Promise<ScoreTrendData> {
   const { userId } = await getCurrentUser();
-  if (!userId) return { gpaByTerm: [], mockTrend: [] };
+  if (!userId) return { gpaByTerm: [], subjectTrends: {}, termSummary: [], weakSubjects: [], mockTrend: [] };
 
   const { createSupabaseServerClient } = await import("@/lib/supabase/server");
   const supabase = await createSupabaseServerClient();
 
-  // 내신 GPA: 학기별 평균 등급
+  // 내신: 교과군/과목명 포함 조회
   const { data: internalScores } = await supabase
     .from("student_internal_scores")
-    .select("grade, semester, rank_grade, credit_hours")
+    .select("grade, semester, rank_grade, credit_hours, subject_group:subject_group_id(name), subject:subject_id(name)")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .not("rank_grade", "is", null)
@@ -1041,6 +1047,75 @@ export async function fetchScoreTrendsAction(
       gpaByTerm.push({ grade, semester, gpa, term: `${grade}-${semester}` });
     }
     gpaByTerm.sort((a, b) => a.grade - b.grade || a.semester - b.semester);
+  }
+
+  // 주요 교과별 등급 추이 (국어/수학/영어)
+  const MAIN_SUBJECTS = ["국어", "수학", "영어"];
+  const subjectTrends: ScoreTrendData["subjectTrends"] = {};
+  if (internalScores && internalScores.length > 0) {
+    for (const subj of MAIN_SUBJECTS) {
+      const subjectScores = internalScores.filter(
+        (s) => (s.subject_group as { name?: string } | null)?.name === subj,
+      );
+      if (subjectScores.length === 0) continue;
+
+      const byTerm = new Map<string, { total: number; credits: number }>();
+      for (const s of subjectScores) {
+        const key = `${s.grade}-${s.semester}`;
+        const entry = byTerm.get(key) ?? { total: 0, credits: 0 };
+        const cr = s.credit_hours ?? 1;
+        entry.total += (s.rank_grade ?? 0) * cr;
+        entry.credits += cr;
+        byTerm.set(key, entry);
+      }
+      subjectTrends[subj] = Array.from(byTerm.entries())
+        .map(([term, e]) => ({ term, gpa: e.credits > 0 ? Math.round((e.total / e.credits) * 100) / 100 : 0 }))
+        .sort((a, b) => a.term.localeCompare(b.term));
+    }
+  }
+
+  // 학기별 요약
+  const termSummary: ScoreTrendData["termSummary"] = [];
+  if (internalScores && internalScores.length > 0) {
+    const byTerm = new Map<string, { count: number; totalGrade: number; totalCredits: number; grade: number; semester: number }>();
+    for (const s of internalScores) {
+      const key = `${s.grade}-${s.semester}`;
+      const entry = byTerm.get(key) ?? { count: 0, totalGrade: 0, totalCredits: 0, grade: s.grade as number, semester: s.semester as number };
+      entry.count++;
+      entry.totalGrade += (s.rank_grade ?? 0);
+      entry.totalCredits += (s.credit_hours ?? 1);
+      byTerm.set(key, entry);
+    }
+    for (const [term, e] of byTerm) {
+      termSummary.push({
+        term,
+        grade: e.grade,
+        semester: e.semester,
+        subjectCount: e.count,
+        avgGrade: e.count > 0 ? Math.round((e.totalGrade / e.count) * 100) / 100 : 0,
+        totalCredits: e.totalCredits,
+      });
+    }
+    termSummary.sort((a, b) => a.grade - b.grade || a.semester - b.semester);
+  }
+
+  // 취약 과목 (평균 등급 5 이상)
+  const weakSubjects: ScoreTrendData["weakSubjects"] = [];
+  if (internalScores && internalScores.length > 0) {
+    const bySubject = new Map<string, { total: number; count: number }>();
+    for (const s of internalScores) {
+      const name = (s.subject as { name?: string } | null)?.name;
+      if (!name) continue;
+      const entry = bySubject.get(name) ?? { total: 0, count: 0 };
+      entry.total += (s.rank_grade ?? 0);
+      entry.count++;
+      bySubject.set(name, entry);
+    }
+    for (const [name, e] of bySubject) {
+      const avg = e.count > 0 ? Math.round((e.total / e.count) * 100) / 100 : 0;
+      if (avg >= 5) weakSubjects.push({ name, avgGrade: avg, count: e.count });
+    }
+    weakSubjects.sort((a, b) => b.avgGrade - a.avgGrade);
   }
 
   // 모의고사 백분위: 시험별 평균 백분위
@@ -1072,7 +1147,7 @@ export async function fetchScoreTrendsAction(
     }
   }
 
-  return { gpaByTerm, mockTrend };
+  return { gpaByTerm, subjectTrends, termSummary, weakSubjects, mockTrend };
 }
 
 /**
