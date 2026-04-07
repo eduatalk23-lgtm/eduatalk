@@ -9,8 +9,8 @@
 // SynthPhase 6: interview_generation + roadmap_generation → 최종 상태
 // ============================================
 
-import type { PipelineContext } from "./pipeline-types";
-import { SYNTHESIS_PIPELINE_TASK_KEYS, getTaskResult, setTaskResult } from "./pipeline-types";
+import type { PipelineContext, SynthesisPipelineTaskKey } from "./pipeline-types";
+import { SYNTHESIS_PIPELINE_TASK_KEYS, SYNTHESIS_TASK_PREREQUISITES, getTaskResult, setTaskResult } from "./pipeline-types";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PersistedEdge } from "./repository/edge-repository";
 import type { CrossRefEdge } from "./cross-reference";
@@ -31,6 +31,31 @@ import {
   runInterviewGeneration,
   runRoadmapGeneration,
 } from "./pipeline-task-runners";
+
+// ============================================
+// 선행 태스크 실패 시 자동 스킵 가드
+// ============================================
+
+/**
+ * 선행 태스크가 실패했으면 해당 태스크를 failed로 마킹하고 true를 반환.
+ * 호출부에서 true이면 태스크 실행을 건너뛴다.
+ */
+function skipIfSynthPrereqFailed(
+  ctx: PipelineContext,
+  taskKey: SynthesisPipelineTaskKey,
+): boolean {
+  if (ctx.tasks[taskKey] === "completed") return true;
+
+  const prereqs = SYNTHESIS_TASK_PREREQUISITES[taskKey];
+  if (!prereqs) return false;
+
+  const failed = prereqs.filter((p) => ctx.tasks[p] === "failed");
+  if (failed.length === 0) return false;
+
+  ctx.tasks[taskKey] = "failed";
+  ctx.errors[taskKey] = `선행 태스크 실패로 건너뜀: ${failed.join(", ")}`;
+  return true;
+}
 
 // ============================================
 // 헬퍼: Executive Summary 자동 생성 (best-effort)
@@ -227,12 +252,15 @@ export async function executeSynthesisPhase2(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  await runTaskWithState(ctx, "edge_computation", () =>
-    runEdgeComputation(ctx),
-  );
+  if (!skipIfSynthPrereqFailed(ctx, "edge_computation")) {
+    await runTaskWithState(ctx, "edge_computation", () =>
+      runEdgeComputation(ctx),
+    );
+  }
 
   if (await checkCancelled(ctx)) return;
 
+  // guide_matching은 선행 없음 — 항상 실행
   await runTaskWithState(ctx, "guide_matching", () =>
     runGuideMatching(ctx),
   );
@@ -247,27 +275,33 @@ export async function executeSynthesisPhase3(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
+  const diagSkipped = skipIfSynthPrereqFailed(ctx, "ai_diagnosis");
+
   if (!ctx.neisGrades?.length) {
     // NEIS 학년 없음: course_recommendation 선행 → coursePlanData 재조회 → diagnosis
     await runTaskWithState(ctx, "course_recommendation", () =>
       runCourseRecommendation(ctx),
     );
     await refreshCoursePlanData(ctx);
-    const edges: PersistedEdge[] | CrossRefEdge[] = [];
-    await runTaskWithState(ctx, "ai_diagnosis", () =>
-      runAiDiagnosis(ctx, edges, null),
-    );
+    if (!diagSkipped) {
+      const edges: PersistedEdge[] | CrossRefEdge[] = [];
+      await runTaskWithState(ctx, "ai_diagnosis", () =>
+        runAiDiagnosis(ctx, edges, null),
+      );
+    }
   } else {
     // NEIS 학년 있음: diagnosis + course_recommendation 병렬
-    const edges = await loadComputedEdges(ctx);
-    await Promise.allSettled([
-      runTaskWithState(ctx, "ai_diagnosis", () =>
+    const edges = diagSkipped ? [] : await loadComputedEdges(ctx);
+    const tasks: Promise<unknown>[] = [];
+    if (!diagSkipped) {
+      tasks.push(runTaskWithState(ctx, "ai_diagnosis", () =>
         runAiDiagnosis(ctx, edges, null),
-      ),
-      runTaskWithState(ctx, "course_recommendation", () =>
-        runCourseRecommendation(ctx),
-      ),
-    ]);
+      ));
+    }
+    tasks.push(runTaskWithState(ctx, "course_recommendation", () =>
+      runCourseRecommendation(ctx),
+    ));
+    await Promise.allSettled(tasks);
     await refreshCoursePlanData(ctx);
   }
 }
@@ -295,13 +329,22 @@ export async function executeSynthesisPhase5(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  const edges = await loadComputedEdges(ctx);
-  await Promise.allSettled([
-    runTaskWithState(ctx, "activity_summary", () =>
+  const summarySkipped = skipIfSynthPrereqFailed(ctx, "activity_summary");
+  const strategySkipped = skipIfSynthPrereqFailed(ctx, "ai_strategy");
+
+  if (summarySkipped && strategySkipped) return;
+
+  const edges = summarySkipped ? [] : await loadComputedEdges(ctx);
+  const tasks: Promise<unknown>[] = [];
+  if (!summarySkipped) {
+    tasks.push(runTaskWithState(ctx, "activity_summary", () =>
       runActivitySummary(ctx, edges),
-    ),
-    runTaskWithState(ctx, "ai_strategy", () => runAiStrategy(ctx)),
-  ]);
+    ));
+  }
+  if (!strategySkipped) {
+    tasks.push(runTaskWithState(ctx, "ai_strategy", () => runAiStrategy(ctx)));
+  }
+  await Promise.allSettled(tasks);
 }
 
 // ============================================
@@ -313,14 +356,23 @@ export async function executeSynthesisPhase6(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  await Promise.allSettled([
-    runTaskWithState(ctx, "interview_generation", () =>
-      runInterviewGeneration(ctx),
-    ),
-    runTaskWithState(ctx, "roadmap_generation", () =>
-      runRoadmapGeneration(ctx),
-    ),
-  ]);
+  const interviewSkipped = skipIfSynthPrereqFailed(ctx, "interview_generation");
+  const roadmapSkipped = skipIfSynthPrereqFailed(ctx, "roadmap_generation");
+
+  if (!interviewSkipped || !roadmapSkipped) {
+    const tasks: Promise<unknown>[] = [];
+    if (!interviewSkipped) {
+      tasks.push(runTaskWithState(ctx, "interview_generation", () =>
+        runInterviewGeneration(ctx),
+      ));
+    }
+    if (!roadmapSkipped) {
+      tasks.push(runTaskWithState(ctx, "roadmap_generation", () =>
+        runRoadmapGeneration(ctx),
+      ));
+    }
+    await Promise.allSettled(tasks);
+  }
 
   // Synthesis pipeline 최종 상태 판정
   const allCompleted = SYNTHESIS_PIPELINE_TASK_KEYS.every(

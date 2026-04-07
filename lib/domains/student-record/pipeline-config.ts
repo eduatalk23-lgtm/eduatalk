@@ -115,6 +115,19 @@ export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<_SynthKey, _SynthKey[]>> 
   ai_diagnosis: ["ai_strategy", "interview_generation", "roadmap_generation"],
 };
 
+/**
+ * Synthesis 파이프라인 선행 태스크 → 해당 태스크가 실행되려면 성공해야 하는 태스크 목록.
+ * SYNTHESIS_TASK_DEPENDENTS의 역방향. 선행 태스크 중 하나라도 failed이면 자동 스킵.
+ */
+export const SYNTHESIS_TASK_PREREQUISITES: Partial<Record<_SynthKey, _SynthKey[]>> = {
+  edge_computation: ["storyline_generation"],
+  ai_diagnosis: ["storyline_generation", "edge_computation"],
+  activity_summary: ["storyline_generation", "edge_computation", "guide_matching"],
+  ai_strategy: ["storyline_generation", "edge_computation", "ai_diagnosis"],
+  interview_generation: ["storyline_generation", "edge_computation", "ai_diagnosis"],
+  roadmap_generation: ["storyline_generation", "edge_computation", "guide_matching", "ai_diagnosis"],
+};
+
 // ============================================
 // Grade Pipeline 전용 레이블/타임아웃
 // ============================================
