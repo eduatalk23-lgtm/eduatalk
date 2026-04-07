@@ -12,7 +12,7 @@ import type {
   ActivityTag,
   ActivityTagInsert,
   TagContext,
-} from "./types";
+} from "../types";
 
 // ============================================
 // competency_scores

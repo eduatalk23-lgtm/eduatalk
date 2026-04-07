@@ -15,7 +15,7 @@ import {
   type ScoreRowWithSubject,
 } from "./pipeline-types";
 import * as competencyRepo from "./repository/competency-repository";
-import { toDbJson, type CompetencyScoreInsert } from "./types";
+import { toDbJson, type CompetencyScoreInsert, type TagContext } from "./types";
 import type { HighlightAnalysisResult, HighlightAnalysisInput } from "./llm/types";
 import { runWithConcurrency, collectAnalysisContext } from "./pipeline-task-runners-shared";
 import { PIPELINE_THRESHOLDS } from "./constants";
@@ -121,7 +121,7 @@ async function runCompetencyForRecords(
     content: string,
     data: HighlightAnalysisResult,
   ) {
-    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: string }> = [];
+    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: TagContext }> = [];
     for (const section of data.sections) {
       for (const tag of section.tags) {
         rpcTags.push({
