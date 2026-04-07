@@ -578,6 +578,7 @@ function SetekTableRow({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
     },
+    onError: () => { /* 에러는 mutation.isError로 표시 */ },
   });
 
   const isGridActive = ctx?.activeSubjectId === row.subjectId;
@@ -631,6 +632,7 @@ function SetekTableRow({
           >
             {deleteMutation.isPending ? "삭제 중..." : "삭제"}
           </button>
+          {deleteMutation.isError && <span className="text-[11px] text-red-500">{deleteMutation.error.message}</span>}
         </div>
       </div>
     </td>
@@ -1036,6 +1038,10 @@ function AnalysisExpandableCell({
 
   const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
+  const [tagError, setTagError] = useState<string | null>(null);
+  const onTagError = useCallback((err: Error) => setTagError(err.message), []);
+  const clearTagError = useCallback(() => setTagError(null), []);
+
   // AI 태그 → 컨설턴트로 복사 (중복 방지: competency_item + record_id 기준 이미 있으면 건너뜀)
   const importAiMutation = useMutation({
     mutationFn: async () => {
@@ -1059,7 +1065,8 @@ function AnalysisExpandableCell({
         if (!res.success) throw new Error("error" in res ? res.error : "복사 실패");
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onTagError,
   });
 
   // 컨설턴트 태그 → 확정
@@ -1071,7 +1078,8 @@ function AnalysisExpandableCell({
         if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onTagError,
   });
 
   // 개별 태그 삭제
@@ -1081,7 +1089,8 @@ function AnalysisExpandableCell({
       const res = await deleteActivityTagAction(tag.id);
       if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onTagError,
   });
 
   // 전체 태그 삭제
@@ -1092,11 +1101,18 @@ function AnalysisExpandableCell({
         await deleteActivityTagAction(t.id);
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearTagError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onTagError,
   });
 
   return (
     <div className="flex flex-col gap-1.5">
+      {tagError && (
+        <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+          {tagError}
+          <button type="button" className="ml-2 underline" onClick={clearTagError}>닫기</button>
+        </p>
+      )}
       {/* 접힌 상태: 요약 */}
       <button
         type="button"
@@ -1196,6 +1212,8 @@ function DraftExpandableCell({
   if (records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
   if (records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
 
+  const [draftError, setDraftError] = useState<string | null>(null);
+
   // AI 초안 → 컨설턴트 가안 수용 (E1: content 보호, E4: 낙관적 잠금)
   const acceptAiMutation = useMutation({
     mutationFn: async () => {
@@ -1218,7 +1236,8 @@ function DraftExpandableCell({
         }
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onSuccess: async () => { setDraftError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onError: (err: Error) => setDraftError(err.message),
   });
 
   // 컨설턴트 가안 → 확정
@@ -1232,7 +1251,8 @@ function DraftExpandableCell({
         }
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onSuccess: async () => { setDraftError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onError: (err: Error) => setDraftError(err.message),
   });
 
   // 컨설턴트 가안 저장
@@ -1254,6 +1274,12 @@ function DraftExpandableCell({
 
   return (
     <div className="flex flex-col gap-1.5">
+      {draftError && (
+        <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+          {draftError}
+          <button type="button" className="ml-2 underline" onClick={() => setDraftError(null)}>닫기</button>
+        </p>
+      )}
       {/* 접힌 상태 */}
       <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-2 text-left">
         <span className="flex-1 text-xs text-[var(--text-secondary)]">

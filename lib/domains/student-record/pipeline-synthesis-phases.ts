@@ -91,14 +91,22 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
     const { computeAggregateFlowCompletion } = await import("./evaluation-criteria/flow-completion");
     const { calculateCourseAdequacy } = await import("./course-adequacy");
 
-    // 5-1. Flow Completion: content_quality DB 조회
-    const { data: qualityRows } = await ctx.supabase
-      .from("student_record_content_quality")
-      .select("record_type, record_id, specificity, coherence, depth, grammar, scientific_validity, overall_score, issues, feedback")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("source", "ai");
+    // 5-1~5-3. 독립 쿼리 병렬 실행 (content_quality + student_internal_scores 통합)
+    const [{ data: qualityRows }, { data: internalScoreRows }] = await Promise.all([
+      ctx.supabase
+        .from("student_record_content_quality")
+        .select("record_type, record_id, specificity, coherence, depth, grammar, scientific_validity, overall_score, issues, feedback")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .eq("source", "ai"),
+      ctx.supabase
+        .from("student_internal_scores")
+        .select("subject:subject_id(name), rank_grade")
+        .eq("student_id", studentId)
+        .returns<Array<{ subject: { name: string } | null; rank_grade: number | null }>>(),
+    ]);
 
+    // Flow Completion
     let flowCompletion: Awaited<ReturnType<typeof computeAggregateFlowCompletion>> | null = null;
     if (qualityRows && qualityRows.length > 0) {
       const records = qualityRows.map((q) => ({
@@ -118,29 +126,20 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
       flowCompletion = computeAggregateFlowCompletion(records, tier);
     }
 
-    // 5-2. Course Adequacy
+    // Course Adequacy (통합 쿼리에서 subject 추출)
     const targetMajor = (ctx.snapshot?.target_major as string) ?? null;
     let courseAdequacy: import("./course-adequacy").CourseAdequacyResult | null = null;
-    if (targetMajor) {
-      const { data: scoreRowsForCa } = await ctx.supabase
-        .from("student_internal_scores")
-        .select("subject:subject_id(name)")
-        .eq("student_id", studentId)
-        .returns<Array<{ subject: { name: string } | null }>>();
+    if (targetMajor && internalScoreRows) {
       const takenSubjects = [...new Set(
-        (scoreRowsForCa ?? []).map((s) => s.subject?.name).filter((n): n is string => !!n),
+        internalScoreRows.map((s) => s.subject?.name).filter((n): n is string => !!n),
       )];
       courseAdequacy = calculateCourseAdequacy(targetMajor, takenSubjects, null);
     }
 
-    // 5-3. 학종 입결 참조 (학생 평균 내신)
-    const { data: gradeRows } = await ctx.supabase
-      .from("student_internal_scores")
-      .select("rank_grade")
-      .eq("student_id", studentId)
-      .not("rank_grade", "is", null);
-    const studentGrade = gradeRows && gradeRows.length > 0
-      ? gradeRows.reduce((sum, r) => sum + (r.rank_grade as number), 0) / gradeRows.length
+    // 학종 입결 참조 (통합 쿼리에서 rank_grade 추출)
+    const gradeRows = (internalScoreRows ?? []).filter((r) => r.rank_grade != null);
+    const studentGrade = gradeRows.length > 0
+      ? gradeRows.reduce((sum, r) => sum + r.rank_grade!, 0) / gradeRows.length
       : null;
 
     // 5-4. 4축 조합

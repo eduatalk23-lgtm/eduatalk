@@ -88,14 +88,14 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   if (ctx.consultingGrades && ctx.consultingGrades.length > 0 && ctx.coursePlanData?.plans) {
     const plans = ctx.coursePlanData.plans.filter(
       (p) => (p.plan_status === "confirmed" || p.plan_status === "recommended")
-        && ctx.consultingGrades!.includes(p.grade),
+        && ctx.consultingGrades.includes(p.grade),
     );
     if (plans.length > 0) {
       const byGrade = new Map<number, string[]>();
       for (const p of plans) {
         if (!byGrade.has(p.grade)) byGrade.set(p.grade, []);
         const name = (p.subject as { name?: string } | null)?.name ?? "과목 미정";
-        byGrade.get(p.grade)!.push(name);
+        byGrade.get(p.grade)?.push(name);
       }
       const lines = [...byGrade.entries()]
         .sort(([a], [b]) => a - b)

@@ -8,7 +8,7 @@
 import { useState, useRef, useCallback, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { addActivityTagsBatchAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { addActivityTagsBatchAction } from "@/lib/domains/student-record/actions/competency";
 import type { ActivityTagInsert } from "@/lib/domains/student-record/types";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyArea } from "@/lib/domains/student-record";

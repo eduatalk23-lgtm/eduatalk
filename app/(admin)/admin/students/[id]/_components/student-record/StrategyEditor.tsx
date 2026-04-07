@@ -13,7 +13,7 @@ import {
   addStrategyAction,
   updateStrategyAction,
   deleteStrategyAction,
-} from "@/lib/domains/student-record/actions/diagnosis";
+} from "@/lib/domains/student-record/actions/record-strategy";
 import { suggestStrategies } from "@/lib/domains/student-record/llm/actions/suggestStrategies";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";

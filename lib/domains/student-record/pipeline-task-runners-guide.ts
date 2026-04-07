@@ -105,13 +105,23 @@ export async function runSetekGuide(
     const { generateSetekDirection } = await import("./llm/actions/guide-modules");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
-    for (const grade of ctx.consultingGrades!) {
-      const targetSchoolYear = currentYear - ctx.studentGrade + grade;
-      const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[grade]);
-      const result = await generateSetekDirection(
-        studentId, tenantId, guideUserId,
-        sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx,
-      );
+    const gradeResults = await Promise.allSettled(
+      ctx.consultingGrades!.map(async (grade) => {
+        const targetSchoolYear = currentYear - ctx.studentGrade + grade;
+        const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[grade]);
+        const result = await generateSetekDirection(
+          studentId, tenantId, guideUserId,
+          sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+        );
+        return { grade, result };
+      }),
+    );
+    for (const r of gradeResults) {
+      if (r.status === "rejected") {
+        logActionWarn(LOG_CTX, `세특 방향 생성 실패`, { studentId, error: String(r.reason) });
+        continue;
+      }
+      const { grade, result } = r.value;
       if (!result.success) {
         logActionWarn(LOG_CTX, `세특 방향 생성 실패 (grade ${grade})`, { studentId, error: result.error });
         continue;
@@ -184,22 +194,17 @@ export async function runChangcheGuide(
   const currentYear = calculateSchoolYear();
   const { data: setekRows } = await supabase
     .from("student_record_setek_guides")
-    .select("subject_id, direction, keywords, competency_focus")
+    .select("subject:subject_id(id, name), direction, keywords, competency_focus")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("school_year", currentYear)
     .eq("source", "ai")
     .limit(6);
   if (setekRows && setekRows.length > 0) {
-    // subject_id → 과목명 조회
-    const { data: subs } = await supabase
-      .from("subjects")
-      .select("id, name")
-      .in("id", setekRows.map((r) => r.subject_id));
-    const subMap = new Map((subs ?? []).map((s) => [s.id, s.name]));
-    const lines = setekRows.map((r) =>
-      `- ${subMap.get(r.subject_id) ?? r.subject_id}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`,
-    );
+    const lines = setekRows.map((r) => {
+      const sub = r.subject as { id: string; name: string } | null;
+      return `- ${sub?.name ?? sub?.id ?? "미상"}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`;
+    });
     setekGuideContext = `## 세특 방향 요약\n${lines.join("\n")}`;
   }
 

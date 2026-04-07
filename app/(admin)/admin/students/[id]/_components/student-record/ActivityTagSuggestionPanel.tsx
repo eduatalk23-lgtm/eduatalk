@@ -8,7 +8,7 @@
 import { useState, useTransition } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { suggestCompetencyTags } from "@/lib/domains/student-record/llm/actions/suggestTags";
-import { addActivityTagAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { addActivityTagAction } from "@/lib/domains/student-record/actions/competency";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { TagSuggestion, SuggestTagsInput } from "@/lib/domains/student-record/llm/types";

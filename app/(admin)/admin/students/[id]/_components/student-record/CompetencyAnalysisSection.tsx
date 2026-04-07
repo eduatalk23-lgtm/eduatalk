@@ -9,7 +9,7 @@ import { useState, useMemo, useEffect, Fragment } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { analyzeSetekWithHighlight } from "@/lib/domains/student-record/llm/actions/analyzeWithHighlight";
-import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction, fetchAnalysisCacheAction, saveAnalysisCacheAction, fetchAnalysisCacheWithHashAction, computeDeterministicCareerGradesAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction, fetchAnalysisCacheAction, saveAnalysisCacheAction, fetchAnalysisCacheWithHashAction, computeDeterministicCareerGradesAction } from "@/lib/domains/student-record/actions/competency";
 import { computeRecordContentHash } from "@/lib/domains/student-record/content-hash";
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import type { ActivityTagInsert, RubricScoreEntry } from "@/lib/domains/student-record/types";
@@ -234,6 +234,7 @@ export function CompetencyAnalysisSection({
       if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: diagnosisQk }),
+    onError: (err: Error) => setError(err.message),
   });
 
   const tagDeleteMutation = useMutation({
@@ -242,6 +243,7 @@ export function CompetencyAnalysisSection({
       if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: diagnosisQk }),
+    onError: (err: Error) => setError(err.message),
   });
 
   const [expandedRubricItem, setExpandedRubricItem] = useState<string | null>(null);
@@ -262,6 +264,7 @@ export function CompetencyAnalysisSection({
       if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: diagnosisQk }),
+    onError: (err: Error) => setError(err.message),
   });
 
   // AI 분석 후 태그만 저장 (등급은 배치 종합 후 별도 저장)

@@ -529,6 +529,8 @@ function DraftGridCell({
   const queryClient = useQueryClient();
   const recordQk = ["studentRecord", "recordTab", studentId] as const;
 
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
   // AI 초안 → 컨설턴트 가안 수용 (E1: content 보호, E4: 낙관적 잠금)
   const acceptAiMutation = useMutation({
     mutationFn: async () => {
@@ -551,7 +553,8 @@ function DraftGridCell({
         }
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onSuccess: async () => { setMutationError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onError: (err: Error) => setMutationError(err.message),
   });
 
   // 컨설턴트 가안 → 확정
@@ -565,7 +568,8 @@ function DraftGridCell({
         }
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onSuccess: async () => { setMutationError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onError: (err: Error) => setMutationError(err.message),
   });
 
   // 컨설턴트 가안 저장
@@ -596,40 +600,53 @@ function DraftGridCell({
     );
   }
 
+  const errorBanner = mutationError ? (
+    <p className="mb-1 rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+      {mutationError}
+      <button type="button" className="ml-2 underline" onClick={() => setMutationError(null)}>닫기</button>
+    </p>
+  ) : null;
+
   if (perspective === "consultant") {
     return (
-      <MultiRecordDraftBlock
-        label="컨설턴트 가안"
-        style={DRAFT_BLOCK_STYLES.consultant}
-        records={records}
-        getContent={(r) => r.content}
-        editable
-        onSave={handleSaveContent}
-        charLimit={charLimit}
-        importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
-        importLabel="AI 초안 수용"
-        isImporting={acceptAiMutation.isPending}
-      />
+      <>
+        {errorBanner}
+        <MultiRecordDraftBlock
+          label="컨설턴트 가안"
+          style={DRAFT_BLOCK_STYLES.consultant}
+          records={records}
+          getContent={(r) => r.content}
+          editable
+          onSave={handleSaveContent}
+          charLimit={charLimit}
+          importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
+          importLabel="AI 초안 수용"
+          isImporting={acceptAiMutation.isPending}
+        />
+      </>
     );
   }
 
   // confirmed
   return (
-    <MultiRecordDraftBlock
-      label="확정본"
-      style={DRAFT_BLOCK_STYLES.confirmed}
-      records={records}
-      getContent={(r) => r.confirmed_content}
-      importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
-      importLabel="가안 확정"
-      isImporting={confirmMutation.isPending}
-      staleWarning={
-        // E5: 확정본이 있으나 현재 가안과 다른 레코드가 하나라도 있으면 경고
-        records.some(
-          (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
-        ) ? "가안과 다름" : undefined
-      }
-    />
+    <>
+      {errorBanner}
+      <MultiRecordDraftBlock
+        label="확정본"
+        style={DRAFT_BLOCK_STYLES.confirmed}
+        records={records}
+        getContent={(r) => r.confirmed_content}
+        importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
+        importLabel="가안 확정"
+        isImporting={confirmMutation.isPending}
+        staleWarning={
+          // E5: 확정본이 있으나 현재 가안과 다른 레코드가 하나라도 있으면 경고
+          records.some(
+            (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
+          ) ? "가안과 다름" : undefined
+        }
+      />
+    </>
   );
 }
 
@@ -671,6 +688,10 @@ function AnalysisGridCell({
     recordType: "setek" as const,
   }), [studentId, tenantId, schoolYear, row]);
 
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const onMutationError = useCallback((err: Error) => setAnalysisError(err.message), []);
+  const clearAnalysisError = useCallback(() => setAnalysisError(null), []);
+
   // AI 태그 → 컨설턴트 복사
   const importAiMutation = useMutation({
     mutationFn: async () => {
@@ -694,7 +715,8 @@ function AnalysisGridCell({
         if (!res.success) throw new Error("error" in res ? res.error : "복사 실패");
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearAnalysisError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onMutationError,
   });
 
   // 컨설턴트 태그 → 확정
@@ -706,7 +728,8 @@ function AnalysisGridCell({
         if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearAnalysisError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onMutationError,
   });
 
   // 개별 태그 삭제
@@ -716,7 +739,8 @@ function AnalysisGridCell({
       const res = await deleteActivityTagAction(tag.id);
       if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearAnalysisError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onMutationError,
   });
 
   // 전체 태그 삭제
@@ -727,7 +751,8 @@ function AnalysisGridCell({
         await deleteActivityTagAction(t.id);
       }
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onSuccess: async () => { clearAnalysisError(); await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+    onError: onMutationError,
   });
 
   const [mode, setMode] = useState<AnalysisBlockMode>(
@@ -746,39 +771,52 @@ function AnalysisGridCell({
     );
   }
 
+  const analysisErrorBanner = analysisError ? (
+    <p className="mb-1 rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+      {analysisError}
+      <button type="button" className="ml-2 underline" onClick={clearAnalysisError}>닫기</button>
+    </p>
+  ) : null;
+
   if (perspective === "consultant") {
     return (
-      <AnalysisBlock
-        label="컨설턴트"
-        tags={manualTags}
-        content={combinedContent}
-        mode={mode}
-        setMode={setMode}
-        importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
-        importLabel="AI 가져오기"
-        isImporting={importAiMutation.isPending}
-        taggerProps={taggerProps}
-        onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
-        onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${manualTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(manualTags); }}
-      />
+      <>
+        {analysisErrorBanner}
+        <AnalysisBlock
+          label="컨설턴트"
+          tags={manualTags}
+          content={combinedContent}
+          mode={mode}
+          setMode={setMode}
+          importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
+          importLabel="AI 가져오기"
+          isImporting={importAiMutation.isPending}
+          taggerProps={taggerProps}
+          onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+          onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${manualTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(manualTags); }}
+        />
+      </>
     );
   }
 
   // confirmed
   return (
-    <AnalysisBlock
-      label="확정"
-      tags={confirmedTags}
-      content={combinedContent}
-      mode={mode}
-      setMode={setMode}
-      importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
-      importLabel="컨설턴트 가져오기"
-      isImporting={importConsultantMutation.isPending}
-      taggerProps={taggerProps}
-      onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
-      onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
-    />
+    <>
+      {analysisErrorBanner}
+      <AnalysisBlock
+        label="확정"
+        tags={confirmedTags}
+        content={combinedContent}
+        mode={mode}
+        setMode={setMode}
+        importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
+        importLabel="컨설턴트 가져오기"
+        isImporting={importConsultantMutation.isPending}
+        taggerProps={taggerProps}
+        onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+        onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
+      />
+    </>
   );
 }
 

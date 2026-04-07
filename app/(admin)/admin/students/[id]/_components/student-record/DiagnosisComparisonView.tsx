@@ -9,10 +9,10 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { useSidePanel } from "@/components/side-panel";
-import { upsertDiagnosisAction, confirmDiagnosisAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { upsertDiagnosisAction, confirmDiagnosisAction, findDiagnosisSnapshotsAction } from "@/lib/domains/student-record/actions/diagnosis";
 import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/generateDiagnosis";
 import { buildEdgeSummaryForPrompt } from "@/lib/domains/student-record/llm/edge-summary";
-import { fetchPersistedEdges } from "@/lib/domains/student-record/actions/diagnosis";
+import { fetchPersistedEdges } from "@/lib/domains/student-record/actions/diagnosis-helpers";
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import { checkDiagnosisStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
@@ -22,7 +22,6 @@ import { RecommendedCourses } from "./GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { Sparkles, Copy, Check, Loader2, History } from "lucide-react";
 import { useAutoSave } from "./useAutoSave";
-import { findDiagnosisSnapshotsAction } from "@/lib/domains/student-record/actions/diagnosis";
 
 type Props = {
   aiDiagnosis: Diagnosis | null;
@@ -135,6 +134,7 @@ export function DiagnosisComparisonView({
     }
   }, [tenantId, studentId, schoolYear, queryClient, qk]);
 
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmMutation = useMutation({
     mutationFn: async () => {
       isConfirmingRef.current = true;
@@ -143,11 +143,13 @@ export function DiagnosisComparisonView({
       if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => {
+      setConfirmError(null);
       queryClient.invalidateQueries({ queryKey: qk });
       // 하류 캐시 무효화: 진단 확정 시 세특 방향·전략이 구 진단 기반일 수 있음
       queryClient.invalidateQueries({ queryKey: setekGuideKeys.list(studentId) });
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.strategyTab(studentId, schoolYear) });
     },
+    onError: (err: Error) => setConfirmError(err.message),
     onSettled: () => { isConfirmingRef.current = false; },
   });
 
@@ -534,6 +536,7 @@ export function DiagnosisComparisonView({
                   {confirmMutation.isPending ? "확정 중..." : "확정"}
                 </button>
               )}
+              {confirmError && <span className="text-xs text-red-500">{confirmError}</span>}
               <span className="ml-auto text-xs text-[var(--text-tertiary)]" aria-live="polite" aria-atomic="true">
                 {autoSaveStatus === "saving" && (
                   <span className="inline-flex items-center gap-1 text-blue-500">

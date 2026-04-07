@@ -83,6 +83,25 @@ export async function getRecordTabData(
 }
 
 // ============================================
+// NEIS 공통 검증 헬퍼
+// ============================================
+
+function validateAndNormalize(
+  rawContent: string | undefined | null,
+  charLimit: number,
+): { ok: true; content: string } | { ok: false; error: string } {
+  const content = normalizeLineBreaks(rawContent ?? "");
+  const v = validateNeisContent(content, charLimit);
+  if (v.isOver) {
+    return { ok: false, error: `NEIS 바이트 초과: ${v.bytes.toLocaleString()}/${v.byteLimit.toLocaleString()}B (${v.chars}자 입력)` };
+  }
+  if (v.invalidChars.length > 0) {
+    return { ok: false, error: `NEIS 입력 불가 문자 포함 (위치: ${v.invalidChars.map(c => c.position).join(", ")})` };
+  }
+  return { ok: true, content };
+}
+
+// ============================================
 // 세특 저장 (글자수 검증 + 줄바꿈 정규화 + 공통과목 쌍 체크)
 // ============================================
 
@@ -91,23 +110,9 @@ export async function saveSetek(
   options?: { expectedUpdatedAt?: string; curriculumRevisionId?: string },
 ): Promise<StudentRecordActionResult> {
   try {
-    // 줄바꿈 정규화
-    const content = normalizeLineBreaks(input.content ?? "");
-
-    // NEIS 바이트 검증 (NEIS "500자" = 1,500B 기준)
-    const validation = validateNeisContent(content, input.char_limit ?? 500);
-    if (validation.isOver) {
-      return {
-        success: false,
-        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
-      };
-    }
-    if (validation.invalidChars.length > 0) {
-      return {
-        success: false,
-        error: `NEIS 입력 불가 문자 포함 (위치: ${validation.invalidChars.map(c => c.position).join(", ")})`,
-      };
-    }
+    const validated = validateAndNormalize(input.content, input.char_limit ?? 500);
+    if (!validated.ok) return { success: false, error: validated.error };
+    const content = validated.content;
 
     // 공통과목 쌍 합산 검증 (2022 개정) — 바이트 기준
     if (options?.curriculumRevisionId && input.subject_id) {
@@ -151,20 +156,9 @@ export async function savePersonalSetek(
   input: RecordPersonalSetekInsert,
 ): Promise<StudentRecordActionResult> {
   try {
-    const content = normalizeLineBreaks(input.content ?? "");
-    const validation = validateNeisContent(content, input.char_limit ?? 500);
-    if (validation.isOver) {
-      return {
-        success: false,
-        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
-      };
-    }
-    if (validation.invalidChars.length > 0) {
-      return {
-        success: false,
-        error: `NEIS 입력 불가 문자 포함 (위치: ${validation.invalidChars.map(c => c.position).join(", ")})`,
-      };
-    }
+    const validated = validateAndNormalize(input.content, input.char_limit ?? 500);
+    if (!validated.ok) return { success: false, error: validated.error };
+    const content = validated.content;
 
     const id = await repository.insertPersonalSetek({ ...input, content });
     return { success: true, data: { id } };
@@ -204,18 +198,13 @@ export async function saveChangche(
   options?: { expectedUpdatedAt?: string },
 ): Promise<StudentRecordActionResult> {
   try {
-    const content = normalizeLineBreaks(input.content ?? "");
     const charLimit = getCharLimit(
       input.activity_type === "career" ? "career" : input.activity_type as "autonomy" | "club",
       schoolYear,
     );
-    const validation = validateNeisContent(content, charLimit);
-    if (validation.isOver) {
-      return {
-        success: false,
-        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
-      };
-    }
+    const validated = validateAndNormalize(input.content, charLimit);
+    if (!validated.ok) return { success: false, error: validated.error };
+    const content = validated.content;
 
     if (options?.expectedUpdatedAt && input.id) {
       await repository.updateChangcheById(
@@ -247,15 +236,10 @@ export async function saveHaengteuk(
   options?: { expectedUpdatedAt?: string },
 ): Promise<StudentRecordActionResult> {
   try {
-    const content = normalizeLineBreaks(input.content ?? "");
     const charLimit = getCharLimit("haengteuk", schoolYear);
-    const validation = validateNeisContent(content, charLimit);
-    if (validation.isOver) {
-      return {
-        success: false,
-        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
-      };
-    }
+    const validated = validateAndNormalize(input.content, charLimit);
+    if (!validated.ok) return { success: false, error: validated.error };
+    const content = validated.content;
 
     if (options?.expectedUpdatedAt && input.id) {
       await repository.updateHaengteukById(

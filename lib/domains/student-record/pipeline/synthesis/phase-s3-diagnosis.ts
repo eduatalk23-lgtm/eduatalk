@@ -87,7 +87,7 @@ export async function runAiDiagnosis(
       const { getCurriculumYear: getCurrYearFallback } = await import("@/lib/utils/schoolYear");
       const fbEnrollmentYear = calculateSchoolYear() - studentGrade + 1;
       const fbCurriculumYear = getCurrYearFallback(fbEnrollmentYear);
-      const fbTargetMajor = snapshot!.target_major as string;
+      const fbTargetMajor = snapshot?.target_major as string;
 
       // 이수과목 조회
       const fbScoreRows = await fetchScoresWithSubject(supabase, studentId);

@@ -244,7 +244,7 @@ export async function buildCrossGradeDirections(
     const grouped = new Map<number, typeof setekRows>();
     for (const r of setekRows) {
       if (!grouped.has(r.school_year)) grouped.set(r.school_year, []);
-      grouped.get(r.school_year)!.push(r);
+      grouped.get(r.school_year)?.push(r);
     }
     for (const [year, rows] of grouped) {
       sections.push(`### ${year}학년도 세특 보완방향`);
@@ -262,7 +262,7 @@ export async function buildCrossGradeDirections(
     const grouped = new Map<number, typeof changcheRows>();
     for (const r of changcheRows) {
       if (!grouped.has(r.school_year)) grouped.set(r.school_year, []);
-      grouped.get(r.school_year)!.push(r);
+      grouped.get(r.school_year)?.push(r);
     }
     for (const [year, rows] of grouped) {
       sections.push(`### ${year}학년도 창체 보완방향`);

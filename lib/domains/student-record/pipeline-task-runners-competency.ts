@@ -149,7 +149,7 @@ async function runCompetencyForRecords(
 
     if (data.contentQuality) {
       const cq = data.contentQuality;
-      await supabase
+      const { error: qualityErr } = await supabase
         .from("student_record_content_quality")
         .upsert(
           {
@@ -169,12 +169,10 @@ async function runCompetencyForRecords(
             source: "ai",
           },
           { onConflict: "tenant_id,student_id,record_id,source" },
-        )
-        .then(({ error }) => {
-          if (error) {
-            logActionWarn(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${error.message}`, { recordId, recType });
-          }
-        });
+        );
+      if (qualityErr) {
+        logActionWarn(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${qualityErr.message}`, { recordId, recType });
+      }
     }
 
     allResults.set(recordId, data);

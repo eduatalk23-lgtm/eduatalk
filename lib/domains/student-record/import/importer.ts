@@ -135,7 +135,7 @@ export async function executeImport(
         if (!awardCache.has(award.school_year)) {
           awardCache.set(award.school_year, await repo.findAwardsByStudentYear(award.student_id, award.school_year, award.tenant_id));
         }
-        if (awardCache.get(award.school_year)!.some((a) => a.award_name === award.award_name && a.grade === award.grade)) continue;
+        if ((awardCache.get(award.school_year) ?? []).some((a) => a.award_name === award.award_name && a.grade === award.grade)) continue;
         await repo.insertAward(award);
         counts.awards++;
       }
@@ -153,7 +153,7 @@ export async function executeImport(
         if (!volCache.has(vol.school_year)) {
           volCache.set(vol.school_year, await repo.findVolunteerByStudentYear(vol.student_id, vol.school_year, vol.tenant_id));
         }
-        if (volCache.get(vol.school_year)!.some((v) => v.activity_date === vol.activity_date && v.grade === vol.grade && v.hours === vol.hours)) continue;
+        if ((volCache.get(vol.school_year) ?? []).some((v) => v.activity_date === vol.activity_date && v.grade === vol.grade && v.hours === vol.hours)) continue;
         await repo.insertVolunteer(vol);
         counts.volunteer++;
       }
