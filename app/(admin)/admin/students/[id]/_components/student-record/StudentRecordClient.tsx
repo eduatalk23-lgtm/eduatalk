@@ -27,7 +27,11 @@ import { DiagnosisStageContent } from "./DiagnosisStageContent";
 import { DesignStageContent } from "./DesignStageContent";
 import { StrategyStageContent } from "./StrategyStageContent";
 import { RecordSidebar } from "./RecordSidebar";
-import { useStudentRecordData } from "./useStudentRecordData";
+import { useStudentRecordOverview } from "./useStudentRecordOverview";
+import { useRecordStageData } from "./useRecordStageData";
+import { useDiagnosisStageData } from "./useDiagnosisStageData";
+import { useDesignStageData } from "./useDesignStageData";
+import { useStrategyStageData } from "./useStrategyStageData";
 import { classifySubjectId } from "./GradesAndSetekSection";
 import { STAGES } from "./recordStages";
 import type { StageId } from "./recordStages";
@@ -87,36 +91,36 @@ export function StudentRecordClient({
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // ─── 데이터 훅 ────────────────────────────────────
+  // ─── Phase 4: 5개 분리 훅 ────────────────────────────
   const {
-    yearGradePairs,
-    recordByGrade,
-    suppByGrade,
-    anyRecordLoading,
-    anySuppLoading,
-    storylineData,
-    storylineLoading,
-    strategyData,
-    strategyLoading,
-    diagnosisData,
-    diagnosisLoading,
-    diagnosisError,
-    pipelineData,
-    isPipelineRunning,
-    coursePlanData,
-    scorePanelData,
-    scorePanelLoading,
+    warnings, progressCounts, pipelineData, isPipelineRunning,
+  } = useStudentRecordOverview({ studentId, studentGrade, initialSchoolYear });
+
+  const {
+    yearGradePairs, recordByGrade, suppByGrade,
+    anyRecordLoading, anySuppLoading,
+    allRecordFailed, allSuppFailed, firstRecordError,
+    mergedReadings, allRecordSummaries,
     setekGuidesRes,
-    transformedSetekGuideItems,
-    transformedChangcheGuideItems,
-    transformedHaengteukGuideItems,
-    mergedReadings,
-    allRecordSummaries,
-    warnings,
-    progressCounts,
-    allFailed,
-    firstError,
-  } = useStudentRecordData({ studentId, tenantId, initialSchoolYear, studentGrade, subjects });
+    transformedSetekGuideItems, transformedChangcheGuideItems, transformedHaengteukGuideItems,
+  } = useRecordStageData({ studentId, studentGrade, subjects });
+
+  const {
+    diagnosisData, diagnosisLoading, diagnosisError,
+  } = useDiagnosisStageData({ studentId, tenantId, initialSchoolYear, yearGradePairs });
+
+  const {
+    storylineData, storylineLoading, storylineError,
+    coursePlanData,
+  } = useDesignStageData({ studentId, initialSchoolYear });
+
+  const {
+    strategyData, strategyLoading, strategyError,
+    scorePanelData, scorePanelLoading,
+  } = useStrategyStageData({ studentId, initialSchoolYear });
+
+  const allFailed = allRecordFailed && allSuppFailed && !!storylineError && !!strategyError;
+  const firstError = allFailed ? (firstRecordError ?? storylineError ?? strategyError) : null;
 
   // ─── viewMode에 따른 visible pairs ────────────────
   const visiblePairs = useMemo(() => {

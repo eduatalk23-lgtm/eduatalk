@@ -27,7 +27,7 @@ type RecordSummary = {
 
 type MergedApplications = {
   applications: Array<Record<string, unknown>>;
-  interviewConflicts: Array<Record<string, unknown>>;
+  interviewConflicts: Array<{ applicationId1: string; applicationId2: string; university1: string; university2: string; conflictDate: string }>;
 };
 
 export type StrategyStageContentProps = {

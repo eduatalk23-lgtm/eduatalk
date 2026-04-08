@@ -36,9 +36,9 @@ type SetekGuideItem = {
   schoolYear: number;
   keywords: string[];
   direction: string;
-  competencyFocus: string;
+  competencyFocus: string[];
   cautions?: string;
-  teacherPoints: string;
+  teacherPoints: string[];
   guideMode: "retrospective" | "prospective";
 };
 
@@ -48,9 +48,9 @@ type ChangcheGuideItem = {
   schoolYear: number;
   keywords: string[];
   direction: string;
-  competencyFocus: string;
+  competencyFocus: string[];
   cautions?: string;
-  teacherPoints: string;
+  teacherPoints: string[];
   guideMode: "retrospective" | "prospective";
 };
 
@@ -58,9 +58,9 @@ type HaengteukGuideItem = {
   schoolYear: number;
   keywords: string[];
   direction: string;
-  competencyFocus: string;
+  competencyFocus: string[];
   cautions?: string;
-  teacherPoints: string;
+  teacherPoints: string[];
   evaluationItems?: Array<{ item: string; score: string; reasoning: string }>;
   guideMode: "retrospective" | "prospective";
 };
