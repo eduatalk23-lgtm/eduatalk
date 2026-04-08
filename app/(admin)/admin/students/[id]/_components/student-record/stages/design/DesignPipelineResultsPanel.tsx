@@ -6,8 +6,8 @@ import { pipelineStatusQueryOptions } from "@/lib/query-options/studentRecord";
 import {
   PIPELINE_TASK_KEYS,
   PIPELINE_TASK_LABELS,
-  type PipelineTaskKey,
-} from "@/lib/domains/student-record/pipeline";
+} from "@/lib/domains/student-record/pipeline/pipeline-config";
+import type { PipelineTaskKey } from "@/lib/domains/student-record/pipeline/pipeline-types";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
 import { cn } from "@/lib/cn";
 import { Check, AlertCircle, ChevronRight, Circle } from "lucide-react";

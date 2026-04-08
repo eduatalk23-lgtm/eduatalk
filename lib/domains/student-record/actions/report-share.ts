@@ -1,5 +1,4 @@
 // Re-export stub — 실제 구현은 ../report/share.ts로 이동됨
-"use server";
 
 export {
   createReportShareAction,
