@@ -77,6 +77,10 @@ export async function executeGradePhase1(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
 ): Promise<PhaseChunkResult> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
   // 이미 완료
   if (ctx.tasks["competency_setek"] === "completed") {
     return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };

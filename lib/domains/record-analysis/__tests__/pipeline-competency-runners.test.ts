@@ -27,6 +27,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 
 vi.mock("../pipeline/pipeline-executor", () => ({
   updatePipelineState: vi.fn().mockResolvedValue(undefined),
+  checkCancelled: vi.fn().mockResolvedValue(false),
 }));
 
 const mockAnalyze = vi.fn();
@@ -68,6 +69,7 @@ vi.mock("@/lib/domains/student-record/course-adequacy", () => ({
 vi.mock("../pipeline/pipeline-task-runners-shared", () => ({
   runWithConcurrency: async (items: unknown[], _concurrency: number, fn: (item: unknown) => Promise<void>) => {
     for (const item of items as unknown[]) await fn(item);
+    return { cancelled: false };
   },
   collectAnalysisContext: vi.fn(),
 }));

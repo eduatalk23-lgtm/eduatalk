@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/student-record/pipeline/pipeline-executor";
-import { executeGradePhase5 } from "@/lib/domains/student-record/pipeline/pipeline-grade-phases";
+import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
+import { guardCancelled } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
+import { executeGradePhase5 } from "@/lib/domains/record-analysis/pipeline/pipeline-grade-phases";
 
 export const maxDuration = 300;
 
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
     }
 
     const ctx = await loadPipelineContext(pipelineId);
+    const cancelResp = await guardCancelled(ctx);
+    if (cancelResp) return cancelResp;
     const validationError = validatePhasePrerequisites(ctx, 5, "grade");
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 409 });

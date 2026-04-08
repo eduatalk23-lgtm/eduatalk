@@ -83,7 +83,13 @@ export function PipelineSynthesisGrid({
           const status =
             runningCell === cellKey
               ? ("running" as CellStatus)
-              : deriveCellStatus(taskStatuses, prereqMet, isCached);
+              : deriveCellStatus(
+                  taskStatuses,
+                  prereqMet,
+                  isCached,
+                  undefined,
+                  sp?.status,
+                );
 
           const elapsedValues = pg.keys
             .map((k) => sp?.elapsed?.[k])
@@ -117,7 +123,7 @@ export function PipelineSynthesisGrid({
       <div className="pt-1 border-t border-[var(--border-secondary)] mt-3">
         <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
           {(
-            ["completed", "cached", "running", "ready", "locked", "failed"] as CellStatus[]
+            ["completed", "cached", "running", "ready", "locked", "failed"] as const
           ).map((s) => {
             const style = STATUS_STYLES[s];
             const label = {

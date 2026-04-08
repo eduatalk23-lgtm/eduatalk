@@ -14,9 +14,9 @@ import type {
   CachedSetek,
   CachedChangche,
   CachedHaengteuk,
-} from "../pipeline";
-import { GRADE_PIPELINE_TASK_KEYS } from "../pipeline";
-import { resolveRecordData, deriveGradeCategories } from "../pipeline";
+} from "@/lib/domains/record-analysis/pipeline";
+import { GRADE_PIPELINE_TASK_KEYS } from "@/lib/domains/record-analysis/pipeline";
+import { resolveRecordData, deriveGradeCategories } from "@/lib/domains/record-analysis/pipeline";
 import type { GradeAwarePipelineStatus } from "./pipeline-orchestrator-types";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };
@@ -34,6 +34,21 @@ export async function fetchGradeAwarePipelineStatus(
   try {
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
+
+    // 좀비 자동 정리 (self-healing):
+    // Vercel serverless maxDuration=300초를 초과한 running 파이프라인은 서버 함수가 이미 죽은 상태.
+    // 폴링 호출마다 이런 좀비를 cancelled로 마킹하여 UI가 즉시 "이어서 실행" 배너를 표시할 수 있게 한다.
+    // 조건 불만족 시 PostgreSQL UPDATE는 no-op이므로 오버헤드 적음.
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    await supabase
+      .from("student_record_analysis_pipelines")
+      .update({
+        status: "cancelled",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("student_id", studentId)
+      .eq("status", "running")
+      .lt("started_at", fiveMinutesAgo);
 
     const { data: rows, error } = await supabase
       .from("student_record_analysis_pipelines")

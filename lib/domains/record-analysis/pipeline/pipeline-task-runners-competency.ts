@@ -7,7 +7,7 @@
 // ============================================
 
 import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
-import { updatePipelineState } from "./pipeline-executor";
+import { updatePipelineState, checkCancelled } from "./pipeline-executor";
 import {
   assertGradeCtx,
   type PipelineContext,
@@ -20,7 +20,7 @@ import type { HighlightAnalysisResult, HighlightAnalysisInput } from "../llm/typ
 import { runWithConcurrency, collectAnalysisContext } from "./pipeline-task-runners-shared";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 역량 분석 타입별 설정 (G1-a/b/c 공통 디스패치)
@@ -58,7 +58,7 @@ async function runCompetencyForRecords(
 ): Promise<{ succeeded: number; failed: number; skipped: number; allResults: Map<string, HighlightAnalysisResult>; hasMore: boolean; totalUncached: number }> {
   const { supabase, studentId, tenantId, studentGrade, snapshot } = ctx;
 
-  const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
+  const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
   const { computeRecordContentHash } = await import("@/lib/domains/student-record/content-hash");
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
@@ -225,7 +225,16 @@ async function runCompetencyForRecords(
   if (effectiveUncached.length > 0) {
     const failedRecords: typeof effectiveUncached = [];
 
-    await runWithConcurrency(effectiveUncached, 3, async (rec) => {
+    // 5초 throttle된 cancellation 체크 (DB 조회 비용 억제)
+    let lastCancelCheckMs = 0;
+    const shouldCancel = async () => {
+      const now = Date.now();
+      if (now - lastCancelCheckMs < 5000) return false;
+      lastCancelCheckMs = now;
+      return checkCancelled(ctx);
+    };
+
+    const concurrencyResult = await runWithConcurrency(effectiveUncached, 3, async (rec) => {
       try {
         const result = await analyzeSetekWithHighlight({
           recordType: rec.type,
@@ -245,12 +254,23 @@ async function runCompetencyForRecords(
         failedRecords.push(rec);
         logActionError({ ...LOG_CTX, action: `pipeline.competency.grade${targetGrade}.${recordType}` }, err, { recordId: rec.id });
       }
-    });
+    }, { shouldCancel });
+
+    // cancelled 시 재시도 루프도 건너뜀 (부분 결과는 saveResult로 이미 저장됨)
+    if (concurrencyResult.cancelled) {
+      logActionDebug(LOG_CTX, `competency_${recordType}[g${targetGrade}]: cancelled — ${succeeded}건 처리 완료`);
+      return { succeeded, failed, skipped, allResults, hasMore: true, totalUncached };
+    }
 
     // 실패 레코드 재시도 (동시성 1, 10초 대기)
     if (failedRecords.length > 0) {
       logActionDebug(LOG_CTX, `competency_${recordType}[g${targetGrade}]: ${failedRecords.length}건 재시도 대기 (10초)`);
       await new Promise((r) => setTimeout(r, 10_000));
+      // 재시도 전에도 cancelled 확인
+      if (await checkCancelled(ctx)) {
+        logActionDebug(LOG_CTX, `competency_${recordType}[g${targetGrade}]: cancelled before retry`);
+        return { succeeded, failed, skipped, allResults, hasMore: true, totalUncached };
+      }
       for (const rec of failedRecords) {
         try {
           const result = await analyzeSetekWithHighlight({
@@ -383,9 +403,9 @@ function buildAnalysisRecords(ctx: PipelineContext, recordType: CompetencyRecord
 async function runHaengteukAggregate(
   ctx: PipelineContext,
   targetGrade: number,
-  currentResults: Map<string, import("../llm/types").HighlightAnalysisResult>,
+  currentResults: Map<string, import("@/lib/domains/record-analysis/llm/types").HighlightAnalysisResult>,
 ): Promise<void> {
-  const allForAggregate = new Map<string, import("../llm/types").HighlightAnalysisResult>();
+  const allForAggregate = new Map<string, import("@/lib/domains/record-analysis/llm/types").HighlightAnalysisResult>();
   const { computeRecordContentHash } = await import("@/lib/domains/student-record/content-hash");
   const allRecordIds: string[] = [];
   for (const s of (ctx.cachedSeteks ?? [])) {
@@ -401,7 +421,7 @@ async function runHaengteukAggregate(
     const cached = await competencyRepo.findAnalysisCacheByRecordIds(allRecordIds, ctx.tenantId, "ai");
     for (const entry of cached) {
       if (entry.analysis_result) {
-        allForAggregate.set(entry.record_id, entry.analysis_result as import("../llm/types").HighlightAnalysisResult);
+        allForAggregate.set(entry.record_id, entry.analysis_result as import("@/lib/domains/record-analysis/llm/types").HighlightAnalysisResult);
       }
     }
   }

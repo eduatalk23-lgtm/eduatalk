@@ -6,7 +6,7 @@
 import type {
   GradePipelineTaskKey,
   SynthesisPipelineTaskKey,
-} from "@/lib/domains/student-record/pipeline/pipeline-types";
+} from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 
 // ─── Phase 그룹 정의 ────────────────────────────────────────────────────────
 
@@ -111,7 +111,8 @@ export type CellStatus =
   | "completed"
   | "cached"
   | "skipped"
-  | "failed";
+  | "failed"
+  | "cancelled";
 
 export const STATUS_STYLES: Record<CellStatus, { bg: string; text: string; border: string }> = {
   completed: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-400", border: "border-emerald-200 dark:border-emerald-800" },
@@ -121,6 +122,7 @@ export const STATUS_STYLES: Record<CellStatus, { bg: string; text: string; borde
   failed: { bg: "bg-red-50 dark:bg-red-900/20", text: "text-red-700 dark:text-red-400", border: "border-red-200 dark:border-red-800" },
   ready: { bg: "bg-white dark:bg-gray-900", text: "text-indigo-600 dark:text-indigo-400", border: "border-indigo-200 dark:border-indigo-700 hover:border-indigo-400" },
   locked: { bg: "bg-gray-50 dark:bg-gray-900/50", text: "text-gray-400 dark:text-gray-600", border: "border-gray-200 dark:border-gray-800" },
+  cancelled: { bg: "bg-amber-50 dark:bg-amber-900/15", text: "text-amber-700 dark:text-amber-400", border: "border-amber-200 dark:border-amber-800" },
 };
 
 // ─── 순수 헬퍼 함수 ─────────────────────────────────────────────────────────
@@ -170,7 +172,16 @@ export function deriveCellStatus(
   prereqMet: boolean,
   isCached?: boolean,
   isSkipped?: boolean,
+  pipelineStatus?: string,
 ): CellStatus {
+  // 파이프라인 자체가 cancelled면 미완료 셀은 cancelled로 표시
+  if (pipelineStatus === "cancelled") {
+    if (statuses.every((s) => s === "completed")) {
+      if (isSkipped) return "skipped";
+      return isCached ? "cached" : "completed";
+    }
+    return "cancelled";
+  }
   if (statuses.some((s) => s === "running")) return "running";
   if (statuses.every((s) => s === "completed")) {
     if (isSkipped) return "skipped";

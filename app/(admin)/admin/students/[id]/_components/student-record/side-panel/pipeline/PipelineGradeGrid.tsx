@@ -143,7 +143,13 @@ export function PipelineGradeGrid({
                         const status =
                           runningCell === cellKey
                             ? ("running" as CellStatus)
-                            : deriveCellStatus(taskStatuses, prereqMet, isCached, isSkipped);
+                            : deriveCellStatus(
+                                taskStatuses,
+                                prereqMet,
+                                isCached,
+                                isSkipped,
+                                pipeline?.status,
+                              );
 
                         const elapsedValues = pg.keys
                           .map((k) => elapsed[k])

@@ -26,7 +26,7 @@ import {
 import type { CoursePlanTabData } from "@/lib/domains/student-record/course-plan/types";
 import type { CoursePlanWithSubject } from "@/lib/domains/student-record/course-plan/types";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline-executor" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline-executor" };
 
 // ============================================
 // withTaskTimeout
@@ -79,7 +79,7 @@ export async function updatePipelineState(
     .update(update)
     .eq("id", pipelineId);
   if (stateErr) {
-    logActionError({ domain: "student-record", action: "pipeline-executor" }, stateErr, { pipelineId, status });
+    logActionError({ domain: "record-analysis", action: "pipeline-executor" }, stateErr, { pipelineId, status });
     throw new Error(`파이프라인 상태 저장 실패 (${status}): ${stateErr.message}`);
   }
 }
@@ -112,6 +112,12 @@ export async function runTaskWithState(
 ): Promise<void> {
   if (ctx.tasks[key] === "completed") {
     logActionDebug(LOG_CTX, `Task ${key} already completed — skipping`);
+    return;
+  }
+
+  // 모든 task 실행 전 cancelled 가드 — Phase 4~8 전체 자동 보호
+  if (await checkCancelled(ctx)) {
+    logActionDebug(LOG_CTX, `Task ${key} skipped — pipeline cancelled`);
     return;
   }
 

@@ -17,12 +17,12 @@ import type {
   CachedSetek,
   CachedChangche,
   CachedHaengteuk,
-} from "../pipeline";
+} from "@/lib/domains/record-analysis/pipeline";
 import {
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
-} from "../pipeline";
-import { resolveRecordData, deriveGradeCategories } from "../pipeline";
+} from "@/lib/domains/record-analysis/pipeline";
+import { resolveRecordData, deriveGradeCategories } from "@/lib/domains/record-analysis/pipeline";
 import { checkPipelineRateLimit } from "./pipeline";
 import type { GradeAwarePipelineStartResult } from "./pipeline-orchestrator-types";
 
@@ -153,6 +153,42 @@ export async function runSynthesisPipeline(
     const initTasks: Record<string, string> = {};
     for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
       initTasks[key] = "pending";
+    }
+
+    // 이전에 cancelled된 synthesis 파이프라인이 있으면 재사용 (resume)
+    const { data: existingCancelled } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, tasks")
+      .eq("student_id", studentId)
+      .eq("pipeline_type", "synthesis")
+      .eq("status", "cancelled")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingCancelled) {
+      const resumedTasks = {
+        ...(existingCancelled.tasks as Record<string, string>),
+      };
+      for (const k of Object.keys(resumedTasks)) {
+        if (resumedTasks[k] === "running") resumedTasks[k] = "pending";
+      }
+      const { error: updateError } = await supabase
+        .from("student_record_analysis_pipelines")
+        .update({
+          status: "running",
+          tasks: resumedTasks,
+          completed_at: null,
+          error_details: null,
+          started_at: new Date().toISOString(),
+          input_snapshot: { ...(student ?? {}), gradePipelineIds },
+        })
+        .eq("id", existingCancelled.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+      return createSuccessResponse({ pipelineId: existingCancelled.id });
     }
 
     const { data: pipeline, error: insertError } = await supabase
@@ -287,6 +323,44 @@ export async function runGradeAwarePipeline(
 
       // NEIS 데이터가 있는 학년 = analysis, 없는 학년 = design
       const gradeMode = neisGrades.includes(grade) ? "analysis" : "design";
+
+      // 이전에 cancelled된 파이프라인이 있으면 재사용 (resume)
+      // running 상태였던 태스크만 pending으로 되돌리고, completed는 그대로 유지
+      const { data: existingCancelled } = await supabase
+        .from("student_record_analysis_pipelines")
+        .select("id, tasks")
+        .eq("student_id", studentId)
+        .eq("pipeline_type", "grade")
+        .eq("grade", grade)
+        .eq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingCancelled) {
+        const resumedTasks = {
+          ...(existingCancelled.tasks as Record<string, string>),
+        };
+        for (const k of Object.keys(resumedTasks)) {
+          if (resumedTasks[k] === "running") resumedTasks[k] = "pending";
+        }
+        const { error: updateError } = await supabase
+          .from("student_record_analysis_pipelines")
+          .update({
+            status,
+            tasks: resumedTasks,
+            completed_at: null,
+            error_details: null,
+            started_at: isFirst ? new Date().toISOString() : null,
+          })
+          .eq("id", existingCancelled.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+        created.push({ grade, pipelineId: existingCancelled.id, status, mode: gradeMode });
+        continue;
+      }
 
       const { data: pipeline, error: insertError } = await supabase
         .from("student_record_analysis_pipelines")

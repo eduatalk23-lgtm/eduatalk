@@ -15,24 +15,36 @@ import type { HighlightAnalysisResult, GuideAnalysisContext } from "../llm/types
 // 동시성 제어
 // ============================================
 
-/** 동시성 제한 병렬 실행 */
+/** 동시성 제한 병렬 실행
+ *
+ * opts.shouldCancel가 제공되면 각 작업 직전에 호출하여 true 반환 시
+ * 새 작업을 시작하지 않는다(in-progress 작업은 정상 완료까지 기다림).
+ */
 export async function runWithConcurrency<T>(
   items: T[],
   concurrency: number,
   fn: (item: T) => Promise<void>,
-): Promise<void> {
-  if (items.length === 0) return;
+  opts?: { shouldCancel?: () => Promise<boolean> | boolean },
+): Promise<{ cancelled: boolean }> {
+  if (items.length === 0) return { cancelled: false };
   let idx = 0;
+  let cancelled = false;
   const workers = Array.from(
     { length: Math.min(concurrency, items.length) },
     async () => {
       while (idx < items.length) {
+        if (cancelled) return;
+        if (opts?.shouldCancel && (await opts.shouldCancel())) {
+          cancelled = true;
+          return;
+        }
         const i = idx++;
         await fn(items[i]);
       }
     },
   );
   await Promise.allSettled(workers);
+  return { cancelled };
 }
 
 // ============================================

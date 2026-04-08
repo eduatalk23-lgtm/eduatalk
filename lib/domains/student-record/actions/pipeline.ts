@@ -1,26 +1,31 @@
 "use server";
 
 // ============================================
-// AI 초기 분석 파이프라인
+// AI 초기 분석 파이프라인 — 상태 조회/속도 제한 등 공용 헬퍼
 //
-// [Grade Pipeline — 학년별, 7태스크×6Phase]
+// 실제 실행 엔진은 record-analysis/pipeline 으로 이동됨:
+//   - record-analysis/pipeline/pipeline-grade-phases.ts
+//   - record-analysis/pipeline/pipeline-synthesis-phases.ts
+//
+// [Grade Pipeline — 학년별, 9태스크×8Phase]
 //   Phase 1: competency_setek
 //   Phase 2: competency_changche
-//   Phase 3: competency_haengteuk
+//   Phase 3: competency_haengteuk (+ 집계)
 //   Phase 4: setek_guide + slot_generation (병렬)
 //   Phase 5: changche_guide
 //   Phase 6: haengteuk_guide
+//   Phase 7: draft_generation (설계 모드 전용)
+//   Phase 8: draft_analysis   (설계 모드 전용)
 //
 // [Synthesis Pipeline — 종합, 10태스크×6Phase]
 //   Phase 1: storyline_generation
-//   Phase 2: edge_computation
+//   Phase 2: edge_computation + guide_matching (병렬)
 //   Phase 3: ai_diagnosis + course_recommendation (병렬)
 //   Phase 4: bypass_analysis
 //   Phase 5: activity_summary + ai_strategy (병렬)
 //   Phase 6: interview_generation + roadmap_generation (병렬)
 //
-// [Legacy Pipeline — 단일 15태스크, 하위 호환 유지]
-//   pipeline-phases.ts → /api/admin/pipeline/run ~ phase-8
+// Legacy Pipeline은 제거됨 (/api/admin/pipeline/run 은 410 Gone).
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -33,8 +38,8 @@ import type {
   PipelineTaskKey,
   PipelineTaskStatus,
   PipelineTaskResults,
-} from "../pipeline";
-import { PIPELINE_TASK_KEYS, computeCascadeResetKeys } from "../pipeline";
+} from "@/lib/domains/record-analysis/pipeline";
+import { PIPELINE_TASK_KEYS, computeCascadeResetKeys } from "@/lib/domains/record-analysis/pipeline";
 import * as competencyRepo from "../repository/competency-repository";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
@@ -97,6 +102,28 @@ export async function checkPipelineRateLimit(
   studentId: string,
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<string | null> {
+  // 좀비 파이프라인 자동 정리:
+  // Vercel serverless maxDuration=300초이므로 5분 이상 running은 서버 함수가 이미 죽은 상태.
+  // HMR/배포/타임아웃 등으로 DB에 running으로 남은 좀비를 cancelled로 마킹.
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { error: zombieErr } = await supabase
+    .from("student_record_analysis_pipelines")
+    .update({
+      status: "cancelled",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("student_id", studentId)
+    .eq("status", "running")
+    .lt("started_at", fiveMinutesAgo);
+  if (zombieErr) {
+    logActionError(
+      { ...LOG_CTX, action: "checkPipelineRateLimit.zombieCleanup" },
+      zombieErr,
+      { studentId },
+    );
+    // 계속 진행 (fail-open)
+  }
+
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: recentPipelines, error } = await supabase
     .from("student_record_analysis_pipelines")
@@ -220,6 +247,8 @@ export async function cancelPipeline(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
+    // running + pending 모두 cancelled로 전환
+    // pending이 남아있으면 재실행 시 checkPipelineRateLimit에 걸려 에러 발생
     await supabase
       .from("student_record_analysis_pipelines")
       .update({
@@ -227,7 +256,7 @@ export async function cancelPipeline(
         completed_at: new Date().toISOString(),
       })
       .eq("id", pipelineId)
-      .eq("status", "running");
+      .in("status", ["running", "pending"]);
 
     return createSuccessResponse(undefined);
   } catch (error) {

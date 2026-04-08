@@ -25,12 +25,16 @@ vi.mock("@/lib/domains/student-record/actions/pipeline-orchestrator", () => ({
   runGradeAwarePipeline: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/pipeline/pipeline-executor", () => ({
+vi.mock("@/lib/domains/record-analysis/pipeline/pipeline-executor", () => ({
   loadPipelineContext: vi.fn(),
   validatePhasePrerequisites: vi.fn(() => null),
 }));
 
-vi.mock("@/lib/domains/student-record/pipeline/pipeline-grade-phases", () => ({
+vi.mock("@/lib/domains/record-analysis/pipeline/pipeline-route-helpers", () => ({
+  guardCancelled: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("@/lib/domains/record-analysis/pipeline/pipeline-grade-phases", () => ({
   executeGradePhase1: vi.fn(),
   executeGradePhase2: vi.fn(),
   executeGradePhase3: vi.fn(),
@@ -53,7 +57,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { runGradeAwarePipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator";
-import { loadPipelineContext } from "@/lib/domains/student-record/pipeline/pipeline-executor";
+import { loadPipelineContext } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
 import {
   executeGradePhase1,
   executeGradePhase2,
@@ -61,11 +65,11 @@ import {
   executeGradePhase4,
   executeGradePhase5,
   executeGradePhase6,
-} from "@/lib/domains/student-record/pipeline/pipeline-grade-phases";
+} from "@/lib/domains/record-analysis/pipeline/pipeline-grade-phases";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-import type { PipelineContext } from "@/lib/domains/student-record/pipeline/pipeline-types";
-import type { PhaseChunkResult } from "@/lib/domains/student-record/pipeline/pipeline-grade-phases";
+import type { PipelineContext } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
+import type { PhaseChunkResult } from "@/lib/domains/record-analysis/pipeline/pipeline-grade-phases";
 
 // ============================================
 // 공통 헬퍼

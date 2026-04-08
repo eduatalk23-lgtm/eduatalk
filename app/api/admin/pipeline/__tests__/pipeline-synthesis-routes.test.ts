@@ -25,12 +25,16 @@ vi.mock("@/lib/domains/student-record/actions/pipeline-orchestrator", () => ({
   runSynthesisPipeline: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/pipeline/pipeline-executor", () => ({
+vi.mock("@/lib/domains/record-analysis/pipeline/pipeline-executor", () => ({
   loadPipelineContext: vi.fn(),
   validatePhasePrerequisites: vi.fn(() => null),
 }));
 
-vi.mock("@/lib/domains/student-record/pipeline/pipeline-synthesis-phases", () => ({
+vi.mock("@/lib/domains/record-analysis/pipeline/pipeline-route-helpers", () => ({
+  guardCancelled: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("@/lib/domains/record-analysis/pipeline/pipeline-synthesis-phases", () => ({
   executeSynthesisPhase1: vi.fn(),
   executeSynthesisPhase2: vi.fn(),
   executeSynthesisPhase3: vi.fn(),
@@ -49,7 +53,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { runSynthesisPipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator";
-import { loadPipelineContext } from "@/lib/domains/student-record/pipeline/pipeline-executor";
+import { loadPipelineContext } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
 import {
   executeSynthesisPhase1,
   executeSynthesisPhase2,
@@ -57,9 +61,9 @@ import {
   executeSynthesisPhase4,
   executeSynthesisPhase5,
   executeSynthesisPhase6,
-} from "@/lib/domains/student-record/pipeline/pipeline-synthesis-phases";
+} from "@/lib/domains/record-analysis/pipeline/pipeline-synthesis-phases";
 
-import type { PipelineContext } from "@/lib/domains/student-record/pipeline/pipeline-types";
+import type { PipelineContext } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 
 // ============================================
 // 공통 헬퍼

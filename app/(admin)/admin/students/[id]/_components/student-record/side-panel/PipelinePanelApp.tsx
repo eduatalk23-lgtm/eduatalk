@@ -6,7 +6,7 @@
 // 하단: 실행 중인 태스크 상세 로그
 // ============================================
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   gradeAwarePipelineStatusQueryOptions,
@@ -15,11 +15,11 @@ import {
 import {
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
-} from "@/lib/domains/student-record/pipeline/pipeline-config";
+} from "@/lib/domains/record-analysis/pipeline/pipeline-config";
 import type {
   GradePipelineTaskKey,
   SynthesisPipelineTaskKey,
-} from "@/lib/domains/student-record/pipeline/pipeline-types";
+} from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 import { useSidePanel } from "@/components/side-panel";
 import {
@@ -69,6 +69,8 @@ export function PipelinePanelApp({
     runningCell,
     runningStartMs,
     isFullRunning,
+    isCancelling,
+    setIsCancelling,
     runGradePhase,
     runSynthesisPhase,
     runFullSequence,
@@ -77,8 +79,20 @@ export function PipelinePanelApp({
 
   const { data: gradeStatus } = useQuery({
     ...gradeAwarePipelineStatusQueryOptions(studentId),
-    refetchInterval: () => {
-      if (!runningCell && !isFullRunning) {
+    refetchInterval: (query) => {
+      // DB 상태 기반: 페이지 reload 후 다른 탭/세션에서 실행 중인 파이프라인이 있어도 감지
+      const data = query.state.data;
+      const dbHasRunning =
+        Object.values(data?.gradePipelines ?? {}).some(
+          (p) => p?.status === "running",
+        ) || data?.synthesisPipeline?.status === "running";
+
+      if (
+        !runningCell &&
+        !isFullRunning &&
+        !isCancelling &&
+        !dbHasRunning
+      ) {
         pollingStartRef.current = null;
         return false;
       }
@@ -109,6 +123,24 @@ export function PipelinePanelApp({
 
   const gp = gradeStatus?.gradePipelines ?? {};
   const sp = gradeStatus?.synthesisPipeline ?? null;
+
+  // 중단 진행 상태 자동 해제: 폴링이 더 이상 running 상태가 아님을 확인하면 cancelling 해제
+  useEffect(() => {
+    if (!isCancelling) return;
+    const stillRunning =
+      Object.values(gp).some((p) => p?.status === "running") ||
+      sp?.status === "running";
+    if (!stillRunning) setIsCancelling(false);
+  }, [gp, sp, isCancelling, setIsCancelling]);
+
+  // 중단된 파이프라인이 있는지
+  const hasCancelledPipeline =
+    Object.values(gp).some((p) => p?.status === "cancelled") ||
+    sp?.status === "cancelled";
+  // DB에 실제로 running 상태인 파이프라인이 있는지 (페이지 reload 후에도 정확)
+  const hasRunningInDb =
+    Object.values(gp).some((p) => p?.status === "running") ||
+    sp?.status === "running";
   const expectedModes = gradeStatus?.expectedModes ?? {};
   const gradeNumbers = Object.keys(gp).map(Number).sort((a, b) => a - b);
   // 항상 1~3학년 모두 표시 (파이프라인 없는 학년도 표시)
@@ -117,7 +149,8 @@ export function PipelinePanelApp({
     gradeNumbers.length > 0 &&
     gradeNumbers.every((g) => gp[g]?.status === "completed");
   const allComplete = allGradesCompleted && sp?.status === "completed";
-  const isAnyRunning = isFullRunning || !!runningCell;
+  // 중복 실행 방지: DB running도 포함 (페이지 reload 후 좀비/동시세션 방어)
+  const isAnyRunning = isFullRunning || !!runningCell || hasRunningInDb;
 
   // ─── 진행률 계산 ─────────────────────────────────────────────────────────
   const totalTasks =
@@ -146,16 +179,24 @@ export function PipelinePanelApp({
   for (const g of gradeNumbers) {
     const pipeline = gp[g];
     if (!pipeline) continue;
+    // 파이프라인 자체가 running 상태일 때만 수집 (cancelled/failed 파이프라인의 잔여 running task는 무시)
+    if (pipeline.status !== "running") continue;
     for (const key of GRADE_PIPELINE_TASK_KEYS) {
       if (pipeline.tasks[key] === "running" && pipeline.previews[key]) {
-        runningTasks.push({ label: `${g}학년 ${key}`, preview: pipeline.previews[key] });
+        runningTasks.push({
+          label: `${g}학년 ${GRADE_TASK_LABEL_MAP[key as GradePipelineTaskKey] ?? key}`,
+          preview: pipeline.previews[key],
+        });
       }
     }
   }
-  if (sp) {
+  if (sp && sp.status === "running") {
     for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
       if (sp.tasks[key] === "running" && sp.previews[key]) {
-        runningTasks.push({ label: key, preview: sp.previews[key] });
+        runningTasks.push({
+          label: SYNTH_TASK_LABEL_MAP[key as SynthesisPipelineTaskKey] ?? key,
+          preview: sp.previews[key],
+        });
       }
     }
   }
@@ -230,22 +271,32 @@ export function PipelinePanelApp({
           <span className="text-sm font-semibold">파이프라인 대시보드</span>
         </div>
         <div className="flex items-center gap-2">
-          {isFullRunning && (
+          {(isFullRunning || isCancelling) && (
             <button
               type="button"
               onClick={() => stopFullRun(gp, sp)}
-              className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+              disabled={isCancelling}
+              className={
+                isCancelling
+                  ? "rounded-md border border-amber-200 px-3 py-1 text-xs font-medium text-amber-600 dark:border-amber-800 dark:text-amber-400 cursor-not-allowed"
+                  : "rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+              }
             >
-              <X className="inline h-3 w-3 mr-1" />중단
+              <X className="inline h-3 w-3 mr-1" />
+              {isCancelling ? "중단 중..." : "중단"}
             </button>
           )}
           <button
             type="button"
             onClick={runFullSequence}
-            disabled={isAnyRunning}
+            disabled={isAnyRunning || isCancelling}
             className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {isFullRunning ? "실행 중..." : "전체 실행"}
+            {isCancelling
+              ? "중단 중..."
+              : isFullRunning
+                ? "실행 중..."
+                : "전체 실행"}
           </button>
         </div>
       </div>
@@ -307,6 +358,27 @@ export function PipelinePanelApp({
           >
             <RefreshCw className="h-3 w-3" />
             재분석
+          </button>
+        </div>
+      )}
+
+      {/* ─── Cancelled 배너 ─────────────────────────────────────────────── */}
+      {hasCancelledPipeline && !isFullRunning && !isCancelling && (
+        <div className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-800/50 dark:bg-amber-950/30">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <X className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs text-amber-700 dark:text-amber-300 truncate">
+              파이프라인이 중단되었습니다. 다시 실행하면 완료된 태스크는 건너뛰고 이어서 진행됩니다.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={runFullSequence}
+            disabled={isAnyRunning}
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            이어서 실행
           </button>
         </div>
       )}
