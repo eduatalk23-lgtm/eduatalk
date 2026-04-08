@@ -74,7 +74,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
   // 2. 현재 학년도 역량 점수 조회 (ctx.supabase 직접 사용)
   const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
   const { COMPETENCY_ITEMS } = await import("../constants");
-  const { competencyGradeToScore } = await import("./pipeline/synthesis/helpers");
+  const { competencyGradeToScore } = await import("./synthesis/helpers");
 
   const currentSchoolYear = calculateSchoolYear();
   const { data: scoreRows } = await ctx.supabase
