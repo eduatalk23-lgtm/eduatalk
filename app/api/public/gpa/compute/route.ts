@@ -23,6 +23,7 @@ interface SubjectInput {
   classRank?: number | null;
   subjectCategory?: "regular" | "career" | "experiment";
   gradeSystem?: 5 | 9;
+  achievementScale?: "3-level" | "5-level";
 }
 
 export async function POST(req: NextRequest) {
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
       classRank: s.classRank ?? null,
       subjectCategory: s.subjectCategory ?? "regular",
       gradeSystem: s.gradeSystem ?? 9,
+      achievementScale: s.achievementScale,
     };
 
     return {
