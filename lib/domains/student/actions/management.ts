@@ -855,6 +855,24 @@ export async function updateStudentInfo(
       return basicResult;
     }
 
+    // 학년 변경 시 exam_year / curriculum_revision 자동 갱신
+    const newGrade = payload.basic.grade ?? existingStudent.grade;
+    if (newGrade) {
+      const { getStudentExamTimeline } = await import("@/lib/utils/studentProfile");
+      const rawSchoolType = payload.basic.school_type ?? existingStudent.school_type;
+      const schoolType = rawSchoolType === "MIDDLE" || rawSchoolType === "중학교" ? "중학교" : "고등학교";
+      const timeline = getStudentExamTimeline(String(newGrade), schoolType);
+      if (timeline) {
+        await supabase
+          .from("students")
+          .update({
+            exam_year: timeline.examYear,
+            curriculum_revision: timeline.curriculumRevision,
+          })
+          .eq("id", studentId);
+      }
+    }
+
     // memo는 students 테이블에 업데이트
     if (payload.basic.memo !== undefined) {
       const { error: memoError } = await supabase
@@ -1194,12 +1212,25 @@ export async function createStudent(
       if (profile.interests != null) extraFields.interests = profile.interests;
     }
 
+    // exam_year / curriculum_revision 자동 산출 (학년 기반)
+    if (basic.grade) {
+      const { getStudentExamTimeline } = await import("@/lib/utils/studentProfile");
+      const schoolTypeForTimeline = basic.school_type === "MIDDLE" || basic.school_type === "중학교" ? "중학교" : "고등학교";
+      const timeline = getStudentExamTimeline(
+        String(basic.grade),
+        schoolTypeForTimeline,
+      );
+      if (timeline) {
+        extraFields.exam_year = timeline.examYear;
+        extraFields.curriculum_revision = timeline.curriculumRevision;
+      }
+    }
+
     if (career) {
-      if (career.exam_year != null) extraFields.exam_year = career.exam_year;
-      if (career.curriculum_revision != null) extraFields.curriculum_revision = career.curriculum_revision;
       if (career.desired_university_ids != null) extraFields.desired_university_ids = career.desired_university_ids;
       if (career.desired_career_field != null) extraFields.desired_career_field = career.desired_career_field;
       if (career.target_major != null) extraFields.target_major = career.target_major;
+      if (career.target_sub_classification_id != null) extraFields.target_sub_classification_id = career.target_sub_classification_id;
       if (career.target_major_2 != null) extraFields.target_major_2 = career.target_major_2;
       if (career.target_score != null) extraFields.target_score = career.target_score;
       if (career.target_university_type != null) extraFields.target_university_type = career.target_university_type;

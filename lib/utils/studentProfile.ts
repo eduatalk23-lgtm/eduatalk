@@ -60,6 +60,68 @@ export function calculateExamYear(grade: string | null | undefined, schoolType?:
   return currentYear + (4 - gradeNumber);
 }
 
+// ============================================
+// 수능 타임라인 통합 산출
+// ============================================
+
+export type StudentExamTimeline = {
+  /** 현재 학년 표시 (예: "고2") */
+  gradeLabel: string;
+  /** 학년도 = 대학 입학 연도 (예: 2028) */
+  examYear: number;
+  /** 수능 시행 시기 (예: "2027년 11월") */
+  examDate: string;
+  /** 학년도 명칭 (예: "2028학년도 수능") */
+  examLabel: string;
+  /** 대학 입학 시기 (예: "2028년 3월") */
+  universityEntrance: string;
+  /** 적용 교육과정 (예: "2022 개정") */
+  curriculumRevision: "2009 개정" | "2015 개정" | "2022 개정";
+};
+
+/**
+ * 학년 정보로 수능 타임라인 전체를 산출
+ *
+ * @param grade 학년 문자열 (예: "고2", "중3", "2")
+ * @param schoolType 학교 유형
+ * @param currentYear 기준 연도 (테스트용, 기본값 올해)
+ */
+export function getStudentExamTimeline(
+  grade: string | null | undefined,
+  schoolType?: "중학교" | "고등학교",
+  currentYear?: number,
+): StudentExamTimeline | null {
+  if (!grade) return null;
+
+  const gradeNumber = extractGradeNumber(grade);
+  if (!gradeNumber) return null;
+
+  const year = currentYear ?? new Date().getFullYear();
+  const examYear = calculateExamYear(grade, schoolType);
+  const examTestYear = examYear - 1; // 시행 연도 = 학년도 - 1
+
+  const isMiddle = schoolType === "중학교" || grade.includes("중");
+  const gradeLabel = isMiddle ? `중${gradeNumber}` : `고${gradeNumber}`;
+
+  // 교육과정: 고1 입학 연도 기준
+  const highSchoolStartYear = isMiddle
+    ? year + (4 - gradeNumber) // 중3→내년 고1, 중2→2년후 고1, 중1→3년후 고1
+    : year - (gradeNumber - 1); // 고2→작년 고1, 고3→재작년 고1
+  let curriculumRevision: "2009 개정" | "2015 개정" | "2022 개정";
+  if (highSchoolStartYear >= 2025) curriculumRevision = "2022 개정";
+  else if (highSchoolStartYear >= 2018) curriculumRevision = "2015 개정";
+  else curriculumRevision = "2009 개정";
+
+  return {
+    gradeLabel,
+    examYear,
+    examDate: `${examTestYear}년 11월`,
+    examLabel: `${examYear}학년도 수능`,
+    universityEntrance: `${examYear}년 3월`,
+    curriculumRevision,
+  };
+}
+
 /**
  * 생년월일로 입학년도 계산 (초등학교 입학 기준)
  * @param birthDate 생년월일 (YYYY-MM-DD 형식)

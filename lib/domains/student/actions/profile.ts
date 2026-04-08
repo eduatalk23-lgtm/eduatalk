@@ -285,14 +285,23 @@ export async function updateStudentProfile(
   const address = String(formData.get("address") ?? "").trim() || null;
 
   // 3. 진로 목표 정보 파싱
-  const examYearStr = String(formData.get("exam_year") ?? "").trim();
-  const examYear = examYearStr ? parseInt(examYearStr, 10) : null;
-  const curriculumRevision =
-    (formData.get("curriculum_revision") as
-      | "2009 개정"
-      | "2015 개정"
-      | "2022 개정"
-      | null) || null;
+  // exam_year / curriculum_revision은 grade에서 자동 산출
+  const gradeStr = String(formData.get("grade") ?? "").trim();
+  let examYear: number | null = null;
+  let curriculumRevision: string | null = null;
+  if (gradeStr) {
+    const { getStudentExamTimeline } = await import("@/lib/utils/studentProfile");
+    const schoolTypeRaw = formData.get("school_type") as string | null;
+    const schoolTypeForTimeline = schoolTypeRaw === "MIDDLE" || schoolTypeRaw === "중학교" ? "중학교" : "고등학교";
+    const timeline = getStudentExamTimeline(
+      gradeStr,
+      schoolTypeForTimeline,
+    );
+    if (timeline) {
+      examYear = timeline.examYear;
+      curriculumRevision = timeline.curriculumRevision;
+    }
+  }
 
   const desiredUniversityIds = formData
     .getAll("desired_university_ids")

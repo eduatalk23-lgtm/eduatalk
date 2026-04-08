@@ -9,9 +9,9 @@ import { useStudentInfoForm } from "../[id]/_hooks/useStudentInfoForm";
 import { transformFormDataToUpdatePayload } from "../[id]/_utils/studentFormTransform";
 import { updateStudentInfo, createStudent, deleteStudent } from "@/lib/domains/student";
 import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/studentFormTypes";
-import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
+import BasicInfoSection from "@/components/organisms/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
-import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
+import CareerInfoSection from "@/components/organisms/CareerInfoSection";
 import { Plus, Trash2, ExternalLink, CalendarDays, ClipboardList, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock, Send, UserX, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { WithdrawStudentModal } from "./WithdrawStudentModal";
@@ -396,7 +396,7 @@ export function StudentFormPanel({
         </div>
 
         <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
-          <CareerInfoSection control={control} />
+          <CareerInfoSection control={control} config={{ showSchoolTier: true }} />
         </div>
 
         <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">

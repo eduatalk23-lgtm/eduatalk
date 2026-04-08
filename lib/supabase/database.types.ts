@@ -6363,6 +6363,108 @@ export type Database = {
           },
         ]
       }
+      llm_metrics_logs: {
+        Row: {
+          cache_hit: boolean | null
+          correlation_id: string | null
+          cost_usd: number | null
+          created_at: string
+          duration_ms: number
+          error_message: string | null
+          error_occurred: boolean
+          error_stage: string | null
+          error_type: string | null
+          fallback_reason: string | null
+          id: string
+          input_tokens: number | null
+          llm_call_duration_ms: number | null
+          model_tier: string | null
+          output_tokens: number | null
+          provider: string | null
+          rec_count: number
+          rec_strategy: string
+          request_params: Json | null
+          source: string
+          student_id: string | null
+          tenant_id: string | null
+          timestamp: string
+          total_tokens: number | null
+          used_fallback: boolean
+          user_id: string | null
+        }
+        Insert: {
+          cache_hit?: boolean | null
+          correlation_id?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number
+          error_message?: string | null
+          error_occurred?: boolean
+          error_stage?: string | null
+          error_type?: string | null
+          fallback_reason?: string | null
+          id: string
+          input_tokens?: number | null
+          llm_call_duration_ms?: number | null
+          model_tier?: string | null
+          output_tokens?: number | null
+          provider?: string | null
+          rec_count?: number
+          rec_strategy?: string
+          request_params?: Json | null
+          source: string
+          student_id?: string | null
+          tenant_id?: string | null
+          timestamp: string
+          total_tokens?: number | null
+          used_fallback?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          cache_hit?: boolean | null
+          correlation_id?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number
+          error_message?: string | null
+          error_occurred?: boolean
+          error_stage?: string | null
+          error_type?: string | null
+          fallback_reason?: string | null
+          id?: string
+          input_tokens?: number | null
+          llm_call_duration_ms?: number | null
+          model_tier?: string | null
+          output_tokens?: number | null
+          provider?: string | null
+          rec_count?: number
+          rec_strategy?: string
+          request_params?: Json | null
+          source?: string
+          student_id?: string | null
+          tenant_id?: string | null
+          timestamp?: string
+          total_tokens?: number | null
+          used_fallback?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_metrics_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llm_metrics_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       llm_response_cache: {
         Row: {
           cache_key: string
@@ -8965,6 +9067,53 @@ export type Database = {
           },
         ]
       }
+      report_shares: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          report_data: Json
+          share_token: string
+          student_id: string
+          updated_at: string
+          visible_sections: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          report_data?: Json
+          share_token?: string
+          student_id: string
+          updated_at?: string
+          visible_sections?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          report_data?: Json
+          share_token?: string
+          student_id?: string
+          updated_at?: string
+          visible_sections?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_shares_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_templates: {
         Row: {
           allowed_mime_types: string[] | null
@@ -10915,6 +11064,7 @@ export type Database = {
       student_mock_scores: {
         Row: {
           created_at: string | null
+          curriculum_revision_id: string | null
           exam_date: string
           exam_title: string
           grade: number
@@ -10933,6 +11083,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          curriculum_revision_id?: string | null
           exam_date: string
           exam_title: string
           grade: number
@@ -10951,6 +11102,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          curriculum_revision_id?: string | null
           exam_date?: string
           exam_title?: string
           grade?: number
@@ -10968,6 +11120,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "student_mock_scores_curriculum_revision_id_fkey"
+            columns: ["curriculum_revision_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_revisions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_mock_scores_student_id_fkey"
             columns: ["student_id"]
@@ -11700,6 +11859,55 @@ export type Database = {
           },
         ]
       }
+      student_record_analysis_pipeline_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          pipeline_id: string
+          snapshot: Json
+          student_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pipeline_id: string
+          snapshot: Json
+          student_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pipeline_id?: string
+          snapshot?: Json
+          student_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_analysis_pipeline_snapshots_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_pipeline_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_pipeline_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_analysis_pipelines: {
         Row: {
           completed_at: string | null
@@ -11785,55 +11993,6 @@ export type Database = {
           },
           {
             foreignKeyName: "student_record_analysis_pipelines_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      student_record_analysis_pipeline_snapshots: {
-        Row: {
-          id: string
-          pipeline_id: string
-          tenant_id: string
-          student_id: string
-          snapshot: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          pipeline_id: string
-          tenant_id: string
-          student_id: string
-          snapshot: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          pipeline_id?: string
-          tenant_id?: string
-          student_id?: string
-          snapshot?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_record_analysis_pipeline_snapshots_pipeline_id_fkey"
-            columns: ["pipeline_id"]
-            isOneToOne: false
-            referencedRelation: "student_record_analysis_pipelines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_record_analysis_pipeline_snapshots_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_record_analysis_pipeline_snapshots_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -13317,7 +13476,6 @@ export type Database = {
           reading_id: string
           record_id: string
           record_type: string
-          tenant_id: string
         }
         Insert: {
           connection_note?: string | null
@@ -13326,7 +13484,6 @@ export type Database = {
           reading_id: string
           record_id: string
           record_type: string
-          tenant_id: string
         }
         Update: {
           connection_note?: string | null
@@ -13335,7 +13492,6 @@ export type Database = {
           reading_id?: string
           record_id?: string
           record_type?: string
-          tenant_id?: string
         }
         Relationships: [
           {
@@ -13343,13 +13499,6 @@ export type Database = {
             columns: ["reading_id"]
             isOneToOne: false
             referencedRelation: "student_record_reading"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_record_reading_links_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -13685,7 +13834,6 @@ export type Database = {
           record_type: string
           sort_order: number
           storyline_id: string
-          tenant_id: string
         }
         Insert: {
           connection_note?: string | null
@@ -13696,7 +13844,6 @@ export type Database = {
           record_type: string
           sort_order?: number
           storyline_id: string
-          tenant_id: string
         }
         Update: {
           connection_note?: string | null
@@ -13707,7 +13854,6 @@ export type Database = {
           record_type?: string
           sort_order?: number
           storyline_id?: string
-          tenant_id?: string
         }
         Relationships: [
           {
@@ -13715,13 +13861,6 @@ export type Database = {
             columns: ["storyline_id"]
             isOneToOne: false
             referencedRelation: "student_record_storylines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_record_storyline_links_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -14302,9 +14441,9 @@ export type Database = {
           student_number: string | null
           target_major: string | null
           target_major_2: string | null
+          target_school_tier: string | null
           target_score: Json | null
           target_sub_classification_id: number | null
-          target_school_tier: string | null
           target_university_type: string | null
           tenant_id: string
           updated_at: string | null
@@ -14345,9 +14484,9 @@ export type Database = {
           student_number?: string | null
           target_major?: string | null
           target_major_2?: string | null
+          target_school_tier?: string | null
           target_score?: Json | null
           target_sub_classification_id?: number | null
-          target_school_tier?: string | null
           target_university_type?: string | null
           tenant_id: string
           updated_at?: string | null
@@ -14388,9 +14527,9 @@ export type Database = {
           student_number?: string | null
           target_major?: string | null
           target_major_2?: string | null
+          target_school_tier?: string | null
           target_score?: Json | null
           target_sub_classification_id?: number | null
-          target_school_tier?: string | null
           target_university_type?: string | null
           tenant_id?: string
           updated_at?: string | null
@@ -14441,6 +14580,7 @@ export type Database = {
           created_at: string
           curriculum_revision_id: string
           id: string
+          is_physical_arts: boolean
           name: string
           updated_at: string
         }
@@ -14448,6 +14588,7 @@ export type Database = {
           created_at?: string
           curriculum_revision_id: string
           id?: string
+          is_physical_arts?: boolean
           name: string
           updated_at?: string
         }
@@ -14455,6 +14596,7 @@ export type Database = {
           created_at?: string
           curriculum_revision_id?: string
           id?: string
+          is_physical_arts?: boolean
           name?: string
           updated_at?: string
         }
@@ -14509,6 +14651,7 @@ export type Database = {
       subjects: {
         Row: {
           created_at: string
+          grade_excluded: boolean
           id: string
           name: string
           subject_group_id: string
@@ -14517,6 +14660,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          grade_excluded?: boolean
           id?: string
           name: string
           subject_group_id: string
@@ -14525,6 +14669,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          grade_excluded?: boolean
           id?: string
           name?: string
           subject_group_id?: string
@@ -17045,6 +17190,10 @@ export type Database = {
         Returns: Json
       }
       get_user_tenant_id: { Args: never; Returns: string }
+      import_record_batch: {
+        Args: { p_changches?: Json; p_haengteuk?: Json; p_seteks?: Json }
+        Returns: Json
+      }
       increment_cache_hit_count: {
         Args: { cache_id: string }
         Returns: undefined
@@ -17095,6 +17244,24 @@ export type Database = {
         }
         Returns: Json
       }
+      refresh_competency_tags: {
+        Args: {
+          p_new_tags?: Json
+          p_record_ids: string[]
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      replace_draft_analysis_tags: {
+        Args: {
+          p_new_tags?: Json
+          p_record_ids: string[]
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
       replace_guide_career_mappings: {
         Args: { p_career_field_ids: number[]; p_guide_id: string }
         Returns: undefined
@@ -17110,6 +17277,16 @@ export type Database = {
           p_subject_ids: string[]
         }
         Returns: undefined
+      }
+      replace_student_record_edges: {
+        Args: {
+          p_edge_context: string
+          p_edges?: Json
+          p_pipeline_id: string
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: number
       }
       rls_check_admin_full_tenant: {
         Args: { p_tenant_id: string }
@@ -17584,5 +17761,4 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.84.2 (currently installed v2.65.5)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
+

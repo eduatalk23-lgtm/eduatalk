@@ -35,3 +35,9 @@ export type { DataTableProps, Column } from "./DataTable";
 export { Pagination, default as PaginationDefault } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
 
+// CareerInfoSection
+export { default as CareerInfoSection } from "./CareerInfoSection";
+
+// BasicInfoSection
+export { default as BasicInfoSection } from "./BasicInfoSection";
+

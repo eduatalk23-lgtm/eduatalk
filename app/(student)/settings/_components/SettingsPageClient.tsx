@@ -6,15 +6,15 @@ import type { StudentData, StudentFormData } from "../types";
 import { updateStudentProfile } from "@/lib/domains/student";
 import { transformStudentToFormData } from "../_utils/dataTransform";
 import { useStudentSettingsForm } from "../_hooks/useStudentSettingsForm";
-import { useAutoCalculation } from "../_hooks/useAutoCalculation";
+// useAutoCalculation 제거됨 — exam_year/curriculum_revision은 서버 액션에서 grade 기반 자동 산출
 import { SkeletonForm } from "@/components/ui/SkeletonForm";
 import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import PageContainer from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { InitialSetupBanner } from "./InitialSetupBanner";
-import BasicInfoSection from "./sections/BasicInfoSection";
-import CareerInfoSection from "./sections/CareerInfoSection";
+import BasicInfoSection from "@/components/organisms/BasicInfoSection";
+import CareerInfoSection from "@/components/organisms/CareerInfoSection";
 import ProfileImageUploader from "@/components/molecules/ProfileImageUploader";
 import { getSchoolById } from "@/lib/domains/school";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -35,14 +35,6 @@ export default function SettingsPageClient({
   const [schoolType, setSchoolType] = useState<
     "중학교" | "고등학교" | undefined
   >(initialSchoolType);
-  const [autoCalculateFlags, setAutoCalculateFlagsState] = useState({
-    examYear: !initialData?.exam_year,
-    curriculum: !initialData?.curriculum_revision,
-  });
-  const [modalStates, setModalStates] = useState({
-    examYear: false,
-    curriculum: false,
-  });
   const previousSchoolIdRef = useRef<string | undefined>(undefined);
 
   const isInitialSetup = !initialData;
@@ -136,28 +128,6 @@ export default function SettingsPageClient({
     return () => clearTimeout(timeoutId);
   }, [schoolId]);
 
-  // 자동 계산 훅
-  useAutoCalculation({
-    watch,
-    setValue,
-    schoolType,
-    autoCalculateFlags,
-    isSaving: saving,
-  });
-
-  const setAutoCalculateFlags = useCallback(
-    (flags: Partial<typeof autoCalculateFlags>) => {
-      setAutoCalculateFlagsState((prev) => ({ ...prev, ...flags }));
-    },
-    []
-  );
-
-  const setModalState = useCallback(
-    (modal: keyof typeof modalStates, open: boolean) => {
-      setModalStates((prev) => ({ ...prev, [modal]: open }));
-    },
-    []
-  );
 
   // 저장 핸들러
   const onSubmit = useCallback(
@@ -283,15 +253,12 @@ export default function SettingsPageClient({
             schoolType={schoolType}
             setSchoolType={setSchoolType}
             disabled={saving}
+            role="student"
           />
           <CareerInfoSection
             control={control}
             disabled={saving}
-            autoCalculateFlags={autoCalculateFlags}
-            setAutoCalculateFlags={setAutoCalculateFlags}
             schoolType={schoolType}
-            modalStates={modalStates}
-            setModalState={setModalState}
           />
         </form>
       </div>

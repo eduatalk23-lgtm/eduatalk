@@ -58,6 +58,7 @@ export const studentCareerSchema = z.object({
     .nullable(),
   desired_career_field: z.string().max(100).optional().nullable(),
   target_major: z.string().max(100).optional().nullable(),
+  target_sub_classification_id: z.number().int().optional().nullable(),
   target_major_2: z.string().max(100).optional().nullable(),
   target_score: z.record(z.string(), z.number()).optional().nullable(),
   target_university_type: z.string().max(50).optional().nullable(),

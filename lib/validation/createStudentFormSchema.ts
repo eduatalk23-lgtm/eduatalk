@@ -51,6 +51,7 @@ export const createStudentFormSchema = z.object({
   desired_university_ids: z.array(z.string()).default([]),
   desired_career_field: z.string().default(""),
   target_major: z.string().default(""),
+  target_sub_classification_id: z.string().default(""),
   target_major_2: z.string().default(""),
   target_score: z.record(z.string(), z.number()).optional(),
   target_university_type: z.string().default(""),
@@ -111,6 +112,9 @@ export function toCreateStudentInput(flat: CreateStudentFormSchema): CreateStude
           : null,
       desired_career_field: emptyToNull(flat.desired_career_field),
       target_major: emptyToNull(flat.target_major),
+      target_sub_classification_id: flat.target_sub_classification_id
+        ? parseInt(flat.target_sub_classification_id, 10)
+        : null,
       target_major_2: emptyToNull(flat.target_major_2),
       target_score: flat.target_score ?? null,
       target_university_type: emptyToNull(flat.target_university_type),

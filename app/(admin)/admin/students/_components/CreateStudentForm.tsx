@@ -6,6 +6,8 @@ import type { FormControl } from "@/lib/types/forms";
 import { DialogFooter, ConfirmDialog } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
+import BirthDateInput from "@/components/molecules/BirthDateInput";
+import CareerInfoSection from "@/components/organisms/CareerInfoSection";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import { useCreateStudentForm } from "../_hooks/useCreateStudentForm";
 import type { CreateStudentFormSchema } from "@/lib/validation/createStudentFormSchema";
@@ -108,7 +110,7 @@ export function CreateStudentForm({
           <BasicInfoTab control={control as unknown as FormControl<CreateStudentFormSchema>} schoolType={schoolType} setSchoolType={setSchoolType} />
         )}
         {activeTab === "profile" && <ProfileInfoTab control={control as unknown as FormControl<CreateStudentFormSchema>} />}
-        {activeTab === "career" && <CareerInfoTab control={control as unknown as FormControl<CreateStudentFormSchema>} />}
+        {activeTab === "career" && <CareerInfoSection control={control} schoolType={schoolType} />}
       </div>
 
       {/* 폼 액션 */}
@@ -231,10 +233,9 @@ function BasicInfoTab({
         placeholder="예: 1, 2, 3"
         error={gradeField.fieldState.error?.message}
       />
-      <FormField
+      <BirthDateInput
         {...birthDateField.field}
         label="생년월일"
-        type="date"
         error={birthDateField.fieldState.error?.message}
       />
       <FormField
@@ -399,49 +400,3 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormSch
   );
 }
 
-// 진로 정보 탭
-function CareerInfoTab({ control }: { control: FormControl<CreateStudentFormSchema> }) {
-  const examYearField = useController({
-    name: "exam_year",
-    control,
-  });
-
-  const curriculumRevisionField = useController({
-    name: "curriculum_revision",
-    control,
-  });
-
-  const desiredCareerFieldField = useController({
-    name: "desired_career_field",
-    control,
-  });
-
-  return (
-    <div className="flex flex-col gap-4">
-      <FormField
-        {...examYearField.field}
-        label="수능연도"
-        type="number"
-        placeholder="예: 2025"
-        error={examYearField.fieldState.error?.message}
-      />
-      <FormSelect
-        {...curriculumRevisionField.field}
-        label="교육과정"
-        options={[
-          { value: "", label: "선택 안 함" },
-          { value: "2009 개정", label: "2009 개정" },
-          { value: "2015 개정", label: "2015 개정" },
-          { value: "2022 개정", label: "2022 개정" },
-        ]}
-        error={curriculumRevisionField.fieldState.error?.message}
-      />
-      <FormField
-        {...desiredCareerFieldField.field}
-        label="희망 진로 계열"
-        type="text"
-        error={desiredCareerFieldField.fieldState.error?.message}
-      />
-    </div>
-  );
-}

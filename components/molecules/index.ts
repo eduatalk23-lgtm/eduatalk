@@ -29,3 +29,9 @@ export type { SectionHeaderProps } from "./SectionHeader";
 export { Tabs, TabPanel, default as TabsDefault } from "./Tabs";
 export type { TabsProps, TabPanelProps, Tab } from "./Tabs";
 
+// ExamTimeline
+export { default as ExamTimeline } from "./ExamTimeline";
+
+// BirthDateInput
+export { default as BirthDateInput } from "./BirthDateInput";
+

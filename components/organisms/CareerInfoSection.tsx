@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useController, useWatch, type Control } from "react-hook-form";
-import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { useController, useWatch, type Control, type FieldValues } from "react-hook-form";
+import { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
-import {
-  CURRICULUM_REVISION_OPTIONS,
-  CAREER_FIELD_OPTIONS,
-} from "@/lib/utils/studentProfile";
+import ExamTimeline from "@/components/molecules/ExamTimeline";
+import { CAREER_FIELD_OPTIONS } from "@/lib/utils/studentProfile";
 import {
   TIER1_TO_MAJORS,
   type CareerTier1Code,
@@ -17,11 +15,14 @@ import {
   getSubClassifications,
   type SubClassificationOption,
 } from "@/lib/domains/student/actions/classification";
-import type { AdminStudentFormData } from "../../_types/studentFormTypes";
 
 type CareerInfoSectionProps = {
-  control: Control<AdminStudentFormData>;
+  control: Control<FieldValues>;
   disabled?: boolean;
+  schoolType?: "중학교" | "고등학교";
+  config?: {
+    showSchoolTier?: boolean;
+  };
 };
 
 const RANK_LABELS = ["1순위", "2순위", "3순위"] as const;
@@ -29,22 +30,33 @@ const RANK_LABELS = ["1순위", "2순위", "3순위"] as const;
 export default function CareerInfoSection({
   control,
   disabled,
+  schoolType,
+  config,
 }: CareerInfoSectionProps) {
-  const examYearField = useController({ name: "exam_year", control });
-  const curriculumRevisionField = useController({ name: "curriculum_revision", control });
+  // --- hooks (항상 호출, hooks 규칙 준수) ---
   const desiredUniversityIdsField = useController({ name: "desired_university_ids", control });
   const desiredCareerFieldField = useController({ name: "desired_career_field", control });
   const targetMajorField = useController({ name: "target_major", control });
   const subClassField = useController({ name: "target_sub_classification_id", control });
   const schoolTierField = useController({ name: "target_school_tier", control });
 
+  const gradeValue = useWatch({ name: "grade", control });
+  const divisionValue = useWatch({ name: "division", control });
   const careerFieldValue = useWatch({ name: "desired_career_field", control });
   const targetMajorValue = useWatch({ name: "target_major", control });
 
-  // Tier 3 소분류 옵션
+  // --- schoolType 결정: division > prop > 기본값 ---
+  const resolvedSchoolType = useMemo(() => {
+    if (divisionValue === "중등부") return "중학교" as const;
+    if (divisionValue === "고등부") return "고등학교" as const;
+    return schoolType ?? ("고등학교" as const);
+  }, [divisionValue, schoolType]);
+
+  // --- Tier 3 소분류 옵션 (비동기) ---
   const [subOptions, setSubOptions] = useState<SubClassificationOption[]>([]);
 
-  const ids = desiredUniversityIdsField.field.value || [];
+  // --- 희망대학 3슬롯 ---
+  const ids: string[] = desiredUniversityIdsField.field.value || [];
   const slotValues = [ids[0] || "", ids[1] || "", ids[2] || ""];
 
   const handleSlotChange = useCallback(
@@ -53,17 +65,17 @@ export default function CareerInfoSection({
       slots[slotIndex] = newId;
       desiredUniversityIdsField.field.onChange(slots.filter(Boolean));
     },
-    [ids, desiredUniversityIdsField.field]
+    [ids, desiredUniversityIdsField.field],
   );
 
-  // Tier 1 → Tier 2 옵션
+  // --- Tier 1 → Tier 2 옵션 ---
   const majorOptions = useMemo(() => {
     if (!careerFieldValue) return [];
     const majors = TIER1_TO_MAJORS[careerFieldValue as CareerTier1Code] ?? [];
     return majors.map((m) => ({ value: m, label: m }));
   }, [careerFieldValue]);
 
-  // Tier 2 변경 시 → Tier 3 비동기 로드
+  // --- Tier 2 변경 → Tier 3 비동기 로드 ---
   useEffect(() => {
     if (!targetMajorValue) {
       setSubOptions([]);
@@ -73,26 +85,28 @@ export default function CareerInfoSection({
     getSubClassifications(targetMajorValue).then((data) => {
       if (!cancelled) setSubOptions(data);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [targetMajorValue]);
 
-  // Tier 1 변경 시 Tier 2, 3 초기화
+  // --- Tier 1 변경 → Tier 2, 3 초기화 ---
   const handleCareerFieldChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       desiredCareerFieldField.field.onChange(e);
       targetMajorField.field.onChange("");
       subClassField.field.onChange("");
     },
-    [desiredCareerFieldField.field, targetMajorField.field, subClassField.field]
+    [desiredCareerFieldField.field, targetMajorField.field, subClassField.field],
   );
 
-  // Tier 2 변경 시 Tier 3 초기화
+  // --- Tier 2 변경 → Tier 3 초기화 ---
   const handleTargetMajorChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       targetMajorField.field.onChange(e);
       subClassField.field.onChange("");
     },
-    [targetMajorField.field, subClassField.field]
+    [targetMajorField.field, subClassField.field],
   );
 
   return (
@@ -100,39 +114,22 @@ export default function CareerInfoSection({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">진로 정보</h3>
         <div className="flex flex-col gap-4">
-          {/* 교육과정 / 수능연도 */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* 수능 타임라인 (학년 기반 자동 산출) */}
+          <ExamTimeline grade={gradeValue} schoolType={resolvedSchoolType} />
+
+          {/* 목표 학교권 (어드민 상세에서만 표시) */}
+          {config?.showSchoolTier && (
             <FormSelect
-              {...curriculumRevisionField.field}
-              label="교육과정"
+              {...schoolTierField.field}
+              label="목표 학교권"
               disabled={disabled}
               options={[
                 { value: "", label: "선택 안 함" },
-                ...CURRICULUM_REVISION_OPTIONS.map((c) => ({ value: c.value, label: c.label })),
+                ...SCHOOL_TIER_OPTIONS.map((t) => ({ value: t.value, label: t.label })),
               ]}
-              error={curriculumRevisionField.fieldState.error?.message}
+              error={schoolTierField.fieldState.error?.message}
             />
-            <FormField
-              {...examYearField.field}
-              label="수능연도"
-              type="number"
-              placeholder="예: 2025"
-              disabled={disabled}
-              error={examYearField.fieldState.error?.message}
-            />
-          </div>
-
-          {/* 목표 학교권 */}
-          <FormSelect
-            {...schoolTierField.field}
-            label="목표 학교권"
-            disabled={disabled}
-            options={[
-              { value: "", label: "선택 안 함" },
-              ...SCHOOL_TIER_OPTIONS.map((t) => ({ value: t.value, label: t.label })),
-            ]}
-            error={schoolTierField.fieldState.error?.message}
-          />
+          )}
 
           {/* 진로계열 (Tier 1) + 전공방향 (Tier 2) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
