@@ -128,6 +128,55 @@ export const createMockScoreSchema = mockScoreBaseSchema.refine(
 export const updateMockScoreSchema = mockScoreBaseSchema.partial();
 
 // ============================================
+// 성취도 스케일 (3단계/5단계) 판별
+// ============================================
+
+/**
+ * 교육과정/과목유형에 따른 성취도 등급 스케일 판별
+ *
+ * 3단계 (A/B/C):
+ *   - 체육/예술 교과 (모든 교육과정)
+ *   - 2015 개정 진로선택
+ * 5단계 (A~E):
+ *   - 그 외 (2022 진로/융합 포함)
+ */
+export function getAchievementScale(options: {
+  curriculumYear: number | null;
+  subjectCategory: "regular" | "career" | "experiment";
+  isPhysicalArts?: boolean;
+}): "3-level" | "5-level" {
+  if (options.isPhysicalArts) return "3-level";
+  const year = options.curriculumYear ?? 2015;
+  if (year < 2022 && options.subjectCategory === "career") return "3-level";
+  return "5-level";
+}
+
+/**
+ * 스케일별 유효 성취도 레벨 목록
+ */
+export function getValidAchievementLevels(
+  scale: "3-level" | "5-level"
+): readonly string[] {
+  return scale === "3-level"
+    ? (["A", "B", "C"] as const)
+    : (["A", "B", "C", "D", "E"] as const);
+}
+
+/**
+ * 스케일에 맞는 동적 Zod 스키마 생성
+ */
+export function createAchievementLevelSchema(scale: "3-level" | "5-level") {
+  const levels = getValidAchievementLevels(scale);
+  const pattern = new RegExp(`^[${levels.join("")}]$`);
+  return z
+    .string()
+    .length(1)
+    .regex(pattern, `성취도는 ${levels.join("/")} 중 하나여야 합니다`)
+    .optional()
+    .nullable();
+}
+
+// ============================================
 // 타입 추론
 // ============================================
 

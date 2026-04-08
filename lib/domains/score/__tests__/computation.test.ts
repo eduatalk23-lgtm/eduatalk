@@ -618,3 +618,188 @@ describe("computeAdjustedGrade — gradeSystem=5", () => {
     expect(result).toBe(1); // A = 1 (gradeSystem 무관)
   });
 });
+
+// ============================================
+// 7. 3단계 성취도 스케일 (D4 검증)
+// ============================================
+describe("3-level achievement scale (A/B/C)", () => {
+  describe("estimatePercentile with achievementScale=3-level", () => {
+    it("C등급 — 5레벨 span(10) vs 3레벨 span(80) 차이", () => {
+      // 동일 입력, 스케일만 다름
+      const base = {
+        rawScore: 50,
+        achievementLevel: "C",
+        ratioA: 20, ratioB: 30, ratioC: 50,
+        ratioD: 0, ratioE: 0,
+        rankGrade: null as number | null,
+        gradeSystem: 9 as const,
+      };
+
+      const result3 = estimatePercentile({ ...base, achievementScale: "3-level" });
+      const result5 = estimatePercentile({ ...base, achievementScale: "5-level" });
+
+      // 3레벨: C구간 0~80 → (80-50)/80 = 0.375 → 0.5 + 0.5 * 0.375 = 0.6875
+      expect(result3).toBeCloseTo(0.5 + 0.5 * 0.375, 3);
+
+      // 5레벨: C구간 70~80 → (80-50)/10 = 3.0 → 보간값이 누적비율을 초과
+      // 결과가 1을 초과하면 클램프됨
+      expect(result5).not.toBeCloseTo(result3!, 2);
+    });
+
+    it("A등급 — 스케일 무관 (범위 동일: 90~100)", () => {
+      const base = {
+        rawScore: 95,
+        achievementLevel: "A",
+        ratioA: 30, ratioB: 40, ratioC: 30,
+        ratioD: 0, ratioE: 0,
+        rankGrade: null as number | null,
+        gradeSystem: 9 as const,
+      };
+
+      const result3 = estimatePercentile({ ...base, achievementScale: "3-level" });
+      const result5 = estimatePercentile({ ...base, achievementScale: "5-level" });
+
+      // A등급: 두 스케일 모두 ceiling=100, span=10 → 동일 결과
+      expect(result3).toBeCloseTo(result5!, 5);
+    });
+
+    it("B등급 — 스케일 무관 (범위 동일: 80~90)", () => {
+      const base = {
+        rawScore: 85,
+        achievementLevel: "B",
+        ratioA: 20, ratioB: 50, ratioC: 30,
+        ratioD: 0, ratioE: 0,
+        rankGrade: null as number | null,
+        gradeSystem: 9 as const,
+      };
+
+      const result3 = estimatePercentile({ ...base, achievementScale: "3-level" });
+      const result5 = estimatePercentile({ ...base, achievementScale: "5-level" });
+
+      expect(result3).toBeCloseTo(result5!, 5);
+    });
+
+    it("D/E 레벨은 3레벨에서 매칭 불가 → null 반환", () => {
+      const result = estimatePercentile({
+        rawScore: 65,
+        achievementLevel: "D",
+        ratioA: 20, ratioB: 30, ratioC: 30,
+        ratioD: 15, ratioE: 5,
+        rankGrade: null,
+        gradeSystem: 9,
+        achievementScale: "3-level",
+      });
+
+      // 3레벨 ranges에 D가 없으므로 range=undefined → null
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("computeScoreAnalysis with achievementScale=3-level", () => {
+    it("3레벨 career — ratioD/E가 null이어도 보간 실행", () => {
+      const result = computeScoreAnalysis({
+        rawScore: 75,
+        avgScore: null,
+        stdDev: null,
+        rankGrade: null,
+        achievementLevel: "C",
+        ratioA: 25, ratioB: 35, ratioC: 40,
+        ratioD: null, ratioE: null,
+        totalStudents: 30,
+        classRank: null,
+        subjectCategory: "career",
+        gradeSystem: 9,
+        achievementScale: "3-level",
+      });
+
+      // ratioD/E null이지만 3레벨이므로 hasRatios = true
+      expect(result.estimatedPercentile).not.toBeNull();
+      expect(result.meta?.method).toBe("interpolation");
+    });
+
+    it("5레벨 — ratioD/E null이면 보간 불가", () => {
+      const result = computeScoreAnalysis({
+        rawScore: 75,
+        avgScore: null,
+        stdDev: null,
+        rankGrade: null,
+        achievementLevel: "C",
+        ratioA: 25, ratioB: 35, ratioC: 40,
+        ratioD: null, ratioE: null,
+        totalStudents: 30,
+        classRank: null,
+        subjectCategory: "career",
+        gradeSystem: 9,
+        // achievementScale 미지정 → default 5레벨
+      });
+
+      // 5레벨에서 ratioD/E null → hasRatios = false → 보간 미실행
+      expect(result.meta?.method).not.toBe("interpolation");
+    });
+  });
+});
+
+// ============================================
+// 8. getAchievementScale / getValidAchievementLevels (D4 validation 검증)
+// ============================================
+import {
+  getAchievementScale,
+  getValidAchievementLevels,
+  createAchievementLevelSchema,
+} from "../validation";
+
+describe("getAchievementScale", () => {
+  it("체육/예술 → 항상 3-level (교육과정 무관)", () => {
+    expect(getAchievementScale({ curriculumYear: 2022, subjectCategory: "regular", isPhysicalArts: true })).toBe("3-level");
+    expect(getAchievementScale({ curriculumYear: 2015, subjectCategory: "regular", isPhysicalArts: true })).toBe("3-level");
+  });
+
+  it("2015 진로선택 → 3-level", () => {
+    expect(getAchievementScale({ curriculumYear: 2015, subjectCategory: "career" })).toBe("3-level");
+  });
+
+  it("2022 진로선택 → 5-level", () => {
+    expect(getAchievementScale({ curriculumYear: 2022, subjectCategory: "career" })).toBe("5-level");
+  });
+
+  it("일반선택 → 항상 5-level", () => {
+    expect(getAchievementScale({ curriculumYear: 2015, subjectCategory: "regular" })).toBe("5-level");
+    expect(getAchievementScale({ curriculumYear: 2022, subjectCategory: "regular" })).toBe("5-level");
+  });
+
+  it("curriculumYear null → 2015 기본값 적용", () => {
+    expect(getAchievementScale({ curriculumYear: null, subjectCategory: "career" })).toBe("3-level");
+  });
+});
+
+describe("getValidAchievementLevels", () => {
+  it("3-level → A/B/C", () => {
+    expect(getValidAchievementLevels("3-level")).toEqual(["A", "B", "C"]);
+  });
+
+  it("5-level → A~E", () => {
+    expect(getValidAchievementLevels("5-level")).toEqual(["A", "B", "C", "D", "E"]);
+  });
+});
+
+describe("createAchievementLevelSchema", () => {
+  it("3-level — D는 거부", () => {
+    const schema = createAchievementLevelSchema("3-level");
+    expect(schema.safeParse("A").success).toBe(true);
+    expect(schema.safeParse("C").success).toBe(true);
+    expect(schema.safeParse("D").success).toBe(false);
+    expect(schema.safeParse("E").success).toBe(false);
+  });
+
+  it("5-level — D/E 허용", () => {
+    const schema = createAchievementLevelSchema("5-level");
+    expect(schema.safeParse("D").success).toBe(true);
+    expect(schema.safeParse("E").success).toBe(true);
+  });
+
+  it("null/undefined 허용 (optional nullable)", () => {
+    const schema = createAchievementLevelSchema("3-level");
+    expect(schema.safeParse(null).success).toBe(true);
+    expect(schema.safeParse(undefined).success).toBe(true);
+  });
+});

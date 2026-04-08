@@ -38,18 +38,29 @@ import {
   determineSubjectCategory,
   determineGradeSystem,
 } from "../computation";
+import { getAchievementScale } from "../validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * 산출값 계산에 필요한 메타데이터(subject_type is_achievement_only, curriculum year) 조회
+ * 산출값 계산에 필요한 메타데이터 조회
+ * - curriculum year
+ * - subject_types: is_achievement_only + selectionType(name)
+ * - subjects: grade_excluded
+ * - subject_groups: is_physical_arts
  */
+type ComputationMeta = {
+  curriculumYear: number | null;
+  subjectTypeMap: Map<string, { isAchievementOnly: boolean; selectionType: string }>;
+  gradeExcludedMap: Map<string, boolean>;
+  physicalArtsMap: Map<string, boolean>;
+};
+
 async function fetchComputationMeta(
   curriculumRevisionId: string,
-  subjectTypeIds: string[]
-): Promise<{
-  curriculumYear: number | null;
-  subjectTypeMap: Map<string, boolean>;
-}> {
+  subjectTypeIds: string[],
+  subjectIds?: string[],
+  subjectGroupIds?: string[],
+): Promise<ComputationMeta> {
   const supabase = await createSupabaseServerClient();
 
   // curriculum year 조회
@@ -59,24 +70,52 @@ async function fetchComputationMeta(
     .eq("id", curriculumRevisionId)
     .maybeSingle();
 
-  // subject_types의 is_achievement_only 조회
-  const uniqueIds = [...new Set(subjectTypeIds)];
-  const subjectTypeMap = new Map<string, boolean>();
+  // subject_types: is_achievement_only + name(selectionType)
+  const uniqueTypeIds = [...new Set(subjectTypeIds)];
+  const subjectTypeMap = new Map<string, { isAchievementOnly: boolean; selectionType: string }>();
 
-  if (uniqueIds.length > 0) {
+  if (uniqueTypeIds.length > 0) {
     const { data: types } = await supabase
       .from("subject_types")
-      .select("id, is_achievement_only")
-      .in("id", uniqueIds);
+      .select("id, is_achievement_only, name")
+      .in("id", uniqueTypeIds);
 
     for (const t of types ?? []) {
-      subjectTypeMap.set(t.id, t.is_achievement_only);
+      subjectTypeMap.set(t.id, { isAchievementOnly: t.is_achievement_only, selectionType: t.name });
+    }
+  }
+
+  // subjects.grade_excluded
+  const gradeExcludedMap = new Map<string, boolean>();
+  const uniqueSubjectIds = [...new Set(subjectIds ?? [])];
+  if (uniqueSubjectIds.length > 0) {
+    const { data: subjects } = await supabase
+      .from("subjects")
+      .select("id, grade_excluded")
+      .in("id", uniqueSubjectIds);
+    for (const s of subjects ?? []) {
+      gradeExcludedMap.set(s.id, s.grade_excluded);
+    }
+  }
+
+  // subject_groups.is_physical_arts
+  const physicalArtsMap = new Map<string, boolean>();
+  const uniqueGroupIds = [...new Set(subjectGroupIds ?? [])];
+  if (uniqueGroupIds.length > 0) {
+    const { data: groups } = await supabase
+      .from("subject_groups")
+      .select("id, is_physical_arts")
+      .in("id", uniqueGroupIds);
+    for (const g of groups ?? []) {
+      physicalArtsMap.set(g.id, g.is_physical_arts);
     }
   }
 
   return {
     curriculumYear: curriculum?.year ?? null,
     subjectTypeMap,
+    gradeExcludedMap,
+    physicalArtsMap,
   };
 }
 
@@ -98,18 +137,41 @@ function computeFieldsForScore(
     total_students?: number | null;
     class_rank?: number | null;
     subject_type_id?: string;
+    subject_id?: string;
+    subject_group_id?: string;
   },
-  subjectTypeMap: Map<string, boolean>,
-  curriculumYear: number | null
+  meta: ComputationMeta,
 ): {
   estimated_percentile: number | null;
   estimated_std_dev: number | null;
   converted_grade_9: number | null;
   adjusted_grade: number | null;
 } {
-  const isAchievementOnly = score.subject_type_id
-    ? (subjectTypeMap.get(score.subject_type_id) ?? false)
+  const typeInfo = score.subject_type_id
+    ? meta.subjectTypeMap.get(score.subject_type_id)
+    : undefined;
+  const isAchievementOnly = typeInfo?.isAchievementOnly ?? false;
+  const selectionType = typeInfo?.selectionType ?? null;
+  const gradeExcluded = score.subject_id
+    ? (meta.gradeExcludedMap.get(score.subject_id) ?? false)
     : false;
+  const isPhysicalArts = score.subject_group_id
+    ? (meta.physicalArtsMap.get(score.subject_group_id) ?? false)
+    : false;
+
+  const subjectCategory = determineSubjectCategory(
+    isAchievementOnly,
+    score.rank_grade ?? null,
+    score.std_dev ?? null,
+    selectionType,
+    gradeExcluded,
+  );
+
+  const achievementScale = getAchievementScale({
+    curriculumYear: meta.curriculumYear,
+    subjectCategory,
+    isPhysicalArts,
+  });
 
   const computed = computeScoreAnalysis({
     rawScore: score.raw_score ?? null,
@@ -124,12 +186,9 @@ function computeFieldsForScore(
     ratioE: score.achievement_ratio_e ?? null,
     totalStudents: score.total_students ?? null,
     classRank: score.class_rank ?? null,
-    subjectCategory: determineSubjectCategory(
-      isAchievementOnly,
-      score.rank_grade ?? null,
-      score.std_dev ?? null
-    ),
-    gradeSystem: determineGradeSystem(curriculumYear),
+    subjectCategory,
+    gradeSystem: determineGradeSystem(meta.curriculumYear),
+    achievementScale,
   });
 
   return {
@@ -201,19 +260,20 @@ async function _createInternalScore(formData: FormData) {
   }
 
   // 산출값 계산
-  const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+  const meta = await fetchComputationMeta(
     curriculum_revision_id,
-    [subject_type_id]
+    [subject_type_id],
+    [subject_id],
+    [subject_group_id],
   );
   const computedFields = computeFieldsForScore(
     {
       raw_score, avg_score, std_dev, rank_grade,
       achievement_level, achievement_ratio_a, achievement_ratio_b,
       achievement_ratio_c, achievement_ratio_d, achievement_ratio_e,
-      total_students, class_rank, subject_type_id,
+      total_students, class_rank, subject_type_id, subject_id, subject_group_id,
     },
-    subjectTypeMap,
-    curriculumYear
+    meta,
   );
 
   // lib/data/studentScores.ts의 createInternalScore 사용
@@ -323,7 +383,7 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   const supabaseForUpdate = await createSupabaseServerClient();
   const { data: existingScore } = await supabaseForUpdate
     .from("student_internal_scores")
-    .select("raw_score, avg_score, std_dev, rank_grade, achievement_level, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, total_students, class_rank, subject_type_id, curriculum_revision_id")
+    .select("raw_score, avg_score, std_dev, rank_grade, achievement_level, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, total_students, class_rank, subject_type_id, curriculum_revision_id, subject_id, subject_group_id")
     .eq("id", scoreId)
     .maybeSingle();
 
@@ -332,14 +392,15 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
     const curRevId = (curriculum_revision_id ?? existingScore.curriculum_revision_id) as string;
     const stId = (subject_type_id ?? existingScore.subject_type_id) as string;
 
-    const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+    const meta = await fetchComputationMeta(
       curRevId,
-      [stId]
+      [stId],
+      [existingScore.subject_id],
+      [existingScore.subject_group_id],
     );
     const computedFields = computeFieldsForScore(
-      { ...merged, subject_type_id: stId },
-      subjectTypeMap,
-      curriculumYear
+      { ...merged, subject_type_id: stId, subject_id: existingScore.subject_id, subject_group_id: existingScore.subject_group_id },
+      meta,
     );
 
     updates.estimated_percentile = computedFields.estimated_percentile;
@@ -533,14 +594,16 @@ async function _createInternalScoresBatch(formData: FormData) {
   }
 
   // 산출값 계산을 위한 메타데이터 조회
-  const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+  const meta = await fetchComputationMeta(
     curriculum_revision_id,
-    scores.map((s) => s.subject_type_id)
+    scores.map((s) => s.subject_type_id),
+    scores.map((s) => s.subject_id),
+    scores.map((s) => s.subject_group_id),
   );
 
   // 각 성적에 산출값 추가
   const enrichedScores = scores.map((score) => {
-    const computed = computeFieldsForScore(score, subjectTypeMap, curriculumYear);
+    const computed = computeFieldsForScore(score, meta);
     return { ...score, ...computed };
   });
 
@@ -911,7 +974,7 @@ export async function adminUpdateInternalScore(
   const supabase = await createSupabaseServerClient();
   const { data: existing } = await supabase
     .from("student_internal_scores")
-    .select("raw_score, avg_score, std_dev, rank_grade, achievement_level, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, total_students, class_rank, subject_type_id, curriculum_revision_id")
+    .select("raw_score, avg_score, std_dev, rank_grade, achievement_level, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, total_students, class_rank, subject_type_id, curriculum_revision_id, subject_id, subject_group_id")
     .eq("id", scoreId)
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
@@ -921,11 +984,13 @@ export async function adminUpdateInternalScore(
 
   // 업데이트 필드를 merge한 후 산출값 재계산
   const merged = { ...existing, ...updates };
-  const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+  const meta = await fetchComputationMeta(
     existing.curriculum_revision_id,
     existing.subject_type_id ? [existing.subject_type_id] : [],
+    [existing.subject_id],
+    [existing.subject_group_id],
   );
-  const computed = computeFieldsForScore(merged, subjectTypeMap, curriculumYear);
+  const computed = computeFieldsForScore(merged, meta);
 
   const result = await updateInternalScoreData(scoreId, userId, tenantId, {
     ...updates,

@@ -30,16 +30,33 @@ export const GRADE_5_BOUNDS = [0, 0.10, 0.34, 0.66, 0.90];
 const ACHIEVEMENT_ORDER = ["A", "B", "C", "D", "E"] as const;
 
 /**
- * 성취도 구간별 점수 범위
+ * 성취도 구간별 점수 범위 — 5단계 (A~E)
  * A: 90~100 (10점), B: 80~90, C: 70~80, D: 60~70, E: 0~60 (60점)
  */
-const ACHIEVEMENT_SCORE_RANGES: Record<string, { ceiling: number; span: number }> = {
+const ACHIEVEMENT_SCORE_RANGES_5: Record<string, { ceiling: number; span: number }> = {
   A: { ceiling: 100, span: 10 },
   B: { ceiling: 90, span: 10 },
   C: { ceiling: 80, span: 10 },
   D: { ceiling: 70, span: 10 },
   E: { ceiling: 60, span: 60 },
 };
+
+/**
+ * 성취도 구간별 점수 범위 — 3단계 (A/B/C)
+ * A: 90~100, B: 80~90, C: 0~80
+ * 2015 진로선택, 체육/예술 교과에 적용
+ */
+const ACHIEVEMENT_SCORE_RANGES_3: Record<string, { ceiling: number; span: number }> = {
+  A: { ceiling: 100, span: 10 },
+  B: { ceiling: 90, span: 10 },
+  C: { ceiling: 80, span: 80 },
+};
+
+function getAchievementScoreRanges(
+  scale: "3-level" | "5-level" = "5-level"
+): Record<string, { ceiling: number; span: number }> {
+  return scale === "3-level" ? ACHIEVEMENT_SCORE_RANGES_3 : ACHIEVEMENT_SCORE_RANGES_5;
+}
 
 /**
  * 변환석차등급 테이블 (진로선택/융합선택용)
@@ -165,7 +182,7 @@ function getGradeBounds(
  */
 export function estimatePercentile(input: {
   rawScore: number;
-  achievementLevel: string; // A~E
+  achievementLevel: string; // A~E or A~C
   ratioA: number;
   ratioB: number;
   ratioC: number;
@@ -173,6 +190,8 @@ export function estimatePercentile(input: {
   ratioE: number;
   rankGrade: number | null; // 석차등급
   gradeSystem: 5 | 9;
+  /** 3단계(A/B/C) vs 5단계(A~E). 미지정 시 5단계. */
+  achievementScale?: "3-level" | "5-level";
 }): number | null {
   const { rawScore, achievementLevel, ratioA, ratioB, ratioC, ratioD, ratioE, rankGrade, gradeSystem } = input;
 
@@ -183,7 +202,7 @@ export function estimatePercentile(input: {
   const rE = ratioE / 100;
 
   const level = achievementLevel.toUpperCase();
-  const range = ACHIEVEMENT_SCORE_RANGES[level];
+  const range = getAchievementScoreRanges(input.achievementScale)[level];
   if (!range) return null;
 
   // 성취도 구간 내 선형보간: 상위 누적비율 + 해당 구간 내 위치 비율
@@ -448,6 +467,8 @@ export type ScoreComputationInput = {
   classRank: number | null;
   subjectCategory: "regular" | "career" | "experiment";
   gradeSystem: 5 | 9;
+  /** 성취도 스케일: 3단계(A/B/C) vs 5단계(A~E). 미지정 시 5단계. */
+  achievementScale?: "3-level" | "5-level";
 };
 
 export type ComputationMeta = {
@@ -490,6 +511,7 @@ export function computeScoreAnalysis(
     classRank,
     subjectCategory,
     gradeSystem,
+    achievementScale,
   } = input;
 
   const result: ScoreComputationResult = {
@@ -524,12 +546,12 @@ export function computeScoreAnalysis(
 
   // Step 1: 백분위 추정
   let basePercentile: number | null = null;
+  const is3Level = achievementScale === "3-level";
   const hasRatios = achievementLevel &&
     ratioA !== null &&
     ratioB !== null &&
     ratioC !== null &&
-    ratioD !== null &&
-    ratioE !== null;
+    (is3Level || (ratioD !== null && ratioE !== null));
 
   if (hasRatios) {
     // 보간 중간값 계산 (steps 기록용)
@@ -537,18 +559,15 @@ export function computeScoreAnalysis(
     const rA = ratioA! / 100;
     const rB = ratioB! / 100;
     const rC = ratioC! / 100;
-    const rD = ratioD! / 100;
-    const scoreRanges: Record<string, { ceiling: number; span: number }> = {
-      A: { ceiling: 100, span: 10 }, B: { ceiling: 90, span: 10 },
-      C: { ceiling: 80, span: 10 }, D: { ceiling: 70, span: 10 }, E: { ceiling: 60, span: 60 },
-    };
+    const rD = (is3Level ? 0 : ratioD ?? 0) / 100;
+    const scoreRanges = getAchievementScoreRanges(achievementScale);
     const sr = scoreRanges[lvl];
     if (sr) {
       const cumBefore: Record<string, number> = {
         A: 0, B: rA, C: rA + rB, D: rA + rB + rC, E: rA + rB + rC + rD,
       };
       const ratioVal: Record<string, number> = {
-        A: rA, B: rB, C: rC, D: rD, E: ratioE! / 100,
+        A: rA, B: rB, C: rC, D: rD, E: (is3Level ? 0 : ratioE ?? 0) / 100,
       };
       const pos = (sr.ceiling - rawScore) / sr.span;
       const rawPct = cumBefore[lvl] + ratioVal[lvl] * pos;
@@ -575,10 +594,11 @@ export function computeScoreAnalysis(
       ratioA: ratioA!,
       ratioB: ratioB!,
       ratioC: ratioC!,
-      ratioD: ratioD!,
-      ratioE: ratioE!,
+      ratioD: is3Level ? 0 : ratioD!,
+      ratioE: is3Level ? 0 : ratioE!,
       rankGrade,
       gradeSystem,
+      achievementScale,
     });
     method = "interpolation";
     if (rankGrade !== null) {
@@ -719,17 +739,21 @@ export function computeScoreAnalysis(
  * @param _rankGrade - 석차등급 (현재 미사용, 하위 호환용)
  * @param stdDev - 표준편차
  * @param selectionType - 과목 선택 유형 ("일반"|"진로"|"융합"). 있으면 stdDev보다 우선.
+ * @param gradeExcluded - subjects.grade_excluded 값. true이면 석차등급 미기재 과목.
  */
 export function determineSubjectCategory(
   isAchievementOnly: boolean,
   _rankGrade: number | null,
   stdDev: number | null,
   selectionType?: "일반" | "진로" | "융합" | string | null,
+  gradeExcluded?: boolean,
 ): "regular" | "career" | "experiment" {
   if (isAchievementOnly) return "experiment";
+  // subjects.grade_excluded 플래그 (subject_type_id 없어도 판별 가능)
+  if (gradeExcluded) return "career";
   // 과목 유형 정보가 있으면 우선 사용 (2022 개정에서 stdDev NULL인 일반선택 오분류 방지)
   if (selectionType === "진로" || selectionType === "융합") return "career";
-  if (selectionType === "일반") return stdDev === null ? "regular" : "regular";
+  if (selectionType === "일반") return "regular";
   // 과목 유형 없으면 기존 휴리스틱
   if (stdDev === null) return "career";
   return "regular";
