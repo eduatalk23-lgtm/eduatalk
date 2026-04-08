@@ -27,6 +27,7 @@ vi.mock("@/lib/domains/student-record/actions/pipeline-orchestrator", () => ({
 
 vi.mock("@/lib/domains/student-record/pipeline/pipeline-executor", () => ({
   loadPipelineContext: vi.fn(),
+  validatePhasePrerequisites: vi.fn(() => null),
 }));
 
 vi.mock("@/lib/domains/student-record/pipeline/pipeline-synthesis-phases", () => ({

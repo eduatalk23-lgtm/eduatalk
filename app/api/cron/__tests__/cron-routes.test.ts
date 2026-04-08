@@ -940,10 +940,13 @@ describe("GET /api/cron/pipeline-timeout", () => {
   });
 
   it("stuck 파이프라인 2건 → timeout 처리 후 processed: 2", async () => {
+    // 라우트는 running(60분+)과 pending(30분+) 두 쿼리를 순차 실행.
+    // 첫 호출(running)에서 2건, 두 번째 호출(pending)에서 0건 반환하도록 lt() 카운터로 분기.
     const stuckRows = [
       { id: "pipe-aaa" },
       { id: "pipe-bbb" },
     ];
+    let ltCallIndex = 0;
     const updateChain = {
       in: vi.fn().mockResolvedValue({ error: null }),
     };
@@ -951,7 +954,13 @@ describe("GET /api/cron/pipeline-timeout", () => {
       from: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            lt: vi.fn().mockResolvedValue({ data: stuckRows, error: null }),
+            lt: vi.fn().mockImplementation(() => {
+              ltCallIndex += 1;
+              return Promise.resolve({
+                data: ltCallIndex === 1 ? stuckRows : [],
+                error: null,
+              });
+            }),
           }),
         }),
         update: vi.fn().mockReturnValue(updateChain),

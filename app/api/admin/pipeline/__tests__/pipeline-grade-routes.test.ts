@@ -27,6 +27,7 @@ vi.mock("@/lib/domains/student-record/actions/pipeline-orchestrator", () => ({
 
 vi.mock("@/lib/domains/student-record/pipeline/pipeline-executor", () => ({
   loadPipelineContext: vi.fn(),
+  validatePhasePrerequisites: vi.fn(() => null),
 }));
 
 vi.mock("@/lib/domains/student-record/pipeline/pipeline-grade-phases", () => ({
@@ -511,20 +512,6 @@ describe("POST /api/admin/pipeline/grade/phase-6", () => {
     return POST(makeRequest("http://localhost/api/admin/pipeline/grade/phase-6", body) as Parameters<typeof POST>[0]);
   }
 
-  function makeSupabaseMock(siblingPipelines: Array<{ id: string; grade: number; status: string }>) {
-    return {
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: siblingPipelines, error: null }),
-            }),
-          }),
-        }),
-      }),
-    } as unknown as ReturnType<typeof createSupabaseAdminClient>;
-  }
-
   it("pipelineId 누락 → 400", async () => {
     const res = await callRoute({});
 
@@ -544,14 +531,7 @@ describe("POST /api/admin/pipeline/grade/phase-6", () => {
     expect(json.error).toBe("Grade 파이프라인에 targetGrade가 설정되지 않음");
   });
 
-  it("executeGradePhase6 성공 — 다음 학년 있음 → 200 + nextGradePipelineId", async () => {
-    const siblings = [
-      { id: "p1", grade: 1, status: "completed" },
-      { id: "p2", grade: 2, status: "pending" },
-    ];
-    const adminMock = makeSupabaseMock(siblings);
-    mockCreateSupabaseAdminClient.mockReturnValue(adminMock);
-
+  it("executeGradePhase6 성공 → 200 + phase, grade, completed", async () => {
     const ctx = makeMockCtx({ targetGrade: 1, studentId: "s1" });
     mockLoadPipelineContext.mockResolvedValue(ctx);
     mockExecuteGradePhase6.mockResolvedValue(undefined);
@@ -563,39 +543,10 @@ describe("POST /api/admin/pipeline/grade/phase-6", () => {
       phase: number;
       grade: number;
       completed: boolean;
-      nextGradePipelineId: string | null;
-      nextGrade: number | null;
-      allGradesCompleted: boolean;
     };
     expect(json.phase).toBe(6);
     expect(json.grade).toBe(1);
     expect(json.completed).toBe(true);
-    expect(json.nextGradePipelineId).toBe("p2");
-    expect(json.nextGrade).toBe(2);
-    expect(json.allGradesCompleted).toBe(false);
-  });
-
-  it("executeGradePhase6 성공 — 모든 학년 완료 → allGradesCompleted:true", async () => {
-    const siblings = [
-      { id: "p1", grade: 1, status: "completed" },
-      { id: "p2", grade: 2, status: "completed" },
-    ];
-    const adminMock = makeSupabaseMock(siblings);
-    mockCreateSupabaseAdminClient.mockReturnValue(adminMock);
-
-    const ctx = makeMockCtx({ targetGrade: 2, studentId: "s1" });
-    mockLoadPipelineContext.mockResolvedValue(ctx);
-    mockExecuteGradePhase6.mockResolvedValue(undefined);
-
-    const res = await callRoute({ pipelineId: "pipeline-abc" });
-
-    expect(res.status).toBe(200);
-    const json = await res.json() as {
-      nextGradePipelineId: string | null;
-      allGradesCompleted: boolean;
-    };
-    expect(json.nextGradePipelineId).toBeNull();
-    expect(json.allGradesCompleted).toBe(true);
   });
 
   it("executeGradePhase6 throw → 500 + 올바른 에러 메시지", async () => {

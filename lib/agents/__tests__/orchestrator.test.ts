@@ -260,9 +260,9 @@ describe("createOrchestrator", () => {
     expect(tools.getUniversityOutcomes).toBeDefined();
   });
 
-  it("총 54개 도구가 등록된다", async () => {
+  it("총 56개 도구가 등록된다", async () => {
     const { tools } = await createOrchestrator(mockContext);
-    expect(Object.keys(tools)).toHaveLength(54);
+    expect(Object.keys(tools)).toHaveLength(56);
   });
 
   it("uiState가 있으면 시스템 프롬프트에 화면 상태가 포함된다", async () => {

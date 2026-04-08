@@ -51,12 +51,37 @@ vi.mock("@/lib/domains/plan/utils/cacheInvalidation", () => ({
   revalidatePlanCache: vi.fn(),
 }));
 
+vi.mock("@/lib/domains/plan/transactions", () => ({
+  createQuickPlanAtomic: vi.fn(),
+}));
+
 import { createQuickPlan, createQuickPlanForStudent } from "@/lib/domains/plan/actions/contentPlanGroup/quickCreate";
 import { resolveAuthContext, isAdminContext } from "@/lib/auth/strategies";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureStudentPrimaryCalendar } from "@/lib/domains/calendar/helpers";
 import { selectPlanGroupForCalendar, createPlanGroupForCalendar } from "@/lib/domains/admin-plan/utils/planGroupSelector";
+import { createQuickPlanAtomic } from "@/lib/domains/plan/transactions";
 import type { AdminAuthContext, StudentAuthContext } from "@/lib/auth/strategies/types";
+
+const mockCreateQuickPlanAtomic = vi.mocked(createQuickPlanAtomic);
+
+/** RPC 트랜잭션 happy path 기본 응답 */
+function setRpcSuccess(overrides?: Partial<{ plan_group_id: string; plan_id: string; flexible_content_id: string }>) {
+  mockCreateQuickPlanAtomic.mockResolvedValue({
+    success: true,
+    plan_group_id: overrides?.plan_group_id ?? "plan-group-456",
+    plan_id: overrides?.plan_id ?? "plan-789",
+    flexible_content_id: overrides?.flexible_content_id ?? "flex-content-123",
+  });
+}
+
+/** RPC 트랜잭션 실패 응답 */
+function setRpcFailure(error: string) {
+  mockCreateQuickPlanAtomic.mockResolvedValue({
+    success: false,
+    error,
+  });
+}
 
 describe("createQuickPlanForStudent", () => {
   const mockSupabase = {
@@ -136,22 +161,11 @@ describe("createQuickPlanForStudent", () => {
     });
 
     it("자유 학습 플랜 생성 성공", async () => {
-      // flexible_contents 생성 성공
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-123" },
-          error: null,
-        })
-        // plan_groups 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-group-456" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-789" },
-          error: null,
-        });
+      setRpcSuccess({
+        plan_group_id: "plan-group-456",
+        plan_id: "plan-789",
+        flexible_content_id: "flex-content-123",
+      });
 
       const result = await createQuickPlanForStudent({
         studentId: "student-789",
@@ -170,10 +184,7 @@ describe("createQuickPlanForStudent", () => {
     });
 
     it("flexible_contents 생성 실패 시 에러 반환", async () => {
-      mockSupabase.single.mockResolvedValueOnce({
-        data: null,
-        error: { message: "DB 에러" },
-      });
+      setRpcFailure("DB 에러");
 
       const result = await createQuickPlanForStudent({
         studentId: "student-789",
@@ -218,17 +229,12 @@ describe("createQuickPlanForStudent", () => {
     it("유효한 UUID의 contentId는 처리", async () => {
       const validUUID = "550e8400-e29b-41d4-a716-446655440000";
 
-      // plan_groups 생성 성공
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "plan-group-456" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-789" },
-          error: null,
-        });
+      mockCreateQuickPlanAtomic.mockResolvedValue({
+        success: true,
+        plan_group_id: "plan-group-456",
+        plan_id: "plan-789",
+        // 일반 콘텐츠는 flexible_content_id 없음
+      });
 
       const result = await createQuickPlanForStudent({
         studentId: "student-789",
@@ -259,40 +265,24 @@ describe("createQuickPlanForStudent", () => {
       vi.mocked(isAdminContext).mockReturnValue(true);
     });
 
-    it("plan_groups에 last_admin_id 필드가 설정됨", async () => {
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-123" },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: { id: "plan-group-456" },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: { id: "plan-789" },
-          error: null,
-        });
+    it("legacy 그룹 생성 시 RPC options.planGroup에 last_admin_id 포함", async () => {
+      // calendarId 없는 호출 = legacy path → RPC가 planGroup 생성
+      setRpcSuccess();
 
       await createQuickPlanForStudent({
         studentId: "student-789",
         title: "테스트",
         planDate: "2024-01-15",
         isFreeLearning: true,
+        // calendarId 미지정 → needsLegacyGroup = true
       });
 
-      // insert 호출 확인 - plan_groups insert를 찾음
-      const insertCalls = mockSupabase.insert.mock.calls;
-      // plan_groups insert에 last_admin_id가 포함되어 있는지 확인
-      const planGroupInsert = insertCalls.find(
-        (call) => call[0]?.last_admin_id !== undefined
-      )?.[0];
-
-      expect(planGroupInsert).toBeDefined();
-      if (planGroupInsert) {
-        expect(planGroupInsert.last_admin_id).toBe("admin-123");
-        expect(planGroupInsert.student_id).toBe("student-789");
-      }
+      // RPC 호출 args 검증: options.planGroup에 last_admin_id가 admin-123
+      expect(mockCreateQuickPlanAtomic).toHaveBeenCalled();
+      const [, options] = mockCreateQuickPlanAtomic.mock.calls[0];
+      expect(options.planGroup).toBeDefined();
+      expect(options.planGroup?.last_admin_id).toBe("admin-123");
+      expect(options.planGroup?.student_id).toBe("student-789");
     });
   });
 
@@ -311,29 +301,10 @@ describe("createQuickPlanForStudent", () => {
       vi.mocked(isAdminContext).mockReturnValue(true);
     });
 
-    it("student_plan 생성 실패 시 rollback 수행", async () => {
-      mockSupabase.single
-        // flexible_contents 성공
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-123" },
-          error: null,
-        })
-        // plan_groups 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-group-456" },
-          error: null,
-        })
-        // student_plan 실패
-        .mockResolvedValueOnce({
-          data: null,
-          error: { message: "플랜 생성 실패" },
-        });
-
-      // delete 성공 (rollback)
-      mockSupabase.eq.mockReturnValue({
-        ...mockSupabase,
-        then: (resolve: any) => resolve({ error: null }),
-      });
+    it("RPC 트랜잭션 실패 시 에러 반환 (롤백은 RPC 내부에서 자동)", async () => {
+      // RPC 트랜잭션이 단일 PostgreSQL 트랜잭션이므로
+      // 부분 실패 시 PostgreSQL이 자동 롤백. 외부에서는 success: false만 확인.
+      setRpcFailure("플랜 생성 실패");
 
       const result = await createQuickPlanForStudent({
         studentId: "student-789",
@@ -386,22 +357,15 @@ describe("createQuickPlan (통합 API)", () => {
     });
 
     it("학생이 빠른 플랜 생성 성공 (Calendar 자동 연동)", async () => {
-      // flexible_contents 생성 성공 (isFreeLearning일 때)
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-123" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-new-789" },
-          error: null,
-        });
+      mockCreateQuickPlanAtomic.mockResolvedValue({
+        success: true,
+        plan_group_id: "plan-group-new-456",
+        plan_id: "plan-new-789",
+        flexible_content_id: "flex-content-123",
+      });
 
-      // Calendar 자동 확보
       vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-auto-123");
 
-      // 기존 Plan Group 없음 → 새로 생성
       vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "not-found",
       });
@@ -422,13 +386,11 @@ describe("createQuickPlan (통합 API)", () => {
       expect(result.planGroupId).toBe("plan-group-new-456");
       expect(result.planId).toBe("plan-new-789");
 
-      // Calendar 확보 호출 확인
       expect(ensureStudentPrimaryCalendar).toHaveBeenCalledWith(
         "student-123",
         "tenant-456"
       );
 
-      // Plan Group 생성 시 is_single_content: true 옵션 확인
       expect(createPlanGroupForCalendar).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
@@ -440,21 +402,15 @@ describe("createQuickPlan (통합 API)", () => {
     });
 
     it("학생이 기존 Plan Group에 플랜 추가", async () => {
-      // flexible_contents 생성 (기본적으로 isFreeLearning: true로 처리됨)
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-456" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-new-789" },
-          error: null,
-        });
+      mockCreateQuickPlanAtomic.mockResolvedValue({
+        success: true,
+        plan_group_id: "plan-group-existing-456",
+        plan_id: "plan-new-789",
+        flexible_content_id: "flex-content-456",
+      });
 
       vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-existing-123");
 
-      // 기존 Plan Group 있음
       vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "found",
         planGroupId: "plan-group-existing-456",
@@ -469,7 +425,6 @@ describe("createQuickPlan (통합 API)", () => {
       expect(result.success).toBe(true);
       expect(result.planGroupId).toBe("plan-group-existing-456");
 
-      // createPlanGroupForCalendar는 호출되지 않아야 함
       expect(createPlanGroupForCalendar).not.toHaveBeenCalled();
     });
   });
@@ -490,17 +445,12 @@ describe("createQuickPlan (통합 API)", () => {
     });
 
     it("관리자가 studentId 지정하여 플랜 생성", async () => {
-      // flexible_contents 생성 (기본적으로 isFreeLearning: true로 처리됨)
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-admin" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-admin-created" },
-          error: null,
-        });
+      mockCreateQuickPlanAtomic.mockResolvedValue({
+        success: true,
+        plan_group_id: "plan-group-admin-created",
+        plan_id: "plan-admin-created",
+        flexible_content_id: "flex-content-admin",
+      });
 
       vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-for-student-789");
 
@@ -516,14 +466,13 @@ describe("createQuickPlan (통합 API)", () => {
       const result = await createQuickPlan({
         title: "관리자가 생성한 플랜",
         planDate: "2024-01-15",
-        studentId: "student-789", // 대상 학생 지정
+        studentId: "student-789",
         estimatedMinutes: 45,
       });
 
       expect(result.success).toBe(true);
       expect(result.planGroupId).toBe("plan-group-admin-created");
 
-      // resolveAuthContext가 studentId와 함께 호출됨
       expect(resolveAuthContext).toHaveBeenCalledWith({
         studentId: "student-789",
       });
@@ -550,45 +499,21 @@ describe("createQuickPlan (통합 API)", () => {
     });
 
     it("student_plan에 is_adhoc: true가 설정됨", async () => {
-      // flexible_contents 생성 (contentId 없으면 free learning으로 처리)
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-adhoc" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-789" },
-          error: null,
-        });
+      setRpcSuccess({ flexible_content_id: "flex-content-adhoc" });
 
       await createQuickPlan({
         title: "빠른 학습",
         planDate: "2024-01-15",
       });
 
-      // insert 호출 확인
-      const insertCalls = mockSupabase.insert.mock.calls;
-      const studentPlanInsert = insertCalls.find(
-        (call) => call[0]?.is_adhoc !== undefined
-      )?.[0];
-
-      expect(studentPlanInsert).toBeDefined();
-      expect(studentPlanInsert?.is_adhoc).toBe(true);
+      // RPC 호출 args 검증: 첫 번째 인자(studentPlan)에 is_adhoc: true
+      expect(mockCreateQuickPlanAtomic).toHaveBeenCalled();
+      const [studentPlan] = mockCreateQuickPlanAtomic.mock.calls[0];
+      expect(studentPlan.is_adhoc).toBe(true);
     });
 
     it("추가 필드들이 student_plan에 포함됨", async () => {
-      // flexible_contents 생성
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: { id: "flex-content-detailed" },
-          error: null,
-        })
-        // student_plan 생성 성공
-        .mockResolvedValueOnce({
-          data: { id: "plan-789" },
-          error: null,
-        });
+      setRpcSuccess({ flexible_content_id: "flex-content-detailed" });
 
       await createQuickPlan({
         title: "상세 플랜",
@@ -602,12 +527,8 @@ describe("createQuickPlan (통합 API)", () => {
         priority: 1,
       });
 
-      const insertCalls = mockSupabase.insert.mock.calls;
-      const studentPlanInsert = insertCalls.find(
-        (call) => call[0]?.is_adhoc !== undefined
-      )?.[0];
-
-      expect(studentPlanInsert).toMatchObject({
+      const [studentPlan] = mockCreateQuickPlanAtomic.mock.calls[0];
+      expect(studentPlan).toMatchObject({
         estimated_minutes: 60,
         start_time: "14:00",
         end_time: "15:00",

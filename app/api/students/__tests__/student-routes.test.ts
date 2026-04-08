@@ -41,6 +41,10 @@ vi.mock("@/lib/scores/admissionStrategy", () => ({
   analyzeAdmissionStrategy: vi.fn(),
 }));
 
+vi.mock("@/lib/domains/student/resolveStudentCurriculum", () => ({
+  resolveStudentCurriculumId: vi.fn(),
+}));
+
 // ============================================
 // Imports (after mocks)
 // ============================================
@@ -52,6 +56,7 @@ import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getInternalAnalysis } from "@/lib/scores/internalAnalysis";
 import { getMockAnalysis } from "@/lib/scores/mockAnalysis";
 import { getInternalPercentile, analyzeAdmissionStrategy } from "@/lib/scores/admissionStrategy";
+import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 
 // ============================================
 // 공통 헬퍼
@@ -135,9 +140,16 @@ const mockGetInternalAnalysis = vi.mocked(getInternalAnalysis);
 const mockGetMockAnalysis = vi.mocked(getMockAnalysis);
 const mockGetInternalPercentile = vi.mocked(getInternalPercentile);
 const mockAnalyzeAdmissionStrategy = vi.mocked(analyzeAdmissionStrategy);
+const mockResolveStudentCurriculumId = vi.mocked(resolveStudentCurriculumId);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // 기본값: 학생 교육과정 resolve 성공 (대부분 테스트의 happy path)
+  mockResolveStudentCurriculumId.mockResolvedValue({
+    curriculumRevisionId: "rev-1",
+    curriculumYear: 2022,
+    curriculumName: "2022 개정",
+  });
 });
 
 // ============================================
