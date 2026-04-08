@@ -10,7 +10,7 @@ import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import * as service from "../service";
-import { fetchDiagnosisTabData } from "./diagnosis";
+import { fetchDiagnosisTabData } from "../actions/diagnosis";
 import { computeWarnings } from "../warnings/engine";
 import type { ContentQualityRow } from "../warnings/engine";
 import type { RecordWarning } from "../warnings/types";
