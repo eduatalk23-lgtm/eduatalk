@@ -63,56 +63,54 @@ async function fetchComputationMeta(
 ): Promise<ComputationMeta> {
   const supabase = await createSupabaseServerClient();
 
-  // curriculum year 조회
-  const { data: curriculum } = await supabase
-    .from("curriculum_revisions")
-    .select("year")
-    .eq("id", curriculumRevisionId)
-    .maybeSingle();
-
-  // subject_types: is_achievement_only + name(selectionType)
   const uniqueTypeIds = [...new Set(subjectTypeIds)];
-  const subjectTypeMap = new Map<string, { isAchievementOnly: boolean; selectionType: string }>();
-
-  if (uniqueTypeIds.length > 0) {
-    const { data: types } = await supabase
-      .from("subject_types")
-      .select("id, is_achievement_only, name")
-      .in("id", uniqueTypeIds);
-
-    for (const t of types ?? []) {
-      subjectTypeMap.set(t.id, { isAchievementOnly: t.is_achievement_only, selectionType: t.name });
-    }
-  }
-
-  // subjects.grade_excluded
-  const gradeExcludedMap = new Map<string, boolean>();
   const uniqueSubjectIds = [...new Set(subjectIds ?? [])];
-  if (uniqueSubjectIds.length > 0) {
-    const { data: subjects } = await supabase
-      .from("subjects")
-      .select("id, grade_excluded")
-      .in("id", uniqueSubjectIds);
-    for (const s of subjects ?? []) {
-      gradeExcludedMap.set(s.id, s.grade_excluded);
-    }
+  const uniqueGroupIds = [...new Set(subjectGroupIds ?? [])];
+
+  // 4개 메타 조회는 모두 독립적이므로 병렬 실행
+  const [curriculumRes, typesRes, subjectsRes, groupsRes] = await Promise.all([
+    supabase
+      .from("curriculum_revisions")
+      .select("year")
+      .eq("id", curriculumRevisionId)
+      .maybeSingle(),
+    uniqueTypeIds.length > 0
+      ? supabase
+          .from("subject_types")
+          .select("id, is_achievement_only, name")
+          .in("id", uniqueTypeIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; is_achievement_only: boolean; name: string }>, error: null }),
+    uniqueSubjectIds.length > 0
+      ? supabase
+          .from("subjects")
+          .select("id, grade_excluded")
+          .in("id", uniqueSubjectIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; grade_excluded: boolean }>, error: null }),
+    uniqueGroupIds.length > 0
+      ? supabase
+          .from("subject_groups")
+          .select("id, is_physical_arts")
+          .in("id", uniqueGroupIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; is_physical_arts: boolean }>, error: null }),
+  ]);
+
+  const subjectTypeMap = new Map<string, { isAchievementOnly: boolean; selectionType: string }>();
+  for (const t of typesRes.data ?? []) {
+    subjectTypeMap.set(t.id, { isAchievementOnly: t.is_achievement_only, selectionType: t.name });
   }
 
-  // subject_groups.is_physical_arts
+  const gradeExcludedMap = new Map<string, boolean>();
+  for (const s of subjectsRes.data ?? []) {
+    gradeExcludedMap.set(s.id, s.grade_excluded);
+  }
+
   const physicalArtsMap = new Map<string, boolean>();
-  const uniqueGroupIds = [...new Set(subjectGroupIds ?? [])];
-  if (uniqueGroupIds.length > 0) {
-    const { data: groups } = await supabase
-      .from("subject_groups")
-      .select("id, is_physical_arts")
-      .in("id", uniqueGroupIds);
-    for (const g of groups ?? []) {
-      physicalArtsMap.set(g.id, g.is_physical_arts);
-    }
+  for (const g of groupsRes.data ?? []) {
+    physicalArtsMap.set(g.id, g.is_physical_arts);
   }
 
   return {
-    curriculumYear: curriculum?.year ?? null,
+    curriculumYear: curriculumRes.data?.year ?? null,
     subjectTypeMap,
     gradeExcludedMap,
     physicalArtsMap,
