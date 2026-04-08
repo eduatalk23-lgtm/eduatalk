@@ -275,6 +275,21 @@ export interface HaengteukGuideRow {
   updated_at: string;
 }
 
+// ── Overview (Phase 3: 서버 사이드 경고 + 진행률) ──
+
+export interface ProgressCounts {
+  recordFilled: number;
+  recordTotal: number;
+  diagnosisFilled: number;
+  designFilled: number;
+  strategyFilled: number;
+}
+
+export interface StudentRecordOverview {
+  warnings: import("../warnings/types").RecordWarning[];
+  progressCounts: ProgressCounts;
+}
+
 // ── Action 응답 ──
 
 import type { ActionResponse } from "@/lib/types/actionResponse";

@@ -12,6 +12,8 @@ import { fetchCrossRefData } from "@/lib/domains/student-record/actions/cross-re
 
 export const studentRecordKeys = {
   all: ["studentRecord"] as const,
+  overview: (studentId: string) =>
+    [...studentRecordKeys.all, "overview", studentId] as const,
   recordTab: (studentId: string, schoolYear: number) =>
     [...studentRecordKeys.all, "recordTab", studentId, schoolYear] as const,
   diagnosisTab: (studentId: string, schoolYear: number) =>
@@ -136,6 +138,28 @@ export function pipelineStatusQueryOptions(studentId: string) {
     staleTime: 2_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId,
+  });
+}
+
+/** Phase 3: 서버 사이드 overview (경고 + 진행률) — staleTime 30초, CRUD/파이프라인 완료 시 invalidate */
+export function overviewQueryOptions(
+  studentId: string,
+  studentGrade: number,
+  initialSchoolYear: number,
+) {
+  return queryOptions({
+    queryKey: studentRecordKeys.overview(studentId),
+    queryFn: async () => {
+      const { fetchStudentRecordOverview } = await import(
+        "@/lib/domains/student-record/actions/overview"
+      );
+      const result = await fetchStudentRecordOverview(studentId, studentGrade, initialSchoolYear);
+      if (!result.success) throw new Error(result.error);
+      return result.data!;
+    },
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId && studentGrade > 0,
   });
 }
 

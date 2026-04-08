@@ -7,13 +7,8 @@ import { ClipboardList, Search, Compass, Target, ChevronDown } from "lucide-reac
 import { RecordYearSelector } from "./RecordYearSelector";
 import type { StageId, StageConfig } from "./recordStages";
 
-export type ProgressCounts = {
-  recordFilled: number;
-  recordTotal: number;
-  diagnosisFilled: number;
-  designFilled: number;
-  strategyFilled: number;
-};
+import type { ProgressCounts } from "@/lib/domains/student-record/types";
+export type { ProgressCounts };
 
 type RecordSidebarProps = {
   stages: StageConfig[];

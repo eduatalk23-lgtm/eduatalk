@@ -11,12 +11,13 @@ import {
   diagnosisTabQueryOptions,
   coursePlanTabQueryOptions,
   pipelineStatusQueryOptions,
+  overviewQueryOptions,
 } from "@/lib/query-options/studentRecord";
 import { scorePanelDataQueryOptions } from "@/lib/query-options/scores";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { computeWarnings } from "@/lib/domains/student-record/warnings/engine";
 import type { WarningCheckInput } from "@/lib/domains/student-record/warnings/engine";
-import type { ProgressCounts } from "./RecordSidebar";
+import type { ProgressCounts } from "@/lib/domains/student-record/types";
 
 type Subject = {
   id: string;
@@ -85,6 +86,11 @@ export function useStudentRecordData({
   const { data: pipelineData } = useQuery(pipelineStatusQueryOptions(studentId));
   const isPipelineRunning = pipelineData?.status === "running";
 
+  // ─── Phase 3: 서버 사이드 overview (경고 + 진행률) ───
+  const { data: overviewData } = useQuery(
+    overviewQueryOptions(studentId, studentGrade, initialSchoolYear),
+  );
+
   // ─── 파이프라인 완료 시 관련 쿼리 자동 갱신 ──────────
   const queryClient = useQueryClient();
   const prevPipelineRunningRef = useRef(false);
@@ -94,6 +100,7 @@ export function useStudentRecordData({
 
     // running → not running 전환 시 = 파이프라인 완료
     if (wasRunning && !isPipelineRunning) {
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.overview(studentId) });
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTabPrefix(studentId) });
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.strategyTab(studentId, initialSchoolYear) });
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.storylineTab(studentId) });
@@ -206,8 +213,9 @@ export function useStudentRecordData({
     return result;
   }, [recordByGrade, subjects]);
 
-  // ─── 경고 계산 ────────────────────────────────────
-  const warnings = useMemo(() => {
+  // ─── 경고 계산 (서버 overview 우선, 클라이언트 fallback) ──
+  const clientWarnings = useMemo(() => {
+    if (overviewData) return null; // 서버 결과 사용 시 클라이언트 계산 스킵
     const recordsMap = new Map<number, import("@/lib/domains/student-record").RecordTabData>();
     for (const [g, entry] of recordByGrade) recordsMap.set(g, entry.data);
     const input: WarningCheckInput = {
@@ -222,10 +230,13 @@ export function useStudentRecordData({
       roadmapItems: storylineData?.roadmapItems,
     };
     return computeWarnings(input);
-  }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade, scorePanelData?.curriculumYear]);
+  }, [overviewData, recordByGrade, storylineData, diagnosisData, strategyData, studentGrade, scorePanelData?.curriculumYear]);
 
-  // ─── 진행률 계산 ─────────────────────────────────
-  const progressCounts = useMemo<ProgressCounts>(() => {
+  const warnings = overviewData?.warnings ?? clientWarnings ?? [];
+
+  // ─── 진행률 계산 (서버 overview 우선, 클라이언트 fallback) ──
+  const clientProgressCounts = useMemo<ProgressCounts | null>(() => {
+    if (overviewData) return null; // 서버 결과 사용 시 클라이언트 계산 스킵
     const taskDone = (key: string) => pipelineData?.tasks?.[key as keyof typeof pipelineData.tasks] === "completed";
 
     let recordFilled = 0;
@@ -280,7 +291,9 @@ export function useStudentRecordData({
     ].filter((n) => n > 0).length;
 
     return { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled };
-  }, [recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData, pipelineData]);
+  }, [overviewData, recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData, pipelineData]);
+
+  const progressCounts = overviewData?.progressCounts ?? clientProgressCounts ?? { recordFilled: 0, recordTotal: 7, diagnosisFilled: 0, designFilled: 0, strategyFilled: 0 };
 
   // ─── 세특/창체/행특 가이드 변환 ───────────────────
   const transformedSetekGuideItems = useMemo(() => {

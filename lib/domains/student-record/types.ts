@@ -58,5 +58,6 @@ export type {
   SetekGuideItem, SetekGuideRow, SetekGuideInsert,
   ChangcheGuideItem, ChangcheGuideRow,
   HaengteukGuideItem, HaengteukGuideRow,
+  ProgressCounts, StudentRecordOverview,
   StudentRecordActionResult,
 } from "./types/service-types";
