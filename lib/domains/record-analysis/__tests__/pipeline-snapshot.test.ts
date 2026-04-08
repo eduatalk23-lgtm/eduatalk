@@ -22,7 +22,7 @@ vi.mock("@/lib/domains/plan/llm/ai-sdk", () => ({
 }));
 
 // leveling mock
-vi.mock("../leveling", () => ({
+vi.mock("@/lib/domains/student-record/leveling", () => ({
   computeLevelingForStudent: vi.fn().mockResolvedValue({
     adequateLevel: 3,
     tierLabel: "중위권",
@@ -38,7 +38,7 @@ vi.mock("@/lib/utils/schoolYear", () => ({
 }));
 
 // evaluation-criteria mock (formatSetekFlowDetailed, formatDraftBannedPatterns)
-vi.mock("../evaluation-criteria/defaults", () => ({
+vi.mock("@/lib/domains/student-record/evaluation-criteria/defaults", () => ({
   formatSetekFlowDetailed: vi.fn().mockReturnValue("8단계 흐름"),
   formatDraftBannedPatterns: vi.fn().mockReturnValue("금지 패턴"),
   formatDiagnosisCareerWeakPatterns: vi.fn().mockReturnValue(""),
@@ -46,7 +46,7 @@ vi.mock("../evaluation-criteria/defaults", () => ({
 }));
 
 // constants mock (getCharLimit)
-vi.mock("../constants", () => ({
+vi.mock("@/lib/domains/student-record/constants", () => ({
   getCharLimit: vi.fn().mockReturnValue(500),
   COMPETENCY_ITEMS: [],
   COMPETENCY_AREA_LABELS: {},
@@ -298,7 +298,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
 //    analyzeSetekWithHighlight에 전달하는 input 구조와 결과 처리 구조를 검증
 // ============================================
 
-vi.mock("../llm/actions/analyzeWithHighlight", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/analyzeWithHighlight", () => ({
   analyzeSetekWithHighlight: vi.fn(),
 }));
 
@@ -348,7 +348,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
   });
 
   it("세특 가안 분석 시 analyzeSetekWithHighlight 호출 인자에 recordType/content/grade 포함", async () => {
-    const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
+    const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
     const analyzeMock = analyzeSetekWithHighlight as MockedFunction<typeof analyzeSetekWithHighlight>;
     analyzeMock.mockResolvedValue(buildMockAnalysisResponse("academic_inquiry") as never);
 
@@ -396,7 +396,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
   });
 
   it("analyzeAndCollectTags 출력 구조: collectedTags/competencyGrades 배열 필드 확인", async () => {
-    const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
+    const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
     const analyzeMock = analyzeSetekWithHighlight as MockedFunction<typeof analyzeSetekWithHighlight>;
     analyzeMock.mockResolvedValue(buildMockAnalysisResponse("academic_inquiry") as never);
 
@@ -525,7 +525,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
   });
 
   it("content가 20자 미만이면 analyzeSetekWithHighlight를 호출하지 않음", async () => {
-    const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
+    const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
     const analyzeMock = analyzeSetekWithHighlight as MockedFunction<typeof analyzeSetekWithHighlight>;
 
     // 짧은 content (< 20자)
@@ -574,7 +574,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
 
 describe("S3 ai_diagnosis — buildEdgePromptSection 출력 구조", () => {
   it("diagnosis 컨텍스트에서 엣지 섹션 포함", async () => {
-    const { buildEdgePromptSection } = await import("../edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
 
     const edges = [
       {
@@ -614,13 +614,13 @@ describe("S3 ai_diagnosis — buildEdgePromptSection 출력 구조", () => {
   });
 
   it("빈 엣지 배열이면 빈 문자열 반환", async () => {
-    const { buildEdgePromptSection } = await import("../edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
     const section = buildEdgePromptSection([], "diagnosis");
     expect(section).toBe("");
   });
 
   it("guide 컨텍스트에서 다른 지시문 포함", async () => {
-    const { buildEdgePromptSection } = await import("../edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
     const edges = [
       {
         edge_type: "TEMPORAL_GROWTH",

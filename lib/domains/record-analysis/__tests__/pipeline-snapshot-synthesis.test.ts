@@ -9,14 +9,14 @@
 // ============================================
 
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
-import * as repoModule from "../repository";
-import * as diagnosisRepo from "../repository/diagnosis-repository";
-import * as competencyRepo from "../repository/competency-repository";
-import * as detectInquiryLinksModule from "../llm/actions/detectInquiryLinks";
-import * as generateActivitySummaryModule from "../llm/actions/generateActivitySummary";
-import * as suggestStrategiesModule from "../llm/actions/suggestStrategies";
-import * as generateInterviewQuestionsModule from "../llm/actions/generateInterviewQuestions";
-import * as generateRoadmapModule from "../llm/actions/generateRoadmap";
+import * as repoModule from "@/lib/domains/student-record/repository";
+import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
+import * as competencyRepo from "@/lib/domains/student-record/repository/competency-repository";
+import * as detectInquiryLinksModule from "@/lib/domains/student-record/llm/actions/detectInquiryLinks";
+import * as generateActivitySummaryModule from "@/lib/domains/student-record/llm/actions/generateActivitySummary";
+import * as suggestStrategiesModule from "@/lib/domains/student-record/llm/actions/suggestStrategies";
+import * as generateInterviewQuestionsModule from "@/lib/domains/student-record/llm/actions/generateInterviewQuestions";
+import * as generateRoadmapModule from "@/lib/domains/student-record/llm/actions/generateRoadmap";
 
 // ============================================
 // 전역 mock — 각 describe가 재사용
@@ -33,7 +33,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
   logActionWarn: vi.fn(),
 }));
 
-vi.mock("../repository", () => ({
+vi.mock("@/lib/domains/student-record/repository", () => ({
   findStorylinesByStudent: vi.fn(),
   deleteAiStorylinesByStudent: vi.fn().mockResolvedValue(0),
   createAiStorylineWithLinks: vi.fn().mockResolvedValue("new-storyline-id"),
@@ -42,22 +42,22 @@ vi.mock("../repository", () => ({
   insertRoadmapItem: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../repository/diagnosis-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/diagnosis-repository", () => ({
   findDiagnosis: vi.fn(),
   findStrategies: vi.fn(),
   deleteStrategy: vi.fn().mockResolvedValue(undefined),
   insertStrategy: vi.fn().mockResolvedValue("new-strategy-id"),
 }));
 
-vi.mock("../repository/competency-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/competency-repository", () => ({
   findCompetencyScores: vi.fn(),
 }));
 
-vi.mock("../edge-summary", () => ({
+vi.mock("@/lib/domains/student-record/edge-summary", () => ({
   buildEdgePromptSection: vi.fn().mockReturnValue("## 연결 섹션"),
 }));
 
-vi.mock("../guide-context", () => ({
+vi.mock("@/lib/domains/student-record/guide-context", () => ({
   buildGuideContextSection: vi.fn().mockResolvedValue("## 가이드 컨텍스트"),
 }));
 
@@ -66,7 +66,7 @@ vi.mock("../pipeline/pipeline-unified-input", () => ({
   checkCoverageForTask: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock("../constants", () => ({
+vi.mock("@/lib/domains/student-record/constants", () => ({
   COMPETENCY_ITEMS: [
     { code: "academic_inquiry", label: "학업탐구력", area: "academic" },
     { code: "critical_thinking", label: "비판적사고", area: "academic" },
@@ -82,30 +82,30 @@ vi.mock("../constants", () => ({
   ACTIVITY_TYPE_LABELS: { autonomy: "자율", club: "동아리", career: "진로" },
 }));
 
-vi.mock("../evaluation-criteria/defaults", () => ({
+vi.mock("@/lib/domains/student-record/evaluation-criteria/defaults", () => ({
   formatSetekFlowDetailed: vi.fn().mockReturnValue("8단계 흐름"),
   formatDraftBannedPatterns: vi.fn().mockReturnValue("금지 패턴"),
   formatDiagnosisCareerWeakPatterns: vi.fn().mockReturnValue(""),
   formatDiagnosisMacroPatterns: vi.fn().mockReturnValue(""),
 }));
 
-vi.mock("../llm/actions/detectInquiryLinks", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/detectInquiryLinks", () => ({
   detectInquiryLinks: vi.fn(),
 }));
 
-vi.mock("../llm/actions/generateActivitySummary", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/generateActivitySummary", () => ({
   generateActivitySummary: vi.fn(),
 }));
 
-vi.mock("../llm/actions/suggestStrategies", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/suggestStrategies", () => ({
   suggestStrategies: vi.fn(),
 }));
 
-vi.mock("../llm/actions/generateInterviewQuestions", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/generateInterviewQuestions", () => ({
   generateInterviewQuestions: vi.fn(),
 }));
 
-vi.mock("../llm/actions/generateRoadmap", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/generateRoadmap", () => ({
   generateAiRoadmap: vi.fn(),
 }));
 
@@ -943,7 +943,7 @@ describe("S6 roadmap_generation — runRoadmapGeneration", () => {
     } as never);
 
     // activitySummary 액션 mock (fetchSetekGuides)
-    vi.mock("../actions/activitySummary", () => ({
+    vi.mock("@/lib/domains/student-record/actions/activitySummary", () => ({
       fetchSetekGuides: vi.fn().mockResolvedValue({ success: true, data: [] }),
     }));
 

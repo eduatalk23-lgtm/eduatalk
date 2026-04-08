@@ -1,0 +1,272 @@
+// ============================================
+// S6: runInterviewGeneration + runRoadmapGeneration
+// ============================================
+
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { calculateSchoolYear } from "@/lib/utils/schoolYear";
+import {
+  assertSynthesisCtx,
+  type PipelineContext,
+  type TaskRunnerOutput,
+  type CachedSetek,
+  type CachedChangche,
+} from "../pipeline-types";
+import * as repository from "@/lib/domains/student-record/repository";
+import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
+
+const LOG_CTX = { domain: "student-record", action: "pipeline" };
+
+// ============================================
+// 13. 면접 예상 질문 생성
+// ============================================
+
+export async function runInterviewGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
+  const { supabase, studentId, tenantId, snapshot, results } = ctx;
+
+  // 세특/창체 레코드 수집 (캐시 재사용, imported_content 포함)
+  if (!ctx.cachedSeteks) {
+    const { data } = await supabase
+      .from("student_record_seteks")
+      .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, subject:subject_id(name)")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .returns<CachedSetek[]>();
+    ctx.cachedSeteks = data ?? [];
+  }
+  if (!ctx.cachedChangche) {
+    const { data } = await supabase
+      .from("student_record_changche")
+      .select("id, content, confirmed_content, imported_content, ai_draft_content, grade, activity_type")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId);
+    ctx.cachedChangche = (data ?? []) as CachedChangche[];
+  }
+
+  // 타입 가드: 세특 vs 창체 판별
+  type CachedRecord = import("../pipeline-types").CachedSetek | import("../pipeline-types").CachedChangche;
+  function isCachedSetek(r: CachedRecord): r is import("../pipeline-types").CachedSetek {
+    return "subject" in r;
+  }
+  function getSubjectLabel(r: CachedRecord): string {
+    return isCachedSetek(r) ? (r.subject?.name ?? "과목 미정") : ((r as import("../pipeline-types").CachedChangche).activity_type ?? "기록");
+  }
+  function getRecordType(r: CachedRecord): "setek" | "changche" {
+    return isCachedSetek(r) ? "setek" : "changche";
+  }
+  /** 콘텐츠 해소 우선순위: imported > confirmed > content > ai_draft */
+  function getEffectiveContent(r: CachedRecord): string {
+    const imported = r.imported_content?.trim();
+    if (imported && imported.length > 0) return imported;
+    const confirmed = r.confirmed_content?.trim();
+    if (confirmed && confirmed.length > 0) return confirmed;
+    const content = r.content?.trim();
+    if (content && content.length > 0) return content;
+    return r.ai_draft_content?.trim() ?? "";
+  }
+
+  // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용) — imported_content 우선
+  const candidateRecords: CachedRecord[] = [...ctx.cachedSeteks!, ...ctx.cachedChangche!]
+    .filter((r) => getEffectiveContent(r).length >= 50)
+    .sort((a, b) => getEffectiveContent(b).length - getEffectiveContent(a).length)
+    .slice(0, 5);
+
+  if (candidateRecords.length === 0) return "기록 부족 — 건너뜀";
+
+  const { generateInterviewQuestions } = await import("@/lib/domains/student-record/llm/actions/generateInterviewQuestions");
+
+  // 메인 레코드 + 추가 레코드로 교차 질문 생성
+  const main = candidateRecords[0];
+  const mainContent = getEffectiveContent(main);
+  const mainSubject = getSubjectLabel(main);
+  const mainType = getRecordType(main);
+
+  const additionalRecords = candidateRecords.slice(1).map((r) => ({
+    content: getEffectiveContent(r),
+    recordType: getRecordType(r),
+    subjectName: getSubjectLabel(r),
+    grade: r.grade,
+  }));
+
+  // 설계 학년 가상 레코드를 보충 면접 자료로 추가 (방향 가이드 기반)
+  if (ctx.unifiedInput?.hasAnyDesign) {
+    const { collectDesignRecords } = await import("../pipeline-unified-input");
+    const virtualRecords = collectDesignRecords(ctx.unifiedInput);
+    for (const vr of virtualRecords) {
+      if (vr.content.length >= 30) {
+        additionalRecords.push({
+          content: vr.content,
+          recordType: vr.type as "setek" | "changche",
+          subjectName: vr.subject,
+          grade: vr.grade,
+        });
+      }
+    }
+  }
+
+  // 진단 약점을 면접 질문에 반영 (DB에서 조회 — in-memory 결과는 ai_diagnosis 실패 시 undefined)
+  const interviewDiag = await diagnosisRepo.findDiagnosis(studentId, calculateSchoolYear(), tenantId, "ai");
+  const diagWeaknesses = interviewDiag?.weaknesses as string[] | undefined;
+
+  // 진로 컨텍스트
+  const targetMajor = (snapshot?.target_major as string) ?? undefined;
+  const careerContext = targetMajor ? {
+    targetMajor,
+    targetSubClassification: (snapshot as Record<string, unknown>)?.target_sub_classification_name as string | undefined,
+  } : undefined;
+
+  // 역량 약점 (B- 이하) — Grade Pipeline 결과를 DB에서 직접 조회
+  let weakCompetencies: { item: string; label: string; grade: string }[] | undefined;
+  try {
+    const { findCompetencyScores } = await import("@/lib/domains/student-record/repository/competency-repository");
+    const currentYear = calculateSchoolYear();
+    const allScores = await findCompetencyScores(studentId, currentYear, tenantId, "ai");
+    if (allScores.length > 0) {
+      const { COMPETENCY_ITEMS } = await import("@/lib/domains/student-record/constants");
+      weakCompetencies = allScores
+        .filter((s) => s.grade_value === "B-" || s.grade_value === "C")
+        .map((s) => {
+          const item = COMPETENCY_ITEMS.find((c) => c.code === s.competency_item);
+          return { item: s.competency_item, label: item?.label ?? s.competency_item, grade: s.grade_value };
+        });
+      if (weakCompetencies.length === 0) weakCompetencies = undefined;
+    }
+  } catch (compErr) {
+    logActionDebug(LOG_CTX, `역량 점수 조회 실패 (면접 생성 계속): ${compErr}`);
+  }
+
+  // Q4: 기존 질문 조회 (중복 방지)
+  const { data: existingQs } = await supabase
+    .from("student_record_interview_questions")
+    .select("question")
+    .eq("student_id", studentId)
+    .limit(15);
+  const existingQuestions = existingQs?.map((q) => q.question).filter(Boolean) ?? [];
+
+  const result = await generateInterviewQuestions({
+    content: mainContent,
+    recordType: mainType,
+    subjectName: mainSubject,
+    grade: main.grade,
+    additionalRecords,
+    diagnosticWeaknesses: diagWeaknesses,
+    careerContext,
+    weakCompetencies,
+    existingQuestions: existingQuestions.length > 0 ? existingQuestions : undefined,
+  });
+
+  if (!result.success) throw new Error(result.error);
+
+  // DB 저장
+  const questions = result.data.questions ?? [];
+  if (questions.length > 0) {
+    const { error: insertErr } = await supabase
+      .from("student_record_interview_questions")
+      .upsert(
+        questions.map((q) => ({
+          student_id: studentId,
+          tenant_id: tenantId,
+          question: q.question,
+          question_type: q.questionType,
+          suggested_answer: q.suggestedAnswer ?? null,
+          difficulty: q.difficulty,
+          source_type: mainType,
+          is_ai_generated: true,
+        })),
+        { onConflict: "student_id,question", ignoreDuplicates: true },
+      );
+    if (insertErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.interview.insert" }, insertErr, { studentId });
+    }
+  }
+
+  return `${questions.length}건 면접 질문 생성`;
+}
+
+// ============================================
+// 14. 로드맵 자동 생성
+// ============================================
+
+export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
+  assertSynthesisCtx(ctx);
+  const { studentId, tenantId, pipelineId, studentGrade } = ctx;
+
+  // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)
+  const { generateAiRoadmap } = await import("@/lib/domains/student-record/llm/actions/generateRoadmap");
+  // NEIS 기반 모드 판정: neisGrades가 있으면 실 데이터 분석 모드, 없으면 수강계획 기반 계획 모드
+  const llmMode = (ctx.neisGrades && ctx.neisGrades.length > 0) ? "analysis" : "planning";
+
+  const llmResult = await generateAiRoadmap(studentId, llmMode);
+  if (llmResult.success && llmResult.data) {
+    return {
+      preview: `${llmResult.data.items.length}건 AI 로드맵 (${llmMode})`,
+      // 전체 LLM 응답은 DB(student_record_roadmap_items)에 이미 저장됨 → ctx에는 카운트만 유지
+      result: { mode: llmMode, itemCount: llmResult.data.items.length },
+    };
+  }
+
+  // LLM 실패 → 규칙 기반 fallback
+  logActionDebug(LOG_CTX, `roadmap LLM 실패 → rule-based fallback: ${"error" in llmResult ? llmResult.error : "unknown"}`, { pipelineId });
+
+  const currentSchoolYear = calculateSchoolYear();
+  const [storylines, setekGuidesRes, diagnosis] = await Promise.all([
+    repository.findStorylinesByStudent(studentId, tenantId),
+    (async () => {
+      const { fetchSetekGuides } = await import("@/lib/domains/student-record/actions/activitySummary");
+      return fetchSetekGuides(studentId).catch(() => ({ success: false as const, error: "" }));
+    })(),
+    diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai"),
+  ]);
+
+  if (storylines.length === 0 && !diagnosis) {
+    return "스토리라인/진단 없음 — 건너뜀";
+  }
+
+  const existing = await repository.findAllRoadmapItemsByStudent(studentId, tenantId);
+  const aiItems = existing.filter((r) => r.plan_content.startsWith("[AI]"));
+  await Promise.allSettled(aiItems.map((r) => repository.deleteRoadmapItemById(r.id)));
+
+  const setekGuides = setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : [];
+  const roadmapItems: Array<{ area: string; plan_content: string; plan_keywords: string[]; grade: number; semester: number | null; storyline_id: string | null }> = [];
+
+  for (const sl of storylines) {
+    for (const { grade, theme } of [
+      { grade: 1, theme: sl.grade_1_theme },
+      { grade: 2, theme: sl.grade_2_theme },
+      { grade: 3, theme: sl.grade_3_theme },
+    ].filter((t) => t.theme)) {
+      roadmapItems.push({ area: "setek", plan_content: `[AI] ${sl.title} — ${theme}`, plan_keywords: sl.keywords ?? [], grade, semester: null, storyline_id: sl.id });
+    }
+  }
+
+  for (const guide of setekGuides) {
+    if (!guide.direction) continue;
+    const guideGrade = guide.school_year ? studentGrade - (currentSchoolYear - guide.school_year) : studentGrade;
+    const effectiveGrade = (guideGrade >= 1 && guideGrade <= 3) ? guideGrade : studentGrade;
+    roadmapItems.push({ area: "setek", plan_content: `[AI] 세특방향: ${guide.direction.slice(0, 100)}`, plan_keywords: guide.keywords ?? [], grade: effectiveGrade, semester: null, storyline_id: null });
+  }
+
+  const improvements = Array.isArray(diagnosis?.improvements) ? (diagnosis.improvements as Array<{ priority: string; area: string; action: string }>) : [];
+  if (improvements.length > 0) {
+    const priorityOrder = { "높음": 0, "중간": 1, "낮음": 2 } as Record<string, number>;
+    for (const imp of [...improvements].sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)).slice(0, 3)) {
+      roadmapItems.push({ area: "general", plan_content: `[AI] [${imp.priority}] ${imp.area}: ${imp.action}`, plan_keywords: [], grade: studentGrade, semester: null, storyline_id: null });
+    }
+  } else {
+    for (const weakness of ((diagnosis?.weaknesses as string[]) ?? []).slice(0, 3)) {
+      roadmapItems.push({ area: "general", plan_content: `[AI] 보완: ${weakness}`, plan_keywords: [], grade: studentGrade, semester: null, storyline_id: null });
+    }
+  }
+
+  if (roadmapItems.length === 0) return "생성 가능한 로드맵 없음";
+
+  let savedCount = 0;
+  const baseSortOrder = existing.filter((r) => !r.plan_content.startsWith("[AI]")).length;
+  await Promise.allSettled(
+    roadmapItems.map((item, i) =>
+      repository.insertRoadmapItem({ tenant_id: tenantId, student_id: studentId, school_year: currentSchoolYear, grade: item.grade, semester: item.semester, area: item.area, plan_content: item.plan_content, plan_keywords: item.plan_keywords, storyline_id: item.storyline_id, sort_order: baseSortOrder + i }).then(() => { savedCount++; }),
+    ),
+  );
+  return `${savedCount}건 로드맵 생성 (fallback)`;
+}

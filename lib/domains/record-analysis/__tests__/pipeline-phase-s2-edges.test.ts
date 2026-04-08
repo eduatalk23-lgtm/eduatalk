@@ -32,12 +32,12 @@ vi.mock("@/lib/utils/schoolYear", () => ({
 }));
 
 // competency-repository (findActivityTags) mock
-vi.mock("../repository/competency-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/competency-repository", () => ({
   findActivityTags: vi.fn().mockResolvedValue([]),
 }));
 
 // cross-reference buildConnectionGraph mock
-vi.mock("../cross-reference", () => ({
+vi.mock("@/lib/domains/student-record/cross-reference", () => ({
   buildConnectionGraph: vi.fn().mockReturnValue({
     nodes: [{ id: "node-1", edges: [{ type: "COMPETENCY_SHARED" }] }],
     totalEdges: 1,
@@ -45,7 +45,7 @@ vi.mock("../cross-reference", () => ({
 }));
 
 // actions/cross-ref-data-builder fetchCrossRefData mock
-vi.mock("../actions/cross-ref-data-builder", () => ({
+vi.mock("@/lib/domains/student-record/actions/cross-ref-data-builder", () => ({
   fetchCrossRefData: vi.fn().mockResolvedValue({
     storylineLinks: [],
     readingLinks: [],
@@ -56,19 +56,19 @@ vi.mock("../actions/cross-ref-data-builder", () => ({
 }));
 
 // edge-repository mock
-vi.mock("../repository/edge-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/edge-repository", () => ({
   replaceEdges: vi.fn().mockResolvedValue(1),
   saveSnapshot: vi.fn().mockResolvedValue(undefined),
   findEdges: vi.fn().mockResolvedValue([]),
 }));
 
 // content-hash mock
-vi.mock("../content-hash", () => ({
+vi.mock("@/lib/domains/student-record/content-hash", () => ({
   computeContentHash: vi.fn().mockReturnValue("hash-abc123"),
 }));
 
 // course-adequacy mock
-vi.mock("../course-adequacy", () => ({
+vi.mock("@/lib/domains/student-record/course-adequacy", () => ({
   calculateCourseAdequacy: vi.fn().mockReturnValue({
     majorCategory: "컴퓨터공학",
     score: 80,
@@ -100,9 +100,9 @@ vi.mock("@/lib/domains/guide/actions/area-resolver", () => ({
 // ─── import ──────────────────────────────────────────────────────────────
 
 import type { PipelineContext } from "../pipeline/pipeline-types";
-import * as edgeRepo from "../repository/edge-repository";
-import * as courseAdequacyModule from "../course-adequacy";
-import * as crossRef from "../cross-reference";
+import * as edgeRepo from "@/lib/domains/student-record/repository/edge-repository";
+import * as courseAdequacyModule from "@/lib/domains/student-record/course-adequacy";
+import * as crossRef from "@/lib/domains/student-record/cross-reference";
 import { autoRecommendGuidesAction } from "@/lib/domains/guide/actions/auto-recommend";
 
 // ─── 픽스처 팩토리 ──────────────────────────────────────────────────────────

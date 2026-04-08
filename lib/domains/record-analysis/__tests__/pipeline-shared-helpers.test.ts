@@ -19,7 +19,7 @@ import {
   runWithConcurrency,
 } from "../pipeline/pipeline-task-runners-shared";
 import type { PipelineContext, GradeAnalysisContext } from "../pipeline/pipeline-types";
-import type { HighlightAnalysisResult } from "../llm/types";
+import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import type { ReportData } from "../actions/report";
 
 // ============================================

@@ -30,7 +30,7 @@ vi.mock("../pipeline/pipeline-executor", () => ({
 }));
 
 const mockAnalyze = vi.fn();
-vi.mock("../llm/actions/analyzeWithHighlight", () => ({
+vi.mock("@/lib/domains/student-record/llm/actions/analyzeWithHighlight", () => ({
   analyzeSetekWithHighlight: (...args: unknown[]) => mockAnalyze(...args),
 }));
 
@@ -38,7 +38,7 @@ const mockFindCache = vi.fn();
 const mockRefreshTags = vi.fn().mockResolvedValue(undefined);
 const mockUpsertCache = vi.fn().mockResolvedValue(undefined);
 const mockUpsertScore = vi.fn().mockResolvedValue(undefined);
-vi.mock("../repository/competency-repository", () => ({
+vi.mock("@/lib/domains/student-record/repository/competency-repository", () => ({
   findAnalysisCacheByRecordIds: (...args: unknown[]) => mockFindCache(...args),
   refreshCompetencyTagsAtomic: (...args: unknown[]) => mockRefreshTags(...args),
   upsertAnalysisCache: (...args: unknown[]) => mockUpsertCache(...args),
@@ -46,7 +46,7 @@ vi.mock("../repository/competency-repository", () => ({
 }));
 
 const mockComputeHash = vi.fn();
-vi.mock("../content-hash", () => ({
+vi.mock("@/lib/domains/student-record/content-hash", () => ({
   computeRecordContentHash: (...args: unknown[]) => mockComputeHash(...args),
 }));
 
@@ -55,13 +55,13 @@ vi.mock("@/lib/utils/schoolYear", () => ({
   getCurriculumYear: () => "2022",
 }));
 
-vi.mock("../rubric-matcher", () => ({
+vi.mock("@/lib/domains/student-record/rubric-matcher", () => ({
   aggregateCompetencyGrades: vi.fn().mockReturnValue([]),
   computeCourseEffortGrades: vi.fn().mockReturnValue({ item: "effort", grade: "A" }),
   computeCourseAchievementGrades: vi.fn().mockReturnValue({ item: "achievement", grade: "B" }),
 }));
 
-vi.mock("../course-adequacy", () => ({
+vi.mock("@/lib/domains/student-record/course-adequacy", () => ({
   calculateCourseAdequacy: vi.fn().mockReturnValue(null),
 }));
 
@@ -72,7 +72,7 @@ vi.mock("../pipeline/pipeline-task-runners-shared", () => ({
   collectAnalysisContext: vi.fn(),
 }));
 
-vi.mock("../constants", () => ({
+vi.mock("@/lib/domains/student-record/constants", () => ({
   PIPELINE_THRESHOLDS: { MIN_IMPORTED_LENGTH: 20, MIN_CONTENT_LENGTH: 10, DEFAULT_DRAFT_MAX_TOKENS: 2000 },
 }));
 
