@@ -234,7 +234,8 @@ export async function insertMockScore(
   const payload = {
     tenant_id: input.tenant_id,
     student_id: input.student_id,
-    student_term_id: student_term_id ?? null, // student_term_id (nullable)
+    student_term_id: student_term_id ?? null,
+    curriculum_revision_id: input.curriculum_revision_id,
     exam_date: input.exam_date,
     exam_title: input.exam_title,
     grade: input.grade,

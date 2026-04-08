@@ -32,16 +32,27 @@ const LOG_CTX = { domain: "student-record", action: "" };
 
 export async function matchAndPreviewAction(
   parsed: RecordImportData,
+  options?: { studentId?: string },
 ): Promise<ActionResponse<ImportPreviewData>> {
   try {
     await requireAdminOrConsultant();
+
+    // 학생 교육과정 resolve (지정 시 해당 교육과정 과목만 매칭)
+    let curriculumRevisionId: string | undefined;
+    if (options?.studentId) {
+      const { resolveStudentCurriculumId } = await import(
+        "@/lib/domains/student/resolveStudentCurriculum"
+      );
+      const resolved = await resolveStudentCurriculumId(options.studentId);
+      curriculumRevisionId = resolved?.curriculumRevisionId;
+    }
 
     // 세특 + 성적 과목명을 모두 매칭 풀에 포함
     const setekSubjects = parsed.detailedCompetencies.map((d) => d.subject);
     const gradeSubjects = parsed.grades.map((g) => g.subject);
     const allSubjectNames = [...new Set([...setekSubjects, ...gradeSubjects])];
 
-    const subjectMatches = await matchSubjects(allSubjectNames);
+    const subjectMatches = await matchSubjects(allSubjectNames, curriculumRevisionId);
 
     const unmatchedCount = subjectMatches.filter(
       (m) => m.confidence === "unmatched",

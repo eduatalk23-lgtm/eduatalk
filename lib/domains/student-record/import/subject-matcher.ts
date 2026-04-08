@@ -17,17 +17,31 @@ interface DbSubject {
 // DB 과목 목록 조회
 // ============================================
 
-async function fetchSubjects(): Promise<DbSubject[]> {
+async function fetchSubjects(curriculumRevisionId?: string): Promise<DbSubject[]> {
   const supabase = createSupabaseAdminClient();
   if (!supabase) throw new Error("Supabase Admin 클라이언트를 생성할 수 없습니다.");
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("subjects")
-    .select("id, name")
+    .select("id, name, subject_group_id")
     .order("name");
 
+  if (curriculumRevisionId) {
+    // subject_groups.curriculum_revision_id를 통해 해당 교육과정의 과목만 필터
+    const { data: groupIds } = await supabase
+      .from("subject_groups")
+      .select("id")
+      .eq("curriculum_revision_id", curriculumRevisionId);
+
+    if (groupIds && groupIds.length > 0) {
+      query = query.in("subject_group_id", groupIds.map(g => g.id));
+    }
+  }
+
+  const { data, error } = await query;
+
   if (error) throw new Error(`과목 목록 조회 실패: ${error.message}`);
-  return data ?? [];
+  return (data ?? []).map(d => ({ id: d.id, name: d.name }));
 }
 
 // ============================================
@@ -82,7 +96,20 @@ const SUBJECT_CLASSIFICATION: [RegExp, string, string][] = [
 let _groupCache: Map<string, string> | null = null;
 let _typeCache: Map<string, string> | null = null;
 
-async function getGroupIdByName(groupName: string): Promise<string | null> {
+async function getGroupIdByName(groupName: string, curriculumRevisionId?: string): Promise<string | null> {
+  // 교육과정 지정 시 캐시 우회하고 직접 조회
+  if (curriculumRevisionId) {
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) return null;
+    const { data } = await supabase
+      .from("subject_groups")
+      .select("id")
+      .eq("name", groupName)
+      .eq("curriculum_revision_id", curriculumRevisionId)
+      .limit(1);
+    return data?.[0]?.id ?? null;
+  }
+
   if (!_groupCache) {
     const supabase = createSupabaseAdminClient();
     if (!supabase) return null;
@@ -95,7 +122,19 @@ async function getGroupIdByName(groupName: string): Promise<string | null> {
   return _groupCache.get(groupName) ?? null;
 }
 
-async function getTypeIdByName(typeName: string): Promise<string | null> {
+async function getTypeIdByName(typeName: string, curriculumRevisionId?: string): Promise<string | null> {
+  if (curriculumRevisionId) {
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) return null;
+    const { data } = await supabase
+      .from("subject_types")
+      .select("id")
+      .eq("name", typeName)
+      .eq("curriculum_revision_id", curriculumRevisionId)
+      .limit(1);
+    return data?.[0]?.id ?? null;
+  }
+
   if (!_typeCache) {
     const supabase = createSupabaseAdminClient();
     if (!supabase) return null;
@@ -108,7 +147,7 @@ async function getTypeIdByName(typeName: string): Promise<string | null> {
   return _typeCache.get(typeName) ?? null;
 }
 
-async function createSubject(name: string): Promise<DbSubject | null> {
+async function createSubject(name: string, curriculumRevisionId?: string): Promise<DbSubject | null> {
   const supabase = createSupabaseAdminClient();
   if (!supabase) return null;
 
@@ -124,8 +163,8 @@ async function createSubject(name: string): Promise<DbSubject | null> {
     }
   }
 
-  const groupId = await getGroupIdByName(groupName);
-  const typeId = await getTypeIdByName(typeName);
+  const groupId = await getGroupIdByName(groupName, curriculumRevisionId);
+  const typeId = await getTypeIdByName(typeName, curriculumRevisionId);
 
   if (!groupId) return null;
 
@@ -147,18 +186,23 @@ async function createSubject(name: string): Promise<DbSubject | null> {
 // 매칭 실행
 // ============================================
 
-/** 파싱된 과목명 배열을 DB subject_id에 매칭. 미매칭은 올바른 교과로 자동 생성 */
+/**
+ * 파싱된 과목명 배열을 DB subject_id에 매칭. 미매칭은 올바른 교과로 자동 생성.
+ *
+ * @param curriculumRevisionId - 지정 시 해당 교육과정의 과목만 매칭 대상으로 제한.
+ *   미지정 시 전체 교육과정 대상 (하위호환).
+ */
 export async function matchSubjects(
   parsedSubjectNames: string[],
+  curriculumRevisionId?: string,
 ): Promise<SubjectMatch[]> {
-  const dbSubjects = await fetchSubjects();
+  const dbSubjects = await fetchSubjects(curriculumRevisionId);
 
   // 정규화 키 → DB 과목 인덱스
   const exactIndex = new Map<string, DbSubject>();
   const normalizedIndex = new Map<string, DbSubject>();
 
   for (const sub of dbSubjects) {
-    // 같은 이름 과목이 여러 개(2015/2022 개정 등)일 경우 첫 번째만 사용
     if (!exactIndex.has(sub.name)) exactIndex.set(sub.name, sub);
     const nk = normalizeSubjectName(sub.name);
     if (!normalizedIndex.has(nk)) normalizedIndex.set(nk, sub);
@@ -184,7 +228,7 @@ export async function matchSubjects(
     }
 
     // 3. 자동 생성 (올바른 교과/유형 배정)
-    const created = await createSubject(parsedName);
+    const created = await createSubject(parsedName, curriculumRevisionId);
     if (created) {
       exactIndex.set(created.name, created);
       normalizedIndex.set(normalizeSubjectName(created.name), created);

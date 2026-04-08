@@ -25,6 +25,8 @@ export interface BulkInsertOptions {
   dryRun?: boolean;
   batchSize?: number;
   onProgress?: (done: number, total: number) => void;
+  /** 지정 시 해당 교육과정의 과목만 매칭 대상으로 제한 */
+  curriculumRevisionId?: string;
 }
 
 /** 가이드 벌크 Import 실행 */
@@ -36,12 +38,25 @@ export async function bulkInsertGuides(
   const batchSize = options.batchSize ?? BATCH_SIZE;
 
   // 참조 데이터 로드
+  let subjectsQuery = adminClient.from("subjects").select("id, name, subject_group_id");
+
+  // 교육과정 지정 시 해당 교육과정의 과목만 로드
+  if (options.curriculumRevisionId) {
+    const { data: groupIds } = await adminClient
+      .from("subject_groups")
+      .select("id")
+      .eq("curriculum_revision_id", options.curriculumRevisionId);
+    if (groupIds && groupIds.length > 0) {
+      subjectsQuery = subjectsQuery.in("subject_group_id", groupIds.map(g => g.id));
+    }
+  }
+
   const [subjectsRes, careerFieldsRes] = await Promise.all([
-    adminClient.from("subjects").select("id, name"),
+    subjectsQuery,
     adminClient.from("exploration_guide_career_fields").select("id, code, name_kor"),
   ]);
 
-  const subjects: SubjectRecord[] = subjectsRes.data ?? [];
+  const subjects: SubjectRecord[] = (subjectsRes.data ?? []).map(d => ({ id: d.id, name: d.name }));
   const careerFields: CareerFieldRecord[] = careerFieldsRes.data ?? [];
 
   const subjectMatcher = new SubjectMatcher(subjects);
