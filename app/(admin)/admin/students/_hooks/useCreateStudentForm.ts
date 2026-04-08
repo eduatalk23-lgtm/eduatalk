@@ -46,8 +46,7 @@ export function useCreateStudentForm({
         bio: "",
         interests: [],
         // 진로 정보
-        exam_year: undefined,
-        curriculum_revision: undefined,
+        // exam_year, curriculum_revision은 학년 기반 자동 산출 (server side)
         desired_university_ids: [],
         desired_career_field: "",
         target_major: "",

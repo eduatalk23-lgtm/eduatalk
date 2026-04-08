@@ -46,8 +46,8 @@ export const createStudentFormSchema = z.object({
   interests: z.array(z.string()).default([]),
 
   // 진로 정보 (전부 선택)
-  exam_year: z.coerce.number().int().min(2020).max(2100).optional().or(z.literal("")),
-  curriculum_revision: z.enum(["2009 개정", "2015 개정", "2022 개정"]).optional(),
+  // exam_year, curriculum_revision은 폼에서 입력받지 않고 학년 기반으로 server에서 자동 산출
+  // (lib/utils/studentProfile.ts:getStudentExamTimeline)
   desired_university_ids: z.array(z.string()).default([]),
   desired_career_field: z.string().default(""),
   target_major: z.string().default(""),
@@ -104,8 +104,8 @@ export function toCreateStudentInput(flat: CreateStudentFormSchema): CreateStude
       interests: flat.interests && flat.interests.length > 0 ? flat.interests : null,
     },
     career: {
-      exam_year: typeof flat.exam_year === "number" ? flat.exam_year : null,
-      curriculum_revision: flat.curriculum_revision ?? null,
+      // exam_year, curriculum_revision은 server actions(management.ts/profile.ts)에서
+      // 학년 기반으로 자동 산출하므로 client 폼에서 전송하지 않음
       desired_university_ids:
         flat.desired_university_ids && flat.desired_university_ids.length > 0
           ? flat.desired_university_ids

@@ -151,8 +151,7 @@ export function StudentFormPanel({
               medical_info: formData.medical_info || null,
             },
             career: {
-              exam_year: formData.exam_year ? Number(formData.exam_year) : null,
-              curriculum_revision: formData.curriculum_revision || null,
+              // exam_year, curriculum_revision은 createStudent 액션에서 학년 기반 자동 산출
               desired_university_ids: formData.desired_university_ids ?? null,
               desired_career_field: formData.desired_career_field || null,
             },
