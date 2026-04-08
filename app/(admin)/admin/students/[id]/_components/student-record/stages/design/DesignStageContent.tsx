@@ -2,7 +2,7 @@
 
 import { Suspense, lazy } from "react";
 import type { DiagnosisTabData, StorylineTabData } from "@/lib/domains/student-record";
-import type { PipelineStatus } from "@/lib/domains/student-record/pipeline";
+import type { PipelineStatus } from "@/lib/domains/student-record/pipeline/pipeline-types";
 import { useStudentRecordContext } from "../../StudentRecordContext";
 import { StageDivider, StrategySection, SectionSkeleton } from "../../StudentRecordHelpers";
 import { StorylineManager } from "./StorylineManager";

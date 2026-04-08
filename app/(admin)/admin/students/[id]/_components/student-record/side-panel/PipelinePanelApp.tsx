@@ -15,9 +15,11 @@ import {
 import {
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
-  type GradePipelineTaskKey,
-  type SynthesisPipelineTaskKey,
-} from "@/lib/domains/student-record/pipeline";
+} from "@/lib/domains/student-record/pipeline/pipeline-config";
+import type {
+  GradePipelineTaskKey,
+  SynthesisPipelineTaskKey,
+} from "@/lib/domains/student-record/pipeline/pipeline-types";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 import { useSidePanel } from "@/components/side-panel";
 import {
