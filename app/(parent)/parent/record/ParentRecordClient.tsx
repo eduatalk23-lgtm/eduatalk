@@ -8,7 +8,7 @@ import { fetchParentRecordSummary } from "@/lib/domains/student-record/actions/p
 import type { MinScoreCriteria } from "@/lib/domains/student-record";
 import { APPLICATION_ROUND_LABELS } from "@/lib/domains/student-record";
 import { RecordYearSelector } from "@/app/(admin)/admin/students/[id]/_components/student-record/RecordYearSelector";
-import { StorylineTimeline } from "@/app/(admin)/admin/students/[id]/_components/student-record/StorylineTimeline";
+import { StorylineTimeline } from "@/app/(admin)/admin/students/[id]/_components/student-record/stages/design/StorylineTimeline";
 import { cn } from "@/lib/cn";
 
 function parentRecordQueryOptions(studentId: string, schoolYear: number) {

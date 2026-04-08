@@ -11,7 +11,7 @@ import {
   deleteActivitySummary,
 } from "@/lib/domains/student-record/actions/activitySummary";
 import type { SetekGuideItem, ActivitySummaryStatus } from "@/lib/domains/student-record/types";
-import { ReportExportMenu } from "./ReportExportMenu";
+import { ReportExportMenu } from "../../ReportExportMenu";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   draft: { label: "초안", color: "bg-gray-100 text-gray-600" },

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import type { Storyline, RoadmapItem } from "@/lib/domains/student-record";
-import { StorylineStrengthBadge } from "./StorylineStrengthBadge";
+import { StorylineStrengthBadge } from "../../StorylineStrengthBadge";
 
 type StorylineTimelineProps = {
   storylines: Storyline[];

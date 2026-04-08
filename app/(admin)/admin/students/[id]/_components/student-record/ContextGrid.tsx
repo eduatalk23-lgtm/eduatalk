@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/cn";
-import type { MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
+import type { MergedSetekRow, SetekGuideItemLike } from "./stages/record/SetekEditor";
 import type { GridColumnKey } from "./ContextGridBottomSheet";
 import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
 import type { SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";

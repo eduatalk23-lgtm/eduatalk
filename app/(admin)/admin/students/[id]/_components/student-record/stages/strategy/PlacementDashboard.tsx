@@ -23,7 +23,7 @@ import {
   SCIENCE_INQUIRY,
   SOCIAL_INQUIRY,
 } from "@/lib/domains/admission/calculator/constants";
-import { PlacementResults } from "./PlacementResults";
+import { PlacementResults } from "../../PlacementResults";
 
 type PlacementDashboardProps = {
   studentId: string;

@@ -3,8 +3,8 @@
 import type { RecordTabData, RecordReading, ActivityTag, DiagnosisTabData } from "@/lib/domains/student-record";
 import type { CoursePlanTabData } from "@/lib/domains/student-record/course-plan/types";
 import type { SetekLayerTab } from "./SetekEditor";
-import { useStudentRecordContext } from "./StudentRecordContext";
-import { DocSection, GradeLabel, SectionSkeleton, EmptyTable, InfoRow } from "./StudentRecordHelpers";
+import { useStudentRecordContext } from "../../StudentRecordContext";
+import { DocSection, GradeLabel, SectionSkeleton, EmptyTable, InfoRow } from "../../StudentRecordHelpers";
 import { AttendanceEditor, AttendanceTableHeader } from "./AttendanceEditor";
 import { ChangcheEditor } from "./ChangcheEditor";
 import { SupplementaryEditor } from "./SupplementaryEditor";

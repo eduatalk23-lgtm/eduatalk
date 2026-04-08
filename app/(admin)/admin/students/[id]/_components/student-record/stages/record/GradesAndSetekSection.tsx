@@ -6,10 +6,10 @@
 
 import { useMemo } from "react";
 import type { RecordSetek, RecordPersonalSetek } from "@/lib/domains/student-record";
-import { RecordGradesDisplay } from "./RecordGradesDisplay";
+import { RecordGradesDisplay } from "../../RecordGradesDisplay";
 import { SetekEditor } from "./SetekEditor";
-import { PersonalSetekEditor } from "./PersonalSetekEditor";
-import { SubHeader, SectionSkeleton } from "./StudentRecordHelpers";
+import { PersonalSetekEditor } from "../../PersonalSetekEditor";
+import { SubHeader, SectionSkeleton } from "../../StudentRecordHelpers";
 import type { SetekLayerTab } from "./SetekEditor";
 
 type Subject = {

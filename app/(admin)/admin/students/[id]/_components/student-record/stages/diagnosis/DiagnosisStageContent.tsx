@@ -3,8 +3,8 @@
 import { Suspense, lazy } from "react";
 import type { RecordTabData, ActivityTag, DiagnosisTabData } from "@/lib/domains/student-record";
 import type { RecordWarning } from "@/lib/domains/student-record/warnings/types";
-import { useStudentRecordContext } from "./StudentRecordContext";
-import { StageDivider, StrategySection, SectionSkeleton } from "./StudentRecordHelpers";
+import { useStudentRecordContext } from "../../StudentRecordContext";
+import { StageDivider, StrategySection, SectionSkeleton } from "../../StudentRecordHelpers";
 import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
 import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
 import { CrossReferenceChips } from "./CrossReferenceChips";
@@ -15,7 +15,7 @@ import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 import { RecordWarningPanel } from "./RecordWarningPanel";
 
 const ProjectedAnalysisSection = lazy(() =>
-  import("../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })),
+  import("../../../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })),
 );
 
 // ─── Types ────────────────────────────────────────────

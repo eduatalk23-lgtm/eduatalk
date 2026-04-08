@@ -19,7 +19,7 @@ import { COMPETENCY_ITEMS } from "@/lib/domains/student-record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { Strategy, StrategyTargetArea, StrategyPriority, StrategyStatus, CompetencyScore, Diagnosis, CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import type { StrategySuggestion } from "@/lib/domains/student-record/llm/types";
-import { StrategyMatrix } from "./shared/StrategyMatrix";
+import { StrategyMatrix } from "../../shared/StrategyMatrix";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 
 // ─── 상수 ────────────────────────────────────────────

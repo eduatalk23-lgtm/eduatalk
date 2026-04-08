@@ -16,7 +16,7 @@ import type {
   MinScoreCriteria,
 } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
-import { DesiredUniversityChips } from "./shared/DesiredUniversityChips";
+import { DesiredUniversityChips } from "../../shared/DesiredUniversityChips";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 
 type MinScorePanelProps = {

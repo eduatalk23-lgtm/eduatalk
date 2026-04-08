@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { FileText, Search, Compass, PenLine } from "lucide-react";
-import type { SetekLayerTab } from "./SetekEditor";
+import type { SetekLayerTab } from "./stages/record/SetekEditor";
 
 const GLOBAL_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[] = [
   { key: "neis", label: "NEIS", icon: FileText },

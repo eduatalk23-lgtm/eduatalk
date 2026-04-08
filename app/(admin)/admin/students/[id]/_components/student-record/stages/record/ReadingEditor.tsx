@@ -5,13 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addReadingAction, removeReadingAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { RecordReading } from "@/lib/domains/student-record";
-import { useStudentRecordContext } from "./StudentRecordContext";
+import { useStudentRecordContext } from "../../StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
 import { FileText, Search, MessageSquare, StickyNote, ChevronDown } from "lucide-react";
-import { InlineAreaMemos } from "./InlineAreaMemos";
-import type { AnalysisTagLike, AnalysisBlockMode } from "./shared/AnalysisBlocks";
-import { AnalysisBlock, COMPETENCY_LABELS, EVAL_COLORS } from "./shared/AnalysisBlocks";
+import { InlineAreaMemos } from "../../InlineAreaMemos";
+import type { AnalysisTagLike, AnalysisBlockMode } from "../../shared/AnalysisBlocks";
+import { AnalysisBlock, COMPETENCY_LABELS, EVAL_COLORS } from "../../shared/AnalysisBlocks";
 
 const B = "border border-gray-400 dark:border-gray-500";
 

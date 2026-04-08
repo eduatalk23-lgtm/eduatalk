@@ -6,21 +6,21 @@ import { saveHaengteukAction } from "@/lib/domains/student-record/actions/record
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordHaengteuk } from "@/lib/domains/student-record";
-import { CharacterCounter } from "./CharacterCounter";
-import { RecordStatusBadge } from "./RecordStatusBadge";
-import { SaveStatusIndicator } from "./SaveStatusIndicator";
-import { useAutoSave } from "./useAutoSave";
-import { useStudentRecordContext } from "./StudentRecordContext";
+import { CharacterCounter } from "../../CharacterCounter";
+import { RecordStatusBadge } from "../../RecordStatusBadge";
+import { SaveStatusIndicator } from "../../SaveStatusIndicator";
+import { useAutoSave } from "../../useAutoSave";
+import { useStudentRecordContext } from "../../StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
 import { FileText, Search, BookOpen, Compass, MessageSquare, StickyNote, PenLine } from "lucide-react";
 import { matchKeywordInText } from "@/lib/domains/student-record/keyword-match";
-import { InlineAreaMemos } from "./InlineAreaMemos";
-import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
-import { COMPETENCY_LABELS } from "./shared/AnalysisBlocks";
+import { InlineAreaMemos } from "../../InlineAreaMemos";
+import type { AnalysisTagLike } from "../../shared/AnalysisBlocks";
+import { COMPETENCY_LABELS } from "../../shared/AnalysisBlocks";
 import type { SetekLayerTab } from "./SetekEditor";
-import { HaengteukAnalysisCell } from "./haengteuk/HaengteukAnalysisCell";
-import { HaengteukDraftCell } from "./haengteuk/HaengteukDraftCell";
+import { HaengteukAnalysisCell } from "../../haengteuk/HaengteukAnalysisCell";
+import { HaengteukDraftCell } from "../../haengteuk/HaengteukDraftCell";
 
 const B = "border border-gray-400 dark:border-gray-500";
 

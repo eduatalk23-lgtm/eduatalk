@@ -181,7 +181,7 @@ export function ImportDialog({
       setMessage("과목명을 매칭하는 중...");
       setProgress(92);
 
-      const result = await matchAndPreviewAction(parsed);
+      const result = await matchAndPreviewAction(parsed, { studentId });
 
       if (!result.success) {
         throw new Error(result.error ?? "과목 매칭 실패");

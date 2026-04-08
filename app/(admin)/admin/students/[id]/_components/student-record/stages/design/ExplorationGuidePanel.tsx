@@ -8,9 +8,9 @@ import {
   explorationGuideKeys,
 } from "@/lib/query-options/explorationGuide";
 import { assignGuideAction } from "@/lib/domains/guide/actions/assignment";
-import { GuideSearchSection } from "./GuideSearchSection";
-import { GuideAssignmentList } from "./GuideAssignmentList";
-import { GuideDetailDialog } from "./GuideDetailDialog";
+import { GuideSearchSection } from "../../GuideSearchSection";
+import { GuideAssignmentList } from "../../GuideAssignmentList";
+import { GuideDetailDialog } from "../../GuideDetailDialog";
 
 interface ExplorationGuidePanelProps {
   studentId: string;

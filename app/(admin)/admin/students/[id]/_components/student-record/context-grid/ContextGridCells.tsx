@@ -11,7 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { cn } from "@/lib/cn";
 import { BookOpen, Bot, Compass } from "lucide-react";
-import type { MergedSetekRow, SetekGuideItemLike } from "../SetekEditor";
+import type { MergedSetekRow, SetekGuideItemLike } from "../stages/record/SetekEditor";
 import type { GridColumnKey } from "../ContextGridBottomSheet";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "../shared/AnalysisBlocks";
 import { AnalysisBlock } from "../shared/AnalysisBlocks";

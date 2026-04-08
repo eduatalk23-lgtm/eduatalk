@@ -24,16 +24,16 @@ import { computeRecordContentHash } from "@/lib/domains/student-record/content-h
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import type { ActivityTagInsert } from "@/lib/domains/student-record/types";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { HighlightedSetekView } from "./HighlightedSetekView";
-import { HighlightComparisonView } from "./HighlightComparisonView";
-import { QualityScoreBadge, QualitySummaryCard } from "./QualityScoreBadge";
-import type { QualityScoreEntry } from "./QualityScoreBadge";
+import { HighlightedSetekView } from "../../HighlightedSetekView";
+import { HighlightComparisonView } from "../../HighlightComparisonView";
+import { QualityScoreBadge, QualitySummaryCard } from "../../QualityScoreBadge";
+import type { QualityScoreEntry } from "../../QualityScoreBadge";
 import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade, CompetencyItemCode } from "@/lib/domains/student-record";
 import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import { Sparkles, Check, Loader2, GitCompare } from "lucide-react";
-import { CompetencyCharts } from "./competency/CompetencyCharts";
-import { CompetencyGradesTable } from "./competency/CompetencyGradesTable";
-import { countTagsByItem, type RecordForHighlight, type RecordLabelMap } from "./competency/competency-helpers";
+import { CompetencyCharts } from "../../competency/CompetencyCharts";
+import { CompetencyGradesTable } from "../../competency/CompetencyGradesTable";
+import { countTagsByItem, type RecordForHighlight, type RecordLabelMap } from "../../competency/competency-helpers";
 
 type Props = {
   competencyScores: CompetencyScore[];

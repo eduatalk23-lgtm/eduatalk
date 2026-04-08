@@ -8,7 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { AnalysisTagLike } from "../shared/AnalysisBlocks";
-import type { MergedSetekRow } from "../SetekEditor";
+import type { MergedSetekRow } from "../stages/record/SetekEditor";
 import type { SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 
 type ActivityTagLike = AnalysisTagLike;

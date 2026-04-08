@@ -11,7 +11,7 @@ import { saveSetekAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { RecordSetek } from "@/lib/domains/student-record";
 import { computeRecordStage, GRADE_STAGE_CONFIG } from "@/lib/domains/student-record/grade-stage";
-import type { MergedSetekRow, SetekLayerTab, SetekGuideItemLike } from "../SetekEditor";
+import type { MergedSetekRow, SetekLayerTab, SetekGuideItemLike } from "../stages/record/SetekEditor";
 import type { SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import type { AnalysisTagLike } from "../shared/AnalysisBlocks";
 import { AnalysisExpandableCell } from "./SetekAnalysisCell";

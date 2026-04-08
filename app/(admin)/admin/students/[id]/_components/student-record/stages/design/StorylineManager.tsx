@@ -9,9 +9,9 @@ import {
 } from "@/lib/domains/student-record/actions/storyline";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { Storyline } from "@/lib/domains/student-record";
-import { StorylineStrengthBadge } from "./StorylineStrengthBadge";
-import { SaveStatusIndicator } from "./SaveStatusIndicator";
-import { useAutoSave } from "./useAutoSave";
+import { StorylineStrengthBadge } from "../../StorylineStrengthBadge";
+import { SaveStatusIndicator } from "../../SaveStatusIndicator";
+import { useAutoSave } from "../../useAutoSave";
 
 type StorylineManagerProps = {
   storylines: Storyline[];

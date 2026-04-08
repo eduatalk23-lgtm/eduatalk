@@ -8,8 +8,8 @@ import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { RoadmapItem, Storyline, RoadmapItemStatus } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
-import { AreaCoverageSummary, RoadmapReadOnlyRow, RoadmapItemRow, AREA_OPTIONS } from "./RoadmapItemRows";
-import { AddRoadmapForm } from "./AddRoadmapForm";
+import { AreaCoverageSummary, RoadmapReadOnlyRow, RoadmapItemRow, AREA_OPTIONS } from "../../RoadmapItemRows";
+import { AddRoadmapForm } from "../../AddRoadmapForm";
 
 type RoadmapEditorProps = {
   roadmapItems: RoadmapItem[];

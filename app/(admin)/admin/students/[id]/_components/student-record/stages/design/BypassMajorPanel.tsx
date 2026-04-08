@@ -19,9 +19,9 @@ import type {
   UniversityDepartment,
   BypassCandidateWithDetails,
 } from "@/lib/domains/bypass-major/types";
-import { BypassTargetSelector } from "./BypassTargetSelector";
-import { BypassCandidateList } from "./BypassCandidateList";
-import { CurriculumComparisonView } from "./CurriculumComparisonView";
+import { BypassTargetSelector } from "../../BypassTargetSelector";
+import { BypassCandidateList } from "../../BypassCandidateList";
+import { CurriculumComparisonView } from "../../CurriculumComparisonView";
 import { Compass, ListChecks, GitCompare, Wand2, Zap, Sparkles } from "lucide-react";
 
 interface BypassMajorPanelProps {

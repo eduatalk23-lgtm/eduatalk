@@ -3,21 +3,21 @@
 import { useMemo, useState } from "react";
 import { CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record";
 import type { RecordChangche, ChangcheActivityType } from "@/lib/domains/student-record";
-import { RecordStatusBadge } from "./RecordStatusBadge";
-import { useStudentRecordContext } from "./StudentRecordContext";
+import { RecordStatusBadge } from "../../RecordStatusBadge";
+import { useStudentRecordContext } from "../../StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
 import { FileText, Search, BookOpen, Compass, MessageSquare, StickyNote, PenLine } from "lucide-react";
 import { matchKeywordInText } from "@/lib/domains/student-record/keyword-match";
-import { InlineAreaMemos } from "./InlineAreaMemos";
-import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
-import { COMPETENCY_LABELS } from "./shared/AnalysisBlocks";
+import { InlineAreaMemos } from "../../InlineAreaMemos";
+import type { AnalysisTagLike } from "../../shared/AnalysisBlocks";
+import { COMPETENCY_LABELS } from "../../shared/AnalysisBlocks";
 import type { SetekLayerTab } from "./SetekEditor";
 import { computeRecordStage, GRADE_STAGE_CONFIG } from "@/lib/domains/student-record/grade-stage";
-import { ChangcheNEISCell } from "./changche/ChangcheNEISCell";
-import type { ChangcheGuideItemLike } from "./changche/ChangcheNEISCell";
-import { ChangcheAnalysisCell } from "./changche/ChangcheAnalysisCell";
-import { ChangcheDraftCell } from "./changche/ChangcheDraftCell";
+import { ChangcheNEISCell } from "../../changche/ChangcheNEISCell";
+import type { ChangcheGuideItemLike } from "../../changche/ChangcheNEISCell";
+import { ChangcheAnalysisCell } from "../../changche/ChangcheAnalysisCell";
+import { ChangcheDraftCell } from "../../changche/ChangcheDraftCell";
 
 const ACTIVITY_TYPES: ChangcheActivityType[] = ["autonomy", "club", "career"];
 

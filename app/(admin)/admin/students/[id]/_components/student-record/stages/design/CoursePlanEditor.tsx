@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useStudentRecordContext } from "./StudentRecordContext";
+import { useStudentRecordContext } from "../../StudentRecordContext";
 import {
   coursePlanTabQueryOptions,
   studentRecordKeys,
@@ -22,7 +22,7 @@ import {
   Sparkles, ChevronDown, ChevronRight, Plus, CheckCheck,
   AlertCircle, ArrowRight, Info,
 } from "lucide-react";
-import { CoursePlanCard } from "./CoursePlanCard";
+import { CoursePlanCard } from "../../CoursePlanCard";
 import type { CoursePlanWithSubject } from "@/lib/domains/student-record/course-plan/types";
 import { detectPlanConflicts, type PlanConflict } from "@/lib/domains/student-record/course-plan/recommendation";
 

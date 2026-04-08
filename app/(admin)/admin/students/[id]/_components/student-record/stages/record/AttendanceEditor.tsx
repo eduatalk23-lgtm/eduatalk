@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveAttendanceAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { RecordAttendance } from "@/lib/domains/student-record";
-import { SaveStatusIndicator } from "./SaveStatusIndicator";
+import { SaveStatusIndicator } from "../../SaveStatusIndicator";
 
 type AttendanceEditorProps = {
   attendance: RecordAttendance | null;

@@ -5,12 +5,12 @@ import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordSetek } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
 import { FileText, Search, Compass, PenLine } from "lucide-react";
-import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
-import { COMPETENCY_LABELS } from "./shared/AnalysisBlocks";
+import type { AnalysisTagLike } from "../../shared/AnalysisBlocks";
+import { COMPETENCY_LABELS } from "../../shared/AnalysisBlocks";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
-import { SetekTableRow } from "./setek/SetekTableRow";
-import { PlannedSubjectRow, AddSetekForm } from "./setek/SetekFormParts";
+import { SetekTableRow } from "../../setek/SetekTableRow";
+import { PlannedSubjectRow, AddSetekForm } from "../../setek/SetekFormParts";
 
 type Subject = { id: string; name: string };
 

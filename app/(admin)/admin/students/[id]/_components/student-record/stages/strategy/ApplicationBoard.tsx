@@ -11,7 +11,7 @@ import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { APPLICATION_ROUND_LABELS } from "@/lib/domains/student-record";
 import type { RecordApplication, InterviewConflict, ApplicationResult } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
-import { DesiredUniversityChips } from "./shared/DesiredUniversityChips";
+import { DesiredUniversityChips } from "../../shared/DesiredUniversityChips";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 
 type ApplicationBoardProps = {

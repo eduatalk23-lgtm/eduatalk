@@ -21,7 +21,7 @@ import { useStudentRecordContext } from "./StudentRecordContext";
 import { recordTabQueryOptions, diagnosisTabQueryOptions } from "@/lib/query-options/studentRecord";
 import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordSetek, RecordChangche, RecordHaengteuk } from "@/lib/domains/student-record";
-import type { MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
+import type { MergedSetekRow, SetekGuideItemLike } from "./stages/record/SetekEditor";
 import type { AnalysisTagLike } from "./shared/AnalysisBlocks";
 import type { SubjectNavItem } from "./StudentRecordClient";
 import {

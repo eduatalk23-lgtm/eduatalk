@@ -2,7 +2,7 @@
 
 import { useQueries } from "@tanstack/react-query";
 import { diagnosisTabQueryOptions } from "@/lib/query-options/studentRecord";
-import type { GradeYearPair } from "./useRecordStageData";
+import type { GradeYearPair } from "../record/useRecordStageData";
 
 /**
  * Phase 4: 진단 데이터 훅 (항상 활성 — 3+ 스테이지에서 사용)

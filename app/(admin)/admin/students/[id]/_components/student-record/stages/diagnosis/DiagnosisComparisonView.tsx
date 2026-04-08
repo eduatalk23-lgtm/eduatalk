@@ -18,12 +18,12 @@ import { checkDiagnosisStalenessAction } from "@/lib/domains/student-record/acti
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
 import { setekGuideKeys } from "@/lib/query-options/setekGuide";
 import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade } from "@/lib/domains/student-record";
-import { RecommendedCourses } from "./GradeSummaryTable";
+import { RecommendedCourses } from "../../GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { Sparkles, Copy, Check, Loader2, History } from "lucide-react";
-import { useAutoSave } from "./useAutoSave";
-import { Row, TagList, FormRow, ImprovementsList } from "./DiagnosisSharedComponents";
-import { DiagnosisHistoryPanel } from "./DiagnosisHistoryPanel";
+import { useAutoSave } from "../../useAutoSave";
+import { Row, TagList, FormRow, ImprovementsList } from "../../DiagnosisSharedComponents";
+import { DiagnosisHistoryPanel } from "../../DiagnosisHistoryPanel";
 
 type Props = {
   aiDiagnosis: Diagnosis | null;
