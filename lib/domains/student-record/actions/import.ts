@@ -25,6 +25,25 @@ import type {
 
 const LOG_CTX = { domain: "student-record", action: "" };
 
+/**
+ * 주어진 studentId가 현재 admin/consultant의 tenant에 속하는지 검증.
+ * cross-tenant 접근 방지용.
+ */
+async function assertStudentInTenant(
+  studentId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return false;
+  const { data } = await supabase
+    .from("students")
+    .select("id")
+    .eq("id", studentId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 // ============================================
 // 1단계: 클라이언트에서 파싱된 결과 → 과목 매칭 → 미리보기
 // (Gemini 호출은 클라이언트에서 직접 수행)
@@ -35,11 +54,20 @@ export async function matchAndPreviewAction(
   options?: { studentId?: string },
 ): Promise<ActionResponse<ImportPreviewData>> {
   try {
-    await requireAdminOrConsultant();
+    const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
+    if (!tenantId) {
+      return createErrorResponse("기관 정보를 확인할 수 없습니다.");
+    }
 
     // 학생 교육과정 resolve (지정 시 해당 교육과정 과목만 매칭)
     let curriculumRevisionId: string | undefined;
     if (options?.studentId) {
+      // tenant 격리: 다른 기관의 학생 ID를 임의로 지정해 메타데이터에 접근하는 것 방지
+      const ok = await assertStudentInTenant(options.studentId, tenantId);
+      if (!ok) {
+        return createErrorResponse("학생을 찾을 수 없거나 접근 권한이 없습니다.");
+      }
+
       const { resolveStudentCurriculumId } = await import(
         "@/lib/domains/student/resolveStudentCurriculum"
       );
@@ -97,6 +125,12 @@ export async function executeImportAction(
   try {
     const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
     if (!tenantId) return createErrorResponse("테넌트 정보를 확인할 수 없습니다.");
+
+    // tenant 격리: 다른 기관의 학생에 임포트하는 것 방지
+    const ok = await assertStudentInTenant(options.studentId, tenantId);
+    if (!ok) {
+      return createErrorResponse("학생을 찾을 수 없거나 접근 권한이 없습니다.");
+    }
 
     const finalMatches = applyManualMappings(
       preview.subjectMatches,
