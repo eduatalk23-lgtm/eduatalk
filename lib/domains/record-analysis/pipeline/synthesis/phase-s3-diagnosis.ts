@@ -56,7 +56,7 @@ export async function runAiDiagnosis(
     ? { studentId, tenantId, coursePlanData: coursePlanData ?? null, snapshot }
     : undefined;
 
-  const { generateAiDiagnosis } = await import("@/lib/domains/student-record/llm/actions/generateDiagnosis");
+  const { generateAiDiagnosis } = await import("../../llm/actions/generateDiagnosis");
   // Phase E2: 엣지 데이터 → 진단 프롬프트에 투입
   let diagnosisEdgeSection: string | undefined;
   const edgeComputationFailed = tasks.edge_computation === "failed";

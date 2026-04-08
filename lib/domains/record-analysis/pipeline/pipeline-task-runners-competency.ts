@@ -16,7 +16,7 @@ import {
 } from "./pipeline-types";
 import * as competencyRepo from "@/lib/domains/student-record/repository/competency-repository";
 import { toDbJson, type CompetencyScoreInsert, type TagContext } from "@/lib/domains/student-record/types";
-import type { HighlightAnalysisResult, HighlightAnalysisInput } from "@/lib/domains/student-record/llm/types";
+import type { HighlightAnalysisResult, HighlightAnalysisInput } from "../llm/types";
 import { runWithConcurrency, collectAnalysisContext } from "./pipeline-task-runners-shared";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
@@ -58,7 +58,7 @@ async function runCompetencyForRecords(
 ): Promise<{ succeeded: number; failed: number; skipped: number; allResults: Map<string, HighlightAnalysisResult>; hasMore: boolean; totalUncached: number }> {
   const { supabase, studentId, tenantId, studentGrade, snapshot } = ctx;
 
-  const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
+  const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
   const { computeRecordContentHash } = await import("@/lib/domains/student-record/content-hash");
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
@@ -383,9 +383,9 @@ function buildAnalysisRecords(ctx: PipelineContext, recordType: CompetencyRecord
 async function runHaengteukAggregate(
   ctx: PipelineContext,
   targetGrade: number,
-  currentResults: Map<string, import("@/lib/domains/student-record/llm/types").HighlightAnalysisResult>,
+  currentResults: Map<string, import("../llm/types").HighlightAnalysisResult>,
 ): Promise<void> {
-  const allForAggregate = new Map<string, import("@/lib/domains/student-record/llm/types").HighlightAnalysisResult>();
+  const allForAggregate = new Map<string, import("../llm/types").HighlightAnalysisResult>();
   const { computeRecordContentHash } = await import("@/lib/domains/student-record/content-hash");
   const allRecordIds: string[] = [];
   for (const s of (ctx.cachedSeteks ?? [])) {
@@ -401,7 +401,7 @@ async function runHaengteukAggregate(
     const cached = await competencyRepo.findAnalysisCacheByRecordIds(allRecordIds, ctx.tenantId, "ai");
     for (const entry of cached) {
       if (entry.analysis_result) {
-        allForAggregate.set(entry.record_id, entry.analysis_result as import("@/lib/domains/student-record/llm/types").HighlightAnalysisResult);
+        allForAggregate.set(entry.record_id, entry.analysis_result as import("../llm/types").HighlightAnalysisResult);
       }
     }
   }

@@ -22,8 +22,16 @@ student-record/
 ├── import/               # parser → extractor → mapper → importer 체인
 ├── export/               # report-export.ts
 ├── leveling/             # L0~L6 설계 모드 레벨링 (engine.ts, types.ts, resolve-tier.ts)
-└── llm/                  # AI 진단/전략 생성
+├── pipeline/             # → record-analysis/pipeline (re-export stub)
+├── llm/                  # → record-analysis/llm (re-export stub)
+└── eval/                 # → record-analysis/eval (re-export stub)
 ```
+
+**AI 분석/파이프라인 코드**는 별도 도메인 `lib/domains/record-analysis/`로 분리됨.
+- `pipeline/`, `llm/`, `eval/`은 student-record에 re-export stub만 남고 실제 구현은 record-analysis/에 있음.
+- 기존 import 경로(`@/lib/domains/student-record/{pipeline,llm,eval}/...`)는 stub을 통해 100% 호환 유지.
+- 새로운 코드는 가급적 `@/lib/domains/record-analysis/...`를 직접 import할 것.
+- 자세한 파이프라인 아키텍처는 `lib/domains/record-analysis/CLAUDE.md` 참조.
 
 ## Enforced Rules
 

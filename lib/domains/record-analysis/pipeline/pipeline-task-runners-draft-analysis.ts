@@ -144,7 +144,7 @@ export async function runDraftAnalysisForGrade(
     return "분석 모드 학년 — 가안 분석 스킵 (P1-P3에서 처리)";
   }
 
-  const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
+  const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
   const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;

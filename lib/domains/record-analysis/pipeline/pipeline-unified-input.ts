@@ -12,7 +12,7 @@
 // ============================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { RecordSummary } from "@/lib/domains/student-record/llm/prompts/inquiryLinking";
+import type { RecordSummary } from "../llm/prompts/inquiryLinking";
 import { logActionDebug } from "@/lib/logging/actionLogger";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 import { findContentQualityByStudent } from "@/lib/domains/student-record/repository/competency-repository";

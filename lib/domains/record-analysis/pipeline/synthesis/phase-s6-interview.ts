@@ -74,7 +74,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
 
   if (candidateRecords.length === 0) return "기록 부족 — 건너뜀";
 
-  const { generateInterviewQuestions } = await import("@/lib/domains/student-record/llm/actions/generateInterviewQuestions");
+  const { generateInterviewQuestions } = await import("../../llm/actions/generateInterviewQuestions");
 
   // 메인 레코드 + 추가 레코드로 교차 질문 생성
   const main = candidateRecords[0];
@@ -193,7 +193,7 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
   const { studentId, tenantId, pipelineId, studentGrade } = ctx;
 
   // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)
-  const { generateAiRoadmap } = await import("@/lib/domains/student-record/llm/actions/generateRoadmap");
+  const { generateAiRoadmap } = await import("../../llm/actions/generateRoadmap");
   // NEIS 기반 모드 판정: neisGrades가 있으면 실 데이터 분석 모드, 없으면 수강계획 기반 계획 모드
   const llmMode = (ctx.neisGrades && ctx.neisGrades.length > 0) ? "analysis" : "planning";
 

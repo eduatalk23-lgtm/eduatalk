@@ -11,7 +11,7 @@ import {
   type CachedChangche,
 } from "../pipeline-types";
 import * as repository from "@/lib/domains/student-record/repository";
-import type { RecordSummary } from "@/lib/domains/student-record/llm/prompts/inquiryLinking";
+import type { RecordSummary } from "../../llm/prompts/inquiryLinking";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
@@ -104,7 +104,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     }
   }
 
-  const { detectInquiryLinks } = await import("@/lib/domains/student-record/llm/actions/detectInquiryLinks");
+  const { detectInquiryLinks } = await import("../../llm/actions/detectInquiryLinks");
   const result = await detectInquiryLinks(records, coursePlanExtra);
   if (!result.success) throw new Error(result.error);
 

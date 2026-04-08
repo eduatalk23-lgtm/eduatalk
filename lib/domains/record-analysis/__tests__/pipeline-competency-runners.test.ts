@@ -30,7 +30,7 @@ vi.mock("../pipeline/pipeline-executor", () => ({
 }));
 
 const mockAnalyze = vi.fn();
-vi.mock("@/lib/domains/student-record/llm/actions/analyzeWithHighlight", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight", () => ({
   analyzeSetekWithHighlight: (...args: unknown[]) => mockAnalyze(...args),
 }));
 

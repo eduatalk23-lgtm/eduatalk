@@ -12,11 +12,11 @@ import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vites
 import * as repoModule from "@/lib/domains/student-record/repository";
 import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
 import * as competencyRepo from "@/lib/domains/student-record/repository/competency-repository";
-import * as detectInquiryLinksModule from "@/lib/domains/student-record/llm/actions/detectInquiryLinks";
-import * as generateActivitySummaryModule from "@/lib/domains/student-record/llm/actions/generateActivitySummary";
-import * as suggestStrategiesModule from "@/lib/domains/student-record/llm/actions/suggestStrategies";
-import * as generateInterviewQuestionsModule from "@/lib/domains/student-record/llm/actions/generateInterviewQuestions";
-import * as generateRoadmapModule from "@/lib/domains/student-record/llm/actions/generateRoadmap";
+import * as detectInquiryLinksModule from "@/lib/domains/record-analysis/llm/actions/detectInquiryLinks";
+import * as generateActivitySummaryModule from "@/lib/domains/record-analysis/llm/actions/generateActivitySummary";
+import * as suggestStrategiesModule from "@/lib/domains/record-analysis/llm/actions/suggestStrategies";
+import * as generateInterviewQuestionsModule from "@/lib/domains/record-analysis/llm/actions/generateInterviewQuestions";
+import * as generateRoadmapModule from "@/lib/domains/record-analysis/llm/actions/generateRoadmap";
 
 // ============================================
 // 전역 mock — 각 describe가 재사용
@@ -89,23 +89,23 @@ vi.mock("@/lib/domains/student-record/evaluation-criteria/defaults", () => ({
   formatDiagnosisMacroPatterns: vi.fn().mockReturnValue(""),
 }));
 
-vi.mock("@/lib/domains/student-record/llm/actions/detectInquiryLinks", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/detectInquiryLinks", () => ({
   detectInquiryLinks: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/llm/actions/generateActivitySummary", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/generateActivitySummary", () => ({
   generateActivitySummary: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/llm/actions/suggestStrategies", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/suggestStrategies", () => ({
   suggestStrategies: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/llm/actions/generateInterviewQuestions", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/generateInterviewQuestions", () => ({
   generateInterviewQuestions: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/llm/actions/generateRoadmap", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/generateRoadmap", () => ({
   generateAiRoadmap: vi.fn(),
 }));
 

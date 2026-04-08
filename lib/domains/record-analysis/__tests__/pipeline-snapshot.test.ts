@@ -298,7 +298,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
 //    analyzeSetekWithHighlight에 전달하는 input 구조와 결과 처리 구조를 검증
 // ============================================
 
-vi.mock("@/lib/domains/student-record/llm/actions/analyzeWithHighlight", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight", () => ({
   analyzeSetekWithHighlight: vi.fn(),
 }));
 
@@ -348,7 +348,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
   });
 
   it("세특 가안 분석 시 analyzeSetekWithHighlight 호출 인자에 recordType/content/grade 포함", async () => {
-    const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
+    const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
     const analyzeMock = analyzeSetekWithHighlight as MockedFunction<typeof analyzeSetekWithHighlight>;
     analyzeMock.mockResolvedValue(buildMockAnalysisResponse("academic_inquiry") as never);
 
@@ -396,7 +396,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
   });
 
   it("analyzeAndCollectTags 출력 구조: collectedTags/competencyGrades 배열 필드 확인", async () => {
-    const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
+    const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
     const analyzeMock = analyzeSetekWithHighlight as MockedFunction<typeof analyzeSetekWithHighlight>;
     analyzeMock.mockResolvedValue(buildMockAnalysisResponse("academic_inquiry") as never);
 
@@ -525,7 +525,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
   });
 
   it("content가 20자 미만이면 analyzeSetekWithHighlight를 호출하지 않음", async () => {
-    const { analyzeSetekWithHighlight } = await import("@/lib/domains/student-record/llm/actions/analyzeWithHighlight");
+    const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
     const analyzeMock = analyzeSetekWithHighlight as MockedFunction<typeof analyzeSetekWithHighlight>;
 
     // 짧은 content (< 20자)

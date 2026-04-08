@@ -7,9 +7,9 @@
 
 import { assertGradeCtx, type PipelineContext } from "./pipeline-types";
 import type { TaskRunnerOutput } from "./pipeline-executor";
-import { generateTextWithRateLimit } from "@/lib/domains/student-record/llm/ai-client";
+import { generateTextWithRateLimit } from "../llm/ai-client";
 import * as guideRepo from "@/lib/domains/student-record/repository/guide-repository";
-import { withRetry } from "@/lib/domains/student-record/llm/retry";
+import { withRetry } from "../llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { getCharLimit, PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 import { computeLevelingForStudent } from "@/lib/domains/student-record/leveling";
@@ -17,7 +17,7 @@ import {
   SETEK_DRAFT_SYSTEM_PROMPT,
   CHANGCHE_DRAFT_SYSTEM_PROMPT,
   HAENGTEUK_DRAFT_SYSTEM_PROMPT,
-} from "@/lib/domains/student-record/llm/prompts/draft-system-prompts";
+} from "../llm/prompts/draft-system-prompts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LOG_CTX = { domain: "student-record", action: "draftGeneration" };

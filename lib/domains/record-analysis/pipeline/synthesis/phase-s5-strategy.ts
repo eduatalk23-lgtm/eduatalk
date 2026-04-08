@@ -32,7 +32,7 @@ export async function runActivitySummary(
   assertSynthesisCtx(ctx);
   const { studentId, tenantId, studentGrade } = ctx;
 
-  const { generateActivitySummary } = await import("@/lib/domains/student-record/llm/actions/generateActivitySummary");
+  const { generateActivitySummary } = await import("../../llm/actions/generateActivitySummary");
   const grades = Array.from({ length: studentGrade }, (_, i) => i + 1);
   // Phase E2: 엣지 데이터 → 요약서 프롬프트에 투입
   let summaryEdgeSection: string | undefined;
@@ -194,7 +194,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     } catch { /* 재집계 실패해도 전략 생성은 계속 */ }
   }
 
-  const { suggestStrategies } = await import("@/lib/domains/student-record/llm/actions/suggestStrategies");
+  const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
     weakCompetencies,

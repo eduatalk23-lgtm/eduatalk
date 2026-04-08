@@ -9,7 +9,7 @@ import type {
   RecordAnalysisContext,
   CompetencyAnalysisContext,
 } from "./pipeline-types";
-import type { HighlightAnalysisResult, GuideAnalysisContext } from "@/lib/domains/student-record/llm/types";
+import type { HighlightAnalysisResult, GuideAnalysisContext } from "../llm/types";
 
 // ============================================
 // 동시성 제어
