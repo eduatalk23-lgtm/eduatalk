@@ -112,9 +112,11 @@ export function toCreateStudentInput(flat: CreateStudentFormSchema): CreateStude
           : null,
       desired_career_field: emptyToNull(flat.desired_career_field),
       target_major: emptyToNull(flat.target_major),
-      target_sub_classification_id: flat.target_sub_classification_id
-        ? parseInt(flat.target_sub_classification_id, 10)
-        : null,
+      target_sub_classification_id: (() => {
+        if (!flat.target_sub_classification_id) return null;
+        const parsed = parseInt(flat.target_sub_classification_id, 10);
+        return Number.isFinite(parsed) ? parsed : null;
+      })(),
       target_major_2: emptyToNull(flat.target_major_2),
       target_score: flat.target_score ?? null,
       target_university_type: emptyToNull(flat.target_university_type),
