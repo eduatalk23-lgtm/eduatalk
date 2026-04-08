@@ -8,7 +8,7 @@ import {
   assertSynthesisCtx,
   type PipelineContext,
   type TaskRunnerOutput,
-} from "../../pipeline-types";
+} from "../pipeline-types";
 import type { PersistedEdge } from "../../repository/edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
 import * as competencyRepo from "../../repository/competency-repository";

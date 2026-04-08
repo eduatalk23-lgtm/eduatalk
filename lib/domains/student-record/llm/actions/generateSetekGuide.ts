@@ -12,7 +12,7 @@ import { generateTextWithRateLimit } from "../ai-client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
-import { resolveEffectiveContent } from "../../pipeline-data-resolver";
+import { resolveEffectiveContent } from "../../pipeline";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
 import { insertSetekGuides } from "../../repository/guide-repository";
 import {
@@ -103,7 +103,7 @@ export async function generateSetekGuide(
     // D→B단계: 파이프라인 경로면 학년별 타겟팅된 맥락 사용, 아니면 report에서 구성
     let analysisContext = pipelineAnalysisContext;
     if (!analysisContext) {
-      const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
+      const { buildGuideAnalysisContextFromReport } = await import("../../pipeline/pipeline-task-runners");
       analysisContext = buildGuideAnalysisContextFromReport(report);
     }
 
@@ -247,7 +247,7 @@ export async function generateProspectiveSetekGuide(
   const diagnosis = report.diagnosisData.consultantDiagnosis ?? report.diagnosisData.aiDiagnosis;
 
   // Impl-4: 이전 분석 학년의 역량/품질/보완방향 주입
-  const { buildGuideAnalysisContextFromReport, buildCrossGradeDirections } = await import("../../pipeline-task-runners-shared");
+  const { buildGuideAnalysisContextFromReport, buildCrossGradeDirections } = await import("../../pipeline/pipeline-task-runners-shared");
   const analysisContext = pipelineAnalysisContext ?? buildGuideAnalysisContextFromReport(report);
   const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
 

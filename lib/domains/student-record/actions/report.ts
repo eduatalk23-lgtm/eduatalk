@@ -23,7 +23,7 @@ import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { StudentPercentile } from "../cohort/percentile";
 import type { CohortBenchmark } from "../cohort/benchmark";
 import type { ActionResponse } from "@/lib/types/actionResponse";
-import type { CompetencyAnalysisContext } from "../pipeline-types";
+import type { CompetencyAnalysisContext } from "../pipeline";
 import {
   fetchStudentInfoAndScores,
   fetchAnalysisData,

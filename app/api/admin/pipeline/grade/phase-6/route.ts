@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/student-record/pipeline-executor";
-import { executeGradePhase6 } from "@/lib/domains/student-record/pipeline-grade-phases";
+import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/student-record/pipeline/pipeline-executor";
+import { executeGradePhase6 } from "@/lib/domains/student-record/pipeline/pipeline-grade-phases";
 
 export const maxDuration = 300;
 

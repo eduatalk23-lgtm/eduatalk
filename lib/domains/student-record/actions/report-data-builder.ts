@@ -29,7 +29,7 @@ import type {
 } from "../types";
 import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { ContentQualityRow } from "../warnings/engine";
-import type { CompetencyAnalysisContext } from "../pipeline-types";
+import type { CompetencyAnalysisContext } from "../pipeline";
 
 const LOG_CTX = { domain: "student-record", action: "report" };
 

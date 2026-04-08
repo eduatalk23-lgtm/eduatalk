@@ -14,11 +14,11 @@ import type {
   PipelineTaskStatus,
   PipelineTaskResults,
   GradePipelineTaskKey,
-} from "../pipeline-types";
+} from "../pipeline";
 import {
   SYNTHESIS_PIPELINE_TASK_KEYS,
   GRADE_TASK_DEPENDENTS,
-} from "../pipeline-types";
+} from "../pipeline";
 import * as competencyRepo from "../repository/competency-repository";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };

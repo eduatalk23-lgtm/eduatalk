@@ -176,7 +176,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       },
     };
 
-    const { runDraftGenerationForGrade } = await import("../pipeline-task-runners-draft");
+    const { runDraftGenerationForGrade } = await import("../pipeline/pipeline-task-runners-draft");
     await runDraftGenerationForGrade(ctx as never);
 
     fromSpy.mockRestore();
@@ -262,7 +262,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       },
     };
 
-    const { runDraftGenerationForGrade } = await import("../pipeline-task-runners-draft");
+    const { runDraftGenerationForGrade } = await import("../pipeline/pipeline-task-runners-draft");
     const result = await runDraftGenerationForGrade(ctx as never);
 
     expect(result).toBe("분석 모드 학년 — 가안 생성 스킵 (NEIS 기록 기반)");
@@ -285,7 +285,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       pipelineType: "grade" as const,
     };
 
-    const { runDraftGenerationForGrade } = await import("../pipeline-task-runners-draft");
+    const { runDraftGenerationForGrade } = await import("../pipeline/pipeline-task-runners-draft");
     await expect(runDraftGenerationForGrade(ctx as never)).rejects.toThrow(
       "targetGrade",
     );

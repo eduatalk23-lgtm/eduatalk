@@ -14,9 +14,9 @@ import type {
   CachedSetek,
   CachedChangche,
   CachedHaengteuk,
-} from "../pipeline-types";
-import { GRADE_PIPELINE_TASK_KEYS } from "../pipeline-types";
-import { resolveRecordData, deriveGradeCategories } from "../pipeline-data-resolver";
+} from "../pipeline";
+import { GRADE_PIPELINE_TASK_KEYS } from "../pipeline";
+import { resolveRecordData, deriveGradeCategories } from "../pipeline";
 import type { GradeAwarePipelineStatus } from "./pipeline-orchestrator-types";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };

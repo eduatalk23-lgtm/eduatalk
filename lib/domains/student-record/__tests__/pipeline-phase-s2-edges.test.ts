@@ -99,7 +99,7 @@ vi.mock("@/lib/domains/guide/actions/area-resolver", () => ({
 
 // ─── import ──────────────────────────────────────────────────────────────
 
-import type { PipelineContext } from "../pipeline-types";
+import type { PipelineContext } from "../pipeline/pipeline-types";
 import * as edgeRepo from "../repository/edge-repository";
 import * as courseAdequacyModule from "../course-adequacy";
 import * as crossRef from "../cross-reference";

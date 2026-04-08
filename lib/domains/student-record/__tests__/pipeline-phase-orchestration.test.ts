@@ -12,11 +12,11 @@
 // ============================================
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { PipelineContext } from "../pipeline-types";
+import type { PipelineContext } from "../pipeline/pipeline-types";
 
 // ── Mock: pipeline-executor ─────────────────────────
-vi.mock("../pipeline-executor", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../pipeline-executor")>();
+vi.mock("../pipeline/pipeline-executor", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../pipeline/pipeline-executor")>();
   return {
     ...actual,
     // runTaskWithState: 실제 runner를 호출하되, runner 내부는 모킹되므로 상태 전이만 시뮬레이션
@@ -31,7 +31,7 @@ vi.mock("../pipeline-executor", async (importOriginal) => {
 });
 
 // ── Mock: task runners (LLM 호출 차단) ──────────────
-vi.mock("../pipeline-task-runners", () => ({
+vi.mock("../pipeline/pipeline-task-runners", () => ({
   runCompetencySetekForGrade: vi.fn(),
   runCompetencySetekChunkForGrade: vi.fn(),
   runCompetencyChangcheForGrade: vi.fn(),
@@ -68,16 +68,16 @@ import {
   executeGradePhase6,
   executeGradePhase7,
   executeGradePhase8,
-} from "../pipeline-grade-phases";
+} from "../pipeline/pipeline-grade-phases";
 
 import {
   executeSynthesisPhase2,
   executeSynthesisPhase3,
   executeSynthesisPhase5,
   executeSynthesisPhase6,
-} from "../pipeline-synthesis-phases";
+} from "../pipeline/pipeline-synthesis-phases";
 
-import { runTaskWithState } from "../pipeline-executor";
+import { runTaskWithState } from "../pipeline/pipeline-executor";
 
 // ── 픽스처 ──────────────────────────────────────────
 

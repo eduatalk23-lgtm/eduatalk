@@ -9,7 +9,7 @@ import {
   type PipelineContext,
   type TaskRunnerOutput,
   type ScoreRowWithSubject,
-} from "../../pipeline-types";
+} from "../pipeline-types";
 import type { PersistedEdge } from "../../repository/edge-repository";
 import type { CrossRefEdge } from "../../cross-reference";
 import * as competencyRepo from "../../repository/competency-repository";
@@ -233,9 +233,9 @@ export async function runAiDiagnosis(
       ? "종합진단(NEIS+수강계획)"
       : "종합진단";
   // 커버리지 경고
-  let coverageWarnings: import("../../pipeline-types").DataCoverageWarning[] | undefined;
+  let coverageWarnings: import("../pipeline-types").DataCoverageWarning[] | undefined;
   if (ctx.unifiedInput) {
-    const { checkCoverageForTask } = await import("../../pipeline-unified-input");
+    const { checkCoverageForTask } = await import("../pipeline-unified-input");
     const warnings = checkCoverageForTask(ctx.unifiedInput, "ai_diagnosis");
     if (warnings.length > 0) coverageWarnings = warnings;
   }

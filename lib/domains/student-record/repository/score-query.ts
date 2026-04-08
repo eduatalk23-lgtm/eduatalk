@@ -3,7 +3,7 @@
 // ============================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ScoreRowWithSubject } from "../pipeline-types";
+import type { ScoreRowWithSubject } from "../pipeline";
 import type { HighlightAnalysisInput } from "../llm/types";
 
 /**

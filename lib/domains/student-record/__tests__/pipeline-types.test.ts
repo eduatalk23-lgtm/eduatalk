@@ -4,7 +4,7 @@ import {
   PIPELINE_TASK_DEPENDENTS,
   computeCascadeResetKeys,
   type PipelineTaskKey,
-} from "../pipeline-types";
+} from "../pipeline/pipeline-types";
 
 describe("PIPELINE_TASK_KEYS", () => {
   it("15개 태스크가 정의되어 있어야 한다", () => {

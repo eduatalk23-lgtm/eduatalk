@@ -3,12 +3,12 @@ import {
   resolveRecordData,
   deriveGradeCategories,
   resolveRecordDataForGrade,
-} from "../pipeline-data-resolver";
+} from "../pipeline/pipeline-data-resolver";
 import type {
   CachedSetek,
   CachedChangche,
   CachedHaengteuk,
-} from "../pipeline-types";
+} from "../pipeline/pipeline-types";
 
 // ============================================
 // 헬퍼 팩토리

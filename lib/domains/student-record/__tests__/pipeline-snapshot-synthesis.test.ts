@@ -61,7 +61,7 @@ vi.mock("../guide-context", () => ({
   buildGuideContextSection: vi.fn().mockResolvedValue("## 가이드 컨텍스트"),
 }));
 
-vi.mock("../pipeline-unified-input", () => ({
+vi.mock("../pipeline/pipeline-unified-input", () => ({
   collectDesignRecords: vi.fn().mockReturnValue([]),
   checkCoverageForTask: vi.fn().mockReturnValue([]),
 }));

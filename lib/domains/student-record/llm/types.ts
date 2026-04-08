@@ -4,7 +4,7 @@
 // ============================================
 
 import type { CompetencyItemCode, CompetencyGrade, StrategyTargetArea, StrategyPriority } from "../types";
-import type { CompetencyAnalysisContext } from "../pipeline-types";
+import type { CompetencyAnalysisContext } from "../pipeline";
 
 // ============================================
 // 역량 분석 맥락 주입 타입 (가이드 프롬프트용)

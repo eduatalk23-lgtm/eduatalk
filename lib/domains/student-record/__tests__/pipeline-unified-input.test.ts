@@ -19,7 +19,7 @@ import type {
   AnalysisGradeOutput,
   DesignGradeOutput,
   UnifiedActivityTag,
-} from "../pipeline-unified-input";
+} from "../pipeline/pipeline-unified-input";
 import {
   buildVirtualRecordsFromGuides,
   buildVirtualTagsFromGuides,
@@ -27,7 +27,7 @@ import {
   collectAnalysisRecords,
   collectDesignRecords,
   collectAllTags,
-} from "../pipeline-unified-input";
+} from "../pipeline/pipeline-unified-input";
 
 // ─── 픽스처 팩토리 ──────────────────────────────────────────────────────────
 

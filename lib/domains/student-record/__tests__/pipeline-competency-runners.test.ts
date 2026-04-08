@@ -25,7 +25,7 @@ vi.mock("@/lib/logging/actionLogger", () => ({
   logActionWarn: vi.fn(),
 }));
 
-vi.mock("../pipeline-executor", () => ({
+vi.mock("../pipeline/pipeline-executor", () => ({
   updatePipelineState: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -65,7 +65,7 @@ vi.mock("../course-adequacy", () => ({
   calculateCourseAdequacy: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock("../pipeline-task-runners-shared", () => ({
+vi.mock("../pipeline/pipeline-task-runners-shared", () => ({
   runWithConcurrency: async (items: unknown[], _concurrency: number, fn: (item: unknown) => Promise<void>) => {
     for (const item of items as unknown[]) await fn(item);
   },
@@ -83,8 +83,8 @@ import {
   runCompetencySetekChunkForGrade,
   runCompetencyChangcheForGrade,
   runCompetencyHaengteukForGrade,
-} from "../pipeline-task-runners-competency";
-import type { PipelineContext } from "../pipeline-types";
+} from "../pipeline/pipeline-task-runners-competency";
+import type { PipelineContext } from "../pipeline/pipeline-types";
 
 // ---- Fixtures ----
 

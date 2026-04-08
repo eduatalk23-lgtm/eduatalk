@@ -10,7 +10,7 @@ import {
   type TaskRunnerOutput,
   type CachedSetek,
   type CachedChangche,
-} from "../../pipeline-types";
+} from "../pipeline-types";
 import * as repository from "../../repository";
 import * as diagnosisRepo from "../../repository/diagnosis-repository";
 
@@ -45,12 +45,12 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   }
 
   // 타입 가드: 세특 vs 창체 판별
-  type CachedRecord = import("../../pipeline-types").CachedSetek | import("../../pipeline-types").CachedChangche;
-  function isCachedSetek(r: CachedRecord): r is import("../../pipeline-types").CachedSetek {
+  type CachedRecord = import("../pipeline-types").CachedSetek | import("../pipeline-types").CachedChangche;
+  function isCachedSetek(r: CachedRecord): r is import("../pipeline-types").CachedSetek {
     return "subject" in r;
   }
   function getSubjectLabel(r: CachedRecord): string {
-    return isCachedSetek(r) ? (r.subject?.name ?? "과목 미정") : ((r as import("../../pipeline-types").CachedChangche).activity_type ?? "기록");
+    return isCachedSetek(r) ? (r.subject?.name ?? "과목 미정") : ((r as import("../pipeline-types").CachedChangche).activity_type ?? "기록");
   }
   function getRecordType(r: CachedRecord): "setek" | "changche" {
     return isCachedSetek(r) ? "setek" : "changche";
@@ -91,7 +91,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
 
   // 설계 학년 가상 레코드를 보충 면접 자료로 추가 (방향 가이드 기반)
   if (ctx.unifiedInput?.hasAnyDesign) {
-    const { collectDesignRecords } = await import("../../pipeline-unified-input");
+    const { collectDesignRecords } = await import("../pipeline-unified-input");
     const virtualRecords = collectDesignRecords(ctx.unifiedInput);
     for (const vr of virtualRecords) {
       if (vr.content.length >= 30) {

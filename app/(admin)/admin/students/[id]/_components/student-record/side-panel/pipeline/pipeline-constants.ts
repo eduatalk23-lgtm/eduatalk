@@ -6,7 +6,7 @@
 import type {
   GradePipelineTaskKey,
   SynthesisPipelineTaskKey,
-} from "@/lib/domains/student-record/pipeline-types";
+} from "@/lib/domains/student-record/pipeline";
 
 // ─── Phase 그룹 정의 ────────────────────────────────────────────────────────
 

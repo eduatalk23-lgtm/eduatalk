@@ -12,7 +12,7 @@ import { generateTextWithRateLimit } from "../ai-client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
-import { resolveEffectiveContent } from "../../pipeline-data-resolver";
+import { resolveEffectiveContent } from "../../pipeline";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
 import { findSetekGuideSummary, insertHaengteukGuide } from "../../repository/guide-repository";
 import {
@@ -61,7 +61,7 @@ export async function generateProspectiveHaengteukGuide(
   const diagnosis = report.diagnosisData.consultantDiagnosis ?? report.diagnosisData.aiDiagnosis;
 
   // Impl-4: 이전 분석 학년의 보완방향 주입
-  const { buildCrossGradeDirections } = await import("../../pipeline-task-runners-shared");
+  const { buildCrossGradeDirections } = await import("../../pipeline/pipeline-task-runners-shared");
   const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
 
   const allPlannedNames = [
@@ -237,7 +237,7 @@ export async function generateHaengteukGuide(
 
     // D→B단계: fetchReportData 결과에서 역량 분석 맥락 구성
     const analysisContext = pipelineAnalysisContext ?? await (async () => {
-      const { buildGuideAnalysisContextFromReport } = await import("../../pipeline-task-runners");
+      const { buildGuideAnalysisContextFromReport } = await import("../../pipeline/pipeline-task-runners");
       return buildGuideAnalysisContextFromReport(report, undefined, "haengteuk");
     })();
 

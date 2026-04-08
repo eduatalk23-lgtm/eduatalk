@@ -30,7 +30,7 @@ import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS, COMPETENCY_AREA_LABELS, 
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import { determineGradeSystem } from "@/lib/domains/student-record/grade-normalizer";
 import { buildEdgeSummary } from "@/lib/domains/student-record/edge-summary";
-import type { PipelineTaskKey } from "@/lib/domains/student-record/pipeline-types";
+import type { PipelineTaskKey } from "@/lib/domains/student-record/pipeline";
 import { generateSetekDraftAction } from "@/lib/domains/student-record/llm/actions/generateSetekDraft";
 import { upsertDiagnosis } from "@/lib/domains/student-record/repository/diagnosis-repository";
 import { upsertCompetencyScore } from "@/lib/domains/student-record/repository/competency-repository";

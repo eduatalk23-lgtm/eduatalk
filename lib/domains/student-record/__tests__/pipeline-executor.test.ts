@@ -26,8 +26,8 @@ import {
   getNextGradePhase,
   getNextSynthesisPhase,
   validatePhasePrerequisites,
-} from "../pipeline-executor";
-import type { PipelineContext, PipelineTaskStatus } from "../pipeline-types";
+} from "../pipeline/pipeline-executor";
+import type { PipelineContext, PipelineTaskStatus } from "../pipeline/pipeline-types";
 
 // ============================================
 // actionLogger mock (콘솔 오염 방지)

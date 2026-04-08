@@ -2,7 +2,7 @@
 // Synthesis 파이프라인 — 공통 헬퍼
 // ============================================
 
-import type { PipelineContext, CorePipelineFields } from "../../pipeline-types";
+import type { PipelineContext, CorePipelineFields } from "../pipeline-types";
 
 // ============================================
 // 헬퍼: eval 연결 (시계열 + 대학 프로필 매칭)

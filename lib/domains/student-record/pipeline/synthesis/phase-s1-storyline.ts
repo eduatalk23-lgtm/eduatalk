@@ -9,7 +9,7 @@ import {
   type TaskRunnerOutput,
   type CachedSetek,
   type CachedChangche,
-} from "../../pipeline-types";
+} from "../pipeline-types";
 import * as repository from "../../repository";
 import type { RecordSummary } from "../../llm/prompts/inquiryLinking";
 import { PIPELINE_THRESHOLDS } from "../../constants";
@@ -47,7 +47,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     ctx.cachedSeteks = data ?? [];
   }
   // grade 기준 정렬 (원래 order("grade") 대체)
-  const { resolveEffectiveContent } = await import("../../pipeline-data-resolver");
+  const { resolveEffectiveContent } = await import("../pipeline-data-resolver");
   const sortedSeteks = [...ctx.cachedSeteks].sort((a, b) => a.grade - b.grade);
   for (const s of sortedSeteks) {
     const effectiveContent = resolveEffectiveContent(s).text || null;
@@ -72,7 +72,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
 
   // 설계 학년의 방향 가이드를 가상 레코드로 병합 (unifiedInput 사용)
   if (ctx.unifiedInput?.hasAnyDesign) {
-    const { collectDesignRecords } = await import("../../pipeline-unified-input");
+    const { collectDesignRecords } = await import("../pipeline-unified-input");
     const virtualRecords = collectDesignRecords(ctx.unifiedInput);
     for (const vr of virtualRecords) {
       records.push({ ...vr, index: idx++ });
@@ -174,9 +174,9 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
 
   const preview = `${savedCount}건 스토리라인 생성 (${connections.length}건 연결)`;
   // 커버리지 경고
-  let coverageWarnings: import("../../pipeline-types").DataCoverageWarning[] | undefined;
+  let coverageWarnings: import("../pipeline-types").DataCoverageWarning[] | undefined;
   if (ctx.unifiedInput) {
-    const { checkCoverageForTask } = await import("../../pipeline-unified-input");
+    const { checkCoverageForTask } = await import("../pipeline-unified-input");
     const warnings = checkCoverageForTask(ctx.unifiedInput, "storyline_generation");
     if (warnings.length > 0) coverageWarnings = warnings;
   }

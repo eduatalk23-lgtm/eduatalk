@@ -7,7 +7,7 @@ import {
   PIPELINE_TASK_KEYS,
   PIPELINE_TASK_LABELS,
   type PipelineTaskKey,
-} from "@/lib/domains/student-record/pipeline-types";
+} from "@/lib/domains/student-record/pipeline";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
 import { cn } from "@/lib/cn";
 import { Check, AlertCircle, ChevronRight, Circle } from "lucide-react";
