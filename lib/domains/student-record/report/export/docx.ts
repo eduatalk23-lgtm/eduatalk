@@ -7,7 +7,7 @@ import {
   EDGE_TYPE_LABELS,
   AREA_LABELS,
   SECTION_LABELS,
-} from "./report-transform";
+} from "./transform";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

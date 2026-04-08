@@ -2,8 +2,8 @@
 // report-transform.ts — 타입, 상수, 데이터 변환
 // ============================================
 
-import type { ReportData } from "../actions/report";
-import { COMPETENCY_ITEMS } from "../constants";
+import type { ReportData } from "../actions";
+import { COMPETENCY_ITEMS } from "../../constants";
 
 // ============================================
 // 상수 (라벨 매핑)

@@ -7,7 +7,7 @@ import {
   EDGE_TYPE_LABELS,
   AREA_LABELS,
   SECTION_LABELS,
-} from "./report-transform";
+} from "./transform";
 
 function escapeHtml(text: string): string {
   return text
