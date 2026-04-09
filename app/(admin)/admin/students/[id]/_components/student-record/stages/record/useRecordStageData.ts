@@ -144,6 +144,9 @@ export function useRecordStageData({
     if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
     const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
     const items = setekGuidesRes.data.map((row) => ({
+      id: row.id,
+      source: (row.source === "manual" ? "manual" : "ai") as "ai" | "manual",
+      subjectId: row.subject_id,
       subjectName: subjectMap.get(row.subject_id) ?? row.subject_id,
       schoolYear: row.school_year,
       keywords: row.keywords ?? [],
@@ -160,6 +163,8 @@ export function useRecordStageData({
     if (!changcheGuidesRes?.success || !changcheGuidesRes.data) return undefined;
     const LABELS: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
     const items = changcheGuidesRes.data.map((row) => ({
+      id: row.id,
+      source: (row.source === "manual" ? "manual" : "ai") as "ai" | "manual",
       activityType: row.activity_type,
       activityLabel: LABELS[row.activity_type] ?? row.activity_type,
       schoolYear: row.school_year,
@@ -177,6 +182,8 @@ export function useRecordStageData({
     if (!haengteukGuideRes?.success || !haengteukGuideRes.data) return undefined;
     const rows = Array.isArray(haengteukGuideRes.data) ? haengteukGuideRes.data : [haengteukGuideRes.data];
     const items = rows.map((row) => ({
+      id: row.id,
+      source: (row.source === "manual" ? "manual" : "ai") as "ai" | "manual",
       schoolYear: row.school_year,
       keywords: row.keywords ?? [],
       direction: row.direction,

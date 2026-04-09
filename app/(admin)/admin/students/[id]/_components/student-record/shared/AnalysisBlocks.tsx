@@ -10,7 +10,7 @@ import { Fragment, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { buildSegments, getMarkClass, getAreaOfItem, groupTagsByCompetency, EVAL_LABELS, MultiTagSpan } from "../HighlightedSetekView";
 import { TextSelectionTagger } from "../TextSelectionTagger";
-import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record/llm/types";
+import type { HighlightTag, AnalyzedSection } from "@/lib/domains/record-analysis/llm/types";
 import type { CompetencyItemCode, CompetencyArea } from "@/lib/domains/student-record";
 import { ArrowDownToLine, Trash2 } from "lucide-react";
 

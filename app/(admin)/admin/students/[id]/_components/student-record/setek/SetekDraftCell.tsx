@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { saveSetekAction } from "@/lib/domains/student-record/actions/record";
 import type { RecordSetek } from "@/lib/domains/student-record";
+import type { LayerPerspective } from "@/lib/domains/student-record/layer-view";
 
 export function DraftExpandableCell({
   records,
@@ -15,6 +16,7 @@ export function DraftExpandableCell({
   tenantId,
   grade,
   charLimit,
+  perspective,
 }: {
   records: RecordSetek[];
   studentId: string;
@@ -22,16 +24,33 @@ export function DraftExpandableCell({
   tenantId: string;
   grade: number;
   charLimit: number;
+  /** 관점별 표시 분기. AI=ai_draft만, consultant=content/confirmed만, null=전체. */
+  perspective?: LayerPerspective | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const queryClient = useQueryClient();
   const recordQk = ["studentRecord", "recordTab", studentId] as const;
 
-  const hasAny = records.some((s) => s.ai_draft_content || s.content || s.confirmed_content);
+  // 사용자 모델: 관점 = 단일 슬라이스. AI=ai_draft만, 컨설턴트=content만 (확정은 ConfirmStatusBadge sub-state).
+  // 관점이 명시되지 않은 레거시 호출만 3블록 모두 표시.
+  const showAi = perspective === "ai" || !perspective;
+  const showConsultant = perspective === "consultant" || !perspective;
+  const showConfirmed = !perspective; // 관점 지정 시 별도 확정 블록 숨김 (배지로 sub-state 표시)
+
+  const hasAny =
+    (showAi && records.some((s) => s.ai_draft_content)) ||
+    (showConsultant && records.some((s) => s.content?.trim())) ||
+    (showConfirmed && records.some((s) => s.confirmed_content?.trim()));
   const summaryParts: string[] = [];
-  if (records.some((s) => s.ai_draft_content)) summaryParts.push(`AI ${records.filter((s) => s.ai_draft_content).length}건`);
-  if (records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
-  if (records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
+  if (showAi && records.some((s) => s.ai_draft_content)) summaryParts.push(`AI ${records.filter((s) => s.ai_draft_content).length}건`);
+  if (showConsultant && records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
+  if (showConfirmed && records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
+
+  const emptyLabel = perspective === "ai"
+    ? "AI 초안 없음"
+    : perspective === "consultant"
+      ? "컨설턴트 가안 없음"
+      : "가안 없음";
 
   const [draftError, setDraftError] = useState<string | null>(null);
 
@@ -100,52 +119,58 @@ export function DraftExpandableCell({
       )}
       <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-2 text-left">
         <span className="flex-1 text-xs text-[var(--text-secondary)]">
-          {hasAny ? summaryParts.join(" / ") : "가안 없음"}
+          {hasAny ? summaryParts.join(" / ") : emptyLabel}
         </span>
         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
       </button>
 
       {expanded && (
         <div className="mt-1 flex flex-col gap-3">
-          <MultiRecordDraftBlock
-            label="AI 초안"
-            style={DRAFT_BLOCK_STYLES.ai}
-            records={records}
-            getContent={(r) => r.ai_draft_content}
-          />
-          <MultiRecordDraftBlock
-            label="컨설턴트 가안"
-            style={DRAFT_BLOCK_STYLES.consultant}
-            records={records}
-            getContent={(r) => r.content}
-            editable
-            onSave={handleSaveContent}
-            charLimit={charLimit}
-            importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
-            importLabel={(() => {
-              const acceptableCount = records.filter((r) => r.ai_draft_content && !r.content?.trim()).length;
-              return acceptableCount > 1 ? `AI 초안 수용 (${acceptableCount}건)` : "AI 초안 수용";
-            })()}
-            isImporting={acceptAiMutation.isPending}
-            neisHint
-          />
-          <MultiRecordDraftBlock
-            label="확정본"
-            style={DRAFT_BLOCK_STYLES.confirmed}
-            records={records}
-            getContent={(r) => r.confirmed_content}
-            importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
-            importLabel={(() => {
-              const confirmableCount = records.filter((r) => r.content?.trim()).length;
-              return confirmableCount > 1 ? `가안 확정 (${confirmableCount}건)` : "가안 확정";
-            })()}
-            isImporting={confirmMutation.isPending}
-            staleWarning={
-              records.some(
-                (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
-              ) ? "가안과 다름" : undefined
-            }
-          />
+          {showAi && (
+            <MultiRecordDraftBlock
+              label="AI 초안"
+              style={DRAFT_BLOCK_STYLES.ai}
+              records={records}
+              getContent={(r) => r.ai_draft_content}
+            />
+          )}
+          {showConsultant && (
+            <MultiRecordDraftBlock
+              label="컨설턴트 가안"
+              style={DRAFT_BLOCK_STYLES.consultant}
+              records={records}
+              getContent={(r) => r.content}
+              editable
+              onSave={handleSaveContent}
+              charLimit={charLimit}
+              importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
+              importLabel={(() => {
+                const acceptableCount = records.filter((r) => r.ai_draft_content && !r.content?.trim()).length;
+                return acceptableCount > 1 ? `AI 초안 수용 (${acceptableCount}건)` : "AI 초안 수용";
+              })()}
+              isImporting={acceptAiMutation.isPending}
+              neisHint
+            />
+          )}
+          {showConfirmed && (
+            <MultiRecordDraftBlock
+              label="확정본"
+              style={DRAFT_BLOCK_STYLES.confirmed}
+              records={records}
+              getContent={(r) => r.confirmed_content}
+              importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
+              importLabel={(() => {
+                const confirmableCount = records.filter((r) => r.content?.trim()).length;
+                return confirmableCount > 1 ? `가안 확정 (${confirmableCount}건)` : "가안 확정";
+              })()}
+              isImporting={confirmMutation.isPending}
+              staleWarning={
+                records.some(
+                  (r) => r.confirmed_content?.trim() && r.content?.trim() && r.content !== r.confirmed_content,
+                ) ? "가안과 다름" : undefined
+              }
+            />
+          )}
         </div>
       )}
     </div>

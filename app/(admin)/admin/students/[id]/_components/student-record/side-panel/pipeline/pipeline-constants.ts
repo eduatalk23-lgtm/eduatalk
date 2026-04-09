@@ -173,7 +173,18 @@ export function deriveCellStatus(
   isCached?: boolean,
   isSkipped?: boolean,
   pipelineStatus?: string,
+  options?: {
+    /** 현재 학년의 모드 ("analysis" | "design") */
+    mode?: "analysis" | "design";
+    /** 이 Phase가 설계 모드 전용 섹션(P7/P8)인가 */
+    isDesignOnlySection?: boolean;
+  },
 ): CellStatus {
+  // 분석 모드 학년의 설계 전용 Phase는 실행 불가 — 항상 skipped ("분석 모드" 라벨)
+  // 실제 실행 여부와 무관하게 클릭을 막고 의미 없는 버튼 노출을 차단.
+  if (options?.isDesignOnlySection && options.mode === "analysis") {
+    return "skipped";
+  }
   // 파이프라인 자체가 cancelled면 미완료 셀은 cancelled로 표시
   if (pipelineStatus === "cancelled") {
     if (statuses.every((s) => s === "completed")) {

@@ -7,8 +7,8 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { generateInterviewQuestions } from "@/lib/domains/student-record/llm/actions/generateInterviewQuestions";
-import type { GeneratedInterviewQuestion, InterviewQuestionType } from "@/lib/domains/student-record/llm/prompts/interviewQuestions";
+import { generateInterviewQuestions } from "@/lib/domains/record-analysis/llm/actions/generateInterviewQuestions";
+import type { GeneratedInterviewQuestion, InterviewQuestionType } from "@/lib/domains/record-analysis/llm/prompts/interviewQuestions";
 import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
 type RecordOption = {

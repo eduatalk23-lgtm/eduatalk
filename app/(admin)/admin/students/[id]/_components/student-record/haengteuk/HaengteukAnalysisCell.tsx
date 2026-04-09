@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { ChevronDown } from "lucide-react";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "../shared/AnalysisBlocks";
 import { AnalysisBlock, COMPETENCY_LABELS, EVAL_COLORS } from "../shared/AnalysisBlocks";
+import type { LayerPerspective } from "@/lib/domains/student-record/layer-view";
 
 export function HaengteukAnalysisCell({
   filteredTags,
@@ -15,12 +16,15 @@ export function HaengteukAnalysisCell({
   studentId,
   tenantId,
   schoolYear,
+  perspective,
 }: {
   filteredTags: AnalysisTagLike[];
   haengteuk: RecordHaengteuk;
   studentId: string;
   tenantId: string;
   schoolYear: number;
+  /** 관점별 단일 슬라이스. AI=AI 블록만, consultant=컨설턴트 블록만, null=레거시 3블록. */
+  perspective?: LayerPerspective | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [aiMode, setAiMode] = useState<AnalysisBlockMode>("competency");
@@ -121,8 +125,33 @@ export function HaengteukAnalysisCell({
         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
       </button>
 
-      {/* 펼친 상태: 3개 독립 블록 */}
-      {expanded && (
+      {/* 펼친 상태: 관점 단일 슬라이스 (null일 때만 레거시 3블록) */}
+      {expanded && perspective === "ai" && (
+        <div className="mt-1 flex flex-col gap-3">
+          <AnalysisBlock
+            label="AI"
+            tags={filteredTags}
+            content={content}
+            mode={aiMode}
+            setMode={setAiMode}
+          />
+        </div>
+      )}
+      {expanded && perspective === "consultant" && (
+        <div className="mt-1 flex flex-col gap-3">
+          <AnalysisBlock
+            label="컨설턴트"
+            tags={filteredTags}
+            content={content}
+            mode={consultantMode}
+            setMode={setConsultantMode}
+            taggerProps={taggerProps}
+            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+            onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${filteredTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(filteredTags); }}
+          />
+        </div>
+      )}
+      {expanded && !perspective && (
         <div className="mt-1 flex flex-col gap-3">
           <AnalysisBlock
             label="AI"

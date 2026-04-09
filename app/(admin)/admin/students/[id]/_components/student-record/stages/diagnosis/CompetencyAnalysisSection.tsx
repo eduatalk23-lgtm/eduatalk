@@ -8,7 +8,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { analyzeSetekWithHighlight } from "@/lib/domains/student-record/llm/actions/analyzeWithHighlight";
+import { analyzeSetekWithHighlight } from "@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight";
 import {
   upsertCompetencyScoreAction,
   addActivityTagsBatchAction,
@@ -29,7 +29,7 @@ import { HighlightComparisonView } from "../../HighlightComparisonView";
 import { QualityScoreBadge, QualitySummaryCard } from "../../QualityScoreBadge";
 import type { QualityScoreEntry } from "../../QualityScoreBadge";
 import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade, CompetencyItemCode } from "@/lib/domains/student-record";
-import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
+import type { HighlightAnalysisResult } from "@/lib/domains/record-analysis/llm/types";
 import { Sparkles, Check, Loader2, GitCompare } from "lucide-react";
 import { CompetencyCharts } from "../../competency/CompetencyCharts";
 import { CompetencyGradesTable } from "../../competency/CompetencyGradesTable";

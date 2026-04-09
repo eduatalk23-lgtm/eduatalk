@@ -5,7 +5,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { activitySummaryListOptions, activitySummaryKeys } from "@/lib/query-options/activitySummary";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { generateActivitySummary } from "@/lib/domains/student-record/llm/actions/generateActivitySummary";
+import { generateActivitySummary } from "@/lib/domains/record-analysis/llm/actions/generateActivitySummary";
 import {
   updateActivitySummaryStatus,
   editActivitySummary,

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { setekGuideListOptions, setekGuideKeys } from "@/lib/query-options/setekGuide";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { generateSetekGuide } from "@/lib/domains/student-record/llm/actions/generateSetekGuide";
+import { generateSetekGuide } from "@/lib/domains/record-analysis/llm/actions/generateSetekGuide";
 import {
   updateActivitySummaryStatus,
   editActivitySummary,

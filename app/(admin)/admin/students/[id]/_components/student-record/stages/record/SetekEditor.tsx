@@ -4,21 +4,34 @@ import { useMemo, useState } from "react";
 import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordSetek } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
-import { FileText, Search, Compass, PenLine } from "lucide-react";
+import { FileText, Search, Compass, PenLine, BarChart3 } from "lucide-react";
 import type { AnalysisTagLike } from "../../shared/AnalysisBlocks";
-import { COMPETENCY_LABELS } from "../../shared/AnalysisBlocks";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
+import {
+  type LayerKey,
+  type LayerPerspective,
+  layerToSetekTab,
+  isLayerSupportedInSetek,
+  getDirectionMode,
+  LAYER_DEFINITIONS,
+} from "@/lib/domains/student-record/layer-view";
 import { SetekTableRow } from "../../setek/SetekTableRow";
 import { PlannedSubjectRow, AddSetekForm } from "../../setek/SetekFormParts";
 
 type Subject = { id: string; name: string };
 
-export type SetekLayerTab = "neis" | "draft" | "direction" | "analysis";
+export type SetekLayerTab = "neis" | "draft" | "direction" | "analysis" | "draft_analysis";
 
 type ActivityTagLike = AnalysisTagLike;
 
 export interface SetekGuideItemLike {
+  /** DB row id — manual 가이드 수정/삭제 시 필요. transform에서 주입 */
+  id?: string;
+  /** 가이드 소스 — 'ai' | 'manual'. 없으면 legacy(=ai로 간주) */
+  source?: "ai" | "manual";
+  /** 원본 subject_id — 컨설턴트가 새 manual 가이드를 만들 때 필요 */
+  subjectId?: string;
   subjectName: string;
   schoolYear: number;
   keywords: string[];
@@ -44,7 +57,7 @@ type SetekEditorProps = {
   grade: number;
   diagnosisActivityTags?: ActivityTagLike[];
   setekGuideItems?: SetekGuideItemLike[];
-  guideAssignments?: Array<{ id: string; guide_id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  guideAssignments?: Array<{ id: string; guide_id: string; status: string; ai_recommendation_reason?: string | null; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
   /** confirmed course plans (세특 미존재인 것만 전달) */
   plannedSubjects?: PlannedSubject[];
   /** G2-5: 진로 소분류 ID (가이드 자동 추천용) */
@@ -53,9 +66,13 @@ type SetekEditorProps = {
   schoolName?: string | null;
   /** G2-1: 교과 이수 적합도 (크로스레퍼런스 COURSE_SUPPORTS용) */
   courseAdequacy?: CourseAdequacyResult | null;
-  /** 외부 제어 모드: 글로벌 레이어 바에서 탭 동기화 */
+  /** 외부 제어 모드 (legacy — layer가 우선) */
   activeTab?: SetekLayerTab;
   onTabChange?: (tab: SetekLayerTab) => void;
+  /** 글로벌 9 레이어 — controlled 진입점. layerToSetekTab으로 4탭에 매핑. */
+  layer?: LayerKey;
+  /** 글로벌 관점 (AI/컨설턴트) */
+  perspective?: LayerPerspective | null;
 };
 
 const B = "border border-gray-400 dark:border-gray-500";
@@ -99,11 +116,12 @@ const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[]
   { key: "draft", label: "가안", icon: PenLine },
   { key: "direction", label: "방향", icon: Compass },
   { key: "analysis", label: "분석", icon: Search },
+  { key: "draft_analysis", label: "가안 분석", icon: BarChart3 },
 ];
 
 const COL_HEADER_LABEL: Record<SetekLayerTab, string> = {
   neis: "세부능력 및 특기사항", draft: "세특 가안", direction: "작성 방향",
-  analysis: "역량 분석",
+  analysis: "역량 분석", draft_analysis: "가안 역량 분석",
 };
 
 export function SetekEditor({
@@ -122,13 +140,25 @@ export function SetekEditor({
   courseAdequacy,
   activeTab: controlledTab,
   onTabChange: controlledOnTabChange,
+  layer,
+  perspective,
 }: SetekEditorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [internalTab, setInternalTab] = useState<SetekLayerTab>("neis");
-  const isControlled = controlledTab !== undefined;
-  const activeTab = controlledTab ?? internalTab;
+
+  // 우선순위: layer(9레이어) > controlledTab(레거시) > internalTab
+  // layer가 지정되면 layerToSetekTab으로 4탭 매핑. null이면 미지원 → 셀 단위 stub (SetekTableRow에서 처리).
+  const mappedFromLayer = layer ? layerToSetekTab(layer) : undefined;
+  const isLayerNative = layer == null || isLayerSupportedInSetek(layer);
+  const isControlled = layer !== undefined || controlledTab !== undefined;
+  const activeTab: SetekLayerTab = layer
+    ? (mappedFromLayer ?? "neis")
+    : controlledTab ?? internalTab;
   const setActiveTab = controlledOnTabChange ?? setInternalTab;
   const charLimit = getCharLimit("setek", schoolYear);
+
+  // design_direction / improve_direction 분리
+  const directionMode = layer ? getDirectionMode(layer) : null;
 
   const mergedRows = useMemo(() => mergeSeteksBySemester(seteks, subjects), [seteks, subjects]);
   const existingSubjectIds = new Set(seteks.map((s) => s.subject_id));
@@ -144,18 +174,50 @@ export function SetekEditor({
 
   const allSetekIds = useMemo(() => new Set(seteks.map((s) => s.id)), [seteks]);
 
-  const filteredTags = useMemo(() => {
+  // 세특 레코드에 속하는 태그 + perspective 분류만 수행한 base 집합.
+  // tag_context 분리(analysis vs draft_analysis)는 아래 파생 메모에서 한다.
+  const recordScopedTags = useMemo(() => {
     if (!diagnosisActivityTags) return [];
-    return diagnosisActivityTags.filter(
+    let tags = diagnosisActivityTags.filter(
       (t) => t.record_type === "setek" && allSetekIds.has(t.record_id),
     );
-  }, [diagnosisActivityTags, allSetekIds]);
+    // 분석 레이어 perspective 분류
+    // AI = source='ai' && status!='confirmed' (아직 컨설턴트가 손대지 않은 AI 제안)
+    // 컨설턴트 = source='manual' || status='confirmed' (컨설턴트가 손댄 모든 것)
+    if (perspective === "ai") {
+      tags = tags.filter((t) => t.source === "ai" && t.status !== "confirmed");
+    } else if (perspective === "consultant") {
+      tags = tags.filter((t) => t.source === "manual" || t.status === "confirmed");
+    }
+    return tags;
+  }, [diagnosisActivityTags, allSetekIds, perspective]);
+
+  // NEIS 기반 분석 태그 (tag_context='analysis' 또는 미지정)
+  const analysisTags = useMemo(
+    () => recordScopedTags.filter((t) => t.tag_context !== "draft_analysis"),
+    [recordScopedTags],
+  );
+  // P8 가안 기반 분석 태그 (tag_context='draft_analysis')
+  const draftAnalysisTags = useMemo(
+    () => recordScopedTags.filter((t) => t.tag_context === "draft_analysis"),
+    [recordScopedTags],
+  );
+  // 현재 활성 탭이 보여야 할 태그 집합 — SetekTableRow로 전달된다.
+  const filteredTags = activeTab === "draft_analysis" ? draftAnalysisTags : analysisTags;
 
   const subjectNames = useMemo(() => new Set(mergedRows.map((r) => r.displayName)), [mergedRows]);
   const filteredGuideItems = useMemo(() => {
     if (!setekGuideItems) return [];
-    return setekGuideItems.filter((g) => subjectNames.has(g.subjectName));
-  }, [setekGuideItems, subjectNames]);
+    // 주의: 세특 가이드는 생성 시 `calculateSchoolYear()`(=학생 현재 학년도)로만 저장되어
+    // 학년별로 row가 분리되지 않는다 (generateSetekGuide.ts:140, 226).
+    // 여기서 schoolYear 필터를 걸면 과거 학년 슬롯이 빈 상태가 되므로 subjectName만으로 필터한다.
+    let items = setekGuideItems.filter((g) => subjectNames.has(g.subjectName));
+    // design_direction (prospective) / improve_direction (retrospective) 분리
+    if (directionMode) {
+      items = items.filter((g) => g.guideMode === directionMode);
+    }
+    return items;
+  }, [setekGuideItems, subjectNames, directionMode]);
 
   // G3-6: 가이드 키워드 반영률 계산
   const reflectionSummary = useMemo<ReflectionSummary | null>(() => {
@@ -180,7 +242,8 @@ export function SetekEditor({
         {LAYER_TABS.map((tab) => {
           const hasData = tab.key === "neis" ? seteks.length > 0
             : tab.key === "draft" ? seteks.some((s) => s.content?.trim() || s.ai_draft_content || s.confirmed_content?.trim())
-            : tab.key === "analysis" ? filteredTags.length > 0
+            : tab.key === "analysis" ? analysisTags.length > 0
+            : tab.key === "draft_analysis" ? draftAnalysisTags.length > 0
             : tab.key === "direction" ? filteredGuideItems.length > 0
             : false;
           return (
@@ -242,6 +305,8 @@ export function SetekEditor({
                     subjectReflection={reflectionBySubject.get(row.displayName)}
                     subjectGuides={guideAssignments?.filter((a) => a.target_subject_id === row.subjectId) ?? []}
                     subjectDirection={filteredGuideItems.filter((g) => g.subjectName === row.displayName)}
+                    layer={layer}
+                    perspective={perspective}
                   />
                 ))}
                 {pendingPlanned.map((p) => (
@@ -323,93 +388,6 @@ export function SetekEditor({
               <span className="w-20 shrink-0 text-right text-xs font-semibold text-[var(--text-primary)]">
                 {reflectionSummary.averageRate}%
               </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── 방향 탭 (+ 가이드 배정 목록 통합) ────────────────────────── */}
-      {activeTab === "direction" && (
-        <div className="flex flex-col gap-3">
-          {filteredGuideItems.length === 0 ? (
-            <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
-              세특 방향 가이드를 생성하면 과목별 방향이 표시됩니다
-            </p>
-          ) : (
-            filteredGuideItems.map((item, i) => (
-              <div key={i} className="rounded-lg border border-violet-200 bg-violet-50/50 p-3 dark:border-violet-800 dark:bg-violet-950/20">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">{item.subjectName}</span>
-                  {item.competencyFocus?.map((c) => (
-                    <span key={c} className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[11px] text-violet-600 dark:bg-violet-900/40 dark:text-violet-300">
-                      {COMPETENCY_LABELS[c] ?? c}
-                    </span>
-                  ))}
-                  {(() => {
-                    const sr = reflectionBySubject.get(item.subjectName);
-                    if (!sr || sr.totalKeywords === 0) return null;
-                    return (
-                      <span className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
-                        sr.rate >= 70 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                          : sr.rate >= 40 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                          : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300",
-                      )}>
-                        반영 {sr.rate}%
-                      </span>
-                    );
-                  })()}
-                </div>
-                <p className="mb-2 text-sm text-[var(--text-primary)]">{item.direction}</p>
-                {item.keywords.length > 0 && (() => {
-                  const sr = reflectionBySubject.get(item.subjectName);
-                  const matchSet = new Set(sr?.details.filter((d) => d.matched).map((d) => d.keyword) ?? []);
-                  return (
-                    <div className="flex flex-wrap gap-1">
-                      {item.keywords.map((kw) => {
-                        const isMatched = matchSet.has(kw);
-                        return (
-                          <span
-                            key={kw}
-                            className={cn(
-                              "rounded-md px-1.5 py-0.5 text-[11px]",
-                              isMatched
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
-                                : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
-                            )}
-                          >
-                            {isMatched && "✓ "}{kw}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-                {item.teacherPoints && item.teacherPoints.length > 0 && (
-                  <div className="mt-2 border-t border-violet-200 pt-2 dark:border-violet-800">
-                    <p className="mb-1 text-xs font-medium text-[var(--text-secondary)]">교사 전달 포인트</p>
-                    <ul className="list-inside list-disc text-xs text-[var(--text-secondary)]">
-                      {item.teacherPoints.map((tp, j) => <li key={j}>{tp}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-
-          {guideAssignments && guideAssignments.length > 0 && (
-            <div className="flex flex-col gap-1.5 border-t border-[var(--border-secondary)] pt-3">
-              <p className="text-xs font-medium text-[var(--text-secondary)]">배정된 탐구 가이드</p>
-              {guideAssignments.map((a) => (
-                <div key={a.id} className="flex items-center gap-2 rounded border border-[var(--border-secondary)] px-2 py-1.5">
-                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0",
-                    a.status === "completed" ? "bg-emerald-500" : a.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
-                  <span className="truncate text-xs text-[var(--text-primary)]">{a.exploration_guides?.title ?? "가이드"}</span>
-                  <span className="shrink-0 text-[11px] text-[var(--text-tertiary)]">
-                    {a.status === "completed" ? "완료" : a.status === "in_progress" ? "진행중" : "배정됨"}
-                  </span>
-                </div>
-              ))}
             </div>
           )}
         </div>

@@ -83,6 +83,10 @@ export type RecordStageContentProps = {
   coursePlanData: CoursePlanTabData | null | undefined;
   globalSetekTab: SetekLayerTab;
   onSetekTabChange: (tab: SetekLayerTab) => void;
+  /** Phase 2.1: 글로벌 9 레이어 (생기부 모형 유지, 미지원 레이어는 셀 단위 stub) */
+  globalLayer?: import("@/lib/domains/student-record/layer-view").LayerKey;
+  /** Phase 2.1: 글로벌 관점 (AI/컨설턴트). 분석 레이어에서 source 필터링에 사용. */
+  globalPerspective?: import("@/lib/domains/student-record/layer-view").LayerPerspective | null;
   guideAssignments?: GuideAssignment[];
   setekGuideItems?: SetekGuideItem[];
   changcheGuideItems?: ChangcheGuideItem[];
@@ -103,6 +107,8 @@ export function RecordStageContent({
   coursePlanData,
   globalSetekTab,
   onSetekTabChange,
+  globalLayer,
+  globalPerspective,
   guideAssignments,
   setekGuideItems,
   changcheGuideItems,
@@ -267,6 +273,8 @@ export function RecordStageContent({
                     changcheGuideItems={changcheGuideItems}
                     activeTab={globalSetekTab}
                     onTabChange={onSetekTabChange}
+                    layer={globalLayer}
+                    perspective={globalPerspective}
                   />
                 </div>
               );
@@ -347,6 +355,8 @@ export function RecordStageContent({
                 courseAdequacy={diagnosisData?.courseAdequacy}
                 activeSetekTab={globalSetekTab}
                 onSetekTabChange={onSetekTabChange}
+                layer={globalLayer}
+                perspective={globalPerspective}
               />
             </div>
           );
@@ -388,9 +398,11 @@ export function RecordStageContent({
                     grade={p.grade}
                     diagnosisActivityTags={diagnosisData?.activityTags}
                     guideAssignments={guideAssignments}
-                    haengteukGuideItem={haengteukGuideItems?.find((g) => g.schoolYear === p.schoolYear)}
+                    haengteukGuideItems={haengteukGuideItems}
                     activeTab={globalSetekTab}
                     onTabChange={onSetekTabChange}
+                    layer={globalLayer}
+                    perspective={globalPerspective}
                   />
                 </div>
               );

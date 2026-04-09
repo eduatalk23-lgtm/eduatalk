@@ -54,6 +54,8 @@ export function GradesAndSetekSection({
   courseAdequacy,
   activeSetekTab,
   onSetekTabChange,
+  layer,
+  perspective,
 }: {
   studentId: string;
   schoolYear: number;
@@ -74,6 +76,10 @@ export function GradesAndSetekSection({
   courseAdequacy?: import("@/lib/domains/student-record").CourseAdequacyResult | null;
   activeSetekTab?: SetekLayerTab;
   onSetekTabChange?: (tab: SetekLayerTab) => void;
+  /** Phase 2.1: 글로벌 9 레이어 (생기부 모형 유지, 미지원 레이어는 셀 단위 stub) */
+  layer?: import("@/lib/domains/student-record/layer-view").LayerKey;
+  /** Phase 2.1: 글로벌 관점 (분석 레이어 source 필터 등) */
+  perspective?: import("@/lib/domains/student-record/layer-view").LayerPerspective | null;
 }) {
   // 2022 개정 판별 (2025년 입학생~)
   const enrollmentYear = schoolYear - studentGrade + 1;
@@ -141,7 +147,8 @@ export function GradesAndSetekSection({
             courseAdequacy={courseAdequacy}
             activeTab={activeSetekTab}
             onTabChange={onSetekTabChange}
-
+            layer={layer}
+            perspective={perspective}
           />
         )}
       </div>
@@ -170,7 +177,8 @@ export function GradesAndSetekSection({
             schoolName={schoolName}
             activeTab={activeSetekTab}
             onTabChange={onSetekTabChange}
-
+            layer={layer}
+            perspective={perspective}
           />
         </div>
       )}
@@ -199,7 +207,8 @@ export function GradesAndSetekSection({
             schoolName={schoolName}
             activeTab={activeSetekTab}
             onTabChange={onSetekTabChange}
-
+            layer={layer}
+            perspective={perspective}
           />
         </div>
       )}

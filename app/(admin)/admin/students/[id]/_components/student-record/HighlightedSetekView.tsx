@@ -10,7 +10,7 @@ import { Fragment, type ReactNode, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyArea, CompetencyItemCode } from "@/lib/domains/student-record";
-import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record/llm/types";
+import type { HighlightTag, AnalyzedSection } from "@/lib/domains/record-analysis/llm/types";
 
 // ─── 색상 체계 ────────────────────────────────
 

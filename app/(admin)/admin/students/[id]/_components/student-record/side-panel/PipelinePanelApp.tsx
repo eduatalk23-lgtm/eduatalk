@@ -74,6 +74,7 @@ export function PipelinePanelApp({
     runGradePhase,
     runSynthesisPhase,
     runFullSequence,
+    runGradeSequence,
     stopFullRun,
   } = usePipelineExecution({ studentId, tenantId, pollingStartRef });
 
@@ -394,6 +395,8 @@ export function PipelinePanelApp({
             runningCell={runningCell}
             runningStartMs={runningStartMs}
             onRunGradePhase={runGradePhase}
+            onRunGradeSequence={runGradeSequence}
+            isGradeRunDisabled={isAnyRunning || isCancelling}
           />
           <PipelineSynthesisGrid
             sp={sp}

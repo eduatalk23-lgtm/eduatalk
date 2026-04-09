@@ -2,7 +2,7 @@
 
 import { Suspense, lazy } from "react";
 import type { DiagnosisTabData, StorylineTabData } from "@/lib/domains/student-record";
-import type { PipelineStatus } from "@/lib/domains/student-record/pipeline/pipeline-types";
+import type { PipelineStatus } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 import { useStudentRecordContext } from "../../StudentRecordContext";
 import { StageDivider, StrategySection, SectionSkeleton } from "../../StudentRecordHelpers";
 import { StorylineManager } from "./StorylineManager";
@@ -83,7 +83,7 @@ export function DesignStageContent({
               storylines={storylineData.storylines}
               studentId={studentId}
               tenantId={tenantId}
-              cachedResult={(pipelineData?.taskResults?.storyline_generation as import("@/lib/domains/student-record/llm/prompts/inquiryLinking").InquiryLinkResult) ?? null}
+              cachedResult={(pipelineData?.taskResults?.storyline_generation as import("@/lib/domains/record-analysis/llm/prompts/inquiryLinking").InquiryLinkResult) ?? null}
             />
             {storylineData.storylines.length > 0 && (
               <div>

@@ -4,6 +4,7 @@
 // Grade Pipeline 그리드 컴포넌트
 // ============================================
 
+import { Play } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   GRADE_PHASE_GROUPS,
@@ -22,6 +23,9 @@ interface PipelineGradeGridProps {
   runningCell: string | null;
   runningStartMs: number | null;
   onRunGradePhase: (grade: number, phase: number) => void;
+  onRunGradeSequence?: (grade: number) => void;
+  /** 학년 단위 실행 버튼 disabled 여부 (전체 실행 중 등) */
+  isGradeRunDisabled?: boolean;
 }
 
 export function PipelineGradeGrid({
@@ -31,6 +35,8 @@ export function PipelineGradeGrid({
   runningCell,
   runningStartMs,
   onRunGradePhase,
+  onRunGradeSequence,
+  isGradeRunDisabled,
 }: PipelineGradeGridProps) {
   return (
     <div>
@@ -99,6 +105,15 @@ export function PipelineGradeGrid({
                   const elapsed = pipeline?.elapsed ?? {};
                   const mode = pipeline?.mode ?? expectedModes[grade];
 
+                  // 학년별 실행 버튼은 첫 섹션(역량 분석)에만 노출해 중복 방지
+                  const isFirstSection = section.title === "역량 분석";
+                  const canRunGradeSequence =
+                    isFirstSection &&
+                    !!onRunGradeSequence &&
+                    pipeline?.status !== "completed" &&
+                    pipeline?.status !== "running" &&
+                    !isGradeRunDisabled;
+
                   return (
                     <div key={grade} className="contents">
                       {/* 학년 라벨 */}
@@ -127,6 +142,27 @@ export function PipelineGradeGrid({
                             {mode === "analysis" ? "분석" : "설계"}
                           </span>
                         )}
+                        {isFirstSection && onRunGradeSequence && (
+                          <button
+                            type="button"
+                            onClick={() => onRunGradeSequence(grade)}
+                            disabled={!canRunGradeSequence}
+                            title={
+                              pipeline?.status === "completed"
+                                ? "이미 완료된 학년입니다"
+                                : `${grade}학년 전체 실행`
+                            }
+                            className={cn(
+                              "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-[9px] font-medium transition-colors",
+                              canRunGradeSequence
+                                ? "border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/30 cursor-pointer"
+                                : "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed",
+                            )}
+                          >
+                            <Play className="h-2.5 w-2.5" />
+                            전체
+                          </button>
+                        )}
                       </div>
 
                       {section.phases.map((pg) => {
@@ -149,6 +185,10 @@ export function PipelineGradeGrid({
                                 isCached,
                                 isSkipped,
                                 pipeline?.status,
+                                {
+                                  mode,
+                                  isDesignOnlySection: section.designOnly,
+                                },
                               );
 
                         const elapsedValues = pg.keys

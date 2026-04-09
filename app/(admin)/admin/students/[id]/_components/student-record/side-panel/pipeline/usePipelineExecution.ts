@@ -12,6 +12,7 @@ import {
   studentRecordKeys,
 } from "@/lib/query-options/studentRecord";
 import { cancelPipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   GRADE_PHASE_GROUPS,
   SYNTHESIS_PHASE_GROUPS,
@@ -30,6 +31,7 @@ export function usePipelineExecution({
   pollingStartRef,
 }: UsePipelineExecutionOptions) {
   const queryClient = useQueryClient();
+  const { showError } = useToast();
   const [runningCell, setRunningCell] = useState<string | null>(null);
   const [runningStartMs, setRunningStartMs] = useState<number | null>(null);
   const [isFullRunning, setIsFullRunning] = useState(false);
@@ -60,7 +62,18 @@ export function usePipelineExecution({
     if (res.status === 499) {
       throw new DOMException("Pipeline cancelled by server", "AbortError");
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // 서버 에러 바디에서 "error" 필드를 꺼내 사용자 메시지로 전파.
+      // (기존에는 "HTTP 400"만 던져서 어떤 이유로 실패했는지 UI에 안 보였다.)
+      let message = `HTTP ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body?.error) message = body.error;
+      } catch {
+        // JSON 파싱 실패 — 기본 메시지 유지
+      }
+      throw new Error(message);
+    }
     return res.json();
   }
 
@@ -199,6 +212,89 @@ export function usePipelineExecution({
     }
   };
 
+  // ─── 공통 헬퍼: 단일 grade 파이프라인의 Phase 1~8 순차 실행 ──────────────
+
+  async function executeGradePhasesForPipeline(
+    grade: number,
+    pipelineId: string,
+    cachedGrade: GradeAwarePipelineStatus["gradePipelines"][number] | undefined,
+    signal: AbortSignal,
+    isAborted: () => boolean,
+  ): Promise<"completed" | "aborted"> {
+    // 이미 완료된 학년이면 스킵 (refetch 이후 진짜 상태 기반)
+    if (cachedGrade?.status === "completed") return "completed";
+
+    // 설계 모드만 Phase 7/8 실행. 분석 모드는 Phase 6까지.
+    const mode = cachedGrade?.mode ?? "analysis";
+    const maxPhase = mode === "design" ? 8 : 6;
+
+    for (let phase = 1; phase <= maxPhase; phase++) {
+      if (isAborted()) return "aborted";
+
+      const cachedTasks = cachedGrade?.tasks ?? {};
+      const phaseKeys = GRADE_PHASE_GROUPS[phase - 1]?.keys ?? [];
+      if (
+        phaseKeys.length > 0 &&
+        phaseKeys.every((k) => {
+          const s = cachedTasks[k];
+          return s === "completed" || s === "cached" || s === "skipped";
+        })
+      )
+        continue;
+
+      setRunningCell(`g-${grade}-${phase}`);
+      setRunningStartMs(Date.now());
+
+      const MAX_RETRIES = 2;
+      if (phase <= 3) {
+        let hasMore = true;
+        let retries = 0;
+        while (hasMore && !isAborted()) {
+          try {
+            const phaseJson = (await fetchPhase(
+              `/api/admin/pipeline/grade/phase-${phase}`,
+              { pipelineId, chunkSize: 4 },
+              signal,
+            )) as { hasMore?: boolean };
+            hasMore = phaseJson.hasMore ?? false;
+            retries = 0;
+            invalidate();
+          } catch (e) {
+            if ((e as Error)?.name === "AbortError") return "aborted";
+            retries++;
+            if (retries > MAX_RETRIES) break;
+            try {
+              await abortableSleep(3000, signal);
+            } catch {
+              return "aborted";
+            }
+          }
+        }
+      } else {
+        for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+          try {
+            await fetchPhase(
+              `/api/admin/pipeline/grade/phase-${phase}`,
+              { pipelineId },
+              signal,
+            );
+            invalidate();
+            break;
+          } catch (e) {
+            if ((e as Error)?.name === "AbortError") return "aborted";
+            if (retry >= MAX_RETRIES) break;
+            try {
+              await abortableSleep(3000, signal);
+            } catch {
+              return "aborted";
+            }
+          }
+        }
+      }
+    }
+    return "completed";
+  }
+
   // ─── 전체 시퀀스 실행 ─────────────────────────────────────────────────────
 
   const runFullSequence = async () => {
@@ -225,10 +321,10 @@ export function usePipelineExecution({
         error?: string;
       };
       if (!json.gradePipelines) throw new Error(json.error ?? "시작 실패");
-      invalidate();
 
-      // 캐시된 파이프라인 상태를 가져와서 완료된 Phase 스킵 (이어서 실행)
-      await queryClient.invalidateQueries({
+      // 완료된 Phase를 정확히 스킵하려면 refetch 완료를 동기적으로 기다려야 함.
+      // invalidateQueries는 stale 마킹만 하므로 getQueryData가 이전 캐시를 반환할 수 있음.
+      await queryClient.refetchQueries({
         queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
       });
       const cachedStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
@@ -237,71 +333,16 @@ export function usePipelineExecution({
 
       for (const gpItem of json.gradePipelines) {
         if (isAborted()) return;
-
-        const cachedGrade = cachedStatus?.gradePipelines?.[gpItem.grade as number];
-        if (cachedGrade?.status === "completed") continue;
-
-        for (let phase = 1; phase <= 8; phase++) {
-          if (isAborted()) return;
-
-          const cachedTasks = cachedGrade?.tasks ?? {};
-          const phaseKeys = GRADE_PHASE_GROUPS[phase - 1]?.keys ?? [];
-          if (
-            phaseKeys.length > 0 &&
-            phaseKeys.every((k) => cachedTasks[k] === "completed")
-          )
-            continue;
-
-          setRunningCell(`g-${gpItem.grade}-${phase}`);
-          setRunningStartMs(Date.now());
-
-          const MAX_RETRIES = 2;
-          if (phase <= 3) {
-            let hasMore = true;
-            let retries = 0;
-            while (hasMore && !isAborted()) {
-              try {
-                const phaseJson = (await fetchPhase(
-                  `/api/admin/pipeline/grade/phase-${phase}`,
-                  { pipelineId: gpItem.pipelineId, chunkSize: 4 },
-                  ctrl.signal,
-                )) as { hasMore?: boolean };
-                hasMore = phaseJson.hasMore ?? false;
-                retries = 0;
-                invalidate();
-              } catch (e) {
-                if ((e as Error)?.name === "AbortError") return;
-                retries++;
-                if (retries > MAX_RETRIES) break;
-                try {
-                  await abortableSleep(3000, ctrl.signal);
-                } catch {
-                  return;
-                }
-              }
-            }
-          } else {
-            for (let retry = 0; retry <= MAX_RETRIES; retry++) {
-              try {
-                await fetchPhase(
-                  `/api/admin/pipeline/grade/phase-${phase}`,
-                  { pipelineId: gpItem.pipelineId },
-                  ctrl.signal,
-                );
-                invalidate();
-                break;
-              } catch (e) {
-                if ((e as Error)?.name === "AbortError") return;
-                if (retry >= MAX_RETRIES) break;
-                try {
-                  await abortableSleep(3000, ctrl.signal);
-                } catch {
-                  return;
-                }
-              }
-            }
-          }
-        }
+        const cachedGrade =
+          cachedStatus?.gradePipelines?.[gpItem.grade as number];
+        const result = await executeGradePhasesForPipeline(
+          gpItem.grade as number,
+          gpItem.pipelineId,
+          cachedGrade,
+          ctrl.signal,
+          isAborted,
+        );
+        if (result === "aborted") return;
       }
       if (isAborted()) return;
 
@@ -311,8 +352,11 @@ export function usePipelineExecution({
         ctrl.signal,
       )) as { pipelineId?: string };
       if (!sJson.pipelineId) throw new Error("Synthesis 생성 실패");
-      invalidate();
 
+      // Synthesis도 완료 Phase 스킵을 위해 동기 refetch
+      await queryClient.refetchQueries({
+        queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      });
       const freshStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
         gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
       );
@@ -324,7 +368,10 @@ export function usePipelineExecution({
         const synthPhaseKeys = SYNTHESIS_PHASE_GROUPS[phase - 1]?.keys ?? [];
         if (
           synthPhaseKeys.length > 0 &&
-          synthPhaseKeys.every((k) => synthTasks[k] === "completed")
+          synthPhaseKeys.every((k) => {
+            const s = synthTasks[k];
+            return s === "completed" || s === "cached" || s === "skipped";
+          })
         )
           continue;
 
@@ -353,7 +400,10 @@ export function usePipelineExecution({
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") {
-        /* swallow — UI는 폴링으로 상태 반영 */
+        // 서버/네트워크 에러를 사용자에게 노출. (silent swallow 제거)
+        // 이전에는 "왜 막혔는지" 피드백 없이 버튼만 잠긴 채로 남아 디버깅 불가.
+        const msg = e instanceof Error ? e.message : "파이프라인 실행 실패";
+        showError(`파이프라인 실행 실패: ${msg}`);
       }
     } finally {
       fullRunCtrlRef.current = null;
@@ -363,6 +413,68 @@ export function usePipelineExecution({
       invalidate();
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
       // setIsCancelling(false)는 폴링 결과 cancelled 확정 시 호출자가 useEffect로 해제
+    }
+  };
+
+  // ─── 학년 단위 전체 실행 ──────────────────────────────────────────────────
+  // 특정 학년의 Phase 1~6 (설계 모드면 1~8) 순차 실행. Synthesis는 진행하지 않음.
+
+  const runGradeSequence = async (grade: number) => {
+    if (fullRunCtrlRef.current || fetchingRef.current) return;
+
+    const ctrl = new AbortController();
+    fullRunCtrlRef.current = ctrl;
+    fetchingRef.current = true;
+    fullRunAbortRef.current = false;
+    setIsCancelling(false);
+    setIsFullRunning(true);
+    pollingStartRef.current = Date.now();
+
+    const isAborted = () => fullRunAbortRef.current || ctrl.signal.aborted;
+
+    try {
+      // 해당 학년만 생성/resume
+      const json = (await fetchPhase(
+        "/api/admin/pipeline/grade/run",
+        { studentId, tenantId, grades: [grade] },
+        ctrl.signal,
+      )) as {
+        gradePipelines?: Array<{ grade: number; pipelineId: string }>;
+        error?: string;
+      };
+      if (!json.gradePipelines) throw new Error(json.error ?? "시작 실패");
+
+      await queryClient.refetchQueries({
+        queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      });
+      const cachedStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+
+      const target = json.gradePipelines.find((g) => g.grade === grade);
+      if (!target) return;
+
+      const cachedGrade = cachedStatus?.gradePipelines?.[grade];
+      await executeGradePhasesForPipeline(
+        grade,
+        target.pipelineId,
+        cachedGrade,
+        ctrl.signal,
+        isAborted,
+      );
+    } catch (e) {
+      if ((e as Error)?.name !== "AbortError") {
+        // silent swallow 제거 — 학년별 실행 실패 시 사용자에게 알림
+        const msg = e instanceof Error ? e.message : "학년 실행 실패";
+        showError(`${grade}학년 실행 실패: ${msg}`);
+      }
+    } finally {
+      fullRunCtrlRef.current = null;
+      fetchingRef.current = false;
+      setIsFullRunning(false);
+      setRunningCell(null);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
     }
   };
 
@@ -413,6 +525,7 @@ export function usePipelineExecution({
     runGradePhase,
     runSynthesisPhase,
     runFullSequence,
+    runGradeSequence,
     stopFullRun,
   };
 }

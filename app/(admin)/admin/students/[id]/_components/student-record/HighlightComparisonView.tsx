@@ -6,7 +6,7 @@
 // ============================================
 
 import { cn } from "@/lib/cn";
-import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
+import type { HighlightAnalysisResult } from "@/lib/domains/record-analysis/llm/types";
 import { HighlightedSetekView } from "./HighlightedSetekView";
 import { Bot, User } from "lucide-react";
 

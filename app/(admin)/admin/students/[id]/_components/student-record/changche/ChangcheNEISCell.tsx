@@ -31,13 +31,19 @@ function AutoResizeTextarea({ onChange, ...props }: React.TextareaHTMLAttributes
 
 // ─── 창체 방향 가이드 타입 ──
 export interface ChangcheGuideItemLike {
+  /** DB row id — manual 가이드 수정/삭제 시 필요 */
+  id?: string;
+  /** 가이드 소스 — 'ai' | 'manual'. 없으면 legacy(=ai로 간주) */
+  source?: "ai" | "manual";
   activityType: string;
   activityLabel: string;
+  schoolYear: number;
   keywords: string[];
   direction: string;
   competencyFocus?: string[];
   cautions?: string;
   teacherPoints?: string[];
+  guideMode?: "retrospective" | "prospective";
 }
 
 // ─── ChangcheNEISCell ────────────────────────────
@@ -101,7 +107,7 @@ export function ChangcheNEISCell({
     setDraftGenerating(true);
     try {
       const { generateChangcheDraftAction } = await import(
-        "@/lib/domains/student-record/llm/actions/generateChangcheDraft"
+        "@/lib/domains/record-analysis/llm/actions/generateChangcheDraft"
       );
       await generateChangcheDraftAction(existing.id, {
         activityType,

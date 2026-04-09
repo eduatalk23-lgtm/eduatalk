@@ -51,7 +51,7 @@ export function RoadmapEditor({
   const generateMutation = useMutation({
     mutationFn: async () => {
       const { generateAiRoadmap } = await import(
-        "@/lib/domains/student-record/llm/actions/generateRoadmap"
+        "@/lib/domains/record-analysis/llm/actions/generateRoadmap"
       );
       const result = await generateAiRoadmap(studentId);
       if (!result.success) throw new Error("error" in result ? result.error : "생성 실패");

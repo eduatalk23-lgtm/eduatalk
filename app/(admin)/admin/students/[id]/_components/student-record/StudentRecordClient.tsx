@@ -7,12 +7,18 @@ import { StudentSwitcher } from "@/app/(admin)/admin/calendar/_components/Studen
 import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { Menu, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Menu, ChevronDown, ChevronUp } from "lucide-react";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { RecordLayoutShell } from "./RecordLayoutShell";
 import { SidePanelProvider } from "@/components/side-panel";
 import { StudentRecordProvider } from "./StudentRecordContext";
 import { GlobalLayerBar } from "./GlobalLayerBar";
+import {
+  type LayerKey,
+  type LayerPerspective,
+  layerToLegacyTab,
+  getDefaultPerspective,
+} from "@/lib/domains/student-record/layer-view";
 import { ContextGridBottomSheet } from "./ContextGridBottomSheet";
 import { ContextTopSheet } from "./ContextTopSheet";
 import { RecordSidePanelContainer } from "./side-panel/RecordSidePanelContainer";
@@ -83,7 +89,20 @@ export function StudentRecordClient({
 }: StudentRecordClientProps) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"all" | number>("all");
-  const [globalSetekTab, setGlobalSetekTab] = useState<import("./stages/record/SetekEditor").SetekLayerTab>("neis");
+  // Phase 2.1: 9 레이어 × 2 관점 state (레거시 4탭은 layerToLegacyTab 매핑으로 변환)
+  const [globalLayer, setGlobalLayer] = useState<LayerKey>("neis");
+  const [globalPerspective, setGlobalPerspective] = useState<LayerPerspective | null>(null);
+
+  // 레거시 4탭 호환 — 기존 에디터들에 전달
+  const globalSetekTab = useMemo<import("./stages/record/SetekEditor").SetekLayerTab>(
+    () => layerToLegacyTab(globalLayer) ?? "neis",
+    [globalLayer],
+  );
+
+  const handleLayerChange = useCallback((layer: LayerKey) => {
+    setGlobalLayer(layer);
+    setGlobalPerspective(getDefaultPerspective(layer));
+  }, []);
   const [importOpen, setImportOpen] = useState(false);
   const [topSheetOpen, setTopSheetOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -315,9 +334,18 @@ export function StudentRecordClient({
       case "navigate_section":
         scrollToSection(action.sectionId);
         break;
-      case "navigate_tab":
-        setGlobalSetekTab(action.tab as typeof globalSetekTab);
+      case "navigate_tab": {
+        // 레거시 4탭 → 9 레이어 역매핑 (Phase 2.1 후방 호환)
+        const tab = action.tab as typeof globalSetekTab;
+        const layerMap: Record<typeof tab, LayerKey> = {
+          neis: "neis",
+          draft: "draft",
+          analysis: "analysis",
+          direction: "improve_direction", // direction 탭은 보완방향으로 매핑
+        };
+        handleLayerChange(layerMap[tab]);
         break;
+      }
       case "focus_subject": {
         const found = subjects.find((s) => s.name === action.subjectName);
         if (found) {
@@ -387,12 +415,13 @@ export function StudentRecordClient({
     <AgentUIBridgeProvider value={agentUIBridgeValue}>
     <TopBarCenterSlotPortal>
       <div className="contents">
-        <div className="flex items-center gap-2 order-2">
-          <FileText className="h-4 w-4 text-[var(--text-tertiary)]" />
-          <span className="text-sm font-semibold text-[var(--text-primary)]">생기부</span>
-          <div className="ml-2">
-            <GlobalLayerBar activeTab={globalSetekTab} onChange={setGlobalSetekTab} />
-          </div>
+        <div className="flex flex-1 items-center justify-center gap-2 order-2">
+          <GlobalLayerBar
+            layer={globalLayer}
+            perspective={globalPerspective}
+            onLayerChange={handleLayerChange}
+            onPerspectiveChange={setGlobalPerspective}
+          />
         </div>
         <div className="order-4 ml-auto">
           <StudentSwitcher
@@ -622,7 +651,7 @@ export function StudentRecordClient({
             );
           })()}
 
-          {/* ─── 기록 스테이지 ───────────────────── */}
+          {/* ─── 기록 스테이지 (생기부 모형 항상 유지) ───────────────────── */}
           <RecordStageContent
             subjects={subjects}
             visiblePairs={visiblePairs}
@@ -634,7 +663,18 @@ export function StudentRecordClient({
             diagnosisData={diagnosisData}
             coursePlanData={coursePlanData}
             globalSetekTab={globalSetekTab}
-            onSetekTabChange={setGlobalSetekTab}
+            onSetekTabChange={(tab) => {
+              // 레거시 4탭 → 9 레이어 역매핑
+              const layerMap: Record<typeof tab, LayerKey> = {
+                neis: "neis",
+                draft: "draft",
+                analysis: "analysis",
+                direction: "improve_direction",
+              };
+              handleLayerChange(layerMap[tab]);
+            }}
+            globalLayer={globalLayer}
+            globalPerspective={globalPerspective}
             guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
             setekGuideItems={transformedSetekGuideItems}
             changcheGuideItems={transformedChangcheGuideItems}
