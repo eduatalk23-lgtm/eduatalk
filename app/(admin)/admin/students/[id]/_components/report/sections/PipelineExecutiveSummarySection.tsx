@@ -3,7 +3,7 @@
 import { FileText } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 import { cn } from "@/lib/cn";
-import type { ExecutiveSummary } from "@/lib/domains/student-record/eval/executive-summary";
+import type { ExecutiveSummary } from "@/lib/domains/record-analysis/eval/executive-summary";
 
 interface Props {
   summary: ExecutiveSummary;

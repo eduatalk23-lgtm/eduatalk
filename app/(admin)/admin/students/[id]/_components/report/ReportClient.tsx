@@ -42,6 +42,9 @@ import { ProjectedAnalysisSection } from "./sections/ProjectedAnalysisSection";
 import { PipelineExecutiveSummarySection } from "./sections/PipelineExecutiveSummarySection";
 import { TimeSeriesSection } from "./sections/TimeSeriesSection";
 import { UniversityMatchSection } from "./sections/UniversityMatchSection";
+import { PlacementVerdictSection } from "./sections/PlacementVerdictSection";
+import { DiagnosisTimelineSection } from "./sections/DiagnosisTimelineSection";
+import { ProgressStatusSection } from "./sections/ProgressStatusSection";
 
 interface ReportClientProps {
   studentId: string;
@@ -209,9 +212,54 @@ export function ReportClient({ studentId }: ReportClientProps) {
       ),
     },
     { id: "toc", title: "섹션 목록", content: <TableOfContents /> },
+    // ── Phase 1.2: AI 종합 분석을 첫 화면으로 승격 (표지·TOC 직후, importance primary) ──
+    ...(data.executiveSummary ? [{
+      id: "pipeline-exec",
+      title: "AI 종합 분석",
+      content: <PipelineExecutiveSummarySection summary={data.executiveSummary} />,
+      importance: "primary" as SectionImportance,
+    }] : []),
+    // ── Phase 1.3: 종합 역량 추이 (마스터 패턴 첫 적용, 단일/다중 시점 fallback) ──
+    ...(data.executiveSummary ? [{
+      id: "diagnosis-timeline",
+      title: "종합 역량 추이",
+      content: (
+        <DiagnosisTimelineSection
+          current={data.executiveSummary}
+          history={data.pipelineSnapshots ?? []}
+        />
+      ),
+      importance: "primary" as SectionImportance,
+    }] : []),
+    // ── Phase 1.5: 생기부 진행 상태 (4-layer slot 매트릭스 + 컨설턴트 액션) ──
+    {
+      id: "progress-status",
+      title: "생기부 진행 상태",
+      content: (
+        <ProgressStatusSection
+          recordDataByGrade={data.recordDataByGrade}
+          contentQuality={data.contentQuality}
+          studentGrade={data.student.grade}
+        />
+      ),
+      importance: "primary" as SectionImportance,
+    },
+    // ── Phase 1.1: 정시 합격 예측 (5단계 배치) ──
+    ...(data.placementSnapshot ? [{
+      id: "placement-verdicts",
+      title: "정시 합격 예측",
+      content: (
+        <PlacementVerdictSection
+          result={data.placementSnapshot.result}
+          examDate={data.placementSnapshot.examDate}
+          examType={data.placementSnapshot.examType}
+        />
+      ),
+      importance: "primary" as SectionImportance,
+    }] : []),
     {
       id: "exec",
-      title: "엑서큐티브 요약",
+      title: "포트폴리오 개요",
       content: (
         <ExecutiveSummarySection
           studentName={data.student.name}
@@ -234,14 +282,9 @@ export function ReportClient({ studentId }: ReportClientProps) {
           cohortPercentile={data.cohortBenchmark?.percentile ?? null}
         />
       ),
+      importance: "secondary" as SectionImportance,
     },
     // ── 파이프라인 eval 출력 (M4~M6) ──
-    ...(data.executiveSummary ? [{
-      id: "pipeline-exec",
-      title: "AI 종합 분석",
-      content: <PipelineExecutiveSummarySection summary={data.executiveSummary} />,
-      importance: "secondary" as SectionImportance,
-    }] : []),
     ...(data.timeSeriesAnalysis ? [{
       id: "pipeline-timeseries",
       title: "3년 성장 분석",

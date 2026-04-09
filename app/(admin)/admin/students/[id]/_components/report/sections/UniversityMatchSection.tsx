@@ -3,7 +3,7 @@
 import { GraduationCap } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 import { cn } from "@/lib/cn";
-import type { UniversityMatchAnalysis, ProfileMatchResult } from "@/lib/domains/student-record/eval/university-profile-matcher";
+import type { UniversityMatchAnalysis, ProfileMatchResult } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 
 interface Props {
   analysis: UniversityMatchAnalysis;

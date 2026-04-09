@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
-import type { TimeSeriesAnalysis, CompetencyTrend } from "@/lib/domains/student-record/eval/timeseries-analyzer";
+import type { TimeSeriesAnalysis, CompetencyTrend } from "@/lib/domains/record-analysis/eval/timeseries-analyzer";
 
 function competencyLabel(id: string): string {
   return COMPETENCY_ITEMS.find((i) => i.code === id)?.label ?? id;
