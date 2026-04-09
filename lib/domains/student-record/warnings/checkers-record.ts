@@ -76,34 +76,55 @@ export function checkHaengteukDraft(input: WarningCheckInput): RecordWarning[] {
   return results;
 }
 
+/**
+ * 독서활동 부족 — 누적 판단 + 현재 학년 단일 경보
+ *
+ * 취지: "과거 학년의 공백"은 수정 불가. 경보의 목적은 학생이 **현재 진행 학년에서
+ * 독서 기반 탐구를 보완**하도록 안내하는 것이다. 따라서 학년별로 N개를 찍지 않고,
+ * 현재 학년까지의 누적 상태를 1회 집계해 경보 1개만 생성한다.
+ *
+ * 임계: 누적 학년 × MIN_READINGS_PER_GRADE
+ *   - 0권: medium (보완 필수)
+ *   - 임계 미만: low (권장 수준)
+ *   - 임계 이상: 경보 없음
+ */
 export function checkReadingInsufficient(input: WarningCheckInput): RecordWarning[] {
-  const results: RecordWarning[] = [];
+  let totalReadings = 0;
+  let gradesCovered = 0;
   for (const [grade, data] of input.recordsByGrade) {
     if (grade > input.currentGrade) continue;
-
-    // 독서 0건이면 경고 (최소한의 기준)
-    if (data.readings.length === 0) {
-      results.push({
-        ruleId: "reading_insufficient",
-        severity: "medium",
-        category: "record",
-        title: "독서활동 미기록",
-        message: `${grade}학년 독서활동이 기록되지 않았습니다.`,
-        suggestion: "독서 권수보다 중요한 것은 '읽은 책을 탐구에 어떻게 활용했는가'입니다. 세특에서 독서 기반 탐구가 드러나도록 교과 단원과 연계한 독서를 기록하세요.",
-      });
-    } else if (data.readings.length < MIN_READINGS_PER_GRADE) {
-      // 1건은 있으나 권장 미달 — severity를 low로 격하
-      results.push({
-        ruleId: "reading_insufficient",
-        severity: "low",
-        category: "record",
-        title: "독서활동 참고",
-        message: `${grade}학년 독서활동 ${data.readings.length}건 (참고: 권장 ${MIN_READINGS_PER_GRADE}권 이상). 권수보다 세특 내 독서 기반 탐구 활용이 더 중요합니다.`,
-        suggestion: "독서를 통해 지적 호기심을 해결하는 과정이 세특에 드러나면 좋은 평가를 받습니다. 학년이 올라갈수록 난도 있는 독서로 심화하세요.",
-      });
-    }
+    totalReadings += data.readings.length;
+    gradesCovered += 1;
   }
-  return results;
+
+  // 학년 데이터가 없으면 경보 생략 (판단 근거 없음)
+  if (gradesCovered === 0) return [];
+
+  const minRequired = gradesCovered * MIN_READINGS_PER_GRADE;
+
+  if (totalReadings === 0) {
+    return [{
+      ruleId: "reading_insufficient",
+      severity: "medium",
+      category: "record",
+      title: "독서 기반 탐구 부재",
+      message: `지금까지 독서 기록이 없습니다. 이번 학년 세특/자율 탐구에 '어떤 책을 읽고 어떻게 탐구했는지'가 드러나도록 설계하세요.`,
+      suggestion: "관심 주제의 도서를 선정하여 '탐구 질문 → 자료조사 → 결론/제언'의 흐름이 세특에 녹아들도록 하세요. 권수보다 활용이 중요합니다.",
+    }];
+  }
+
+  if (totalReadings < minRequired) {
+    return [{
+      ruleId: "reading_insufficient",
+      severity: "low",
+      category: "record",
+      title: "독서 활용 보완 권장",
+      message: `누적 독서 ${totalReadings}권 (${gradesCovered}개 학년 기준 권장 ${minRequired}권). 권수보다 세특 내 독서 기반 탐구 활용이 더 중요합니다.`,
+      suggestion: "이번 학년에 관심 주제 심화 도서를 선정하여 세특 탐구로 연결하세요. 학년이 올라갈수록 난도 있는 독서로 심화하면 좋습니다.",
+    }];
+  }
+
+  return [];
 }
 
 /**

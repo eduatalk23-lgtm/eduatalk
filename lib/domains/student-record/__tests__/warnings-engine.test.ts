@@ -149,24 +149,82 @@ describe("checkHaengteukDraft", () => {
 // ─── 독서 부족 ───────────────────────────────────
 
 describe("checkReadingInsufficient", () => {
-  it("독서 0건이면 경고", () => {
+  it("독서 0건이면 누적 경보 1개 (medium)", () => {
     const input = makeInput({
+      currentGrade: 1,
       recordsByGrade: new Map([
         [1, makeRecordData({ readings: [] })],
       ]),
     });
     const warnings = computeWarnings(input).filter((w) => w.ruleId === "reading_insufficient");
     expect(warnings.length).toBe(1);
+    expect(warnings[0].severity).toBe("medium");
   });
 
-  it("2권 이상이면 경고 없음", () => {
+  it("누적이 학년수×2권 이상이면 경고 없음", () => {
     const input = makeInput({
+      currentGrade: 1,
       recordsByGrade: new Map([
         [1, makeRecordData({ readings: [{} as never, {} as never] })],
       ]),
     });
     const warnings = computeWarnings(input).filter((w) => w.ruleId === "reading_insufficient");
     expect(warnings.length).toBe(0);
+  });
+
+  it("여러 학년이어도 경보는 1개만 누적으로 발생", () => {
+    const input = makeInput({
+      currentGrade: 3,
+      recordsByGrade: new Map([
+        [1, makeRecordData({ readings: [] })],
+        [2, makeRecordData({ readings: [] })],
+        [3, makeRecordData({ readings: [] })],
+      ]),
+    });
+    const warnings = computeWarnings(input).filter((w) => w.ruleId === "reading_insufficient");
+    expect(warnings.length).toBe(1);
+    expect(warnings[0].severity).toBe("medium");
+  });
+
+  it("누적이 권장량 미만이면 low severity", () => {
+    // 2학년 학생, 1학년 1권만 있음 → 권장 4권(2학년×2) 대비 1권 → low
+    const input = makeInput({
+      currentGrade: 2,
+      recordsByGrade: new Map([
+        [1, makeRecordData({ readings: [{} as never] })],
+        [2, makeRecordData({ readings: [] })],
+      ]),
+    });
+    const warnings = computeWarnings(input).filter((w) => w.ruleId === "reading_insufficient");
+    expect(warnings.length).toBe(1);
+    expect(warnings[0].severity).toBe("low");
+    expect(warnings[0].message).toContain("누적 독서 1권");
+  });
+
+  it("누적이 권장량 이상이면 경보 없음 (여러 학년)", () => {
+    // 2학년 학생, 1학년 3권 + 2학년 1권 = 4권 → 권장 4권 충족
+    const input = makeInput({
+      currentGrade: 2,
+      recordsByGrade: new Map([
+        [1, makeRecordData({ readings: [{} as never, {} as never, {} as never] })],
+        [2, makeRecordData({ readings: [{} as never] })],
+      ]),
+    });
+    const warnings = computeWarnings(input).filter((w) => w.ruleId === "reading_insufficient");
+    expect(warnings.length).toBe(0);
+  });
+
+  it("미래 학년 독서는 누적에서 제외", () => {
+    const input = makeInput({
+      currentGrade: 1,
+      recordsByGrade: new Map([
+        [1, makeRecordData({ readings: [] })],
+        [2, makeRecordData({ readings: [{} as never, {} as never, {} as never] })],
+      ]),
+    });
+    const warnings = computeWarnings(input).filter((w) => w.ruleId === "reading_insufficient");
+    expect(warnings.length).toBe(1);
+    expect(warnings[0].severity).toBe("medium");
   });
 });
 
