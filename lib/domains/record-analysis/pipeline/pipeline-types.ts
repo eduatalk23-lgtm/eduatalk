@@ -211,6 +211,27 @@ export interface GradeAnalysisContext {
 export type AnalysisContextByGrade = Record<number, GradeAnalysisContext>;
 
 /**
+ * Layer 0: 전 학년 학생 프로필 카드 (Cross-grade student snapshot).
+ * P1-P3 역량 분석 시 모든 셀 프롬프트에 주입되는 글로벌 맥락.
+ * 이전 학년(prior grades) 데이터만 집계 — 현재 targetGrade는 제외.
+ * 1학년(prior 데이터 없음)은 undefined.
+ */
+export interface StudentProfileCard {
+  /** 집계 대상 이전 학년도 목록 (예: [2024, 2025]) */
+  priorSchoolYears: number[];
+  /** 이전 학년 누적 평균 등급 라벨 (A+=6 ~ C=1 환산 평균 → 역변환) */
+  overallAverageGrade: string;
+  /** 지속 강점: 이전 학년에서 A-/A+ 등급 역량 (최대 5개) */
+  persistentStrengths: Array<{ competencyItem: string; bestGrade: string; years: number[] }>;
+  /** 지속 약점: 2학년 이상에서 B-/C 등급으로 등장한 역량 (최대 5개) */
+  persistentWeaknesses: Array<{ competencyItem: string; worstGrade: string; years: number[] }>;
+  /** 반복 품질 이슈: content_quality.issues 중 빈도 top 3 (count ≥ 2만) */
+  recurringQualityIssues: Array<{ code: string; count: number }>;
+  /** 이전 학년 평균 품질 점수 (overall_score 평균, 소수 1자리) */
+  averageQualityScore: number | null;
+}
+
+/**
  * Phase 분할 실행을 위한 파이프라인 실행 컨텍스트.
  *
  * 필드 그룹:
@@ -264,6 +285,14 @@ export interface PipelineContext {
   leveling?: import("@/lib/domains/student-record/leveling/types").LevelingResult;
   /** C3: fetchReportData 결과 캐시 — Phase 4-6 간 공유하여 중복 호출 방지 */
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData;
+  /**
+   * C4: Layer 0 학생 프로필 카드 (렌더된 prompt 섹션 문자열).
+   * - `undefined` = 미빌드
+   * - `""` = 빌드 시도했으나 데이터 없음 (1학년/데이터 공란)
+   * - `"## 학생 프로필 카드..."` = 빌드 완료
+   * P1-P3에서 1회만 빌드, 이후 재사용. 세 상태를 구분해 6회 호출 간 중복 DB 조회 방지.
+   */
+  profileCard?: string;
 
   // ── Synthesis Pipeline 전용 ───────────────────────────
   /** 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용) */

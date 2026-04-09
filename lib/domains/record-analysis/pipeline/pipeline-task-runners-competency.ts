@@ -87,6 +87,21 @@ async function runCompetencyForRecords(
     return { succeeded, failed, skipped, allResults, hasMore: false, totalUncached: 0 };
   }
 
+  // Layer 0: 학생 프로필 카드 — 파이프라인 1회 빌드, ctx 캐시
+  // 3-state invariant: undefined=미빌드, ""=시도했으나 데이터 없음, "..."=빌드 완료
+  // setek/changche/haengteuk × chunked run (최대 6회 호출) 간 중복 DB 조회 방지
+  if (ctx.profileCard === undefined) {
+    const { buildStudentProfileCard, renderStudentProfileCard } = await import("./pipeline-task-runners-shared");
+    const card = await buildStudentProfileCard(supabase, studentId, tenantId, targetSchoolYear, targetGrade);
+    ctx.profileCard = card ? renderStudentProfileCard(card) : "";
+    logActionDebug(
+      LOG_CTX,
+      `profileCard built: ${card ? `${card.priorSchoolYears.length}yrs, ${card.persistentWeaknesses.length}약점` : "empty"}`,
+      { studentId, targetGrade },
+    );
+  }
+  const profileCardSection = ctx.profileCard || undefined;
+
   // 증분 분석: 배치 캐시 조회
   const cachedEntries = await competencyRepo.findAnalysisCacheByRecordIds(
     analysisRecords.map((r) => r.id), tenantId, "ai",
@@ -242,6 +257,7 @@ async function runCompetencyForRecords(
           subjectName: rec.subjectName,
           grade: rec.grade,
           careerContext,
+          profileCard: profileCardSection,
         });
         if (result.success) {
           await saveResult(rec.type, rec.id, rec.content, result.data);
@@ -279,6 +295,7 @@ async function runCompetencyForRecords(
             subjectName: rec.subjectName,
             grade: rec.grade,
             careerContext,
+            profileCard: profileCardSection,
           });
           if (result.success) {
             await saveResult(rec.type, rec.id, rec.content, result.data);

@@ -105,6 +105,11 @@ export interface HighlightAnalysisInput {
     /** 학기별 성적 추이 (학업성취도 Q3 평가용). 9등급: 숫자, 5등급: 숫자 또는 "A"~"E" */
     gradeTrend?: Array<{ grade: number; semester: number; subjectName: string; rankGrade: number | string }>;
   };
+  /**
+   * Layer 0: 이전 학년 누적 프로필 카드 (이미 렌더된 prompt 섹션 문자열).
+   * 1학년 또는 데이터 없음 시 omit. `buildStudentProfileCard` + `renderStudentProfileCard`로 생성.
+   */
+  profileCard?: string;
 }
 
 // ============================================

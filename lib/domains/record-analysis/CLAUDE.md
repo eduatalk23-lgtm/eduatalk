@@ -69,9 +69,10 @@ imported_content(NEIS 최종) > confirmed_content(확정본) > content(가안) >
 
 ```
 Grade Pipeline (학년별, 9태스크×8Phase)
-  P1: competency_setek        → ctx.analysisContext에 축적
-  P2: competency_changche     → ctx.analysisContext에 축적
-  P3: competency_haengteuk    → ctx.analysisContext에 축적 + 집계
+  P0 (암시적): ctx.profileCard 1회 빌드 (Layer 0, 2/3학년만)
+  P1: competency_setek        ← ctx.profileCard 주입 → ctx.analysisContext에 축적
+  P2: competency_changche     ← ctx.profileCard 주입 → ctx.analysisContext에 축적
+  P3: competency_haengteuk    ← ctx.profileCard 주입 → ctx.analysisContext에 축적 + 집계
   P4: setek_guide + slot_generation  ← analysisContext 주입 (issues/feedback/약점)
   P5: changche_guide                 ← analysisContext 주입 (community 우선)
   P6: haengteuk_guide                ← analysisContext 주입 (community만)
@@ -90,6 +91,11 @@ Synthesis Pipeline (종합, 10태스크×6Phase)
 ### Phase 간 데이터 흐름 (핵심)
 
 ```
+Layer 0 (P1-P3 진입 시 1회)
+  └─ ctx.profileCard: 이전 학년 competency_scores + content_quality 누적 프로필
+     (세특/창체/행특 모든 셀 프롬프트 주입, 1학년 또는 데이터 없음 시 omit)
+     3-state: undefined=미빌드, ""=시도했으나 빈 카드, "..."=빌드 완료
+
 Phase 1-3 (역량 분석)
   ├─ DB: analysis_cache(전체 JSON), activity_tags, competency_scores, content_quality
   ├─ ctx.analysisContext: 가공된 요약만 (issues있는 레코드 + B-이하 역량)
@@ -146,6 +152,7 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `buildGuideAnalysisContextFromReport()` | reportData → GuideAnalysisContext 변환 | 비파이프라인 경로 (수동 재생성) |
 | `aggregateQualityPatterns()` | 전 학년 DB 조회 → 반복 패턴 집계 | Synthesis 진단/전략 |
 | `buildCrossGradeDirections()` | 이전 분석 학년 보완방향 텍스트 빌드 | Prospective 가이드 생성 시 |
+| `buildStudentProfileCard()` / `renderStudentProfileCard()` | 이전 학년 역량/품질 집계 → Layer 0 프로필 카드 텍스트 | P1-P3 역량 분석 진입 시 (1회, `ctx.profileCard` 캐시) |
 
 ### DB 테이블 (핵심)
 

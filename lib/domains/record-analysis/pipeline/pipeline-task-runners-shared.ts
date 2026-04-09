@@ -8,6 +8,7 @@ import type {
   GradeAnalysisContext,
   RecordAnalysisContext,
   CompetencyAnalysisContext,
+  StudentProfileCard,
 } from "./pipeline-types";
 import type { HighlightAnalysisResult, GuideAnalysisContext } from "../llm/types";
 
@@ -298,4 +299,182 @@ export async function buildCrossGradeDirections(
     // cross-grade 조회 실패는 치명적이지 않음 — 해당 섹션 없이 진행
     return undefined;
   }
+}
+
+// ============================================
+// Layer 0: 학생 프로필 카드 빌더
+// buildCrossGradeDirections와 동일 패턴 — 실패는 non-fatal, undefined 반환
+// P1-P3 역량 분석 시 모든 셀 프롬프트에 주입되는 글로벌 맥락
+// ============================================
+
+const GRADE_TO_NUMERIC: Record<string, number> = {
+  "A+": 6, "A-": 5, "B+": 4, "B": 3, "B-": 2, "C": 1,
+};
+const NUMERIC_TO_GRADE = ["C", "B-", "B", "B+", "A-", "A+"] as const;
+
+/**
+ * 이전 학년(priorSchoolYears)의 `competency_scores` + `content_quality` (source=ai)를
+ * 집계하여 `StudentProfileCard` 반환. 분석 대상이 1학년이면 prior 없음 → undefined.
+ *
+ * @param targetSchoolYear 현재 분석 대상의 school_year (예: 학생 3학년 = 올해 = 2026)
+ * @param targetGrade      현재 분석 대상의 학년 (1/2/3). priors는 1..targetGrade-1 범위.
+ *
+ * - 지속 강점: 최고 등급 ≥ A- (≥ 5)
+ * - 지속 약점: B-/C 등급이 ≥2개 학년에서 등장 (targetGrade=2면 ≥1로 완화)
+ * - 반복 품질 이슈: count ≥ 2인 issue code top 3
+ *
+ * 실패(DB/파싱 오류)는 non-fatal — undefined 반환으로 프롬프트 섹션 생략.
+ */
+export async function buildStudentProfileCard(
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/lib/supabase/database.types").Database>,
+  studentId: string,
+  tenantId: string,
+  targetSchoolYear: number,
+  targetGrade: number,
+): Promise<StudentProfileCard | undefined> {
+  if (targetGrade <= 1) return undefined;
+  const priorSchoolYears: number[] = [];
+  for (let g = 1; g < targetGrade; g++) {
+    priorSchoolYears.push(targetSchoolYear - targetGrade + g);
+  }
+  if (priorSchoolYears.length === 0) return undefined;
+
+  try {
+    const [scoresRes, qualityRes] = await Promise.all([
+      supabase.from("student_record_competency_scores")
+        .select("school_year, competency_item, grade")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .eq("source", "ai")
+        .in("school_year", priorSchoolYears)
+        .limit(200),
+      supabase.from("student_record_content_quality")
+        .select("school_year, overall_score, issues")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .eq("source", "ai")
+        .in("school_year", priorSchoolYears)
+        .limit(500),
+    ]);
+
+    const scores = (scoresRes.data ?? []) as Array<{
+      school_year: number;
+      competency_item: string;
+      grade: string;
+    }>;
+    const quality = (qualityRes.data ?? []) as Array<{
+      school_year: number;
+      overall_score: number | null;
+      issues: string[] | null;
+    }>;
+
+    if (scores.length === 0 && quality.length === 0) return undefined;
+
+    // --- 역량 집계 ---
+    let totalNumeric = 0;
+    let totalCount = 0;
+    const itemData = new Map<string, { grades: Array<{ year: number; numeric: number; label: string }> }>();
+    for (const row of scores) {
+      const numeric = GRADE_TO_NUMERIC[row.grade];
+      if (numeric == null) continue;
+      totalNumeric += numeric;
+      totalCount++;
+      const entry = itemData.get(row.competency_item) ?? { grades: [] };
+      entry.grades.push({ year: row.school_year, numeric, label: row.grade });
+      itemData.set(row.competency_item, entry);
+    }
+    const overallAverageGrade = totalCount > 0
+      ? NUMERIC_TO_GRADE[Math.max(0, Math.min(5, Math.round(totalNumeric / totalCount) - 1))]
+      : "B";
+
+    const persistentStrengths: StudentProfileCard["persistentStrengths"] = [];
+    const weakThreshold = targetGrade >= 3 ? 2 : 1;
+    const persistentWeaknesses: StudentProfileCard["persistentWeaknesses"] = [];
+
+    for (const [item, data] of itemData) {
+      const maxNumeric = Math.max(...data.grades.map((g) => g.numeric));
+      if (maxNumeric >= 5) {
+        const best = data.grades.reduce((a, b) => (a.numeric >= b.numeric ? a : b));
+        persistentStrengths.push({
+          competencyItem: item,
+          bestGrade: best.label,
+          years: data.grades.map((g) => g.year).sort((a, b) => a - b),
+        });
+      }
+      const weakYears = new Set(data.grades.filter((g) => g.numeric <= 2).map((g) => g.year));
+      if (weakYears.size >= weakThreshold) {
+        const worst = data.grades.reduce((a, b) => (a.numeric <= b.numeric ? a : b));
+        persistentWeaknesses.push({
+          competencyItem: item,
+          worstGrade: worst.label,
+          years: Array.from(weakYears).sort((a, b) => a - b),
+        });
+      }
+    }
+    persistentStrengths.sort((a, b) => GRADE_TO_NUMERIC[b.bestGrade] - GRADE_TO_NUMERIC[a.bestGrade]);
+    persistentWeaknesses.sort((a, b) => GRADE_TO_NUMERIC[a.worstGrade] - GRADE_TO_NUMERIC[b.worstGrade]);
+
+    // --- 품질 집계 ---
+    let qualitySum = 0;
+    let qualityCount = 0;
+    const issueCounter = new Map<string, number>();
+    for (const row of quality) {
+      if (row.overall_score != null) {
+        qualitySum += row.overall_score;
+        qualityCount++;
+      }
+      for (const code of row.issues ?? []) {
+        issueCounter.set(code, (issueCounter.get(code) ?? 0) + 1);
+      }
+    }
+    const recurringQualityIssues = Array.from(issueCounter.entries())
+      .filter(([, count]) => count >= 2)
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    const averageQualityScore = qualityCount > 0
+      ? Math.round((qualitySum / qualityCount) * 10) / 10
+      : null;
+
+    return {
+      priorSchoolYears,
+      overallAverageGrade,
+      persistentStrengths: persistentStrengths.slice(0, 5),
+      persistentWeaknesses: persistentWeaknesses.slice(0, 5),
+      recurringQualityIssues,
+      averageQualityScore,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `StudentProfileCard`를 prompt 섹션 문자열로 렌더.
+ * 섹션 제목 + 핵심 지표 bullet + 평가 지침으로 구성.
+ */
+export function renderStudentProfileCard(card: StudentProfileCard): string {
+  const lines: string[] = ["## 학생 프로필 카드 (이전 학년 누적)"];
+  const yearRange = card.priorSchoolYears.length === 1
+    ? `${card.priorSchoolYears[0]}학년도`
+    : `${card.priorSchoolYears[0]}~${card.priorSchoolYears.at(-1)}학년도`;
+  lines.push(`- 누적 역량 평균: ${card.overallAverageGrade} (${yearRange})`);
+  if (card.averageQualityScore != null) {
+    lines.push(`- 누적 품질 평균: ${card.averageQualityScore}/100`);
+  }
+  if (card.persistentStrengths.length > 0) {
+    const s = card.persistentStrengths.map((x) => `${x.competencyItem}(${x.bestGrade})`).join(", ");
+    lines.push(`- 지속 강점: ${s}`);
+  }
+  if (card.persistentWeaknesses.length > 0) {
+    const w = card.persistentWeaknesses.map((x) => `${x.competencyItem}(${x.worstGrade})`).join(", ");
+    lines.push(`- 지속 약점: ${w}`);
+  }
+  if (card.recurringQualityIssues.length > 0) {
+    const q = card.recurringQualityIssues.map((x) => `${x.code}(${x.count}회)`).join(", ");
+    lines.push(`- 반복 품질 이슈: ${q}`);
+  }
+  lines.push("");
+  lines.push("**평가 지침**: 위 '지속 약점'으로 이미 평가된 역량이 본 텍스트에서 또 드러나면 엄격히(B- 이하로) 평가하세요. '지속 강점'은 이미 입증된 역량이므로 본 텍스트에서 동일 역량을 재평가할 때 기준을 높게 잡으세요(단순 언급만으론 A- 이상 부여 금지). '반복 품질 이슈'는 이 셀에서도 동일 문제가 보이면 issues에 반드시 포함하세요.");
+  return lines.join("\n");
 }

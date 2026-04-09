@@ -244,6 +244,11 @@ export function buildHighlightUserPrompt(input: HighlightAnalysisInput): string 
     prompt += `\n\n이 텍스트는 교과 세특이므로 3구간(학업태도/학업수행능력/탐구활동)으로 분리하여 각 구간의 원문을 sectionText에 포함하세요. 모든 문장이 빠짐없이 어느 한 구간에 포함되어야 합니다.`;
   }
 
+  // Layer 0: 학생 프로필 카드 (이전 학년 누적 맥락)
+  if (input.profileCard) {
+    prompt += `\n\n${input.profileCard}`;
+  }
+
   // 진로 역량 + 학업성취도 평가용 컨텍스트
   if (input.careerContext) {
     const { targetMajor, takenSubjects, relevantScores, gradeTrend } = input.careerContext;
