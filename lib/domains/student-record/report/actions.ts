@@ -6,7 +6,8 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
+import { logActionError } from "@/lib/logging/actionLogger";
+import { auditSuccess } from "@/lib/audit/record";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import * as service from "../service";
@@ -23,7 +24,7 @@ import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { StudentPercentile } from "../cohort/percentile";
 import type { CohortBenchmark } from "../cohort/benchmark";
 import type { ActionResponse } from "@/lib/types/actionResponse";
-import type { CompetencyAnalysisContext } from "../pipeline";
+import type { CompetencyAnalysisContext } from "@/lib/domains/record-analysis/pipeline";
 import {
   fetchStudentInfoAndScores,
   fetchAnalysisData,
@@ -159,9 +160,30 @@ export interface ReportData {
    */
   weakCompetencyContexts: CompetencyAnalysisContext[];
   /** Synthesis pipeline eval 출력 (task_results에서 추출) */
-  executiveSummary?: import("../eval/executive-summary").ExecutiveSummary | null;
-  timeSeriesAnalysis?: import("../eval/timeseries-analyzer").TimeSeriesAnalysis | null;
-  universityMatch?: import("../eval/university-profile-matcher").UniversityMatchAnalysis | null;
+  executiveSummary?: import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary | null;
+  timeSeriesAnalysis?: import("@/lib/domains/record-analysis/eval/timeseries-analyzer").TimeSeriesAnalysis | null;
+  universityMatch?: import("@/lib/domains/record-analysis/eval/university-profile-matcher").UniversityMatchAnalysis | null;
+  /**
+   * Phase 1.1: 정시 배치 스냅샷.
+   * auto-placement가 모의고사 데이터로 자동 계산한 최신 결과.
+   * 5단계(safe/possible/bold/unstable/danger) 배치 판정 포함.
+   */
+  placementSnapshot?: {
+    examDate: string | null;
+    examType: string | null;
+    result: import("@/lib/domains/admission").PlacementAnalysisResult;
+  } | null;
+  /**
+   * Phase 1.3: 파이프라인 재실행 히스토리 (시점별 역량 비교용).
+   * 각 엔트리는 재실행 직전 시점의 task_results에서 추출한 executiveSummary.
+   * 최신순 정렬, 최대 10건. 빈 배열이면 재실행 이력 없음 (단일 시점 상태 — fallback UI 적용).
+   */
+  pipelineSnapshots?: Array<{
+    id: string;
+    pipelineId: string;
+    createdAt: string;
+    executiveSummary: import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary | null;
+  }>;
   /**
    * L6: 설계 모드 예상 데이터.
    * NEIS 없는 학년의 P8 분석 결과 (ai_projected scores + projected edges + leveling).
@@ -213,16 +235,10 @@ export async function fetchReportData(
       info.initialSchoolYear,
     ).catch(() => null);
 
-    // E-6: 감사 로그
-    const { error: auditErr } = await supabase.from("audit_logs").insert({
-      tenant_id: tenantId,
-      user_id: userId,
-      resource_type: "student_record_report",
-      resource_id: studentId,
-      action: "generate",
+    // E-6: 감사 로그 (auditSuccess 헬퍼가 actor_id/actor_role/success 등 NOT NULL 컬럼 자동 처리 + admin client로 RLS bypass)
+    await auditSuccess("export", "student_record_report", studentId, {
       metadata: { generatedAt: new Date().toISOString() },
     });
-    if (auditErr) logActionWarn({ ...LOG_CTX, action: "report-audit-log" }, `감사 로그 저장 실패: ${auditErr.message}`, { studentId });
 
     const reportData: ReportData = {
       student: {
@@ -261,6 +277,8 @@ export async function fetchReportData(
       executiveSummary: supplementary.executiveSummary,
       timeSeriesAnalysis: supplementary.timeSeriesAnalysis,
       universityMatch: supplementary.universityMatch,
+      placementSnapshot: supplementary.placementSnapshot,
+      pipelineSnapshots: supplementary.pipelineSnapshots,
     };
 
     // L6: projected 데이터 조회 (설계 모드 학년이 있을 때만)

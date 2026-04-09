@@ -20,7 +20,7 @@ import {
 import type { HighlightAnalysisInput, HighlightAnalysisResult, BatchHighlightInput, BatchHighlightResult } from "../types";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
-const LOG_CTX = { domain: "student-record", action: "analyzeWithHighlight" };
+const LOG_CTX = { domain: "record-analysis", action: "analyzeWithHighlight" };
 
 /**
  * careerContext가 없고 studentId가 제공되면 DB에서 자동 조회합니다.

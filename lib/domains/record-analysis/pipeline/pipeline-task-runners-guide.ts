@@ -23,7 +23,7 @@ import * as guideRepo from "@/lib/domains/student-record/repository/guide-reposi
 import { ACTIVITY_TYPE_LABELS } from "@/lib/domains/student-record/constants";
 import { toGuideAnalysisContext, mergeGuideAnalysisContexts } from "./pipeline-task-runners-shared";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline-guide" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline-guide" };
 
 // ============================================
 // 공통 헬퍼
@@ -94,7 +94,7 @@ export async function runSetekGuide(
 
   // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
   if (hasNeisGrades) {
-    const { analyzeSetekGuide } = await import("../llm/actions/guide-modules");
+    const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const mergedAnalysisCtx = mergeGuideAnalysisContexts(
       ctx.neisGrades!.map((g) => toGuideAnalysisContext(ctx.analysisContext?.[g])),
     );
@@ -106,7 +106,7 @@ export async function runSetekGuide(
 
   // 컨설팅 학년 → 수강계획 기반 세특 방향 (학년별 개별 호출 — 타임아웃 안전)
   if (hasConsultingGrades) {
-    const { generateSetekDirection } = await import("../llm/actions/guide-modules");
+    const { generateSetekDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
     const gradeResults = await Promise.allSettled(
@@ -154,7 +154,7 @@ export async function runChangcheGuide(
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
   if (!hasNeisData) {
-    const { generateChangcheDirection } = await import("../llm/actions/guide-modules");
+    const { generateChangcheDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     // 세특 방향 컨텍스트 (setek_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let setekCtx: string | undefined;
@@ -181,7 +181,7 @@ export async function runChangcheGuide(
   }
 
   // NEIS 있음 → 분석 모듈
-  const { analyzeChangcheGuide } = await import("../llm/actions/guide-modules");
+  const { analyzeChangcheGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
   // Phase E2: 엣지 데이터 → 창체 가이드 프롬프트에 투입
   let guideEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
@@ -229,7 +229,7 @@ export async function runHaengteukGuide(
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
   if (!hasNeisData) {
-    const { generateHaengteukDirection } = await import("../llm/actions/guide-modules");
+    const { generateHaengteukDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     // 창체 방향 컨텍스트 (changche_guide 결과 있으면 전달)
     const currentYear = calculateSchoolYear();
     let changcheCtx: string | undefined;
@@ -255,7 +255,7 @@ export async function runHaengteukGuide(
   }
 
   // NEIS 있음 → 분석 모듈
-  const { analyzeHaengteukGuide } = await import("../llm/actions/guide-modules");
+  const { analyzeHaengteukGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
   // Phase E2: 엣지 데이터 → 행특 가이드 프롬프트에 투입
   let guideEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
@@ -357,9 +357,11 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
 
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 세특 가이드
-    const { analyzeSetekGuide } = await import("../llm/actions/guide-modules");
+    // targetSchoolYear 전달 필수 — 미지정 시 generateSetekGuide가 calculateSchoolYear()(현재 학년도)로 저장해
+    // 여러 학년의 보완 방향이 같은 row에 덮어써지는 버그 발생
+    const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
-    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, undefined, gradeAnalysisCtx, gradeReport);
+    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, gradeReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     return guides ? `${targetGrade}학년 NEIS 세특 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;
@@ -367,7 +369,7 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
 
   if (isConsultingGrade) {
     // 컨설팅 학년 → 수강계획 기반 세특 방향 (창체/행특 ForGrade 패턴과 동일)
-    const { generateSetekDirection } = await import("../llm/actions/guide-modules");
+    const { generateSetekDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
@@ -424,16 +426,17 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
 
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 창체 가이드
-    const { analyzeChangcheGuide } = await import("../llm/actions/guide-modules");
+    // targetSchoolYear 전달 필수 — 미지정 시 학년별 결과가 현재 학년도 1개 row에 덮어써짐
+    const { analyzeChangcheGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
-    const result = await analyzeChangcheGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtx, gradeReport);
+    const result = await analyzeChangcheGuide(studentId, [targetGrade], undefined, undefined, targetSchoolYear, gradeAnalysisCtx, gradeReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
     return guides ? `${targetGrade}학년 창체 ${guides.length}개 활동유형 방향 생성` : `${targetGrade}학년 창체 방향 생성 완료`;
   }
 
   // 컨설팅 학년 → 수강계획 기반 창체 방향
-  const { generateChangcheDirection } = await import("../llm/actions/guide-modules");
+  const { generateChangcheDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
   const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
   const { userId: guideUserId } = await reqAuth();
 
@@ -496,15 +499,16 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
 
   if (isNeisGrade) {
     // NEIS 학년 → 분석형 행특 가이드
-    const { analyzeHaengteukGuide } = await import("../llm/actions/guide-modules");
+    // targetSchoolYear 전달 필수 — 미지정 시 학년별 결과가 현재 학년도 1개 row에 덮어써짐
+    const { analyzeHaengteukGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtxH = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
-    const result = await analyzeHaengteukGuide(studentId, [targetGrade], undefined, undefined, undefined, gradeAnalysisCtxH, gradeReport);
+    const result = await analyzeHaengteukGuide(studentId, [targetGrade], undefined, undefined, targetSchoolYear, gradeAnalysisCtxH, gradeReport);
     if (!result.success) throw new Error(result.error);
     return `${targetGrade}학년 행특 방향 생성 완료`;
   }
 
   // 컨설팅 학년 → 수강계획 기반 행특 방향
-  const { generateHaengteukDirection } = await import("../llm/actions/guide-modules");
+  const { generateHaengteukDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
   const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
   const { userId: guideUserId } = await reqAuth();
 

@@ -59,7 +59,10 @@ export function checkHaengteukDraft(input: WarningCheckInput): RecordWarning[] {
   const results: RecordWarning[] = [];
   for (const [grade, data] of input.recordsByGrade) {
     if (grade >= input.currentGrade) continue; // 이전 학년만 체크
-    if (!data.haengteuk || !data.haengteuk.content || data.haengteuk.content.trim().length < 20) {
+    // 4계층(imported > confirmed > content > ai_draft) 유효 콘텐츠 기준으로 판단.
+    // NEIS import 데이터는 imported_content에 저장되므로 content만 보면 false positive 발생.
+    const effective = data.haengteuk ? getEffective(data.haengteuk) : "";
+    if (effective.length < 20) {
       results.push({
         ruleId: "haengteuk_draft",
         severity: "high",

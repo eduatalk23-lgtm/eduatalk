@@ -25,7 +25,7 @@ import {
   formatHaengteukBannedPatterns,
 } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 
-const LOG_CTX = { domain: "student-record", action: "generateHaengteukDraft" };
+const LOG_CTX = { domain: "record-analysis", action: "generateHaengteukDraft" };
 
 // ─── 시스템 프롬프트 ────────────────────────────────────────
 

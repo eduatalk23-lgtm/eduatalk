@@ -26,8 +26,13 @@ import {
   getNextGradePhase,
   getNextSynthesisPhase,
   validatePhasePrerequisites,
+  computePipelineFinalStatus,
 } from "../pipeline/pipeline-executor";
 import type { PipelineContext, PipelineTaskStatus } from "../pipeline/pipeline-types";
+import {
+  GRADE_PIPELINE_TASK_KEYS,
+  SYNTHESIS_PIPELINE_TASK_KEYS,
+} from "../pipeline/pipeline-config";
 
 // ============================================
 // actionLogger mock (콘솔 오염 방지)
@@ -43,13 +48,14 @@ vi.mock("@/lib/logging/actionLogger", () => ({
 // 픽스처 팩토리
 // ============================================
 
-/** Supabase 체이닝 mock — from().update().eq() 패턴 */
+/** Supabase 체이닝 mock — from().update().eq().neq() 패턴 */
 function makeSupabaseMock() {
   const mock = {
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
   };
   return mock;
@@ -256,6 +262,56 @@ describe("updatePipelineState()", () => {
     expect(updateArg.tasks).toEqual(tasks);
     expect(updateArg.task_previews).toEqual(previews);
     expect(updateArg.status).toBe("running");
+  });
+
+  it("status='running' 쓰기 시 CAS 가드(neq cancelled)를 적용한다", async () => {
+    const sb = makeSupabaseMock();
+
+    await updatePipelineState(
+      sb as unknown as import("@/lib/supabase/admin").SupabaseAdminClient,
+      "pipe-guard",
+      "running",
+      {},
+      {},
+      {},
+      {},
+    );
+
+    expect(sb.neq).toHaveBeenCalledWith("status", "cancelled");
+  });
+
+  it("status='completed' 쓰기 시에는 CAS 가드를 적용하지 않는다", async () => {
+    const sb = makeSupabaseMock();
+
+    await updatePipelineState(
+      sb as unknown as import("@/lib/supabase/admin").SupabaseAdminClient,
+      "pipe-done",
+      "completed",
+      {},
+      {},
+      {},
+      {},
+      true,
+    );
+
+    expect(sb.neq).not.toHaveBeenCalled();
+  });
+
+  it("status='failed' 쓰기 시에는 CAS 가드를 적용하지 않는다", async () => {
+    const sb = makeSupabaseMock();
+
+    await updatePipelineState(
+      sb as unknown as import("@/lib/supabase/admin").SupabaseAdminClient,
+      "pipe-fail",
+      "failed",
+      {},
+      {},
+      {},
+      {},
+      true,
+    );
+
+    expect(sb.neq).not.toHaveBeenCalled();
   });
 });
 
@@ -490,6 +546,215 @@ describe("runTaskWithState()", () => {
 
     expect(ctx.tasks["competency_setek"]).toBe("completed");
     expect(ctx.previews["competency_setek"]).toBe("세특 역량 완료");
+  });
+
+  it("일부 태스크만 완료 시 최종 updatePipelineState는 'running'을 쓴다", async () => {
+    const sb = makeSupabaseMock();
+    const ctx = makeCtx({ gradeMode: "analysis" }, sb);
+    ctx.tasks["competency_setek"] = "pending";
+
+    await runTaskWithState(ctx, "competency_setek", async () => "완료");
+
+    // 두 번째 update 호출(finalize)의 status 인자
+    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    expect(finalUpdateArg.status).toBe("running");
+    expect(finalUpdateArg).not.toHaveProperty("completed_at");
+  });
+
+  it("analysis 모드에서 마지막 required 태스크 완료 시 파이프라인이 completed로 finalize된다", async () => {
+    const sb = makeSupabaseMock();
+    const ctx = makeCtx({ gradeMode: "analysis" }, sb);
+    // analysis 모드 required 태스크 7개 모두 completed로 미리 세팅
+    // haengteuk_guide만 pending으로 두고 이걸 실행시켜 마지막 태스크로 만듦
+    const analysisRequired = GRADE_PIPELINE_TASK_KEYS.filter(
+      (k) => k !== "draft_generation" && k !== "draft_analysis",
+    );
+    for (const k of analysisRequired) {
+      ctx.tasks[k] = "completed";
+    }
+    ctx.tasks["haengteuk_guide"] = "pending";
+
+    await runTaskWithState(ctx, "haengteuk_guide", async () => "행특 가이드 완료");
+
+    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    expect(finalUpdateArg.status).toBe("completed");
+    expect(finalUpdateArg).toHaveProperty("completed_at");
+    expect(typeof finalUpdateArg.completed_at).toBe("string");
+  });
+
+  it("design 모드에서 draft_analysis 완료 시 파이프라인이 completed로 finalize된다", async () => {
+    const sb = makeSupabaseMock();
+    const ctx = makeCtx({ gradeMode: "design" }, sb);
+    for (const k of GRADE_PIPELINE_TASK_KEYS) {
+      ctx.tasks[k] = "completed";
+    }
+    ctx.tasks["draft_analysis"] = "pending";
+
+    await runTaskWithState(ctx, "draft_analysis", async () => "가안 분석 완료");
+
+    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    expect(finalUpdateArg.status).toBe("completed");
+    expect(finalUpdateArg).toHaveProperty("completed_at");
+  });
+
+  it("analysis 모드 draft_* 미실행 상태여도 completed로 finalize된다", async () => {
+    const sb = makeSupabaseMock();
+    const ctx = makeCtx({ gradeMode: "analysis" }, sb);
+    const analysisRequired = GRADE_PIPELINE_TASK_KEYS.filter(
+      (k) => k !== "draft_generation" && k !== "draft_analysis",
+    );
+    for (const k of analysisRequired) {
+      ctx.tasks[k] = "completed";
+    }
+    // draft_* 는 pending인 채로 남겨둠 → analysis 모드에서는 무시해야 함
+    ctx.tasks["draft_generation"] = "pending";
+    ctx.tasks["draft_analysis"] = "pending";
+    ctx.tasks["haengteuk_guide"] = "pending";
+
+    await runTaskWithState(ctx, "haengteuk_guide", async () => "완료");
+
+    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    expect(finalUpdateArg.status).toBe("completed");
+  });
+
+  it("마지막 태스크가 failed면 파이프라인이 failed로 finalize된다", async () => {
+    const sb = makeSupabaseMock();
+    const ctx = makeCtx({ gradeMode: "analysis" }, sb);
+    const analysisRequired = GRADE_PIPELINE_TASK_KEYS.filter(
+      (k) => k !== "draft_generation" && k !== "draft_analysis",
+    );
+    for (const k of analysisRequired) {
+      ctx.tasks[k] = "completed";
+    }
+    ctx.tasks["haengteuk_guide"] = "pending";
+
+    await runTaskWithState(ctx, "haengteuk_guide", async () => {
+      throw new Error("LLM 실패");
+    });
+
+    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    expect(finalUpdateArg.status).toBe("failed");
+    expect(finalUpdateArg).toHaveProperty("completed_at");
+  });
+
+  it("synthesis 파이프라인도 마지막 태스크 완료 시 completed로 finalize된다", async () => {
+    const sb = makeSupabaseMock();
+    const ctx = makeCtx({ pipelineType: "synthesis", gradeMode: undefined }, sb);
+    for (const k of SYNTHESIS_PIPELINE_TASK_KEYS) {
+      ctx.tasks[k] = "completed";
+    }
+    ctx.tasks["roadmap_generation"] = "pending";
+
+    await runTaskWithState(ctx, "roadmap_generation", async () => "로드맵 완료");
+
+    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    expect(finalUpdateArg.status).toBe("completed");
+  });
+});
+
+// ============================================
+// 4-2. computePipelineFinalStatus()
+// ============================================
+
+describe("computePipelineFinalStatus()", () => {
+  const makeAnalysisTasks = (overrides: Record<string, PipelineTaskStatus> = {}) => {
+    const tasks: Record<string, PipelineTaskStatus> = {};
+    for (const k of GRADE_PIPELINE_TASK_KEYS) {
+      tasks[k] = "pending";
+    }
+    return { ...tasks, ...overrides };
+  };
+
+  const allAnalysisCompleted = (): Record<string, PipelineTaskStatus> => {
+    const tasks: Record<string, PipelineTaskStatus> = {};
+    for (const k of GRADE_PIPELINE_TASK_KEYS) {
+      if (k === "draft_generation" || k === "draft_analysis") {
+        tasks[k] = "pending"; // 무시 대상
+      } else {
+        tasks[k] = "completed";
+      }
+    }
+    return tasks;
+  };
+
+  const allDesignCompleted = (): Record<string, PipelineTaskStatus> => {
+    const tasks: Record<string, PipelineTaskStatus> = {};
+    for (const k of GRADE_PIPELINE_TASK_KEYS) {
+      tasks[k] = "completed";
+    }
+    return tasks;
+  };
+
+  const allSynthCompleted = (): Record<string, PipelineTaskStatus> => {
+    const tasks: Record<string, PipelineTaskStatus> = {};
+    for (const k of SYNTHESIS_PIPELINE_TASK_KEYS) {
+      tasks[k] = "completed";
+    }
+    return tasks;
+  };
+
+  it("pipelineType이 undefined면 'running'을 반환한다 (안전 디폴트)", () => {
+    expect(computePipelineFinalStatus(undefined, undefined, {})).toBe("running");
+  });
+
+  it("grade+analysis: pending이 하나라도 있으면 'running'", () => {
+    const tasks = makeAnalysisTasks({ competency_setek: "completed" });
+    expect(computePipelineFinalStatus("grade", "analysis", tasks)).toBe("running");
+  });
+
+  it("grade+analysis: required 전부 completed면 'completed'", () => {
+    expect(computePipelineFinalStatus("grade", "analysis", allAnalysisCompleted())).toBe("completed");
+  });
+
+  it("grade+analysis: draft_*가 pending이어도 completed로 판정 (제외 대상)", () => {
+    const tasks = allAnalysisCompleted();
+    tasks.draft_generation = "pending";
+    tasks.draft_analysis = "pending";
+    expect(computePipelineFinalStatus("grade", "analysis", tasks)).toBe("completed");
+  });
+
+  it("grade+design: draft_*까지 전부 completed여야 completed", () => {
+    expect(computePipelineFinalStatus("grade", "design", allDesignCompleted())).toBe("completed");
+  });
+
+  it("grade+design: draft_analysis가 pending이면 'running'", () => {
+    const tasks = allDesignCompleted();
+    tasks.draft_analysis = "pending";
+    expect(computePipelineFinalStatus("grade", "design", tasks)).toBe("running");
+  });
+
+  it("일부 completed + 일부 failed + pending 없음 → 'failed'", () => {
+    const tasks = allAnalysisCompleted();
+    tasks.changche_guide = "failed";
+    expect(computePipelineFinalStatus("grade", "analysis", tasks)).toBe("failed");
+  });
+
+  it("running 태스크가 있으면 terminal 판정 안 함", () => {
+    const tasks = allAnalysisCompleted();
+    tasks.haengteuk_guide = "running";
+    expect(computePipelineFinalStatus("grade", "analysis", tasks)).toBe("running");
+  });
+
+  it("synthesis: 전부 completed면 'completed'", () => {
+    expect(computePipelineFinalStatus("synthesis", undefined, allSynthCompleted())).toBe("completed");
+  });
+
+  it("synthesis: 하나라도 pending이면 'running'", () => {
+    const tasks = allSynthCompleted();
+    tasks.roadmap_generation = "pending";
+    expect(computePipelineFinalStatus("synthesis", undefined, tasks)).toBe("running");
+  });
+
+  it("synthesis: gradeMode 파라미터는 무시된다", () => {
+    const tasks = allSynthCompleted();
+    expect(computePipelineFinalStatus("synthesis", "design", tasks)).toBe("completed");
+    expect(computePipelineFinalStatus("synthesis", "analysis", tasks)).toBe("completed");
+  });
+
+  it("grade: gradeMode 미지정 시 analysis로 간주", () => {
+    // draft_*만 pending이면 analysis로 간주되어 completed 판정
+    const tasks = allAnalysisCompleted();
+    expect(computePipelineFinalStatus("grade", undefined, tasks)).toBe("completed");
   });
 });
 

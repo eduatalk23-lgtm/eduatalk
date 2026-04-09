@@ -21,7 +21,7 @@ import {
 import type { RoadmapGenerationInput, RoadmapGenerationOutput } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 
-const LOG_CTX = { domain: "student-record", action: "generateRoadmap" };
+const LOG_CTX = { domain: "record-analysis", action: "generateRoadmap" };
 
 export async function generateAiRoadmap(
   studentId: string,

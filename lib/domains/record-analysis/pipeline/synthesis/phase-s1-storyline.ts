@@ -14,7 +14,7 @@ import * as repository from "@/lib/domains/student-record/repository";
 import type { RecordSummary } from "../../llm/prompts/inquiryLinking";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 2. 스토리라인 감지

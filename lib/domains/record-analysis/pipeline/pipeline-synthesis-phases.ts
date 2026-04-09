@@ -99,7 +99,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
   if (competencySnapshots.length === 0) return;
 
   // 3. Executive Summary 생성
-  const { generateExecutiveSummary } = await import("../eval/executive-summary");
+  const { generateExecutiveSummary } = await import("@/lib/domains/record-analysis/eval/executive-summary");
   const summary = generateExecutiveSummary({
     studentId,
     competencySnapshots,

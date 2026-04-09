@@ -42,7 +42,7 @@ export interface CoursePlanContext {
   snapshot: Record<string, unknown> | null;
 }
 
-const LOG_CTX = { domain: "student-record", action: "generateDiagnosis" };
+const LOG_CTX = { domain: "record-analysis", action: "generateDiagnosis" };
 
 // ── 약한 등급 판단 기준 ──
 const LOW_GRADE_THRESHOLD = new Set(["B+", "B", "B-", "C"]);

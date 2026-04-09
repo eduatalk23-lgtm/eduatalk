@@ -120,7 +120,8 @@ export async function replaceEdges(
     p_tenant_id: tenantId,
     p_pipeline_id: pipelineId,
     p_edge_context: edgeContext,
-    p_edges: JSON.stringify(rows),
+    // jsonb 파라미터는 배열 그대로 전달 — JSON.stringify 시 RPC 내부 jsonb_array_length()에서 22023 에러
+    p_edges: rows,
   });
 
   if (error) throw error;

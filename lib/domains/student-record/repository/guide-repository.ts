@@ -118,6 +118,33 @@ export async function findAllSetekGuides(
   return (data ?? []) as Array<{ id: string; school_year: number; direction: string | null; keywords: string[] | null; competency_focus: string[] | null; teacher_points: string[] | null; subject: { name: string } | null }>;
 }
 
+/** 세특 가이드 개별 수정 — 컨설턴트 편집용 (source='manual'만 대상) */
+export async function updateSetekGuide(
+  id: string,
+  updates: Record<string, unknown>,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_record_setek_guides")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** 세특 가이드 삭제 */
+export async function deleteSetekGuide(
+  id: string,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_record_setek_guides")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // ============================================
 // 2. 창체 가이드 (changche_guides)
 // ============================================
@@ -203,6 +230,33 @@ export async function findAllChangcheGuides(
   return (data ?? []) as Array<{ id: string; school_year: number; activity_type: string | null; direction: string | null; keywords: string[] | null; competency_focus: string[] | null; teacher_points: string[] | null }>;
 }
 
+/** 창체 가이드 개별 수정 — 컨설턴트 편집용 (source='manual'만 대상) */
+export async function updateChangcheGuide(
+  id: string,
+  updates: Record<string, unknown>,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_record_changche_guides")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** 창체 가이드 삭제 */
+export async function deleteChangcheGuide(
+  id: string,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_record_changche_guides")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // ============================================
 // 3. 행특 가이드 (haengteuk_guides)
 // ============================================
@@ -271,4 +325,31 @@ export async function findAllHaengteukGuides(
     .eq("source", params.source ?? "ai");
   if (error) throw error;
   return (data ?? []) as Array<{ id: string; school_year: number; direction: string | null; keywords: string[] | null; competency_focus: string[] | null; teacher_points: string[] | null }>;
+}
+
+/** 행특 가이드 개별 수정 — 컨설턴트 편집용 (source='manual'만 대상) */
+export async function updateHaengteukGuide(
+  id: string,
+  updates: Record<string, unknown>,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_record_haengteuk_guides")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** 행특 가이드 삭제 */
+export async function deleteHaengteukGuide(
+  id: string,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_record_haengteuk_guides")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
 }

@@ -84,7 +84,7 @@ export async function ensureConsultingGradeSlots(params: {
           );
 
         if (error) {
-          logActionWarn({ domain: "student-record", action: "slot-generator" }, `세특 슬롯 생성 실패: ${error.message}`, { subjectId: plan.subject_id, grade });
+          logActionWarn({ domain: "record-analysis", action: "slot-generator" }, `세특 슬롯 생성 실패: ${error.message}`, { subjectId: plan.subject_id, grade });
         } else {
           setekCount++;
         }
@@ -112,7 +112,7 @@ export async function ensureConsultingGradeSlots(params: {
         );
 
       if (error) {
-        logActionWarn({ domain: "student-record", action: "slot-generator" }, `창체 슬롯 생성 실패: ${error.message}`, { activityType, grade });
+        logActionWarn({ domain: "record-analysis", action: "slot-generator" }, `창체 슬롯 생성 실패: ${error.message}`, { activityType, grade });
       } else {
         changcheCount++;
       }
@@ -137,7 +137,7 @@ export async function ensureConsultingGradeSlots(params: {
       );
 
     if (haengteukError) {
-      logActionWarn({ domain: "student-record", action: "slot-generator" }, `행특 슬롯 생성 실패: ${haengteukError.message}`, { grade });
+      logActionWarn({ domain: "record-analysis", action: "slot-generator" }, `행특 슬롯 생성 실패: ${haengteukError.message}`, { grade });
     } else {
       haengteukCount++;
     }

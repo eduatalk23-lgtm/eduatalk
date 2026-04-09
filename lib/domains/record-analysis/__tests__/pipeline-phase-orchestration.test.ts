@@ -16,7 +16,7 @@ import type { PipelineContext } from "../pipeline/pipeline-types";
 
 // ── Mock: pipeline-executor ─────────────────────────
 vi.mock("../pipeline/pipeline-executor", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../pipeline/pipeline-executor")>();
+  const actual = await importOriginal<typeof import("@/lib/domains/record-analysis/pipeline/pipeline-executor")>();
   return {
     ...actual,
     // runTaskWithState: 실제 runner를 호출하되, runner 내부는 모킹되므로 상태 전이만 시뮬레이션
@@ -77,7 +77,7 @@ import {
   executeSynthesisPhase6,
 } from "../pipeline/pipeline-synthesis-phases";
 
-import { runTaskWithState } from "../pipeline/pipeline-executor";
+import { runTaskWithState, updatePipelineState } from "../pipeline/pipeline-executor";
 
 // ── 픽스처 ──────────────────────────────────────────
 
@@ -209,6 +209,140 @@ describe("Grade Phase 오케스트레이션", () => {
 
       expect(ctx.tasks["haengteuk_guide"]).toBe("failed");
       expect(ctx.errors["haengteuk_guide"]).toContain("changche_guide");
+    });
+  });
+
+  describe("Phase 6: analysis 모드 최종 상태 마킹", () => {
+    it("analysis 모드 + 모든 필수 태스크 완료 → status='completed' + isFinal", async () => {
+      const ctx = makeCtx({
+        gradeMode: "analysis",
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "completed",
+          // haengteuk_guide 는 runTaskWithState mock이 completed로 세팅
+        },
+      });
+      await executeGradePhase6(ctx);
+
+      // runTaskWithState mock이 haengteuk_guide를 completed로 마킹했는지
+      expect(ctx.tasks["haengteuk_guide"]).toBe("completed");
+
+      // 마지막 updatePipelineState 호출이 "completed" + isFinal=true 인지 확인
+      const calls = vi.mocked(updatePipelineState).mock.calls;
+      const finalCall = calls[calls.length - 1];
+      expect(finalCall).toBeDefined();
+      // signature: (supabase, pipelineId, status, tasks, previews, results, errors, isFinal?)
+      expect(finalCall[2]).toBe("completed");
+      expect(finalCall[7]).toBe(true);
+    });
+
+    it("analysis 모드 + 일부 태스크 실패 → status='failed' + isFinal", async () => {
+      const ctx = makeCtx({
+        gradeMode: "analysis",
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "failed", // ← 실패
+          changche_guide: "completed",
+        },
+      });
+      await executeGradePhase6(ctx);
+
+      const calls = vi.mocked(updatePipelineState).mock.calls;
+      const finalCall = calls[calls.length - 1];
+      expect(finalCall[2]).toBe("failed");
+      expect(finalCall[7]).toBe(true);
+    });
+
+    it("analysis 모드 + haengteuk_guide 선행 실패 cascade → status='failed'", async () => {
+      const ctx = makeCtx({
+        gradeMode: "analysis",
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "failed", // ← haengteuk_guide 선행 실패
+        },
+      });
+      await executeGradePhase6(ctx);
+
+      // skipIfPrereqFailed가 haengteuk_guide를 failed로 마킹
+      expect(ctx.tasks["haengteuk_guide"]).toBe("failed");
+
+      // 최종 status는 "failed" (isFinal=true)
+      const calls = vi.mocked(updatePipelineState).mock.calls;
+      const finalCall = calls[calls.length - 1];
+      expect(finalCall[2]).toBe("failed");
+      expect(finalCall[7]).toBe(true);
+    });
+
+    it("analysis 모드 + draft_generation/draft_analysis 가 pending 이어도 completed 판정", async () => {
+      // draft_* 는 설계 모드 전용이므로 analysis 완료 판정에서 제외돼야 함
+      const ctx = makeCtx({
+        gradeMode: "analysis",
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "completed",
+          draft_generation: "pending", // 분석 모드에선 실행 안 됨
+          draft_analysis: "pending",
+        },
+      });
+      await executeGradePhase6(ctx);
+
+      const calls = vi.mocked(updatePipelineState).mock.calls;
+      const finalCall = calls[calls.length - 1];
+      expect(finalCall[2]).toBe("completed");
+    });
+
+    it("design 모드 → Phase 6에서 최종 상태 마킹 안 함 (Phase 8이 담당)", async () => {
+      const ctx = makeCtx({
+        gradeMode: "design",
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "completed",
+        },
+      });
+      await executeGradePhase6(ctx);
+
+      // updatePipelineState 호출이 있어도 isFinal=true 인 호출은 없어야 함
+      const calls = vi.mocked(updatePipelineState).mock.calls;
+      const hasFinalCall = calls.some((c) => c[7] === true);
+      expect(hasFinalCall).toBe(false);
+    });
+
+    it("gradeMode 미지정 → analysis 블록 실행 안 함 (하위 호환)", async () => {
+      // gradeMode가 undefined 이면 analysis 블록은 건너뛴다
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "completed",
+        },
+      });
+      await executeGradePhase6(ctx);
+
+      const calls = vi.mocked(updatePipelineState).mock.calls;
+      const hasFinalCall = calls.some((c) => c[7] === true);
+      expect(hasFinalCall).toBe(false);
     });
   });
 

@@ -15,7 +15,7 @@
  *   4축 admissionReference — 학종 입결 내신 참조
  */
 
-import type { UniversityMatchAnalysis } from "@/lib/domains/student-record/eval/university-profile-matcher";
+import type { UniversityMatchAnalysis } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record/types";
 import type { FlowCompletionResult } from "@/lib/domains/student-record/evaluation-criteria/flow-completion";
 

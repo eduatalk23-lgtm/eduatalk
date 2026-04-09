@@ -21,7 +21,7 @@ import type { ActivitySummaryInput, ActivitySummaryResult } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 
-const LOG_CTX = { domain: "student-record", action: "generateActivitySummary" };
+const LOG_CTX = { domain: "record-analysis", action: "generateActivitySummary" };
 
 export async function generateActivitySummary(
   studentId: string,

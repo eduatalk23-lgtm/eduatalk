@@ -20,7 +20,7 @@ import {
 } from "../llm/prompts/draft-system-prompts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const LOG_CTX = { domain: "student-record", action: "draftGeneration" };
+const LOG_CTX = { domain: "record-analysis", action: "draftGeneration" };
 
 // ─── Private 헬퍼 ──
 

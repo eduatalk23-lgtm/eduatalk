@@ -176,7 +176,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       },
     };
 
-    const { runDraftGenerationForGrade } = await import("../pipeline/pipeline-task-runners-draft");
+    const { runDraftGenerationForGrade } = await import("@/lib/domains/record-analysis/pipeline/pipeline-task-runners-draft");
     await runDraftGenerationForGrade(ctx as never);
 
     fromSpy.mockRestore();
@@ -262,7 +262,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       },
     };
 
-    const { runDraftGenerationForGrade } = await import("../pipeline/pipeline-task-runners-draft");
+    const { runDraftGenerationForGrade } = await import("@/lib/domains/record-analysis/pipeline/pipeline-task-runners-draft");
     const result = await runDraftGenerationForGrade(ctx as never);
 
     expect(result).toBe("분석 모드 학년 — 가안 생성 스킵 (NEIS 기록 기반)");
@@ -285,7 +285,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       pipelineType: "grade" as const,
     };
 
-    const { runDraftGenerationForGrade } = await import("../pipeline/pipeline-task-runners-draft");
+    const { runDraftGenerationForGrade } = await import("@/lib/domains/record-analysis/pipeline/pipeline-task-runners-draft");
     await expect(runDraftGenerationForGrade(ctx as never)).rejects.toThrow(
       "targetGrade",
     );
@@ -670,7 +670,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
   });
 
   it("반복 패턴 2건 이상 — repeatingPatterns 배열 구조 스냅샷", async () => {
-    const { aggregateQualityPatterns } = await import("../pipeline/synthesis/helpers");
+    const { aggregateQualityPatterns } = await import("@/lib/domains/record-analysis/pipeline/synthesis/helpers");
 
     const mockSupabase = buildMockSupabase(
       [
@@ -723,7 +723,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
   });
 
   it("피드백 텍스트가 qualityPatternSection에 포함", async () => {
-    const { aggregateQualityPatterns } = await import("../pipeline/synthesis/helpers");
+    const { aggregateQualityPatterns } = await import("@/lib/domains/record-analysis/pipeline/synthesis/helpers");
 
     const mockSupabase = buildMockSupabase(
       [
@@ -757,7 +757,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
   });
 
   it("이슈가 없으면 빈 결과 반환", async () => {
-    const { aggregateQualityPatterns } = await import("../pipeline/synthesis/helpers");
+    const { aggregateQualityPatterns } = await import("@/lib/domains/record-analysis/pipeline/synthesis/helpers");
 
     const mockSupabase = buildMockSupabase([
       { record_id: "rec-1", record_type: "setek", issues: [], feedback: null },
@@ -783,7 +783,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
   });
 
   it("패턴이 1건만 있으면 반복 패턴에서 제외 (threshold=2)", async () => {
-    const { aggregateQualityPatterns } = await import("../pipeline/synthesis/helpers");
+    const { aggregateQualityPatterns } = await import("@/lib/domains/record-analysis/pipeline/synthesis/helpers");
 
     const mockSupabase = buildMockSupabase(
       [

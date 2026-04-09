@@ -138,9 +138,12 @@ export async function checkPipelineRateLimit(
   }
 
   const rows = recentPipelines ?? [];
-  if (rows.some((r) => r.status === "pending" || r.status === "running")) {
-    return "이미 실행 중인 파이프라인이 있습니다. 완료 후 다시 시도해주세요.";
-  }
+  // NOTE: "pending/running 하나라도 있으면 차단"이라는 과거 정책은 제거됨.
+  // - 동시 INSERT는 idx_unique_running_grade_pipeline DB 제약으로 보호됨
+  // - 중복 태스크 실행은 runTaskWithState의 `task === "completed"` 가드로 보호됨
+  // - runGradeAwarePipeline/runSynthesisPipeline이 기존 running/pending/cancelled를
+  //   전부 resume 대상으로 처리하므로 "이미 실행 중 → 에러"는 UX를 막는 과보호였다.
+  // 시간당 5회 rate limit만 유지.
   if (rows.length >= 5) {
     return "1시간 내 최대 5회까지 파이프라인을 실행할 수 있습니다. 잠시 후 다시 시도해주세요.";
   }

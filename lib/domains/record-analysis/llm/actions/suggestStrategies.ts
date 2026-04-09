@@ -12,7 +12,7 @@ import { withRetry } from "../retry";
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from "../prompts/strategyRecommend";
 import type { SuggestStrategiesInput, SuggestStrategiesResult } from "../types";
 
-const LOG_CTX = { domain: "student-record", action: "suggestStrategies" };
+const LOG_CTX = { domain: "record-analysis", action: "suggestStrategies" };
 
 export async function suggestStrategies(
   input: SuggestStrategiesInput,

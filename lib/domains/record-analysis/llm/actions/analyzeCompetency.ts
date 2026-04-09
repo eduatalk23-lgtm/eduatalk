@@ -13,7 +13,7 @@ import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "@/lib/domains/stu
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
 
-const LOG_CTX = { domain: "student-record", action: "analyzeCompetency" };
+const LOG_CTX = { domain: "record-analysis", action: "analyzeCompetency" };
 
 export interface CompetencyAnalysisItem {
   competencyItem: CompetencyItemCode;

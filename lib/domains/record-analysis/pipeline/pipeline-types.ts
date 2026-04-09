@@ -98,7 +98,7 @@ export interface PipelineTaskResultMap {
     weaknessCount: number;
     improvementCount: number;
     coverageWarnings?: DataCoverageWarning[];
-    _timeSeriesAnalysis?: import("../eval/timeseries-analyzer").TimeSeriesAnalysis;
+    _timeSeriesAnalysis?: import("@/lib/domains/record-analysis/eval/timeseries-analyzer").TimeSeriesAnalysis;
     elapsedMs?: number;
   };
   /** S3-b: 수강 추천 (string preview만 반환) */
@@ -112,7 +112,7 @@ export interface PipelineTaskResultMap {
   /** S5-b: 보완전략 자동 제안 */
   ai_strategy: {
     savedCount: number;
-    _universityMatch?: import("../eval/university-profile-matcher").UniversityMatchAnalysis;
+    _universityMatch?: import("@/lib/domains/record-analysis/eval/university-profile-matcher").UniversityMatchAnalysis;
     elapsedMs?: number;
   };
   /** S6-a: 면접 예상 질문 (string preview만 반환) */
@@ -122,7 +122,7 @@ export interface PipelineTaskResultMap {
 
   // ── Internal (Executive Summary + 4축 진단) ──
   /** Synthesis Phase 6 완료 후 자동 생성되는 Executive Summary */
-  _executiveSummary: import("../eval/executive-summary").ExecutiveSummary;
+  _executiveSummary: import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary;
   /** Synthesis Phase 6 완료 후 자동 생성되는 4축 합격 진단 프로필 */
   _fourAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis;
 }

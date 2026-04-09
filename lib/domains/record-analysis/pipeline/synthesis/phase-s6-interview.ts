@@ -14,7 +14,7 @@ import {
 import * as repository from "@/lib/domains/student-record/repository";
 import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 13. 면접 예상 질문 생성

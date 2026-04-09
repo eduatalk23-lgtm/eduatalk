@@ -15,7 +15,7 @@ import type { CrossRefEdge } from "@/lib/domains/student-record/cross-reference"
 import * as competencyRepo from "@/lib/domains/student-record/repository/competency-repository";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record/types";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 3. 엣지 계산
@@ -129,7 +129,7 @@ export async function runEdgeComputation(ctx: PipelineContext): Promise<TaskRunn
     .from("student_record_analysis_pipelines")
     .update({ content_hash: hash })
     .eq("id", pipelineId);
-  if (hashErr) logActionError({ domain: "student-record", action: "phase-s2-edges" }, hashErr, { pipelineId });
+  if (hashErr) logActionError({ domain: "record-analysis", action: "phase-s2-edges" }, hashErr, { pipelineId });
 
   // Phase E2: 후속 태스크용 엣지 배열
   const computedEdges = graph.nodes.flatMap((n) => n.edges) as PersistedEdge[] | CrossRefEdge[];

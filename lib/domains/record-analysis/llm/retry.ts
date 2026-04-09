@@ -113,7 +113,7 @@ export async function withRetry<T>(
 
         const delay = strategy.delays[Math.min(attempt, strategy.delays.length - 1)] ?? 10000;
         logActionWarn(
-          { domain: "student-record", action: "llm-retry" },
+          { domain: "record-analysis", action: "llm-retry" },
           `[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기)`,
         );
         await new Promise<void>((r) => setTimeout(r, delay));

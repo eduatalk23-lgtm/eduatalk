@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { apiSuccess, apiBadRequest } from "@/lib/api/response";
-import { matchUniversityProfiles } from "@/lib/domains/student-record/eval/university-profile-matcher";
+import { matchUniversityProfiles } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 
 const limiter = createRateLimiter({ maxRequests: 30, prefix: "rl:profile-match" });

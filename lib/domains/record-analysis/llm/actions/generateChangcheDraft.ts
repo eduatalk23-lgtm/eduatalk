@@ -21,7 +21,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCharLimit } from "@/lib/domains/student-record/constants";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 
-const LOG_CTX = { domain: "student-record", action: "generateChangcheDraft" };
+const LOG_CTX = { domain: "record-analysis", action: "generateChangcheDraft" };
 
 // ─── 활동유형별 시스템 프롬프트 ──────────────────────────────
 

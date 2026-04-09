@@ -18,7 +18,7 @@ import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 import { findContentQualityByStudent } from "@/lib/domains/student-record/repository/competency-repository";
 import * as guideRepo from "@/lib/domains/student-record/repository/guide-repository";
 
-const LOG_CTX = { domain: "student-record", action: "unified-input" };
+const LOG_CTX = { domain: "record-analysis", action: "unified-input" };
 
 // ============================================
 // 타입 정의

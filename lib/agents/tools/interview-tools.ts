@@ -12,7 +12,7 @@ import {
   INTERVIEW_SYSTEM_PROMPT,
   buildInterviewUserPrompt,
   parseInterviewResponse,
-} from "@/lib/domains/student-record/llm/prompts/interviewQuestions";
+} from "@/lib/domains/record-analysis/llm/prompts/interviewQuestions";
 import { getRecordTabData } from "@/lib/domains/student-record/service";
 import { findApplicationsByStudentYear } from "@/lib/domains/student-record/repository";
 import { checkInterviewConflicts } from "@/lib/domains/student-record/interview-conflict-checker";

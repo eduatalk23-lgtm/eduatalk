@@ -12,7 +12,7 @@ import { withRetry } from "../retry";
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from "../prompts/competencyTagging";
 import type { SuggestTagsInput, SuggestTagsResult } from "../types";
 
-const LOG_CTX = { domain: "student-record", action: "suggestTags" };
+const LOG_CTX = { domain: "record-analysis", action: "suggestTags" };
 
 export async function suggestCompetencyTags(
   input: SuggestTagsInput,

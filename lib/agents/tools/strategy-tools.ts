@@ -12,7 +12,7 @@ import {
   SYSTEM_PROMPT as STRATEGY_SYSTEM_PROMPT,
   buildUserPrompt as buildStrategyUserPrompt,
   parseResponse as parseStrategyResponse,
-} from "@/lib/domains/student-record/llm/prompts/strategyRecommend";
+} from "@/lib/domains/record-analysis/llm/prompts/strategyRecommend";
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import { findCompetencyScores } from "@/lib/domains/student-record/repository/competency-repository";
 import { findDiagnosis } from "@/lib/domains/student-record/repository/diagnosis-repository";

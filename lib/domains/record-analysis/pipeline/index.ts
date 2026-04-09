@@ -1,7 +1,7 @@
 // ============================================
 // Pipeline Module — Public API barrel
 //
-// 외부에서 "../pipeline" 또는 "@/lib/domains/student-record/pipeline"으로 import 가능.
+// 외부에서 "../pipeline" 또는 "@/lib/domains/record-analysis/pipeline"으로 import 가능.
 // 테스트 파일 등에서 특정 모듈에 직접 접근 필요 시:
 //   import { ... } from "../pipeline/pipeline-executor"
 // ============================================

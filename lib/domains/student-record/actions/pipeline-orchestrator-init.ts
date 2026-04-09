@@ -21,6 +21,7 @@ import type {
 import {
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
+  computePipelineFinalStatus,
 } from "@/lib/domains/record-analysis/pipeline";
 import { resolveRecordData, deriveGradeCategories } from "@/lib/domains/record-analysis/pipeline";
 import { checkPipelineRateLimit } from "./pipeline";
@@ -155,40 +156,64 @@ export async function runSynthesisPipeline(
       initTasks[key] = "pending";
     }
 
-    // 이전에 cancelled된 synthesis 파이프라인이 있으면 재사용 (resume)
-    const { data: existingCancelled } = await supabase
+    // 최신 synthesis 파이프라인 조회 (상태 무관).
+    // 정책: completed는 신규 INSERT로 덮어쓰기, running/pending/cancelled는 전부 resume 대상.
+    // "pending/running이 있으면 새로 못 만든다"는 과보호는 제거.
+    const { data: latestSynth } = await supabase
       .from("student_record_analysis_pipelines")
-      .select("id, tasks")
+      .select("id, status, tasks")
       .eq("student_id", studentId)
       .eq("pipeline_type", "synthesis")
-      .eq("status", "cancelled")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (existingCancelled) {
+    const existingResumable =
+      latestSynth?.status === "running" ||
+      latestSynth?.status === "pending" ||
+      latestSynth?.status === "cancelled"
+        ? latestSynth
+        : null;
+
+    if (existingResumable) {
       const resumedTasks = {
-        ...(existingCancelled.tasks as Record<string, string>),
+        ...(existingResumable.tasks as Record<string, string>),
       };
       for (const k of Object.keys(resumedTasks)) {
         if (resumedTasks[k] === "running") resumedTasks[k] = "pending";
       }
+
+      // Early-finalize 가드: 모든 required 태스크가 이미 종결되어 있으면
+      // "running"으로 승격하지 않고 즉시 completed/failed로 마감한다.
+      // (캐시로만 끝날 이어서 실행이 DB를 running에 잠그는 버그 차단)
+      const resumedStatus = computePipelineFinalStatus(
+        "synthesis",
+        undefined,
+        resumedTasks as Record<string, import("@/lib/domains/record-analysis/pipeline").PipelineTaskStatus>,
+      );
+      const isTerminal =
+        resumedStatus === "completed" || resumedStatus === "failed";
+      const effectiveStatus = isTerminal ? resumedStatus : "running";
+
       const { error: updateError } = await supabase
         .from("student_record_analysis_pipelines")
         .update({
-          status: "running",
+          status: effectiveStatus,
           tasks: resumedTasks,
-          completed_at: null,
+          completed_at: isTerminal ? new Date().toISOString() : null,
           error_details: null,
-          started_at: new Date().toISOString(),
+          // 실제로 실행될 때만 started_at 리셋
+          ...(!isTerminal
+            ? { started_at: new Date().toISOString() }
+            : {}),
           input_snapshot: { ...(student ?? {}), gradePipelineIds },
         })
-        .eq("id", existingCancelled.id);
+        .eq("id", existingResumable.id);
 
       if (updateError) {
         throw updateError;
       }
-      return createSuccessResponse({ pipelineId: existingCancelled.id });
+      return createSuccessResponse({ pipelineId: existingResumable.id as string });
     }
 
     const { data: pipeline, error: insertError } = await supabase
@@ -324,41 +349,90 @@ export async function runGradeAwarePipeline(
       // NEIS 데이터가 있는 학년 = analysis, 없는 학년 = design
       const gradeMode = neisGrades.includes(grade) ? "analysis" : "design";
 
-      // 이전에 cancelled된 파이프라인이 있으면 재사용 (resume)
-      // running 상태였던 태스크만 pending으로 되돌리고, completed는 그대로 유지
-      const { data: existingCancelled } = await supabase
+      // 가장 최근 grade 파이프라인 조회
+      // 정책:
+      // - completed        → 그대로 재사용 (초기화 금지)
+      // - running/pending/cancelled → 전부 resume 대상으로 통일
+      //   ("pending/running이 있으면 에러"는 UX를 막는 과보호였음.
+      //    DB unique 제약 + runTaskWithState의 completed 가드로 중복 보호는 충분.)
+      // - 그 외 (행 없음) → 신규 INSERT
+      const { data: latestPipeline } = await supabase
         .from("student_record_analysis_pipelines")
-        .select("id, tasks")
+        .select("id, status, tasks")
         .eq("student_id", studentId)
         .eq("pipeline_type", "grade")
         .eq("grade", grade)
-        .eq("status", "cancelled")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (existingCancelled) {
+      // 완료된 파이프라인 재사용: 새 행 INSERT 금지 (전체 실행 시 "초기화" 방지)
+      // 완료 Phase는 클라이언트 runFullSequence에서 자동 스킵됨.
+      if (latestPipeline?.status === "completed") {
+        created.push({
+          grade,
+          pipelineId: latestPipeline.id as string,
+          status: "completed",
+          mode: gradeMode,
+        });
+        continue;
+      }
+
+      // running/pending/cancelled 전부 resume 경로로 통일.
+      // - running: 이전 세션이 중단됐거나 좀비. 클라이언트가 이어서 실행 가능.
+      // - pending: isFirst가 아닌 학년이 이전에 만들어졌으나 미시작.
+      // - cancelled: 사용자가 명시적으로 중단한 것.
+      const existingResumable =
+        latestPipeline?.status === "running" ||
+        latestPipeline?.status === "pending" ||
+        latestPipeline?.status === "cancelled"
+          ? latestPipeline
+          : null;
+
+      if (existingResumable) {
         const resumedTasks = {
-          ...(existingCancelled.tasks as Record<string, string>),
+          ...(existingResumable.tasks as Record<string, string>),
         };
         for (const k of Object.keys(resumedTasks)) {
           if (resumedTasks[k] === "running") resumedTasks[k] = "pending";
         }
+
+        // Early-finalize 가드: 모든 required 태스크가 이미 종결되어 있으면
+        // "running"/"pending"으로 승격하지 않고 즉시 completed/failed로 마감한다.
+        // (캐시로만 끝날 이어서 실행이 DB를 running에 잠그는 버그 차단)
+        const resumedStatus = computePipelineFinalStatus(
+          "grade",
+          gradeMode,
+          resumedTasks as Record<string, import("@/lib/domains/record-analysis/pipeline").PipelineTaskStatus>,
+        );
+        const isTerminal =
+          resumedStatus === "completed" || resumedStatus === "failed";
+        const effectiveStatus = isTerminal ? resumedStatus : status;
+
         const { error: updateError } = await supabase
           .from("student_record_analysis_pipelines")
           .update({
-            status,
+            status: effectiveStatus,
             tasks: resumedTasks,
-            completed_at: null,
+            completed_at: isTerminal ? new Date().toISOString() : null,
             error_details: null,
-            started_at: isFirst ? new Date().toISOString() : null,
+            // started_at: resume 실행을 실제로 하는 isFirst만 now()로 갱신.
+            // terminal로 조기 마감되는 경우에도 started_at은 건드리지 않아 기존 타임라인 유지.
+            ...(isFirst && !isTerminal
+              ? { started_at: new Date().toISOString() }
+              : {}),
           })
-          .eq("id", existingCancelled.id);
+          .eq("id", existingResumable.id);
 
         if (updateError) {
           throw updateError;
         }
-        created.push({ grade, pipelineId: existingCancelled.id, status, mode: gradeMode });
+        created.push({
+          grade,
+          pipelineId: existingResumable.id as string,
+          status: effectiveStatus,
+          mode: gradeMode,
+        });
         continue;
       }
 

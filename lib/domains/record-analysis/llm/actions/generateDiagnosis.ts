@@ -37,7 +37,7 @@ import {
 // 외부에서 이 타입이 필요하면 diagnosis-helpers.ts에서 직접 import할 것
 import type { DiagnosisImprovement, DiagnosisEnrichedContext, CoursePlanContext } from "./diagnosis-helpers";
 
-const LOG_CTX = { domain: "student-record", action: "generateDiagnosis" };
+const LOG_CTX = { domain: "record-analysis", action: "generateDiagnosis" };
 
 export interface DiagnosisGenerationResult {
   overallGrade: string;

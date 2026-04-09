@@ -14,24 +14,24 @@ import {
   SYSTEM_PROMPT as TAG_SYSTEM_PROMPT,
   buildUserPrompt as buildTagUserPrompt,
   parseResponse as parseTagResponse,
-} from "@/lib/domains/student-record/llm/prompts/competencyTagging";
+} from "@/lib/domains/record-analysis/llm/prompts/competencyTagging";
 import {
   HIGHLIGHT_SYSTEM_PROMPT,
   buildHighlightUserPrompt,
   parseHighlightResponse,
-} from "@/lib/domains/student-record/llm/prompts/competencyHighlight";
+} from "@/lib/domains/record-analysis/llm/prompts/competencyHighlight";
 import {
   INQUIRY_LINK_SYSTEM_PROMPT,
   buildInquiryLinkUserPrompt,
   parseInquiryLinkResponse,
-} from "@/lib/domains/student-record/llm/prompts/inquiryLinking";
-import type { RecordSummary } from "@/lib/domains/student-record/llm/prompts/inquiryLinking";
+} from "@/lib/domains/record-analysis/llm/prompts/inquiryLinking";
+import type { RecordSummary } from "@/lib/domains/record-analysis/llm/prompts/inquiryLinking";
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES, ADMISSION_TYPE_HINTS } from "@/lib/domains/student-record/constants";
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import { determineGradeSystem } from "@/lib/domains/student-record/grade-normalizer";
 import { buildEdgeSummary } from "@/lib/domains/student-record/edge-summary";
-import type { PipelineTaskKey } from "@/lib/domains/student-record/pipeline";
-import { generateSetekDraftAction } from "@/lib/domains/student-record/llm/actions/generateSetekDraft";
+import type { PipelineTaskKey } from "@/lib/domains/record-analysis/pipeline";
+import { generateSetekDraftAction } from "@/lib/domains/record-analysis/llm/actions/generateSetekDraft";
 import { upsertDiagnosis } from "@/lib/domains/student-record/repository/diagnosis-repository";
 import { upsertCompetencyScore } from "@/lib/domains/student-record/repository/competency-repository";
 import { insertStrategy } from "@/lib/domains/student-record/repository/diagnosis-repository";

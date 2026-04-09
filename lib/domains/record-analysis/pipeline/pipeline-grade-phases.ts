@@ -5,9 +5,9 @@
 // GradePhase 3: competency_haengteuk (+ 집계)
 // GradePhase 4: setek_guide + slot_generation (병렬)
 // GradePhase 5: changche_guide
-// GradePhase 6: haengteuk_guide
+// GradePhase 6: haengteuk_guide → analysis 모드 최종 상태
 // GradePhase 7: draft_generation (설계 모드 전용)
-// GradePhase 8: draft_analysis (설계 모드 전용) → 최종 상태
+// GradePhase 8: draft_analysis (설계 모드 전용) → design 모드 최종 상태
 // ============================================
 
 import type { PipelineContext, GradePipelineTaskKey } from "./pipeline-types";
@@ -299,7 +299,7 @@ export async function executeGradePhase5(
 }
 
 // ============================================
-// Grade Phase 6: 행특 가이드
+// Grade Phase 6: 행특 가이드 → analysis 모드 최종 상태
 // ============================================
 
 export async function executeGradePhase6(
@@ -313,12 +313,32 @@ export async function executeGradePhase6(
       ctx.pipelineId, "running",
       ctx.tasks, ctx.previews, ctx.results, ctx.errors,
     );
-    return;
+  } else {
+    await runTaskWithState(ctx, "haengteuk_guide", () =>
+      runHaengteukGuideForGrade(ctx),
+    );
   }
 
-  await runTaskWithState(ctx, "haengteuk_guide", () =>
-    runHaengteukGuideForGrade(ctx),
-  );
+  // Analysis 모드는 Phase 6이 최종 Phase — 완료/실패 상태 판정.
+  // (설계 모드는 Phase 8에서 판정하므로 여기서는 건너뜀)
+  // draft_generation / draft_analysis 는 설계 모드 전용이므로
+  // analysis 모드 완료 판정에서 제외한다.
+  if (ctx.gradeMode === "analysis") {
+    const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
+      if (k === "draft_generation" || k === "draft_analysis") return true;
+      return ctx.tasks[k] === "completed";
+    });
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      allCompleted ? "completed" : "failed",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+      true, // isFinal
+    );
+  }
 }
 
 // ============================================

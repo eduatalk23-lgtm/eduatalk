@@ -317,7 +317,7 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   if (c.scientificValidity != null) rawAxes.scientificValidity = Number(c.scientificValidity) || 0;
   if (Object.values(rawAxes).some((v) => v < 0 || v > 5)) {
     logActionWarn(
-      { domain: "student-record", action: "extractContentQuality" },
+      { domain: "record-analysis", action: "extractContentQuality" },
       `[ContentQuality] 축 점수 범위 초과 (유효범위 0-5): ${JSON.stringify(rawAxes)}`,
     );
   }
@@ -338,7 +338,7 @@ function extractContentQuality(raw: Record<string, unknown>): ContentQualityScor
   const llmOverall = Number(c.overallScore);
   if (llmOverall > 0 && Math.abs(llmOverall - fallbackScore) > 15) {
     logActionWarn(
-      { domain: "student-record", action: "extractContentQuality" },
+      { domain: "record-analysis", action: "extractContentQuality" },
       `[ContentQuality] overallScore 불일치 (LLM vs 계산): llm=${llmOverall}, calculated=${Math.round(fallbackScore)}, diff=${Math.round(llmOverall - fallbackScore)}`,
     );
   }

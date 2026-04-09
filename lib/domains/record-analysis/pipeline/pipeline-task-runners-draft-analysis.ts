@@ -16,7 +16,7 @@ import { resolveEffectiveContent } from "./pipeline-data-resolver";
 import { fetchSubjectNames } from "./pipeline-task-runners-draft-generation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const LOG_CTX = { domain: "student-record", action: "draftAnalysis" };
+const LOG_CTX = { domain: "record-analysis", action: "draftAnalysis" };
 
 /** contentQuality 저장 헬퍼 (P1-P3와 동일 패턴) */
 async function saveContentQuality(
@@ -144,7 +144,7 @@ export async function runDraftAnalysisForGrade(
     return "분석 모드 학년 — 가안 분석 스킵 (P1-P3에서 처리)";
   }
 
-  const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
+  const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
   const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
   const currentSchoolYear = calcSchoolYear();
   const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
@@ -227,7 +227,8 @@ export async function runDraftAnalysisForGrade(
       p_student_id: studentId,
       p_tenant_id: tenantId,
       p_record_ids: targetRecordIds,
-      p_new_tags: JSON.stringify(allCollectedTags),
+      // jsonb 파라미터는 배열 그대로 전달 — JSON.stringify 시 RPC 내부 jsonb_array_length()에서 22023 에러
+      p_new_tags: allCollectedTags,
     });
     if (rpcError) {
       logActionError(LOG_CTX, rpcError, { phase: "draft_analysis_atomic_replace" });

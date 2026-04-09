@@ -179,8 +179,10 @@ export async function createAiStorylineWithLinks(
   const { data, error } = await supabase.rpc("create_ai_storyline_with_links", {
     p_tenant_id: tenantId,
     p_student_id: studentId,
-    p_storyline: JSON.stringify(storyline),
-    p_links: JSON.stringify(links),
+    // jsonb 파라미터는 객체/배열 그대로 전달 — JSON.stringify 시 jsonb scalar로 저장되어
+    // RPC 내부 `p_storyline->>'field'`는 NULL, `jsonb_array_length(p_links)`는 22023 에러
+    p_storyline: storyline,
+    p_links: links,
   });
   if (error) throw error;
   if (!data) throw new Error("스토리라인 RPC 결과가 비어있습니다.");

@@ -29,7 +29,7 @@ import type {
 } from "../types";
 import type { CoursePlanWithSubject } from "../course-plan/types";
 import type { ContentQualityRow } from "../warnings/engine";
-import type { CompetencyAnalysisContext } from "../pipeline";
+import type { CompetencyAnalysisContext } from "@/lib/domains/record-analysis/pipeline";
 
 const LOG_CTX = { domain: "student-record", action: "report" };
 
@@ -307,7 +307,7 @@ export async function fetchSupplementaryData(
   supabase: SupabaseServerClient,
   edges: PersistedEdge[],
 ) {
-  const [bypassRes, interviewRes, pipelineRes, guideCountRes, univStrategiesRes] = await Promise.allSettled([
+  const [bypassRes, interviewRes, pipelineRes, guideCountRes, univStrategiesRes, placementRes, pipelineSnapshotsRes] = await Promise.allSettled([
     // 우회학과 상위 5개
     supabase
       .from("bypass_major_candidates")
@@ -345,6 +345,23 @@ export async function fetchSupplementaryData(
       .select("university_name, admission_type, admission_name, ideal_student, evaluation_factors, interview_format, interview_details, min_score_criteria, key_tips")
       .order("university_name")
       .limit(300),
+    // Phase 1.1: 정시 배치 스냅샷 (auto-placement 또는 수동 분석 결과, 최신 1건)
+    supabase
+      .from("student_placement_snapshots")
+      .select("exam_date, exam_type, result, summary")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // Phase 1.3: 파이프라인 재실행 히스토리 스냅샷 (시점별 역량 비교용, 최대 10건)
+    supabase
+      .from("student_record_analysis_pipeline_snapshots")
+      .select("id, pipeline_id, snapshot, created_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   // 우회학과
@@ -385,13 +402,37 @@ export async function fetchSupplementaryData(
   // M4~M6: synthesis task_results에서 eval 데이터 추출
   const taskResults = (pipelineRaw?.task_results ?? null) as Record<string, unknown> | null;
   const executiveSummary = (taskResults?.["_executiveSummary"] ?? null) as
-    import("../eval/executive-summary").ExecutiveSummary | null;
+    import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary | null;
   const diagTaskResult = (taskResults?.["ai_diagnosis"] ?? null) as Record<string, unknown> | null;
   const timeSeriesAnalysis = (diagTaskResult?.["_timeSeriesAnalysis"] ?? null) as
-    import("../eval/timeseries-analyzer").TimeSeriesAnalysis | null;
+    import("@/lib/domains/record-analysis/eval/timeseries-analyzer").TimeSeriesAnalysis | null;
   const stratTaskResult = (taskResults?.["ai_strategy"] ?? null) as Record<string, unknown> | null;
   const universityMatch = (stratTaskResult?.["_universityMatch"] ?? null) as
-    import("../eval/university-profile-matcher").UniversityMatchAnalysis | null;
+    import("@/lib/domains/record-analysis/eval/university-profile-matcher").UniversityMatchAnalysis | null;
+
+  // Phase 1.1: 배치 스냅샷 추출 (정시 합격 예측)
+  const placementRaw = placementRes.status === "fulfilled" ? placementRes.value.data : null;
+  const placementSnapshot = placementRaw
+    ? {
+        examDate: (placementRaw.exam_date as string | null) ?? null,
+        examType: (placementRaw.exam_type as string | null) ?? null,
+        result: placementRaw.result as import("@/lib/domains/admission").PlacementAnalysisResult,
+      }
+    : null;
+
+  // Phase 1.3: 파이프라인 재실행 히스토리 스냅샷 추출 (시점별 역량 비교용)
+  // 각 스냅샷은 재실행 직전의 task_results 전체를 포함. _executiveSummary 존재 여부는
+  // 스냅샷 작성 시점의 파이프라인 버전에 따라 다름 (F0-1 이전 실행은 미포함).
+  const pipelineSnapshotsRaw = pipelineSnapshotsRes.status === "fulfilled"
+    ? pipelineSnapshotsRes.value.data ?? []
+    : [];
+  const pipelineSnapshots = (pipelineSnapshotsRaw as Array<Record<string, unknown>>).map((row) => ({
+    id: row.id as string,
+    pipelineId: row.pipeline_id as string,
+    createdAt: row.created_at as string,
+    executiveSummary: ((row.snapshot as Record<string, unknown> | null)?.["_executiveSummary"] ?? null) as
+      import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary | null,
+  }));
 
   // 가이드 배정 건수
   const guideAssignmentCount = guideCountRes.status === "fulfilled"
@@ -412,7 +453,7 @@ export async function fetchSupplementaryData(
     key_tips: u.key_tips as string[] | null,
   }));
 
-  return { bypassCandidates, interviewQuestions, pipelineMeta, guideAssignmentCount, univStrategies, executiveSummary, timeSeriesAnalysis, universityMatch };
+  return { bypassCandidates, interviewQuestions, pipelineMeta, guideAssignmentCount, univStrategies, executiveSummary, timeSeriesAnalysis, universityMatch, placementSnapshot, pipelineSnapshots };
 }
 
 // ============================================

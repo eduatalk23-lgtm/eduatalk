@@ -250,7 +250,9 @@ export async function refreshCompetencyTagsAtomic(
     p_student_id: studentId,
     p_tenant_id: tenantId,
     p_record_ids: recordIds,
-    p_new_tags: JSON.stringify(newTags),
+    // jsonb 파라미터는 객체/배열을 그대로 전달 — JSON.stringify 하면 jsonb scalar string으로
+    // 저장되어 RPC 내부 jsonb_array_length() 호출 시 Postgres 22023 에러 발생
+    p_new_tags: newTags,
   });
   if (error) throw error;
   return (data as number) ?? newTags.length;

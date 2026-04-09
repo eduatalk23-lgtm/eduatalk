@@ -3,8 +3,8 @@
 // ============================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ScoreRowWithSubject } from "../pipeline";
-import type { HighlightAnalysisInput } from "../llm/types";
+import type { ScoreRowWithSubject } from "@/lib/domains/record-analysis/pipeline";
+import type { HighlightAnalysisInput } from "@/lib/domains/record-analysis/llm/types";
 
 /**
  * student_internal_scores + subject join 조회.

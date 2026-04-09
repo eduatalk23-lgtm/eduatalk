@@ -4,7 +4,7 @@ import {
   type FourAxisDiagnosis,
   type FourAxisDiagnosisInput,
 } from "../prediction/profile-diagnosis";
-import type { UniversityMatchAnalysis } from "@/lib/domains/student-record/eval/university-profile-matcher";
+import type { UniversityMatchAnalysis } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record/types";
 import type { FlowCompletionResult } from "@/lib/domains/student-record/evaluation-criteria/flow-completion";
 

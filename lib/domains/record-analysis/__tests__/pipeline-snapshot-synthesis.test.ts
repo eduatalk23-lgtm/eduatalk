@@ -170,7 +170,7 @@ describe("S1 storyline_generation — runStorylineGeneration", () => {
   });
 
   it("NEIS 레코드도 없고 설계 가이드도 없으면 스킵 문자열 반환", async () => {
-    const { runStorylineGeneration } = await import("../pipeline/synthesis/phase-s1-storyline");
+    const { runStorylineGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s1-storyline");
 
     const ctx = makeCtx({
       neisGrades: [],
@@ -182,7 +182,7 @@ describe("S1 storyline_generation — runStorylineGeneration", () => {
   });
 
   it("유효 레코드 2건 미만이면 스킵 문자열 반환", async () => {
-    const { runStorylineGeneration } = await import("../pipeline/synthesis/phase-s1-storyline");
+    const { runStorylineGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s1-storyline");
 
     // neisGrades: [1] → 스킵 분기 우회
     // cachedSeteks: 1건이지만 20자 미만 content → 유효 레코드 0건
@@ -236,7 +236,7 @@ describe("S1 storyline_generation — runStorylineGeneration", () => {
       >
     ).mockResolvedValue([]);
 
-    const { runStorylineGeneration } = await import("../pipeline/synthesis/phase-s1-storyline");
+    const { runStorylineGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s1-storyline");
 
     const ctx = makeCtx({
       neisGrades: [1, 2],
@@ -301,7 +301,7 @@ describe("S1 storyline_generation — runStorylineGeneration", () => {
     >;
     detectMock.mockResolvedValue({ success: false, error: "AI 오류" });
 
-    const { runStorylineGeneration } = await import("../pipeline/synthesis/phase-s1-storyline");
+    const { runStorylineGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s1-storyline");
 
     const ctx = makeCtx({
       neisGrades: [1, 2],
@@ -344,7 +344,7 @@ describe("S1 storyline_generation — runStorylineGeneration", () => {
       >
     ).mockResolvedValue([]);
 
-    const { runStorylineGeneration } = await import("../pipeline/synthesis/phase-s1-storyline");
+    const { runStorylineGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s1-storyline");
 
     // 세특은 2학년 먼저 제공하더라도 grade 정렬 후 1학년이 앞에 와야 함
     const ctx = makeCtx({
@@ -408,7 +408,7 @@ describe("S5 activity_summary — runActivitySummary", () => {
       null,
     );
 
-    const { runActivitySummary } = await import("../pipeline/synthesis/phase-s5-strategy");
+    const { runActivitySummary } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy");
     const ctx = makeCtx({ studentGrade: 2 });
 
     await expect(runActivitySummary(ctx as never, [])).rejects.toThrow("데이터 수집 실패");
@@ -432,7 +432,7 @@ describe("S5 activity_summary — runActivitySummary", () => {
       null,
     );
 
-    const { runActivitySummary } = await import("../pipeline/synthesis/phase-s5-strategy");
+    const { runActivitySummary } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy");
     const ctx = makeCtx({ studentGrade: 2 });
     const result = await runActivitySummary(ctx as never, []);
 
@@ -459,7 +459,7 @@ describe("S5 activity_summary — runActivitySummary", () => {
       ],
     } as never);
 
-    const { runActivitySummary } = await import("../pipeline/synthesis/phase-s5-strategy");
+    const { runActivitySummary } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy");
     const ctx = makeCtx({ studentGrade: 2 });
     await runActivitySummary(ctx as never, []);
 
@@ -504,7 +504,7 @@ describe("S5 ai_strategy — runAiStrategy", () => {
       })),
     };
 
-    const { runAiStrategy } = await import("../pipeline/synthesis/phase-s5-strategy");
+    const { runAiStrategy } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy");
     const ctx = makeCtx({ supabase: mockSupabase, studentGrade: 2 });
 
     const result = await runAiStrategy(ctx as never);
@@ -569,7 +569,7 @@ describe("S5 ai_strategy — runAiStrategy", () => {
       })),
     };
 
-    const { runAiStrategy } = await import("../pipeline/synthesis/phase-s5-strategy");
+    const { runAiStrategy } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy");
     const ctx = makeCtx({ supabase: mockSupabase, studentGrade: 2 });
 
     const result = await runAiStrategy(ctx as never);
@@ -625,7 +625,7 @@ describe("S5 ai_strategy — runAiStrategy", () => {
       })),
     };
 
-    const { runAiStrategy } = await import("../pipeline/synthesis/phase-s5-strategy");
+    const { runAiStrategy } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy");
     const ctx = makeCtx({ supabase: mockSupabase });
 
     await runAiStrategy(ctx as never);
@@ -672,7 +672,7 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
       }),
     };
 
-    const { runInterviewGeneration } = await import("../pipeline/synthesis/phase-s6-interview");
+    const { runInterviewGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s6-interview");
     const ctx = makeCtx({
       supabase: mockSupabase,
       cachedSeteks: [
@@ -745,7 +745,7 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
       }),
     };
 
-    const { runInterviewGeneration } = await import("../pipeline/synthesis/phase-s6-interview");
+    const { runInterviewGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s6-interview");
     const ctx = makeCtx({
       supabase: mockSupabase,
       cachedSeteks: [
@@ -821,7 +821,7 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
       }),
     };
 
-    const { runInterviewGeneration } = await import("../pipeline/synthesis/phase-s6-interview");
+    const { runInterviewGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s6-interview");
     const ctx = makeCtx({
       supabase: mockSupabase,
       cachedSeteks: [
@@ -869,7 +869,7 @@ describe("S6 roadmap_generation — runRoadmapGeneration", () => {
       },
     } as never);
 
-    const { runRoadmapGeneration } = await import("../pipeline/synthesis/phase-s6-interview");
+    const { runRoadmapGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s6-interview");
     const ctx = makeCtx({ neisGrades: [1, 2], studentGrade: 2 });
 
     const result = await runRoadmapGeneration(ctx as never);
@@ -901,7 +901,7 @@ describe("S6 roadmap_generation — runRoadmapGeneration", () => {
       null,
     );
 
-    const { runRoadmapGeneration } = await import("../pipeline/synthesis/phase-s6-interview");
+    const { runRoadmapGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s6-interview");
     const ctx = makeCtx({ studentGrade: 2 });
 
     const result = await runRoadmapGeneration(ctx as never);
@@ -947,7 +947,7 @@ describe("S6 roadmap_generation — runRoadmapGeneration", () => {
       fetchSetekGuides: vi.fn().mockResolvedValue({ success: true, data: [] }),
     }));
 
-    const { runRoadmapGeneration } = await import("../pipeline/synthesis/phase-s6-interview");
+    const { runRoadmapGeneration } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s6-interview");
     const ctx = makeCtx({ studentGrade: 2 });
 
     await runRoadmapGeneration(ctx as never);

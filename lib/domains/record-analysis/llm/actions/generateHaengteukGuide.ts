@@ -25,7 +25,7 @@ import type { ActionResponse } from "@/lib/types/actionResponse";
 
 import { formatHaengteukItemNames } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 
-const LOG_CTX = { domain: "student-record", action: "generateHaengteukGuide" };
+const LOG_CTX = { domain: "record-analysis", action: "generateHaengteukGuide" };
 
 // ============================================
 // Phase V1: Prospective 행특 방향 — 수강계획+진로 기반

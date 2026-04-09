@@ -62,10 +62,10 @@ vi.mock("@/lib/domains/student-record/interview-conflict-checker", () => ({
   checkInterviewConflicts: vi.fn(),
 }));
 // Report mocks (Agent 6)
-vi.mock("@/lib/domains/student-record/llm/actions/generateActivitySummary", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/generateActivitySummary", () => ({
   generateActivitySummary: vi.fn(),
 }));
-vi.mock("@/lib/domains/student-record/llm/actions/generateSetekGuide", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/generateSetekGuide", () => ({
   generateSetekGuide: vi.fn(),
 }));
 vi.mock("@/lib/domains/student-record/actions/activitySummary", () => ({
@@ -81,7 +81,7 @@ vi.mock("@/lib/domains/bypass-major/pipeline", () => ({
   runBypassPipeline: vi.fn(),
 }));
 // 세특 초안 + 진단 저장 + 파이프라인 + 수강 mocks
-vi.mock("@/lib/domains/student-record/llm/actions/generateSetekDraft", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/actions/generateSetekDraft", () => ({
   generateSetekDraftAction: vi.fn(),
 }));
 vi.mock("@/lib/domains/student-record/repository/diagnosis-repository", () => ({

@@ -10,8 +10,8 @@
 export * from "./pipeline";
 
 // Eval (완전 독립, server-only)
-export * from "./eval/executive-summary-evaluator";
-export * from "./eval/golden-dataset-evaluator";
+export * from "./eval/executive-summary";
+export * from "./eval/golden-dataset";
 export * from "./eval/highlight-verifier";
 export * from "./eval/timeseries-analyzer";
 export * from "./eval/university-profile-matcher";

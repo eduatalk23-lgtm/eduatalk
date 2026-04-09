@@ -24,7 +24,7 @@ import type { SetekGuideInput, SetekGuideResult } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 
 
-const LOG_CTX = { domain: "student-record", action: "generateSetekGuide" };
+const LOG_CTX = { domain: "record-analysis", action: "generateSetekGuide" };
 
 export async function generateSetekGuide(
   studentId: string,

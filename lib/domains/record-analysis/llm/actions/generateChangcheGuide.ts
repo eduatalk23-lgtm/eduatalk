@@ -24,7 +24,7 @@ import type { ChangcheGuideInput, ChangcheGuideResult } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 
 
-const LOG_CTX = { domain: "student-record", action: "generateChangcheGuide" };
+const LOG_CTX = { domain: "record-analysis", action: "generateChangcheGuide" };
 
 // ============================================
 // Phase V1: Prospective 창체 방향 — 수강계획+진로 기반

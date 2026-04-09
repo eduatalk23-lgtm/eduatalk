@@ -437,7 +437,7 @@ describe("toGuideAnalysisContext()", () => {
 /** 테스트용 최소 ReportData 팩토리 */
 function makeMinimalReportData(
   contentQuality: import("../warnings/engine").ContentQualityRow[] = [],
-  weakCompetencyContexts: import("../pipeline/pipeline-types").CompetencyAnalysisContext[] = [],
+  weakCompetencyContexts: import("@/lib/domains/record-analysis/pipeline/pipeline-types").CompetencyAnalysisContext[] = [],
 ): ReportData {
   // ReportData는 큰 인터페이스이므로 타입 캐스팅으로 최소 픽스처 구성
   return {
@@ -514,7 +514,7 @@ describe("buildGuideAnalysisContextFromReport()", () => {
   });
 
   it("weakCompetencyContexts가 있으면 그대로 전달된다", () => {
-    const weakItems: import("../pipeline/pipeline-types").CompetencyAnalysisContext[] = [
+    const weakItems: import("@/lib/domains/record-analysis/pipeline/pipeline-types").CompetencyAnalysisContext[] = [
       { item: "critical_thinking", grade: "B-", reasoning: "논리 비약" },
       { item: "self_directed_learning", grade: "C", reasoning: null },
     ];

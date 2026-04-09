@@ -35,10 +35,44 @@ export async function fetchGradeAwarePipelineStatus(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
+    // ── Self-healing: analysis 모드 stuck 파이프라인 복구 ─────────────
+    // 예전 버그로 Phase 6이 "completed" 마킹을 하지 않아 analysis 모드 파이프라인이
+    // 모든 태스크 완료 후에도 status="running"으로 고착될 수 있다. 폴링 호출마다
+    // 이를 감지하여 올바르게 "completed"로 승격한다. (최신 코드에서는 Phase 6이
+    // 직접 마킹하므로 발생하지 않지만, 기존 stuck 데이터 복구용)
+    {
+      const { data: stuckGrade } = await supabase
+        .from("student_record_analysis_pipelines")
+        .select("id, tasks, mode")
+        .eq("student_id", studentId)
+        .eq("pipeline_type", "grade")
+        .eq("status", "running");
+
+      const ANALYSIS_REQUIRED = GRADE_PIPELINE_TASK_KEYS.filter(
+        (k) => k !== "draft_generation" && k !== "draft_analysis",
+      );
+
+      for (const row of stuckGrade ?? []) {
+        if (row.mode !== "analysis") continue;
+        const t = (row.tasks ?? {}) as Record<string, string>;
+        const allDone = ANALYSIS_REQUIRED.every((k) => t[k] === "completed");
+        if (allDone) {
+          await supabase
+            .from("student_record_analysis_pipelines")
+            .update({
+              status: "completed",
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", row.id as string);
+        }
+      }
+    }
+
     // 좀비 자동 정리 (self-healing):
     // Vercel serverless maxDuration=300초를 초과한 running 파이프라인은 서버 함수가 이미 죽은 상태.
     // 폴링 호출마다 이런 좀비를 cancelled로 마킹하여 UI가 즉시 "이어서 실행" 배너를 표시할 수 있게 한다.
     // 조건 불만족 시 PostgreSQL UPDATE는 no-op이므로 오버헤드 적음.
+    // 주의: 위의 analysis 복구가 먼저 실행되어야 성공한 파이프라인이 cancelled로 오마킹되지 않는다.
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     await supabase
       .from("student_record_analysis_pipelines")

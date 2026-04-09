@@ -78,7 +78,7 @@ export function extractJson<T = unknown>(raw: string): T {
       const lastStr = repairTruncatedJson(escapeNewlinesInStrings(str));
       const around = lastStr.substring(Math.max(0, pos - 80), pos + 80);
       logActionError(
-        { domain: "student-record", action: "extractJson" },
+        { domain: "record-analysis", action: "extractJson" },
         `파싱 실패 — pos=${pos}, len=${lastStr.length}: ...${around}...`,
       );
     }

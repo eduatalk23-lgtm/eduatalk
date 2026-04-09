@@ -11,7 +11,7 @@ import {
 } from "../pipeline-types";
 import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 12. 우회학과 분석

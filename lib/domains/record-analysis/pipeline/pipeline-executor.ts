@@ -74,14 +74,65 @@ export async function updatePipelineState(
     update.completed_at = new Date().toISOString();
   }
 
-  const { error: stateErr } = await supabase
+  // CAS 가드: "running"으로 덮어쓰는 경우, 이미 cancelled인 파이프라인은 건드리지 않는다.
+  // stopFullRun → cancelPipeline 이후에도 서버 runTaskWithState가 마저 돌면서
+  // status를 running으로 되돌려 취소가 무효화되는 race를 방지.
+  let query = supabase
     .from("student_record_analysis_pipelines")
     .update(update)
     .eq("id", pipelineId);
+  if (status === "running") {
+    query = query.neq("status", "cancelled");
+  }
+  const { error: stateErr } = await query;
   if (stateErr) {
     logActionError({ domain: "record-analysis", action: "pipeline-executor" }, stateErr, { pipelineId, status });
     throw new Error(`파이프라인 상태 저장 실패 (${status}): ${stateErr.message}`);
   }
+}
+
+// ============================================
+// computePipelineFinalStatus
+// ============================================
+
+/**
+ * 현재 태스크 상태 맵으로부터 파이프라인 레벨 최종 상태를 계산.
+ *
+ * - pending/running이 하나라도 있으면 "running" (아직 진행 중)
+ * - 모든 required 태스크가 completed면 "completed"
+ * - 모든 required가 terminal(completed/failed)이지만 일부라도 failed면 "failed"
+ *
+ * required 태스크 집합:
+ * - grade + analysis mode: GRADE_PIPELINE_TASK_KEYS − {draft_generation, draft_analysis}
+ * - grade + design mode:   GRADE_PIPELINE_TASK_KEYS (전체 9개)
+ * - synthesis:             SYNTHESIS_PIPELINE_TASK_KEYS (전체 10개)
+ *
+ * 기존에는 각 phase 파일(Phase 6 analysis, Phase 8 design, Phase S6)에만 finalize 로직이
+ * 있어 경로가 누락되면 파이프라인이 running에 잠기는 버그가 있었다. 이 헬퍼를
+ * runTaskWithState와 오케스트레이터 resume 분기에서 공통으로 사용하여 단일 진실 소스로 통합.
+ */
+export function computePipelineFinalStatus(
+  pipelineType: "grade" | "synthesis" | undefined,
+  gradeMode: "analysis" | "design" | undefined,
+  tasks: Record<string, PipelineTaskStatus>,
+): "running" | "completed" | "failed" {
+  if (pipelineType == null) return "running";
+
+  const requiredKeys: readonly string[] =
+    pipelineType === "synthesis"
+      ? SYNTHESIS_PIPELINE_TASK_KEYS
+      : gradeMode === "design"
+        ? GRADE_PIPELINE_TASK_KEYS
+        : GRADE_PIPELINE_TASK_KEYS.filter(
+            (k) => k !== "draft_generation" && k !== "draft_analysis",
+          );
+
+  const states = requiredKeys.map((k) => tasks[k] ?? "pending");
+  const anyActive = states.some((s) => s === "pending" || s === "running");
+  if (anyActive) return "running";
+
+  const allCompleted = states.every((s) => s === "completed");
+  return allCompleted ? "completed" : "failed";
 }
 
 // ============================================
@@ -170,14 +221,25 @@ export async function runTaskWithState(
     );
   }
 
+  // 파이프라인 레벨 상태 자동 계산: 모든 required 태스크가 종결되면 completed/failed로 전이.
+  // 기존에는 여기서 항상 "running"만 썼기 때문에 마지막 phase endpoint가 호출되어야만
+  // finalize가 가능했고, 경로가 한 번이라도 누락되면 파이프라인이 영원히 running에 잠겼다.
+  const finalStatus = computePipelineFinalStatus(
+    ctx.pipelineType,
+    ctx.gradeMode,
+    ctx.tasks,
+  );
+  const isFinal = finalStatus === "completed" || finalStatus === "failed";
+
   await updatePipelineState(
     ctx.supabase as SupabaseAdminClient,
     ctx.pipelineId,
-    "running",
+    finalStatus,
     ctx.tasks,
     ctx.previews,
     ctx.results,
     ctx.errors,
+    isFinal,
   );
 }
 

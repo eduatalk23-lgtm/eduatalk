@@ -4,7 +4,7 @@
 // ============================================
 
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
-import { extractJson } from "@/lib/domains/student-record/llm/extractJson";
+import { extractJson } from "@/lib/domains/record-analysis/llm/extractJson";
 import type { ParsedCourse } from "./types";
 
 const SYSTEM_PROMPT = `당신은 한국 대학 교육과정 전문가입니다.

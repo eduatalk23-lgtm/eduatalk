@@ -26,7 +26,7 @@ import {
   getGradeDiffLevel,
 } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 
-const LOG_CTX = { domain: "student-record", action: "generateSetekDraft" };
+const LOG_CTX = { domain: "record-analysis", action: "generateSetekDraft" };
 
 const SYSTEM_PROMPT = `당신은 고등학교 세특(세부능력 및 특기사항) 작성 보조 도우미입니다.
 

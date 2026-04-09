@@ -19,7 +19,7 @@ import {
   competencyGradeToScore,
 } from "./helpers";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 10. 활동 요약서

@@ -184,7 +184,7 @@ describe("runEdgeComputation", () => {
 
   it("neisGrades가 빈 배열이고 설계 데이터도 없으면 skip 문자열 반환", async () => {
     const ctx = makeCtx({ neisGrades: [] });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runEdgeComputation(ctx);
 
     expect(typeof result).toBe("string");
@@ -193,7 +193,7 @@ describe("runEdgeComputation", () => {
 
   it("neisGrades가 없고 설계 데이터도 없으면 skip", async () => {
     const ctx = makeCtx({ neisGrades: undefined });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runEdgeComputation(ctx);
 
     expect(typeof result).toBe("string");
@@ -202,7 +202,7 @@ describe("runEdgeComputation", () => {
 
   it("neisGrades가 있으면 TaskRunnerOutput 객체 반환", async () => {
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runEdgeComputation(ctx);
 
     expect(typeof result).toBe("object");
@@ -215,7 +215,7 @@ describe("runEdgeComputation", () => {
       neisGrades: [1],
       snapshotOverrides: {},            // target_major 없음
     });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runEdgeComputation(ctx) as { sharedCourseAdequacy: unknown };
 
     expect(courseAdequacyModule.calculateCourseAdequacy).not.toHaveBeenCalled();
@@ -232,7 +232,7 @@ describe("runEdgeComputation", () => {
       supabase,
       snapshotOverrides: { target_major: "컴퓨터공학" },
     });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runEdgeComputation(ctx) as { sharedCourseAdequacy: unknown };
 
     expect(courseAdequacyModule.calculateCourseAdequacy).toHaveBeenCalledWith(
@@ -254,7 +254,7 @@ describe("runEdgeComputation", () => {
       supabase,
       snapshotOverrides: { target_major: "생명과학" },   // school_name 없음
     });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     await runEdgeComputation(ctx);
 
     expect(courseAdequacyModule.calculateCourseAdequacy).toHaveBeenCalledWith(
@@ -276,7 +276,7 @@ describe("runEdgeComputation", () => {
     (edgeRepo.replaceEdges as ReturnType<typeof vi.fn>).mockResolvedValue(3);
 
     const ctx = makeCtx({ neisGrades: [1, 2] });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runEdgeComputation(ctx) as { preview: string; result: unknown };
 
     expect(result.preview).toMatch(/3/);   // 엣지 개수
@@ -290,7 +290,7 @@ describe("runEdgeComputation", () => {
     });
 
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const output = await runEdgeComputation(ctx) as {
       preview: string;
       result: { totalEdges: number; nodeCount: number };
@@ -302,7 +302,7 @@ describe("runEdgeComputation", () => {
 
   it("replaceEdges는 edge_context='analysis'로 호출된다", async () => {
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     await runEdgeComputation(ctx);
 
     expect(edgeRepo.replaceEdges).toHaveBeenCalledWith(
@@ -326,7 +326,7 @@ describe("runEdgeComputation", () => {
     });
 
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runEdgeComputation } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runEdgeComputation } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const output = await runEdgeComputation(ctx) as { computedEdges: unknown[] };
 
     expect(output.computedEdges).toHaveLength(2);
@@ -353,7 +353,7 @@ describe("runGuideMatching", () => {
     mockAutoRecommend.mockResolvedValue({ success: true, data: [] });
 
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
     expect(typeof result).toBe("string");
@@ -374,7 +374,7 @@ describe("runGuideMatching", () => {
     }) as PipelineContext["supabase"];
 
     const ctx = makeCtx({ neisGrades: [1], supabase });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
     // 신규 배정 없음 — 0건
@@ -408,7 +408,7 @@ describe("runGuideMatching", () => {
       neisGrades: [1],
       supabase: { from: fromMock } as unknown as PipelineContext["supabase"],
     });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
     // 추천 2건 중 신규 1건 → 배정 시도
@@ -439,7 +439,7 @@ describe("runGuideMatching", () => {
         ],
       } as never,
     });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
     // guide-A + guide-B = 2건 추천 → (기존 배정 없으면) 2건 배정 시도
@@ -463,7 +463,7 @@ describe("runGuideMatching", () => {
         ),
       } as never,
     });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     await runGuideMatching(ctx);
 
     // 분류 기반 1회 + 과목 최대 5회 = 총 6회
@@ -496,7 +496,7 @@ describe("runGuideMatching", () => {
         plans: [{ plan_status: "confirmed", subject: { name: "수학I" } }],
       } as never,
     });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     await runGuideMatching(ctx);
 
     // insertMock이 호출되면 guide-X 1건 (중복 아님)
@@ -513,7 +513,7 @@ describe("runGuideMatching", () => {
     mockAutoRecommend.mockResolvedValue({ success: false, data: null });
 
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
     expect(result as string).toMatch(/0건 가이드 배정/);
@@ -533,7 +533,7 @@ describe("runGuideMatching", () => {
         ],
       } as never,
     });
-    const { runGuideMatching } = await import("../pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     await runGuideMatching(ctx);
 
     // 분류 기반 1회 + confirmed(수학I) 1회 + recommended(화학I) 1회 = 3회

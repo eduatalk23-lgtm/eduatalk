@@ -151,3 +151,67 @@ export const STAGE_COMPLETION: Record<GradeStage, number> = {
   confirmed: 80,
   final: 100,
 };
+
+// ============================================
+// Phase 2.1: 컨설턴트 관점 내부의 확정 상태
+// ============================================
+
+/**
+ * 컨설턴트 작업물의 확정 상태
+ * - empty: 작성도 확정도 없음
+ * - drafting: 작성 중 (content만 있음, 아직 확정 안함)
+ * - confirmed: 확정됨 (content === confirmed_content, 동기화 상태)
+ * - confirmed_then_edited: 확정 후 재편집됨 (content !== confirmed_content, 재확정 필요 신호)
+ */
+export type ConfirmStatus = "empty" | "drafting" | "confirmed" | "confirmed_then_edited";
+
+/**
+ * content와 confirmed_content를 비교해 확정 상태 판정.
+ * Phase 2.1 Layer View + ContextGrid 배지 표시에 사용.
+ */
+export function getConfirmStatus(record: {
+  content?: string | null;
+  confirmed_content?: string | null;
+}): ConfirmStatus {
+  const content = record.content?.trim() ?? "";
+  const confirmed = record.confirmed_content?.trim() ?? "";
+
+  if (!content && !confirmed) return "empty";
+  if (content && !confirmed) return "drafting";
+  if (content === confirmed) return "confirmed";
+  // confirmed 존재 but content와 다름 → 확정 후 재편집된 상태
+  return "confirmed_then_edited";
+}
+
+/** 확정 상태별 라벨/색상 메타 (UI 배지용) */
+export const CONFIRM_STATUS_META: Record<ConfirmStatus, {
+  label: string;
+  icon: string;
+  textClass: string;
+  bgClass: string;
+}> = {
+  empty: {
+    label: "미작성",
+    icon: "○",
+    textClass: "text-gray-500",
+    bgClass: "bg-gray-50 border-gray-200",
+  },
+  drafting: {
+    label: "편집 중",
+    icon: "✏",
+    textClass: "text-amber-700",
+    bgClass: "bg-amber-50 border-amber-200",
+  },
+  confirmed: {
+    label: "확정됨",
+    icon: "✓",
+    textClass: "text-emerald-700",
+    bgClass: "bg-emerald-50 border-emerald-200",
+  },
+  confirmed_then_edited: {
+    label: "확정 후 재편집",
+    icon: "⚠",
+    textClass: "text-orange-700",
+    bgClass: "bg-orange-50 border-orange-200",
+  },
+};

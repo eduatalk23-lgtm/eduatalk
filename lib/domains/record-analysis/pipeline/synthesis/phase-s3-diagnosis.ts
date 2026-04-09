@@ -21,7 +21,7 @@ import {
   buildTimeseriesPromptSection,
 } from "./helpers";
 
-const LOG_CTX = { domain: "student-record", action: "pipeline" };
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
 // 4. AI 종합 진단
