@@ -23,6 +23,33 @@
  *   schema: z.object({ items: z.array(z.string()) }),
  * });
  * ```
+ *
+ * ## 개발용 LLM Cache (record/replay)
+ *
+ * 파이프라인 흐름만 점검하고 싶을 때(= LLM 품질과 무관) 실제 API 호출을 건너뛸 수 있다.
+ * `LLM_CACHE_MODE` 환경변수로 동작을 전환:
+ *
+ * - `off` (기본): 기존 동작 그대로, 캐시 관여 없음
+ * - `record`: 실제 LLM 호출 후 응답을 `.llm-cache/{hash}.json`에 저장
+ * - `replay`: 캐시에서만 반환, 미스 시 LlmCacheMissError throw
+ *
+ * ## 개발용 Tier Override (dev-only)
+ *
+ * `LLM_TIER_OVERRIDE` 환경변수로 모든 요청의 modelTier를 전역 override.
+ * Pro(thinking) 호출을 Flash로 내려 첫 record 실행 시간을 대폭 단축.
+ * 상세 설명은 `resolveEffectiveTier()` 주석 참조.
+ *
+ * ```bash
+ * # 흐름 점검: Pro → Flash 강제 + 캐시 record (가장 빠른 첫 실행)
+ * LLM_TIER_OVERRIDE=fast LLM_CACHE_MODE=record pnpm dev
+ *
+ * # 이후 개발 루프: 초 단위 replay (같은 override 세트 유지 필수)
+ * LLM_TIER_OVERRIDE=fast LLM_CACHE_MODE=replay pnpm dev
+ * ```
+ *
+ * ⚠ 두 환경변수 모두 **프로덕션 금지** — `.env.local` 또는 쉘 세션에서만 사용.
+ *
+ * 상세: `lib/domains/plan/llm/llm-cache.ts`, `resolveEffectiveTier()`
  */
 
 import { generateText, generateObject, streamText, APICallError } from "ai";
@@ -36,6 +63,15 @@ import type {
 } from "./providers/base";
 import { geminiRateLimiter, geminiQuotaTracker } from "./providers/gemini";
 import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
+import {
+  getLlmCacheMode,
+  hashCacheKey,
+  readFromCache,
+  writeToCache,
+  getSchemaSignature,
+  lastUserMessage,
+  LlmCacheMissError,
+} from "./llm-cache";
 
 // ============================================
 // ModelTier → AI SDK 모델 매핑
@@ -72,6 +108,53 @@ const DEFAULT_TEMPERATURE: Record<ModelTier, number> = {
   standard: 0.5,
   advanced: 0.7,
 };
+
+// ============================================
+// LLM Tier Override — 개발 전용 (env: LLM_TIER_OVERRIDE)
+// ============================================
+//
+// 파이프라인 흐름 점검 시 `advanced`(Gemini 2.5 Pro, thinking)를 피하고
+// 가장 빠르고 낮은 프로덕션 모델(`fast` = gemini-2.5-flash, thinking off)로
+// 전체를 강제 통일시키는 개발용 스위치.
+//
+// 동기:
+//  - Pro는 thinking budget 때문에 호출당 10~30초 — 캐시 첫 record가 너무 느림
+//  - 흐름 점검(배관/전달/분기)에는 Flash 품질만으로 충분
+//  - `analyzeWithHighlight.ts` 단 1곳에서 advanced를 쓰지만 파이프라인 전체 시간을 좌우
+//
+// 동작:
+//  - 미설정 (기본)       → 각 액션이 요청한 tier 그대로 (= 프로덕션 동작)
+//  - LLM_TIER_OVERRIDE=fast     → 모든 요청을 fast tier로 강제 (gemini-2.5-flash, thinking off)
+//  - LLM_TIER_OVERRIDE=standard → 모든 요청을 standard tier로 강제 (gemini-2.5-flash, thinking off)
+//  - LLM_TIER_OVERRIDE=advanced → 모든 요청을 advanced tier로 강제 (디버깅/비교용)
+//
+// ⚠ 프로덕션 금지:
+//   Vercel/실배포에서 이 변수를 설정하면 분석 품질이 떨어집니다.
+//   로컬 `.env.local` 또는 쉘 세션에서만 사용하세요.
+//   활성화되면 첫 호출에 경고 로그가 한 번 찍힙니다.
+//
+// 캐시 레이어(`llm-cache.ts`)와의 상호작용:
+//   캐시 키에 `modelTier`가 포함됩니다. 즉 override 상태가 다르면 다른 캐시 버킷이 되어,
+//   `LLM_CACHE_MODE=record`와 `replay`는 **같은 override 세트**로 묶어 실행해야 합니다.
+//   예: `LLM_TIER_OVERRIDE=fast LLM_CACHE_MODE=record pnpm dev`
+//      → `LLM_TIER_OVERRIDE=fast LLM_CACHE_MODE=replay pnpm dev`
+
+let _loggedTierOverride = false;
+
+function resolveEffectiveTier(requested: ModelTier): ModelTier {
+  const raw = process.env.LLM_TIER_OVERRIDE?.toLowerCase();
+  if (raw !== "fast" && raw !== "standard" && raw !== "advanced") {
+    return requested;
+  }
+  if (!_loggedTierOverride) {
+    _loggedTierOverride = true;
+    logActionWarn(
+      "ai-sdk.tierOverride",
+      `[DEV] LLM_TIER_OVERRIDE=${raw} 활성 — 모든 LLM 요청이 ${raw} tier로 강제됩니다. 프로덕션에서 설정 금지.`,
+    );
+  }
+  return raw as ModelTier;
+}
 
 // ============================================
 // 공통 타입
@@ -337,7 +420,34 @@ const jsonModeOutput: unknown = {
 export async function generateTextWithRateLimit(
   options: AiSdkOptions
 ): Promise<AiSdkResult> {
-  const tier = options.modelTier ?? "standard";
+  const tier = resolveEffectiveTier(options.modelTier ?? "standard");
+
+  // ── LLM Cache Layer (dev-only, env gated) ────────────
+  const cacheMode = getLlmCacheMode();
+  const cacheHash =
+    cacheMode !== "off"
+      ? hashCacheKey({
+          system: options.system,
+          messages: options.messages,
+          modelTier: tier,
+          kind: "text",
+          responseFormat: options.responseFormat,
+          groundingEnabled: options.grounding?.enabled,
+        })
+      : null;
+  if (cacheMode === "replay" && cacheHash) {
+    const cached = await readFromCache<AiSdkResult>(cacheHash);
+    if (cached) {
+      logActionDebug(
+        "ai-sdk.generateText",
+        `[cache hit] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+      );
+      return cached;
+    }
+    throw new LlmCacheMissError(cacheHash, "text");
+  }
+  // ──────────────────────────────────────────────────────
+
   const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
@@ -407,7 +517,7 @@ export async function generateTextWithRateLimit(
           ? extractGroundingFromSources(result)
           : undefined;
 
-        return {
+        const aiSdkResult: AiSdkResult = {
           content: result.text,
           stopReason: result.finishReason ?? null,
           usage: {
@@ -418,6 +528,25 @@ export async function generateTextWithRateLimit(
           provider: "gemini",
           groundingMetadata,
         };
+
+        if (cacheMode === "record" && cacheHash) {
+          await writeToCache(
+            cacheHash,
+            {
+              modelTier: tier,
+              kind: "text",
+              systemHead: options.system,
+              lastUserHead: lastUserMessage(options.messages),
+            },
+            aiSdkResult,
+          );
+          logActionDebug(
+            "ai-sdk.generateText",
+            `[cache recorded] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+          );
+        }
+
+        return aiSdkResult;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -436,9 +565,10 @@ export async function generateTextWithRateLimit(
 
         // 과부하 또는 타임아웃 → 다음 폴백 모델로 전환
         if (isOverloadError(error) || isTimeoutError(error)) {
+          const errDetail = formatLlmErrorDetail(error);
           logActionWarn(
             "ai-sdk.generateText",
-            `${currentModelId} ${isTimeoutError(error) ? "타임아웃" : "과부하"} → 다음 모델로 전환`
+            `${currentModelId} ${isTimeoutError(error) ? "타임아웃" : "과부하"} → 다음 모델로 전환 | ${errDetail}`
           );
           recordCircuitFailure(currentModelId);
           break;
@@ -451,6 +581,24 @@ export async function generateTextWithRateLimit(
   }
 
   throw lastError ?? new Error("[AI SDK] generateText 모든 모델 실패");
+}
+
+/**
+ * LLM 에러의 구조적 정보를 한 줄로 요약.
+ * isOverload/isTimeout/isRateLimit 판정이 실제로 어떤 응답에 근거했는지 디버깅하기 위해 사용.
+ */
+function formatLlmErrorDetail(error: unknown): string {
+  if (APICallError.isInstance(error)) {
+    const msg = error.message.slice(0, 300).replace(/\s+/g, " ");
+    return `APICallError status=${error.statusCode} msg="${msg}"`;
+  }
+  if (error instanceof Error) {
+    const status = "status" in error ? (error as Error & { status?: unknown }).status : undefined;
+    const name = error.name;
+    const msg = error.message.slice(0, 300).replace(/\s+/g, " ");
+    return `${name}${status !== undefined ? ` status=${String(status)}` : ""} msg="${msg}"`;
+  }
+  return `unknown error: ${String(error).slice(0, 300)}`;
 }
 
 // ============================================
@@ -470,7 +618,39 @@ export async function generateObjectWithRateLimit<T>(
   usage: { inputTokens: number; outputTokens: number };
   modelId: string;
 }> {
-  const tier = options.modelTier ?? "standard";
+  const tier = resolveEffectiveTier(options.modelTier ?? "standard");
+
+  // ── LLM Cache Layer (dev-only, env gated) ────────────
+  type ObjectResult = {
+    object: T;
+    usage: { inputTokens: number; outputTokens: number };
+    modelId: string;
+  };
+  const cacheMode = getLlmCacheMode();
+  const cacheHash =
+    cacheMode !== "off"
+      ? hashCacheKey({
+          system: options.system,
+          messages: options.messages,
+          modelTier: tier,
+          kind: "object",
+          schemaSignature: getSchemaSignature(options.schema),
+          groundingEnabled: options.grounding?.enabled,
+        })
+      : null;
+  if (cacheMode === "replay" && cacheHash) {
+    const cached = await readFromCache<ObjectResult>(cacheHash);
+    if (cached) {
+      logActionDebug(
+        "ai-sdk.generateObject",
+        `[cache hit] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+      );
+      return cached;
+    }
+    throw new LlmCacheMissError(cacheHash, "object");
+  }
+  // ──────────────────────────────────────────────────────
+
   const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
@@ -533,7 +713,7 @@ export async function generateObjectWithRateLimit<T>(
         geminiQuotaTracker.recordRequest();
         recordCircuitSuccess(currentModelId);
 
-        return {
+        const objectResult: ObjectResult = {
           object: result.object,
           usage: {
             inputTokens: result.usage?.inputTokens ?? 0,
@@ -541,6 +721,25 @@ export async function generateObjectWithRateLimit<T>(
           },
           modelId: currentModelId,
         };
+
+        if (cacheMode === "record" && cacheHash) {
+          await writeToCache(
+            cacheHash,
+            {
+              modelTier: tier,
+              kind: "object",
+              systemHead: options.system,
+              lastUserHead: lastUserMessage(options.messages),
+            },
+            objectResult,
+          );
+          logActionDebug(
+            "ai-sdk.generateObject",
+            `[cache recorded] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+          );
+        }
+
+        return objectResult;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -560,7 +759,7 @@ export async function generateObjectWithRateLimit<T>(
         if (isOverloadError(error)) {
           logActionWarn(
             "ai-sdk.generateObject",
-            `${currentModelId} 과부하 → 다음 모델로 전환`
+            `${currentModelId} 과부하 → 다음 모델로 전환 | ${formatLlmErrorDetail(error)}`
           );
           recordCircuitFailure(currentModelId);
           break;
@@ -599,7 +798,7 @@ export async function generateObjectWithRateLimit<T>(
 export async function streamTextWithRateLimit(
   options: AiSdkStreamOptions
 ): Promise<AiSdkResult> {
-  const tier = options.modelTier ?? "standard";
+  const tier = resolveEffectiveTier(options.modelTier ?? "standard");
   const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
@@ -689,7 +888,7 @@ export async function streamTextWithRateLimit(
         if (isOverloadError(error)) {
           logActionWarn(
             "ai-sdk.streamText",
-            `${currentModelId} 과부하 → 다음 모델로 전환`
+            `${currentModelId} 과부하 → 다음 모델로 전환 | ${formatLlmErrorDetail(error)}`
           );
           recordCircuitFailure(currentModelId);
           break;

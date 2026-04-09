@@ -6,6 +6,9 @@
 # simulation scratch (교차 시뮬레이션 중간 결과)
 /.sim/
 
+# LLM response cache (dev-only record/replay, see lib/domains/plan/llm/llm-cache.ts)
+/.llm-cache/
+
 # dependencies
 /node_modules
 /.pnp
