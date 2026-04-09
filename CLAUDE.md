@@ -236,7 +236,8 @@ npx tsx scripts/cold-start-batch.ts math --limit=5  # 수학 5개만
 | 도메인 | 에이전트 | CLAUDE.md 위치 |
 |--------|----------|----------------|
 | plan | `plan-dev` | `lib/domains/plan/CLAUDE.md` |
-| student-record | `record-dev` | `lib/domains/student-record/CLAUDE.md` |
+| student-record (CRUD/도메인 모델) | `record-dev` | `lib/domains/student-record/CLAUDE.md` |
+| record-analysis (AI 분석/파이프라인/LLM/eval) | `record-dev` | `lib/domains/record-analysis/CLAUDE.md` |
 | admin-plan | `admin-plan-dev` | `lib/domains/admin-plan/CLAUDE.md` |
 | chat | `chat-dev` | `lib/domains/chat/CLAUDE.md` |
 | admission | `admission-dev` | `lib/domains/admission/CLAUDE.md` |

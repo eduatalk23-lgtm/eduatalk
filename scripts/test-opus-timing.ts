@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   HIGHLIGHT_SYSTEM_PROMPT,
   buildHighlightUserPrompt,
-} from "@/lib/domains/student-record/llm/prompts/competencyHighlight";
+} from "@/lib/domains/record-analysis/llm/prompts/competencyHighlight";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
