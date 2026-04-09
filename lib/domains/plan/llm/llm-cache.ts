@@ -21,8 +21,13 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+
+// NOTE: node:fs/promises, node:path의 static import를 의도적으로 피한다.
+// 이 모듈이 client 컴포넌트 barrel(e.g. content-research/index.ts)의
+// transitive import 그래프에 올라가면 Turbopack이 fs/promises를 chunk에
+// 포함시키려다 "does not support external modules" 에러로 빌드가 실패한다.
+// 실제 IO는 off가 아닐 때만 수행되므로, record/replay 모드 함수 내부에서
+// 동적 import로 해결한다.
 
 export type LlmCacheMode = "off" | "record" | "replay";
 
@@ -33,7 +38,11 @@ export function getLlmCacheMode(): LlmCacheMode {
   return "off";
 }
 
-const CACHE_DIR = resolve(process.cwd(), ".llm-cache");
+/** 캐시 디렉터리 (lazy — node:path static import를 피하기 위해 함수로) */
+async function getCacheDir(): Promise<string> {
+  const { resolve } = await import("node:path");
+  return resolve(process.cwd(), ".llm-cache");
+}
 
 export interface LlmCacheKeyInput {
   system: string;
@@ -97,13 +106,14 @@ interface CacheEntry<T> {
   result: T;
 }
 
-async function ensureDir(dir: string): Promise<void> {
-  await mkdir(dir, { recursive: true });
-}
-
 /** 캐시 히트면 result, 미스면 null */
 export async function readFromCache<T>(hash: string): Promise<T | null> {
-  const file = join(CACHE_DIR, `${hash}.json`);
+  // 동적 import: client 번들에 fs/promises가 끌려오지 않도록.
+  const [{ readFile }, { join }] = await Promise.all([
+    import("node:fs/promises"),
+    import("node:path"),
+  ]);
+  const file = join(await getCacheDir(), `${hash}.json`);
   try {
     const raw = await readFile(file, "utf-8");
     const entry = JSON.parse(raw) as CacheEntry<T>;
@@ -125,8 +135,13 @@ export async function writeToCache<T>(
   result: T,
 ): Promise<void> {
   try {
-    const file = join(CACHE_DIR, `${hash}.json`);
-    await ensureDir(dirname(file));
+    // 동적 import: client 번들에 fs/promises가 끌려오지 않도록.
+    const [{ mkdir, writeFile, rename }, { dirname, join }] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const file = join(await getCacheDir(), `${hash}.json`);
+    await mkdir(dirname(file), { recursive: true });
     const entry: CacheEntry<T> = {
       cachedAt: new Date().toISOString(),
       modelTier: meta.modelTier,
