@@ -366,7 +366,8 @@ export function SetekTableRow({
       <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
       {subjectCell()}
       <td className={`${B} p-2`}>
-        {/* 분석 / 가안 분석: subjectTags는 SetekEditor에서 이미 tag_context별로 분리된 채 전달된다. */}
+        {/* 분석 / 가안 분석: subjectTags는 SetekEditor에서 이미 tag_context별로 분리된 채 전달된다.
+            recordTab으로 원문 하이라이트용 콘텐츠 소스를 NEIS/가안 중 하나로 고정한다. */}
         {(activeTab === "analysis" || activeTab === "draft_analysis") && (
           <AnalysisExpandableCell
             subjectTags={subjectTags}
@@ -376,6 +377,7 @@ export function SetekTableRow({
             tenantId={tenantId}
             schoolYear={schoolYear}
             perspective={perspective}
+            recordTab={activeTab}
           />
         )}
 

@@ -2,9 +2,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AnalysisBlock, EVAL_COLORS, COMPETENCY_LABELS } from "../shared/AnalysisBlocks";
-import type { AnalysisBlockMode, TaggerProps } from "../shared/AnalysisBlocks";
-import { ChevronDown } from "lucide-react";
+import { AnalysisBlock, resolveAnalysisContent } from "../shared/AnalysisBlocks";
+import type { AnalysisBlockMode, TaggerProps, AnalysisRecordTab } from "../shared/AnalysisBlocks";
 import { cn } from "@/lib/cn";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { AnalysisTagLike } from "../shared/AnalysisBlocks";
@@ -22,6 +21,7 @@ export function AnalysisExpandableCell({
   tenantId,
   schoolYear,
   perspective,
+  recordTab = "analysis",
 }: {
   subjectTags: ActivityTagLike[];
   subjectReflection?: SubjectReflectionRate;
@@ -31,8 +31,13 @@ export function AnalysisExpandableCell({
   schoolYear: number;
   /** 관점별 단일 슬라이스. AI=AI 블록만, consultant=컨설턴트 블록만, null=레거시 3블록. */
   perspective?: LayerPerspective | null;
+  /**
+   * 분석/가안 분석 탭 구분. 원문 하이라이트용 콘텐츠 소스를 결정한다.
+   * - "analysis": imported_content(NEIS)
+   * - "draft_analysis": confirmed_content → content → ai_draft_content
+   */
+  recordTab?: AnalysisRecordTab;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [aiMode, setAiMode] = useState<AnalysisBlockMode>("competency");
   const [consultantMode, setConsultantMode] = useState<AnalysisBlockMode>("tagging");
   const [confirmedMode, setConfirmedMode] = useState<AnalysisBlockMode>("tagging");
@@ -42,14 +47,29 @@ export function AnalysisExpandableCell({
   const manualTags = useMemo(() => subjectTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [subjectTags]);
   const confirmedTags = useMemo(() => subjectTags.filter((t) => t.status === "confirmed"), [subjectTags]);
 
+  // 분석 탭은 NEIS(imported_content)만, 가안 분석 탭은 confirmed→content→ai_draft 우선순위로 해소.
+  // 파이프라인(P1 analysis / P8 draft_analysis)이 분석한 원본과 정확히 일치시켜야
+  // 태그 highlight 텍스트가 원문에서 매칭되어 하이라이트가 그려진다.
   const combinedContent = useMemo(
-    () => row.records.map((r) => r.content?.trim() || r.imported_content || "").filter(Boolean).join("\n\n"),
-    [row.records],
+    () =>
+      row.records
+        .map((r) => resolveAnalysisContent(r, recordTab))
+        .filter(Boolean)
+        .join("\n\n"),
+    [row.records, recordTab],
   );
 
   const taggerProps: TaggerProps = useMemo(() => ({
     studentId, tenantId, schoolYear,
-    records: row.records,
+    // TaggerRecord의 4-layer 필드를 모두 넘겨야 AnalysisBlock 태깅 모드의 리졸버가 가안 분석 탭에서도 동작한다.
+    records: row.records.map((r) => ({
+      id: r.id,
+      content: r.content,
+      imported_content: r.imported_content,
+      confirmed_content: r.confirmed_content,
+      ai_draft_content: r.ai_draft_content,
+      semester: r.semester,
+    })),
     displayName: row.displayName,
     recordType: "setek" as const,
   }), [studentId, tenantId, schoolYear, row]);
@@ -127,68 +147,52 @@ export function AnalysisExpandableCell({
           <button type="button" className="ml-2 underline" onClick={clearTagError}>닫기</button>
         </p>
       )}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        <div className="flex flex-1 flex-wrap items-center gap-1.5">
-          {subjectReflection && (
-            <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
-              subjectReflection.rate >= 70 ? "bg-emerald-50 text-emerald-600" : subjectReflection.rate >= 40 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600",
-            )}>
-              반영 {subjectReflection.rate}%
-            </span>
-          )}
-          {subjectTags.length > 0 ? subjectTags.slice(0, 4).map((t, i) => (
-            <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
-              EVAL_COLORS[t.evaluation || "needs_review"],
-            )}>
-              {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
-            </span>
-          )) : (
-            <span className="text-sm text-[var(--text-placeholder)]">태그 없음</span>
-          )}
-          {subjectTags.length > 4 && (
-            <span className="text-xs text-[var(--text-tertiary)]">+{subjectTags.length - 4}</span>
-          )}
+      {subjectReflection && (
+        <div>
+          <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-medium",
+            subjectReflection.rate >= 70 ? "bg-emerald-50 text-emerald-600" : subjectReflection.rate >= 40 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600",
+          )}>
+            반영 {subjectReflection.rate}%
+          </span>
         </div>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
-      </button>
+      )}
 
-      {expanded && perspective === "ai" && (
-        <div className="mt-1 flex flex-col gap-3">
+      {perspective === "ai" && (
+        <div className="flex flex-col gap-3">
           <AnalysisBlock
             label="AI"
             tags={subjectTags}
             content={combinedContent}
             mode={aiMode}
             setMode={setAiMode}
+            recordTab={recordTab}
           />
         </div>
       )}
-      {expanded && perspective === "consultant" && (
-        <div className="mt-1 flex flex-col gap-3">
+      {perspective === "consultant" && (
+        <div className="flex flex-col gap-3">
           <AnalysisBlock
             label="컨설턴트"
             tags={subjectTags}
             content={combinedContent}
             mode={consultantMode}
             setMode={setConsultantMode}
+            recordTab={recordTab}
             taggerProps={taggerProps}
             onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
             onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${subjectTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(subjectTags); }}
           />
         </div>
       )}
-      {expanded && !perspective && (
-        <div className="mt-1 flex flex-col gap-3">
+      {!perspective && (
+        <div className="flex flex-col gap-3">
           <AnalysisBlock
             label="AI"
             tags={aiTags}
             content={combinedContent}
             mode={aiMode}
             setMode={setAiMode}
+            recordTab={recordTab}
           />
           <AnalysisBlock
             label="컨설턴트"
@@ -196,6 +200,7 @@ export function AnalysisExpandableCell({
             content={combinedContent}
             mode={consultantMode}
             setMode={setConsultantMode}
+            recordTab={recordTab}
             importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
             importLabel="AI 가져오기"
             isImporting={importAiMutation.isPending}
@@ -209,6 +214,7 @@ export function AnalysisExpandableCell({
             content={combinedContent}
             mode={confirmedMode}
             setMode={setConfirmedMode}
+            recordTab={recordTab}
             importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
             importLabel="컨설턴트 가져오기"
             isImporting={importConsultantMutation.isPending}

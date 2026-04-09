@@ -33,6 +33,8 @@ export interface TaggerRecord {
   id: string;
   content?: string | null;
   imported_content?: string | null;
+  confirmed_content?: string | null;
+  ai_draft_content?: string | null;
   semester?: number;
 }
 
@@ -46,6 +48,45 @@ export interface TaggerProps {
 }
 
 export type AnalysisBlockMode = "tagging" | "competency" | "original";
+
+/**
+ * 분석 탭 구분자. 분석/가안 분석은 원본 콘텐츠 소스가 다르기 때문에
+ * 원문 하이라이트 렌더 시 이 구분에 따라 콘텐츠 리졸버 우선순위를 바꿔야 한다.
+ *
+ * - `"analysis"`: NEIS(imported_content) 기반. 분석 탭 태그(tag_context='analysis')가 이 콘텐츠를 참조.
+ * - `"draft_analysis"`: 가안 기반. P8 가안분석 태그(tag_context='draft_analysis')가 이 콘텐츠를 참조.
+ *   설계 모드(NEIS 없음)에서 P8이 사용하는 우선순위와 일치해야 한다.
+ */
+export type AnalysisRecordTab = "analysis" | "draft_analysis";
+
+/**
+ * 원문 하이라이트용 콘텐츠 리졸버.
+ *
+ * - `analysis` 탭: NEIS 원문(`imported_content`)만 사용. 파이프라인 분석 소스와 정확히 일치.
+ * - `draft_analysis` 탭: NEIS를 제외한 4-layer 우선순위
+ *   `confirmed_content → content → ai_draft_content`. 이 순서는 `record-analysis`의
+ *   `resolveEffectiveContent()`에서 NEIS를 뺀 것과 같다 — 설계 모드에서 P8이 분석한 콘텐츠와
+ *   일치시켜야 태그 `highlight` 텍스트가 원문에서 매칭된다.
+ */
+export function resolveAnalysisContent(
+  r: {
+    imported_content?: string | null;
+    confirmed_content?: string | null;
+    content?: string | null;
+    ai_draft_content?: string | null;
+  },
+  tab: AnalysisRecordTab,
+): string {
+  if (tab === "analysis") {
+    return r.imported_content?.trim() || "";
+  }
+  return (
+    r.confirmed_content?.trim() ||
+    r.content?.trim() ||
+    r.ai_draft_content?.trim() ||
+    ""
+  );
+}
 
 // ─── 역량 라벨 ──
 
@@ -108,9 +149,9 @@ function toSections(tags: AnalysisTagLike[]): AnalyzedSection[] {
   return [{ sectionType: "전체" as const, tags: hlTags, needsReview: hlTags.some((t) => t.evaluation === "needs_review") }];
 }
 
-/** 레코드에서 표시할 텍스트 (content → imported_content fallback) */
-function getRecordText(r: TaggerRecord): string {
-  return r.content?.trim() || r.imported_content || "";
+/** 레코드에서 표시할 텍스트 — 탭별 원본을 분리해서 태그 highlight 매칭을 보장한다. */
+function getRecordText(r: TaggerRecord, tab: AnalysisRecordTab): string {
+  return resolveAnalysisContent(r, tab);
 }
 
 // ─── 역량 그룹 렌더 ──
@@ -218,6 +259,7 @@ export function AnalysisBlock({
   content,
   mode,
   setMode,
+  recordTab = "analysis",
   importAction,
   importLabel,
   isImporting,
@@ -230,6 +272,11 @@ export function AnalysisBlock({
   content: string;
   mode: AnalysisBlockMode;
   setMode: (m: AnalysisBlockMode) => void;
+  /**
+   * 호출한 탭 구분. 태깅 모드에서 레코드별 텍스트 리졸버가 이 값에 따라
+   * NEIS(analysis) 또는 가안(draft_analysis)을 읽는다. 기본값은 레거시 호환을 위해 "analysis".
+   */
+  recordTab?: AnalysisRecordTab;
   importAction?: () => void;
   importLabel?: string;
   isImporting?: boolean;
@@ -301,11 +348,11 @@ export function AnalysisBlock({
         {/* 태깅 모드 */}
         {mode === "tagging" && taggerProps && (
           <div className="flex flex-col gap-3">
-            {taggerProps.records.filter((r) => getRecordText(r)).length > 0 ? (
+            {taggerProps.records.filter((r) => getRecordText(r, recordTab)).length > 0 ? (
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-[var(--text-tertiary)]">텍스트를 드래그하여 역량 태그를 지정하세요</p>
-                {taggerProps.records.filter((r) => getRecordText(r)).map((r) => {
-                  const recordText = getRecordText(r);
+                {taggerProps.records.filter((r) => getRecordText(r, recordTab)).map((r) => {
+                  const recordText = getRecordText(r, recordTab);
                   const recordHlTags = hlTags.filter((ht) => {
                     const seg = buildSegments(recordText, [ht]);
                     return seg.some((s) => s.tags.length > 0);

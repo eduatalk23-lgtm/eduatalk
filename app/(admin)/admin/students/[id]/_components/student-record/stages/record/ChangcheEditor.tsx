@@ -355,7 +355,7 @@ export function ChangcheEditor({
                     {activeTab === "analysis" && (
                       record ? (
                         typeTags.length > 0 ? (
-                          <ChangcheAnalysisCell typeTags={typeTags} record={record} activityType={type} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} />
+                          <ChangcheAnalysisCell typeTags={typeTags} record={record} activityType={type} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} recordTab="analysis" />
                         ) : <span className="text-xs text-[var(--text-placeholder)]">
                           {perspective === "consultant" ? "컨설턴트가 추가한 분석이 없습니다" : perspective === "ai" ? "AI 분석이 없습니다" : "분석 태그 없음"}
                         </span>
@@ -364,9 +364,10 @@ export function ChangcheEditor({
                     {activeTab === "draft_analysis" && (
                       // P8 가안분석 태그는 ChangcheEditor.filteredTags에서 이미 tag_context='draft_analysis'로 추려짐.
                       // typeTags는 record_id로만 한 번 더 필터링되므로 그대로 재사용 가능.
+                      // recordTab='draft_analysis'로 가안 콘텐츠(confirmed→content→ai_draft)에 대해 하이라이트.
                       record ? (
                         typeTags.length > 0 ? (
-                          <ChangcheAnalysisCell typeTags={typeTags} record={record} activityType={type} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} />
+                          <ChangcheAnalysisCell typeTags={typeTags} record={record} activityType={type} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} recordTab="draft_analysis" />
                         ) : <span className="text-xs text-[var(--text-placeholder)]">가안 분석 태그 없음 (P8 미실행 또는 가안 미생성)</span>
                       ) : <span className="text-xs text-[var(--text-placeholder)]">기록 없음</span>
                     )}

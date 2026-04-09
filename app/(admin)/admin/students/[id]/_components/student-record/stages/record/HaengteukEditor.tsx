@@ -494,7 +494,7 @@ export function HaengteukEditor({
                 {activeTab === "analysis" && (
                   haengteuk ? (
                     filteredTags.length > 0 ? (
-                      <HaengteukAnalysisCell filteredTags={filteredTags} haengteuk={haengteuk} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} />
+                      <HaengteukAnalysisCell filteredTags={filteredTags} haengteuk={haengteuk} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} recordTab="analysis" />
                     ) : <span className="text-xs text-[var(--text-placeholder)]">
                       {perspective === "consultant" ? "컨설턴트가 추가한 분석이 없습니다" : perspective === "ai" ? "AI 분석이 없습니다" : "분석 태그 없음"}
                     </span>
@@ -502,9 +502,10 @@ export function HaengteukEditor({
                 )}
                 {activeTab === "draft_analysis" && (
                   // P8 가안분석 태그. filteredTags는 draftAnalysisTags로 이미 분기된 상태.
+                  // recordTab='draft_analysis'로 가안 콘텐츠(confirmed→content→ai_draft)에 대해 하이라이트.
                   haengteuk ? (
                     filteredTags.length > 0 ? (
-                      <HaengteukAnalysisCell filteredTags={filteredTags} haengteuk={haengteuk} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} />
+                      <HaengteukAnalysisCell filteredTags={filteredTags} haengteuk={haengteuk} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} perspective={perspective} recordTab="draft_analysis" />
                     ) : <span className="text-xs text-[var(--text-placeholder)]">가안 분석 태그 없음 (P8 미실행 또는 가안 미생성)</span>
                   ) : <span className="text-xs text-[var(--text-placeholder)]">기록 없음</span>
                 )}

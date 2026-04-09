@@ -5,13 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record";
 import type { RecordChangche, ChangcheActivityType } from "@/lib/domains/student-record";
-import { cn } from "@/lib/cn";
-import { ChevronDown } from "lucide-react";
-import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "../shared/AnalysisBlocks";
-import { AnalysisBlock, COMPETENCY_LABELS, EVAL_COLORS } from "../shared/AnalysisBlocks";
+import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps, AnalysisRecordTab } from "../shared/AnalysisBlocks";
+import { AnalysisBlock, resolveAnalysisContent } from "../shared/AnalysisBlocks";
 import type { LayerPerspective } from "@/lib/domains/student-record/layer-view";
-import { Badge } from "@/components/ui/Badge";
-import { Empty } from "@/components/ui/Empty";
 
 export function ChangcheAnalysisCell({
   typeTags,
@@ -21,6 +17,7 @@ export function ChangcheAnalysisCell({
   tenantId,
   schoolYear,
   perspective,
+  recordTab = "analysis",
 }: {
   typeTags: AnalysisTagLike[];
   record: RecordChangche;
@@ -30,8 +27,13 @@ export function ChangcheAnalysisCell({
   schoolYear: number;
   /** 관점별 단일 슬라이스. AI=AI 블록만, consultant=컨설턴트 블록만, null=레거시 3블록. */
   perspective?: LayerPerspective | null;
+  /**
+   * 분석/가안 분석 탭 구분. 원문 하이라이트용 콘텐츠 소스를 결정한다.
+   * - "analysis": imported_content(NEIS)
+   * - "draft_analysis": confirmed_content → content → ai_draft_content
+   */
+  recordTab?: AnalysisRecordTab;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [aiMode, setAiMode] = useState<AnalysisBlockMode>("competency");
   const [consultantMode, setConsultantMode] = useState<AnalysisBlockMode>("tagging");
   const [confirmedMode, setConfirmedMode] = useState<AnalysisBlockMode>("tagging");
@@ -41,14 +43,21 @@ export function ChangcheAnalysisCell({
   const manualTags = useMemo(() => typeTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [typeTags]);
   const confirmedTags = useMemo(() => typeTags.filter((t) => t.status === "confirmed"), [typeTags]);
 
+  // 분석/가안 분석 탭별로 콘텐츠 원본을 분리. 파이프라인이 분석한 원본과 일치시켜야 highlight 매칭이 성립.
   const content = useMemo(
-    () => record.content?.trim() || record.imported_content || "",
-    [record],
+    () => resolveAnalysisContent(record, recordTab),
+    [record, recordTab],
   );
 
   const taggerProps: TaggerProps = useMemo(() => ({
     studentId, tenantId, schoolYear,
-    records: [{ id: record.id, content: record.content, imported_content: record.imported_content }],
+    records: [{
+      id: record.id,
+      content: record.content,
+      imported_content: record.imported_content,
+      confirmed_content: record.confirmed_content,
+      ai_draft_content: record.ai_draft_content,
+    }],
     displayName: CHANGCHE_TYPE_LABELS[activityType],
     recordType: "changche" as const,
   }), [studentId, tenantId, schoolYear, record, activityType]);
@@ -107,61 +116,43 @@ export function ChangcheAnalysisCell({
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* 접힌 상태: 요약 */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        <div className="flex flex-1 flex-wrap items-center gap-1.5">
-          {typeTags.length > 0 ? typeTags.slice(0, 4).map((t, i) => (
-            <Badge key={i} className={EVAL_COLORS[t.evaluation || "needs_review"]} size="xs">
-              {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
-            </Badge>
-          )) : (
-            <Empty label="태그 없음" />
-          )}
-          {typeTags.length > 4 && (
-            <span className="text-xs text-[var(--text-tertiary)]">+{typeTags.length - 4}</span>
-          )}
-        </div>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
-      </button>
-
-      {/* 펼친 상태: 관점 단일 슬라이스 (null일 때만 레거시 3블록) */}
-      {expanded && perspective === "ai" && (
-        <div className="mt-1 flex flex-col gap-3">
+      {/* 관점 단일 슬라이스 (null일 때만 레거시 3블록) */}
+      {perspective === "ai" && (
+        <div className="flex flex-col gap-3">
           <AnalysisBlock
             label="AI"
             tags={typeTags}
             content={content}
             mode={aiMode}
             setMode={setAiMode}
+            recordTab={recordTab}
           />
         </div>
       )}
-      {expanded && perspective === "consultant" && (
-        <div className="mt-1 flex flex-col gap-3">
+      {perspective === "consultant" && (
+        <div className="flex flex-col gap-3">
           <AnalysisBlock
             label="컨설턴트"
             tags={typeTags}
             content={content}
             mode={consultantMode}
             setMode={setConsultantMode}
+            recordTab={recordTab}
             taggerProps={taggerProps}
             onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
             onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${typeTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(typeTags); }}
           />
         </div>
       )}
-      {expanded && !perspective && (
-        <div className="mt-1 flex flex-col gap-3">
+      {!perspective && (
+        <div className="flex flex-col gap-3">
           <AnalysisBlock
             label="AI"
             tags={aiTags}
             content={content}
             mode={aiMode}
             setMode={setAiMode}
+            recordTab={recordTab}
           />
           <AnalysisBlock
             label="컨설턴트"
@@ -169,6 +160,7 @@ export function ChangcheAnalysisCell({
             content={content}
             mode={consultantMode}
             setMode={setConsultantMode}
+            recordTab={recordTab}
             importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
             importLabel="AI 가져오기"
             isImporting={importAiMutation.isPending}
@@ -182,6 +174,7 @@ export function ChangcheAnalysisCell({
             content={content}
             mode={confirmedMode}
             setMode={setConfirmedMode}
+            recordTab={recordTab}
             importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
             importLabel="컨설턴트 가져오기"
             isImporting={importConsultantMutation.isPending}
