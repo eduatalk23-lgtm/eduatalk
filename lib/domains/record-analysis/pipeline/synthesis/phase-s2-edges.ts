@@ -395,7 +395,7 @@ async function applyContinuityRanking(
   const guideIds = guides.map((g) => g.id);
 
   // ── 병렬 메타데이터 조회: 12계열 + Phase A (난이도/클러스터/사슬) ──
-  const [cfRows, phaseARows, existingAssignments, sequelRows] = await Promise.all([
+  const [cfRows, phaseARows, existingAssignments, sequelRows, trajectoryRows] = await Promise.all([
     // (1) career_field_mappings → 12계열
     supabase
       .from("exploration_guide_career_mappings")
@@ -420,6 +420,12 @@ async function applyContinuityRanking(
       .select("from_guide_id, to_guide_id, confidence")
       .in("to_guide_id", guideIds)
       .gte("confidence", 0.4)
+      .then((r) => r.data),
+    // (5) Wave 4: 학생 궤적 (완료한 클러스터/난이도 기록)
+    supabase
+      .from("student_record_topic_trajectories")
+      .select("topic_cluster_id, evidence")
+      .eq("student_id", studentId)
       .then((r) => r.data),
   ]);
 
@@ -458,6 +464,12 @@ async function applyContinuityRanking(
     }
   }
 
+  // Wave 4: 궤적에서 이미 탐구한 클러스터 → sequel 보너스 강화
+  const exploredClusters = new Set<string>();
+  for (const t of trajectoryRows ?? []) {
+    if (t.topic_cluster_id) exploredClusters.add(t.topic_cluster_id);
+  }
+
   // ── 점수 계산 ──
   const ranked: RankedGuide[] = guides.map((g) => {
     const lineage = lineageByGuide.get(g.id) ?? null;
@@ -479,8 +491,12 @@ async function applyContinuityRanking(
     const difficulty = difficultyByGuide.get(g.id);
     const difficultyScore = computeDifficultyFit(studentGrade, difficulty);
 
-    // Phase A: 사슬 보너스 (이미 배정된 가이드의 sequel이면 1.3배)
-    const sequelBonus = sequelTargets.has(g.id) ? 1.3 : 1.0;
+    // Phase A: 사슬 보너스
+    // 1.0 기본 → 1.3 sequel(배정 기반) → 1.5 sequel+궤적(실제 탐구 이력)
+    const isSequel = sequelTargets.has(g.id);
+    const clusterId = clusterByGuide.get(g.id);
+    const hasTrajectory = clusterId ? exploredClusters.has(clusterId) : false;
+    const sequelBonus = isSequel && hasTrajectory ? 1.5 : isSequel ? 1.3 : 1.0;
 
     return {
       id: g.id,

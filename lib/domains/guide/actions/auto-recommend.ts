@@ -33,7 +33,8 @@ export type MatchReason =
   | "activity"
   | "classification+activity"
   | "subject+activity"
-  | "all";
+  | "all"
+  | "sequel"; // Phase A: 이미 배정된 가이드의 다음 단계
 
 export interface RecommendedGuide {
   id: string;
@@ -110,18 +111,38 @@ export async function autoRecommendGuidesAction(input: {
       for (const r of am ?? []) activityGuideIds.add(r.guide_id);
     }
 
+    // 3.5. Phase A: 이미 배정된 가이드의 sequel 타겟 추가
+    const sequelGuideIds = new Set<string>();
+    if (input.studentId) {
+      const { data: existingAssigns } = await supabase
+        .from("exploration_guide_assignments")
+        .select("guide_id")
+        .eq("student_id", input.studentId);
+      const assignedGuideIds = (existingAssigns ?? []).map((a) => a.guide_id);
+      if (assignedGuideIds.length > 0) {
+        const { data: sequels } = await supabase
+          .from("exploration_guide_sequels")
+          .select("to_guide_id")
+          .in("from_guide_id", assignedGuideIds)
+          .gte("confidence", 0.5);
+        for (const s of sequels ?? []) sequelGuideIds.add(s.to_guide_id);
+      }
+    }
+
     // 4. UNION + match_reason 결정 (3축 비트마스크 → 라벨)
     const guideReasonMap = new Map<string, MatchReason>();
     const allIds = new Set<string>([
       ...classGuideIds,
       ...subjectGuideIds,
       ...activityGuideIds,
+      ...sequelGuideIds,
     ]);
 
     for (const id of allIds) {
       const c = classGuideIds.has(id);
       const s = subjectGuideIds.has(id);
       const a = activityGuideIds.has(id);
+      const sq = sequelGuideIds.has(id);
       let reason: MatchReason;
       if (c && s && a) reason = "all";
       else if (c && s) reason = "both"; // 레거시 호환 — phase-s2-edges priority
@@ -129,7 +150,9 @@ export async function autoRecommendGuidesAction(input: {
       else if (s && a) reason = "subject+activity";
       else if (c) reason = "classification";
       else if (s) reason = "subject";
-      else reason = "activity";
+      else if (a) reason = "activity";
+      else if (sq) reason = "sequel";
+      else reason = "classification";
       guideReasonMap.set(id, reason);
     }
 
@@ -174,6 +197,7 @@ export async function autoRecommendGuidesAction(input: {
       both: 1, // legacy: classification + subject
       "classification+activity": 1,
       "subject+activity": 1,
+      sequel: 1, // Phase A: sequel은 2축 매칭과 동급
       classification: 2,
       subject: 2,
       activity: 2,

@@ -17,6 +17,7 @@ const ActivitySummaryPanel = lazy(() => import("./ActivitySummaryPanel").then((m
 const SetekGuidePanel = lazy(() => import("./SetekGuidePanel").then((m) => ({ default: m.SetekGuidePanel })));
 const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then((m) => ({ default: m.ExplorationGuidePanel })));
 const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
+const TrajectoryPanel = lazy(() => import("./TrajectoryPanel").then((m) => ({ default: m.TrajectoryPanel })));
 
 // ─── Types ────────────────────────────────────────────
 
@@ -168,6 +169,11 @@ export function DesignStageContent({
           />
         </Suspense>
       </StrategySection>
+
+      {/* ─── 탐구 궤적 (Phase A) ─────────────── */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <TrajectoryPanel studentId={studentId} />
+      </Suspense>
 
       {/* ─── 우회학과 탐색 (CMS C1.5) ────────── */}
       <StrategySection id="sec-bypass-major" title="우회학과 탐색">
