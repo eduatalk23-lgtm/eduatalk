@@ -343,3 +343,36 @@ export const suggestedTopicsSchema = z.object({
 });
 
 export type SuggestedTopicsOutput = z.infer<typeof suggestedTopicsSchema>;
+
+// ============================================================
+// M2: AI 버전 비교 분석 스키마
+// ============================================================
+
+export const versionAnalysisSchema = z.object({
+  changeNarrative: z
+    .string()
+    .describe(
+      "이 편집의 전반적 맥락과 목적을 2~3문장으로 설명. 예: '탐구 이론의 학술적 깊이를 보강하기 위해 참고 자료를 추가하고 실험 설계 섹션을 확장했습니다.'",
+    ),
+  improvementAreas: z
+    .array(z.string())
+    .max(5)
+    .describe("이 편집으로 개선된 영역 (구체적, 1~2문장씩, 최대 5개)"),
+  regressionRisks: z
+    .array(z.string())
+    .max(3)
+    .describe(
+      "이 편집으로 인해 퇴보 또는 주의가 필요한 영역 (없으면 빈 배열, 최대 3개)",
+    ),
+  suggestedNextEdits: z
+    .array(z.string())
+    .max(3)
+    .describe("다음 편집에서 권장하는 개선사항 (구체적, 최대 3개)"),
+  overallVerdict: z
+    .enum(["improved", "regressed", "lateral"])
+    .describe(
+      "전반적 판단: improved=개선됨, regressed=퇴보, lateral=수평 이동(방향 변경)",
+    ),
+});
+
+export type VersionAnalysisOutput = z.infer<typeof versionAnalysisSchema>;

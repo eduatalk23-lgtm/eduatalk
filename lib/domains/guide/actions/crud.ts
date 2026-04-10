@@ -652,6 +652,46 @@ export async function getLatestVersionIdAction(
 }
 
 // ============================================================
+// M2: 버전 비교
+// ============================================================
+
+/** 두 버전을 비교하여 diff 결과 반환 */
+export async function compareVersionsAction(
+  guideIdA: string,
+  guideIdB: string,
+): Promise<ActionResponse<import("../utils/versionDiff").VersionDiff>> {
+  try {
+    await requireAdminOrConsultant();
+
+    const [guideA, guideB] = await Promise.all([
+      findGuideById(guideIdA),
+      findGuideById(guideIdB),
+    ]);
+
+    if (!guideA || !guideB) {
+      return createErrorResponse("비교할 버전을 찾을 수 없습니다.");
+    }
+
+    const { compareVersions } = await import("../utils/versionDiff");
+
+    // older = 버전 번호가 작은 쪽, newer = 큰 쪽
+    const [older, newer] =
+      guideA.version <= guideB.version
+        ? [guideA, guideB]
+        : [guideB, guideA];
+
+    const diff = compareVersions(older, newer);
+    return createSuccessResponse(diff);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "compareVersions" }, error, {
+      guideIdA,
+      guideIdB,
+    });
+    return createErrorResponse("버전 비교에 실패했습니다.");
+  }
+}
+
+// ============================================================
 // 9. AI 추천 주제 관리
 // ============================================================
 
