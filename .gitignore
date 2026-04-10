@@ -109,3 +109,4 @@ test-results/
 /memory/
 # Database dumps
 dump_*.sql
+tmp/
