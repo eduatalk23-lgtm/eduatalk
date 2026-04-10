@@ -44,10 +44,15 @@ import {
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-/** 임베딩은 무거운 AI SDK를 로드하므로 동적 import 사용 (모듈 초기화 실패 방지) */
+/** 임베딩 생성 + 자동 분류 (클러스터/난이도/사슬 링크) 체이닝 */
 async function lazyEmbedSingleGuide(guideId: string) {
   const { embedSingleGuide } = await import("../vector/embedding-service");
-  return embedSingleGuide(guideId);
+  const ok = await embedSingleGuide(guideId);
+  if (ok) {
+    const { autoClassifyGuide } = await import("../vector/auto-classify");
+    await autoClassifyGuide(guideId);
+  }
+  return ok;
 }
 
 const LOG_CTX = { domain: "guide", action: "crud" };
