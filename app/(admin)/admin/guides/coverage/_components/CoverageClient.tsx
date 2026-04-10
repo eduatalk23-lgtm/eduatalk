@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, AlertTriangle, CheckCircle2, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -50,13 +51,15 @@ function DifficultyBar({ dist, total }: { dist: ClusterCoverage["difficulty_dist
 }
 
 function ClusterCard({ cluster }: { cluster: ClusterCoverage }) {
+  const router = useRouter();
   const dist = cluster.difficulty_distribution;
   const hasGaps = cluster.gaps.length > 0;
 
   return (
-    <div
+    <Link
+      href={`/admin/guides/coverage/${cluster.id}`}
       className={cn(
-        "rounded-xl border p-4 transition-colors",
+        "block rounded-xl border p-4 transition-colors hover:ring-2 hover:ring-primary-300 dark:hover:ring-primary-600",
         hasGaps
           ? "border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-950/20"
           : "border-secondary-200 bg-white dark:border-secondary-700 dark:bg-secondary-900",
@@ -105,19 +108,24 @@ function ClusterCard({ cluster }: { cluster: ClusterCoverage }) {
               params.set("subject", cluster.subject_hints[0]);
             }
             return (
-              <Link
+              <button
                 key={g}
-                href={`/admin/guides/generate?${params.toString()}`}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/admin/guides/generate?${params.toString()}`);
+                }}
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 {DIFFICULTY_LABELS[g as keyof typeof DIFFICULTY_LABELS]} 생성
-              </Link>
+              </button>
             );
           })}
         </div>
       )}
-    </div>
+    </Link>
   );
 }
 
