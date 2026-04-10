@@ -165,7 +165,11 @@ interface RankedGuide {
   baseScore: number;
   /** 12계열 연속성 점수 (0.5~1.0) */
   continuityScore: number;
-  /** 최종 가중치 점수 = baseScore × continuityScore */
+  /** Phase A: 난이도 적합도 (0.7~1.0) */
+  difficultyScore: number;
+  /** Phase A: 사슬 보너스 (1.0 기본, 1.3 sequel) */
+  sequelBonus: number;
+  /** 최종 가중치 점수 = baseScore × continuityScore × difficultyScore × sequelBonus */
   finalScore: number;
 }
 
@@ -240,6 +244,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     clubHistory,
     studentGrade,
     supabase,
+    studentId,
   );
 
   // ── D6: 조건부 AI 생성 (옵션, feature flag) ──
@@ -383,19 +388,43 @@ async function applyContinuityRanking(
   clubHistory: ClubHistoryEntry[],
   studentGrade: number,
   supabase: PipelineContext["supabase"],
+  studentId: string,
 ): Promise<RankedGuide[]> {
   if (guides.length === 0) return [];
 
-  // 가이드별 12계열 추론 (career_field 매핑 기반)
   const guideIds = guides.map((g) => g.id);
+
+  // ── 병렬 메타데이터 조회: 12계열 + Phase A (난이도/클러스터/사슬) ──
+  const [cfRows, phaseARows, existingAssignments, sequelRows] = await Promise.all([
+    // (1) career_field_mappings → 12계열
+    supabase
+      .from("exploration_guide_career_mappings")
+      .select("guide_id, exploration_guide_career_fields!inner(name_kor)")
+      .in("guide_id", guideIds)
+      .then((r) => r.data),
+    // (2) Phase A: 난이도 + 클러스터
+    supabase
+      .from("exploration_guides")
+      .select("id, difficulty_level, topic_cluster_id")
+      .in("id", guideIds)
+      .then((r) => r.data),
+    // (3) 이미 배정된 가이드 (sequel 보너스용)
+    supabase
+      .from("exploration_guide_assignments")
+      .select("guide_id")
+      .eq("student_id", studentId)
+      .then((r) => r.data),
+    // (4) Phase A: 후보 가이드의 sequel 관계 (이미 배정된 가이드 → 후보)
+    supabase
+      .from("exploration_guide_sequels")
+      .select("from_guide_id, to_guide_id, confidence")
+      .in("to_guide_id", guideIds)
+      .gte("confidence", 0.4)
+      .then((r) => r.data),
+  ]);
+
+  // 12계열 매핑
   const lineageByGuide = new Map<string, Lineage12 | null>();
-
-  // career_field_mappings 조회 → 8 career_field → 12계열 lossy 매핑
-  const { data: cfRows } = await supabase
-    .from("exploration_guide_career_mappings")
-    .select("guide_id, exploration_guide_career_fields!inner(name_kor)")
-    .in("guide_id", guideIds);
-
   for (const row of cfRows ?? []) {
     const r = row as {
       guide_id: string;
@@ -407,17 +436,33 @@ async function applyContinuityRanking(
       : r.exploration_guide_career_fields?.name_kor;
     if (!cf) continue;
     const possibleLineages = CAREER_FIELD_TO_LINEAGE_12[cf];
-    // 첫 후보 사용 (lossy)
     if (possibleLineages && possibleLineages.length > 0) {
       lineageByGuide.set(r.guide_id, possibleLineages[0]);
     }
   }
 
-  // 점수 계산 + 정렬
+  // Phase A: 난이도 + 클러스터 맵
+  const difficultyByGuide = new Map<string, string | null>();
+  const clusterByGuide = new Map<string, string | null>();
+  for (const row of phaseARows ?? []) {
+    difficultyByGuide.set(row.id, row.difficulty_level);
+    clusterByGuide.set(row.id, row.topic_cluster_id);
+  }
+
+  // Phase A: sequel 보너스 — 이미 배정된 가이드의 sequel이면 보너스
+  const assignedIds = new Set((existingAssignments ?? []).map((a) => a.guide_id));
+  const sequelTargets = new Set<string>();
+  for (const s of sequelRows ?? []) {
+    if (assignedIds.has(s.from_guide_id)) {
+      sequelTargets.add(s.to_guide_id);
+    }
+  }
+
+  // ── 점수 계산 ──
   const ranked: RankedGuide[] = guides.map((g) => {
     const lineage = lineageByGuide.get(g.id) ?? null;
 
-    // baseScore: match_reason의 매치 강도
+    // baseScore: match_reason 매치 강도
     const baseScore =
       g.match_reason === "all"
         ? 3
@@ -430,6 +475,13 @@ async function applyContinuityRanking(
     // 12계열 연속성 점수
     const continuityScore = computeClubContinuityScore(clubHistory, lineage, studentGrade);
 
+    // Phase A: 난이도 적합도 (학년↔난이도 매치)
+    const difficulty = difficultyByGuide.get(g.id);
+    const difficultyScore = computeDifficultyFit(studentGrade, difficulty);
+
+    // Phase A: 사슬 보너스 (이미 배정된 가이드의 sequel이면 1.3배)
+    const sequelBonus = sequelTargets.has(g.id) ? 1.3 : 1.0;
+
     return {
       id: g.id,
       title: g.title,
@@ -437,13 +489,47 @@ async function applyContinuityRanking(
       match_reason: g.match_reason,
       baseScore,
       continuityScore,
-      finalScore: baseScore * continuityScore,
+      difficultyScore,
+      sequelBonus,
+      finalScore: baseScore * continuityScore * difficultyScore * sequelBonus,
     };
   });
 
-  // 최종 점수 desc 정렬
+  // ── Phase A: 클러스터 다양성 페널티 ──
+  // 같은 클러스터에서 3개 초과 시 4번째부터 0.7배 감점
+  ranked.sort((a, b) => b.finalScore - a.finalScore);
+  const clusterCount = new Map<string, number>();
+  for (const g of ranked) {
+    const cid = clusterByGuide.get(g.id);
+    if (!cid) continue;
+    const count = (clusterCount.get(cid) ?? 0) + 1;
+    clusterCount.set(cid, count);
+    if (count > 3) {
+      g.finalScore *= 0.7;
+    }
+  }
+
+  // 최종 정렬
   ranked.sort((a, b) => b.finalScore - a.finalScore);
   return ranked;
+}
+
+// ============================================
+// Phase A helper: 난이도↔학년 적합도
+// ============================================
+
+/** 학년에 맞는 난이도일수록 높은 점수 (0.7~1.0) */
+function computeDifficultyFit(studentGrade: number, difficulty: string | null | undefined): number {
+  if (!difficulty) return 0.85; // 난이도 미분류 → 약간 감점
+  // 학년별 이상적 난이도: 1학년=basic, 2학년=intermediate, 3학년=advanced
+  const idealMap: Record<number, string> = { 1: "basic", 2: "intermediate", 3: "advanced" };
+  const ideal = idealMap[studentGrade] ?? "intermediate";
+  if (difficulty === ideal) return 1.0; // 정확히 매치
+  // 1단계 차이 (basic↔intermediate, intermediate↔advanced)
+  const levels = ["basic", "intermediate", "advanced"];
+  const diff = Math.abs(levels.indexOf(difficulty) - levels.indexOf(ideal));
+  if (diff === 1) return 0.85; // 인접
+  return 0.7; // 2단계 차이 (basic↔advanced)
 }
 
 // ============================================
