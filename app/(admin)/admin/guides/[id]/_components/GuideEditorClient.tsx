@@ -184,6 +184,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [agentInstruction, setAgentInstruction] = useState("");
   const [agentTargetKeys, setAgentTargetKeys] = useState<Set<string>>(new Set());
   const [agentEditing, setAgentEditing] = useState(false);
+  const [agentAskInput, setAgentAskInput] = useState(false);
   // 보기/편집 모드 (기존 가이드: 보기 기본, 신규: 편집 기본)
   const [mode, setMode] = useState<"view" | "edit">(isNew ? "edit" : "view");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -687,6 +688,10 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const isAiImproving = guide?.status === "ai_improving";
   const isAiReviewing = guide?.status === "ai_reviewing";
   const isAiFailed = guide?.status === "ai_failed";
+  const isAwaitingInput = guide?.status === "awaiting_input";
+  const agentQuestion = isAwaitingInput
+    ? (guide as unknown as { agent_question: { question: string; choices?: string[]; context?: string } | null }).agent_question
+    : null;
 
   return (
     <div className="space-y-6">
@@ -715,6 +720,84 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           <div>
             <p className="text-sm font-medium text-blue-900 dark:text-blue-200">AI 품질 리뷰 진행 중...</p>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">보통 30~60초 소요됩니다. 이 페이지를 닫아도 리뷰는 계속 진행됩니다.</p>
+          </div>
+        </div>
+      )}
+      {isAwaitingInput && agentQuestion && (
+        <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <MessageSquareText className="w-5 h-5 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-violet-900 dark:text-violet-200">
+                AI 편집 확인 요청
+              </p>
+              <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
+                {agentQuestion.question}
+              </p>
+              {agentQuestion.context && (
+                <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  원래 지시: &quot;{agentQuestion.context}&quot;
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 ml-8">
+            <button
+              type="button"
+              onClick={async () => {
+                if (!guideId) return;
+                setImproving(true);
+                try {
+                  const res = await fetch("/api/admin/guides/agent-edit-resume", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ guideId, approved: true }),
+                  });
+                  if (res.ok) {
+                    toast.showSuccess("편집이 적용되었습니다.");
+                    queryClient.invalidateQueries({
+                      queryKey: explorationGuideKeys.cmsDetail(guideId),
+                    });
+                  } else {
+                    toast.showError("편집 적용에 실패했습니다.");
+                  }
+                } catch {
+                  toast.showError("편집 적용 중 오류가 발생했습니다.");
+                } finally {
+                  setImproving(false);
+                }
+              }}
+              disabled={improving}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-violet-500 text-white hover:bg-violet-600 transition-colors disabled:opacity-50"
+            >
+              {improving ? "적용 중..." : "적용"}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!guideId) return;
+                setImproving(true);
+                try {
+                  await fetch("/api/admin/guides/agent-edit-resume", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ guideId, approved: false }),
+                  });
+                  toast.showSuccess("편집이 취소되었습니다.");
+                  queryClient.invalidateQueries({
+                    queryKey: explorationGuideKeys.cmsDetail(guideId),
+                  });
+                } catch {
+                  toast.showError("취소 처리 중 오류가 발생했습니다.");
+                } finally {
+                  setImproving(false);
+                }
+              }}
+              disabled={improving}
+              className="px-4 py-2 rounded-lg text-sm font-medium border border-secondary-300 dark:border-secondary-600 text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
+            >
+              취소
+            </button>
           </div>
         </div>
       )}
@@ -1063,6 +1146,12 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 );
                 const result = await reviewGuideAction(guideId);
                 if (result.success) {
+                  // API Route로 AI 실행 트리거 (fire-and-forget)
+                  fetch("/api/admin/guides/review", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ guideId }),
+                  }).catch(() => {});
                   toast.showSuccess("AI 리뷰가 시작되었습니다. 완료되면 자동으로 반영됩니다.");
                   queryClient.invalidateQueries({
                     queryKey: explorationGuideKeys.cmsDetail(guideId),
@@ -1176,6 +1265,16 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 try {
                   const result = await improveGuideAction(guideId);
                   if (result.success && result.data?.guideId) {
+                    // API Route로 AI 실행 트리거 (fire-and-forget)
+                    fetch("/api/admin/guides/improve", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        newGuideId: result.data.guideId,
+                        sourceGuideId: guideId,
+                        userId: "", // executeGuideImprovement에서 사용하지 않음
+                      }),
+                    }).catch(() => {});
                     toast.showSuccess("AI 개선이 시작되었습니다. 완료되면 자동으로 반영됩니다.");
                     router.push(`/admin/guides/${result.data.guideId}`);
                   } else {
@@ -1287,6 +1386,19 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 </div>
               </div>
 
+              {/* 확인 후 적용 옵션 */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agentAskInput}
+                  onChange={(e) => setAgentAskInput(e.target.checked)}
+                  className="rounded border-secondary-300 dark:border-secondary-600 text-violet-500 focus:ring-violet-500/30"
+                />
+                <span className="text-xs text-[var(--text-secondary)]">
+                  적용 전 확인 요청 (수정 결과를 미리 검토 후 승인)
+                </span>
+              </label>
+
               {/* 실행 버튼 */}
               <button
                 type="button"
@@ -1303,6 +1415,18 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                       targetKeys,
                     );
                     if (result.success && result.data?.guideId) {
+                      // API Route로 AI 실행 트리거 (fire-and-forget)
+                      fetch("/api/admin/guides/agent-edit", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          newGuideId: result.data.guideId,
+                          sourceGuideId: guideId,
+                          instruction: agentInstruction,
+                          targetSectionKeys: targetKeys,
+                          askInput: agentAskInput,
+                        }),
+                      }).catch(() => {});
                       toast.showSuccess(
                         "AI 편집이 시작되었습니다. 완료되면 자동으로 반영됩니다.",
                       );

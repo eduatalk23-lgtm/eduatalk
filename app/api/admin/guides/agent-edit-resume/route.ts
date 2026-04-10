@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { applyAgentEditResult } from "@/lib/domains/guide/llm/actions/agentEditGuide";
+
+export const maxDuration = 300;
+
+const LOG_CTX = { domain: "guide", action: "agentEditResume" };
+
+export async function POST(request: NextRequest) {
+  try {
+    await requireAdminOrConsultant();
+
+    const { guideId, approved } = (await request.json()) as {
+      guideId: string;
+      approved: boolean;
+    };
+
+    if (!guideId) {
+      return NextResponse.json(
+        { error: "guideId가 필요합니다." },
+        { status: 400 },
+      );
+    }
+
+    if (!approved) {
+      // 거절: ai_failed로 전환
+      const admin = createSupabaseAdminClient();
+      await admin
+        .from("exploration_guides")
+        .update({
+          status: "ai_failed",
+          agent_question: null,
+          version_message: "AI 편집 사용자 거절",
+        })
+        .eq("id", guideId);
+      return NextResponse.json({ cancelled: true });
+    }
+
+    try {
+      await applyAgentEditResult(guideId);
+      return NextResponse.json({ completed: true });
+    } catch (execError) {
+      const msg = execError instanceof Error ? execError.message : "";
+      const admin = createSupabaseAdminClient();
+      await admin
+        .from("exploration_guides")
+        .update({
+          status: "ai_failed",
+          agent_question: null,
+        })
+        .eq("id", guideId);
+      return NextResponse.json({ error: msg.slice(0, 200) }, { status: 500 });
+    }
+  } catch (error) {
+    logActionError(LOG_CTX, error);
+    return NextResponse.json(
+      { error: "편집 적용에 실패했습니다." },
+      { status: 500 },
+    );
+  }
+}

@@ -1,15 +1,13 @@
 "use server";
 
 // ============================================
-// C3 — AI 가이드 품질 리뷰 Server Action (fire-and-forget)
+// C3 — AI 가이드 품질 리뷰 Server Action
 //
-// 패턴:
-//   1. 인증 + 가이드 존재 확인
-//   2. status를 "ai_reviewing"으로 즉시 업데이트
-//   3. 즉시 성공 반환 (reviewResult 없이)
-//   4. executeGuideReview()를 fire-and-forget (.catch())
-//   5. 내부에서 createSupabaseAdminClient() 사용 (request context 만료 방지)
-//   6. 성공: review 결과 + status 업데이트 / 실패: status="draft"로 복원
+// 패턴 (API Route 분리):
+//   1. Server Action: status="ai_reviewing" + 즉시 반환
+//   2. 클라이언트: API Route(/api/admin/guides/review)를 fire-and-forget fetch
+//   3. API Route(maxDuration=300): executeGuideReview() 동기 실행
+//   4. 성공: review 결과 + status 업데이트 / 실패: status="draft"로 복원
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -66,15 +64,6 @@ export async function reviewGuideAction(
     // 상태를 ai_reviewing으로 전환 후 즉시 반환
     await updateGuide(guideId, { status: "ai_reviewing" });
 
-    // fire-and-forget — request context 만료 후에도 계속 실행
-    executeGuideReview(guideId).catch((err) => {
-      logActionError(
-        { ...LOG_CTX, action: "executeGuideReview" },
-        err,
-        { guideId },
-      );
-    });
-
     return createSuccessResponse({ guideId });
   } catch (error) {
     logActionError(LOG_CTX, error, { guideId });
@@ -87,7 +76,7 @@ export async function reviewGuideAction(
 // createSupabaseAdminClient() 사용 (request context 만료 방지)
 // ============================================
 
-async function executeGuideReview(guideId: string): Promise<void> {
+export async function executeGuideReview(guideId: string): Promise<void> {
   const admin = createSupabaseAdminClient();
 
   try {

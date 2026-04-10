@@ -1,15 +1,13 @@
 "use server";
 
 /**
- * AI 리뷰 기반 가이드 개선 서버 액션 (fire-and-forget)
+ * AI 리뷰 기반 가이드 개선 서버 액션
  *
- * 패턴:
- *   1. 입력 검증 + 인증
- *   2. 새 버전을 status="ai_improving"으로 즉시 생성
- *   3. 새 버전 ID를 즉시 반환
- *   4. executeGuideImprovement()를 fire-and-forget (.catch())
- *   5. 내부에서 createSupabaseAdminClient() 사용 (request context 만료 방지)
- *   6. 성공: status="draft" + 개선 콘텐츠 저장 / 실패: status="ai_failed"
+ * 패턴 (API Route 분리):
+ *   1. Server Action: 새 버전 생성(ai_improving) + guideId 즉시 반환
+ *   2. 클라이언트: API Route(/api/admin/guides/improve)를 fire-and-forget fetch
+ *   3. API Route(maxDuration=300): executeGuideImprovement() 동기 실행
+ *   4. 성공: status="draft" + 개선 콘텐츠 저장 / 실패: status="ai_failed"
  */
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -90,15 +88,6 @@ export async function improveGuideAction(
       versionMessage: `AI 리뷰 피드백 반영 개선 중... (${guide.quality_score ?? 0}점 → 개선)`,
     });
 
-    // fire-and-forget — request context 만료 후에도 계속 실행
-    executeGuideImprovement(newGuide.id, guideId, user.id).catch((err) => {
-      logActionError(
-        { ...LOG_CTX, action: "executeGuideImprovement" },
-        err,
-        { newGuideId: newGuide.id, sourceGuideId: guideId },
-      );
-    });
-
     return createSuccessResponse({ guideId: newGuide.id });
   } catch (error) {
     logActionError(LOG_CTX, error, { guideId });
@@ -111,7 +100,7 @@ export async function improveGuideAction(
 // createSupabaseAdminClient() 사용 (request context 만료 방지)
 // ============================================
 
-async function executeGuideImprovement(
+export async function executeGuideImprovement(
   newGuideId: string,
   sourceGuideId: string,
   _userId: string,
