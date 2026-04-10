@@ -111,13 +111,23 @@ async function computeWarningsFromData(
   const { getRecordTabData, getStorylineTabData } = await import("../service");
   const { getStrategyTabData } = await import("../service-strategy");
 
-  const [recordResults, storylineResult, strategyResult, diagnosisResult] = await Promise.all([
+  const [recordResults, storylineResult, strategyResult, diagnosisResult, scoresResult] = await Promise.all([
     Promise.all(yearPairs.map((p) => getRecordTabData(studentId, p.schoolYear, tenantId))),
     getStorylineTabData(studentId, initialSchoolYear, tenantId),
     getStrategyTabData(studentId, initialSchoolYear, tenantId),
     (async () => {
       const { fetchDiagnosisTabData } = await import("./diagnosis");
       return fetchDiagnosisTabData(studentId, initialSchoolYear, tenantId);
+    })(),
+    // 전공교과 하락 경고(checkMajorSubjectDecline)에 필요한 내신 성적
+    (async () => {
+      const supabase = await createSupabaseServerClient();
+      const { data } = await supabase
+        .from("student_internal_scores")
+        .select("grade, semester, rank_grade, subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .returns<Array<{ grade: number; semester: number; rank_grade: number | null; subject: { name: string } | null }>>();
+      return data ?? [];
     })(),
   ]);
 
@@ -131,12 +141,23 @@ async function computeWarningsFromData(
   const enrollmentYear = initialSchoolYear - studentGrade + 1;
   const curriculumYear = getCurriculumYear(enrollmentYear);
 
+  // 내신 성적 → GradeEntry 변환 (전공교과 하락 경고용)
+  const scores: import("../warnings/engine").GradeEntry[] = scoresResult
+    .filter((s): s is typeof s & { subject: { name: string } } => !!s.subject?.name)
+    .map((s) => ({
+      subjectName: s.subject.name,
+      grade: s.grade,
+      semester: s.semester,
+      rankGrade: s.rank_grade,
+    }));
+
   const warningInput: WarningCheckInput = {
     recordsByGrade,
     storylineData: storylineResult,
     diagnosisData: diagnosisResult,
     strategyData: strategyResult,
     currentGrade: studentGrade,
+    scores,
     qualityScores: diagnosisResult?.qualityScores,
     targetMajorField: diagnosisResult?.targetMajor ?? null,
     curriculumYear,
