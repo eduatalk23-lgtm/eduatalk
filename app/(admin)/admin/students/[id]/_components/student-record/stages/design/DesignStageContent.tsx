@@ -18,6 +18,7 @@ const SetekGuidePanel = lazy(() => import("./SetekGuidePanel").then((m) => ({ de
 const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then((m) => ({ default: m.ExplorationGuidePanel })));
 const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
 const TrajectoryPanel = lazy(() => import("./TrajectoryPanel").then((m) => ({ default: m.TrajectoryPanel })));
+const GapGuidePanel = lazy(() => import("./GapGuidePanel").then((m) => ({ default: m.GapGuidePanel })));
 
 // ─── Types ────────────────────────────────────────────
 
@@ -173,6 +174,15 @@ export function DesignStageContent({
       {/* ─── 탐구 궤적 (Phase A) ─────────────── */}
       <Suspense fallback={<SectionSkeleton />}>
         <TrajectoryPanel studentId={studentId} />
+      </Suspense>
+
+      {/* ─── 보완 가이드 추천 (기능 3) ─────────── */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <GapGuidePanel
+          studentId={studentId}
+          studentGrade={studentGrade}
+          schoolYear={initialSchoolYear}
+        />
       </Suspense>
 
       {/* ─── 우회학과 탐색 (CMS C1.5) ────────── */}

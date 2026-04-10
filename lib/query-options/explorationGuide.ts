@@ -153,6 +153,20 @@ export function studentTopicTrajectoriesQueryOptions(studentId: string) {
   });
 }
 
+export function gapGuideSuggestionsQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.all.concat("gap-suggestions", studentId),
+    queryFn: async () => {
+      const { suggestGapGuidesAction } = await import(
+        "@/lib/domains/guide/actions/suggest-gap-guides"
+      );
+      return suggestGapGuidesAction(studentId);
+    },
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+}
+
 // ============================================
 // CMS 전용 Query Options
 // ============================================

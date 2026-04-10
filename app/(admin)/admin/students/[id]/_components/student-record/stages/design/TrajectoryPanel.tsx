@@ -17,6 +17,21 @@ const DIFF_LABELS: Record<string, string> = {
   advanced: "심화",
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  auto_from_assignment: "배정",
+  auto_from_pipeline: "파이프라인",
+  extracted_from_neis: "NEIS 추출",
+  seed_from_major: "전공 시드",
+  consultant_manual: "수동",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  extracted_from_neis: "text-violet-500 dark:text-violet-400",
+  auto_from_assignment: "text-primary-500 dark:text-primary-400",
+  auto_from_pipeline: "text-primary-500 dark:text-primary-400",
+  consultant_manual: "text-amber-500 dark:text-amber-400",
+};
+
 interface TrajectoryRow {
   id: string;
   grade: number;
@@ -28,6 +43,8 @@ interface TrajectoryRow {
     difficulty_level?: string;
     title?: string;
     assigned_at?: string;
+    source_record_ids?: string[];
+    extraction_reasoning?: string;
   } | null;
   cluster: { name: string } | null;
 }
@@ -69,14 +86,27 @@ export function TrajectoryPanel({ studentId }: { studentId: string }) {
               <div className="flex flex-wrap gap-1.5">
                 {items.map((item) => {
                   const diff = item.evidence?.difficulty_level ?? "basic";
+                  const sourceLabel =
+                    SOURCE_LABELS[item.source] ?? item.source;
+                  const sourceColor =
+                    SOURCE_COLORS[item.source] ?? "text-[var(--text-secondary)]";
+                  // confidence → opacity (0.5~1.0 → 60%~100%)
+                  const opacity =
+                    item.confidence >= 0.8
+                      ? "opacity-100"
+                      : item.confidence >= 0.6
+                        ? "opacity-80"
+                        : "opacity-60";
+
                   return (
                     <span
                       key={item.id}
                       className={cn(
                         "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs",
                         "bg-secondary-50 dark:bg-secondary-800 text-[var(--text-primary)]",
+                        opacity,
                       )}
-                      title={item.evidence?.title ?? ""}
+                      title={`${item.evidence?.title ?? ""} (${sourceLabel}, 신뢰도 ${Math.round(item.confidence * 100)}%)`}
                     >
                       <span
                         className={cn(
@@ -89,6 +119,9 @@ export function TrajectoryPanel({ studentId }: { studentId: string }) {
                       </span>
                       <span className="text-[10px] text-[var(--text-secondary)]">
                         {DIFF_LABELS[diff] ?? diff}
+                      </span>
+                      <span className={cn("text-[9px]", sourceColor)}>
+                        {sourceLabel}
                       </span>
                     </span>
                   );
