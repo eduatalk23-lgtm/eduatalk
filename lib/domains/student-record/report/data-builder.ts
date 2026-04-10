@@ -311,7 +311,7 @@ export async function fetchSupplementaryData(
     // 우회학과 상위 5개
     supabase
       .from("bypass_major_candidates")
-      .select("composite_score, rationale, curriculum_similarity_score, competency_fit_score, competency_rationale, curriculum_rationale, placement_rationale, candidate_department:candidate_department_id(name, university_name)")
+      .select("composite_score, rationale, curriculum_similarity_score, competency_fit_score, competency_rationale, curriculum_rationale, placement_rationale, candidate_department:candidate_department_id(department_name, university_name)")
       .eq("student_id", studentId)
       .order("composite_score", { ascending: false, nullsFirst: false })
       .limit(5),
@@ -367,9 +367,9 @@ export async function fetchSupplementaryData(
   // 우회학과
   const bypassRaw = bypassRes.status === "fulfilled" ? bypassRes.value.data ?? [] : [];
   const bypassCandidates = bypassRaw.map((c: Record<string, unknown>) => {
-    const dept = c.candidate_department as { name: string; university_name: string } | null;
+    const dept = c.candidate_department as { department_name: string; university_name: string } | null;
     return {
-      candidateDept: dept?.name ?? "",
+      candidateDept: dept?.department_name ?? "",
       candidateUniv: dept?.university_name ?? "",
       compositeScore: c.composite_score as number | null,
       rationale: c.rationale as string | null,
