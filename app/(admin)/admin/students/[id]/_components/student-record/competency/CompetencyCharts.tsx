@@ -1,30 +1,64 @@
 "use client";
 
 // ============================================
-// 역량 레이더 차트 (3영역 독립) + 성장 추이 라인 차트
-// Phase 6.1 W-2 / S-2 (2026-04-09 영역 중심 개편)
+// 역량 레이더 차트 (3영역 독립) + 학기별 성장 추이 + Heatmap + Box Plot
 // ============================================
 
 import { useMemo } from "react";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
-import { buildAreaRadarData } from "@/lib/domains/student-record/chart-data";
-import { COMPETENCY_AREA_LABELS, COMPETENCY_ITEMS } from "@/lib/domains/student-record";
-import type { CompetencyScore, ActivityTag } from "@/lib/domains/student-record";
+import {
+  buildAreaRadarData,
+  buildSemesterGrowthData,
+  buildSemesterHeatmapData,
+  buildSemesterQualityBoxData,
+  buildRecordSemesterMapping,
+  type ContentQualityWithSemester,
+  type SemesterRangeOptions,
+  type SubjectSemesterMap,
+} from "@/lib/domains/student-record/chart-data";
+import { COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
+import type { CompetencyScore, ActivityTag, RecordTabData } from "@/lib/domains/student-record";
 import type { RecordForHighlight } from "./competency-helpers";
 import {
   AREA_COLORS,
   CompetencyAxisTick,
   type RechartsPolarTickProps,
 } from "./AreaCompetencyDetail";
+import { useStudentRecordContext } from "../StudentRecordContext";
+import { SemesterHeatmap } from "../../shared-charts/SemesterHeatmap";
+import { QualityBoxPlot } from "../../shared-charts/QualityBoxPlot";
 
 type Props = {
   competencyScores: CompetencyScore[];
   activityTags: ActivityTag[];
   records: RecordForHighlight[];
+  /** 학기별 차트용 (optional — 있으면 학기 단위 차트 표시) */
+  recordDataByGrade?: Record<number, RecordTabData>;
+  /** 내신 성적 기반 학기 보정 맵 (optional — 없으면 setek.semester 그대로 사용) */
+  subjectSemesterMap?: SubjectSemesterMap;
+  /** 품질 점수 (5축 상세, Box Plot용) */
+  qualityScores?: Array<{
+    record_type: string;
+    record_id: string;
+    overall_score: number;
+    specificity?: number;
+    coherence?: number;
+    depth?: number;
+    grammar?: number;
+    scientific_validity?: number | null;
+  }>;
 };
 
-export function CompetencyCharts({ competencyScores, activityTags, records }: Props) {
-  // 3영역 독립 레이더 데이터 (항목 라벨 중복으로 인한 축 병합 버그 방지)
+export function CompetencyCharts({ competencyScores, activityTags, records, recordDataByGrade, subjectSemesterMap, qualityScores }: Props) {
+  const { subjects } = useStudentRecordContext();
+
+  // subject name map
+  const subjectNamesById = useMemo(
+    () => Object.fromEntries((subjects ?? []).map((s) => [s.id, s.name])),
+    [subjects],
+  );
+
+  // 3영역 독립 레이더 데이터
   const areaSections = useMemo(
     () =>
       buildAreaRadarData(
@@ -39,51 +73,97 @@ export function CompetencyCharts({ competencyScores, activityTags, records }: Pr
 
   const { recharts, loading: chartsLoading } = useRecharts();
 
-  // S-2: 성장 추이 라인 차트 데이터 계산
-  const { lineData, lines, AREA_COLORS_LINE } = useMemo(() => {
-    const recordGradeMap: Record<number, Record<string, number>> = {};
-    for (const rec of records) {
-      if (!rec.grade) continue;
-      for (const tag of activityTags) {
-        if (tag.record_id !== rec.id) continue;
-        const gradeKey = rec.grade;
-        if (!recordGradeMap[gradeKey]) recordGradeMap[gradeKey] = {};
-        const areaMap = recordGradeMap[gradeKey];
-        const item = COMPETENCY_ITEMS.find((i) => i.code === tag.competency_item);
-        if (!item) continue;
-        const areaLabel = COMPETENCY_AREA_LABELS[item.area];
-        if (!areaMap[`${areaLabel}_pos`]) areaMap[`${areaLabel}_pos`] = 0;
-        if (!areaMap[`${areaLabel}_tot`]) areaMap[`${areaLabel}_tot`] = 0;
-        areaMap[`${areaLabel}_tot`]++;
-        if (tag.evaluation === "positive") areaMap[`${areaLabel}_pos`]++;
+  // 학생 현재 학년 (recordDataByGrade의 최대 key)
+  const studentGrade = useMemo(() => {
+    if (!recordDataByGrade) return undefined;
+    const grades = Object.keys(recordDataByGrade).map(Number);
+    return grades.length > 0 ? Math.max(...grades) : undefined;
+  }, [recordDataByGrade]);
+
+  // 수시 범위 제한 + 학기 보정
+  const rangeOptions: SemesterRangeOptions | undefined = useMemo(
+    () => studentGrade ? { maxSemester: { grade: studentGrade, semester: 1 }, subjectSemesterMap } : undefined,
+    [studentGrade, subjectSemesterMap],
+  );
+
+  // 설계 모드 학년
+  const designGrades = useMemo(() => {
+    if (!recordDataByGrade) return [];
+    return Object.entries(recordDataByGrade)
+      .filter(([, rd]) => {
+        const hasNeis = rd.seteks?.some((s) => s.imported_content?.trim()) ||
+          rd.changche?.some((c) => c.imported_content?.trim());
+        return !hasNeis;
+      })
+      .map(([g]) => Number(g));
+  }, [recordDataByGrade]);
+
+  // 학기별 LineChart 데이터
+  const { data: semesterLineData } = useMemo(() => {
+    if (!recordDataByGrade || Object.keys(recordDataByGrade).length === 0) return { data: null, annotations: null };
+    return buildSemesterGrowthData(activityTags, recordDataByGrade, rangeOptions);
+  }, [activityTags, recordDataByGrade, rangeOptions]);
+
+  const semesterLines = useMemo(() => {
+    if (!semesterLineData || semesterLineData.length < 2) return [];
+    return (["academic", "career", "community"] as const)
+      .map((area) => COMPETENCY_AREA_LABELS[area])
+      .filter((label) => semesterLineData.some((d) => label in d));
+  }, [semesterLineData]);
+
+  // 학기별 Heatmap 데이터
+  const heatmapData = useMemo(() => {
+    if (!recordDataByGrade) return null;
+    return buildSemesterHeatmapData(activityTags, recordDataByGrade, rangeOptions);
+  }, [activityTags, recordDataByGrade, rangeOptions]);
+
+  // 학기별 Box Plot 데이터
+  const qualityBoxData = useMemo(() => {
+    if (!qualityScores || qualityScores.length === 0 || !recordDataByGrade) return { boxes: null, axisTrends: null };
+    const { recordSemesterMap: recMap } = buildRecordSemesterMapping(recordDataByGrade, subjectSemesterMap);
+    const subjectMap = new Map<string, string>();
+    for (const tabData of Object.values(recordDataByGrade)) {
+      for (const s of tabData?.seteks ?? []) subjectMap.set(s.id, s.subject_id);
+    }
+    const enriched: ContentQualityWithSemester[] = qualityScores
+      .map((q) => {
+        const info = recMap.get(q.record_id);
+        if (!info) return null;
+        return {
+          record_id: q.record_id,
+          record_type: q.record_type,
+          overall_score: q.overall_score,
+          specificity: q.specificity ?? 0,
+          coherence: q.coherence ?? 0,
+          depth: q.depth ?? 0,
+          grammar: q.grammar ?? 0,
+          scientific_validity: q.scientific_validity ?? null,
+          grade: info.grade,
+          semester: info.semester,
+          subject_id: subjectMap.get(q.record_id),
+        };
+      })
+      .filter((q): q is ContentQualityWithSemester => q !== null);
+    return buildSemesterQualityBoxData(enriched, subjectNamesById, rangeOptions);
+  }, [qualityScores, recordDataByGrade, subjectNamesById, subjectSemesterMap, rangeOptions]);
+
+  // Y축 하한 동적 계산
+  const yMin = useMemo(() => {
+    if (!semesterLineData) return 0;
+    let min = 5;
+    for (const d of semesterLineData) {
+      for (const [k, v] of Object.entries(d)) {
+        if (k !== "학기" && typeof v === "number" && v < min) min = v;
       }
     }
+    return Math.max(0, Math.floor(min) - 1);
+  }, [semesterLineData]);
 
-    const sortedGrades = Object.keys(recordGradeMap).map(Number).sort();
-    const data = sortedGrades.map((g) => {
-      const m = recordGradeMap[g] ?? {};
-      const point: Record<string, string | number> = { 학년: `${g}학년` };
-      for (const area of ["academic", "career", "community"] as const) {
-        const label = COMPETENCY_AREA_LABELS[area];
-        const pos = m[`${label}_pos`] ?? 0;
-        const tot = m[`${label}_tot`] ?? 0;
-        if (tot > 0) point[label] = Number(((pos / tot) * 5).toFixed(1));
-      }
-      return point;
-    });
-
-    const areaColors: Record<string, string> = {
-      [COMPETENCY_AREA_LABELS.academic]: AREA_COLORS.academic,
-      [COMPETENCY_AREA_LABELS.career]: AREA_COLORS.career,
-      [COMPETENCY_AREA_LABELS.community]: AREA_COLORS.community,
-    };
-
-    const validLines = Object.values(COMPETENCY_AREA_LABELS).filter((label) =>
-      data.some((d) => label in d),
-    );
-
-    return { lineData: data, lines: validLines, AREA_COLORS_LINE: areaColors };
-  }, [records, activityTags]);
+  const AREA_COLORS_LINE: Record<string, string> = {
+    [COMPETENCY_AREA_LABELS.academic]: AREA_COLORS.academic,
+    [COMPETENCY_AREA_LABELS.career]: AREA_COLORS.career,
+    [COMPETENCY_AREA_LABELS.community]: AREA_COLORS.community,
+  };
 
   if (!hasRadarData) return null;
 
@@ -109,13 +189,8 @@ export function CompetencyCharts({ competencyScores, activityTags, records }: Pr
         ) : (
           (() => {
             const {
-              RadarChart,
-              Radar,
-              PolarGrid,
-              PolarAngleAxis,
-              PolarRadiusAxis,
-              ResponsiveContainer,
-              Tooltip,
+              RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+              ResponsiveContainer, Tooltip,
             } = recharts;
             return (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -124,69 +199,28 @@ export function CompetencyCharts({ competencyScores, activityTags, records }: Pr
                   const hasAi = sec.items.some((i) => i.AI > 0);
                   const hasCon = sec.items.some((i) => i.컨설턴트 > 0);
                   return (
-                    <div
-                      key={sec.area}
-                      className="rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] p-2"
-                    >
+                    <div key={sec.area} className="rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] p-2">
                       <div className="flex items-center justify-between px-1 pb-1">
-                        <span className="text-[11px] font-semibold text-[var(--text-primary)]">
-                          {sec.label}
-                        </span>
-                        <span
-                          className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                          style={{ backgroundColor: color + "20", color }}
-                        >
-                          {sec.items.some((i) => i.AI > 0 || i.컨설턴트 > 0)
-                            ? sec.avgGrade
-                            : "-"}
+                        <span className="text-[11px] font-semibold text-[var(--text-primary)]">{sec.label}</span>
+                        <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: color + "20", color }}>
+                          {sec.items.some((i) => i.AI > 0 || i.컨설턴트 > 0) ? sec.avgGrade : "-"}
                         </span>
                       </div>
-                      {/* 3영역 모두 동일 높이/마진으로 시각적 사이즈 통일 */}
                       <ResponsiveContainer width="100%" height={240}>
-                        <RadarChart
-                          data={sec.items}
-                          cx="50%"
-                          cy="50%"
-                          outerRadius="58%"
-                          margin={{ top: 12, right: 32, bottom: 12, left: 32 }}
-                        >
+                        <RadarChart data={sec.items} cx="50%" cy="50%" outerRadius="58%" margin={{ top: 12, right: 32, bottom: 12, left: 32 }}>
                           <PolarGrid stroke="var(--border-secondary, #e5e7eb)" />
                           <PolarAngleAxis
                             dataKey="item"
                             tick={(tickProps: RechartsPolarTickProps) => (
-                              <CompetencyAxisTick
-                                {...tickProps}
-                                items={sec.items}
-                                color={color}
-                              />
+                              <CompetencyAxisTick {...tickProps} items={sec.items} color={color} />
                             )}
                           />
-                          <PolarRadiusAxis
-                            angle={90}
-                            domain={[0, 5]}
-                            tick={false}
-                            axisLine={false}
-                          />
+                          <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} axisLine={false} />
                           {hasAi && (
-                            <Radar
-                              name="AI"
-                              dataKey="AI"
-                              stroke={color}
-                              fill={color}
-                              fillOpacity={0.12}
-                              strokeWidth={1.5}
-                              strokeDasharray="5 3"
-                            />
+                            <Radar name="AI" dataKey="AI" stroke={color} fill={color} fillOpacity={0.12} strokeWidth={1.5} strokeDasharray="5 3" />
                           )}
                           {hasCon && (
-                            <Radar
-                              name="컨설턴트"
-                              dataKey="컨설턴트"
-                              stroke={color}
-                              fill={color}
-                              fillOpacity={0.28}
-                              strokeWidth={2}
-                            />
+                            <Radar name="컨설턴트" dataKey="컨설턴트" stroke={color} fill={color} fillOpacity={0.28} strokeWidth={2} />
                           )}
                           <Tooltip contentStyle={{ fontSize: 11 }} />
                         </RadarChart>
@@ -205,35 +239,45 @@ export function CompetencyCharts({ competencyScores, activityTags, records }: Pr
         )}
       </div>
 
-      {/* S-2: 역량 성장 추이 라인 차트 */}
-      {!chartsLoading && recharts && lineData.length >= 2 && lines.length > 0 && (() => {
+      {/* 학기별 3영역 LineChart */}
+      {!chartsLoading && recharts && semesterLineData && semesterLineData.length >= 2 && semesterLines.length > 0 && (() => {
         const {
-          LineChart,
-          Line,
-          XAxis,
-          YAxis,
-          CartesianGrid,
-          ResponsiveContainer: RC,
-          Tooltip: TT,
-          Legend: LG,
+          LineChart, Line, XAxis, YAxis, CartesianGrid,
+          ResponsiveContainer: RC, Tooltip: TT, Legend: LG,
         } = recharts;
         return (
           <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
-            <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">역량 성장 추이</h4>
+            <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">학기별 역량 성장 추이</h4>
             <RC width="100%" height={180}>
-              <LineChart data={lineData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <LineChart data={semesterLineData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary, #f0f0f0)" />
-                <XAxis dataKey="학년" tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} tickCount={6} />
+                <XAxis
+                  dataKey="학기"
+                  tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+                    const isDes = designGrades.includes(Number(payload.value.split("-")[0]));
+                    return (
+                      <text x={x} y={y + 12} textAnchor="middle" fontSize={10}
+                        fill={isDes ? "#3b82f6" : "var(--text-secondary, #6b7280)"}>
+                        {payload.value}{isDes ? "*" : ""}
+                      </text>
+                    );
+                  }}
+                />
+                <YAxis domain={[yMin, 5]} tick={{ fontSize: 10 }} tickCount={6 - yMin} />
                 <TT contentStyle={{ fontSize: 11 }} />
                 <LG wrapperStyle={{ fontSize: 9 }} iconSize={8} />
-                {lines.map((label) => (
+                {semesterLines.map((label) => (
                   <Line
                     key={label}
                     type="monotone"
                     dataKey={label}
                     stroke={AREA_COLORS_LINE[label] ?? "#6b7280"}
                     strokeWidth={2}
+                    strokeDasharray={
+                      label === COMPETENCY_AREA_LABELS.career ? "6,3"
+                        : label === COMPETENCY_AREA_LABELS.community ? "2,3"
+                        : undefined
+                    }
                     dot={{ r: 3 }}
                     connectNulls
                   />
@@ -243,6 +287,20 @@ export function CompetencyCharts({ competencyScores, activityTags, records }: Pr
           </div>
         );
       })()}
+
+      {/* 학기별 역량 Heatmap */}
+      {heatmapData && (
+        <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
+          <SemesterHeatmap data={heatmapData} designGrades={designGrades} />
+        </div>
+      )}
+
+      {/* 학기별 품질 Box Plot */}
+      {qualityBoxData.boxes && qualityBoxData.boxes.length >= 2 && (
+        <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
+          <QualityBoxPlot boxes={qualityBoxData.boxes} axisTrends={qualityBoxData.axisTrends} designGrades={designGrades} />
+        </div>
+      )}
     </>
   );
 }

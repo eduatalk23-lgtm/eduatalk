@@ -112,10 +112,33 @@ export async function fetchStudentInfoAndScores(
     recordDataByGrade[p.grade] = recordResults[i] as RecordTabData;
   });
 
+  // 세특/개인세특 records의 subject_id(UUID) → 과목명 매핑
+  // (ProgressStatusSection 등에서 슬롯 라벨이 UUID로 노출되는 것을 방지)
+  const recordSubjectIds = new Set<string>();
+  for (const tab of Object.values(recordDataByGrade)) {
+    for (const s of tab?.seteks ?? []) {
+      if (s.subject_id) recordSubjectIds.add(s.subject_id as string);
+    }
+    for (const s of tab?.personalSeteks ?? []) {
+      if (s.subject_id) recordSubjectIds.add(s.subject_id as string);
+    }
+  }
+  const subjectNamesById: Record<string, string> = {};
+  if (recordSubjectIds.size > 0) {
+    const { data: subjectsForRecords } = await supabase
+      .from("subjects")
+      .select("id, name")
+      .in("id", [...recordSubjectIds]);
+    for (const s of subjectsForRecords ?? []) {
+      subjectNamesById[s.id as string] = s.name as string;
+    }
+  }
+
   return {
     student, studentName, studentGrade, consultantName: consultant?.name ?? null,
     yearGradePairs, initialSchoolYear,
     internalAnalysis, internalScores, mockAnalysis, recordDataByGrade,
+    subjectNamesById,
   };
 }
 
@@ -192,10 +215,10 @@ export async function fetchAnalysisData(
     // D단계: 콘텐츠 품질 점수 (issues/feedback 포함)
     supabase
       .from("student_record_content_quality")
-      .select("record_type, record_id, overall_score, issues, feedback")
+      .select("record_type, record_id, overall_score, issues, feedback, specificity, coherence, depth, grammar, scientific_validity, source")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
-      .eq("source", "ai")
+      .in("source", ["ai", "ai_projected"])
       .order("overall_score", { ascending: true }),
     // D단계: 역량 등급 (rubric_scores 포함 — B- 이하 항목만 가이드 프롬프트에 주입)
     supabase
@@ -235,14 +258,44 @@ export async function fetchAnalysisData(
 
   const coursePlansRaw = coursePlanRes.success && coursePlanRes.data ? coursePlanRes.data.plans : [];
 
+  // 세특 가이드의 subject_id(UUID) → 과목명 매핑
+  // (가이드 카드 타이틀이 UUID 그대로 노출되는 것을 방지)
+  const setekGuidesRaw = setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : [];
+  const setekSubjectIds = [...new Set(setekGuidesRaw.map((g) => g.subject_id))];
+  const setekSubjectNameMap = new Map<string, string>();
+  if (setekSubjectIds.length > 0) {
+    const { data: subjectsForGuides } = await supabase
+      .from("subjects")
+      .select("id, name")
+      .in("id", setekSubjectIds);
+    for (const s of subjectsForGuides ?? []) {
+      setekSubjectNameMap.set(s.id as string, s.name as string);
+    }
+  }
+
   // D단계: 콘텐츠 품질 점수 정규화
   const contentQualityRaw = (contentQualityRes as { data: Array<Record<string, unknown>> | null }).data ?? [];
-  const contentQuality: ContentQualityRow[] = contentQualityRaw.map((r) => ({
-    record_type: r.record_type as ContentQualityRow["record_type"],
+  // 경고 엔진용: source='ai'만 (설계 모드 ai_projected는 미확정이므로 경고 대상 아님)
+  const contentQuality: ContentQualityRow[] = contentQualityRaw
+    .filter((r) => r.source === "ai")
+    .map((r) => ({
+      record_type: r.record_type as ContentQualityRow["record_type"],
+      record_id: r.record_id as string,
+      overall_score: r.overall_score as number,
+      issues: Array.isArray(r.issues) ? (r.issues as string[]) : [],
+      feedback: typeof r.feedback === "string" ? r.feedback : null,
+    }));
+
+  // 차트용: ai + ai_projected 전체 (학기별 Box Plot에 설계 모드 포함)
+  const contentQualityDetailed = contentQualityRaw.map((r) => ({
     record_id: r.record_id as string,
+    record_type: r.record_type as string,
     overall_score: r.overall_score as number,
-    issues: Array.isArray(r.issues) ? (r.issues as string[]) : [],
-    feedback: typeof r.feedback === "string" ? r.feedback : null,
+    specificity: (r.specificity as number) ?? 0,
+    coherence: (r.coherence as number) ?? 0,
+    depth: (r.depth as number) ?? 0,
+    grammar: (r.grammar as number) ?? 0,
+    scientific_validity: typeof r.scientific_validity === "number" ? r.scientific_validity : null,
   }));
 
   // D단계: B- 이하 역량 항목만 추출 (rubric_scores 포함)
@@ -264,10 +317,12 @@ export async function fetchAnalysisData(
   return {
     diagnosisData, storylineData, strategyData, edges,
     targetSubClassificationName, targetMidName,
-    setekGuides: (setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : [])
+    setekGuides: setekGuidesRaw
       .filter((g) => g.school_year >= initialSchoolYear && g.school_year < initialSchoolYear + 3)
       .map((g) => ({
-        id: g.id, school_year: g.school_year, subject_id: g.subject_id, source: g.source,
+        id: g.id, school_year: g.school_year, subject_id: g.subject_id,
+        subject_name: setekSubjectNameMap.get(g.subject_id) ?? null,
+        source: g.source,
         status: g.status, direction: g.direction, keywords: g.keywords,
         overall_direction: g.overall_direction, created_at: g.created_at,
       })),
@@ -293,6 +348,7 @@ export async function fetchAnalysisData(
       edited_text: s.edited_text, created_at: s.created_at,
     })),
     contentQuality,
+    contentQualityDetailed,
     weakCompetencyContexts,
   };
 }

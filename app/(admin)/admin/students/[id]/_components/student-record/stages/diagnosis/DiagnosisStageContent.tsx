@@ -66,6 +66,7 @@ export function DiagnosisStageContent({
           <CompetencyAnalysisSection
             competencyScores={[...(diagnosisData?.competencyScores.ai ?? []), ...(diagnosisData?.competencyScores.consultant ?? [])]}
             activityTags={filteredActivityTags}
+            allActivityTags={diagnosisData?.activityTags ?? []}
             records={allRecordSummaries}
             studentId={studentId}
             tenantId={tenantId}
@@ -74,6 +75,8 @@ export function DiagnosisStageContent({
             targetMajor={diagnosisData?.targetMajor}
             takenSubjects={diagnosisData?.takenSubjects}
             qualityScores={diagnosisData?.qualityScores}
+            scoreSemesterHints={diagnosisData?.scoreSemesterHints}
+            recordByGrade={recordByGrade}
           />
         )}
       </StrategySection>

@@ -240,6 +240,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
           recordDataByGrade={data.recordDataByGrade}
           contentQuality={data.contentQuality}
           studentGrade={data.student.grade}
+          subjectNamesById={data.subjectNamesById}
         />
       ),
       importance: "primary" as SectionImportance,
@@ -458,7 +459,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
     {
       id: "competency",
       title: "역량 분석",
-      content: <CompetencySection diagnosisData={data.diagnosisData} recordDataByGrade={data.recordDataByGrade} />,
+      content: <CompetencySection diagnosisData={data.diagnosisData} recordDataByGrade={data.recordDataByGrade} studentGrade={studentGrade} internalScores={data.internalScores} />,
       importance: "primary" as SectionImportance,
     },
     {
@@ -471,6 +472,9 @@ export function ReportClient({ studentId }: ReportClientProps) {
           recordDataByGrade={data.recordDataByGrade}
           gradeStages={gradeStages}
           studentGrade={studentGrade}
+          contentQualityDetailed={data.contentQualityDetailed}
+          subjectNamesById={data.subjectNamesById}
+          internalScores={data.internalScores}
         />
       ),
       importance: "secondary" as SectionImportance,

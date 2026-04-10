@@ -16,8 +16,12 @@ import {
 import { gradeToNum } from "@/lib/domains/student-record/rubric-matcher";
 import {
   buildAreaRadarData,
-  buildGrowthData,
+  buildSemesterGrowthData,
+  buildSemesterHeatmapData,
+  buildSubjectSemesterMap,
+  type SemesterRangeOptions,
 } from "@/lib/domains/student-record/chart-data";
+import { SemesterHeatmap } from "../../shared-charts/SemesterHeatmap";
 import { Brain } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ReportSectionHeader } from "../ReportSectionHeader";
@@ -36,9 +40,11 @@ const COMPETENCY_ITEM_LABEL: Record<string, string> = Object.fromEntries(
 interface CompetencySectionProps {
   diagnosisData: DiagnosisTabData;
   recordDataByGrade?: Record<number, RecordTabData>;
+  studentGrade?: number;
+  internalScores?: Array<{ grade?: number | null; semester?: number | null; subject_id?: string | null }>;
 }
 
-export function CompetencySection({ diagnosisData, recordDataByGrade }: CompetencySectionProps) {
+export function CompetencySection({ diagnosisData, recordDataByGrade, studentGrade, internalScores }: CompetencySectionProps) {
   const { competencyScores, activityTags } = diagnosisData;
   const aiScores = competencyScores.ai;
   const consultantScores = competencyScores.consultant;
@@ -60,26 +66,67 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
     [areaSections],
   );
 
-  // 성장 추이
-  const { data: growthData, annotations: growthAnnotations } = useMemo(
+  // 내신 성적 기반 학기 보정 + 수시 범위 제한
+  const subjectSemesterMap = useMemo(
+    () => internalScores ? buildSubjectSemesterMap(internalScores) : undefined,
+    [internalScores],
+  );
+  const rangeOptions: SemesterRangeOptions | undefined = useMemo(
+    () => studentGrade ? { maxSemester: { grade: studentGrade, semester: 1 }, subjectSemesterMap } : undefined,
+    [studentGrade, subjectSemesterMap],
+  );
+
+  // 학기별 성장 추이 (LineChart용)
+  const { data: semesterGrowthData } = useMemo(
     () =>
       recordDataByGrade
-        ? buildGrowthData(activityTags, recordDataByGrade)
+        ? buildSemesterGrowthData(activityTags, recordDataByGrade, rangeOptions)
         : { data: null, annotations: null },
-    [activityTags, recordDataByGrade],
+    [activityTags, recordDataByGrade, rangeOptions],
   );
 
   const growthLines = useMemo(() => {
-    if (!growthData || growthData.length === 0) return [];
+    if (!semesterGrowthData || semesterGrowthData.length < 2) return [];
     return (["academic", "career", "community"] as const)
       .map((area) => ({
         label: COMPETENCY_AREA_LABELS[area],
         color: AREA_COLORS[area],
       }))
-      .filter((line) => growthData.some((d) => line.label in d));
-  }, [growthData]);
+      .filter((line) => semesterGrowthData.some((d) => line.label in d));
+  }, [semesterGrowthData]);
 
-  const hasGrowthChart = !!growthData && growthData.length >= 2 && growthLines.length > 0;
+  const hasGrowthChart = !!semesterGrowthData && semesterGrowthData.length >= 2 && growthLines.length > 0;
+
+  const yMin = useMemo(() => {
+    if (!semesterGrowthData) return 0;
+    let min = 5;
+    for (const d of semesterGrowthData) {
+      for (const [k, v] of Object.entries(d)) {
+        if (k !== "학기" && typeof v === "number" && v < min) min = v;
+      }
+    }
+    return Math.max(0, Math.floor(min) - 1);
+  }, [semesterGrowthData]);
+
+  // 학기별 역량 Heatmap
+  const heatmapData = useMemo(
+    () => recordDataByGrade
+      ? buildSemesterHeatmapData(activityTags, recordDataByGrade, rangeOptions)
+      : null,
+    [activityTags, recordDataByGrade, rangeOptions],
+  );
+
+  // 설계 모드 학년
+  const designGrades = useMemo(() => {
+    if (!recordDataByGrade) return [];
+    return Object.entries(recordDataByGrade)
+      .filter(([, rd]) => {
+        const hasNeis = rd.seteks?.some((s) => s.imported_content?.trim()) ||
+          rd.changche?.some((c) => c.imported_content?.trim());
+        return !hasNeis;
+      })
+      .map(([g]) => Number(g));
+  }, [recordDataByGrade]);
 
   return (
     <section className="print-break-before">
@@ -98,7 +145,7 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
         </div>
       ) : (
         <div className="space-y-6 pt-4">
-          {/* Tier 0: 영역별 평균 도넛 + 성장 추이 */}
+          {/* Tier 0: 영역별 평균 도넛 + 학기별 성장 추이 */}
           <div
             className={cn(
               "grid grid-cols-1 gap-4 print-avoid-break",
@@ -144,20 +191,31 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
               </div>
             </div>
 
-            {/* 성장 추이 */}
+            {/* 학기별 역량 성장 추이 LineChart */}
             {hasGrowthChart && (
               <div>
                 <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>
-                  역량 성장 추이
+                  학기별 역량 성장 추이
                 </h3>
                 <ResponsiveContainer width="100%" height={220} minHeight={180}>
                   <LineChart
-                    data={growthData ?? []}
+                    data={semesterGrowthData ?? []}
                     margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="학년" tick={{ fontSize: 11 }} />
-                    <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} tickCount={6} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary, #f0f0f0)" />
+                    <XAxis
+                      dataKey="학기"
+                      tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+                        const isDesign = designGrades.includes(Number(payload.value.split("-")[0]));
+                        return (
+                          <text x={x} y={y + 12} textAnchor="middle" fontSize={10}
+                            fill={isDesign ? "#3b82f6" : "var(--text-secondary, #6b7280)"}>
+                            {payload.value}{isDesign ? "*" : ""}
+                          </text>
+                        );
+                      }}
+                    />
+                    <YAxis domain={[yMin, 5]} tick={{ fontSize: 10 }} tickCount={6 - yMin} />
                     <Tooltip
                       contentStyle={{ fontSize: 11 }}
                       formatter={(value: number) => [value.toFixed(1), ""]}
@@ -170,32 +228,23 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
                         dataKey={line.label}
                         stroke={line.color}
                         strokeWidth={2.5}
+                        strokeDasharray={
+                          line.label === COMPETENCY_AREA_LABELS.career ? "6,3"
+                            : line.label === COMPETENCY_AREA_LABELS.community ? "2,3"
+                            : undefined
+                        }
                         dot={{ r: 4 }}
                         connectNulls
                       />
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
-                {growthAnnotations && growthAnnotations.length > 0 && (
-                  <div
-                    className="mt-1 grid gap-1"
-                    style={{
-                      gridTemplateColumns: `repeat(${growthAnnotations.length}, 1fr)`,
-                    }}
-                  >
-                    {growthAnnotations.map((ga) => (
-                      <div key={ga.grade} className="text-center">
-                        <span className={cn("font-medium", TYPO.caption)}>
-                          {ga.grade}학년:{" "}
-                        </span>
-                        <span className={TYPO.caption}>{ga.annotations.join(" · ")}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
           </div>
+
+          {/* 학기별 역량 Heatmap (10항목 상세) */}
+          {heatmapData && <SemesterHeatmap data={heatmapData} designGrades={designGrades} />}
 
           {/* Tier 1: 영역별 상세 패널 (3개, 상시 노출) */}
           <AreaCompetencyDetailGroup

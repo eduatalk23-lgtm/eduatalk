@@ -126,29 +126,49 @@ export async function fetchDiagnosisTabData(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    const [aiScores, consultantScores, activityTags, diagnosisPair, strategies, studentResult, scoresResult, pipelineResult] =
-      await Promise.all([
-        competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai"),
-        competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "manual"),
-        competencyRepo.findActivityTags(studentId, tenantId),
-        diagnosisRepo.findDiagnosisPair(studentId, schoolYear, tenantId),
-        diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
-        supabase.from("students").select("target_major, school_name, target_sub_classification_id, grade, desired_career_field").eq("id", studentId).maybeSingle(),
-        supabase.from("student_internal_scores")
-          .select("subject:subject_id(name)")
-          .eq("student_id", studentId)
-          .returns<Array<{ subject: { name: string } | null }>>(),
-        supabase
-          .from("student_record_analysis_pipelines")
-          .select("task_results")
-          .eq("student_id", studentId)
-          .eq("tenant_id", tenantId)
-          .eq("pipeline_type", "synthesis")
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+    // Promise.allSettled: 일부 쿼리 실패해도 나머지 데이터는 정상 반환
+    const settled = await Promise.allSettled([
+      competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai"),
+      competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "manual"),
+      competencyRepo.findActivityTags(studentId, tenantId),
+      diagnosisRepo.findDiagnosisPair(studentId, schoolYear, tenantId),
+      diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
+      supabase.from("students").select("target_major, school_name, target_sub_classification_id, grade, desired_career_field").eq("id", studentId).maybeSingle(),
+      supabase.from("student_internal_scores")
+        .select("subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .returns<Array<{ subject: { name: string } | null }>>(),
+      supabase
+        .from("student_record_analysis_pipelines")
+        .select("task_results")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .eq("pipeline_type", "synthesis")
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // 학기별 차트 보정용: 과목별 학기 정보
+      supabase.from("student_internal_scores")
+        .select("grade, semester, subject_id")
+        .eq("student_id", studentId),
+    ]);
+
+    const unwrap = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
+      r.status === "fulfilled" ? r.value : fallback;
+
+    const emptyDiagnosisPair = { ai: null, consultant: null } as Awaited<ReturnType<typeof diagnosisRepo.findDiagnosisPair>>;
+    const emptySupabaseResult = { data: null, error: null } as { data: null; error: null };
+
+    const aiScores = unwrap(settled[0], []);
+    const consultantScores = unwrap(settled[1], []);
+    const activityTags = unwrap(settled[2], []);
+    const diagnosisPair = unwrap(settled[3], emptyDiagnosisPair);
+    const strategies = unwrap(settled[4], []);
+    const studentResult = unwrap(settled[5], emptySupabaseResult);
+    const scoresResult = unwrap(settled[6], emptySupabaseResult);
+    const pipelineResult = unwrap(settled[7], emptySupabaseResult);
+    const scoreSemesterResult = unwrap(settled[8], emptySupabaseResult);
 
     const fourAxisDiagnosis =
       (pipelineResult.data?.task_results as Record<string, unknown> | null)?._fourAxisDiagnosis ?? null;
@@ -200,6 +220,13 @@ export async function fetchDiagnosisTabData(
 
     const projectedData = await assembleProjectedData(studentId, schoolYear, tenantId, studentGrade);
 
+    // 학기별 차트 보정용 과목 학기 힌트
+    const scoreSemesterHints = (scoreSemesterResult.data ?? []).map((r) => ({
+      grade: r.grade as number | null,
+      semester: r.semester as number | null,
+      subject_id: r.subject_id as string | null,
+    }));
+
     return {
       competencyScores: { ai: aiScores, consultant: consultantScores },
       activityTags,
@@ -209,6 +236,7 @@ export async function fetchDiagnosisTabData(
       careerField, targetMajor,
       targetSubClassificationId, targetSubClassificationName,
       qualityScores,
+      scoreSemesterHints,
       fourAxisDiagnosis: fourAxisDiagnosis as import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null,
       projectedData,
     };
@@ -223,6 +251,7 @@ export async function fetchDiagnosisTabData(
       careerField: null, targetMajor: null,
       targetSubClassificationId: null, targetSubClassificationName: null,
       qualityScores: [],
+      scoreSemesterHints: [],
       fourAxisDiagnosis: null,
       projectedData: undefined,
     };

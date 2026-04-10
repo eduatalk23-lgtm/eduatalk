@@ -126,6 +126,8 @@ export interface DiagnosisTabData {
     grammar: number;
     scientific_validity: number | null;
   }>;
+  /** 학기별 차트 보정용: 내신 과목별 학기 정보 */
+  scoreSemesterHints?: Array<{ grade: number | null; semester: number | null; subject_id: string | null }>;
   fourAxisDiagnosis?: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis | null;
   projectedData?: {
     competencyScores: CompetencyScore[];

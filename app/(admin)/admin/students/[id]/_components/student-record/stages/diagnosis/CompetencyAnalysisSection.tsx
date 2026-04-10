@@ -8,6 +8,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
+import { buildSubjectSemesterMap } from "@/lib/domains/student-record/chart-data";
 import { analyzeSetekWithHighlight } from "@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight";
 import {
   upsertCompetencyScoreAction,
@@ -49,6 +50,12 @@ type Props = {
   takenSubjects?: string[];
   /** Phase 1-3 역량 분석에서 생성된 콘텐츠 품질 점수 */
   qualityScores?: QualityScoreEntry[];
+  /** 전학년 활동 태그 (학기별 차트용 — filteredActivityTags는 현재 학년만) */
+  allActivityTags?: ActivityTag[];
+  /** 내신 과목별 학기 보정 힌트 */
+  scoreSemesterHints?: Array<{ grade: number | null; semester: number | null; subject_id: string | null }>;
+  /** 학기별 차트용: 학년별 RecordTabData */
+  recordByGrade?: Map<number, { grade: number; schoolYear: number; data: import("@/lib/domains/student-record").RecordTabData }>;
 };
 
 export function CompetencyAnalysisSection({
@@ -62,6 +69,9 @@ export function CompetencyAnalysisSection({
   targetMajor,
   takenSubjects,
   qualityScores,
+  allActivityTags,
+  scoreSemesterHints,
+  recordByGrade,
 }: Props) {
   const queryClient = useQueryClient();
   const [highlightResults, setHighlightResults] = useState<Map<string, HighlightAnalysisResult>>(new Map());
@@ -412,8 +422,13 @@ export function CompetencyAnalysisSection({
       {/* W-2 / S-2: 역량 프로필 (3영역 레이더) */}
       <CompetencyCharts
         competencyScores={competencyScores}
-        activityTags={activityTags}
+        activityTags={allActivityTags ?? activityTags}
         records={records}
+        recordDataByGrade={recordByGrade
+          ? Object.fromEntries([...recordByGrade.entries()].map(([k, v]) => [k, v.data]))
+          : undefined}
+        subjectSemesterMap={scoreSemesterHints ? buildSubjectSemesterMap(scoreSemesterHints) : undefined}
+        qualityScores={qualityScores}
       />
 
       {/* 종합 등급 + 루브릭 상세 (인터랙티브 편집기) */}

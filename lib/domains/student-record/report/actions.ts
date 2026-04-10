@@ -54,6 +54,8 @@ export interface ReportData {
   internalScores: InternalScoreWithRelations[];
   mockAnalysis: MockAnalysis;
   recordDataByGrade: Record<number, RecordTabData>;
+  /** 세특/개인세특 record의 subject_id(UUID) → 과목명 lookup. UI에서 UUID 노출 방지용. */
+  subjectNamesById: Record<string, string>;
   diagnosisData: import("../types").DiagnosisTabData;
   storylineData: import("../types").StorylineTabData;
   strategyData: import("../types").StrategyTabData;
@@ -62,6 +64,7 @@ export interface ReportData {
     id: string;
     school_year: number;
     subject_id: string;
+    subject_name: string | null;
     source: string;
     status: string;
     direction: string;
@@ -154,6 +157,17 @@ export interface ReportData {
    * issues/feedback 포함. 가이드 프롬프트에 약점 맥락 주입에 활용.
    */
   contentQuality: ContentQualityRow[];
+  /** D단계 확장: 5축 상세 포함 품질 데이터 (학기별 Box Plot용) */
+  contentQualityDetailed: Array<{
+    record_id: string;
+    record_type: string;
+    overall_score: number;
+    specificity: number;
+    coherence: number;
+    depth: number;
+    grammar: number;
+    scientific_validity: number | null;
+  }>;
   /**
    * D단계: B- 이하 역량 항목의 rubric_scores 포함 맥락.
    * 가이드 프롬프트에서 약점 역량 reasoning 주입에 활용.
@@ -256,6 +270,7 @@ export async function fetchReportData(
       internalScores: info.internalScores,
       mockAnalysis: info.mockAnalysis,
       recordDataByGrade: info.recordDataByGrade,
+      subjectNamesById: info.subjectNamesById,
       diagnosisData: analysis.diagnosisData,
       storylineData: analysis.storylineData,
       strategyData: analysis.strategyData,
@@ -273,6 +288,7 @@ export async function fetchReportData(
       pipelineMeta: supplementary.pipelineMeta,
       cohortBenchmark: cohortBenchmark ?? null,
       contentQuality: analysis.contentQuality,
+      contentQualityDetailed: analysis.contentQualityDetailed,
       weakCompetencyContexts: analysis.weakCompetencyContexts,
       executiveSummary: supplementary.executiveSummary,
       timeSeriesAnalysis: supplementary.timeSeriesAnalysis,
