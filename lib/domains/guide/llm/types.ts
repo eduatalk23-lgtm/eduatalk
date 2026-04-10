@@ -204,6 +204,9 @@ export const generatedGuideSchema = z.object({
       "subject_performance",
       "experiment",
       "program",
+      "reflection_program",
+      "club_deep_dive",
+      "career_exploration_project",
     ])
     .describe("가이드 유형"),
   bookTitle: z

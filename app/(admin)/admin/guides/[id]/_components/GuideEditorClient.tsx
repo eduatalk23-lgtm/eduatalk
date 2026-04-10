@@ -65,6 +65,7 @@ interface GuideEditorClientProps {
 
 const REVIEW_DIMENSION_LABELS: Record<string, string> = {
   academicDepth: "학술적 깊이",
+  scientificAccuracy: "과학적 정합성",
   studentAccessibility: "학생 접근성",
   structuralCompleteness: "구조적 완성도",
   practicalRelevance: "실용적 연관성",

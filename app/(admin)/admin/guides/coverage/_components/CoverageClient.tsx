@@ -89,6 +89,15 @@ function ClusterCard({ cluster }: { cluster: ClusterCoverage }) {
         <span className="text-green-600">{dist.basic ?? 0} 기초</span>
         <span className="text-yellow-600">{dist.intermediate ?? 0} 발전</span>
         <span className="text-red-600">{dist.advanced ?? 0} 심화</span>
+        {cluster.quality.avgScore != null && (
+          <span className={cn(
+            "ml-auto font-medium",
+            cluster.quality.avgScore >= 80 ? "text-green-600" :
+            cluster.quality.avgScore >= 60 ? "text-yellow-600" : "text-red-600",
+          )}>
+            {cluster.quality.avgScore}점
+          </span>
+        )}
       </div>
 
       {hasGaps && (

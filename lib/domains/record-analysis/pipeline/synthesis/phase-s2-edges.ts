@@ -169,7 +169,9 @@ interface RankedGuide {
   difficultyScore: number;
   /** Phase A: 사슬 보너스 (1.0 기본, 1.3 sequel) */
   sequelBonus: number;
-  /** 최종 가중치 점수 = baseScore × continuityScore × difficultyScore × sequelBonus */
+  /** 전공 적합도 보너스 (1.0 기본, 1.2 전공 권장 과목 매칭) */
+  majorBonus: number;
+  /** 최종 가중치 점수 = baseScore × continuityScore × difficultyScore × sequelBonus × majorBonus */
   finalScore: number;
 }
 
@@ -239,12 +241,47 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
 
   // ── D4: 12계열 연속성 ranking ──
   const clubHistory = await fetchClubHistory(supabase, studentId, tenantId);
+
+  // ── 전공 권장 과목 subject_id 세트 구성 (majorBonus용) ──
+  let majorRecommendedSubjectIds: Set<string> | undefined;
+  const targetMajor = (snapshot?.target_major as string) ?? null;
+  if (targetMajor) {
+    const { getMajorRecommendedCourses } = await import(
+      "@/lib/domains/student-record/constants"
+    );
+    const { getCurriculumYear } = await import("@/lib/utils/schoolYear");
+    const enrollmentYear = calculateSchoolYear() - studentGrade + 1;
+    const curriculumYear = getCurriculumYear(enrollmentYear);
+    const recommended = getMajorRecommendedCourses(targetMajor, curriculumYear);
+    if (recommended) {
+      const allNames = [
+        ...recommended.general,
+        ...recommended.career,
+        ...("fusion" in recommended && recommended.fusion ? recommended.fusion as string[] : []),
+      ];
+      if (allNames.length > 0) {
+        const { normalizeSubjectName } = await import("@/lib/domains/subject/normalize");
+        const normalizedNames = allNames.map(normalizeSubjectName);
+        const { data: subjectRows } = await supabase
+          .from("subjects")
+          .select("id, name");
+        majorRecommendedSubjectIds = new Set<string>();
+        for (const s of subjectRows ?? []) {
+          if (normalizedNames.includes(normalizeSubjectName(s.name))) {
+            majorRecommendedSubjectIds.add(s.id);
+          }
+        }
+      }
+    }
+  }
+
   const ranked = await applyContinuityRanking(
     [...guideMap.values()],
     clubHistory,
     studentGrade,
     supabase,
     studentId,
+    majorRecommendedSubjectIds,
   );
 
   // ── D6: 조건부 AI 생성 (옵션, feature flag) ──
@@ -280,7 +317,10 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     : "";
 
   void targetMajorClassificationField; // unused — 추후 확장용
-  return `${assigned}건 가이드 배정 (${ranked.length}건 후보${continuityHint})${aiHint}`;
+  const orphanHint = skippedOrphan > 0
+    ? ` / ${skippedOrphan}건 미배정(과목 풀 불일치: ${skippedOrphanGuides.map((g) => g.title).slice(0, 3).join(", ")}${skippedOrphan > 3 ? " 외" : ""})`
+    : "";
+  return `${assigned}건 가이드 배정 (${ranked.length}건 후보${continuityHint}${orphanHint})${aiHint}`;
 }
 
 // ============================================
@@ -389,13 +429,14 @@ async function applyContinuityRanking(
   studentGrade: number,
   supabase: PipelineContext["supabase"],
   studentId: string,
+  majorRecommendedSubjectIds?: Set<string>,
 ): Promise<RankedGuide[]> {
   if (guides.length === 0) return [];
 
   const guideIds = guides.map((g) => g.id);
 
   // ── 병렬 메타데이터 조회: 12계열 + Phase A (난이도/클러스터/사슬) ──
-  const [cfRows, phaseARows, existingAssignments, sequelRows, trajectoryRows] = await Promise.all([
+  const [cfRows, phaseARows, existingAssignments, sequelRows, trajectoryRows, subjectMappingRows] = await Promise.all([
     // (1) career_field_mappings → 12계열
     supabase
       .from("exploration_guide_career_mappings")
@@ -427,6 +468,14 @@ async function applyContinuityRanking(
       .select("topic_cluster_id, evidence")
       .eq("student_id", studentId)
       .then((r) => r.data),
+    // (6) 전공 적합도: 가이드별 subject_id
+    majorRecommendedSubjectIds && majorRecommendedSubjectIds.size > 0
+      ? supabase
+          .from("exploration_guide_subject_mappings")
+          .select("guide_id, subject_id")
+          .in("guide_id", guideIds)
+          .then((r) => r.data)
+      : Promise.resolve(null),
   ]);
 
   // 12계열 매핑
@@ -464,6 +513,16 @@ async function applyContinuityRanking(
     }
   }
 
+  // 전공 적합도: 가이드별 전공 권장 과목 매칭 여부
+  const majorMatchGuides = new Set<string>();
+  if (majorRecommendedSubjectIds && majorRecommendedSubjectIds.size > 0 && subjectMappingRows) {
+    for (const row of subjectMappingRows) {
+      if (majorRecommendedSubjectIds.has(row.subject_id)) {
+        majorMatchGuides.add(row.guide_id);
+      }
+    }
+  }
+
   // Wave 4: 궤적에서 이미 탐구한 클러스터 → sequel 보너스 강화
   const exploredClusters = new Set<string>();
   for (const t of trajectoryRows ?? []) {
@@ -498,6 +557,9 @@ async function applyContinuityRanking(
     const hasTrajectory = clusterId ? exploredClusters.has(clusterId) : false;
     const sequelBonus = isSequel && hasTrajectory ? 1.5 : isSequel ? 1.3 : 1.0;
 
+    // 전공 적합도 보너스: 전공 권장 과목에 매핑된 가이드 → 1.2×
+    const majorBonus = majorMatchGuides.has(g.id) ? 1.2 : 1.0;
+
     return {
       id: g.id,
       title: g.title,
@@ -507,7 +569,8 @@ async function applyContinuityRanking(
       continuityScore,
       difficultyScore,
       sequelBonus,
-      finalScore: baseScore * continuityScore * difficultyScore * sequelBonus,
+      majorBonus,
+      finalScore: baseScore * continuityScore * difficultyScore * sequelBonus * majorBonus,
     };
   });
 
@@ -668,6 +731,7 @@ async function insertAssignments(
 
   // Phase 2 Wave 5.1d: orphan 배정 skip + school_year 를 linked 레코드 기반으로 저장
   let skippedOrphan = 0;
+  const skippedOrphanGuides: Array<{ id: string; title: string }> = [];
   const insertRows: Array<{
     tenant_id: string;
     student_id: string;
@@ -693,6 +757,7 @@ async function insertAssignments(
     // 세특 가이드인데 학생 실제 과목 풀과 매칭 안 됨 → targetSubjectId === null → skip.
     if (!targetSubjectId && !targetActivityType) {
       skippedOrphan++;
+      skippedOrphanGuides.push({ id: g.id, title: g.title });
       continue;
     }
 

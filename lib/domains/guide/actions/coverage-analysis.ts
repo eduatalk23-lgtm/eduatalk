@@ -26,6 +26,12 @@ export interface ClusterCoverage {
   subject_hints: string[] | null;
   /** 경고: 빈 난이도 슬롯 */
   gaps: string[];
+  /** 품질 메트릭 */
+  quality: {
+    avgScore: number | null;
+    reviewedCount: number;
+    approvedCount: number;
+  };
 }
 
 export interface CoverageReport {
@@ -48,12 +54,32 @@ export async function fetchCoverageReportAction(): Promise<
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase
-      .from("exploration_guide_topic_clusters")
-      .select("id, name, description, guide_type, guide_count, difficulty_distribution, career_field_codes, subject_hints")
-      .order("guide_count", { ascending: false });
+    const [{ data, error }, { data: qualityData }] = await Promise.all([
+      supabase
+        .from("exploration_guide_topic_clusters")
+        .select("id, name, description, guide_type, guide_count, difficulty_distribution, career_field_codes, subject_hints")
+        .order("guide_count", { ascending: false }),
+      supabase
+        .from("exploration_guides")
+        .select("topic_cluster_id, quality_score, status")
+        .eq("is_latest", true)
+        .not("topic_cluster_id", "is", null),
+    ]);
 
     if (error) throw error;
+
+    // 클러스터별 품질 집계
+    const qualityByCluster = new Map<string, { scores: number[]; reviewed: number; approved: number }>();
+    for (const g of qualityData ?? []) {
+      if (!g.topic_cluster_id) continue;
+      const entry = qualityByCluster.get(g.topic_cluster_id) ?? { scores: [], reviewed: 0, approved: 0 };
+      if (g.quality_score != null) {
+        entry.scores.push(g.quality_score);
+        entry.reviewed++;
+      }
+      if (g.status === "approved") entry.approved++;
+      qualityByCluster.set(g.topic_cluster_id, entry);
+    }
 
     let noBasic = 0;
     let noIntermediate = 0;
@@ -76,6 +102,11 @@ export async function fetchCoverageReportAction(): Promise<
         noAdvanced++;
       }
 
+      const q = qualityByCluster.get(c.id);
+      const avgScore = q && q.scores.length > 0
+        ? Math.round(q.scores.reduce((a, b) => a + b, 0) / q.scores.length)
+        : null;
+
       return {
         id: c.id,
         name: c.name,
@@ -86,6 +117,11 @@ export async function fetchCoverageReportAction(): Promise<
         career_field_codes: c.career_field_codes,
         subject_hints: c.subject_hints,
         gaps,
+        quality: {
+          avgScore,
+          reviewedCount: q?.reviewed ?? 0,
+          approvedCount: q?.approved ?? 0,
+        },
       };
     });
 
