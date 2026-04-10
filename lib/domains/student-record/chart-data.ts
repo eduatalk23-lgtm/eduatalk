@@ -5,59 +5,194 @@
 
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "./constants";
 import { gradeToNum } from "./rubric-matcher";
-import type { CompetencyScore, ActivityTag, RecordTabData, Strategy } from "./types";
+import type {
+  CompetencyScore,
+  ActivityTag,
+  RecordTabData,
+  CompetencyArea,
+  CompetencyGrade,
+} from "./types";
 
 // ============================================
-// 1. 레이더 차트 데이터
+// 1. 영역별 레이더 차트 데이터 (3영역 독립 차트)
 // ============================================
 
-export interface RadarDataPoint {
+export interface AreaRadarItem {
+  code: string;
+  /** 레이더 축 표시용 — 전체 라벨(자르지 않음) */
   item: string;
   AI: number;
   컨설턴트: number;
   fullMark: number;
+  /** 원본 등급 문자열 — 커스텀 축 라벨에서 직접 표시 */
+  aiGrade: CompetencyGrade | null;
+  consultantGrade: CompetencyGrade | null;
 }
 
-/** 10개 역량 항목의 레이더 차트 데이터 생성 (컨설턴트 우선) */
-export function buildRadarData(
+export interface AreaRadarSection {
+  area: CompetencyArea;
+  label: string;
+  items: AreaRadarItem[];
+  /** 영역 평균 (컨설턴트 우선, 없으면 AI) 0~5 */
+  avgScore: number;
+  /** 평균 등급 문자열 */
+  avgGrade: CompetencyGrade;
+  /** AI↔컨설턴트 등급 불일치 항목 수 */
+  mismatchCount: number;
+}
+
+const AREA_ORDER: readonly CompetencyArea[] = ["academic", "career", "community"] as const;
+
+function scoreToGrade(score: number): CompetencyGrade {
+  if (score >= 4.5) return "A+";
+  if (score >= 3.5) return "A-";
+  if (score >= 2.5) return "B+";
+  if (score >= 1.5) return "B";
+  if (score >= 0.5) return "B-";
+  return "C";
+}
+
+/**
+ * 3개 역량 영역(학업/진로/공동체)별 레이더 데이터 생성.
+ * 각 영역은 자체 차트로 렌더링되므로 항목 라벨 중복으로 인한 축 병합 버그가 없다.
+ */
+export function buildAreaRadarData(
   aiScores: CompetencyScore[],
   consultantScores: CompetencyScore[],
-): RadarDataPoint[] {
+): AreaRadarSection[] {
   const aiMap = new Map(aiScores.map((s) => [s.competency_item, s]));
   const conMap = new Map(consultantScores.map((s) => [s.competency_item, s]));
 
-  return COMPETENCY_ITEMS.map((item) => {
-    const ai = aiMap.get(item.code);
-    const con = conMap.get(item.code);
-    return {
-      item: item.label,
-      AI: ai?.grade_value ? gradeToNum(ai.grade_value) : 0,
-      컨설턴트: con?.grade_value ? gradeToNum(con.grade_value) : 0,
-      fullMark: 5,
-    };
-  });
-}
+  return AREA_ORDER.map((area) => {
+    const areaItems = COMPETENCY_ITEMS.filter((i) => i.area === area);
+    let sumPreferred = 0;
+    let countPreferred = 0;
+    let mismatchCount = 0;
 
-/** 단일 소스 레이더 (컨설턴트 우선 fallback) */
-export function buildSingleRadarData(
-  aiScores: CompetencyScore[],
-  consultantScores: CompetencyScore[],
-): Array<{ item: string; 점수: number; fullMark: number }> {
-  const aiMap = new Map(aiScores.map((s) => [s.competency_item, s]));
-  const conMap = new Map(consultantScores.map((s) => [s.competency_item, s]));
+    const items: AreaRadarItem[] = areaItems.map((item) => {
+      const ai = aiMap.get(item.code);
+      const con = conMap.get(item.code);
+      const aiVal = ai?.grade_value ? gradeToNum(ai.grade_value) : 0;
+      const conVal = con?.grade_value ? gradeToNum(con.grade_value) : 0;
+      const preferred = con?.grade_value ?? ai?.grade_value ?? null;
 
-  return COMPETENCY_ITEMS.map((item) => {
-    const score = conMap.get(item.code) ?? aiMap.get(item.code);
+      if (preferred) {
+        sumPreferred += gradeToNum(preferred);
+        countPreferred++;
+      }
+      if (ai?.grade_value && con?.grade_value && ai.grade_value !== con.grade_value) {
+        mismatchCount++;
+      }
+
+      return {
+        code: item.code,
+        item: item.label,
+        AI: aiVal,
+        컨설턴트: conVal,
+        fullMark: 5,
+        aiGrade: ai?.grade_value ? (ai.grade_value as CompetencyGrade) : null,
+        consultantGrade: con?.grade_value ? (con.grade_value as CompetencyGrade) : null,
+      };
+    });
+
+    const avgScore = countPreferred > 0 ? sumPreferred / countPreferred : 0;
+
     return {
-      item: item.label,
-      점수: score?.grade_value ? gradeToNum(score.grade_value) : 0,
-      fullMark: 5,
+      area,
+      label: COMPETENCY_AREA_LABELS[area],
+      items,
+      avgScore: Number(avgScore.toFixed(2)),
+      avgGrade: scoreToGrade(avgScore),
+      mismatchCount,
     };
   });
 }
 
 // ============================================
-// 2. 성장 추이 데이터
+// 2. 영역 총평 합성 (규칙 기반, LLM 미호출)
+// ============================================
+
+export interface AreaNarrativeItem {
+  code: string;
+  label: string;
+  grade: CompetencyGrade | null;
+  narrative: string | null;
+}
+
+export interface AreaNarrativeSummary {
+  area: CompetencyArea;
+  label: string;
+  /** 영역 평균 요약 문장 — ex. "학업역량은 전반적으로 B+ 수준입니다." */
+  headline: string;
+  /** 최고 등급 항목 (평가된 항목이 있을 때) */
+  strongest: { label: string; grade: CompetencyGrade } | null;
+  /** 최저 등급 항목 (평가된 항목이 있을 때) */
+  weakest: { label: string; grade: CompetencyGrade } | null;
+  /** 모든 하위 항목의 등급·narrative */
+  items: AreaNarrativeItem[];
+}
+
+/**
+ * 영역별 총평을 item-level narrative + 등급에서 규칙 기반으로 합성.
+ * 옵션 A: LLM 재호출 없이 기존 저장된 데이터만 사용.
+ */
+export function composeAreaNarratives(
+  aiScores: CompetencyScore[],
+  consultantScores: CompetencyScore[],
+): AreaNarrativeSummary[] {
+  const aiMap = new Map(aiScores.map((s) => [s.competency_item, s]));
+  const conMap = new Map(consultantScores.map((s) => [s.competency_item, s]));
+
+  return AREA_ORDER.map((area) => {
+    const areaItems = COMPETENCY_ITEMS.filter((i) => i.area === area);
+    const items: AreaNarrativeItem[] = areaItems.map((item) => {
+      const con = conMap.get(item.code);
+      const ai = aiMap.get(item.code);
+      const picked = con ?? ai;
+      return {
+        code: item.code,
+        label: item.label,
+        grade: picked?.grade_value ? (picked.grade_value as CompetencyGrade) : null,
+        narrative: picked?.narrative ?? null,
+      };
+    });
+
+    // 등급이 있는 항목만 추려 min/max 계산
+    const graded = items.filter((i): i is AreaNarrativeItem & { grade: CompetencyGrade } => !!i.grade);
+    let strongest: { label: string; grade: CompetencyGrade } | null = null;
+    let weakest: { label: string; grade: CompetencyGrade } | null = null;
+    if (graded.length > 0) {
+      const sorted = [...graded].sort((a, b) => gradeToNum(b.grade) - gradeToNum(a.grade));
+      strongest = { label: sorted[0].label, grade: sorted[0].grade };
+      // 최저는 최고와 다를 때만 제시 (동일하면 의미 없음)
+      const last = sorted[sorted.length - 1];
+      if (last && last.label !== strongest.label) {
+        weakest = { label: last.label, grade: last.grade };
+      }
+    }
+
+    const avgScore = graded.length > 0
+      ? graded.reduce((s, i) => s + gradeToNum(i.grade), 0) / graded.length
+      : 0;
+    const avgGrade = scoreToGrade(avgScore);
+    const label = COMPETENCY_AREA_LABELS[area];
+    const headline = graded.length === 0
+      ? `${label} 평가 데이터가 아직 없습니다.`
+      : `${label}은(는) 전반적으로 ${avgGrade} 수준입니다.`;
+
+    return {
+      area,
+      label,
+      headline,
+      strongest,
+      weakest,
+      items,
+    };
+  });
+}
+
+// ============================================
+// 3. 성장 추이 데이터
 // ============================================
 
 export interface GrowthDataPoint {
@@ -157,7 +292,7 @@ export function buildGrowthData(
 }
 
 // ============================================
-// 3. 전략 매트릭스 데이터
+// 4. 전략 매트릭스 데이터
 // ============================================
 
 export interface MatrixCell {

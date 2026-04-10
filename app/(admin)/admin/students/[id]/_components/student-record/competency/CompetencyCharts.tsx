@@ -1,16 +1,21 @@
 "use client";
 
 // ============================================
-// 역량 레이더 차트 + 성장 추이 라인 차트
-// Phase 6.1 W-2 / S-2
+// 역량 레이더 차트 (3영역 독립) + 성장 추이 라인 차트
+// Phase 6.1 W-2 / S-2 (2026-04-09 영역 중심 개편)
 // ============================================
 
 import { useMemo } from "react";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
-import { buildRadarData } from "@/lib/domains/student-record/chart-data";
+import { buildAreaRadarData } from "@/lib/domains/student-record/chart-data";
 import { COMPETENCY_AREA_LABELS, COMPETENCY_ITEMS } from "@/lib/domains/student-record";
 import type { CompetencyScore, ActivityTag } from "@/lib/domains/student-record";
 import type { RecordForHighlight } from "./competency-helpers";
+import {
+  AREA_COLORS,
+  CompetencyAxisTick,
+  type RechartsPolarTickProps,
+} from "./AreaCompetencyDetail";
 
 type Props = {
   competencyScores: CompetencyScore[];
@@ -19,15 +24,19 @@ type Props = {
 };
 
 export function CompetencyCharts({ competencyScores, activityTags, records }: Props) {
-  const radarData = useMemo(
+  // 3영역 독립 레이더 데이터 (항목 라벨 중복으로 인한 축 병합 버그 방지)
+  const areaSections = useMemo(
     () =>
-      buildRadarData(
+      buildAreaRadarData(
         competencyScores.filter((s) => s.source === "ai"),
         competencyScores.filter((s) => s.source === "manual"),
       ),
     [competencyScores],
   );
-  const hasRadarData = radarData.some((d) => d.AI > 0 || d.컨설턴트 > 0);
+  const hasRadarData = areaSections.some((sec) =>
+    sec.items.some((i) => i.AI > 0 || i.컨설턴트 > 0),
+  );
+
   const { recharts, loading: chartsLoading } = useRecharts();
 
   // S-2: 성장 추이 라인 차트 데이터 계산
@@ -64,48 +73,150 @@ export function CompetencyCharts({ competencyScores, activityTags, records }: Pr
     });
 
     const areaColors: Record<string, string> = {
-      [COMPETENCY_AREA_LABELS.academic]: "#6366f1",
-      [COMPETENCY_AREA_LABELS.career]: "#8b5cf6",
-      [COMPETENCY_AREA_LABELS.community]: "#10b981",
+      [COMPETENCY_AREA_LABELS.academic]: AREA_COLORS.academic,
+      [COMPETENCY_AREA_LABELS.career]: AREA_COLORS.career,
+      [COMPETENCY_AREA_LABELS.community]: AREA_COLORS.community,
     };
 
     const validLines = Object.values(COMPETENCY_AREA_LABELS).filter((label) =>
       data.some((d) => label in d),
     );
 
-    return { lineData: data, lines: validLines, AREA_COLORS_LINE: areaColors, sortedGrades };
+    return { lineData: data, lines: validLines, AREA_COLORS_LINE: areaColors };
   }, [records, activityTags]);
 
   if (!hasRadarData) return null;
 
   return (
     <>
-      {/* W-2: 역량 레이더 차트 */}
+      {/* W-2: 3영역 독립 레이더 (AI vs 컨설턴트 오버레이) */}
       <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
-        <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">역량 프로필</h4>
+        <div className="mb-2 flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-[var(--text-primary)]">역량 프로필 (3영역)</h4>
+          <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-[2px] w-3 border-t border-dashed border-current" />
+              AI
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-[2px] w-3 border-t border-current" />
+              컨설턴트
+            </span>
+          </div>
+        </div>
         {chartsLoading || !recharts ? (
-          <ChartLoadingSkeleton height={220} />
-        ) : (() => {
-          const { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } = recharts;
-          return (
-            <ResponsiveContainer width="100%" height={220}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="65%">
-                <PolarGrid stroke="var(--border-secondary, #e5e7eb)" />
-                <PolarAngleAxis dataKey="item" tick={{ fontSize: 9 }} />
-                <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{ fontSize: 9 }} tickCount={6} />
-                <Radar name="AI" dataKey="AI" stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} strokeWidth={1.5} strokeDasharray="5 3" />
-                <Radar name="컨설턴트" dataKey="컨설턴트" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2} />
-                <Tooltip contentStyle={{ fontSize: 11 }} />
-                <Legend wrapperStyle={{ fontSize: 10 }} iconSize={8} />
-              </RadarChart>
-            </ResponsiveContainer>
-          );
-        })()}
+          <ChartLoadingSkeleton height={240} />
+        ) : (
+          (() => {
+            const {
+              RadarChart,
+              Radar,
+              PolarGrid,
+              PolarAngleAxis,
+              PolarRadiusAxis,
+              ResponsiveContainer,
+              Tooltip,
+            } = recharts;
+            return (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {areaSections.map((sec) => {
+                  const color = AREA_COLORS[sec.area];
+                  const hasAi = sec.items.some((i) => i.AI > 0);
+                  const hasCon = sec.items.some((i) => i.컨설턴트 > 0);
+                  return (
+                    <div
+                      key={sec.area}
+                      className="rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] p-2"
+                    >
+                      <div className="flex items-center justify-between px-1 pb-1">
+                        <span className="text-[11px] font-semibold text-[var(--text-primary)]">
+                          {sec.label}
+                        </span>
+                        <span
+                          className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                          style={{ backgroundColor: color + "20", color }}
+                        >
+                          {sec.items.some((i) => i.AI > 0 || i.컨설턴트 > 0)
+                            ? sec.avgGrade
+                            : "-"}
+                        </span>
+                      </div>
+                      {/* 3영역 모두 동일 높이/마진으로 시각적 사이즈 통일 */}
+                      <ResponsiveContainer width="100%" height={240}>
+                        <RadarChart
+                          data={sec.items}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius="58%"
+                          margin={{ top: 12, right: 32, bottom: 12, left: 32 }}
+                        >
+                          <PolarGrid stroke="var(--border-secondary, #e5e7eb)" />
+                          <PolarAngleAxis
+                            dataKey="item"
+                            tick={(tickProps: RechartsPolarTickProps) => (
+                              <CompetencyAxisTick
+                                {...tickProps}
+                                items={sec.items}
+                                color={color}
+                              />
+                            )}
+                          />
+                          <PolarRadiusAxis
+                            angle={90}
+                            domain={[0, 5]}
+                            tick={false}
+                            axisLine={false}
+                          />
+                          {hasAi && (
+                            <Radar
+                              name="AI"
+                              dataKey="AI"
+                              stroke={color}
+                              fill={color}
+                              fillOpacity={0.12}
+                              strokeWidth={1.5}
+                              strokeDasharray="5 3"
+                            />
+                          )}
+                          {hasCon && (
+                            <Radar
+                              name="컨설턴트"
+                              dataKey="컨설턴트"
+                              stroke={color}
+                              fill={color}
+                              fillOpacity={0.28}
+                              strokeWidth={2}
+                            />
+                          )}
+                          <Tooltip contentStyle={{ fontSize: 11 }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                      {sec.mismatchCount > 0 && (
+                        <p className="pt-0.5 text-center text-[9px] text-amber-600 dark:text-amber-400">
+                          AI↔컨설턴트 불일치 {sec.mismatchCount}건
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
+        )}
       </div>
 
       {/* S-2: 역량 성장 추이 라인 차트 */}
       {!chartsLoading && recharts && lineData.length >= 2 && lines.length > 0 && (() => {
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer: RC, Tooltip: TT, Legend: LG } = recharts;
+        const {
+          LineChart,
+          Line,
+          XAxis,
+          YAxis,
+          CartesianGrid,
+          ResponsiveContainer: RC,
+          Tooltip: TT,
+          Legend: LG,
+        } = recharts;
         return (
           <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
             <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">역량 성장 추이</h4>

@@ -33,6 +33,7 @@ import type { HighlightAnalysisResult } from "@/lib/domains/record-analysis/llm/
 import { Sparkles, Check, Loader2, GitCompare } from "lucide-react";
 import { CompetencyCharts } from "../../competency/CompetencyCharts";
 import { CompetencyGradesTable } from "../../competency/CompetencyGradesTable";
+import { AreaCompetencyDetailGroup } from "../../competency/AreaCompetencyDetail";
 import { countTagsByItem, type RecordForHighlight, type RecordLabelMap } from "../../competency/competency-helpers";
 
 type Props = {
@@ -113,6 +114,17 @@ export function CompetencyAnalysisSection({
   }, [records]);
 
   const tagStats = useMemo(() => countTagsByItem(activityTags, recordLabelMap), [activityTags, recordLabelMap]);
+
+  // 리포트와 동일한 영역별 상세 패널용 — source 기준 분리
+  const aiScoresList = useMemo(
+    () => competencyScores.filter((s) => s.source === "ai"),
+    [competencyScores],
+  );
+  const consultantScoresList = useMemo(
+    () => competencyScores.filter((s) => s.source === "manual"),
+    [competencyScores],
+  );
+
   const diagnosisQk = studentRecordKeys.diagnosisTab(studentId, schoolYear);
 
   // 캐시에서 AI 하이라이트 복원
@@ -397,11 +409,35 @@ export function CompetencyAnalysisSection({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* W-2 / S-2: 역량 차트 */}
+      {/* W-2 / S-2: 역량 프로필 (3영역 레이더) */}
       <CompetencyCharts
         competencyScores={competencyScores}
         activityTags={activityTags}
         records={records}
+      />
+
+      {/* 종합 등급 + 루브릭 상세 (인터랙티브 편집기) */}
+      <CompetencyGradesTable
+        competencyScores={competencyScores}
+        activityTags={activityTags}
+        tagStats={tagStats}
+        isReaggregating={reaggregateMutation.isPending}
+        isBatchPending={batchMutation.isPending}
+        hasHighlightResults={highlightResults.size > 0}
+        onReaggregate={() => reaggregateMutation.mutate()}
+        onGradeChange={(input) => gradeMutation.mutate(input)}
+        onTagConfirm={(tagId) => tagConfirmMutation.mutate(tagId)}
+        onTagDelete={(tagId) => tagDeleteMutation.mutate(tagId)}
+        isTagConfirmPending={tagConfirmMutation.isPending}
+        isTagDeletePending={tagDeleteMutation.isPending}
+        isGradePending={gradeMutation.isPending}
+      />
+
+      {/* 영역별 상세 패널 — 리포트와 동일 (총평 + 루브릭 질문별 근거) */}
+      <AreaCompetencyDetailGroup
+        aiScores={aiScoresList}
+        consultantScores={consultantScoresList}
+        activityTags={activityTags}
       />
 
       {/* AI 분석 버튼 + 확인 모달 */}
@@ -669,23 +705,6 @@ export function CompetencyAnalysisSection({
           </button>
         </div>
       )}
-
-      {/* 종합 등급 + 루브릭 상세 */}
-      <CompetencyGradesTable
-        competencyScores={competencyScores}
-        activityTags={activityTags}
-        tagStats={tagStats}
-        isReaggregating={reaggregateMutation.isPending}
-        isBatchPending={batchMutation.isPending}
-        hasHighlightResults={highlightResults.size > 0}
-        onReaggregate={() => reaggregateMutation.mutate()}
-        onGradeChange={(input) => gradeMutation.mutate(input)}
-        onTagConfirm={(tagId) => tagConfirmMutation.mutate(tagId)}
-        onTagDelete={(tagId) => tagDeleteMutation.mutate(tagId)}
-        isTagConfirmPending={tagConfirmMutation.isPending}
-        isTagDeletePending={tagDeleteMutation.isPending}
-        isGradePending={gradeMutation.isPending}
-      />
     </div>
   );
 }
