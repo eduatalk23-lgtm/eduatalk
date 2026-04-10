@@ -176,6 +176,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
         courseAdequacy,
         flowCompletion,
         studentGrade: studentGrade ? Math.round(studentGrade * 10) / 10 : null,
+        targetMajor,
       });
       setTaskResult(ctx.results, "_fourAxisDiagnosis", diagnosis);
     }

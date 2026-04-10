@@ -166,7 +166,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
       ctx.supabase, studentId, tenantId,
     );
     if (allYearScores.length > 0) {
-      const { matchUniversityProfiles } = await import("../../eval/university-profile-matcher");
+      const { matchUniversityProfiles, collectSubjectDirectionScores } = await import("../../eval/university-profile-matcher");
       const scoreMap: Record<string, number> = {};
       // 가장 최근 학년(가장 큰 gradeYear)의 점수를 사용
       const sorted = [...allYearScores].sort((a, b) => b.gradeYear - a.gradeYear);
@@ -175,7 +175,53 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
           scoreMap[s.competencyItem] = competencyGradeToScore(s.gradeValue);
         }
       }
-      const matchAnalysis = matchUniversityProfiles(studentId, scoreMap);
+      // v2: 과목 방향 점수 수집 — 세특 content_quality 기반
+      let directionScores: import("../../eval/university-profile-matcher").SubjectDirectionScores | undefined;
+      try {
+        const qualityRows = await ctx.supabase
+          .from("student_record_content_quality")
+          .select("record_id, depth, specificity, record_type")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId)
+          .eq("source", "ai")
+          .eq("record_type", "setek");
+        if (qualityRows.data && qualityRows.data.length > 0) {
+          // record_id → subject_name 매핑
+          const recordIds = qualityRows.data.map(r => r.record_id);
+          const setekRows = await ctx.supabase
+            .from("student_record_seteks")
+            .select("id, subject_id")
+            .in("id", recordIds)
+            .is("deleted_at", null);
+          if (setekRows.data && setekRows.data.length > 0) {
+            const subjectIds = [...new Set(setekRows.data.map(s => s.subject_id).filter(Boolean))];
+            const subjectRows = await ctx.supabase
+              .from("subjects")
+              .select("id, name")
+              .in("id", subjectIds);
+            const subjectMap = new Map((subjectRows.data ?? []).map(s => [s.id, s.name]));
+            const setekSubjectMap = new Map(
+              (setekRows.data ?? []).map(s => [s.id, s.subject_id]),
+            );
+
+            const entries: import("../../eval/university-profile-matcher").SubjectQualityEntry[] = [];
+            for (const q of qualityRows.data) {
+              const subjId = setekSubjectMap.get(q.record_id);
+              const subjName = subjId ? subjectMap.get(subjId) : undefined;
+              if (subjName && q.depth != null && q.specificity != null) {
+                entries.push({ subjectName: subjName, depth: q.depth, specificity: q.specificity });
+              }
+            }
+
+            const currYear = (snapshot?.curriculum_revision as number) ?? 2015;
+            directionScores = collectSubjectDirectionScores(entries, currYear);
+          }
+        }
+      } catch (dirErr) {
+        logActionError({ ...LOG_CTX, action: "pipeline.directionScores" }, dirErr, { pipelineId });
+      }
+
+      const matchAnalysis = matchUniversityProfiles(studentId, scoreMap, directionScores);
       if (matchAnalysis.matches.length > 0) {
         savedMatchAnalysis = matchAnalysis;
         universityMatchContext = buildUniversityMatchPromptSection(matchAnalysis);

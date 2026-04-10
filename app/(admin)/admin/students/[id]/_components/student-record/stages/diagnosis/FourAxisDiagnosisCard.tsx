@@ -255,6 +255,32 @@ export function FourAxisDiagnosisCard({ diagnosis }: FourAxisDiagnosisCardProps)
         {axis4}
       </div>
 
+      {/* 희망 진로 정합성 경고 */}
+      {diagnosis.careerAlignment && diagnosis.careerAlignment.status !== "aligned" && (
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-lg border px-3 py-2.5",
+            diagnosis.careerAlignment.status === "divergent"
+              ? "border-red-200 bg-red-50/60 dark:border-red-700 dark:bg-red-900/20"
+              : "border-amber-200 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-900/20",
+          )}
+        >
+          <span className="mt-px text-sm leading-none" aria-hidden="true">
+            {diagnosis.careerAlignment.status === "divergent" ? "\u26A0\uFE0F" : "\u2139\uFE0F"}
+          </span>
+          <p
+            className={cn(
+              "text-xs leading-relaxed",
+              diagnosis.careerAlignment.status === "divergent"
+                ? "text-red-700 dark:text-red-400"
+                : "text-amber-700 dark:text-amber-400",
+            )}
+          >
+            {diagnosis.careerAlignment.message}
+          </p>
+        </div>
+      )}
+
       {/* 종합 의견 */}
       <div className="rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary,#f9fafb)] px-3 py-2.5">
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{summary}</p>

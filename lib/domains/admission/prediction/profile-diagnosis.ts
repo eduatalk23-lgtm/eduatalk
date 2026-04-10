@@ -15,7 +15,8 @@
  *   4축 admissionReference — 학종 입결 내신 참조
  */
 
-import type { UniversityMatchAnalysis } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
+import type { UniversityMatchAnalysis, CareerAlignmentResult } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
+import { assessCareerAlignment } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record/types";
 import type { FlowCompletionResult } from "@/lib/domains/student-record/evaluation-criteria/flow-completion";
 
@@ -66,6 +67,9 @@ export interface FourAxisDiagnosis {
 
   /** 4축 중 가장 약한 축 */
   weakestAxis: "profileMatch" | "courseAdequacy" | "flowCompletion" | "admissionReference";
+
+  /** 희망 진로 정합성 경고 (null = target_major 미설정 또는 매핑 불가) */
+  careerAlignment: CareerAlignmentResult | null;
 }
 
 /** buildFourAxisDiagnosis 입력 타입 */
@@ -89,6 +93,8 @@ export interface FourAxisDiagnosisInput {
    * byRecord와 순서를 맞춰 사용하거나, isCareerSubject 플래그를 직접 활용.
    */
   careerSubjects?: string[];
+  /** 학생 희망 전공 (students.target_major, 정합성 경고 산출용) */
+  targetMajor?: string | null;
 }
 
 // ─── 내부 유틸 ──────────────────────────────────────────────────────────────
@@ -430,6 +436,12 @@ export function buildFourAxisDiagnosis(
     axisScores,
   );
 
+  // ── 희망 진로 정합성 경고 ────────────────────────────────────
+  const careerAlignment = assessCareerAlignment(
+    input.targetMajor,
+    topMatch,
+  );
+
   return {
     profileMatch: profileMatchAxis,
     courseAdequacy: courseAdequacyAxis,
@@ -437,5 +449,6 @@ export function buildFourAxisDiagnosis(
     admissionReference: admissionReferenceAxis,
     summary,
     weakestAxis,
+    careerAlignment,
   };
 }

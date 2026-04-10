@@ -4,6 +4,10 @@
  * 학생의 역량 점수 프로필과 대학별 계열 요구 역량 가중치를 비교하여
  * 적합도 점수와 등급을 산출한다.
  *
+ * v2: 과목 방향 점수(Subject Direction Score) 블렌딩.
+ *     역량 "수준"뿐 아니라 역량 "방향"(어떤 과목에서 나왔는가)까지 반영하여
+ *     세특 내용 기반의 계열 판정을 수행한다.
+ *
  * 역량 ID는 constants.ts의 COMPETENCY_ITEMS 코드와 일치:
  *   academic_achievement, academic_attitude, academic_inquiry
  *   career_course_effort, career_course_achievement, career_exploration
@@ -14,6 +18,14 @@
  *
  * 사용처: scripts/eval-student-record.ts (B1 통합)
  */
+
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
+import {
+  MAJOR_RECOMMENDED_COURSES_2015,
+  MAJOR_RECOMMENDED_COURSES_2022,
+} from "@/lib/domains/student-record/constants";
+import { TIER1_TO_MAJORS } from "@/lib/constants/career-classification";
+import type { CareerTier1Code } from "@/lib/constants/career-classification";
 
 // ─── 공개 타입 ──────────────────────────────────────────────────────────────
 
@@ -268,19 +280,26 @@ function buildRecommendation(
 /**
  * 단일 대학 프로필에 대한 매칭 결과를 계산한다.
  *
- * 알고리즘:
- *   matchScore = Σ(역량점수 × 가중치) / Σ(가중치)
+ * 알고리즘 (v2):
+ *   competencyScore = Σ(역량점수 × 가중치) / Σ(가중치)
+ *   directionScore  = 해당 트랙의 과목 방향 점수 (0~100)
+ *   matchScore      = competencyScore × α + directionScore × (1 - α)
+ *
+ * α = 분석 과목이 충분하면 0.5 (반반), 과목이 적으면 1.0 (역량만).
+ * directionScores가 undefined이면 v1 호환: matchScore = competencyScore.
  *
  * 학생 점수가 없는 역량(undefined)은 0점으로 처리.
  * 프로필 가중치가 0인 역량은 계산에서 제외.
  *
- * @param profile    대학 계열 프로필
- * @param scores     학생 역량 점수 (competencyId → 0~100)
- * @returns          해당 트랙 매칭 결과
+ * @param profile          대학 계열 프로필
+ * @param scores           학생 역량 점수 (competencyId → 0~100)
+ * @param directionScores  과목 방향 점수 (track → 0~100, 선택)
+ * @returns                해당 트랙 매칭 결과
  */
 export function matchSingleProfile(
   profile: UniversityProfile,
   scores: Record<string, number>,
+  directionScores?: SubjectDirectionScores,
 ): ProfileMatchResult {
   const entries = Object.entries(profile.competencyWeights).filter(
     ([, w]) => w > 0,
@@ -295,8 +314,17 @@ export function matchSingleProfile(
     totalWeight += weight;
   }
 
-  const matchScore =
+  const competencyScore =
     totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 10) / 10 : 0;
+
+  // v2: 과목 방향 점수 블렌딩
+  let matchScore = competencyScore;
+  if (directionScores && Object.keys(directionScores).length > 0) {
+    const dirScore = directionScores[profile.track] ?? 0;
+    // α: 방향 점수가 있으면 0.5 (반반 블렌딩)
+    const alpha = 0.5;
+    matchScore = Math.round((competencyScore * alpha + dirScore * (1 - alpha)) * 10) / 10;
+  }
 
   // 강점/갭 추출: 프로필 핵심 역량만 대상, 학생 점수 기준 정렬
   const ranked = entries
@@ -327,14 +355,16 @@ export function matchSingleProfile(
  *
  * @param studentId        학생 식별자
  * @param competencyScores 역량 점수 맵 (competencyId → 0~100)
+ * @param directionScores  과목 방향 점수 맵 (track → 0~100, 선택)
  * @returns                전체 트랙 분석 결과 (matchScore 내림차순)
  */
 export function matchUniversityProfiles(
   studentId: string,
   competencyScores: Record<string, number>,
+  directionScores?: SubjectDirectionScores,
 ): UniversityMatchAnalysis {
   const matches = UNIVERSITY_PROFILES.map((profile) =>
-    matchSingleProfile(profile, competencyScores),
+    matchSingleProfile(profile, competencyScores, directionScores),
   ).sort((a, b) => b.matchScore - a.matchScore);
 
   const topMatch = matches[0];
@@ -349,5 +379,258 @@ export function matchUniversityProfiles(
     matches,
     topMatch,
     summary,
+  };
+}
+
+// ─── 과목 방향 점수 시스템 (v2) ──────────────────────────────────────────────
+
+/**
+ * 8-track → Tier 2 (MAJOR_RECOMMENDED_COURSES key) 브릿지.
+ * 각 트랙이 어떤 전공 계열의 추천 과목을 참조하는지 정의.
+ */
+export const TRACK_TO_TIER2: Record<UniversityTrack, string[]> = {
+  medical:     ["의학·약학", "보건"],
+  law:         ["법·행정", "정치·외교"],
+  engineering: ["컴퓨터·정보", "전기·전자", "기계·자동차·로봇",
+                "화학·신소재·에너지", "건축·사회시스템"],
+  business:    ["경영·경제"],
+  humanities:  ["국어", "외국어", "사학·철학"],
+  education:   ["교육"],
+  arts:        ["음악", "미술", "체육"],
+  social:      ["사회복지", "심리", "언론·홍보", "사회"],
+};
+
+/**
+ * 8-track → KEDI Tier 1 코드 매핑 (희망 진로 정합성 판정용).
+ * SOC는 law/business/social 3개에 걸치므로 1:N.
+ */
+export const TRACK_TO_TIER1: Record<UniversityTrack, CareerTier1Code[]> = {
+  medical:     ["MED"],
+  law:         ["SOC"],
+  engineering: ["ENG"],
+  business:    ["SOC"],
+  humanities:  ["HUM"],
+  education:   ["EDU"],
+  arts:        ["ART"],
+  social:      ["SOC"],
+};
+
+/**
+ * Tier 1 인접 관계 (adjacent 판정용).
+ * 양방향 — (A, B)가 인접이면 (B, A)도 인접.
+ */
+const ADJACENT_TIER1_PAIRS: ReadonlyArray<[CareerTier1Code, CareerTier1Code]> = [
+  ["SOC", "HUM"],  // 사회↔인문
+  ["NAT", "ENG"],  // 자연↔공학
+  ["NAT", "MED"],  // 자연↔의약
+  ["ENG", "MED"],  // 공학↔의약
+  ["SOC", "EDU"],  // 사회↔교육
+  ["HUM", "EDU"],  // 인문↔교육
+];
+
+/** 두 Tier 1 코드가 인접 관계인지 판정 */
+export function areTier1Adjacent(a: CareerTier1Code, b: CareerTier1Code): boolean {
+  if (a === b) return true;
+  return ADJACENT_TIER1_PAIRS.some(
+    ([x, y]) => (x === a && y === b) || (x === b && y === a),
+  );
+}
+
+// ─── 과목→트랙 역매핑 빌더 ──────────────────────────────────────────────────
+
+/** 과목 방향 점수 입력 (트랙별 0~100) */
+export type SubjectDirectionScores = Partial<Record<UniversityTrack, number>>;
+
+/** 세특 과목별 품질 데이터 (collectSubjectDirectionScores 입력) */
+export interface SubjectQualityEntry {
+  /** 과목명 (DB의 subjects.name) */
+  subjectName: string;
+  /** content_quality.depth (1~5) */
+  depth: number;
+  /** content_quality.specificity (1~5) */
+  specificity: number;
+}
+
+/**
+ * 과목명 → 관련 트랙 목록 역매핑을 빌드한다.
+ * MAJOR_RECOMMENDED_COURSES의 general/career/fusion 과목명을 정규화하여
+ * 어떤 과목이 어떤 트랙에 관련되는지, 그리고 career/general 구분을 반환.
+ *
+ * @param curriculumYear 교육과정 연도 (2015 | 2022, 기본 2015)
+ */
+export function buildSubjectToTrackMap(
+  curriculumYear: number = 2015,
+): Map<string, { track: UniversityTrack; isCareer: boolean }[]> {
+  const source = curriculumYear >= 2022
+    ? MAJOR_RECOMMENDED_COURSES_2022
+    : MAJOR_RECOMMENDED_COURSES_2015;
+
+  const result = new Map<string, { track: UniversityTrack; isCareer: boolean }[]>();
+
+  for (const [track, tier2Keys] of Object.entries(TRACK_TO_TIER2) as [UniversityTrack, string[]][]) {
+    for (const tier2Key of tier2Keys) {
+      const courses = source[tier2Key];
+      if (!courses) continue;
+
+      // general 과목
+      for (const name of courses.general) {
+        const key = normalizeSubjectName(name);
+        const arr = result.get(key) ?? [];
+        if (!arr.some(e => e.track === track && !e.isCareer)) {
+          arr.push({ track, isCareer: false });
+        }
+        result.set(key, arr);
+      }
+
+      // career 과목
+      for (const name of courses.career) {
+        const key = normalizeSubjectName(name);
+        const arr = result.get(key) ?? [];
+        if (!arr.some(e => e.track === track && e.isCareer)) {
+          arr.push({ track, isCareer: true });
+        }
+        result.set(key, arr);
+      }
+
+      // fusion 과목 (2022 개정)
+      const fusion = "fusion" in courses && courses.fusion;
+      if (fusion) {
+        for (const name of fusion as string[]) {
+          const key = normalizeSubjectName(name);
+          const arr = result.get(key) ?? [];
+          if (!arr.some(e => e.track === track && e.isCareer)) {
+            arr.push({ track, isCareer: true }); // fusion은 career와 동급 취급
+          }
+          result.set(key, arr);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 세특 과목별 품질 데이터로부터 트랙별 과목 방향 점수를 산출한다.
+ *
+ * 알고리즘 (v2.1 — max-normalization):
+ *   1. 각 세특 과목명을 정규화하여 트랙 역매핑에서 관련 트랙을 조회
+ *   2. 관련 트랙에 대해 quality = (depth + specificity) / 10 (0~1) 기여
+ *   3. career 과목은 0.7 비중, general 과목은 0.3 비중
+ *   4. 트랙별 rawScore = Σ(quality × typeWeight)  ← 절대 가중 합산
+ *   5. 트랙 간 상대 비교: directionScore = (rawScore / maxRawScore) × 100
+ *
+ * 기존 "추천과목수 분모" 방식의 문제점:
+ *   arts(9개)와 engineering(21개)의 분모 차이로 미술·체육·음악감상 등
+ *   일반교양 과목만으로 arts가 1위가 되는 구조적 바이어스.
+ *   max-normalization으로 트랙 간 공정 비교를 달성.
+ *
+ * @param entries         세특 과목별 품질 데이터
+ * @param curriculumYear  교육과정 연도 (기본 2015)
+ * @returns               트랙별 방향 점수 (0~100)
+ */
+export function collectSubjectDirectionScores(
+  entries: SubjectQualityEntry[],
+  curriculumYear: number = 2015,
+): SubjectDirectionScores {
+  if (entries.length === 0) return {};
+
+  const subjectToTrack = buildSubjectToTrackMap(curriculumYear);
+
+  // 트랙별 가중 합산 (절대값)
+  const trackAccum: Record<string, number> = {};
+
+  for (const entry of entries) {
+    const key = normalizeSubjectName(entry.subjectName);
+    const mappings = subjectToTrack.get(key);
+    if (!mappings) continue;
+
+    const quality = (entry.depth + entry.specificity) / 10; // 0~1
+
+    for (const { track, isCareer } of mappings) {
+      const typeWeight = isCareer ? 0.7 : 0.3;
+      trackAccum[track] = (trackAccum[track] ?? 0) + quality * typeWeight;
+    }
+  }
+
+  // max-normalization: 가장 높은 rawScore를 100으로 스케일링
+  // 최소 기준: rawScore 합산이 0.5 미만이면 방향 신호가 너무 약아 무시
+  // (career 1과목 quality 0.7 × 0.7 = 0.49, general 2과목 quality 0.5 × 0.3 × 2 = 0.30)
+  const MIN_RAW_THRESHOLD = 0.5;
+
+  const rawScores = Object.entries(trackAccum);
+  if (rawScores.length === 0) return {};
+
+  const maxRaw = Math.max(...rawScores.map(([, v]) => v));
+  if (maxRaw < MIN_RAW_THRESHOLD) return {};
+
+  const result: SubjectDirectionScores = {};
+  for (const [track, weightedSum] of rawScores) {
+    const normalized = (weightedSum / maxRaw) * 100;
+    result[track as UniversityTrack] = Math.round(normalized * 10) / 10;
+  }
+
+  return result;
+}
+
+// ─── 희망 진로 정합성 판정 ──────────────────────────────────────────────────
+
+export type CareerAlignmentStatus = "aligned" | "adjacent" | "divergent";
+
+export interface CareerAlignmentResult {
+  studentTarget: { tier1Code: CareerTier1Code; tier2Key: string };
+  diagnosedTrack: { track: UniversityTrack; label: string };
+  status: CareerAlignmentStatus;
+  message: string;
+}
+
+/**
+ * 희망 진로(target_major)와 1축 진단 결과(topTrack) 간 정합성을 판정한다.
+ *
+ * @param targetMajor   students.target_major (Tier 2 key)
+ * @param topTrack      1축 진단 결과 상위 트랙
+ * @returns             정합성 결과 (null = target_major 미설정)
+ */
+export function assessCareerAlignment(
+  targetMajor: string | null | undefined,
+  topTrack: ProfileMatchResult,
+): CareerAlignmentResult | null {
+  if (!targetMajor) return null;
+
+  // target_major → Tier 1 코드 찾기
+  let studentTier1: CareerTier1Code | null = null;
+  for (const [tier1, majors] of Object.entries(TIER1_TO_MAJORS)) {
+    if ((majors as readonly string[]).includes(targetMajor)) {
+      studentTier1 = tier1 as CareerTier1Code;
+      break;
+    }
+  }
+  if (!studentTier1) return null; // 매핑 불가
+
+  // topTrack → Tier 1 코드들
+  const trackTier1s = TRACK_TO_TIER1[topTrack.track];
+
+  // 판정
+  let status: CareerAlignmentStatus;
+  if (trackTier1s.includes(studentTier1)) {
+    status = "aligned";
+  } else if (trackTier1s.some(t => areTier1Adjacent(t, studentTier1!))) {
+    status = "adjacent";
+  } else {
+    status = "divergent";
+  }
+
+  const trackLabel = topTrack.label;
+  const message = status === "aligned"
+    ? ""
+    : status === "adjacent"
+    ? `희망 진로(${targetMajor})와 생기부 방향(${trackLabel})이 인접 계열입니다.`
+    : `희망 진로(${targetMajor})와 생기부 진단(${trackLabel}) 간 괴리가 감지됩니다. 진로 방향 또는 세특 내용 보완을 검토하세요.`;
+
+  return {
+    studentTarget: { tier1Code: studentTier1, tier2Key: targetMajor },
+    diagnosedTrack: { track: topTrack.track, label: trackLabel },
+    status,
+    message,
   };
 }

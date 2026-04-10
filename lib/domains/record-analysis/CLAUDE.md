@@ -39,7 +39,7 @@ record-analysis/
 ```
 record-analysis/pipeline ──→ student-record/{types,constants,repository,course-plan,leveling,evaluation-criteria}
 record-analysis/llm      ──→ student-record/{types,constants,repository,evaluation-criteria,actions/report,actions/pipeline}
-record-analysis/eval     ──→ (없음, 완전 독립)
+record-analysis/eval     ──→ subject/normalize, student-record/constants, lib/constants/career-classification (university-profile-matcher v2)
 
 순환 의존 없음.
 ```
