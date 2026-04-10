@@ -54,7 +54,8 @@
 
 import { generateText, generateObject, streamText, APICallError } from "ai";
 import { google } from "@ai-sdk/google";
-import type { Schema } from "ai";
+import { openai } from "@ai-sdk/openai";
+import type { Schema, LanguageModel } from "ai";
 import type { ModelTier } from "./types";
 import type {
   GroundingConfig,
@@ -74,27 +75,47 @@ import {
 } from "./llm-cache";
 
 // ============================================
-// ModelTier → AI SDK 모델 매핑
+// LLM Provider 추상화 (Google Gemini / OpenAI)
+// ============================================
+//
+// 기본 provider는 Gemini(google). `LLM_PROVIDER_OVERRIDE=openai` 환경변수로
+// 로컬 dev에서만 OpenAI로 전환 가능. 프로덕션 금지(아래 resolveEffectiveProvider 참조).
+//
 // fast: 배치 분석, 태그/전략 제안 등 경량 태스크
 // standard: 종합 진단, 세특 방향, 활동 요약 등 다중 입력 합성
 // advanced: 세특 심층 분석 (단일 레코드, 루브릭 채점)
 // ⚠ fast/standard 현재 동일 모델 — standard 전용 모델 출시 시 분리
-// ============================================
 
-const MODEL_ID_MAP: Record<ModelTier, string> = {
-  fast: "gemini-2.5-flash",
-  standard: "gemini-2.5-flash",
-  advanced: "gemini-2.5-pro",
+export type LlmProvider = "gemini" | "openai";
+
+const MODEL_ID_MAP: Record<LlmProvider, Record<ModelTier, string>> = {
+  gemini: {
+    fast: "gemini-2.5-flash",
+    standard: "gemini-2.5-flash",
+    advanced: "gemini-2.5-pro",
+  },
+  openai: {
+    fast: "gpt-4o-mini",
+    standard: "gpt-4o-mini",
+    advanced: "gpt-4o",
+  },
 };
 
 // 과부하(503) 시 순차적으로 다음 모델 시도
-const MODEL_FALLBACK_CHAIN: Record<ModelTier, string[]> = {
-  fast: ["gemini-2.5-flash"],
-  standard: ["gemini-2.5-flash"],
-  advanced: [
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-  ],
+const MODEL_FALLBACK_CHAIN: Record<LlmProvider, Record<ModelTier, string[]>> = {
+  gemini: {
+    fast: ["gemini-2.5-flash"],
+    standard: ["gemini-2.5-flash"],
+    advanced: [
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+    ],
+  },
+  openai: {
+    fast: ["gpt-4o-mini"],
+    standard: ["gpt-4o-mini"],
+    advanced: ["gpt-4o", "gpt-4o-mini"],
+  },
 };
 
 const DEFAULT_MAX_TOKENS: Record<ModelTier, number> = {
@@ -157,6 +178,111 @@ function resolveEffectiveTier(requested: ModelTier): ModelTier {
 }
 
 // ============================================
+// LLM Provider Override — 개발 전용 (env: LLM_PROVIDER_OVERRIDE)
+// ============================================
+//
+// 파이프라인 코드가 OpenAI에서도 동작하는지 확인하거나, Gemini API key
+// 없이 작업할 때 OpenAI로 임시 전환하는 dev-only 스위치.
+//
+// 동작:
+//  - 미설정 (기본)              → "gemini" (= 프로덕션 동작)
+//  - LLM_PROVIDER_OVERRIDE=openai → 모든 LLM 요청을 OpenAI로 라우팅
+//
+// ⚠ 프로덕션 금지:
+//   Vercel/실배포에서 절대 설정하지 말 것. `OPENAI_API_KEY`도 로컬
+//   `.env.local`에만 두고 Vercel env에는 추가하지 말 것.
+//   활성화되면 첫 호출에 경고 로그가 한 번 찍힙니다.
+//
+// 가드:
+//   - OPENAI_API_KEY가 없으면 자동으로 gemini로 fallback (경고 1회)
+//   - google_search grounding 요청은 OpenAI에서 자동 무시 (경고 1회)
+//   - geminiRateLimiter / geminiQuotaTracker는 OpenAI 경로에서 바이패스
+//
+// 캐시 레이어(`llm-cache.ts`)와의 상호작용:
+//   캐시 키에 `provider`가 포함됩니다. Gemini/OpenAI 캐시가 분리되므로
+//   `LLM_CACHE_MODE=record`/`replay`는 같은 provider 세트로 묶어 실행해야 합니다.
+
+let _loggedProviderOverride = false;
+let _warnedOpenAiGrounding = false;
+
+function resolveEffectiveProvider(): LlmProvider {
+  const raw = process.env.LLM_PROVIDER_OVERRIDE?.toLowerCase();
+  if (raw !== "openai") {
+    return "gemini";
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    if (!_loggedProviderOverride) {
+      _loggedProviderOverride = true;
+      logActionWarn(
+        "ai-sdk.providerOverride",
+        `[DEV] LLM_PROVIDER_OVERRIDE=openai 설정되었으나 OPENAI_API_KEY가 없습니다. gemini로 fallback합니다.`,
+      );
+    }
+    return "gemini";
+  }
+  if (!_loggedProviderOverride) {
+    _loggedProviderOverride = true;
+    logActionWarn(
+      "ai-sdk.providerOverride",
+      `[DEV] LLM_PROVIDER_OVERRIDE=openai 활성 — 모든 LLM 요청이 OpenAI로 라우팅됩니다. 프로덕션 금지.`,
+    );
+  }
+  return "openai";
+}
+
+/** provider + modelId → AI SDK LanguageModel 인스턴스 */
+function getLanguageModel(provider: LlmProvider, modelId: string): LanguageModel {
+  if (provider === "openai") {
+    return openai(modelId);
+  }
+  return google(modelId);
+}
+
+/**
+ * Gemini 전용 rate limiter 가드
+ *
+ * gemini provider일 때만 `geminiRateLimiter`를 통해 실행. OpenAI는 별도
+ * 큐 없이 직접 실행 (개발용이라 throughput 제어 불필요).
+ */
+async function executeWithProviderGuards<T>(
+  provider: LlmProvider,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (provider === "openai") {
+    return fn();
+  }
+  return geminiRateLimiter.execute(fn);
+}
+
+/** providerOptions 빌더 — Gemini는 thinking budget, OpenAI는 omit */
+function buildProviderOptions(provider: LlmProvider, tier: ModelTier) {
+  if (provider !== "gemini") return undefined;
+  return {
+    google: {
+      thinkingConfig: {
+        thinkingBudget: tier === "advanced" ? 1024 : 0,
+      },
+    },
+  };
+}
+
+/** Grounding 도구 빌더 — OpenAI는 google_search 미지원, 비활성화 + 경고 */
+function buildGroundingTools(provider: LlmProvider, grounding?: GroundingConfig) {
+  if (!grounding?.enabled) return undefined;
+  if (provider === "openai") {
+    if (!_warnedOpenAiGrounding) {
+      _warnedOpenAiGrounding = true;
+      logActionWarn(
+        "ai-sdk.grounding",
+        `[DEV] LLM_PROVIDER_OVERRIDE=openai에서는 google_search grounding을 지원하지 않습니다. grounding 비활성 상태로 호출합니다.`,
+      );
+    }
+    return undefined;
+  }
+  return { google_search: google.tools.googleSearch({}) };
+}
+
+// ============================================
 // 공통 타입
 // ============================================
 
@@ -183,7 +309,7 @@ export interface AiSdkResult {
     outputTokens: number;
   };
   modelId: string;
-  provider: "gemini";
+  provider: LlmProvider;
   groundingMetadata?: GroundingMetadata;
 }
 
@@ -420,6 +546,7 @@ const jsonModeOutput: unknown = {
 export async function generateTextWithRateLimit(
   options: AiSdkOptions
 ): Promise<AiSdkResult> {
+  const provider = resolveEffectiveProvider();
   const tier = resolveEffectiveTier(options.modelTier ?? "standard");
 
   // ── LLM Cache Layer (dev-only, env gated) ────────────
@@ -429,6 +556,7 @@ export async function generateTextWithRateLimit(
       ? hashCacheKey({
           system: options.system,
           messages: options.messages,
+          provider,
           modelTier: tier,
           kind: "text",
           responseFormat: options.responseFormat,
@@ -440,7 +568,7 @@ export async function generateTextWithRateLimit(
     if (cached) {
       logActionDebug(
         "ai-sdk.generateText",
-        `[cache hit] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+        `[cache hit] ${cacheHash.slice(0, 12)}... provider=${provider} tier=${tier}`,
       );
       return cached;
     }
@@ -448,7 +576,7 @@ export async function generateTextWithRateLimit(
   }
   // ──────────────────────────────────────────────────────
 
-  const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
+  const fallbackChain = MODEL_FALLBACK_CHAIN[provider][tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 1; // 서버리스 환경: 재시도 1회로 제한
@@ -456,11 +584,11 @@ export async function generateTextWithRateLimit(
     ? AbortSignal.timeout(options.timeoutMs)
     : undefined;
 
-  // Grounding 도구 설정
-  const tools =
-    options.grounding?.enabled
-      ? { google_search: google.tools.googleSearch({}) }
-      : undefined;
+  // provider별 옵션
+  const tools = buildGroundingTools(provider, options.grounding);
+  const providerOptions = buildProviderOptions(provider, tier);
+  // Gemini JSON 모드는 google 전용 (responseMimeType 사용)
+  const useJsonOutput = provider === "gemini" && options.responseFormat === "json";
 
   let lastError: Error | null = null;
 
@@ -472,7 +600,7 @@ export async function generateTextWithRateLimit(
 
     logActionDebug(
       "ai-sdk.generateText",
-      `시작 - model=${currentModelId}, tier=${tier}, grounding=${options.grounding?.enabled}`
+      `시작 - provider=${provider} model=${currentModelId} tier=${tier} grounding=${options.grounding?.enabled}`
     );
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -484,9 +612,9 @@ export async function generateTextWithRateLimit(
           );
         }
 
-        const result = await geminiRateLimiter.execute(async () => {
+        const result = await executeWithProviderGuards(provider, async () => {
           return generateText({
-            model: google(currentModelId),
+            model: getLanguageModel(provider, currentModelId),
             system: options.system,
             messages: options.messages.map((m) => ({
               role: m.role,
@@ -497,20 +625,16 @@ export async function generateTextWithRateLimit(
             maxRetries: 1,
             ...(abortSignal ? { abortSignal } : {}),
             ...(tools && { tools }),
-            ...(options.responseFormat === "json" && {
-              output: jsonModeOutput,
+            ...(useJsonOutput && {
+              output: jsonModeOutput as never,
             }),
-            providerOptions: {
-              google: {
-                thinkingConfig: {
-                  thinkingBudget: tier === "advanced" ? 1024 : 0,
-                },
-              },
-            },
+            ...(providerOptions && { providerOptions }),
           });
         });
 
-        geminiQuotaTracker.recordRequest();
+        if (provider === "gemini") {
+          geminiQuotaTracker.recordRequest();
+        }
         recordCircuitSuccess(currentModelId);
 
         const groundingMetadata = options.grounding?.enabled
@@ -525,7 +649,7 @@ export async function generateTextWithRateLimit(
             outputTokens: result.usage?.outputTokens ?? 0,
           },
           modelId: currentModelId,
-          provider: "gemini",
+          provider,
           groundingMetadata,
         };
 
@@ -533,6 +657,7 @@ export async function generateTextWithRateLimit(
           await writeToCache(
             cacheHash,
             {
+              provider,
               modelTier: tier,
               kind: "text",
               systemHead: options.system,
@@ -542,7 +667,7 @@ export async function generateTextWithRateLimit(
           );
           logActionDebug(
             "ai-sdk.generateText",
-            `[cache recorded] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+            `[cache recorded] ${cacheHash.slice(0, 12)}... provider=${provider} tier=${tier}`,
           );
         }
 
@@ -552,7 +677,9 @@ export async function generateTextWithRateLimit(
 
         // 429 Rate Limit → 같은 모델 재시도
         if (isRateLimitError(error) && attempt < maxRetries) {
-          geminiQuotaTracker.recordRateLimitHit();
+          if (provider === "gemini") {
+            geminiQuotaTracker.recordRateLimitHit();
+          }
           recordCircuitFailure(currentModelId);
           const delay = extractRetryDelay(error, attempt);
           logActionWarn(
@@ -618,6 +745,7 @@ export async function generateObjectWithRateLimit<T>(
   usage: { inputTokens: number; outputTokens: number };
   modelId: string;
 }> {
+  const provider = resolveEffectiveProvider();
   const tier = resolveEffectiveTier(options.modelTier ?? "standard");
 
   // ── LLM Cache Layer (dev-only, env gated) ────────────
@@ -632,6 +760,7 @@ export async function generateObjectWithRateLimit<T>(
       ? hashCacheKey({
           system: options.system,
           messages: options.messages,
+          provider,
           modelTier: tier,
           kind: "object",
           schemaSignature: getSchemaSignature(options.schema),
@@ -643,7 +772,7 @@ export async function generateObjectWithRateLimit<T>(
     if (cached) {
       logActionDebug(
         "ai-sdk.generateObject",
-        `[cache hit] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+        `[cache hit] ${cacheHash.slice(0, 12)}... provider=${provider} tier=${tier}`,
       );
       return cached;
     }
@@ -651,12 +780,13 @@ export async function generateObjectWithRateLimit<T>(
   }
   // ──────────────────────────────────────────────────────
 
-  const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
+  const fallbackChain = MODEL_FALLBACK_CHAIN[provider][tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 1;
   // 시도할 모델 범위 (체이닝 재시도 시 이미 시도한 모델 건너뛰기용)
   const startIndex = options.modelStartIndex ?? 0;
+  const providerOptions = buildProviderOptions(provider, tier);
 
   let lastError: Error | null = null;
 
@@ -674,7 +804,7 @@ export async function generateObjectWithRateLimit<T>(
 
     logActionDebug(
       "ai-sdk.generateObject",
-      `시작 - model=${currentModelId}, tier=${tier}`
+      `시작 - provider=${provider} model=${currentModelId} tier=${tier}`
     );
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -686,9 +816,9 @@ export async function generateObjectWithRateLimit<T>(
           );
         }
 
-        const result = await geminiRateLimiter.execute(async () => {
+        const result = await executeWithProviderGuards(provider, async () => {
           return generateObject({
-            model: google(currentModelId),
+            model: getLanguageModel(provider, currentModelId),
             mode: "json",
             system: options.system,
             messages: options.messages.map((m) => ({
@@ -700,17 +830,13 @@ export async function generateObjectWithRateLimit<T>(
             temperature,
             maxRetries: 1,
             ...(abortSignal ? { abortSignal } : {}),
-            providerOptions: {
-              google: {
-                thinkingConfig: {
-                  thinkingBudget: tier === "advanced" ? 1024 : 0,
-                },
-              },
-            },
+            ...(providerOptions && { providerOptions }),
           });
         });
 
-        geminiQuotaTracker.recordRequest();
+        if (provider === "gemini") {
+          geminiQuotaTracker.recordRequest();
+        }
         recordCircuitSuccess(currentModelId);
 
         const objectResult: ObjectResult = {
@@ -726,6 +852,7 @@ export async function generateObjectWithRateLimit<T>(
           await writeToCache(
             cacheHash,
             {
+              provider,
               modelTier: tier,
               kind: "object",
               systemHead: options.system,
@@ -735,7 +862,7 @@ export async function generateObjectWithRateLimit<T>(
           );
           logActionDebug(
             "ai-sdk.generateObject",
-            `[cache recorded] ${cacheHash.slice(0, 12)}... tier=${tier}`,
+            `[cache recorded] ${cacheHash.slice(0, 12)}... provider=${provider} tier=${tier}`,
           );
         }
 
@@ -744,7 +871,9 @@ export async function generateObjectWithRateLimit<T>(
         lastError = error instanceof Error ? error : new Error(String(error));
 
         if (isRateLimitError(error) && attempt < maxRetries) {
-          geminiQuotaTracker.recordRateLimitHit();
+          if (provider === "gemini") {
+            geminiQuotaTracker.recordRateLimitHit();
+          }
           recordCircuitFailure(currentModelId);
           const delay = extractRetryDelay(error, attempt);
           logActionWarn(
@@ -798,16 +927,14 @@ export async function generateObjectWithRateLimit<T>(
 export async function streamTextWithRateLimit(
   options: AiSdkStreamOptions
 ): Promise<AiSdkResult> {
+  const provider = resolveEffectiveProvider();
   const tier = resolveEffectiveTier(options.modelTier ?? "standard");
-  const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
+  const fallbackChain = MODEL_FALLBACK_CHAIN[provider][tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
 
-  const tools =
-    options.grounding?.enabled
-      ? { google_search: google.tools.googleSearch({}) }
-      : undefined;
+  const tools = buildGroundingTools(provider, options.grounding);
 
   let lastError: Error | null = null;
 
@@ -819,7 +946,7 @@ export async function streamTextWithRateLimit(
 
     logActionDebug(
       "ai-sdk.streamText",
-      `시작 - model=${currentModelId}, tier=${tier}`
+      `시작 - provider=${provider} model=${currentModelId} tier=${tier}`
     );
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -831,9 +958,9 @@ export async function streamTextWithRateLimit(
           );
         }
 
-        const result = await geminiRateLimiter.execute(async () => {
+        const result = await executeWithProviderGuards(provider, async () => {
           return streamText({
-            model: google(currentModelId),
+            model: getLanguageModel(provider, currentModelId),
             system: options.system,
             messages: options.messages.map((m) => ({
               role: m.role,
@@ -845,7 +972,9 @@ export async function streamTextWithRateLimit(
           });
         });
 
-        geminiQuotaTracker.recordRequest();
+        if (provider === "gemini") {
+          geminiQuotaTracker.recordRequest();
+        }
         recordCircuitSuccess(currentModelId);
 
         let fullContent = "";
@@ -865,7 +994,7 @@ export async function streamTextWithRateLimit(
             outputTokens: usage?.outputTokens ?? 0,
           },
           modelId: currentModelId,
-          provider: "gemini",
+          provider,
         };
 
         options.onComplete?.(aiSdkResult);
@@ -874,7 +1003,9 @@ export async function streamTextWithRateLimit(
         lastError = error instanceof Error ? error : new Error(String(error));
 
         if (isRateLimitError(error) && attempt < maxRetries) {
-          geminiQuotaTracker.recordRateLimitHit();
+          if (provider === "gemini") {
+            geminiQuotaTracker.recordRateLimitHit();
+          }
           recordCircuitFailure(currentModelId);
           const delay = extractRetryDelay(error, attempt);
           logActionWarn(

@@ -14,10 +14,13 @@
  *   LLM_CACHE_MODE=replay pnpm dev   # 이후 모든 LLM 호출은 초 단위로 replay
  *
  * 캐시 키:
- *   sha256({system, messages, modelTier, kind, schemaSignature?, responseFormat?, groundingEnabled?})
+ *   sha256({system, messages, provider, modelTier, kind, schemaSignature?, responseFormat?, groundingEnabled?})
  *
  * temperature / maxTokens / timeoutMs는 의도적으로 키에서 제외.
  * 이 값들을 바꿔도 흐름 점검용으로는 같은 응답을 재사용하는 편이 유용.
+ *
+ * provider는 키에 포함 — gemini/openai 응답이 섞이지 않도록 분리.
+ * record/replay는 같은 LLM_PROVIDER_OVERRIDE 세트로 묶어 실행해야 합니다.
  */
 
 import { createHash } from "node:crypto";
@@ -47,6 +50,8 @@ async function getCacheDir(): Promise<string> {
 export interface LlmCacheKeyInput {
   system: string;
   messages: Array<{ role: string; content: string }>;
+  /** LLM provider — gemini/openai 캐시 분리 */
+  provider: string;
   modelTier: string;
   kind: "text" | "object";
   /** generateObject 전용 — AI SDK Schema 또는 zod 기반 fingerprint */
@@ -62,6 +67,7 @@ export function hashCacheKey(input: LlmCacheKeyInput): string {
   const normalized = {
     s: input.system,
     m: input.messages.map((m) => ({ r: m.role, c: m.content })),
+    p: input.provider,
     t: input.modelTier,
     k: input.kind,
     ss: input.schemaSignature ?? null,
@@ -96,6 +102,8 @@ export function getSchemaSignature(schema: unknown): string {
 
 interface CacheEntry<T> {
   cachedAt: string;
+  /** 캐시 생성 시 활성화된 provider (gemini/openai) — 디버깅 메타 */
+  provider?: string;
   modelTier: string;
   kind: "text" | "object";
   /** 디스크에서 사람이 확인할 수 있게 원문 일부 저장 (디버깅용) */
@@ -127,6 +135,7 @@ export async function readFromCache<T>(hash: string): Promise<T | null> {
 export async function writeToCache<T>(
   hash: string,
   meta: {
+    provider?: string;
     modelTier: string;
     kind: "text" | "object";
     systemHead: string;
@@ -144,6 +153,7 @@ export async function writeToCache<T>(
     await mkdir(dirname(file), { recursive: true });
     const entry: CacheEntry<T> = {
       cachedAt: new Date().toISOString(),
+      provider: meta.provider,
       modelTier: meta.modelTier,
       kind: meta.kind,
       preview: {
