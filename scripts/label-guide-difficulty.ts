@@ -244,7 +244,7 @@ async function runLabeling() {
   if (!DRY_RUN) {
     console.log("🔄 cluster difficulty_distribution 갱신...");
     for (const c of target) {
-      await supabase.rpc("refresh_topic_cluster_stats", { p_cluster_id: c.id }).catch(() => {});
+      await supabase.rpc("refresh_topic_cluster_stats", { p_cluster_id: c.id }).then(() => {}, () => {});
     }
     console.log("✅ 갱신 완료");
   }
