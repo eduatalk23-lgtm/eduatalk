@@ -53,6 +53,7 @@ import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import { createShareLinkAction } from "@/lib/domains/guide/actions/share";
 import { GuideExportModal } from "./GuideExportModal";
 import { GuideSharePanel } from "./GuideSharePanel";
+import { GuideSequelPanel } from "./GuideSequelPanel";
 import { VersionCommitDialog } from "./VersionCommitDialog";
 
 interface GuideEditorClientProps {
@@ -1216,6 +1217,9 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           reverting={saving}
         />
       )}
+
+      {/* 사슬 관계 (선후 가이드) */}
+      {!isNew && guideId && <GuideSequelPanel guideId={guideId} />}
 
       {/* 공유 링크 관리 패널 */}
       {!isNew && guideId && (
