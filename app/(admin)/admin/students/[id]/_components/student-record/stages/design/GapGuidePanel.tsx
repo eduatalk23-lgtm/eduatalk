@@ -65,12 +65,26 @@ export function GapGuidePanel({
   const handleExtract = async () => {
     setExtracting(true);
     try {
+      // Server Action: 인증 + 할당량 검증
       const { extractTrajectoriesAction } = await import(
         "@/lib/domains/guide/actions/extract-trajectories"
       );
-      const result = await extractTrajectoriesAction(studentId);
-      if (result.success) {
-        const count = result.data?.trajectories.length ?? 0;
+      const authResult = await extractTrajectoriesAction(studentId);
+      if (!authResult.success) {
+        toast.showError(authResult.error ?? "추출 요청 실패");
+        return;
+      }
+
+      // API Route: 실제 임베딩 + 추출 (maxDuration=300)
+      const res = await fetch("/api/admin/guides/extract-trajectories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const count = data.trajectories?.length ?? 0;
         toast.showSuccess(
           `${count}개 클러스터 궤적을 추출했습니다.`,
         );
@@ -81,9 +95,7 @@ export function GapGuidePanel({
           queryKey: explorationGuideKeys.all.concat("gap-suggestions", studentId),
         });
       } else {
-        toast.showError(
-          !result.success ? result.error ?? "추출 실패" : "추출 실패",
-        );
+        toast.showError("궤적 추출에 실패했습니다.");
       }
     } catch {
       toast.showError("궤적 추출 중 오류가 발생했습니다.");
