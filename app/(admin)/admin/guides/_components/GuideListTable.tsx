@@ -113,6 +113,9 @@ export function GuideListTable({
             <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-16 hidden md:table-cell">
               난이도
             </th>
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-28 hidden lg:table-cell">
+              클러스터
+            </th>
             <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-28 hidden md:table-cell">
               AI 모델
             </th>
@@ -245,6 +248,17 @@ export function GuideListTable({
                       )}
                     >
                       {DIFFICULTY_LABELS[guide.difficulty_level as keyof typeof DIFFICULTY_LABELS]}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-secondary-400">—</span>
+                  )}
+                </td>
+
+                {/* 클러스터 */}
+                <td className="px-3 py-3 hidden lg:table-cell">
+                  {guide.topic_cluster_name ? (
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-secondary-100 text-secondary-700 dark:bg-secondary-800 dark:text-secondary-300 truncate max-w-[120px]" title={guide.topic_cluster_name}>
+                      {guide.topic_cluster_name}
                     </span>
                   ) : (
                     <span className="text-xs text-secondary-400">—</span>

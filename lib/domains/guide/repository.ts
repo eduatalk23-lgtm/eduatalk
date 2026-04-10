@@ -34,7 +34,7 @@ export async function findGuides(filter: GuideListFilter) {
 
   let query = supabase
     .from("exploration_guides")
-    .select("*, creator:user_profiles!exploration_guides_registered_by_fkey(name)", { count: "exact" })
+    .select("*, creator:user_profiles!exploration_guides_registered_by_fkey(name), topic_cluster:exploration_guide_topic_clusters!exploration_guides_topic_cluster_id_fkey(name)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -82,6 +82,9 @@ export async function findGuides(filter: GuideListFilter) {
   }
   if (filter.difficultyLevel) {
     query = query.eq("difficulty_level", filter.difficultyLevel);
+  }
+  if (filter.topicClusterId) {
+    query = query.eq("topic_cluster_id", filter.topicClusterId);
   }
 
   // junction 필터: 복수 조건 시 교집합 처리 (Supabase .in() 중복 방지)
@@ -131,11 +134,16 @@ export async function findGuides(filter: GuideListFilter) {
 
   if (error) throw error;
 
-  // creator 조인 결과를 creator_name으로 평탄화
+  // creator + topic_cluster 조인 결과를 평탄화
   const guides = (data ?? []).map((row: Record<string, unknown>) => {
     const creator = row.creator as { name: string } | null;
-    const { creator: _c, ...rest } = row;
-    return { ...rest, creator_name: creator?.name ?? null } as ExplorationGuide & { creator_name: string | null };
+    const cluster = row.topic_cluster as { name: string } | null;
+    const { creator: _c, topic_cluster: _tc, ...rest } = row;
+    return {
+      ...rest,
+      creator_name: creator?.name ?? null,
+      topic_cluster_name: cluster?.name ?? null,
+    } as ExplorationGuide & { creator_name: string | null };
   });
 
   return { data: guides, count: count ?? 0 };

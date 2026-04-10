@@ -24,6 +24,8 @@ interface GuideAssignmentRow {
     guide_type: string | null;
     quality_tier: string | null;
     quality_score: number | null;
+    difficulty_level: string | null;
+    exploration_guide_topic_clusters: { name: string } | null;
   };
 }
 
@@ -45,7 +47,7 @@ export async function buildGuideContextSection(
       target_subject_id,
       target_activity_type,
       ai_recommendation_reason,
-      exploration_guides!inner ( title, guide_type, quality_tier, quality_score )
+      exploration_guides!inner ( title, guide_type, quality_tier, quality_score, difficulty_level, exploration_guide_topic_clusters ( name ) )
     `)
     .eq("student_id", studentId)
     .is("deleted_at", null)
@@ -79,7 +81,12 @@ export async function buildGuideContextSection(
         ? `창체-${a.target_activity_type}`
         : "미지정";
     const quality = guide.quality_score ? ` [품질:${guide.quality_score}점/${guide.quality_tier ?? "미평가"}]` : "";
-    return `- [${a.status}] "${guide.title}" → ${area}${quality}${a.ai_recommendation_reason ? ` (${a.ai_recommendation_reason})` : ""}`;
+    const diffLabel = guide.difficulty_level === "basic" ? "기초" : guide.difficulty_level === "intermediate" ? "발전" : guide.difficulty_level === "advanced" ? "심화" : null;
+    const clusterName = guide.exploration_guide_topic_clusters?.name ?? null;
+    const phaseATag = diffLabel || clusterName
+      ? ` [${[diffLabel, clusterName].filter(Boolean).join("/")}]`
+      : "";
+    return `- [${a.status}] "${guide.title}" → ${area}${phaseATag}${quality}${a.ai_recommendation_reason ? ` (${a.ai_recommendation_reason})` : ""}`;
   });
 
   const instruction = context === "guide"

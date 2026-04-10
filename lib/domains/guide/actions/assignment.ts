@@ -180,3 +180,23 @@ export async function fetchCareerFieldsAction(): Promise<
     return createErrorResponse("계열 목록을 불러올 수 없습니다.");
   }
 }
+
+/** 주제 클러스터 목록 (Phase A) */
+export async function fetchTopicClustersAction(): Promise<
+  ActionResponse<Array<{ id: string; name: string; guide_count: number }>>
+> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("exploration_guide_topic_clusters")
+      .select("id, name, guide_count")
+      .order("guide_count", { ascending: false });
+    if (error) throw error;
+    return createSuccessResponse(data ?? []);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchTopicClusters" }, error);
+    return createErrorResponse("클러스터 목록을 불러올 수 없습니다.");
+  }
+}

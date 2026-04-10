@@ -20,6 +20,7 @@ import {
   cmsGuideListQueryOptions,
   groupedSubjectsQueryOptions,
   guideCareerFieldsQueryOptions,
+  guideTopicClustersQueryOptions,
   curriculumUnitsQueryOptions,
 } from "@/lib/query-options/explorationGuide";
 import type {
@@ -75,6 +76,10 @@ export function GuideListClient() {
   // 계열 목록 (참조 데이터)
   const { data: careerFieldsRes } = useQuery(guideCareerFieldsQueryOptions());
   const careerFields = careerFieldsRes?.success ? careerFieldsRes.data ?? [] : [];
+
+  // 클러스터 목록 (Phase A)
+  const { data: clustersRes } = useQuery(guideTopicClustersQueryOptions());
+  const clusters = clustersRes?.success ? clustersRes.data ?? [] : [];
 
   // 교육과정별 과목 그룹
   const curriculumRevisionId = filters.curriculumYear
@@ -299,6 +304,19 @@ export function GuideListClient() {
           {DIFFICULTY_LEVELS.map((d) => (
             <option key={d} value={d}>
               {DIFFICULTY_LABELS[d]}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filters.topicClusterId ?? ""}
+          onChange={(e) => handleFilterChange("topicClusterId", e.target.value)}
+          className={selectClass}
+        >
+          <option value="">전체 클러스터</option>
+          {clusters.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.guide_count})
             </option>
           ))}
         </select>

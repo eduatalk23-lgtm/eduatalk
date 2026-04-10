@@ -5,6 +5,7 @@ import {
   fetchGuideDetailAction,
   fetchCompletionRateAction,
   fetchCareerFieldsAction,
+  fetchTopicClustersAction,
 } from "@/lib/domains/guide/actions/assignment";
 import {
   listGuidesAction,
@@ -36,6 +37,8 @@ export const explorationGuideKeys = {
     [...explorationGuideKeys.all, "completionRate", studentId] as const,
   careerFields: () =>
     [...explorationGuideKeys.all, "careerFields"] as const,
+  topicClusters: () =>
+    [...explorationGuideKeys.all, "topicClusters"] as const,
   // CMS 전용 키
   cmsList: (filters: GuideListFilter) =>
     [...explorationGuideKeys.all, "cmsList", filters] as const,
@@ -111,6 +114,15 @@ export function guideCompletionRateQueryOptions(studentId: string) {
     queryFn: () => fetchCompletionRateAction(studentId),
     staleTime: 30_000,
     enabled: !!studentId,
+  });
+}
+
+export function guideTopicClustersQueryOptions() {
+  return queryOptions({
+    queryKey: explorationGuideKeys.topicClusters(),
+    queryFn: () => fetchTopicClustersAction(),
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
   });
 }
 

@@ -192,6 +192,10 @@ export interface ExplorationGuide {
   difficulty_level: DifficultyLevel | null;
   /** AI 자동 설정 여부 (false=컨설턴트 수동 변경) */
   difficulty_auto: boolean;
+  /** Phase A: 주제 클러스터 ID */
+  topic_cluster_id?: string | null;
+  /** Phase A: 주제 클러스터명 (findGuides JOIN 결과) */
+  topic_cluster_name?: string | null;
   /** 생성자 이름 (findGuides 조인 결과) */
   creator_name?: string | null;
 }
@@ -409,6 +413,8 @@ export interface GuideListFilter {
   qualityTier?: QualityTier;
   /** 난이도 */
   difficultyLevel?: DifficultyLevel;
+  /** Phase A: 주제 클러스터 ID */
+  topicClusterId?: string;
   page?: number;
   pageSize?: number;
 }
