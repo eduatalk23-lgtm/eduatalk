@@ -689,9 +689,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const isAiReviewing = guide?.status === "ai_reviewing";
   const isAiFailed = guide?.status === "ai_failed";
   const isAwaitingInput = guide?.status === "awaiting_input";
-  const agentQuestion = isAwaitingInput
-    ? (guide as unknown as { agent_question: { question: string; choices?: string[]; context?: string } | null }).agent_question
-    : null;
+  const agentQuestion = isAwaitingInput ? guide?.agent_question : null;
 
   return (
     <div className="space-y-6">

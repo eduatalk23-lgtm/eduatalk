@@ -188,6 +188,12 @@ export interface ExplorationGuide {
     strengths: string[];
     reviewedAt: string;
   } | null;
+  /** ask-input: 에이전트가 사용자에게 묻는 질문/선택지/응답 */
+  agent_question: {
+    question: string;
+    choices?: string[];
+    context?: string;
+  } | null;
   created_at: string;
   updated_at: string;
   /** 난이도 */

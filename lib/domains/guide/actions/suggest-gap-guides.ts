@@ -94,18 +94,20 @@ export async function suggestGapGuidesAction(
       const clusterName =
         (traj.cluster as { name: string } | null)?.name ?? "";
 
-      // sequel 테이블에서 같은 클러스터의 다음 난이도 가이드 조회
+      // sequel 테이블에서 이 클러스터의 forward 링크 가이드 조회
+      // difficulty_step은 int (1=한 단계 상승) — 문자열 비교 금지
       const { data: sequels } = await supabase
         .from("exploration_guide_sequels")
         .select(
           "to_guide_id, confidence, to_guide:exploration_guides!exploration_guide_sequels_to_guide_id_fkey(id, title, guide_type, topic_cluster_id, difficulty_level, status, is_latest)",
         )
-        .eq("difficulty_step", `${difficulty}_to_${nextDiff}`)
+        .eq("topic_cluster_id", traj.topic_cluster_id)
+        .gt("difficulty_step", 0)
         .gte("confidence", 0.4);
 
       if (!sequels?.length) continue;
 
-      // 같은 클러스터 + approved + is_latest만 필터
+      // 같은 클러스터 + approved + is_latest + 다음 난이도만 필터
       for (const s of sequels) {
         const guide = s.to_guide as {
           id: string;
@@ -119,7 +121,7 @@ export async function suggestGapGuidesAction(
 
         if (!guide) continue;
         if (guide.status !== "approved" || !guide.is_latest) continue;
-        if (guide.topic_cluster_id !== traj.topic_cluster_id) continue;
+        if (guide.difficulty_level !== nextDiff) continue;
         if (assignedIds.has(guide.id)) continue;
 
         // 중복 방지 (같은 가이드가 여러 sequel에서 나올 수 있음)

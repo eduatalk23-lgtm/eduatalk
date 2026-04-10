@@ -7,8 +7,6 @@
  * → 클러스터 투표 → student_record_topic_trajectories UPSERT
  */
 
-import "server-only";
-
 import { embed } from "ai";
 import { google } from "@ai-sdk/google";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
