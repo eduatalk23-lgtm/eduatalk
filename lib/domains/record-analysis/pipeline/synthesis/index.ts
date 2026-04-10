@@ -8,6 +8,7 @@ export { runStorylineGeneration } from "./phase-s1-storyline";
 
 // S2
 export { runEdgeComputation, runGuideMatching } from "./phase-s2-edges";
+export { runHaengteukGuideLinking } from "./phase-s2-haengteuk-linking";
 
 // S3
 export { runAiDiagnosis, runCourseRecommendation } from "./phase-s3-diagnosis";

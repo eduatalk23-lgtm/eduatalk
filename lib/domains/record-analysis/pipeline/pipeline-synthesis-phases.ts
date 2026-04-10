@@ -9,6 +9,7 @@
 // SynthPhase 6: interview_generation + roadmap_generation → 최종 상태
 // ============================================
 
+import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { PipelineContext, SynthesisPipelineTaskKey } from "./pipeline-types";
 import { SYNTHESIS_PIPELINE_TASK_KEYS, SYNTHESIS_TASK_PREREQUISITES, getTaskResult, setTaskResult } from "./pipeline-types";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
@@ -23,6 +24,7 @@ import {
   runStorylineGeneration,
   runEdgeComputation,
   runGuideMatching,
+  runHaengteukGuideLinking,
   runAiDiagnosis,
   runCourseRecommendation,
   runBypassAnalysis,
@@ -264,6 +266,26 @@ export async function executeSynthesisPhase2(
   await runTaskWithState(ctx, "guide_matching", () =>
     runGuideMatching(ctx),
   );
+
+  // Phase 2 Wave 4.2 (Decision #3 / D5):
+  // guide_matching 직후 행특 ↔ 탐구 가이드 링크 생성. best-effort, 실패해도 전체 phase 실패 안 시킴.
+  if (await checkCancelled(ctx)) return;
+  if (ctx.tasks.guide_matching === "completed") {
+    try {
+      const result = await runHaengteukGuideLinking(ctx);
+      const preview = typeof result === "string" ? result : result.preview;
+      logActionDebug(
+        { domain: "record-analysis", action: "haengteuk_linking" },
+        `행특 링크 생성: ${preview}`,
+      );
+    } catch (err) {
+      logActionError(
+        { domain: "record-analysis", action: "haengteuk_linking" },
+        err instanceof Error ? err : new Error(String(err)),
+        { studentId: ctx.studentId },
+      );
+    }
+  }
 }
 
 // ============================================

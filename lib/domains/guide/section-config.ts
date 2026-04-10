@@ -601,6 +601,390 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
 ];
 
 // ============================================================
+// Phase 2 Wave 2.1 — 창체용 3종 신규 섹션 정의
+// (Decision #2/#3/#4/#5 종합 — 창체 자율/동아리/진로 영역 가이드 구조)
+// ============================================================
+
+/**
+ * 창체 자율·자치 (reflection_program)
+ *
+ * 구조: 학교 프로그램 → 적용 교과 이론 → 사회 동향 분석 → 인문학적 성찰
+ * 핵심 차별점: school-programs.ts의 SCHOOL_COMMON_PROGRAMS 중 1개를 선택해 출발.
+ * 단순 캠페인·포스터형 활동을 배제하고 학문적 깊이 확보가 목표.
+ */
+const REFLECTION_PROGRAM_SECTIONS: SectionDefinition[] = [
+  {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 성찰을 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "school_program",
+    label: "출발 학교 프로그램",
+    editorType: "key_value",
+    required: true,
+    order: 1,
+    tier: "type_extension",
+    placeholder: "예: 학교폭력 예방교육 / 민주시민교육 / 환경·생태교육",
+  },
+  {
+    key: "motivation",
+    label: "관심 동기",
+    editorType: "rich_text",
+    required: true,
+    order: 2,
+    tier: "core",
+    placeholder: "학교 프로그램에서 어떤 문제 의식이 발화되었는지",
+    minLength: 150,
+    maxLength: 300,
+  },
+  {
+    key: "academic_lens",
+    label: "적용 교과 이론",
+    editorType: "rich_text",
+    required: true,
+    order: 3,
+    tier: "type_extension",
+    placeholder:
+      "어느 교과(사회·심리·경제·법 등)의 어떤 이론·개념을 이 문제에 대입했는지",
+    minLength: 200,
+    maxLength: 600,
+  },
+  {
+    key: "content_sections",
+    label: "탐구 이론",
+    editorType: "rich_text",
+    required: true,
+    order: 4,
+    tier: "core",
+    placeholder:
+      "사회 동향 분석 → 학문적 도구 적용 → 사례 비교 → 인문학적·사회적 성찰",
+    multiple: true,
+    multipleMin: 2,
+    multipleMax: 5,
+    minLength: 500,
+    maxLength: 2000,
+    outlineRequired: true,
+  },
+  {
+    key: "social_context",
+    label: "사회 동향 분석",
+    editorType: "rich_text",
+    required: true,
+    order: 5,
+    tier: "type_extension",
+    placeholder: "관련 통계·뉴스·연구 등 객관적 자료로 본 사회 흐름",
+    minLength: 200,
+    maxLength: 600,
+  },
+  {
+    key: "reflection",
+    label: "인문학적 성찰 및 제언",
+    editorType: "rich_text",
+    required: true,
+    order: 6,
+    tier: "core",
+    placeholder:
+      "공동체 구성원으로서의 가치 판단, 한계 인식, 학교/지역 단위 실천 제언",
+    minLength: 200,
+    maxLength: 500,
+  },
+  {
+    key: "impression",
+    label: "느낀점",
+    editorType: "rich_text",
+    required: true,
+    order: 7,
+    tier: "core",
+    placeholder: "성찰 과정에서의 가치관 변화, 공동체 의식 성장",
+    minLength: 150,
+    maxLength: 300,
+  },
+  {
+    key: "follow_up",
+    label: "후속 활동",
+    editorType: "rich_text",
+    required: false,
+    order: 8,
+    tier: "optional",
+    placeholder: "심화 탐구 또는 학교/지역 단위 실천 활동 방향",
+  },
+  {
+    key: "setek_examples",
+    label: "창체 자율 기재 예시",
+    editorType: "text_list",
+    required: false,
+    order: 9,
+    tier: "core",
+    adminOnly: true,
+    placeholder: "교사용 자율활동 기재 예시 (200~500자)",
+  },
+];
+
+/**
+ * 창체 동아리 (club_deep_dive)
+ *
+ * 구조: 동아리 주제 → 지속성 기록 → 탐구 설계 → 협업 과정 → 산출물 → 다음 학년 심화
+ * 핵심 차별점: 12계열 연속성 + 2년 이상 지속 가능성을 기록 단계에서 추적.
+ */
+const CLUB_DEEP_DIVE_SECTIONS: SectionDefinition[] = [
+  {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 동아리 활동을 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "club_overview",
+    label: "동아리 개요",
+    editorType: "key_value",
+    required: true,
+    order: 1,
+    tier: "type_extension",
+    placeholder: "동아리명 / 12계열 / 학년 / 지속 학년 수",
+  },
+  {
+    key: "continuity_history",
+    label: "지속성 기록",
+    editorType: "rich_text",
+    required: true,
+    order: 2,
+    tier: "type_extension",
+    placeholder:
+      "이전 학년 활동과의 연계, 같은 12계열 내 변경 근거, 2년 이상 지속의 의미",
+    minLength: 150,
+    maxLength: 400,
+  },
+  {
+    key: "motivation",
+    label: "주제 선정 동기",
+    editorType: "rich_text",
+    required: true,
+    order: 3,
+    tier: "core",
+    placeholder:
+      "전공 심화 탐구로 발전 가능한 주제를 선택한 이유 (단순 흥미 X)",
+    minLength: 150,
+    maxLength: 300,
+  },
+  {
+    key: "content_sections",
+    label: "탐구 설계 및 진행",
+    editorType: "rich_text",
+    required: true,
+    order: 4,
+    tier: "core",
+    placeholder: "문제 설정 → 가설/방법 → 협업 분담 → 자료 수집 → 결과 분석",
+    multiple: true,
+    multipleMin: 2,
+    multipleMax: 5,
+    minLength: 500,
+    maxLength: 2000,
+    outlineRequired: true,
+  },
+  {
+    key: "collaboration",
+    label: "협업 과정",
+    editorType: "rich_text",
+    required: true,
+    order: 5,
+    tier: "type_extension",
+    placeholder:
+      "구체적 역할 분담, 갈등 조정, 의사결정 사례 (단순 '함께' 표현 금지)",
+    minLength: 150,
+    maxLength: 400,
+  },
+  {
+    key: "deliverables",
+    label: "산출물",
+    editorType: "rich_text",
+    required: true,
+    order: 6,
+    tier: "type_extension",
+    placeholder: "보고서·발표·실험 결과·작품 등 구체적 산출물",
+  },
+  {
+    key: "reflection",
+    label: "탐구 고찰 및 제언",
+    editorType: "rich_text",
+    required: true,
+    order: 7,
+    tier: "core",
+    placeholder: "탐구 한계, 다음 학년 심화 방향, 후배에게 전할 제언",
+    minLength: 200,
+    maxLength: 500,
+  },
+  {
+    key: "impression",
+    label: "느낀점",
+    editorType: "rich_text",
+    required: true,
+    order: 8,
+    tier: "core",
+    placeholder: "동아리원으로서의 성장, 진로 연계 통찰",
+    minLength: 150,
+    maxLength: 300,
+  },
+  {
+    key: "next_year_plan",
+    label: "다음 학년 심화 방향",
+    editorType: "rich_text",
+    required: false,
+    order: 9,
+    tier: "optional",
+    placeholder: "현 활동을 어떻게 심화·확장할지 구체 계획",
+  },
+  {
+    key: "setek_examples",
+    label: "동아리 기재 예시",
+    editorType: "text_list",
+    required: false,
+    order: 10,
+    tier: "core",
+    adminOnly: true,
+    placeholder: "교사용 동아리활동 기재 예시 (200~500자)",
+  },
+];
+
+/**
+ * 창체 진로 (career_exploration_project)
+ *
+ * 구조: 관심 분야 → 자기주도 조사 → 진로 계획 구체화 → 학과·직업 연계 분석
+ * 핵심 차별점: 박람회·학과탐방 단순 참여 금지, 자기주도 후속 탐구가 필수.
+ */
+const CAREER_EXPLORATION_PROJECT_SECTIONS: SectionDefinition[] = [
+  {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 진로 탐색을 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "interest_overview",
+    label: "관심 분야 개요",
+    editorType: "key_value",
+    required: true,
+    order: 1,
+    tier: "type_extension",
+    placeholder: "관심 학과·직업 / 흥미 발화 시점 / 12계열",
+  },
+  {
+    key: "motivation",
+    label: "탐색 동기",
+    editorType: "rich_text",
+    required: true,
+    order: 2,
+    tier: "core",
+    placeholder:
+      "단순 관심 표명 금지 — 어떤 경험·교과 학습이 진로 탐색의 단초가 되었는지",
+    minLength: 150,
+    maxLength: 300,
+  },
+  {
+    key: "starting_point",
+    label: "출발 활동",
+    editorType: "rich_text",
+    required: true,
+    order: 3,
+    tier: "type_extension",
+    placeholder:
+      "학과 탐방, 진로 박람회, 직업인 인터뷰 등 출발이 된 단기 활동 (1~2개)",
+    minLength: 100,
+    maxLength: 300,
+  },
+  {
+    key: "content_sections",
+    label: "자기주도 조사",
+    editorType: "rich_text",
+    required: true,
+    order: 4,
+    tier: "core",
+    placeholder:
+      "출발 활동 이후 스스로 진행한 자료 조사·분석·실험·전문가 컨택 등 심화 단계",
+    multiple: true,
+    multipleMin: 2,
+    multipleMax: 5,
+    minLength: 500,
+    maxLength: 2000,
+    outlineRequired: true,
+  },
+  {
+    key: "major_link",
+    label: "학과·직업 연계 분석",
+    editorType: "rich_text",
+    required: true,
+    order: 5,
+    tier: "type_extension",
+    placeholder:
+      "관심 학과의 교과과정·진로 트랙·직업 전망과 자신의 탐색 결과를 연결",
+    minLength: 200,
+    maxLength: 600,
+  },
+  {
+    key: "career_plan",
+    label: "진로 계획 구체화",
+    editorType: "rich_text",
+    required: true,
+    order: 6,
+    tier: "type_extension",
+    placeholder: "단기(고교)·중기(대학)·장기(직업) 계획과 필요한 역량",
+    minLength: 200,
+    maxLength: 500,
+  },
+  {
+    key: "reflection",
+    label: "탐색 고찰 및 제언",
+    editorType: "rich_text",
+    required: true,
+    order: 7,
+    tier: "core",
+    placeholder: "진로 탐색 과정에서 발견한 장벽·기회·성찰",
+    minLength: 200,
+    maxLength: 500,
+  },
+  {
+    key: "impression",
+    label: "느낀점",
+    editorType: "rich_text",
+    required: true,
+    order: 8,
+    tier: "core",
+    placeholder: "진로 탐색 후 자기 인식의 변화, 동기부여",
+    minLength: 150,
+    maxLength: 300,
+  },
+  {
+    key: "follow_up",
+    label: "후속 활동",
+    editorType: "rich_text",
+    required: false,
+    order: 9,
+    tier: "optional",
+    placeholder: "다음 학기/학년에 이어갈 진로 탐색 계획",
+  },
+  {
+    key: "setek_examples",
+    label: "진로 기재 예시",
+    editorType: "text_list",
+    required: false,
+    order: 10,
+    tier: "core",
+    adminOnly: true,
+    placeholder: "교사용 진로활동 기재 예시 (200~500자)",
+  },
+];
+
+// ============================================================
 // 전 유형 공통 섹션 (마지막에 추가)
 // ============================================================
 
@@ -628,6 +1012,10 @@ export const GUIDE_SECTION_CONFIG: Record<GuideType, SectionDefinition[]> = {
   experiment: [...EXPERIMENT_SECTIONS, ...COMMON_TAIL_SECTIONS],
   subject_performance: [...SUBJECT_PERFORMANCE_SECTIONS, ...COMMON_TAIL_SECTIONS],
   program: [...PROGRAM_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  // Phase 2 Wave 2.1 — 창체용 3종
+  reflection_program: [...REFLECTION_PROGRAM_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  club_deep_dive: [...CLUB_DEEP_DIVE_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  career_exploration_project: [...CAREER_EXPLORATION_PROJECT_SECTIONS, ...COMMON_TAIL_SECTIONS],
 };
 
 /** 유형의 필수 섹션 키 목록 */

@@ -474,6 +474,28 @@ export async function loadPipelineContext(
   const persistedAnalysisContext = results._analysisContext as
     import("./pipeline-types").AnalysisContextByGrade | undefined;
 
+  // Synthesis 파이프라인: unifiedInput을 loadPipelineContext에서 빌드
+  // (각 Phase route가 별도 HTTP 요청이라 Phase 2+ 에서 ctx.unifiedInput이 undefined였던 버그 수정)
+  // assertSynthesisCtx가 unifiedInput을 요구하므로 반드시 여기서 채워야 함
+  let unifiedInput: import("./pipeline-unified-input").UnifiedGradeInput | undefined;
+  if (pipelineType === "synthesis") {
+    try {
+      const { buildUnifiedGradeInput } = await import("./pipeline-unified-input");
+      unifiedInput = await buildUnifiedGradeInput({
+        studentId,
+        tenantId,
+        studentGrade: (snapshot?.grade as number) ?? studentGrade,
+        supabase: admin,
+      });
+    } catch (err) {
+      logActionWarn(
+        LOG_CTX,
+        `loadPipelineContext: buildUnifiedGradeInput 실패 — Phase 실행 시 assertSynthesisCtx 에서 throw 될 것`,
+        { pipelineId, error: err instanceof Error ? err.message : String(err) },
+      );
+    }
+  }
+
   return {
     pipelineId,
     studentId,
@@ -497,6 +519,7 @@ export async function loadPipelineContext(
     gradeMode,
     qualityPatterns,
     analysisContext: persistedAnalysisContext,
+    unifiedInput,
   };
 }
 

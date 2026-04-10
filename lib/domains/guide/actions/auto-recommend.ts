@@ -11,25 +11,56 @@ import type { ActionResponse } from "@/lib/types/actionResponse";
 
 const LOG_CTX = { domain: "guide", action: "autoRecommend" } as const;
 
+export type ActivityType = "autonomy" | "club" | "career";
+
+/**
+ * 매칭 사유 라벨.
+ *
+ * 후방 호환:
+ *   - "both" — 레거시 (classification + subject 동시 매칭). phase-s2-edges.ts 가
+ *     이 값을 priority 키로 사용하므로 보존. Wave 4 (D1 runGuideMatching 대수술) 에서 제거 예정.
+ *
+ * 신규 (Phase 2 Wave 3.2):
+ *   - "activity" — activity_type 단독 매칭 (창체 영역)
+ *   - "classification+activity" — KEDI 분류 + activity_type
+ *   - "subject+activity" — 과목 + activity_type
+ *   - "all" — 3축 모두 매칭
+ */
+export type MatchReason =
+  | "classification"
+  | "subject"
+  | "both" // legacy: classification + subject (보존)
+  | "activity"
+  | "classification+activity"
+  | "subject+activity"
+  | "all";
+
 export interface RecommendedGuide {
   id: string;
   title: string;
   guide_type: string | null;
   book_title: string | null;
-  match_reason: "classification" | "subject" | "both";
+  match_reason: MatchReason;
 }
 
 /**
  * DB 기반 가이드 자동 추천 (벡터 검색 X, API 할당량 소모 없음)
  *
- * classificationId → exploration_guide_classification_mappings
- * subjectName → subjects → exploration_guide_subject_mappings
- * 이미 배정된 가이드 제외, approved + is_latest 필터
+ * 매칭 축 (Phase 2 Wave 3.2 시점, Decision #2/#5 반영):
+ *   1. classification — exploration_guide_classification_mappings (KEDI 소분류)
+ *   2. subject        — subjects → exploration_guide_subject_mappings (교과 매칭, 세특용)
+ *   3. activity_type  — exploration_guide_activity_mappings (autonomy/club/career, 창체용)
+ *
+ * 이미 배정된 가이드 제외, approved + is_latest 필터.
+ *
+ * 호출자가 activity_type 만 지정하면 창체 영역 가이드만 매칭됨 (subject 없는 매칭).
+ * runGuideMatching(synthesis Phase 2)에서 세특·창체 영역별로 분리 호출 가능.
  */
 export async function autoRecommendGuidesAction(input: {
   studentId: string;
   classificationId?: number | null;
   subjectName?: string | null;
+  activityType?: ActivityType | null;
   limit?: number;
 }): Promise<ActionResponse<RecommendedGuide[]>> {
   try {
@@ -66,34 +97,58 @@ export async function autoRecommendGuidesAction(input: {
       }
     }
 
-    // 3. UNION + match_reason 결정
-    const guideReasonMap = new Map<string, "classification" | "subject" | "both">();
-    for (const id of classGuideIds) {
-      guideReasonMap.set(id, subjectGuideIds.has(id) ? "both" : "classification");
+    // 3. activity_type 기반 guide_id 조회 (Phase 2 Wave 3.2 신규)
+    const activityGuideIds = new Set<string>();
+    if (input.activityType) {
+      const { data: am } = await supabase
+        .from("exploration_guide_activity_mappings")
+        .select("guide_id")
+        .eq("activity_type", input.activityType);
+      for (const r of am ?? []) activityGuideIds.add(r.guide_id);
     }
-    for (const id of subjectGuideIds) {
-      if (!guideReasonMap.has(id)) {
-        guideReasonMap.set(id, "subject");
-      }
+
+    // 4. UNION + match_reason 결정 (3축 비트마스크 → 라벨)
+    const guideReasonMap = new Map<string, MatchReason>();
+    const allIds = new Set<string>([
+      ...classGuideIds,
+      ...subjectGuideIds,
+      ...activityGuideIds,
+    ]);
+
+    for (const id of allIds) {
+      const c = classGuideIds.has(id);
+      const s = subjectGuideIds.has(id);
+      const a = activityGuideIds.has(id);
+      let reason: MatchReason;
+      if (c && s && a) reason = "all";
+      else if (c && s) reason = "both"; // 레거시 호환 — phase-s2-edges priority
+      else if (c && a) reason = "classification+activity";
+      else if (s && a) reason = "subject+activity";
+      else if (c) reason = "classification";
+      else if (s) reason = "subject";
+      else reason = "activity";
+      guideReasonMap.set(id, reason);
     }
 
     if (guideReasonMap.size === 0) {
       return createSuccessResponse([]);
     }
 
-    // 4. 이미 배정된 가이드 제외
+    // 5. 이미 배정된 가이드 제외
     const { data: assigned } = await supabase
       .from("exploration_guide_assignments")
       .select("guide_id")
       .eq("student_id", input.studentId);
     const assignedIds = new Set((assigned ?? []).map((a) => a.guide_id));
 
-    const candidateIds = [...guideReasonMap.keys()].filter((id) => !assignedIds.has(id));
+    const candidateIds = [...guideReasonMap.keys()].filter(
+      (id) => !assignedIds.has(id),
+    );
     if (candidateIds.length === 0) {
       return createSuccessResponse([]);
     }
 
-    // 5. approved 필터 + 메타 JOIN
+    // 6. approved 필터 + 메타 JOIN
     const { data: guides } = await supabase
       .from("exploration_guides")
       .select("id, title, guide_type, book_title")
@@ -110,11 +165,19 @@ export async function autoRecommendGuidesAction(input: {
       match_reason: guideReasonMap.get(g.id) ?? "classification",
     }));
 
-    // "both" 우선 정렬
-    result.sort((a, b) => {
-      const order = { both: 0, classification: 1, subject: 2 };
-      return order[a.match_reason] - order[b.match_reason];
-    });
+    // 매치 강도 우선 정렬: 3축 모두 > 2축 > 1축
+    const REASON_ORDER: Record<MatchReason, number> = {
+      all: 0,
+      both: 1, // legacy: classification + subject
+      "classification+activity": 1,
+      "subject+activity": 1,
+      classification: 2,
+      subject: 2,
+      activity: 2,
+    };
+    result.sort(
+      (a, b) => REASON_ORDER[a.match_reason] - REASON_ORDER[b.match_reason],
+    );
 
     return createSuccessResponse(result);
   } catch (error) {

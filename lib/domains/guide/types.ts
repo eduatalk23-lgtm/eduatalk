@@ -7,11 +7,16 @@
 // ------------------------------------
 
 export const GUIDE_TYPES = [
+  // 세특용 5종 (기존)
   "reading",
   "topic_exploration",
   "subject_performance",
   "experiment",
   "program",
+  // 창체용 3종 (Phase 2 Wave 1.1 추가)
+  "reflection_program", // 자율·자치 — 학교 프로그램 + 인문학적 성찰
+  "club_deep_dive", // 동아리 — 전공 심화 + 지속성
+  "career_exploration_project", // 진로 — 자기주도 조사·탐색
 ] as const;
 export type GuideType = (typeof GUIDE_TYPES)[number];
 
@@ -99,6 +104,9 @@ export const GUIDE_TYPE_LABELS: Record<GuideType, string> = {
   subject_performance: "교과수행",
   experiment: "실험탐구",
   program: "프로그램",
+  reflection_program: "성찰·프로그램",
+  club_deep_dive: "동아리 심화",
+  career_exploration_project: "진로 탐색",
 };
 
 export const GUIDE_STATUS_LABELS: Record<GuideStatus, string> = {
