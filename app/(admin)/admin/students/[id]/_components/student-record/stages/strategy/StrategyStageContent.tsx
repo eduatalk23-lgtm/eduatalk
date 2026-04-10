@@ -118,7 +118,7 @@ export function StrategyStageContent({
       </StrategySection>
 
       <StrategySection id="sec-interview" title="면접 예상 질문">
-        <InterviewQuestionPanel records={allRecordSummaries} />
+        <InterviewQuestionPanel records={allRecordSummaries} studentId={studentId} />
       </StrategySection>
 
       <StrategySection id="sec-alumni" title="졸업생 입시 DB 검색">

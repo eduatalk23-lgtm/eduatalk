@@ -5,9 +5,10 @@
 // ============================================
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { generateInterviewQuestions } from "@/lib/domains/record-analysis/llm/actions/generateInterviewQuestions";
+import { fetchInterviewQuestions } from "@/lib/domains/student-record/actions/diagnosis-helpers";
 import type { GeneratedInterviewQuestion, InterviewQuestionType } from "@/lib/domains/record-analysis/llm/prompts/interviewQuestions";
 import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -22,7 +23,27 @@ type RecordOption = {
 
 type Props = {
   records: RecordOption[];
+  studentId: string;
 };
+
+// DB 행 → GeneratedInterviewQuestion 변환 (snake_case → camelCase + 유효성 검증)
+const VALID_TYPES = new Set<InterviewQuestionType>(["factual", "reasoning", "application", "value", "controversial"]);
+const VALID_DIFFS = new Set(["easy", "medium", "hard"] as const);
+
+function toGeneratedQuestion(
+  row: { question: string; question_type: string; difficulty: string | null; suggested_answer: string | null },
+): GeneratedInterviewQuestion | null {
+  if (!VALID_TYPES.has(row.question_type as InterviewQuestionType)) return null;
+  const diff = row.difficulty && (VALID_DIFFS as ReadonlySet<string>).has(row.difficulty)
+    ? (row.difficulty as "easy" | "medium" | "hard")
+    : "medium";
+  return {
+    questionType: row.question_type as InterviewQuestionType,
+    question: row.question,
+    suggestedAnswer: row.suggested_answer ?? "",
+    difficulty: diff,
+  };
+}
 
 const TYPE_STYLE: Record<InterviewQuestionType, { label: string; color: string }> = {
   factual: { label: "사실형", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
@@ -38,11 +59,25 @@ const DIFF_STYLE: Record<string, string> = {
   hard: "text-red-600",
 };
 
-export function InterviewQuestionPanel({ records }: Props) {
+export function InterviewQuestionPanel({ records, studentId }: Props) {
   const [selectedRecordId, setSelectedRecordId] = useState("");
   const [questions, setQuestions] = useState<GeneratedInterviewQuestion[]>([]);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [error, setError] = useState("");
+
+  // 파이프라인이 DB에 저장한 면접 질문 로드 (student_record_interview_questions)
+  const { data: savedQuestions } = useQuery({
+    queryKey: ["interview-questions", studentId],
+    queryFn: async () => {
+      const rows = await fetchInterviewQuestions(studentId);
+      return rows
+        .map(toGeneratedQuestion)
+        .filter((q): q is GeneratedInterviewQuestion => q !== null);
+    },
+  });
+
+  // 수동 생성 결과가 있으면 우선 표시, 없으면 DB 저장본 표시
+  const displayQuestions = questions.length > 0 ? questions : (savedQuestions ?? []);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -91,15 +126,20 @@ export function InterviewQuestionPanel({ records }: Props) {
       {error && <span className="text-xs text-red-500">{error}</span>}
 
       {/* 질문 목록 */}
-      {questions.length > 0 && (
+      {displayQuestions.length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">
-              예상 질문 {questions.length}개
+              예상 질문 {displayQuestions.length}개
             </span>
+            {questions.length === 0 && savedQuestions && savedQuestions.length > 0 && (
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                파이프라인 생성
+              </span>
+            )}
             <div className="flex gap-1">
               {(Object.entries(TYPE_STYLE) as [InterviewQuestionType, { label: string; color: string }][]).map(([type, style]) => {
-                const count = questions.filter((q) => q.questionType === type).length;
+                const count = displayQuestions.filter((q) => q.questionType === type).length;
                 if (count === 0) return null;
                 return (
                   <span key={type} className={cn("rounded px-1.5 py-0.5 text-[9px] font-medium", style.color)}>
@@ -110,7 +150,7 @@ export function InterviewQuestionPanel({ records }: Props) {
             </div>
           </div>
 
-          {questions.map((q, i) => {
+          {displayQuestions.map((q, i) => {
             const typeStyle = TYPE_STYLE[q.questionType];
             const isExpanded = expandedIdx === i;
 
@@ -134,8 +174,10 @@ export function InterviewQuestionPanel({ records }: Props) {
 
                 {isExpanded && q.suggestedAnswer && (
                   <div className="border-t border-gray-100 bg-gray-50/50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/30">
-                    <span className="text-[9px] font-medium text-[var(--text-tertiary)]">예시 답변</span>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{q.suggestedAnswer}</p>
+                    <span className="text-[9px] font-medium text-[var(--text-tertiary)]">답변 가이드</span>
+                    <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-[var(--text-secondary)]">
+                      {q.suggestedAnswer}
+                    </p>
                   </div>
                 )}
               </div>

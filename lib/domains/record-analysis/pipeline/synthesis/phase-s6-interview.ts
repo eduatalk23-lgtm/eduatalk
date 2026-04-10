@@ -2,7 +2,7 @@
 // S6: runInterviewGeneration + runRoadmapGeneration
 // ============================================
 
-import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import {
   assertSynthesisCtx,
@@ -67,10 +67,19 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   }
 
   // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용) — imported_content 우선
-  const candidateRecords: CachedRecord[] = [...ctx.cachedSeteks!, ...ctx.cachedChangche!]
-    .filter((r) => getEffectiveContent(r).length >= 50)
-    .sort((a, b) => getEffectiveContent(b).length - getEffectiveContent(a).length)
-    .slice(0, 5);
+  // 문턱 150자: 얕은 답안 생성을 방지 (50자 미만 기록은 면접 질문으로 부적절)
+  // fallback: 150자 이상이 3개 미만이면 50자 문턱으로 완화하여 최소 공급 보장
+  const allRecords: CachedRecord[] = [...ctx.cachedSeteks!, ...ctx.cachedChangche!];
+  const strongRecords = allRecords
+    .filter((r) => getEffectiveContent(r).length >= 150)
+    .sort((a, b) => getEffectiveContent(b).length - getEffectiveContent(a).length);
+  const candidateRecords: CachedRecord[] = (
+    strongRecords.length >= 3
+      ? strongRecords
+      : allRecords
+          .filter((r) => getEffectiveContent(r).length >= 50)
+          .sort((a, b) => getEffectiveContent(b).length - getEffectiveContent(a).length)
+  ).slice(0, 5);
 
   if (candidateRecords.length === 0) return "기록 부족 — 건너뜀";
 
@@ -144,6 +153,91 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     .limit(15);
   const existingQuestions = existingQs?.map((q) => q.question).filter(Boolean) ?? [];
 
+  // H3: 약점 패턴 주입 — candidateRecords에 해당하는 content_quality.issues 로드
+  // (F1~F6, P1~P4, 내신탐구불일치 등 → 면접 공격 각도로 매핑)
+  type QualityIssueInput = {
+    recordType: string;
+    subjectName?: string;
+    grade?: number;
+    issues: string[];
+    feedback?: string;
+  };
+  const qualityIssues: QualityIssueInput[] = [];
+  try {
+    const setekIds = candidateRecords.filter(isCachedSetek).map((r) => r.id);
+    const changcheIds = candidateRecords.filter((r) => !isCachedSetek(r)).map((r) => r.id);
+    const { data: qualityRows } = await supabase
+      .from("student_record_content_quality")
+      .select("record_type, record_id, school_year, issues, feedback")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("source", "ai")
+      .in("record_id", [...setekIds, ...changcheIds]);
+
+    for (const row of qualityRows ?? []) {
+      const issuesArr = Array.isArray(row.issues) ? (row.issues as string[]).filter((x) => typeof x === "string" && x.length > 0) : [];
+      if (issuesArr.length === 0) continue;
+      const rec = candidateRecords.find((r) => r.id === row.record_id);
+      if (!rec) continue;
+      qualityIssues.push({
+        recordType: getRecordType(rec),
+        subjectName: getSubjectLabel(rec),
+        grade: rec.grade,
+        issues: issuesArr,
+        feedback: (row.feedback as string | null) ?? undefined,
+      });
+    }
+  } catch (qErr) {
+    logActionDebug(LOG_CTX, `content_quality 조회 실패 (면접 생성 계속): ${qErr}`);
+  }
+
+  // M2: 지원 대학 면접 포맷 주입 — student_record_applications × university_evaluation_criteria
+  type AppliedUniversityInput = {
+    universityName: string;
+    department?: string;
+    admissionType?: string;
+    interviewFormat?: string;
+    interviewDetails?: string;
+  };
+  let appliedUniversities: AppliedUniversityInput[] | undefined;
+  try {
+    const { data: apps } = await supabase
+      .from("student_record_applications")
+      .select("university_name, department, admission_type")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId);
+
+    if (apps && apps.length > 0) {
+      const univNames = Array.from(new Set(apps.map((a) => a.university_name as string).filter(Boolean)));
+      const { data: criteria } = await supabase
+        .from("university_evaluation_criteria")
+        .select("university_name, interview_format, interview_details")
+        .in("university_name", univNames);
+
+      const critByName = new Map<string, { interview_format: string | null; interview_details: string | null }>();
+      for (const c of criteria ?? []) {
+        critByName.set(c.university_name as string, {
+          interview_format: (c.interview_format as string | null) ?? null,
+          interview_details: (c.interview_details as string | null) ?? null,
+        });
+      }
+
+      appliedUniversities = apps.map((a) => {
+        const crit = critByName.get(a.university_name as string);
+        return {
+          universityName: a.university_name as string,
+          department: (a.department as string | null) ?? undefined,
+          admissionType: (a.admission_type as string | null) ?? undefined,
+          interviewFormat: crit?.interview_format ?? undefined,
+          interviewDetails: crit?.interview_details ?? undefined,
+        };
+      });
+      if (appliedUniversities.length === 0) appliedUniversities = undefined;
+    }
+  } catch (uErr) {
+    logActionDebug(LOG_CTX, `지원 대학/면접 포맷 조회 실패 (면접 생성 계속): ${uErr}`);
+  }
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -154,31 +248,47 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     careerContext,
     weakCompetencies,
     existingQuestions: existingQuestions.length > 0 ? existingQuestions : undefined,
+    qualityIssues: qualityIssues.length > 0 ? qualityIssues : undefined,
+    appliedUniversities,
   });
 
   if (!result.success) throw new Error(result.error);
 
-  // DB 저장
+  // DB 저장: AI 질문은 재실행 시 전량 교체 (roadmap_generation 패턴과 동일)
+  // 과거에 upsert + onConflict="student_id,question"을 사용했으나, 해당 UNIQUE 인덱스가
+  // 없어 42P10 에러로 모든 insert가 rollback되던 이슈 수정.
   const questions = result.data.questions ?? [];
-  if (questions.length > 0) {
-    const { error: insertErr } = await supabase
-      .from("student_record_interview_questions")
-      .upsert(
-        questions.map((q) => ({
-          student_id: studentId,
-          tenant_id: tenantId,
-          question: q.question,
-          question_type: q.questionType,
-          suggested_answer: q.suggestedAnswer ?? null,
-          difficulty: q.difficulty,
-          source_type: mainType,
-          is_ai_generated: true,
-        })),
-        { onConflict: "student_id,question", ignoreDuplicates: true },
-      );
-    if (insertErr) {
-      logActionError({ ...LOG_CTX, action: "pipeline.interview.insert" }, insertErr, { studentId });
-    }
+  if (questions.length === 0) {
+    return "LLM 응답 없음 — 0건";
+  }
+
+  // 기존 AI 생성 질문만 삭제 (수동 입력 질문은 보존)
+  const { error: delErr } = await supabase
+    .from("student_record_interview_questions")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("is_ai_generated", true);
+  if (delErr) {
+    throw new Error(`기존 AI 면접 질문 삭제 실패: ${delErr.message}`);
+  }
+
+  const { error: insertErr } = await supabase
+    .from("student_record_interview_questions")
+    .insert(
+      questions.map((q) => ({
+        student_id: studentId,
+        tenant_id: tenantId,
+        question: q.question,
+        question_type: q.questionType,
+        suggested_answer: q.suggestedAnswer ?? null,
+        difficulty: q.difficulty,
+        source_type: mainType,
+        is_ai_generated: true,
+      })),
+    );
+  if (insertErr) {
+    throw new Error(`면접 질문 저장 실패: ${insertErr.message}`);
   }
 
   return `${questions.length}건 면접 질문 생성`;

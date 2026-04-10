@@ -2,7 +2,6 @@ import { QUESTION_TYPE_LABELS as TYPE_LABELS, DIFFICULTY_BADGE } from "../consta
 import { EmptyState } from "../EmptyState";
 import { MessageCircle } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
-import { ReportMarkdown } from "../ReportMarkdown";
 
 interface InterviewSectionProps {
   questions: Array<{
@@ -60,8 +59,10 @@ export function InterviewSection({ questions }: InterviewSectionProps) {
                         <p className="text-xs font-medium text-gray-900">{q.question}</p>
                         {q.suggested_answer && (
                           <div className="mt-1.5 rounded bg-blue-50 px-2 py-1.5">
-                            <p className="text-xs font-semibold text-blue-600">제안 답변</p>
-                            <ReportMarkdown className="text-blue-800">{q.suggested_answer}</ReportMarkdown>
+                            <p className="text-xs font-semibold text-blue-600">답변 가이드</p>
+                            <p className="whitespace-pre-line text-xs leading-relaxed text-blue-800">
+                              {q.suggested_answer}
+                            </p>
                           </div>
                         )}
                       </div>
