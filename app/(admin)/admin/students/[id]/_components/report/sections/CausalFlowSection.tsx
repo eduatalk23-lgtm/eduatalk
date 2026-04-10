@@ -11,6 +11,7 @@ interface CausalFlowSectionProps {
   setekGuides: Array<{
     id: string;
     subject_id: string;
+    subject_name?: string | null;
     source: string;
     status: string;
     direction: string;
@@ -58,11 +59,12 @@ export function CausalFlowSection({ diagnosisData, setekGuides, roadmapItems = [
     }
 
     // setek_guides에서 subject_id → 방향 매핑
+    // 키는 lookup용 UUID, 표시값은 과목명(없으면 UUID fallback)
     const focusToGuide = new Map<string, { subject: string; direction: string }>();
     for (const g of setekGuides) {
       if (g.direction) {
         focusToGuide.set(g.subject_id, {
-          subject: g.subject_id,
+          subject: g.subject_name ?? g.subject_id,
           direction: g.direction.length > 60 ? g.direction.slice(0, 60) + "…" : g.direction,
         });
       }

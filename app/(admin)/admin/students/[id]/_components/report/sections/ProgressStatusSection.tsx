@@ -5,6 +5,7 @@ import { ReportSectionHeader } from "../ReportSectionHeader";
 import { cn } from "@/lib/cn";
 import type { RecordTabData } from "@/lib/domains/student-record/types";
 import type { ContentQualityRow } from "@/lib/domains/student-record/warnings/engine";
+import { CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record/constants";
 
 // ─── 콘텐츠 4-layer 기반 slot 상태 ──────────────────
 
@@ -50,6 +51,8 @@ interface ProgressStatusSectionProps {
   recordDataByGrade: Record<number, RecordTabData>;
   contentQuality: ContentQualityRow[];
   studentGrade: number;
+  /** 세특/개인세특 record의 subject_id(UUID) → 과목명 매핑. 없으면 fallback "세특". */
+  subjectNamesById?: Record<string, string>;
 }
 
 // ─── 한 레코드의 slot 정보 (matrix + action list용) ──
@@ -57,7 +60,7 @@ interface ProgressStatusSectionProps {
 interface SlotEntry {
   grade: number;
   category: "setek" | "changche" | "haengteuk";
-  label: string; // subject_id 또는 activity_type
+  label: string; // 과목명(세특) 또는 한글 활동유형(창체) 또는 "행특"
   recordId: string | null;
   state: SlotState;
   hasQualityIssue: boolean;
@@ -69,6 +72,7 @@ export function ProgressStatusSection({
   recordDataByGrade,
   contentQuality,
   studentGrade,
+  subjectNamesById,
 }: ProgressStatusSectionProps) {
   const grades = Array.from({ length: studentGrade }, (_, i) => i + 1);
 
@@ -86,10 +90,12 @@ export function ProgressStatusSection({
 
     // 세특 + 개인 세특
     for (const s of [...(tab.seteks ?? []), ...(tab.personalSeteks ?? [])]) {
+      const subjectId = s.subject_id as string | undefined;
+      const subjectName = subjectId ? subjectNamesById?.[subjectId] : undefined;
       slots.push({
         grade,
         category: "setek",
-        label: (s.subject_id as string | undefined) ?? `세특${slots.length}`,
+        label: subjectName ?? "세특",
         recordId: (s.id as string | undefined) ?? null,
         state: computeSlotState(s),
         hasQualityIssue: !!s.id && issueRecordIds.has(s.id as string),
@@ -98,11 +104,12 @@ export function ProgressStatusSection({
 
     // 창체 (자율/동아리/진로)
     for (const c of tab.changche ?? []) {
-      const actType = (c.activity_type as string | undefined) ?? "창체";
+      const actType = (c.activity_type as string | undefined) ?? "";
+      const actLabel = CHANGCHE_TYPE_LABELS[actType] ?? (actType || "창체");
       slots.push({
         grade,
         category: "changche",
-        label: actType,
+        label: actLabel,
         recordId: (c.id as string | undefined) ?? null,
         state: computeSlotState(c),
         hasQualityIssue: !!c.id && issueRecordIds.has(c.id as string),

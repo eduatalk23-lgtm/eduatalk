@@ -14,8 +14,13 @@ export interface GuideTargetArea {
 /**
  * 가이드별 대상 영역(과목 / 창체) 도출.
  *
- * 세특 영역:
- *   - exploration_guide_subject_mappings 의 첫 subject_id를 targetSubjectId로 사용
+ * 세특 영역 (Phase 2 Wave 5.1d — 학생 과목 풀 우선):
+ *   - `preferredSubjectIds` 가 주어지면, subject_mappings 중 이 풀에 속한 것을 **우선** 선택
+ *   - 풀에 매칭 없으면 null (= 세특 slot auto-link 불가, orphan 방지)
+ *   - `preferredSubjectIds` 미지정 시 레거시 동작: 첫 매핑 사용
+ *
+ *   이유: 학생이 실제로 이수하거나 계획한 과목과 무관한 subject_id 로 배정되면
+ *        UI의 세특 row 필터(`target_subject_id === row.subjectId`)에 영원히 안 걸린다.
  *
  * 창체 영역 (Phase 2 Wave 3.3 — Decision #2/#5 / 옛 하드코딩 null 제거):
  *   1. exploration_guide_activity_mappings 우선 — 명시적 매핑이 있으면 사용
@@ -28,22 +33,41 @@ export interface GuideTargetArea {
  */
 export async function resolveGuideTargetArea(
   guideIds: string[],
+  opts: { preferredSubjectIds?: Set<string> } = {},
 ): Promise<Map<string, GuideTargetArea>> {
   const result = new Map<string, GuideTargetArea>();
   if (guideIds.length === 0) return result;
 
   const supabase = await createSupabaseServerClient();
+  const preferred = opts.preferredSubjectIds;
 
-  // 1. subject_mappings — 세특 영역 (기존)
+  // 1. subject_mappings — 세특 영역
   const { data: subjectRows } = await supabase
     .from("exploration_guide_subject_mappings")
     .select("guide_id, subject_id")
     .in("guide_id", guideIds);
 
-  const subjectByGuide = new Map<string, string>();
+  // guide_id → 첫 매핑 (legacy fallback)
+  const firstByGuide = new Map<string, string>();
+  // guide_id → preferred 풀에 속한 첫 매핑 (신규 경로)
+  const preferredByGuide = new Map<string, string>();
   for (const m of subjectRows ?? []) {
-    if (!subjectByGuide.has(m.guide_id)) {
-      subjectByGuide.set(m.guide_id, m.subject_id);
+    if (!firstByGuide.has(m.guide_id)) {
+      firstByGuide.set(m.guide_id, m.subject_id);
+    }
+    if (preferred && preferred.has(m.subject_id) && !preferredByGuide.has(m.guide_id)) {
+      preferredByGuide.set(m.guide_id, m.subject_id);
+    }
+  }
+
+  const subjectByGuide = new Map<string, string | null>();
+  for (const guideId of guideIds) {
+    if (preferred) {
+      // preferred 풀이 주어졌으면 풀에 있는 매핑만 유효. 없으면 null → orphan 방지
+      subjectByGuide.set(guideId, preferredByGuide.get(guideId) ?? null);
+    } else {
+      // legacy: 첫 매핑 사용
+      subjectByGuide.set(guideId, firstByGuide.get(guideId) ?? null);
     }
   }
 
@@ -85,6 +109,50 @@ export async function resolveGuideTargetArea(
   }
 
   return result;
+}
+
+/**
+ * 학생이 실제로 이수/계획한 subject_id 풀을 모은다.
+ * - seteks (deleted_at IS NULL)
+ * - course_plans (confirmed / recommended)
+ *
+ * Wave 5.1f: `gradeFilter` 옵션 추가. 설계 학년(consultingGrades)에 속한
+ *   row 만 포함하도록 제한. 탐구 가이드는 본질상 설계 학년 전용이므로
+ *   runGuideMatching 에서 이 필터를 적용한다.
+ *
+ * runGuideMatching 에서 resolveGuideTargetArea 호출 시 preferredSubjectIds 로 전달.
+ */
+export async function collectStudentSubjectPool(
+  studentId: string,
+  opts: { gradeFilter?: Set<number> } = {},
+): Promise<Set<string>> {
+  const supabase = await createSupabaseServerClient();
+  const pool = new Set<string>();
+  const gradeFilter = opts.gradeFilter;
+
+  const { data: seteks } = await supabase
+    .from("student_record_seteks")
+    .select("subject_id, grade")
+    .eq("student_id", studentId)
+    .is("deleted_at", null);
+  for (const s of seteks ?? []) {
+    if (!s.subject_id) continue;
+    if (gradeFilter && !gradeFilter.has(s.grade ?? -1)) continue;
+    pool.add(s.subject_id);
+  }
+
+  const { data: plans } = await supabase
+    .from("student_course_plans")
+    .select("subject_id, plan_status, grade")
+    .eq("student_id", studentId)
+    .in("plan_status", ["confirmed", "recommended"]);
+  for (const p of plans ?? []) {
+    if (!p.subject_id) continue;
+    if (gradeFilter && !gradeFilter.has(p.grade ?? -1)) continue;
+    pool.add(p.subject_id);
+  }
+
+  return pool;
 }
 
 /**

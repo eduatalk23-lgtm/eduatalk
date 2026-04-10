@@ -6,6 +6,9 @@ import { ClipboardList } from "lucide-react";
 import { CharacterCounter } from "../CharacterCounter";
 import { saveSetekAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
+import type { SetekLayerTab } from "../stages/record/SetekEditor";
+import type { LayerPerspective } from "@/lib/domains/student-record/layer-view";
+import { GuideAssignmentCard, type GuideAssignmentLike } from "../shared/GuideAssignmentCard";
 
 // ─── PlannedSubjectRow ───────────────────────────────────────────────────────
 
@@ -24,6 +27,9 @@ export function PlannedSubjectRow({
   tenantId,
   grade,
   charLimit,
+  activeTab,
+  subjectGuides,
+  perspective,
 }: {
   planned: PlannedSubject;
   studentId: string;
@@ -31,6 +37,12 @@ export function PlannedSubjectRow({
   tenantId: string;
   grade: number;
   charLimit: number;
+  /** 현재 활성 탭. 기본 neis (=세특 생성 버튼) */
+  activeTab?: SetekLayerTab;
+  /** 이 planned 과목(subject_id)에 배정된 탐구 가이드 (Wave 5.1b) */
+  subjectGuides?: GuideAssignmentLike[];
+  /** AI / consultant 관점 필터링 */
+  perspective?: LayerPerspective | null;
 }) {
   const queryClient = useQueryClient();
 
@@ -56,6 +68,35 @@ export function PlannedSubjectRow({
     },
   });
 
+  // Wave 5.1b: guide 탭일 때는 세특 생성 버튼 대신 배정된 탐구 가이드 카드를 렌더.
+  // (설계 학년 = NEIS 없음 = 전부 planned → 이 분기가 없으면 가이드 14건이 통째로 숨음)
+  const renderGuideCell = () => {
+    let list = subjectGuides ?? [];
+    if (perspective === "ai") {
+      list = list.filter((g) => g.ai_recommendation_reason);
+    } else if (perspective === "consultant") {
+      list = list.filter((g) => !g.ai_recommendation_reason);
+    }
+    if (list.length === 0) {
+      return (
+        <span className="text-xs text-blue-500/70 dark:text-blue-400/70">
+          {perspective === "ai"
+            ? "AI 추천 가이드가 없습니다"
+            : perspective === "consultant"
+              ? "배정된 가이드가 없습니다"
+              : "가이드 없음"}
+        </span>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-1.5">
+        {list.map((a) => (
+          <GuideAssignmentCard key={a.id} assignment={a} showSimBadge />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <tr className="align-top">
       <td className="border border-dashed border-blue-200 bg-blue-50/30 px-2 py-2 text-center align-middle text-sm text-blue-400 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-500">
@@ -70,21 +111,27 @@ export function PlannedSubjectRow({
         </span>
       </td>
       <td className="border border-dashed border-blue-200 bg-blue-50/30 p-2 dark:border-blue-800 dark:bg-blue-950/20">
-        <div className="flex items-center gap-2 py-1">
-          <ClipboardList className="h-4 w-4 shrink-0 text-blue-400" />
-          <span className="text-xs text-blue-500 dark:text-blue-400">
-            수강 계획 확정 · {planned.semester}학기
-          </span>
-          <button
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
-            className="ml-auto rounded-md bg-blue-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-          >
-            {createMutation.isPending ? "생성 중..." : "세특 생성"}
-          </button>
-        </div>
-        {createMutation.isError && (
-          <p className="mt-1 text-xs text-red-600">{createMutation.error.message}</p>
+        {activeTab === "guide" ? (
+          renderGuideCell()
+        ) : (
+          <>
+            <div className="flex items-center gap-2 py-1">
+              <ClipboardList className="h-4 w-4 shrink-0 text-blue-400" />
+              <span className="text-xs text-blue-500 dark:text-blue-400">
+                수강 계획 확정 · {planned.semester}학기
+              </span>
+              <button
+                onClick={() => createMutation.mutate()}
+                disabled={createMutation.isPending}
+                className="ml-auto rounded-md bg-blue-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {createMutation.isPending ? "생성 중..." : "세특 생성"}
+              </button>
+            </div>
+            {createMutation.isError && (
+              <p className="mt-1 text-xs text-red-600">{createMutation.error.message}</p>
+            )}
+          </>
         )}
       </td>
     </tr>

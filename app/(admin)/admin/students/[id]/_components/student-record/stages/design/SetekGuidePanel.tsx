@@ -184,7 +184,7 @@ export function SetekGuidePanel({
                 <div className="flex items-center justify-between border-b border-[var(--border-secondary)] px-4 py-2">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-medium text-[var(--text-primary)]">
-                      {guide.subject_id}
+                      {guide.subject_name ?? guide.subject_id}
                     </h4>
                     <span
                       className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusInfo.color}`}
@@ -223,13 +223,13 @@ export function SetekGuidePanel({
                     </button>
                     <ReportExportMenu
                       data={{
-                        title: guide.subject_id,
+                        title: guide.subject_name ?? guide.subject_id,
                         studentName,
                         targetGrades: [guide.school_year],
                         createdAt: guide.created_at,
                         sections: [{
                           sectionType: "guide_0",
-                          title: guide.subject_id,
+                          title: guide.subject_name ?? guide.subject_id,
                           content: `${guide.direction}${guide.cautions ? `\n\n⚠ ${guide.cautions}` : ""}${guide.teacher_points.length > 0 ? `\n\n교사 전달 포인트:\n${guide.teacher_points.map((p: string) => `· ${p}`).join("\n")}` : ""}`,
                           relatedSubjects: guide.keywords.slice(0, 3),
                         }],
@@ -286,7 +286,7 @@ export function SetekGuidePanel({
                       <div className="rounded-lg border border-[var(--border-secondary)] p-3">
                         <div className="flex items-center gap-2">
                           <h5 className="text-sm font-semibold text-[var(--text-primary)]">
-                            {guide.subject_id}
+                            {guide.subject_name ?? guide.subject_id}
                           </h5>
                           {guide.competency_focus.map((cf: string) => (
                             <span

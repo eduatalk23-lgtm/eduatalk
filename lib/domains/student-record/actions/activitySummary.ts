@@ -53,13 +53,15 @@ export async function fetchActivitySummaries(
   }
 }
 
-/** 학생의 세특 방향 가이드 목록 조회 (setek_guides 테이블) */
+/** 학생의 세특 방향 가이드 목록 조회 (setek_guides 테이블)
+ *  subject_id(UUID)는 표시용으로 부적합하므로 subjects 테이블에서 과목명을 조회해 함께 반환한다. */
 export async function fetchSetekGuides(
   studentId: string,
 ): Promise<ActionResponse<Array<{
   id: string;
   school_year: number;
   subject_id: string;
+  subject_name: string | null;
   source: string;
   status: string;
   direction: string;
@@ -91,7 +93,44 @@ export async function fetchSetekGuides(
       return { success: false, error: "가이드 조회 실패" };
     }
 
-    return { success: true, data: (data as typeof data) ?? [] };
+    const rows = data ?? [];
+    // 과목명 lookup (UUID → name)
+    const subjectIds = [...new Set(rows.map((r) => r.subject_id as string))];
+    const nameMap = new Map<string, string>();
+    if (subjectIds.length > 0) {
+      const { data: subjects } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .in("id", subjectIds);
+      for (const s of subjects ?? []) {
+        nameMap.set(s.id as string, s.name as string);
+      }
+    }
+
+    const enriched = rows.map((r) => ({
+      ...(r as Record<string, unknown>),
+      subject_name: nameMap.get(r.subject_id as string) ?? null,
+    })) as Array<{
+      id: string;
+      school_year: number;
+      subject_id: string;
+      subject_name: string | null;
+      source: string;
+      status: string;
+      direction: string;
+      keywords: string[];
+      competency_focus: string[];
+      cautions: string | null;
+      teacher_points: string[];
+      overall_direction: string | null;
+      prompt_version: string | null;
+      guide_mode: string;
+      confirmed_at: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    return { success: true, data: enriched };
   } catch (error) {
     logActionError(LOG_CTX, error);
     return { success: false, error: error instanceof Error ? error.message : "가이드 조회 실패" };

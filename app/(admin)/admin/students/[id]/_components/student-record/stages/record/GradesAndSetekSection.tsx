@@ -68,7 +68,17 @@ export function GradesAndSetekSection({
   showSectionAnchors?: boolean;
   diagnosisActivityTags?: Array<{ id: string; record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary?: string | null; source?: string; status?: string }>;
   setekGuideItems?: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }>;
-  guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  guideAssignments?: Array<{
+    id: string;
+    guide_id: string;
+    status: string;
+    ai_recommendation_reason?: string | null;
+    student_notes?: string | null;
+    target_subject_id?: string | null;
+    target_activity_type?: string | null;
+    school_year?: number;
+    exploration_guides?: { id: string; title: string; guide_type?: string };
+  }>;
   confirmedPlansForGrade?: Array<{ subjectId: string; subjectName: string; semester: number; subjectGroupName: string; subjectTypeName: string }>;
   studentClassificationId?: number | null;
   studentClassificationName?: string | null;

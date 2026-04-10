@@ -13,6 +13,7 @@ import { BADGE, CARD, SPACING, TYPO, PROGRESS } from "@/lib/design-tokens/report
 interface SetekGuideItem {
   id: string;
   subject_id: string;
+  subject_name?: string | null;
   source: string;
   status: string;
   direction: string;
@@ -93,9 +94,9 @@ export function SetekGuideSection({ guides, stage, seteks }: SetekGuideSectionPr
 
           return (
             <div key={guide.id} className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 shadow-sm print-avoid-break">
-              {/* 과목 ID + 상태 */}
+              {/* 과목명 + 상태 */}
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className={TYPO.subsectionTitle}>{guide.subject_id}</h3>
+                <h3 className={TYPO.subsectionTitle}>{guide.subject_name ?? guide.subject_id}</h3>
                 <span className={cn("rounded px-1.5 py-0.5", TYPO.label, BADGE.gray)}>
                   {guide.source === "ai" ? "AI" : "수동"}
                 </span>

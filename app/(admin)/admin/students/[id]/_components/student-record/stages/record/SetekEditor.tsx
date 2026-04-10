@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordSetek } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
-import { FileText, Search, Compass, PenLine, BarChart3 } from "lucide-react";
+import { FileText, Search, Compass, PenLine, BarChart3, BookOpen } from "lucide-react";
 import type { AnalysisTagLike } from "../../shared/AnalysisBlocks";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
@@ -21,7 +21,13 @@ import { PlannedSubjectRow, AddSetekForm } from "../../setek/SetekFormParts";
 
 type Subject = { id: string; name: string };
 
-export type SetekLayerTab = "neis" | "draft" | "direction" | "analysis" | "draft_analysis";
+export type SetekLayerTab =
+  | "neis"
+  | "draft"
+  | "direction"
+  | "analysis"
+  | "draft_analysis"
+  | "guide";
 
 type ActivityTagLike = AnalysisTagLike;
 
@@ -57,7 +63,17 @@ type SetekEditorProps = {
   grade: number;
   diagnosisActivityTags?: ActivityTagLike[];
   setekGuideItems?: SetekGuideItemLike[];
-  guideAssignments?: Array<{ id: string; guide_id: string; status: string; ai_recommendation_reason?: string | null; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  guideAssignments?: Array<{
+    id: string;
+    guide_id: string;
+    status: string;
+    ai_recommendation_reason?: string | null;
+    student_notes?: string | null;
+    target_subject_id?: string | null;
+    target_activity_type?: string | null;
+    school_year?: number;
+    exploration_guides?: { id: string; title: string; guide_type?: string };
+  }>;
   /** confirmed course plans (세특 미존재인 것만 전달) */
   plannedSubjects?: PlannedSubject[];
   /** G2-5: 진로 소분류 ID (가이드 자동 추천용) */
@@ -113,6 +129,7 @@ function mergeSeteksBySemester(seteks: RecordSetek[], subjects: Subject[]): Merg
 
 const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[] = [
   { key: "neis", label: "NEIS", icon: FileText },
+  { key: "guide", label: "가이드", icon: BookOpen },
   { key: "draft", label: "가안", icon: PenLine },
   { key: "direction", label: "방향", icon: Compass },
   { key: "analysis", label: "분석", icon: Search },
@@ -120,8 +137,12 @@ const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[]
 ];
 
 const COL_HEADER_LABEL: Record<SetekLayerTab, string> = {
-  neis: "세부능력 및 특기사항", draft: "세특 가안", direction: "작성 방향",
-  analysis: "역량 분석", draft_analysis: "가안 역량 분석",
+  neis: "세부능력 및 특기사항",
+  guide: "탐구 가이드",
+  draft: "세특 가안",
+  direction: "작성 방향",
+  analysis: "역량 분석",
+  draft_analysis: "가안 역량 분석",
 };
 
 export function SetekEditor({
@@ -167,9 +188,24 @@ export function SetekEditor({
     (s) => !existingSubjectIds.has(s.id) && !plannedSubjectIds.has(s.id),
   );
 
+  // Wave 5.1e: subject 이름 기준 dedupe — subjects 테이블에 동명 row 가 여러 개인 경우
+  //   (2022 개정 교육과정 전환 잔재) mergedRows(실제 setek)와 pendingPlanned(계획만) 에
+  //   각각 다른 subject_id 로 같은 이름 row 가 중복 표시되는 문제를 UI 단에서 차단.
+  //   setek 이 먼저 있으면(실제 작성된 상태) 계획 row 는 숨긴다.
+  const existingSubjectNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const row of mergedRows) names.add(row.displayName);
+    return names;
+  }, [mergedRows]);
+
   const pendingPlanned = useMemo(
-    () => (plannedSubjects ?? []).filter((p) => !existingSubjectIds.has(p.subjectId)),
-    [plannedSubjects, existingSubjectIds],
+    () =>
+      (plannedSubjects ?? []).filter(
+        (p) =>
+          !existingSubjectIds.has(p.subjectId) &&
+          !existingSubjectNames.has(p.subjectName),
+      ),
+    [plannedSubjects, existingSubjectIds, existingSubjectNames],
   );
 
   const allSetekIds = useMemo(() => new Set(seteks.map((s) => s.id)), [seteks]);
@@ -245,6 +281,7 @@ export function SetekEditor({
             : tab.key === "analysis" ? analysisTags.length > 0
             : tab.key === "draft_analysis" ? draftAnalysisTags.length > 0
             : tab.key === "direction" ? filteredGuideItems.length > 0
+            : tab.key === "guide" ? (guideAssignments ?? []).some((a) => a.target_subject_id && a.school_year === schoolYear)
             : false;
           return (
             <button
@@ -303,7 +340,7 @@ export function SetekEditor({
                     activeTab={activeTab}
                     subjectTags={filteredTags.filter((t) => row.records.some((r) => r.id === t.record_id))}
                     subjectReflection={reflectionBySubject.get(row.displayName)}
-                    subjectGuides={guideAssignments?.filter((a) => a.target_subject_id === row.subjectId) ?? []}
+                    subjectGuides={guideAssignments?.filter((a) => a.target_subject_id === row.subjectId && a.school_year === schoolYear) ?? []}
                     subjectDirection={filteredGuideItems.filter((g) => g.subjectName === row.displayName)}
                     layer={layer}
                     perspective={perspective}
@@ -318,6 +355,13 @@ export function SetekEditor({
                     tenantId={tenantId}
                     grade={grade}
                     charLimit={charLimit}
+                    activeTab={activeTab}
+                    subjectGuides={
+                      guideAssignments?.filter(
+                        (a) => a.target_subject_id === p.subjectId && a.school_year === schoolYear,
+                      ) ?? []
+                    }
+                    perspective={perspective}
                   />
                 ))}
               </tbody>

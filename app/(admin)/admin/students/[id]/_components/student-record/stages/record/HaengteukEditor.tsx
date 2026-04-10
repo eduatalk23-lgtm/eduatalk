@@ -31,6 +31,9 @@ import { ConfirmStatusBadge } from "../../shared/ConfirmStatusBadge";
 import { HaengteukAnalysisCell } from "../../haengteuk/HaengteukAnalysisCell";
 import { HaengteukDraftCell } from "../../haengteuk/HaengteukDraftCell";
 import { ConsultantDirectionEditor } from "../../shared/ConsultantDirectionEditor";
+import { GuideAssignmentCard } from "../../shared/GuideAssignmentCard";
+import { HaengteukGuideLinkDropdown } from "../../shared/HaengteukGuideLinkDropdown";
+import type { HaengteukGuideLinkRow } from "@/lib/domains/student-record/actions/haengteuk-guide-links";
 import {
   saveConsultantHaengteukGuideAction,
   deleteConsultantHaengteukGuideAction,
@@ -84,7 +87,22 @@ type HaengteukEditorProps = {
   tenantId: string;
   grade: number;
   diagnosisActivityTags?: AnalysisTagLike[];
-  guideAssignments?: Array<{ id: string; guide_id: string; status: string; ai_recommendation_reason?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  guideAssignments?: Array<{
+    id: string;
+    guide_id: string;
+    status: string;
+    ai_recommendation_reason?: string | null;
+    student_notes?: string | null;
+    target_activity_type?: string | null;
+    school_year?: number;
+    exploration_guides?: { id: string; title: string; guide_type?: string };
+  }>;
+  /**
+   * 행특 ↔ 탐구 가이드 링크 (student_record_haengteuk_guide_links, Phase 2 Wave 4.2).
+   * direction 레이어의 평가항목 테이블에서 "근거 가이드 N개" 드롭다운으로 노출.
+   * 내부에서 `school_year` + `evaluation_item`으로 그룹핑.
+   */
+  haengteukGuideLinks?: HaengteukGuideLinkRow[];
   /**
    * 행특 방향 가이드 배열 (전 학년, 설계/보완 양쪽 포함).
    * 내부에서 `schoolYear` + `guideMode`로 필터링한다.
@@ -129,6 +147,7 @@ export function HaengteukEditor({
   grade,
   diagnosisActivityTags,
   guideAssignments,
+  haengteukGuideLinks,
   haengteukGuideItems,
   setekSummary,
   changcheSummary,
@@ -206,13 +225,31 @@ export function HaengteukEditor({
     [currentYearGuides],
   );
 
-  // guide 레이어 perspective 분류
+  // guide 레이어 perspective + schoolYear 분류 (Wave 5.1)
+  // 행특 셀의 guide 탭은 해당 학년에 배정된 모든 탐구 가이드를 노출
+  // (target_activity_type 필터 없음 — 행특은 전 활동의 근거 역할이라서).
   const filteredGuides = (() => {
-    const all = guideAssignments ?? [];
+    const all = (guideAssignments ?? []).filter((g) => g.school_year === schoolYear);
     if (perspective === "ai") return all.filter((g) => g.ai_recommendation_reason);
     if (perspective === "consultant") return all.filter((g) => !g.ai_recommendation_reason);
     return all;
   })();
+
+  // 행특 ↔ 가이드 링크: 현재 학년도만 필터 (Wave 5.3)
+  const yearLinks = useMemo(
+    () => (haengteukGuideLinks ?? []).filter((l) => l.school_year === schoolYear),
+    [haengteukGuideLinks, schoolYear],
+  );
+  /** evaluation_item → link[] 매핑 */
+  const linksByItem = useMemo(() => {
+    const m = new Map<string, HaengteukGuideLinkRow[]>();
+    for (const l of yearLinks) {
+      const arr = m.get(l.evaluation_item);
+      if (arr) arr.push(l);
+      else m.set(l.evaluation_item, [l]);
+    }
+    return m;
+  }, [yearLinks]);
 
   useEffect(() => {
     const next = haengteuk?.content?.trim() ? haengteuk.content : (haengteuk?.imported_content ?? "");
@@ -476,13 +513,9 @@ export function HaengteukEditor({
                 {activeTab === "guide" && (
                   (() => {
                     return filteredGuides.length > 0 ? (
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
                         {filteredGuides.map((a) => (
-                          <div key={a.id} className="flex items-center gap-1.5">
-                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0",
-                              a.status === "completed" ? "bg-emerald-500" : a.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
-                            <span className="truncate text-xs text-[var(--text-primary)]">{a.exploration_guides?.title ?? "가이드"}</span>
-                          </div>
+                          <GuideAssignmentCard key={a.id} assignment={a} />
                         ))}
                       </div>
                     ) : <span className="text-xs text-[var(--text-placeholder)]">
@@ -585,7 +618,7 @@ export function HaengteukEditor({
                             </div>
                           )}
                         </div>
-                        {/* 7개 평가항목 테이블 */}
+                        {/* 8개 평가항목 테이블 + 근거 가이드 드롭다운 (Wave 5.3) */}
                         {guide.evaluationItems && guide.evaluationItems.length > 0 && (
                           <div className="rounded-lg border border-gray-200 dark:border-gray-700">
                             <table className="w-full text-xs">
@@ -594,20 +627,24 @@ export function HaengteukEditor({
                                   <th className="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)]">평가 항목</th>
                                   <th className="w-16 px-2 py-1.5 text-center font-medium text-[var(--text-secondary)]">평가</th>
                                   <th className="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)]">근거</th>
+                                  <th className="w-48 px-2 py-1.5 text-left font-medium text-[var(--text-secondary)]">근거 가이드</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {guide.evaluationItems.map((ei) => (
                                   <tr key={ei.item} className="border-b border-gray-100 last:border-0 dark:border-gray-800">
-                                    <td className="px-2 py-1.5 font-medium text-[var(--text-primary)]">{ei.item}</td>
-                                    <td className="px-2 py-1.5 text-center">
+                                    <td className="px-2 py-1.5 align-top font-medium text-[var(--text-primary)]">{ei.item}</td>
+                                    <td className="px-2 py-1.5 text-center align-top">
                                       <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
                                         ei.score === "우수" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                           : ei.score === "양호" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                                           : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
                                       )}>{ei.score}</span>
                                     </td>
-                                    <td className="px-2 py-1.5 text-[var(--text-secondary)]">{ei.reasoning}</td>
+                                    <td className="px-2 py-1.5 align-top text-[var(--text-secondary)]">{ei.reasoning}</td>
+                                    <td className="px-2 py-1.5 align-top">
+                                      <HaengteukGuideLinkDropdown links={linksByItem.get(ei.item) ?? []} />
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>

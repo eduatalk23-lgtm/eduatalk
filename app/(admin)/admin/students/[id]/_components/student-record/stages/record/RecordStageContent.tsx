@@ -2,6 +2,7 @@
 
 import type { RecordTabData, RecordReading, ActivityTag, DiagnosisTabData } from "@/lib/domains/student-record";
 import type { CoursePlanTabData } from "@/lib/domains/student-record/course-plan/types";
+import type { HaengteukGuideLinkRow } from "@/lib/domains/student-record/actions/haengteuk-guide-links";
 import type { SetekLayerTab } from "./SetekEditor";
 import { useStudentRecordContext } from "../../StudentRecordContext";
 import { DocSection, GradeLabel, SectionSkeleton, EmptyTable, InfoRow } from "../../StudentRecordHelpers";
@@ -28,6 +29,16 @@ type GuideAssignment = {
   id: string;
   guide_id: string;
   status: string;
+  /** AI 추천 사유 (있으면 AI 배정) */
+  ai_recommendation_reason?: string | null;
+  /** 매칭 점수(sim=X.XX) + reason 이 인코딩된 자유 문자열 */
+  student_notes?: string | null;
+  /** 세특 영역 타겟 (subject_id) */
+  target_subject_id?: string | null;
+  /** 창체 영역 타겟 (autonomy/club/career) */
+  target_activity_type?: string | null;
+  /** 배정 학년도 — 셀 필터링에 사용 */
+  school_year?: number;
   exploration_guides?: { id: string; title: string; guide_type?: string };
 };
 
@@ -91,6 +102,8 @@ export type RecordStageContentProps = {
   setekGuideItems?: SetekGuideItem[];
   changcheGuideItems?: ChangcheGuideItem[];
   haengteukGuideItems?: HaengteukGuideItem[];
+  /** Phase 2 Wave 5.3: 행특 평가항목 ↔ 탐구 가이드 링크 */
+  haengteukGuideLinks?: HaengteukGuideLinkRow[];
 };
 
 // ─── Component ────────────────────────────────────────
@@ -113,6 +126,7 @@ export function RecordStageContent({
   setekGuideItems,
   changcheGuideItems,
   haengteukGuideItems,
+  haengteukGuideLinks,
 }: RecordStageContentProps) {
   const { studentId, tenantId, studentName, schoolName, studentGrade, initialSchoolYear } = useStudentRecordContext();
 
@@ -321,8 +335,24 @@ export function RecordStageContent({
         )}
         {visiblePairs.map((p) => {
           const entry = recordByGrade.get(p.grade);
+          // Phase 2 Wave 5.1d: "recommended" 상태도 PlannedSubjectRow 로 렌더.
+          //   기존엔 "confirmed"만 필터해서, plan이 아직 confirm 안 된 학생은
+          //   설계 학년 row 자체가 0개로 빠지고 탐구 가이드 탭이 통째로 "해당 사항 없음"이 됐음.
+          // Phase 2 Wave 5.1g: **분석 학년(NEIS imported_content 존재)** 에서는
+          //   recommended 를 제외. 이미 이수 확정된 학년에 "계획됨" row 가 뜨면
+          //   세특 영역에 실제 이수 과목과 무의미한 예정 과목이 섞여 중복처럼 보임.
+          //   confirmed 는 유지 (confirm 은 사용자/컨설턴트가 명시적 확정한 상태라 존중).
+          const hasNeisImported = (entry?.data.seteks ?? []).some(
+            (s) => !!s.imported_content && s.imported_content.trim().length > 0,
+          );
           const confirmedForGrade = coursePlanData?.plans
-            ?.filter((cp) => cp.plan_status === "confirmed" && cp.grade === p.grade)
+            ?.filter((cp) => {
+              if (cp.grade !== p.grade) return false;
+              if (cp.plan_status === "confirmed") return true;
+              // recommended 는 설계 학년에서만 의미 있음
+              if (cp.plan_status === "recommended" && !hasNeisImported) return true;
+              return false;
+            })
             .map((cp) => ({
               subjectId: cp.subject_id,
               subjectName: cp.subject.name,
@@ -399,6 +429,7 @@ export function RecordStageContent({
                     diagnosisActivityTags={diagnosisData?.activityTags}
                     guideAssignments={guideAssignments}
                     haengteukGuideItems={haengteukGuideItems}
+                    haengteukGuideLinks={haengteukGuideLinks}
                     activeTab={globalSetekTab}
                     onTabChange={onSetekTabChange}
                     layer={globalLayer}

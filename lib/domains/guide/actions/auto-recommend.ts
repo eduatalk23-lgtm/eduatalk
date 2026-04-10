@@ -79,20 +79,23 @@ export async function autoRecommendGuidesAction(input: {
     }
 
     // 2. subject 기반 guide_id 조회
+    // Wave 5.1e: `.limit(1)` 제거 → 동명 subject_id 가 여러 개인 경우(2022 개정
+    //   교육과정 전환 잔재)에도 **모든** subject_id 의 매핑을 합집합으로 수집.
+    //   예: "수학과제 탐구" 가 진로선택/융합선택 2종으로 등록돼 있을 때 한쪽만
+    //   뽑아 가이드를 못 찾는 비결정적 버그를 차단.
     const subjectGuideIds = new Set<string>();
     if (input.subjectName) {
-      // subjects 테이블에서 이름으로 id 조회
       const { data: subjectRows } = await supabase
         .from("subjects")
         .select("id")
-        .eq("name", input.subjectName)
-        .limit(1);
+        .eq("name", input.subjectName);
 
       if (subjectRows && subjectRows.length > 0) {
+        const subjectIds = subjectRows.map((r) => r.id);
         const { data: sm } = await supabase
           .from("exploration_guide_subject_mappings")
           .select("guide_id")
-          .eq("subject_id", subjectRows[0].id);
+          .in("subject_id", subjectIds);
         for (const r of sm ?? []) subjectGuideIds.add(r.guide_id);
       }
     }

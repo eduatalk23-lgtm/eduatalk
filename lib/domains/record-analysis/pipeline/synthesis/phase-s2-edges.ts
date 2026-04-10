@@ -198,8 +198,10 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   }
 
   // (2) 수강계획 과목 매칭 (세특용)
+  // Wave 5.1d 후속: 8개로 확장 — 3학년 plans 5 + 2학년 plans 3 까지 커버.
+  // DB only 라 rate limit 고민 없음.
   const plannedNames = collectPlannedSubjectNames(ctx);
-  for (const subjectName of plannedNames.slice(0, 5)) {
+  for (const subjectName of plannedNames.slice(0, 8)) {
     const subjectResult = await autoRecommendGuidesAction({
       studentId,
       classificationId,
@@ -304,13 +306,33 @@ async function refreshCoursePlanData(ctx: PipelineContext): Promise<void> {
 
 function collectPlannedSubjectNames(ctx: PipelineContext): string[] {
   if (!ctx.coursePlanData?.plans) return [];
-  const names = new Set<string>();
+  // Wave 5.1f: **설계 학년(consultingGrades) 의 plans 만** 사용.
+  //   탐구 가이드는 본질상 NEIS 가 아직 기록되지 않은 설계 학년 대상.
+  //   분석 학년(NEIS 확정) 의 plans 를 포함하면 이미 끝난 활동에 가이드가
+  //   link 되는 무의미한 상황 발생.
+  // Wave 5.1d: grade 역순(높은 학년 우선)으로 정렬해 상위 slice 가 현재 학년을
+  //   먼저 뽑도록. 설계 학년만 있는 지금도 여전히 grade 내림차순 정렬 유지.
+  const consultingGradesSet = new Set(ctx.consultingGrades ?? []);
+  if (consultingGradesSet.size === 0) return [];
+
+  const byGrade = new Map<number, Set<string>>();
   for (const p of ctx.coursePlanData.plans) {
     if (p.plan_status !== "confirmed" && p.plan_status !== "recommended") continue;
+    if (!consultingGradesSet.has(p.grade)) continue; // 설계 학년만
     const name = (p.subject as { name?: string } | null)?.name;
-    if (name) names.add(name);
+    if (!name) continue;
+    const set = byGrade.get(p.grade) ?? new Set<string>();
+    set.add(name);
+    byGrade.set(p.grade, set);
   }
-  return [...names];
+  const sortedGrades = [...byGrade.keys()].sort((a, b) => b - a); // 3 → 2 → 1
+  const result: string[] = [];
+  for (const grade of sortedGrades) {
+    for (const name of byGrade.get(grade) ?? []) {
+      if (!result.includes(name)) result.push(name);
+    }
+  }
+  return result;
 }
 
 // ============================================
@@ -476,69 +498,134 @@ async function insertAssignments(
 
   const currentSchoolYear = calculateSchoolYear();
 
-  // area-resolver: 가이드별 대상 영역 도출 (subject + activity_type 둘 다)
-  const { resolveGuideTargetArea } = await import("@/lib/domains/guide/actions/area-resolver");
-  const areaMap = await resolveGuideTargetArea(newGuides.map((g) => g.id));
+  // Wave 5.1f: 설계 학년(consultingGrades) seteks 만 auto-link 대상.
+  //   분석 학년(NEIS 확정) seteks 에는 가이드를 link 하지 않는다 — 탐구 가이드는
+  //   "앞으로의 탐구" 안내이므로 이미 기록 확정된 학년엔 무의미.
+  const consultingGradesSet = new Set(ctx.consultingGrades ?? []);
 
-  // 세특 슬롯 조회 (subject_id 기반 auto-link)
+  // Phase 2 Wave 5.1d: 학생 실제 과목 풀 수집 → area-resolver 에 preferred 로 주입.
+  // Phase 2 Wave 5.1f: 설계 학년(consultingGrades) 로 제한 — 탐구 가이드는
+  //   설계 학년에만 의미가 있으므로 분석 학년 seteks/plans 는 풀에서 제외.
+  const { resolveGuideTargetArea, collectStudentSubjectPool } = await import(
+    "@/lib/domains/guide/actions/area-resolver"
+  );
+  const studentSubjectPool = await collectStudentSubjectPool(studentId, {
+    gradeFilter: consultingGradesSet.size > 0 ? consultingGradesSet : undefined,
+  });
+  const areaMap = await resolveGuideTargetArea(
+    newGuides.map((g) => g.id),
+    { preferredSubjectIds: studentSubjectPool },
+  );
+
+  // 세특 슬롯 조회 (subject_id 기반 auto-link) — 설계 학년만
   const { data: existingSeteks } = await supabase
     .from("student_record_seteks")
-    .select("id, subject_id")
+    .select("id, subject_id, school_year, grade")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .is("deleted_at", null);
-  const setekBySubject = new Map<string, string>();
+  interface SetekSlot {
+    id: string;
+    schoolYear: number;
+    grade: number;
+  }
+  const setekBySubject = new Map<string, SetekSlot>();
   for (const s of existingSeteks ?? []) {
-    if (!setekBySubject.has(s.subject_id)) {
-      setekBySubject.set(s.subject_id, s.id);
+    if (!consultingGradesSet.has(s.grade)) continue; // 설계 학년만
+    const existing = setekBySubject.get(s.subject_id);
+    if (!existing || (s.school_year ?? 0) > existing.schoolYear) {
+      setekBySubject.set(s.subject_id, {
+        id: s.id,
+        schoolYear: s.school_year ?? currentSchoolYear,
+        grade: s.grade ?? studentGrade,
+      });
     }
   }
 
   // 창체 슬롯 조회 (activity_type 기반 auto-link — D3 신규)
+  // 창체는 studentGrade(현재 학년) 기준으로만 — 이미 설계 학년 제약.
   const { data: existingChangche } = await supabase
     .from("student_record_changche")
-    .select("id, activity_type, grade")
+    .select("id, activity_type, grade, school_year")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("grade", studentGrade);
-  const changcheByActivity = new Map<string, string>();
+  interface ChangcheSlot {
+    id: string;
+    schoolYear: number;
+  }
+  const changcheByActivity = new Map<string, ChangcheSlot>();
   for (const c of existingChangche ?? []) {
     if (!changcheByActivity.has(c.activity_type)) {
-      changcheByActivity.set(c.activity_type, c.id);
+      changcheByActivity.set(c.activity_type, {
+        id: c.id,
+        schoolYear: c.school_year ?? currentSchoolYear,
+      });
     }
   }
 
-  const insertRows = newGuides.map((g) => {
+  // Phase 2 Wave 5.1d: orphan 배정 skip + school_year 를 linked 레코드 기반으로 저장
+  let skippedOrphan = 0;
+  const insertRows: Array<{
+    tenant_id: string;
+    student_id: string;
+    guide_id: string;
+    assigned_by: null;
+    school_year: number;
+    grade: number;
+    status: string;
+    student_notes: string;
+    target_subject_id: string | null;
+    target_activity_type: string | null;
+    linked_record_type: "setek" | "changche" | null;
+    linked_record_id: string | null;
+    ai_recommendation_reason: string;
+  }> = [];
+
+  for (const g of newGuides) {
     const area = areaMap.get(g.id);
     const targetSubjectId = area?.targetSubjectId ?? null;
     const targetActivityType = area?.targetActivityType ?? null;
 
-    // D3: 창체 영역 가이드는 changche 슬롯에, 그 외는 setek 슬롯에 link
-    let linkedRecordType: "setek" | "changche" | null = null;
-    let linkedRecordId: string | null = null;
-    if (targetActivityType) {
-      // 창체 가이드 — activity_type 기반 link
-      const changcheId = changcheByActivity.get(targetActivityType) ?? null;
-      if (changcheId) {
-        linkedRecordType = "changche";
-        linkedRecordId = changcheId;
-      }
-    } else if (targetSubjectId) {
-      // 세특 가이드 — subject_id 기반 link
-      const setekId = setekBySubject.get(targetSubjectId) ?? null;
-      if (setekId) {
-        linkedRecordType = "setek";
-        linkedRecordId = setekId;
-      }
+    // 세특도 창체도 아닌 가이드(= 둘 다 null) → skip.
+    // 세특 가이드인데 학생 실제 과목 풀과 매칭 안 됨 → targetSubjectId === null → skip.
+    if (!targetSubjectId && !targetActivityType) {
+      skippedOrphan++;
+      continue;
     }
 
-    return {
+    // D3: 창체는 changche 슬롯에, 세특은 setek 슬롯에 link
+    let linkedRecordType: "setek" | "changche" | null = null;
+    let linkedRecordId: string | null = null;
+    let rowSchoolYear = currentSchoolYear;
+    let rowGrade = studentGrade;
+
+    if (targetActivityType) {
+      const slot = changcheByActivity.get(targetActivityType);
+      if (slot) {
+        linkedRecordType = "changche";
+        linkedRecordId = slot.id;
+        rowSchoolYear = slot.schoolYear;
+      }
+    } else if (targetSubjectId) {
+      const slot = setekBySubject.get(targetSubjectId);
+      if (slot) {
+        linkedRecordType = "setek";
+        linkedRecordId = slot.id;
+        // 버그 1 수정: linked 세특의 학년도/학년을 사용 (그전엔 currentSchoolYear 로 덮어썼음)
+        rowSchoolYear = slot.schoolYear;
+        rowGrade = slot.grade;
+      }
+      // linked 세특 없음 (설계 학년 planned subject) → school_year 는 currentSchoolYear 유지
+    }
+
+    insertRows.push({
       tenant_id: tenantId,
       student_id: studentId,
       guide_id: g.id,
       assigned_by: null,
-      school_year: currentSchoolYear,
-      grade: studentGrade,
+      school_year: rowSchoolYear,
+      grade: rowGrade,
       status: "assigned",
       student_notes: `[AI] 파이프라인 자동 배정 (${g.match_reason}, sim=${g.finalScore.toFixed(2)})`,
       target_subject_id: targetSubjectId,
@@ -546,8 +633,17 @@ async function insertAssignments(
       linked_record_type: linkedRecordType,
       linked_record_id: linkedRecordId,
       ai_recommendation_reason: g.match_reason,
-    };
-  });
+    });
+  }
+
+  if (insertRows.length === 0) {
+    logActionDebug(
+      LOG_CTX,
+      `runGuideMatching: insert할 배정 없음 (candidates=${newGuides.length}, skippedOrphan=${skippedOrphan})`,
+      { studentId },
+    );
+    return 0;
+  }
 
   const { error: insertErr, count } = await supabase
     .from("exploration_guide_assignments")
@@ -559,7 +655,7 @@ async function insertAssignments(
   }
   logActionDebug(
     LOG_CTX,
-    `runGuideMatching: ${count ?? newGuides.length}건 배정 완료 (세특 ${insertRows.filter((r) => r.linked_record_type === "setek").length} / 창체 ${insertRows.filter((r) => r.linked_record_type === "changche").length} / 미연결 ${insertRows.filter((r) => !r.linked_record_type).length})`,
+    `runGuideMatching: ${count ?? insertRows.length}건 배정 완료 (세특 ${insertRows.filter((r) => r.linked_record_type === "setek").length} / 창체 ${insertRows.filter((r) => r.linked_record_type === "changche").length} / 미연결 ${insertRows.filter((r) => !r.linked_record_type).length}, orphan skip ${skippedOrphan})`,
   );
-  return count ?? newGuides.length;
+  return count ?? insertRows.length;
 }

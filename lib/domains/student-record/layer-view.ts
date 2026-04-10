@@ -223,14 +223,21 @@ export function getDefaultPerspective(layer: LayerKey): LayerPerspective | null 
 
 // ============================================
 // 에디터 탭 매핑
-// 에디터별로 지원하는 탭 집합이 달라서 3종류 탭 타입을 각각 매핑한다.
-// - SetekEditor: 5탭 (neis/draft/direction/analysis/draft_analysis) — chat/guide/memo 미지원
+// 에디터별로 지원하는 탭 집합이 달라서 2종류 탭 타입을 각각 매핑한다.
+// - SetekEditor: 6탭 (neis/draft/direction/analysis/draft_analysis/guide) — chat/memo 미지원
 // - ChangcheEditor/HaengteukEditor: 8탭 (chat/guide/direction/draft/neis/analysis/draft_analysis/memo)
 // 설계 모드(NEIS 없음) 학년에서 P8 가안분석 결과를 보려면 draft_analysis 탭을 사용한다.
+// Phase 2 Wave 5.1 (2026-04-10): 세특에도 탐구 가이드 탭 추가 — LAYER_DEFINITIONS.guide.scope=["setek","changche"] 일치화.
 // ============================================
 
-/** SetekEditor가 지원하는 5개 탭 */
-export type SetekNativeTab = "neis" | "draft" | "direction" | "analysis" | "draft_analysis";
+/** SetekEditor가 지원하는 6개 탭 */
+export type SetekNativeTab =
+  | "neis"
+  | "draft"
+  | "direction"
+  | "analysis"
+  | "draft_analysis"
+  | "guide";
 
 /** ChangcheEditor / HaengteukEditor가 지원하는 8개 탭 */
 export type ChangcheNativeTab =
@@ -256,8 +263,8 @@ export function getDirectionMode(layer: LayerKey): DirectionMode | null {
 }
 
 /**
- * 9 레이어 → SetekEditor 5탭 매핑.
- * 미지원 레이어(guide/chat/memo)는 null 반환 → 에디터가 셀 단위 stub 표시.
+ * 9 레이어 → SetekEditor 6탭 매핑.
+ * 미지원 레이어(chat/memo)는 null 반환 → 에디터가 셀 단위 stub 표시.
  */
 export function layerToSetekTab(layer: LayerKey): SetekNativeTab | null {
   switch (layer) {
@@ -273,6 +280,7 @@ export function layerToSetekTab(layer: LayerKey): SetekNativeTab | null {
     case "improve_direction":
       return "direction";
     case "guide":
+      return "guide";
     case "chat":
     case "memo":
       return null;

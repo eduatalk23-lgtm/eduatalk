@@ -25,6 +25,8 @@ interface SubjectInfo {
   id: string;
   name: string;
   subjectType?: string | null;
+  /** Wave 5.1e: exploration_guide_subject_mappings 참조 건수 (canonical 선정용) */
+  guideMappingCount?: number;
 }
 
 /**
@@ -157,10 +159,24 @@ export async function generateAndSaveRecommendations(
   const recommendations = getRecommendedCourseNames(majorCategories, curriculumYear);
 
   // 2단계: DB subject 매칭
+  // Wave 5.1e: 동명 subject 가 여러 개인 경우 canonical 결정을 위해
+  //   exploration_guide_subject_mappings 참조 건수를 함께 주입한다.
   const { data: allSubjects } = await supabase
     .from("subjects")
     .select("id, name, subject_type:subject_type_id ( name )")
     .order("name");
+
+  const { data: mappingRows } = await supabase
+    .from("exploration_guide_subject_mappings")
+    .select("subject_id");
+  const mappingCountBySubject = new Map<string, number>();
+  for (const m of mappingRows ?? []) {
+    if (!m.subject_id) continue;
+    mappingCountBySubject.set(
+      m.subject_id,
+      (mappingCountBySubject.get(m.subject_id) ?? 0) + 1,
+    );
+  }
 
   const subjectInfos: SubjectInfo[] = (allSubjects ?? []).map((s) => {
     // Supabase JOIN은 단일 FK일 때 객체, 복수일 때 배열 반환
@@ -170,6 +186,7 @@ export async function generateAndSaveRecommendations(
       id: s.id,
       name: s.name,
       subjectType: (stObj as { name: string } | null)?.name ?? null,
+      guideMappingCount: mappingCountBySubject.get(s.id) ?? 0,
     };
   });
 
@@ -218,10 +235,28 @@ export async function generateAndSaveRecommendations(
     student.grade ?? 1,
   );
 
+  // Phase 2 Wave 5.1g: 분석 학년(NEIS imported_content 존재하는 학년) 에는
+  //   recommended plan 을 만들지 않는다. 이미 이수 확정된 학년에 "추천" 은
+  //   무의미하고, UI 에서 세특 영역에 "계획됨" row 가 잘못 뜨는 원인이 된다.
+  const { data: importedSeteks } = await supabase
+    .from("student_record_seteks")
+    .select("grade, imported_content")
+    .eq("student_id", studentId)
+    .is("deleted_at", null);
+  const analysisGrades = new Set<number>();
+  for (const s of importedSeteks ?? []) {
+    if (s.imported_content && s.imported_content.trim().length > 0) {
+      analysisGrades.add(s.grade);
+    }
+  }
+  const designRecommendations = courseRecommendations.filter(
+    (r) => !analysisGrades.has(r.grade),
+  );
+
   // 기존 추천 삭제 후 새로 저장
   await repo.removeRecommendedByStudent(studentId);
 
-  const inputs: CoursePlanInput[] = courseRecommendations.map((r) => ({
+  const inputs: CoursePlanInput[] = designRecommendations.map((r) => ({
     tenantId,
     studentId,
     subjectId: r.subjectId,

@@ -315,6 +315,20 @@ export function StudentRecordClient({
   });
   void fileCountsRes; // 현재 미사용, 향후 활용
 
+  // ─── 행특 ↔ 가이드 링크 쿼리 (Wave 5.3) ────────
+  // Phase 2 Wave 4.2에서 파이프라인이 만든 student_record_haengteuk_guide_links.
+  // viewMode와 무관하게 전 학년 링크를 한 번에 받아 내부에서 school_year 필터.
+  const { data: haengteukLinksRes } = useQuery({
+    queryKey: ["studentRecord", "haengteukGuideLinks", studentId],
+    queryFn: () =>
+      import("@/lib/domains/student-record/actions/haengteuk-guide-links").then((m) =>
+        m.fetchHaengteukGuideLinksAction(studentId),
+      ),
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+  const haengteukGuideLinks = haengteukLinksRes?.success ? haengteukLinksRes.data : undefined;
+
   // ─── Agent UI Bridge ───────────────────────────────
   const getAgentSnapshot = useCallback((): UIStateSnapshot => ({
     activeLayerTab: globalSetekTab,
@@ -335,13 +349,15 @@ export function StudentRecordClient({
         scrollToSection(action.sectionId);
         break;
       case "navigate_tab": {
-        // 레거시 4탭 → 9 레이어 역매핑 (Phase 2.1 후방 호환)
+        // 세특 6탭 → 9 레이어 역매핑 (Phase 2.1 후방 호환)
         const tab = action.tab as typeof globalSetekTab;
         const layerMap: Record<typeof tab, LayerKey> = {
           neis: "neis",
           draft: "draft",
           analysis: "analysis",
-          direction: "improve_direction", // direction 탭은 보완방향으로 매핑
+          draft_analysis: "draft_analysis",
+          direction: "improve_direction", // direction 탭은 보완방향으로 기본 매핑
+          guide: "guide",
         };
         handleLayerChange(layerMap[tab]);
         break;
@@ -664,21 +680,34 @@ export function StudentRecordClient({
             coursePlanData={coursePlanData}
             globalSetekTab={globalSetekTab}
             onSetekTabChange={(tab) => {
-              // 레거시 4탭 → 9 레이어 역매핑
+              // 세특 6탭 → 9 레이어 역매핑
               const layerMap: Record<typeof tab, LayerKey> = {
                 neis: "neis",
                 draft: "draft",
                 analysis: "analysis",
+                draft_analysis: "draft_analysis",
                 direction: "improve_direction",
+                guide: "guide",
               };
               handleLayerChange(layerMap[tab]);
             }}
             globalLayer={globalLayer}
             globalPerspective={globalPerspective}
-            guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
+            guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{
+              id: string;
+              guide_id: string;
+              status: string;
+              ai_recommendation_reason?: string | null;
+              student_notes?: string | null;
+              target_subject_id?: string | null;
+              target_activity_type?: string | null;
+              school_year?: number;
+              exploration_guides?: { id: string; title: string; guide_type?: string };
+            }> : undefined}
             setekGuideItems={transformedSetekGuideItems}
             changcheGuideItems={transformedChangcheGuideItems}
             haengteukGuideItems={transformedHaengteukGuideItems}
+            haengteukGuideLinks={haengteukGuideLinks}
           />
 
           {/* ─── 진단 스테이지 ───────────────────── */}

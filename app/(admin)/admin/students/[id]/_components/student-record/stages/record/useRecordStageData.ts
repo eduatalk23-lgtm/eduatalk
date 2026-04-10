@@ -8,6 +8,7 @@ import {
   supplementaryTabQueryOptions,
   studentRecordKeys,
 } from "@/lib/query-options/studentRecord";
+import { CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record/constants";
 
 type Subject = {
   id: string;
@@ -129,7 +130,10 @@ export function useRecordStageData({
       }
       for (const c of entry.data.changche) {
         const text = c.content?.trim() || (c as unknown as { imported_content?: string }).imported_content || "";
-        if (text) result.push({ id: c.id, type: "changche", label: `${g}학년 ${c.activity_type}`, content: text, grade: g });
+        if (text) {
+          const activityLabel = CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type;
+          result.push({ id: c.id, type: "changche", label: `${g}학년 ${activityLabel}`, content: text, grade: g });
+        }
       }
       if (entry.data.haengteuk) {
         const text = entry.data.haengteuk.content?.trim() || (entry.data.haengteuk as unknown as { imported_content?: string }).imported_content || "";

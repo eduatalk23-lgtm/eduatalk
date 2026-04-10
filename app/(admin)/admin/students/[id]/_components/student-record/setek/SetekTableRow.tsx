@@ -26,6 +26,7 @@ import { COMPETENCY_LABELS } from "../shared/AnalysisBlocks";
 import { AnalysisExpandableCell } from "./SetekAnalysisCell";
 import { DraftExpandableCell } from "./SetekDraftCell";
 import { ConsultantDirectionEditor } from "../shared/ConsultantDirectionEditor";
+import { GuideAssignmentCard, parseSimScore, simScoreTier } from "../shared/GuideAssignmentCard";
 import {
   saveConsultantSetekGuideAction,
   deleteConsultantSetekGuideAction,
@@ -155,7 +156,14 @@ export function SetekTableRow({
   activeTab: SetekLayerTab;
   subjectTags: ActivityTagLike[];
   subjectReflection?: SubjectReflectionRate;
-  subjectGuides: Array<{ id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  subjectGuides: Array<{
+    id: string;
+    status: string;
+    ai_recommendation_reason?: string | null;
+    student_notes?: string | null;
+    target_subject_id?: string | null;
+    exploration_guides?: { id: string; title: string; guide_type?: string };
+  }>;
   subjectDirection: SetekGuideItemLike[];
   /** Phase 2.1: 9 레이어 글로벌 선택. 미지원 레이어면 셀에 stub 표시. */
   layer?: LayerKey;
@@ -203,6 +211,18 @@ export function SetekTableRow({
   })();
   const stageConfig = GRADE_STAGE_CONFIG[rowStage];
 
+  // Wave 5.4: 과목별 배정 가이드 중 가장 높은 sim 점수 → 12계열 연속성 배지
+  // student_notes: `[AI] 파이프라인 자동 배정 (${reason}, sim=${finalScore.toFixed(2)})`
+  const bestSim = (() => {
+    let best: number | null = null;
+    for (const g of subjectGuides) {
+      const v = parseSimScore(g.student_notes);
+      if (v !== null && (best === null || v > best)) best = v;
+    }
+    return best;
+  })();
+  const bestSimTier = bestSim !== null ? simScoreTier(bestSim) : null;
+
   // Phase 2.1: 가안 탭 + 컨설턴트 관점일 때만 확정 배지 표시
   const rowConfirmStatus = (() => {
     if (activeTab !== "draft") return null;
@@ -231,6 +251,22 @@ export function SetekTableRow({
         </span>
         {rowConfirmStatus && (
           <ConfirmStatusBadge status={rowConfirmStatus} hideEmpty className="mt-0.5" />
+        )}
+        {/* Wave 5.4: 12계열 연속성 반영 최종 매칭 점수 (세특 과목별 가이드 중 max) */}
+        {bestSim !== null && (
+          <span
+            className={cn(
+              "mt-0.5 inline-flex items-center rounded px-1 py-0 text-[10px] font-semibold",
+              bestSimTier === "strong"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                : bestSimTier === "medium"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+            )}
+            title={`12계열 연속성 반영 최종 매칭 점수 (baseScore×continuityScore, 0.5~3.0)\n가이드 ${subjectGuides.length}건 중 최고값`}
+          >
+            sim {bestSim.toFixed(2)}
+          </span>
         )}
         <div className="flex items-center gap-1.5">
           <button
@@ -484,6 +520,36 @@ export function SetekTableRow({
             perspective={perspective}
           />
         )}
+
+        {/* Wave 5.1b: 세특 탐구 가이드 탭 — 과목 단위 카드 렌더.
+            subjectGuides는 SetekEditor에서 target_subject_id + school_year 로 선필터됨.
+            perspective 분류는 여기서 수행(창체/행특과 동일 규칙). */}
+        {activeTab === "guide" && (() => {
+          let list = subjectGuides;
+          if (perspective === "ai") {
+            list = list.filter((g) => g.ai_recommendation_reason);
+          } else if (perspective === "consultant") {
+            list = list.filter((g) => !g.ai_recommendation_reason);
+          }
+          if (list.length === 0) {
+            return (
+              <span className="text-xs text-[var(--text-placeholder)]">
+                {perspective === "ai"
+                  ? "AI 추천 가이드가 없습니다"
+                  : perspective === "consultant"
+                    ? "배정된 가이드가 없습니다"
+                    : "가이드 없음"}
+              </span>
+            );
+          }
+          return (
+            <div className="flex flex-col gap-1.5">
+              {list.map((a) => (
+                <GuideAssignmentCard key={a.id} assignment={a} showSimBadge />
+              ))}
+            </div>
+          );
+        })()}
       </td>
     </tr>
   );

@@ -34,6 +34,7 @@ import { ChangcheNEISCell } from "../../changche/ChangcheNEISCell";
 import type { ChangcheGuideItemLike } from "../../changche/ChangcheNEISCell";
 import { ChangcheAnalysisCell } from "../../changche/ChangcheAnalysisCell";
 import { ChangcheDraftCell } from "../../changche/ChangcheDraftCell";
+import { GuideAssignmentCard } from "../../shared/GuideAssignmentCard";
 
 const ACTIVITY_TYPES: ChangcheActivityType[] = ["autonomy", "club", "career"];
 
@@ -65,7 +66,16 @@ type ChangcheEditorProps = {
   tenantId: string;
   grade: number;
   diagnosisActivityTags?: AnalysisTagLike[];
-  guideAssignments?: Array<{ id: string; guide_id: string; status: string; ai_recommendation_reason?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  guideAssignments?: Array<{
+    id: string;
+    guide_id: string;
+    status: string;
+    ai_recommendation_reason?: string | null;
+    student_notes?: string | null;
+    target_activity_type?: string | null;
+    school_year?: number;
+    exploration_guides?: { id: string; title: string; guide_type?: string };
+  }>;
   changcheGuideItems?: ChangcheGuideItemLike[];
   /** 외부 제어 모드 (legacy — layer가 우선) */
   activeTab?: SetekLayerTab;
@@ -150,17 +160,19 @@ export function ChangcheEditor({
     return byYear.filter((g) => g.guideMode === directionMode);
   }, [changcheGuideItems, directionMode, schoolYear]);
 
-  // guide 레이어 perspective 분류
-  const filteredGuides = useMemo(() => {
-    const all = guideAssignments ?? [];
+  // guide 레이어 perspective + schoolYear 분류
+  // activity_type 필터링은 각 row 렌더링 시점에 수행 (Wave 5.1)
+  const yearScopedGuides = useMemo(() => {
+    let all = (guideAssignments ?? []).filter((g) => g.school_year === schoolYear);
     if (perspective === "ai") {
-      return all.filter((g) => g.ai_recommendation_reason);
-    }
-    if (perspective === "consultant") {
-      return all.filter((g) => !g.ai_recommendation_reason);
+      all = all.filter((g) => g.ai_recommendation_reason);
+    } else if (perspective === "consultant") {
+      all = all.filter((g) => !g.ai_recommendation_reason);
     }
     return all;
-  }, [guideAssignments, perspective]);
+  }, [guideAssignments, perspective, schoolYear]);
+  /** 탭 배지용: 학년 내 임의 activity_type 가이드 존재 여부 (뱃지 점) */
+  const hasAnyGuide = yearScopedGuides.length > 0;
 
   // 사이드 패널 + 컨텍스트 그리드 연결
   const ctx = useStudentRecordContext();
@@ -215,7 +227,7 @@ export function ChangcheEditor({
               : tab.key === "draft" ? changche.some((c) => c.content?.trim() || c.ai_draft_content || c.confirmed_content?.trim())
               : tab.key === "analysis" ? analysisTags.length > 0
               : tab.key === "draft_analysis" ? draftAnalysisTags.length > 0
-              : tab.key === "guide" ? filteredGuides.length > 0
+              : tab.key === "guide" ? hasAnyGuide
               : tab.key === "direction" ? filteredDirectionItems.length > 0
               : false;
             return (
@@ -373,19 +385,28 @@ export function ChangcheEditor({
                     )}
                     {activeTab === "guide" && (
                       (() => {
-                        return filteredGuides.length > 0 ? (
-                          <div className="flex flex-col gap-1">
-                            {filteredGuides.map((a) => (
-                              <div key={a.id} className="flex items-center gap-1.5">
-                                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0",
-                                  a.status === "completed" ? "bg-emerald-500" : a.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
-                                <span className="truncate text-xs text-[var(--text-primary)]">{a.exploration_guides?.title ?? "가이드"}</span>
-                              </div>
+                        // Wave 5.1: activity_type + school_year 로 필터 (창체는 club/career/autonomy 구분 필수)
+                        const typeGuides = yearScopedGuides.filter((g) => g.target_activity_type === type);
+                        if (typeGuides.length === 0) {
+                          return (
+                            <span className="text-xs text-[var(--text-placeholder)]">
+                              {perspective === "ai"
+                                ? "AI 추천 가이드가 없습니다"
+                                : perspective === "consultant"
+                                  ? "배정된 가이드가 없습니다"
+                                  : "가이드 없음"}
+                            </span>
+                          );
+                        }
+                        // club 은 12계열 연속성 배지 노출 (Decision #5 / Wave 5.4)
+                        const showSim = type === "club";
+                        return (
+                          <div className="flex flex-col gap-1.5">
+                            {typeGuides.map((a) => (
+                              <GuideAssignmentCard key={a.id} assignment={a} showSimBadge={showSim} />
                             ))}
                           </div>
-                        ) : <span className="text-xs text-[var(--text-placeholder)]">
-                          {perspective === "ai" ? "AI 추천 가이드가 없습니다" : perspective === "consultant" ? "배정된 가이드가 없습니다" : "가이드 없음"}
-                        </span>;
+                        );
                       })()
                     )}
                     {activeTab === "direction" && (

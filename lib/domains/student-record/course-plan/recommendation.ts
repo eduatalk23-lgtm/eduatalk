@@ -19,6 +19,12 @@ interface SubjectInfo {
   id: string;
   name: string;
   subjectType?: string | null;
+  /**
+   * Wave 5.1e: 동명 subject 가 여러 개인 경우 canonical 선정용.
+   * `exploration_guide_subject_mappings` 참조 건수. 높을수록 실제로 쓰이는 subject.
+   * 미지정 시 0 (레거시 호환).
+   */
+  guideMappingCount?: number;
 }
 
 // ============================================
@@ -80,10 +86,18 @@ export function matchRecommendationsToSubjects(
   allSubjects: SubjectInfo[],
 ): MatchedRecommendation[] {
   // 정규화 키 → subject 인덱스
+  // Wave 5.1e: 동명 subject 가 여러 개일 때 `guideMappingCount` 가 가장 높은 쪽을
+  //   canonical 로 선택해 결정적으로 만든다. 기존엔 "첫 만난 것" 이라 DB row
+  //   순서에 따라 매 실행 다른 id 가 뽑혀 plans 가 뒤집히는 버그가 있었음.
   const subjectIndex = new Map<string, SubjectInfo>();
   for (const s of allSubjects) {
     const key = normalizeSubjectName(s.name);
-    if (!subjectIndex.has(key)) subjectIndex.set(key, s);
+    const existing = subjectIndex.get(key);
+    const curScore = s.guideMappingCount ?? 0;
+    const exScore = existing?.guideMappingCount ?? 0;
+    if (!existing || curScore > exScore) {
+      subjectIndex.set(key, s);
+    }
   }
 
   const matched: MatchedRecommendation[] = [];
