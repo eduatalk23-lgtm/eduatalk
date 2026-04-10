@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   fetchCoverageReportAction,
@@ -90,14 +90,31 @@ function ClusterCard({ cluster }: { cluster: ClusterCoverage }) {
 
       {hasGaps && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {cluster.gaps.map((g) => (
-            <span
-              key={g}
-              className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200"
-            >
-              {DIFFICULTY_LABELS[g as keyof typeof DIFFICULTY_LABELS]} 부재
-            </span>
-          ))}
+          {cluster.gaps.map((g) => {
+            const params = new URLSearchParams({
+              keyword: cluster.name,
+              gapCluster: cluster.id,
+              gapClusterName: cluster.name,
+              difficultyLevel: g,
+              guideType: cluster.guide_type || "topic_exploration",
+            });
+            if (cluster.career_field_codes?.[0]) {
+              params.set("careerField", cluster.career_field_codes[0]);
+            }
+            if (cluster.subject_hints?.[0]) {
+              params.set("subject", cluster.subject_hints[0]);
+            }
+            return (
+              <Link
+                key={g}
+                href={`/admin/guides/generate?${params.toString()}`}
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                {DIFFICULTY_LABELS[g as keyof typeof DIFFICULTY_LABELS]} 생성
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

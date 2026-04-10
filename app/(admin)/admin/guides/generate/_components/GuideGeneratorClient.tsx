@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowLeft,
   Sparkles,
   Loader2,
@@ -56,7 +57,7 @@ export function GuideGeneratorClient() {
   const searchParams = useSearchParams();
   const toast = useToast();
 
-  // URL 쿼리 파라미터에서 프리필 데이터 추출 (주제 관리 페이지에서 전달)
+  // URL 쿼리 파라미터에서 프리필 데이터 추출 (주제 관리 페이지 / 커버리지 대시보드에서 전달)
   const prefill = useMemo(() => {
     const keyword = searchParams.get("keyword");
     if (!keyword) return null;
@@ -73,6 +74,9 @@ export function GuideGeneratorClient() {
       minorUnit: searchParams.get("minorUnit"),
       topicId: searchParams.get("topicId"),
       difficultyLevel: searchParams.get("difficultyLevel"),
+      /** 커버리지 갭 채우기 모드 */
+      gapClusterId: searchParams.get("gapCluster"),
+      gapClusterName: searchParams.get("gapClusterName"),
     };
   }, [searchParams]);
 
@@ -425,7 +429,11 @@ export function GuideGeneratorClient() {
     extractUrl.trim().length > 0 ||
     additionalContext.trim().length > 0;
 
-  const backHref = prefill ? "/admin/guides/topics" : "/admin/guides";
+  const backHref = prefill?.gapClusterId
+    ? "/admin/guides/coverage"
+    : prefill
+      ? "/admin/guides/topics"
+      : "/admin/guides";
 
   return (
     <div className="space-y-6">
@@ -453,8 +461,21 @@ export function GuideGeneratorClient() {
         </div>
       </div>
 
-      {/* 주제에서 전달된 프리필 안내 */}
-      {prefill && (
+      {/* 갭 채우기 모드 안내 */}
+      {prefill?.gapClusterId && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            <span className="font-medium">커버리지 갭 채우기</span> — 클러스터 &quot;{prefill.gapClusterName}&quot;의 {
+              prefill.difficultyLevel === "basic" ? "기초" :
+              prefill.difficultyLevel === "intermediate" ? "발전" : "심화"
+            } 난이도 가이드를 생성합니다.
+          </p>
+        </div>
+      )}
+
+      {/* 주제에서 전달된 프리필 안내 (갭 채우기가 아닌 경우만) */}
+      {prefill && !prefill.gapClusterId && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700">
           <Sparkles className="w-4 h-4 text-primary-500 shrink-0" />
           <p className="text-sm text-primary-700 dark:text-primary-300">

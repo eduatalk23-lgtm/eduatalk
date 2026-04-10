@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, CopyPlus, Sparkles, Download, Share2, Eye, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, CopyPlus, Sparkles, Download, Share2, Eye, X, MessageSquareText, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -49,7 +49,9 @@ import { GuideContentEditor } from "./GuideContentEditor";
 import { GuidePreview } from "./GuidePreview";
 import { GuideVersionHistory } from "./GuideVersionHistory";
 import { improveGuideAction } from "@/lib/domains/guide/llm/actions/improveGuide";
+import { agentEditGuideAction } from "@/lib/domains/guide/llm/actions/agentEditGuide";
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
+import { GUIDE_SECTION_CONFIG } from "@/lib/domains/guide/section-config";
 import { createShareLinkAction } from "@/lib/domains/guide/actions/share";
 import { GuideExportModal } from "./GuideExportModal";
 import { GuideSharePanel } from "./GuideSharePanel";
@@ -177,6 +179,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [improveModelTier, setImproveModelTier] = useState<ModelTier>("fast");
+  // AI 에이전트 편집 패널
+  const [agentEditOpen, setAgentEditOpen] = useState(false);
+  const [agentInstruction, setAgentInstruction] = useState("");
+  const [agentTargetKeys, setAgentTargetKeys] = useState<Set<string>>(new Set());
+  const [agentEditing, setAgentEditing] = useState(false);
   // 보기/편집 모드 (기존 가이드: 보기 기본, 신규: 편집 기본)
   const [mode, setMode] = useState<"view" | "edit">(isNew ? "edit" : "view");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1204,6 +1211,134 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               위 개선 제안을 반영한 새 버전이 생성됩니다. 원본은 유지됩니다.
             </p>
           </div>
+          )}
+        </div>
+      )}
+
+      {/* AI 에이전트 편집 패널 (최신 버전 + AI 처리 중 아닐 때) */}
+      {!isNew && guide && guide.is_latest && !isAiImproving && !isAiGenerating && !isAiReviewing && (
+        <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5 space-y-3">
+          <button
+            type="button"
+            onClick={() => setAgentEditOpen(!agentEditOpen)}
+            className="w-full flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquareText className="w-4 h-4 text-violet-500" />
+              <h3 className="text-sm font-semibold text-[var(--text-heading)]">
+                AI 에이전트 편집
+              </h3>
+            </div>
+            <span className="text-xs text-[var(--text-secondary)]">
+              {agentEditOpen ? "접기" : "펼치기"}
+            </span>
+          </button>
+
+          {agentEditOpen && (
+            <div className="space-y-3 pt-2 border-t border-secondary-100 dark:border-secondary-800">
+              {/* 자연어 지시 입력 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  편집 지시 (자연어)
+                </label>
+                <textarea
+                  value={agentInstruction}
+                  onChange={(e) => setAgentInstruction(e.target.value)}
+                  placeholder="예: 탐구 동기를 더 구체적인 경험에서 시작하도록 수정해주세요"
+                  rows={3}
+                  className="w-full rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:outline-none focus:ring-2 focus:ring-violet-500/30 resize-none"
+                />
+              </div>
+
+              {/* 대상 섹션 멀티셀렉트 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  대상 섹션 (선택하지 않으면 AI가 자율 판단)
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(GUIDE_SECTION_CONFIG[guideType] ?? [])
+                    .filter((s) => s.key !== "setek_examples")
+                    .map((s) => {
+                      const isSelected = agentTargetKeys.has(s.key);
+                      return (
+                        <button
+                          key={s.key}
+                          type="button"
+                          onClick={() => {
+                            setAgentTargetKeys((prev) => {
+                              const next = new Set(prev);
+                              if (isSelected) next.delete(s.key);
+                              else next.add(s.key);
+                              return next;
+                            });
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors",
+                            isSelected
+                              ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 ring-1 ring-violet-300 dark:ring-violet-700"
+                              : "bg-secondary-100 text-[var(--text-secondary)] dark:bg-secondary-800 hover:bg-secondary-200 dark:hover:bg-secondary-700",
+                          )}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* 실행 버튼 */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!guideId || !agentInstruction.trim()) return;
+                  setAgentEditing(true);
+                  try {
+                    const targetKeys = agentTargetKeys.size > 0
+                      ? [...agentTargetKeys]
+                      : undefined;
+                    const result = await agentEditGuideAction(
+                      guideId,
+                      agentInstruction,
+                      targetKeys,
+                    );
+                    if (result.success && result.data?.guideId) {
+                      toast.showSuccess(
+                        "AI 편집이 시작되었습니다. 완료되면 자동으로 반영됩니다.",
+                      );
+                      router.push(`/admin/guides/${result.data.guideId}`);
+                    } else {
+                      toast.showError(
+                        !result.success
+                          ? result.error ?? "편집 요청 실패"
+                          : "편집 요청 실패",
+                      );
+                    }
+                  } catch {
+                    toast.showError("AI 편집 중 오류가 발생했습니다.");
+                  } finally {
+                    setAgentEditing(false);
+                  }
+                }}
+                disabled={agentEditing || !agentInstruction.trim()}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-violet-500 text-white hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {agentEditing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    편집 시작 중...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquareText className="w-4 h-4" />
+                    AI 에이전트 편집 실행
+                  </>
+                )}
+              </button>
+              <p className="text-[10px] text-[var(--text-secondary)] text-center">
+                지시에 따라 수정된 새 버전이 생성됩니다. 원본은 유지됩니다.
+              </p>
+            </div>
           )}
         </div>
       )}
