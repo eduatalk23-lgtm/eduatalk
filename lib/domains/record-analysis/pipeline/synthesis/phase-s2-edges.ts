@@ -743,5 +743,46 @@ async function insertAssignments(
     LOG_CTX,
     `runGuideMatching: ${count ?? insertRows.length}건 배정 완료 (세특 ${insertRows.filter((r) => r.linked_record_type === "setek").length} / 창체 ${insertRows.filter((r) => r.linked_record_type === "changche").length} / 미연결 ${insertRows.filter((r) => !r.linked_record_type).length}, orphan skip ${skippedOrphan})`,
   );
+
+  // Phase A: 학생 궤적 자동 기록 (fire-and-forget)
+  upsertTopicTrajectories(supabase, studentId, insertRows.map((r) => r.guide_id), studentGrade).catch(() => {});
+
   return count ?? insertRows.length;
+}
+
+/** Phase A: 배정된 가이드들의 궤적을 일괄 UPSERT */
+async function upsertTopicTrajectories(
+  supabase: PipelineContext["supabase"],
+  studentId: string,
+  guideIds: string[],
+  grade: number,
+): Promise<void> {
+  if (guideIds.length === 0) return;
+
+  const { data: guides } = await supabase
+    .from("exploration_guides")
+    .select("id, topic_cluster_id, difficulty_level, title")
+    .in("id", guideIds);
+
+  const rows = (guides ?? [])
+    .filter((g) => g.topic_cluster_id)
+    .map((g) => ({
+      student_id: studentId,
+      topic_cluster_id: g.topic_cluster_id!,
+      grade,
+      source: "auto_from_pipeline",
+      confidence: 0.8,
+      evidence: {
+        guide_id: g.id,
+        difficulty_level: g.difficulty_level,
+        title: g.title,
+        assigned_at: new Date().toISOString(),
+      },
+    }));
+
+  if (rows.length === 0) return;
+
+  await supabase
+    .from("student_record_topic_trajectories")
+    .upsert(rows, { onConflict: "student_id,grade,topic_cluster_id" });
 }

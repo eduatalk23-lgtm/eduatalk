@@ -110,6 +110,10 @@ export async function assignGuideAction(input: {
       linkedRecordType: input.linkedRecordType,
       linkedRecordId: input.linkedRecordId,
     });
+
+    // Phase A: 학생 궤적 자동 기록 (fire-and-forget)
+    upsertTopicTrajectory(input.studentId, input.guideId, input.grade).catch(() => {});
+
     return createSuccessResponse(data);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -179,6 +183,44 @@ export async function fetchCareerFieldsAction(): Promise<
     logActionError({ ...LOG_CTX, action: "fetchCareerFields" }, error);
     return createErrorResponse("계열 목록을 불러올 수 없습니다.");
   }
+}
+
+/** Phase A: 가이드 배정 시 학생 궤적 UPSERT */
+async function upsertTopicTrajectory(
+  studentId: string,
+  guideId: string,
+  grade: number,
+): Promise<void> {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return;
+
+  const { data: guide } = await supabase
+    .from("exploration_guides")
+    .select("topic_cluster_id, difficulty_level, title")
+    .eq("id", guideId)
+    .single();
+
+  if (!guide?.topic_cluster_id) return;
+
+  await supabase
+    .from("student_record_topic_trajectories")
+    .upsert(
+      {
+        student_id: studentId,
+        topic_cluster_id: guide.topic_cluster_id,
+        grade,
+        source: "auto_from_assignment",
+        confidence: 0.8,
+        evidence: {
+          guide_id: guideId,
+          difficulty_level: guide.difficulty_level,
+          title: guide.title,
+          assigned_at: new Date().toISOString(),
+        },
+      },
+      { onConflict: "student_id,grade,topic_cluster_id" },
+    );
 }
 
 /** 주제 클러스터 목록 (Phase A) */

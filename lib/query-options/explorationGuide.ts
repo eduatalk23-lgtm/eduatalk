@@ -135,6 +135,24 @@ export function guideCareerFieldsQueryOptions() {
   });
 }
 
+export function studentTopicTrajectoriesQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.all.concat("trajectories", studentId),
+    queryFn: async () => {
+      const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase
+        .from("student_record_topic_trajectories")
+        .select("*, cluster:exploration_guide_topic_clusters!student_record_topic_trajectories_topic_cluster_id_fkey(name)")
+        .eq("student_id", studentId)
+        .order("grade", { ascending: true });
+      return data ?? [];
+    },
+    staleTime: 30_000,
+    enabled: !!studentId,
+  });
+}
+
 // ============================================
 // CMS 전용 Query Options
 // ============================================
