@@ -3,16 +3,8 @@
 // AI 프롬프트에 배정 가이드 정보를 주입하는 유틸리티
 // ============================================
 
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-interface AssignmentForPrompt {
-  guide_title: string;
-  guide_type: string | null;
-  status: string;
-  target_subject_name: string | null;
-  target_activity_type: string | null;
-  ai_recommendation_reason: string | null;
-}
 
 interface GuideAssignmentRow {
   status: string;
@@ -30,14 +22,10 @@ interface GuideAssignmentRow {
 }
 
 /**
- * 학생의 가이드 배정 정보를 AI 프롬프트 섹션으로 변환
- * @param studentId 학생 UUID
- * @param context "guide" | "summary" | "strategy" — 프롬프트 맥락에 따라 instruction 분기
+ * DB 조회 + 포맷팅 결과를 React.cache()로 요청 단위 캐싱.
+ * Phase 4/5/6에서 context만 다르게 3번 호출해도 DB 쿼리는 1회만.
  */
-export async function buildGuideContextSection(
-  studentId: string,
-  context: "guide" | "summary" | "strategy",
-): Promise<string> {
+const getCachedGuideLines = cache(async (studentId: string): Promise<string[]> => {
   const supabase = await createSupabaseServerClient();
 
   const { data: assignments } = await supabase
@@ -55,7 +43,7 @@ export async function buildGuideContextSection(
     .limit(20)
     .returns<GuideAssignmentRow[]>();
 
-  if (!assignments || assignments.length === 0) return "";
+  if (!assignments || assignments.length === 0) return [];
 
   // subject_id → 과목명 매핑
   const subjectIds = assignments
@@ -71,8 +59,7 @@ export async function buildGuideContextSection(
     for (const s of subjects ?? []) subjectMap.set(s.id, s.name);
   }
 
-  // 배정 목록 텍스트 생성
-  const lines = assignments.map((a) => {
+  return assignments.map((a) => {
     const guide = a.exploration_guides;
     const subjectName = a.target_subject_id ? subjectMap.get(a.target_subject_id) : null;
     const area = subjectName
@@ -88,6 +75,19 @@ export async function buildGuideContextSection(
       : "";
     return `- [${a.status}] "${guide.title}" → ${area}${phaseATag}${quality}${a.ai_recommendation_reason ? ` (${a.ai_recommendation_reason})` : ""}`;
   });
+});
+
+/**
+ * 학생의 가이드 배정 정보를 AI 프롬프트 섹션으로 변환
+ * @param studentId 학생 UUID
+ * @param context "guide" | "summary" | "strategy" — 프롬프트 맥락에 따라 instruction 분기
+ */
+export async function buildGuideContextSection(
+  studentId: string,
+  context: "guide" | "summary" | "strategy",
+): Promise<string> {
+  const lines = await getCachedGuideLines(studentId);
+  if (lines.length === 0) return "";
 
   const instruction = context === "guide"
     ? "위 배정 가이드의 탐구 주제와 방향을 참고하여 세특 방향을 설계하세요. 가이드가 배정된 영역은 해당 가이드의 주제를 반영하고, 미배정 영역은 독립적으로 방향을 제안하세요."

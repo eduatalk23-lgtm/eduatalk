@@ -32,6 +32,20 @@ const SOURCE_COLORS: Record<string, string> = {
   consultant_manual: "text-amber-500 dark:text-amber-400",
 };
 
+/** 소스별 신뢰 가중치 — raw confidence에 곱하여 보정 */
+const SOURCE_CONFIDENCE_WEIGHT: Record<string, number> = {
+  consultant_manual: 1.0,
+  auto_from_assignment: 0.9,
+  auto_from_pipeline: 0.85,
+  extracted_from_neis: 0.75,
+  seed_from_major: 0.6,
+};
+
+function normalizeConfidence(raw: number, source: string): number {
+  const weight = SOURCE_CONFIDENCE_WEIGHT[source] ?? 0.7;
+  return Math.min(1, raw * weight);
+}
+
 interface TrajectoryRow {
   id: string;
   grade: number;
@@ -90,11 +104,12 @@ export function TrajectoryPanel({ studentId }: { studentId: string }) {
                     SOURCE_LABELS[item.source] ?? item.source;
                   const sourceColor =
                     SOURCE_COLORS[item.source] ?? "text-[var(--text-secondary)]";
-                  // confidence → opacity (0.5~1.0 → 60%~100%)
+                  // 보정 confidence → opacity
+                  const normConf = normalizeConfidence(item.confidence, item.source);
                   const opacity =
-                    item.confidence >= 0.8
+                    normConf >= 0.7
                       ? "opacity-100"
-                      : item.confidence >= 0.6
+                      : normConf >= 0.5
                         ? "opacity-80"
                         : "opacity-60";
 
@@ -106,7 +121,7 @@ export function TrajectoryPanel({ studentId }: { studentId: string }) {
                         "bg-secondary-50 dark:bg-secondary-800 text-[var(--text-primary)]",
                         opacity,
                       )}
-                      title={`${item.evidence?.title ?? ""} (${sourceLabel}, 신뢰도 ${Math.round(item.confidence * 100)}%)`}
+                      title={`${item.evidence?.title ?? ""} (${sourceLabel}, 신뢰도 ${Math.round(normConf * 100)}%)`}
                     >
                       <span
                         className={cn(

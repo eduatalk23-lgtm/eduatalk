@@ -278,7 +278,42 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   useEffect(() => {
     if (!hydratedRef.current) return;
     setIsDirty(true);
-  }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]);  
+  }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]);
+
+  // 자동 저장: isDirty 후 5초 debounce → localStorage
+  const [autoSaveTime, setAutoSaveTime] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isDirty || !guideId || isNew) return;
+    const timer = setTimeout(() => {
+      try {
+        const draft = { title, guideType, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, savedAt: new Date().toISOString() };
+        localStorage.setItem(`guide-draft-${guideId}`, JSON.stringify(draft));
+        setAutoSaveTime(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }));
+      } catch { /* localStorage full — 무시 */ }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isDirty, guideId, isNew, title, guideType, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections]);
+
+  // 저장 성공 시 localStorage 초안 삭제
+  useEffect(() => {
+    if (!isDirty && guideId) {
+      localStorage.removeItem(`guide-draft-${guideId}`);
+      setAutoSaveTime(null);
+    }
+  }, [isDirty, guideId]);
+
+  // 초안 복구 안내 (hydrate 직후 1회)
+  const [hasDraftRecovery, setHasDraftRecovery] = useState(false);
+  useEffect(() => {
+    if (!guideId || isNew) return;
+    const saved = localStorage.getItem(`guide-draft-${guideId}`);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (draft.savedAt) setHasDraftRecovery(true);
+      } catch { /* 손상된 데이터 — 무시 */ }
+    }
+  }, [guideId, isNew]);
 
   // AI 처리 중 상태 — 자동 갱신 (3초 폴링)
   // ⚠️ 조건부 early return 앞에 위치해야 React Hooks 규칙 준수
@@ -809,6 +844,53 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         </div>
       )}
 
+      {/* 초안 복구 안내 */}
+      {hasDraftRecovery && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            저장되지 않은 이전 편집 내용이 있습니다.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const saved = localStorage.getItem(`guide-draft-${guideId}`);
+                  if (!saved) return;
+                  const draft = JSON.parse(saved);
+                  if (draft.title) setTitle(draft.title);
+                  if (draft.motivation) setMotivation(draft.motivation);
+                  if (draft.theorySections) setTheorySections(draft.theorySections);
+                  if (draft.reflection) setReflection(draft.reflection);
+                  if (draft.impression) setImpression(draft.impression);
+                  if (draft.summary) setSummary(draft.summary);
+                  if (draft.followUp) setFollowUp(draft.followUp);
+                  if (draft.bookDescription) setBookDescription(draft.bookDescription);
+                  if (draft.setekExamples) setSetekExamples(draft.setekExamples);
+                  if (draft.extraSections) setExtraSections(draft.extraSections);
+                  setMode("edit");
+                  toast.showSuccess("이전 편집 내용을 복구했습니다.");
+                } catch { /* 무시 */ }
+                setHasDraftRecovery(false);
+              }}
+              className="px-3 py-1 rounded text-xs font-medium bg-amber-500 text-white hover:bg-amber-600"
+            >
+              복구
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem(`guide-draft-${guideId}`);
+                setHasDraftRecovery(false);
+              }}
+              className="px-3 py-1 rounded text-xs font-medium text-amber-600 hover:text-amber-700"
+            >
+              무시
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 — sticky */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-white/95 dark:bg-secondary-950/95 backdrop-blur-sm border-b border-transparent [&:not(:first-child)]:border-secondary-200 dark:[&:not(:first-child)]:border-secondary-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -948,6 +1030,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 )}
                 {saving ? "저장 중..." : "저장"}
               </button>
+              {autoSaveTime && (
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  자동 저장 {autoSaveTime}
+                </span>
+              )}
             </>
           )}
         </div>
