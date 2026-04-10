@@ -423,34 +423,6 @@ export function HaengteukEditor({
               <td className={`${B} p-1`}>
                 {activeTab === "neis" && (
                   <div>
-                    {/* AI 초안 배너 (세특과 동일) */}
-                    {haengteuk?.ai_draft_content && !content && (
-                      <div className="mb-1 rounded bg-violet-50 p-2 text-xs dark:bg-violet-900/20">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
-                          <button type="button" onClick={async () => {
-                            if (!haengteuk) return;
-                            const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
-                            // E1: 기존 content 보호
-                            const result = await acceptAiDraftAction(haengteuk.id, "haengteuk");
-                            if (!result.success) {
-                              if ("error" in result && result.error === "CONTENT_EXISTS") {
-                                if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
-                                const forced = await acceptAiDraftAction(haengteuk.id, "haengteuk", true);
-                                if (!forced.success) return;
-                              } else if ("error" in result && result.error === "CONFLICT") {
-                                alert("다른 사용자가 이미 수정했습니다. 페이지를 새로고침하세요.");
-                                return;
-                              } else {
-                                return;
-                              }
-                            }
-                            queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-                          }} className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700">수용</button>
-                        </div>
-                        <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{haengteuk.ai_draft_content.slice(0, 200)}...</p>
-                      </div>
-                    )}
                     <AutoResizeTextarea
                       value={content}
                       onChange={(e) => setContent(e.target.value)}

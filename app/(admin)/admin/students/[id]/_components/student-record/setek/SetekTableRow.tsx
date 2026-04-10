@@ -107,7 +107,6 @@ function SetekInlineEditor({
 
   const [draftGenerating, setDraftGenerating] = useState(false);
   const hasDraft = !!setek.ai_draft_content;
-  const draftContent = setek.ai_draft_content ?? null;
 
   async function handleGenerateDraft() {
     setDraftGenerating(true);
@@ -129,39 +128,10 @@ function SetekInlineEditor({
     }
   }
 
-  async function handleAcceptDraft() {
-    const { acceptAiDraftAction } = await import(
-      "@/lib/domains/student-record/actions/confirm"
-    );
-    const result = await acceptAiDraftAction(setek.id, "setek");
-    if (!result.success) {
-      if ("error" in result && result.error === "CONTENT_EXISTS") {
-        if (!confirm("기존 작성 내용이 있습니다. AI 초안으로 덮어쓰시겠습니까?")) return;
-        const forced = await acceptAiDraftAction(setek.id, "setek", true);
-        if (!forced.success) return;
-      } else if ("error" in result && result.error === "CONFLICT") {
-        alert("다른 사용자가 이미 수정했습니다. 페이지를 새로고침하세요.");
-        return;
-      } else {
-        return;
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-  }
-
   return (
     <>
       {showSemesterLabel && (
         <p className="mb-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
-      )}
-      {hasDraft && draftContent && !content && (
-        <div className="mb-1 rounded bg-violet-50 p-2 text-xs dark:bg-violet-900/20">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
-            <button type="button" onClick={handleAcceptDraft} className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700">수용</button>
-          </div>
-          <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{draftContent.slice(0, 200)}...</p>
-        </div>
       )}
       <AutoResizeTextarea
         value={content}

@@ -105,9 +105,13 @@ describe("acceptAiDraftAction", () => {
     const result = await acceptAiDraftAction("setek-1", "setek");
 
     expect(result.success).toBe(true);
+    // AI 원본은 보존 — 가안 레이어 AI 관점에서 계속 참조 가능해야 함
     expect(supabaseMock.update).toHaveBeenCalledWith(
-      expect.objectContaining({ content: "AI가 생성한 세특", ai_draft_content: null }),
+      expect.objectContaining({ content: "AI가 생성한 세특", status: "review" }),
     );
+    const updateArg = supabaseMock.update.mock.calls[0][0];
+    expect(updateArg).not.toHaveProperty("ai_draft_content");
+    expect(updateArg).not.toHaveProperty("ai_draft_at");
   });
 
   it("AI 초안 없을 때 에러 반환", async () => {

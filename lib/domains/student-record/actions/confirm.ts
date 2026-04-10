@@ -84,9 +84,8 @@ export async function acceptAiDraftAction(
       .from(table)
       .update({
         content: data.ai_draft_content,
-        // E2: 수용 후 AI 초안 초기화 (배너/버튼이 다시 노출되지 않도록)
-        ai_draft_content: null,
-        ai_draft_at: null,
+        // E2: AI 원본(ai_draft_content/ai_draft_at)은 보존 — 가안 레이어 AI 관점에서 계속 참조 가능해야 함.
+        //     배너/버튼 재노출은 UI 조건(content 존재 여부)으로 이미 차단됨.
         // B5: AI 초안 수용 → 검토 중 단계로 전환
         status: "review",
       })
