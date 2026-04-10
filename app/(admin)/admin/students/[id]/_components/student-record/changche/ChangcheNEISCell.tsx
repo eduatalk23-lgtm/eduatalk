@@ -49,7 +49,7 @@ export interface ChangcheGuideItemLike {
 // ─── ChangcheNEISCell ────────────────────────────
 
 export function ChangcheNEISCell({
-  activityType, existing, studentId, schoolYear, tenantId, grade, guideItem,
+  activityType, existing, studentId, schoolYear, tenantId, grade,
 }: {
   activityType: ChangcheActivityType;
   existing: RecordChangche | undefined;
@@ -57,13 +57,11 @@ export function ChangcheNEISCell({
   schoolYear: number;
   tenantId: string;
   grade: number;
-  guideItem?: ChangcheGuideItemLike;
 }) {
   const charLimit = getCharLimit(activityType, schoolYear);
   // content가 비어있으면 imported_content(NEIS 원문) 표시 (세특과 동일)
   const displayContent = existing?.content?.trim() ? existing.content : (existing?.imported_content ?? "");
   const [content, setContent] = useState(displayContent);
-  const [draftGenerating, setDraftGenerating] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -79,30 +77,6 @@ export function ChangcheNEISCell({
 
   const { status, error, saveNow } = useAutoSave({ data: content, onSave: handleSave });
 
-  const hasDraft = !!existing?.ai_draft_content;
-
-  async function handleGenerateDraft() {
-    if (!existing) return;
-    setDraftGenerating(true);
-    try {
-      const { generateChangcheDraftAction } = await import(
-        "@/lib/domains/record-analysis/llm/actions/generateChangcheDraft"
-      );
-      await generateChangcheDraftAction(existing.id, {
-        activityType,
-        grade,
-        schoolYear,
-        direction: guideItem?.direction,
-        keywords: guideItem?.keywords,
-        teacherPoints: guideItem?.teacherPoints,
-        existingContent: existing.imported_content ?? undefined,
-      });
-      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-    } finally {
-      setDraftGenerating(false);
-    }
-  }
-
   return (
     <div>
       <AutoResizeTextarea
@@ -116,16 +90,6 @@ export function ChangcheNEISCell({
           <SaveStatusIndicator status={status} error={error} />
           {status === "error" && (
             <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
-          )}
-          {existing && !content && !hasDraft && (
-            <button
-              type="button"
-              disabled={draftGenerating}
-              onClick={handleGenerateDraft}
-              className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-            >
-              {draftGenerating ? "생성 중..." : "AI 초안 생성"}
-            </button>
           )}
         </div>
         <CharacterCounter content={content} charLimit={charLimit} />

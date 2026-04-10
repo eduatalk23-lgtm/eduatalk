@@ -105,29 +105,6 @@ function SetekInlineEditor({
     enabled: true,
   });
 
-  const [draftGenerating, setDraftGenerating] = useState(false);
-  const hasDraft = !!setek.ai_draft_content;
-
-  async function handleGenerateDraft() {
-    setDraftGenerating(true);
-    try {
-      const { generateSetekDraftAction } = await import(
-        "@/lib/domains/record-analysis/llm/actions/generateSetekDraft"
-      );
-      const subjectName = setek.subject_id;
-      const result = await generateSetekDraftAction(setek.id, {
-        subjectName,
-        grade,
-        existingContent: content || undefined,
-      });
-      if (result.success && result.data) {
-        queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
-      }
-    } finally {
-      setDraftGenerating(false);
-    }
-  }
-
   return (
     <>
       {showSemesterLabel && (
@@ -144,16 +121,6 @@ function SetekInlineEditor({
           <SaveStatusIndicator status={status} error={error} />
           {status === "error" && (
             <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
-          )}
-          {!content && !hasDraft && (
-            <button
-              type="button"
-              onClick={handleGenerateDraft}
-              disabled={draftGenerating}
-              className="text-xs text-violet-600 hover:text-violet-800 dark:text-violet-400 disabled:opacity-50"
-            >
-              {draftGenerating ? "생성 중..." : "AI 초안 생성"}
-            </button>
           )}
         </div>
         <CharacterCounter content={content} charLimit={charLimit} />

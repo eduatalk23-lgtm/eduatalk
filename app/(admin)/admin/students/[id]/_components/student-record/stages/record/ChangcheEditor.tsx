@@ -337,7 +337,6 @@ export function ChangcheEditor({
                         schoolYear={schoolYear}
                         tenantId={tenantId}
                         grade={grade}
-                        guideItem={changcheGuideItems?.find((g) => g.activityType === type)}
                       />
                     )}
                     {activeTab === "draft" && (
@@ -348,6 +347,7 @@ export function ChangcheEditor({
                           schoolYear={schoolYear}
                           tenantId={tenantId}
                           grade={grade}
+                          guideItem={changcheGuideItems?.find((g) => g.activityType === type)}
                           perspective={perspective}
                         />
                       ) : <span className="text-xs text-[var(--text-placeholder)]">기록 없음</span>

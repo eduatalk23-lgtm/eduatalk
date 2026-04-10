@@ -10,6 +10,7 @@ import { DraftBlock, DRAFT_BLOCK_STYLES } from "../shared/DraftBlocks";
 
 export function HaengteukDraftCell({
   haengteuk, studentId, schoolYear, tenantId, grade, charLimit, perspective,
+  onGenerateDraft, isGenerating,
 }: {
   haengteuk: RecordHaengteuk;
   studentId: string;
@@ -19,6 +20,9 @@ export function HaengteukDraftCell({
   charLimit: number;
   /** 관점별 단일 슬라이스. AI=ai_draft, consultant=content, null=전체 (레거시). */
   perspective?: LayerPerspective | null;
+  /** AI 초안 생성 — 편집기 레벨에서 setekSummary/changcheSummary/draftReferenceGuide 등을 조립해서 주입 */
+  onGenerateDraft?: () => void | Promise<void>;
+  isGenerating?: boolean;
 }) {
   const queryClient = useQueryClient();
   const recordQk = studentRecordKeys.recordTab(studentId, schoolYear);
@@ -66,7 +70,11 @@ export function HaengteukDraftCell({
   return (
     <div className="flex flex-col gap-3">
       {showAi && (
-        <DraftBlock label="AI 초안" style={DRAFT_BLOCK_STYLES.ai} content={haengteuk.ai_draft_content} />
+        <DraftBlock label="AI 초안" style={DRAFT_BLOCK_STYLES.ai} content={haengteuk.ai_draft_content}
+          importAction={onGenerateDraft && !haengteuk.ai_draft_content ? () => onGenerateDraft() : undefined}
+          importLabel="AI 초안 생성"
+          isImporting={isGenerating}
+        />
       )}
       {showConsultant && (
         <DraftBlock label="컨설턴트 가안" style={DRAFT_BLOCK_STYLES.consultant} content={haengteuk.content} editable charLimit={charLimit} onSave={handleSaveContent}

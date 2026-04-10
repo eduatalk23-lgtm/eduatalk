@@ -8,6 +8,7 @@ import { getCharLimit } from "@/lib/domains/student-record";
 import type { RecordChangche } from "@/lib/domains/student-record";
 import type { LayerPerspective } from "@/lib/domains/student-record/layer-view";
 import { DraftBlock, DRAFT_BLOCK_STYLES } from "../shared/DraftBlocks";
+import type { ChangcheGuideItemLike } from "./ChangcheNEISCell";
 
 export function ChangcheDraftCell({
   record,
@@ -15,6 +16,7 @@ export function ChangcheDraftCell({
   schoolYear,
   tenantId,
   grade,
+  guideItem,
   perspective,
 }: {
   record: RecordChangche;
@@ -22,6 +24,8 @@ export function ChangcheDraftCell({
   schoolYear: number;
   tenantId: string;
   grade: number;
+  /** 방향 가이드 — AI 초안 생성 시 direction/keywords/teacherPoints 주입용 */
+  guideItem?: ChangcheGuideItemLike;
   /** 관점별 단일 슬라이스. AI=ai_draft, consultant=content, null=전체 (레거시). */
   perspective?: LayerPerspective | null;
 }) {
@@ -67,6 +71,23 @@ export function ChangcheDraftCell({
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
   });
 
+  // AI 초안 생성 (가안 레이어 AI 관점 단일 진입점)
+  const generateAiMutation = useMutation({
+    mutationFn: async () => {
+      const { generateChangcheDraftAction } = await import("@/lib/domains/record-analysis/llm/actions/generateChangcheDraft");
+      await generateChangcheDraftAction(record.id, {
+        activityType: record.activity_type as "autonomy" | "club" | "career",
+        grade,
+        schoolYear,
+        direction: guideItem?.direction,
+        keywords: guideItem?.keywords,
+        teacherPoints: guideItem?.teacherPoints,
+        existingContent: record.imported_content ?? undefined,
+      });
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+  });
+
   const handleSaveContent = useCallback(async (content: string) => {
     await saveChangcheAction({
       student_id: studentId, school_year: schoolYear, tenant_id: tenantId,
@@ -81,6 +102,9 @@ export function ChangcheDraftCell({
         <DraftBlock
           label="AI 초안" style={DRAFT_BLOCK_STYLES.ai}
           content={record.ai_draft_content}
+          importAction={!record.ai_draft_content ? () => generateAiMutation.mutate() : undefined}
+          importLabel="AI 초안 생성"
+          isImporting={generateAiMutation.isPending}
         />
       )}
       {showConsultant && (

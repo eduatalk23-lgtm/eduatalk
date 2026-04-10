@@ -435,16 +435,6 @@ export function HaengteukEditor({
                         {status === "error" && (
                           <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
                         )}
-                        {haengteuk && !content && !haengteuk.ai_draft_content && (
-                          <button
-                            type="button"
-                            disabled={draftGenerating}
-                            onClick={handleGenerateDraft}
-                            className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-                          >
-                            {draftGenerating ? "생성 중..." : "AI 초안 생성"}
-                          </button>
-                        )}
                       </div>
                       <CharacterCounter content={content} charLimit={charLimit} />
                     </div>
@@ -460,6 +450,8 @@ export function HaengteukEditor({
                       grade={grade}
                       charLimit={charLimit}
                       perspective={perspective}
+                      onGenerateDraft={handleGenerateDraft}
+                      isGenerating={draftGenerating}
                     />
                   ) : <span className="text-xs text-[var(--text-placeholder)]">기록 없음</span>
                 )}

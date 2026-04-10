@@ -61,6 +61,23 @@ export function DraftExpandableCell({
     onError: (err: Error) => setDraftError(err.message),
   });
 
+  // AI 초안 생성 (가안 레이어 AI 관점 단일 진입점). ai_draft_content 가 비어있는 레코드만 대상.
+  const generateAiMutation = useMutation({
+    mutationFn: async () => {
+      const { generateSetekDraftAction } = await import("@/lib/domains/record-analysis/llm/actions/generateSetekDraft");
+      for (const r of records) {
+        if (r.ai_draft_content) continue;
+        await generateSetekDraftAction(r.id, {
+          subjectName: r.subject_id,
+          grade,
+          existingContent: r.content || r.imported_content || undefined,
+        });
+      }
+    },
+    onSuccess: async () => { setDraftError(null); await queryClient.invalidateQueries({ queryKey: recordQk }); },
+    onError: (err: Error) => setDraftError(err.message),
+  });
+
   const confirmMutation = useMutation({
     mutationFn: async () => {
       const { confirmDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
@@ -106,6 +123,12 @@ export function DraftExpandableCell({
             style={DRAFT_BLOCK_STYLES.ai}
             records={records}
             getContent={(r) => r.ai_draft_content}
+            importAction={records.some((r) => !r.ai_draft_content) ? () => generateAiMutation.mutate() : undefined}
+            importLabel={(() => {
+              const generatableCount = records.filter((r) => !r.ai_draft_content).length;
+              return generatableCount > 1 ? `AI 초안 생성 (${generatableCount}건)` : "AI 초안 생성";
+            })()}
+            isImporting={generateAiMutation.isPending}
           />
         )}
         {showConsultant && (
