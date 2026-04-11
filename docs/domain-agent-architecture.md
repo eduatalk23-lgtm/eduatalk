@@ -1,8 +1,8 @@
 # 입시 컨설팅 도메인 에이전트 아키텍처
 
 > 작성일: 2026-03-19
-> 버전: 5.4 (2026-03-20 Phase A~E-3 + CMS C1~C5 + 운영 안정화 완료)
-> 상태: Phase A~E-3 ✅ + CMS C1~C5 ✅ + 운영 안정화 ✅
+> 버전: 5.5 (2026-04-10 Phase A~E-3 + CMS C1~C5 + M1~M2 + 운영 안정화 완료)
+> 상태: Phase A~E-3 ✅ + CMS C1~C5 ✅ + CMS M1~M2 ✅ + 운영 안정화 ✅
 > 기반: `student-record-roadmap.md`, `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
 
 ---
@@ -271,7 +271,7 @@ const tools = {
 | 항목 | 내용 |
 |------|------|
 | **역할** | 학생 수준/진로에 맞는 교과 연계 탐구 가이드 추천/생성 |
-| **현재 상태** | ✅ Phase C + CMS C1~C5 완료 — 4도구 (`lib/agents/tools/guide-tools.ts`) + pgvector RAG |
+| **현재 상태** | ✅ Phase C + CMS C1~C5 + M1~M2 완료 — 4도구 (`lib/agents/tools/guide-tools.ts`) + pgvector RAG + 벌크 작업 + 버전 비교 |
 | **데이터 소스** | `exploration_guides` (7,836건), `exploration_guide_content`, `exploration_guide_career/subject_mappings`, `exploration_guide_assignments` |
 | **참조 설계** | `student-record-extension-design.md` E7, E16 (exploration_guides 3분할: meta/content/review) |
 | **벡터화 대상** | 가이드 overview + theory_sections + setek_examples → 임베딩 (**핵심**) |
@@ -1028,6 +1028,37 @@ scripts/
 
 ---
 
+### CMS M1: 가이드 벌크 작업 — ✅ 완료 (2026-04-10)
+
+> **의존**: CMS C4 (버전 관리)
+
+| 단계 | 작업 | 상태 |
+|------|------|------|
+| M1-1 | `repository.ts` — `bulkUpdateGuidesStatus()` (is_latest 필터), `bulkDeleteGuides()` (cascade 의존) | ✅ |
+| M1-2 | `actions/crud.ts` — `bulkUpdateGuidesStatusAction`, `bulkDeleteGuidesAction` (권한 검증, 100개 제한, 에러 로깅) | ✅ |
+| M1-3 | `GuideListTable.tsx` — 헤더 전체선택 (indeterminate), 행별 체크박스, 선택 행 배경색 강조 | ✅ |
+| M1-4 | `GuideListClient.tsx` — `Set<string>` 선택 상태 관리, 페이지/필터 변경 시 초기화, `useMutation` + `invalidateQueries` | ✅ |
+| M1-5 | `GuideListClient.tsx` — 벌크 액션 바 (선택 카운트, 상태 변경 드롭다운, 삭제 확인/취소, 선택 해제) | ✅ |
+
+**핵심 설계:**
+- **상태 변경 대상**: `is_latest = true`인 가이드만 (이전 버전 의도치 않은 변경 방지)
+- **삭제 cascade**: DB FK `ON DELETE CASCADE` 설정으로 content, subject/career/classification mappings, assignments 자동 삭제
+- **벌크 상태 옵션**: draft, pending_approval, approved, archived (AI 중간 상태 제외)
+- **안전 장치**: 한 번에 최대 100개 제한, 삭제 시 확인/취소 2단계 토글
+
+---
+
+### CMS M2: 버전 비교 — ✅ 완료 (2026-04-10)
+
+> **의존**: CMS C4 (버전 관리)
+
+| 단계 | 작업 | 상태 |
+|------|------|------|
+| M2-1 | `utils/versionDiff.ts` — `compareVersions()` 메타 + 콘텐츠 diff 계산, `VersionDiff` 타입 | ✅ |
+| M2-2 | `actions/crud.ts` — `compareVersionsAction` (두 버전 조회 + diff 반환) | ✅ |
+| M2-3 | `VersionCompareModal.tsx` — 버전 선택 + diff 시각화 UI | ✅ |
+| M2-4 | AI 분석 연동 — 버전 차이 컨텍스트 해석 (Zod 스키마 + 프롬프트) | ✅ |
+
 ### 운영 안정화 — ✅ 완료 (2026-03-20)
 
 > **의존**: Phase A~E + CMS C1~C5
@@ -1140,6 +1171,8 @@ CMS C3:    ✅ 완료 — AI 가이드 생성 (키워드/클론) + AI 리뷰 + /
 CMS C3.1:  ✅ 완료 — PDF/URL 추출 소스 + Agent generateGuide 도구 (26도구)
 CMS C4:    ✅ 완료 — 가이드 버전 관리 (version/is_latest/original_guide_id)
 CMS C5:    ✅ 완료 — 학생 앱 탐구 가이드 뷰 (배정 목록/상세/상태 변경/이행률, setek_examples 서버 제거)
+CMS M1:    ✅ 완료 — 가이드 일괄 상태 변경/삭제 (벌크 액션 바, 100개 제한, cascade 삭제)
+CMS M2:    ✅ 완료 — 버전 비교 (메타+콘텐츠 diff + AI 분석 연동)
 
 [운영 안정화]
 
