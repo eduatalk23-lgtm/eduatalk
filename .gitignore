@@ -9,6 +9,9 @@
 # LLM response cache (dev-only record/replay, see lib/domains/plan/llm/llm-cache.ts)
 /.llm-cache/
 
+# eval CI artifacts
+eval-results.json
+
 # dependencies
 /node_modules
 /.pnp

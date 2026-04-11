@@ -10,6 +10,8 @@
  *   npx tsx scripts/eval-student-record.ts --dry-run   # 샘플 목록만 표시
  *   npx tsx scripts/eval-student-record.ts --id=setek-high-math  # 특정 샘플
  *   npx tsx scripts/eval-student-record.ts --fast      # flash 모델 (저비용)
+ *   npx tsx scripts/eval-student-record.ts --ci        # CI 모드 (JSON 요약 출력)
+ *   npx tsx scripts/eval-student-record.ts --ci --threshold=80  # 통과 기준 80%
  *
  * 환경 변수:
  *   GOOGLE_GENERATIVE_AI_API_KEY  (필수, .env.local에서 자동 로드)
@@ -23,27 +25,27 @@ import {
   HIGHLIGHT_SYSTEM_PROMPT,
   buildHighlightUserPrompt,
   parseHighlightResponse,
-} from "../lib/domains/student-record/llm/prompts/competencyHighlight";
-import { GOLDEN_DATASET, type EvalSample } from "../lib/domains/student-record/eval/golden-dataset";
+} from "../lib/domains/record-analysis/llm/prompts/competencyHighlight";
+import { GOLDEN_DATASET, type EvalSample } from "../lib/domains/record-analysis/eval/golden-dataset";
 import {
   verifyHighlights,
   aggregateVerification,
   extractAllHighlights,
   type AggregatedVerification,
-} from "../lib/domains/student-record/eval/highlight-verifier";
+} from "../lib/domains/record-analysis/eval/highlight-verifier";
 import {
   analyzeTimeSeries,
   type TimeSeriesPoint,
   type TimeSeriesAnalysis,
-} from "../lib/domains/student-record/eval/timeseries-analyzer";
+} from "../lib/domains/record-analysis/eval/timeseries-analyzer";
 import {
   matchUniversityProfiles,
   type UniversityMatchAnalysis,
-} from "../lib/domains/student-record/eval/university-profile-matcher";
+} from "../lib/domains/record-analysis/eval/university-profile-matcher";
 import {
   generateExecutiveSummary,
   formatExecutiveSummaryText,
-} from "../lib/domains/student-record/eval/executive-summary";
+} from "../lib/domains/record-analysis/eval/executive-summary";
 
 // .env.local 자동 로드
 config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -53,7 +55,11 @@ config({ path: path.resolve(process.cwd(), ".env.local") });
 const args = process.argv.slice(2);
 const isDryRun = args.includes("--dry-run");
 const isFast = args.includes("--fast");
+const isCi = args.includes("--ci");
 const targetId = args.find((a) => a.startsWith("--id="))?.split("=")[1];
+const threshold = Number(
+  args.find((a) => a.startsWith("--threshold="))?.split("=")[1] ?? "70",
+);
 
 const MODEL = isFast ? "gemini-2.5-flash" : "gemini-2.5-flash";
 // 역량 분석은 advanced(pro)가 정확하나, 회귀 테스트는 flash로 충분
@@ -507,10 +513,38 @@ async function main() {
   }
   console.log("═".repeat(64));
 
-  // ─── A3: 역량 시계열 분석 ────────────────────────────────────────────
-  // TODO: 실 데이터 연결 시 buildTimeSeriesPointsFromDataset() 대신
-  //       competency_repository.findCompetencyScores(studentId, schoolYear, tenantId)
-  //       결과를 TimeSeriesPoint[]로 변환하여 analyzeTimeSeries()에 전달.
+  // ─── CI 모드: JSON 요약 출력 + threshold 기반 종료 ─────────────────────
+  if (isCi) {
+    const ciSummary = {
+      model: MODEL,
+      total,
+      passed,
+      failed,
+      errored,
+      passRate: rate,
+      threshold,
+      thresholdMet: rate >= threshold,
+      highlight: hvOverallPassRate !== null
+        ? { passRate: hvOverallPassRate, avgSimilarity: hvAvgSimilarity, avgCoverage: hvAvgCoverage, total: hvTotalHighlights }
+        : null,
+      failures: failures.map((r) => ({
+        id: r.sample.id,
+        description: r.sample.description,
+        score: r.score,
+        error: r.error ?? null,
+        reasons: r.reasons,
+      })),
+    };
+
+    const fs = await import("node:fs");
+    fs.writeFileSync("eval-results.json", JSON.stringify(ciSummary, null, 2));
+    console.log();
+    console.log(`CI 요약 → eval-results.json (threshold=${threshold}%, actual=${rate}%)`);
+
+    process.exit(rate >= threshold ? 0 : 1);
+  }
+
+  // ─── A3: 역량 시계열 분석 (수동 실행 전용) ────────────────────────────
   const tsPoints = buildTimeSeriesPointsFromDataset(samples);
   if (tsPoints.length > 0) {
     const tsAnalysis = analyzeTimeSeries("golden-dataset-mock", tsPoints);
@@ -520,10 +554,7 @@ async function main() {
     console.log(" A3: 시계열 분석 — grade 정보가 있는 샘플이 없어 건너뜀.");
   }
 
-  // ─── B1: 대학 프로필 매칭 ────────────────────────────────────────────
-  // 골든 데이터셋에서 추출한 모의 역량 점수로 대학 프로필 매칭을 시연한다.
-  // TODO: 실 데이터 연결 시 competency_repository.findCompetencyScores()
-  //       결과를 Record<string, number>로 변환하여 matchUniversityProfiles()에 전달.
+  // ─── B1: 대학 프로필 매칭 (수동 실행 전용) ────────────────────────────
   const mockCompetencyScores = buildMockCompetencyScoresFromDataset(samples);
   let universityAnalysis: UniversityMatchAnalysis | undefined;
   if (Object.keys(mockCompetencyScores).length > 0) {
@@ -534,9 +565,7 @@ async function main() {
     console.log(" B1: 대학 프로필 매칭 — 역량 점수 데이터가 없어 건너뜀.");
   }
 
-  // ─── B3: Executive Summary 종합 ──────────────────────────────────────
-  // A1(평가결과) + A2(하이라이트 검증) + A3(시계열) + B1(대학매칭) 통합 요약
-  // 역량 스냅샷: 모의 역량 점수를 CompetencySnapshot 형태로 변환
+  // ─── B3: Executive Summary 종합 (수동 실행 전용) ──────────────────────
   const COMPETENCY_LABEL_MAP: Record<string, string> = {
     academic_inquiry: "탐구력",
     community_collaboration: "협업과 소통능력",
@@ -549,7 +578,6 @@ async function main() {
     score,
   }));
 
-  // A2 집계: 전체 샘플의 하이라이트 검증 집계 활용
   const hvAggregated =
     hvTotalHighlights > 0
       ? {
@@ -564,7 +592,6 @@ async function main() {
         }
       : undefined;
 
-  // A3 결과
   const tsAnalysisResult = tsPoints.length > 0
     ? analyzeTimeSeries("golden-dataset-mock", tsPoints)
     : undefined;
