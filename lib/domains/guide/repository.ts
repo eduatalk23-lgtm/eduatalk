@@ -18,6 +18,7 @@ import type {
   GuideVersionItem,
   CurriculumUnit,
   SuggestedTopic,
+  GuideStatus,
 } from "./types";
 
 // ============================================================
@@ -317,6 +318,36 @@ export async function deleteGuide(guideId: string): Promise<void> {
     .eq("id", guideId);
 
   if (error) throw error;
+}
+
+/** 여러 가이드 상태 일괄 변경 (is_latest인 것만) */
+export async function bulkUpdateGuidesStatus(
+  guideIds: string[],
+  status: GuideStatus,
+): Promise<number> {
+  if (guideIds.length === 0) return 0;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guides")
+    .update({ status })
+    .in("id", guideIds)
+    .eq("is_latest", true)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
+/** 여러 가이드 일괄 삭제 (cascade: content, mappings 자동 삭제) */
+export async function bulkDeleteGuides(guideIds: string[]): Promise<number> {
+  if (guideIds.length === 0) return 0;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guides")
+    .delete()
+    .in("id", guideIds)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 /** 가이드 메타 UPSERT (legacy_id 기준) */

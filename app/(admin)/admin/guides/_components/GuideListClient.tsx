@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,6 +13,8 @@ import {
   ChevronUp,
   Sparkles,
   X,
+  Trash2,
+  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
@@ -44,7 +46,19 @@ import {
   DIFFICULTY_LEVELS,
   DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
+import {
+  bulkUpdateGuidesStatusAction,
+  bulkDeleteGuidesAction,
+} from "@/lib/domains/guide/actions/crud";
 import { GuideListTable } from "./GuideListTable";
+
+// 벌크 상태 변경에서 선택 가능한 상태만 (AI 중간 상태 제외)
+const BULK_STATUS_OPTIONS: GuideStatus[] = [
+  "draft",
+  "pending_approval",
+  "approved",
+  "archived",
+];
 
 const PAGE_SIZE = 20;
 
@@ -66,6 +80,11 @@ export function GuideListClient() {
   const [showCurriculumFilters, setShowCurriculumFilters] = useState(false);
   // 교과는 UI 전용 상태 (과목 드롭다운 좁히기용, 직접 필터 아님)
   const [selectedSubjectArea, setSelectedSubjectArea] = useState("");
+
+  // ── 벌크 선택 상태 ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<GuideStatus>("approved");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // ── 데이터 로딩 ──
   const { data, isLoading } = useQuery(cmsGuideListQueryOptions(filters));
@@ -128,6 +147,46 @@ export function GuideListClient() {
     return count;
   }, [filters]);
 
+  // ── 벌크 뮤테이션 ──
+  const bulkStatusMutation = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: GuideStatus }) =>
+      bulkUpdateGuidesStatusAction(ids, status),
+    onSuccess: (res) => {
+      if (res.success) {
+        setSelectedIds(new Set());
+        queryClient.invalidateQueries({ queryKey: ["guides"] });
+      }
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => bulkDeleteGuidesAction(ids),
+    onSuccess: (res) => {
+      if (res.success) {
+        setSelectedIds(new Set());
+        setConfirmDelete(false);
+        queryClient.invalidateQueries({ queryKey: ["guides"] });
+      }
+    },
+  });
+
+  // ── 선택 핸들러 ──
+  const handleToggle = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleAll = useCallback(
+    (select: boolean) => {
+      setSelectedIds(select ? new Set(guides.map((g) => g.id)) : new Set());
+    },
+    [guides],
+  );
+
   // ── 핸들러 ──
   const handleSearch = useCallback(() => {
     setFilters((prev) => ({
@@ -165,10 +224,12 @@ export function GuideListClient() {
     setFilters({ page: 1, pageSize: PAGE_SIZE });
     setSearchInput("");
     setSelectedSubjectArea("");
+    setSelectedIds(new Set());
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
     setFilters((prev) => ({ ...prev, page }));
+    setSelectedIds(new Set());
   }, []);
 
   return (
@@ -431,12 +492,93 @@ export function GuideListClient() {
         )}
       </div>
 
+      {/* 벌크 액션 바 */}
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-primary-700 dark:text-primary-300">
+            <CheckSquare className="w-4 h-4" />
+            {selectedIds.size}건 선택됨
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            {/* 상태 변경 */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value as GuideStatus)}
+                className="px-2 py-1.5 rounded-md border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 text-sm text-[var(--text-primary)]"
+              >
+                {BULK_STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {GUIDE_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() =>
+                  bulkStatusMutation.mutate({
+                    ids: Array.from(selectedIds),
+                    status: bulkStatus,
+                  })
+                }
+                disabled={bulkStatusMutation.isPending}
+                className="px-3 py-1.5 rounded-md bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors"
+              >
+                {bulkStatusMutation.isPending ? "변경 중..." : "상태 변경"}
+              </button>
+            </div>
+
+            {/* 삭제 */}
+            {confirmDelete ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm text-red-600 dark:text-red-400">
+                  {selectedIds.size}건을 삭제합니까?
+                </span>
+                <button
+                  onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+                  disabled={bulkDeleteMutation.isPending}
+                  className="px-3 py-1.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
+                >
+                  {bulkDeleteMutation.isPending ? "삭제 중..." : "확인"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-3 py-1.5 rounded-md border border-secondary-200 dark:border-secondary-700 text-sm text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+                >
+                  취소
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                삭제
+              </button>
+            )}
+
+            {/* 선택 해제 */}
+            <button
+              onClick={() => { setSelectedIds(new Set()); setConfirmDelete(false); }}
+              className="p-1.5 rounded-md text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+              title="선택 해제"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 테이블 */}
       <GuideListTable
         guides={guides}
         isLoading={isLoading}
         onRowClick={(id) => router.push(`/admin/guides/${id}`)}
         showAllVersions={filters.latestOnly === false}
+        selectedIds={selectedIds}
+        onToggle={handleToggle}
+        onToggleAll={handleToggleAll}
       />
 
       {/* 페이지네이션 */}

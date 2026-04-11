@@ -15,6 +15,9 @@ interface GuideListTableProps {
   isLoading: boolean;
   onRowClick: (id: string) => void;
   showAllVersions?: boolean;
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: (select: boolean) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -68,6 +71,9 @@ export function GuideListTable({
   isLoading,
   onRowClick,
   showAllVersions,
+  selectedIds,
+  onToggle,
+  onToggleAll,
 }: GuideListTableProps) {
   if (isLoading) {
     return (
@@ -90,11 +96,26 @@ export function GuideListTable({
     );
   }
 
+  const allSelected = guides.length > 0 && guides.every((g) => selectedIds.has(g.id));
+  const someSelected = guides.some((g) => selectedIds.has(g.id));
+
   return (
     <div className="overflow-x-auto rounded-lg border border-secondary-200 dark:border-secondary-700">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-secondary-50 dark:bg-secondary-800/50 text-left whitespace-nowrap">
+            <th className="px-3 py-3 w-10">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = someSelected && !allSelected;
+                }}
+                onChange={(e) => onToggleAll(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded border-secondary-300 text-primary-500 focus:ring-primary-500/30"
+              />
+            </th>
             <th className="px-4 py-3 font-medium text-[var(--text-secondary)]">
               제목
             </th>
@@ -138,12 +159,36 @@ export function GuideListTable({
               .filter(Boolean)
               .join(" > ");
 
+            const isSelected = selectedIds.has(guide.id);
+
             return (
               <tr
                 key={guide.id}
                 onClick={() => onRowClick(guide.id)}
-                className="cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-800/30 transition-colors"
+                className={cn(
+                  "cursor-pointer transition-colors",
+                  isSelected
+                    ? "bg-primary-50 dark:bg-primary-900/20"
+                    : "hover:bg-secondary-50 dark:hover:bg-secondary-800/30",
+                )}
               >
+                {/* 체크박스 */}
+                <td
+                  className="px-3 py-3"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle(guide.id);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggle(guide.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded border-secondary-300 text-primary-500 focus:ring-primary-500/30"
+                  />
+                </td>
+
                 {/* 제목 + 교육과정 체계 + 버전 메시지/생성자 */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">

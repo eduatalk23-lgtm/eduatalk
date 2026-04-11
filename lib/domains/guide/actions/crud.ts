@@ -41,6 +41,8 @@ import {
   fetchStudentCareerInfo,
   findPopularGuidesByClassification,
   findLatestVersionId,
+  bulkUpdateGuidesStatus,
+  bulkDeleteGuides,
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -197,6 +199,43 @@ export async function deleteGuideAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "deleteGuide" }, error, { guideId });
     return createErrorResponse("가이드 삭제에 실패했습니다.");
+  }
+}
+
+// ============================================================
+// M1: 벌크 작업
+// ============================================================
+
+/** 가이드 상태 일괄 변경 (is_latest인 것만 반영) */
+export async function bulkUpdateGuidesStatusAction(
+  guideIds: string[],
+  status: GuideStatus,
+): Promise<ActionResponse<{ updatedCount: number }>> {
+  try {
+    await requireAdminOrConsultant();
+    if (guideIds.length === 0) return createErrorResponse("선택된 가이드가 없습니다.");
+    if (guideIds.length > 100) return createErrorResponse("한 번에 최대 100개까지 변경 가능합니다.");
+    const updatedCount = await bulkUpdateGuidesStatus(guideIds, status);
+    return createSuccessResponse({ updatedCount });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "bulkUpdateGuidesStatus" }, error, { guideIds, status });
+    return createErrorResponse("일괄 상태 변경에 실패했습니다.");
+  }
+}
+
+/** 가이드 일괄 삭제 */
+export async function bulkDeleteGuidesAction(
+  guideIds: string[],
+): Promise<ActionResponse<{ deletedCount: number }>> {
+  try {
+    await requireAdminOrConsultant();
+    if (guideIds.length === 0) return createErrorResponse("선택된 가이드가 없습니다.");
+    if (guideIds.length > 100) return createErrorResponse("한 번에 최대 100개까지 삭제 가능합니다.");
+    const deletedCount = await bulkDeleteGuides(guideIds);
+    return createSuccessResponse({ deletedCount });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "bulkDeleteGuides" }, error, { guideIds });
+    return createErrorResponse("일괄 삭제에 실패했습니다.");
   }
 }
 
