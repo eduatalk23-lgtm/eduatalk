@@ -198,6 +198,8 @@ export interface BatchHighlightResult {
   succeeded: Map<string, HighlightAnalysisResult>;
   /** 실패한 레코드 ID 목록 (개별 재시도 대상) */
   failedIds: string[];
+  /** Phase 0: LLM 토큰 사용량 */
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 // ============================================

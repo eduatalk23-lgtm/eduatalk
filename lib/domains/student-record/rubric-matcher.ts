@@ -165,6 +165,8 @@ interface CompetencyGradeInput {
   grade: string;
   reasoning?: string;
   rubricScores?: { questionIndex: number; grade: string; reasoning: string }[];
+  /** Phase 0: 이 등급을 산출한 원본 레코드 ID */
+  sourceRecordId?: string;
 }
 
 export interface AggregatedItemGrade {
@@ -174,6 +176,8 @@ export interface AggregatedItemGrade {
   rubricScores: { questionIndex: number; grade: CompetencyGrade; reasoning: string }[] | null;
   recordCount: number;
   method: "rubric" | "vote";
+  /** Phase 0: 집계에 기여한 원본 레코드 ID 배열 */
+  sourceRecordIds?: string[];
 }
 
 /**
@@ -186,11 +190,19 @@ export function aggregateCompetencyGrades(
 ): AggregatedItemGrade[] {
   const rubricCollector = new Map<string, Map<number, { grade: string; reasoning: string }[]>>();
   const gradeVotes = new Map<string, Map<string, number>>();
+  // Phase 0: 항목별 기여 레코드 ID 수집
+  const sourceRecordCollector = new Map<string, Set<string>>();
 
   for (const g of allGrades) {
     if (!gradeVotes.has(g.item)) gradeVotes.set(g.item, new Map());
     const votes = gradeVotes.get(g.item)!;
     votes.set(g.grade, (votes.get(g.grade) ?? 0) + 1);
+
+    // Phase 0: sourceRecordId 수집
+    if (g.sourceRecordId) {
+      if (!sourceRecordCollector.has(g.item)) sourceRecordCollector.set(g.item, new Set());
+      sourceRecordCollector.get(g.item)!.add(g.sourceRecordId);
+    }
 
     if (g.rubricScores && g.rubricScores.length > 0) {
       if (!rubricCollector.has(g.item)) rubricCollector.set(g.item, new Map());
@@ -210,6 +222,7 @@ export function aggregateCompetencyGrades(
     if (!areaObj) continue;
 
     const questionMap = rubricCollector.get(item);
+    const sourceRecordIds = [...(sourceRecordCollector.get(item) ?? [])];
 
     if (questionMap && questionMap.size > 0) {
       const aggregated: { questionIndex: number; grade: CompetencyGrade; reasoning: string }[] = [];
@@ -226,6 +239,7 @@ export function aggregateCompetencyGrades(
         rubricScores: aggregated,
         recordCount: questionMap.size,
         method: "rubric",
+        sourceRecordIds: sourceRecordIds.length > 0 ? sourceRecordIds : undefined,
       });
     } else {
       const votes = gradeVotes.get(item)!;
@@ -244,6 +258,7 @@ export function aggregateCompetencyGrades(
         rubricScores: null,
         recordCount: bestCount,
         method: "vote",
+        sourceRecordIds: sourceRecordIds.length > 0 ? sourceRecordIds : undefined,
       });
     }
   }

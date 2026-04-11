@@ -26,6 +26,23 @@ export interface DiagnosisExtFields {
   ai_generating?: boolean | null;
 }
 
+/** Phase 0 증거 체인: activity_tags 확장 필드 (마이그레이션 적용 후 gen types 재생성 시 제거) */
+export interface ActivityTagEvidenceFields {
+  section_type?: string | null;
+  highlight_phrase?: string | null;
+}
+
+/** Phase 0 증거 체인: competency_scores 확장 필드 (마이그레이션 적용 후 gen types 재생성 시 제거) */
+export interface CompetencyScoreEvidenceFields {
+  source_tag_ids?: string[] | null;
+  source_record_ids?: string[] | null;
+}
+
+/** Phase 0 증거 체인: content_quality 확장 필드 (마이그레이션 적용 후 gen types 재생성 시 제거) */
+export interface ContentQualityEvidenceFields {
+  issue_tag_ids?: string[] | null;
+}
+
 // ── 1. 기록 (Record) — Phase 1a ──
 
 export type RecordSetek = Tables<"student_record_seteks"> & ContentSeparationFields;
@@ -105,12 +122,12 @@ export type SchoolOfferedSubjectInsert = TablesInsert<"school_offered_subjects">
 
 // ── 3b. 진단 기능 — Phase 5 ──
 
-export type CompetencyScore = Tables<"student_record_competency_scores">;
-export type CompetencyScoreInsert = TablesInsert<"student_record_competency_scores">;
-export type CompetencyScoreUpdate = TablesUpdate<"student_record_competency_scores">;
+export type CompetencyScore = Tables<"student_record_competency_scores"> & CompetencyScoreEvidenceFields;
+export type CompetencyScoreInsert = TablesInsert<"student_record_competency_scores"> & CompetencyScoreEvidenceFields;
+export type CompetencyScoreUpdate = TablesUpdate<"student_record_competency_scores"> & CompetencyScoreEvidenceFields;
 
-export type ActivityTag = Tables<"student_record_activity_tags">;
-export type ActivityTagInsert = TablesInsert<"student_record_activity_tags">;
+export type ActivityTag = Tables<"student_record_activity_tags"> & ActivityTagEvidenceFields;
+export type ActivityTagInsert = TablesInsert<"student_record_activity_tags"> & ActivityTagEvidenceFields;
 
 export type Diagnosis = Tables<"student_record_diagnosis"> & DiagnosisExtFields;
 export type DiagnosisInsert = TablesInsert<"student_record_diagnosis"> & DiagnosisExtFields;

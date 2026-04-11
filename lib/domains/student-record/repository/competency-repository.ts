@@ -243,7 +243,7 @@ export async function refreshCompetencyTagsAtomic(
   studentId: string,
   tenantId: string,
   recordIds: string[],
-  newTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: TagContext }>,
+  newTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: TagContext; section_type?: string; highlight_phrase?: string }>,
 ): Promise<number> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("refresh_competency_tags", {

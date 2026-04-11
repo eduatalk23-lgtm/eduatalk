@@ -28,7 +28,7 @@ const LOG_CTX = { domain: "record-analysis", action: "analyzeWithHighlight" };
  */
 export async function analyzeSetekWithHighlight(
   input: HighlightAnalysisInput & { studentId?: string },
-): Promise<{ success: true; data: HighlightAnalysisResult } | { success: false; error: string }> {
+): Promise<{ success: true; data: HighlightAnalysisResult; usage?: { inputTokens: number; outputTokens: number } } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
 
@@ -92,7 +92,12 @@ export async function analyzeSetekWithHighlight(
       };
     }
 
-    return { success: true, data: parsed };
+    // Phase 0: 토큰 사용량 반환
+    const usage = result.usage
+      ? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }
+      : undefined;
+
+    return { success: true, data: parsed, usage };
   } catch (error) {
     return handleLlmActionError(error, "역량 분석", LOG_CTX);
   }
@@ -178,6 +183,10 @@ export async function analyzeSetekBatchWithHighlight(
     }
 
     batchResult.failedIds.push(...invalidIds);
+    // Phase 0: 토큰 사용량 반환
+    if (result.usage) {
+      batchResult.usage = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens };
+    }
     return batchResult;
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "analyzeWithHighlight.batch" }, error);

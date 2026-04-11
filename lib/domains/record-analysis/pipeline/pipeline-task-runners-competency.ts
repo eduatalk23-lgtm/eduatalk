@@ -55,7 +55,7 @@ async function runCompetencyForRecords(
   analysisRecords: Array<{ type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string }>,
   progressOpts?: CompetencyProgressOptions,
   chunkOpts?: { chunkSize: number },
-): Promise<{ succeeded: number; failed: number; skipped: number; allResults: Map<string, HighlightAnalysisResult>; hasMore: boolean; totalUncached: number }> {
+): Promise<{ succeeded: number; failed: number; skipped: number; allResults: Map<string, HighlightAnalysisResult>; hasMore: boolean; totalUncached: number; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }> {
   const { supabase, studentId, tenantId, studentGrade, snapshot } = ctx;
 
   const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
@@ -67,6 +67,9 @@ async function runCompetencyForRecords(
   let succeeded = 0;
   let failed = 0;
   let skipped = 0;
+  // Phase 0: 토큰 사용량 누적
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
   const allResults = new Map<string, HighlightAnalysisResult>();
 
   // 진로 역량 평가용 이수/성적 컨텍스트
@@ -84,7 +87,7 @@ async function runCompetencyForRecords(
     : null;
 
   if (analysisRecords.length === 0) {
-    return { succeeded, failed, skipped, allResults, hasMore: false, totalUncached: 0 };
+    return { succeeded, failed, skipped, allResults, hasMore: false, totalUncached: 0, tokenUsage: undefined };
   }
 
   // Layer 0: 학생 프로필 카드 — 파이프라인 1회 빌드, ctx 캐시
@@ -136,7 +139,7 @@ async function runCompetencyForRecords(
     content: string,
     data: HighlightAnalysisResult,
   ) {
-    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: TagContext }> = [];
+    const rpcTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string; tag_context: TagContext; section_type?: string; highlight_phrase?: string }> = [];
     for (const section of data.sections) {
       for (const tag of section.tags) {
         rpcTags.push({
@@ -146,10 +149,22 @@ async function runCompetencyForRecords(
           evaluation: tag.evaluation,
           evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
           tag_context: "analysis",
+          section_type: section.sectionType,
+          highlight_phrase: tag.highlight,
         });
       }
     }
     await competencyRepo.refreshCompetencyTagsAtomic(studentId, tenantId, [recordId], rpcTags);
+
+    // Phase 0: 방금 삽입한 태그의 ID를 조회 (advisory lock 내이므로 race 없음)
+    const { data: insertedTagRows } = await supabase
+      .from("student_record_activity_tags")
+      .select("id")
+      .eq("record_id", recordId)
+      .eq("tenant_id", tenantId)
+      .eq("source", "ai")
+      .eq("tag_context", "analysis");
+    const insertedTagIds = (insertedTagRows ?? []).map((r) => r.id as string);
 
     const currentHash = computeRecordContentHash(content, careerHashCtx);
     await competencyRepo.upsertAnalysisCache({
@@ -182,7 +197,8 @@ async function runCompetencyForRecords(
             issues: cq.issues,
             feedback: cq.feedback,
             source: "ai",
-          },
+            issue_tag_ids: insertedTagIds.length > 0 ? insertedTagIds : null,
+          } as Record<string, unknown>,
           { onConflict: "tenant_id,student_id,record_id,source" },
         );
       if (qualityErr) {
@@ -260,6 +276,7 @@ async function runCompetencyForRecords(
           profileCard: profileCardSection,
         });
         if (result.success) {
+          if (result.usage) { totalInputTokens += result.usage.inputTokens; totalOutputTokens += result.usage.outputTokens; }
           await saveResult(rec.type, rec.id, rec.content, result.data);
           await flushProgress();
         } else {
@@ -275,7 +292,7 @@ async function runCompetencyForRecords(
     // cancelled 시 재시도 루프도 건너뜀 (부분 결과는 saveResult로 이미 저장됨)
     if (concurrencyResult.cancelled) {
       logActionDebug(LOG_CTX, `competency_${recordType}[g${targetGrade}]: cancelled — ${succeeded}건 처리 완료`);
-      return { succeeded, failed, skipped, allResults, hasMore: true, totalUncached };
+      return { succeeded, failed, skipped, allResults, hasMore: true, totalUncached, tokenUsage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, totalTokens: totalInputTokens + totalOutputTokens } : undefined };
     }
 
     // 실패 레코드 재시도 (동시성 1, 10초 대기)
@@ -285,7 +302,7 @@ async function runCompetencyForRecords(
       // 재시도 전에도 cancelled 확인
       if (await checkCancelled(ctx)) {
         logActionDebug(LOG_CTX, `competency_${recordType}[g${targetGrade}]: cancelled before retry`);
-        return { succeeded, failed, skipped, allResults, hasMore: true, totalUncached };
+        return { succeeded, failed, skipped, allResults, hasMore: true, totalUncached, tokenUsage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, totalTokens: totalInputTokens + totalOutputTokens } : undefined };
       }
       for (const rec of failedRecords) {
         try {
@@ -298,6 +315,7 @@ async function runCompetencyForRecords(
             profileCard: profileCardSection,
           });
           if (result.success) {
+            if (result.usage) { totalInputTokens += result.usage.inputTokens; totalOutputTokens += result.usage.outputTokens; }
             await saveResult(rec.type, rec.id, rec.content, result.data);
           } else {
             failed++;
@@ -314,7 +332,7 @@ async function runCompetencyForRecords(
   // 최종 진행 상황 플러시
   await flushProgress(true);
 
-  return { succeeded, failed, skipped, allResults, hasMore, totalUncached };
+  return { succeeded, failed, skipped, allResults, hasMore, totalUncached, tokenUsage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, totalTokens: totalInputTokens + totalOutputTokens } : undefined };
 }
 
 /**
@@ -339,8 +357,11 @@ async function runAggregateForGrade(
   const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
   const tgtMajor = (snapshot?.target_major as string) ?? null;
 
-  const allGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> =
-    [...allResults.values()].flatMap((d) => d.competencyGrades);
+  // Phase 0: 각 grade에 sourceRecordId 부여하여 증거 체인 추적
+  const allGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[]; sourceRecordId?: string }> =
+    [...allResults.entries()].flatMap(([recordId, d]) =>
+      d.competencyGrades.map((g) => ({ ...g, sourceRecordId: recordId })),
+    );
 
   const { fetchCareerContext: fetchCC } = await import("@/lib/domains/student-record/repository/score-query");
   const aggCcResult = await fetchCC(supabase, studentId, tgtMajor);
@@ -369,11 +390,34 @@ async function runAggregateForGrade(
   if (allGrades.length > 0) {
     const aggregated = aggregateCompetencyGrades(allGrades);
 
+    // Phase 0: sourceRecordIds → sourceTagIds 역추적 (1회 배치 조회)
+    const allSourceRecordIds = [...new Set(aggregated.flatMap((ag) => ag.sourceRecordIds ?? []))];
+    const recordItemToTagIds = new Map<string, string[]>();
+    if (allSourceRecordIds.length > 0) {
+      const { data: tagRows } = await supabase
+        .from("student_record_activity_tags")
+        .select("id, record_id, competency_item")
+        .in("record_id", allSourceRecordIds)
+        .eq("tenant_id", tenantId)
+        .eq("source", "ai")
+        .eq("tag_context", "analysis");
+      for (const row of tagRows ?? []) {
+        const key = `${row.record_id}:${row.competency_item}`;
+        if (!recordItemToTagIds.has(key)) recordItemToTagIds.set(key, []);
+        recordItemToTagIds.get(key)!.push(row.id as string);
+      }
+    }
+
     await runWithConcurrency(aggregated, 5, async (ag) => {
       const narrative = ag.rubricScores
         ?.filter((rs) => rs.reasoning)
         .map((rs) => rs.reasoning)
         .join(" ") || null;
+
+      // Phase 0: 기여 태그 ID 수집
+      const sourceTagIds = ag.sourceRecordIds?.flatMap((rid) =>
+        recordItemToTagIds.get(`${rid}:${ag.item}`) ?? [],
+      );
 
       await competencyRepo.upsertCompetencyScore({
         tenant_id: tenantId,
@@ -388,6 +432,8 @@ async function runAggregateForGrade(
         rubric_scores: toDbJson(ag.rubricScores),
         source: "ai",
         status: "suggested",
+        source_tag_ids: sourceTagIds && sourceTagIds.length > 0 ? sourceTagIds : null,
+        source_record_ids: ag.sourceRecordIds && ag.sourceRecordIds.length > 0 ? ag.sourceRecordIds : null,
       } as CompetencyScoreInsert);
     });
   }
@@ -466,7 +512,7 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
 
   const analysisRecords = buildAnalysisRecords(ctx, recordType);
 
-  const { succeeded, failed, skipped, allResults } = await runCompetencyForRecords(
+  const { succeeded, failed, skipped, allResults, tokenUsage } = await runCompetencyForRecords(
     ctx, targetGrade, recordType, analysisRecords, { taskKey: config.taskKey },
   );
 
@@ -490,7 +536,7 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
   if (recordType === "haengteuk") parts.push("집계 완료");
   return {
     preview: `${targetGrade}학년 ${config.label} 역량 분석 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
-    result: { allCached: total > 0 && skipped === total },
+    result: { allCached: total > 0 && skipped === total, tokenUsage },
   };
 }
 
@@ -520,7 +566,7 @@ async function runCompetencyChunkForType(
 
   const analysisRecords = buildAnalysisRecords(ctx, recordType);
 
-  const { succeeded, failed, skipped, allResults, hasMore, totalUncached } = await runCompetencyForRecords(
+  const { succeeded, failed, skipped, allResults, hasMore, totalUncached, tokenUsage } = await runCompetencyForRecords(
     ctx, targetGrade, recordType, analysisRecords,
     { taskKey: config.taskKey },
     { chunkSize },
@@ -548,7 +594,7 @@ async function runCompetencyChunkForType(
 
   return {
     preview: `${targetGrade}학년 ${config.label} 역량 ${total === 0 ? "대상 없음" : parts.join(", ")}`,
-    result: { allCached: total > 0 && skipped === total },
+    result: { allCached: total > 0 && skipped === total, tokenUsage },
     hasMore,
     totalUncached,
     chunkProcessed: succeeded + failed,

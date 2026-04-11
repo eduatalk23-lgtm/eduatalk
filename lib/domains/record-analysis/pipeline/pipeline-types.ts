@@ -64,11 +64,11 @@ export type PipelineTaskResults = Record<string, unknown>;
 export interface PipelineTaskResultMap {
   // ── Grade Pipeline ──────────────────────────
   /** P1: 세특 역량 분석 결과 (elapsedMs는 executor가 병합) */
-  competency_setek: { allCached: boolean; elapsedMs?: number };
+  competency_setek: { allCached: boolean; elapsedMs?: number; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } };
   /** P2: 창체 역량 분석 결과 */
-  competency_changche: { allCached: boolean; elapsedMs?: number };
+  competency_changche: { allCached: boolean; elapsedMs?: number; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } };
   /** P3: 행특 역량 분석 결과 */
-  competency_haengteuk: { allCached: boolean; elapsedMs?: number };
+  competency_haengteuk: { allCached: boolean; elapsedMs?: number; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } };
   /** P4-a: 세특 방향 가이드 */
   setek_guide: { cached?: boolean; elapsedMs?: number };
   /** P4-b: 슬롯 생성 (string preview만 반환 → result는 elapsedMs만) */
