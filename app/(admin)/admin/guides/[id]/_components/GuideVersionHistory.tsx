@@ -123,7 +123,7 @@ export function GuideVersionHistory({
                           {v.version_message}
                         </p>
                       )}
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                         {new Date(v.created_at).toLocaleDateString("ko-KR", {
                           year: "numeric",
                           month: "short",

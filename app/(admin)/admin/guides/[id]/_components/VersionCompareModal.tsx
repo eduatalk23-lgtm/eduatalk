@@ -500,7 +500,7 @@ export function VersionCompareModal({
         {/* 버전 선택 */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-secondary-100 dark:border-secondary-800 bg-secondary-50/50 dark:bg-secondary-800/30">
           <div className="flex-1">
-            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+            <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
               이전 버전
             </label>
             <select
@@ -524,7 +524,7 @@ export function VersionCompareModal({
           <ArrowLeftRight className="w-4 h-4 text-secondary-400 mt-3" />
 
           <div className="flex-1">
-            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+            <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
               현재 버전
             </label>
             <div className="mt-0.5 px-2.5 py-1.5 rounded-md border border-secondary-200 dark:border-secondary-700 bg-secondary-50 dark:bg-secondary-800 text-sm text-[var(--text-primary)]">
