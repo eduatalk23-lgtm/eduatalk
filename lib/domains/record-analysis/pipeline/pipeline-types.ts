@@ -301,6 +301,8 @@ export interface PipelineContext {
   unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
   /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
   qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
+  /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
+  cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
 }
 
 /** Core 9필드 — 모든 Phase에서 공유하는 인프라 필드 */

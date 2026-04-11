@@ -189,9 +189,17 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   await refreshCoursePlanData(ctx);
 
   const classificationId = (snapshot?.target_sub_classification_id as number | null) ?? null;
-  const targetMajorClassificationField = snapshot?.desired_career_field as string | null | undefined;
+  // desired_career_field는 이제 H3 careerFieldHint로 대체됨
+  void (snapshot?.desired_career_field);
 
   const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");
+  // H3: 전공 기반 career field 힌트 (가이드 추천 풀에 전공 계열 가이드 포함)
+  let careerFieldHint: string | null = null;
+  const targetMajorForCareer = (snapshot?.target_major as string) ?? null;
+  if (targetMajorForCareer) {
+    const { inferCareerFieldFromMajor } = await import("@/lib/domains/student-record/constants");
+    careerFieldHint = inferCareerFieldFromMajor(targetMajorForCareer);
+  }
 
   // ── D6 v2: AI 설계 선행 → 풀 매칭 → 없으면 셸 생성 ──
   // 학생 맥락(스토리라인 + 방향가이드 + 수강계획)을 AI가 먼저 분석하여
@@ -286,7 +294,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     const rankedIds = new Set(ranked.map((r) => r.id));
 
     // (1) classification 매칭
-    const classResult = await autoRecommendGuidesAction({ studentId, classificationId, limit: 10 });
+    const classResult = await autoRecommendGuidesAction({ studentId, classificationId, careerFieldHint, limit: 10 });
     if (classResult.success && Array.isArray(classResult.data)) {
       for (const g of classResult.data) {
         if (!rankedIds.has(g.id)) guideMap.set(g.id, g);
@@ -299,6 +307,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
         studentId,
         classificationId,
         subjectName,
+        careerFieldHint,
         limit: 5,
       });
       if (subjectResult.success && Array.isArray(subjectResult.data)) {
@@ -319,6 +328,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
         studentId,
         classificationId,
         activityType,
+        careerFieldHint,
         limit: 5,
       });
       if (activityResult.success && Array.isArray(activityResult.data)) {
@@ -352,10 +362,19 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     ? ` / ${clubHistory.length}건 동아리 이력 반영`
     : "";
 
-  void targetMajorClassificationField; // unused — 추후 확장용
+  // targetMajorClassificationField는 H3 careerFieldHint로 대체됨 — void 삭제
   const orphanHint = skippedOrphan > 0
     ? ` / ${skippedOrphan}건 미배정(과목 풀 불일치: ${skippedOrphanGuides.map((g) => g.title).slice(0, 3).join(", ")}${skippedOrphan > 3 ? " 외" : ""})`
     : "";
+
+  // H4: 고아 가이드 세부 정보를 previews에 저장 (UI 표시용)
+  if (skippedOrphanGuides.length > 0) {
+    ctx.previews["guide_matching_orphans"] = JSON.stringify({
+      count: skippedOrphan,
+      guides: skippedOrphanGuides.slice(0, 10).map((g) => ({ id: g.id, title: g.title })),
+    });
+  }
+
   return `${assigned}건 가이드 배정 (${ranked.length}건 후보${continuityHint}${orphanHint})${aiHint}`;
 }
 
@@ -1070,6 +1089,8 @@ async function upsertTopicTrajectories(
 ): Promise<void> {
   if (guideIds.length === 0) return;
 
+  const { normalizeConfidence } = await import("@/lib/domains/guide/confidence");
+
   const { data: guides } = await supabase
     .from("exploration_guides")
     .select("id, topic_cluster_id, difficulty_level, title")
@@ -1081,8 +1102,8 @@ async function upsertTopicTrajectories(
       student_id: studentId,
       topic_cluster_id: g.topic_cluster_id!,
       grade,
-      source: "auto_from_pipeline",
-      confidence: 0.8,
+      source: "auto_from_pipeline" as const,
+      confidence: normalizeConfidence(0.8, "auto_from_pipeline"),
       evidence: {
         guide_id: g.id,
         difficulty_level: g.difficulty_level,

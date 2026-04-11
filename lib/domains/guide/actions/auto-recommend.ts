@@ -62,6 +62,8 @@ export async function autoRecommendGuidesAction(input: {
   classificationId?: number | null;
   subjectName?: string | null;
   activityType?: ActivityType | null;
+  /** H3: 학생 전공 기반 career_field 힌트 (예: "인문사회", "공학") */
+  careerFieldHint?: string | null;
   limit?: number;
 }): Promise<ActionResponse<RecommendedGuide[]>> {
   try {
@@ -111,6 +113,24 @@ export async function autoRecommendGuidesAction(input: {
       for (const r of am ?? []) activityGuideIds.add(r.guide_id);
     }
 
+    // 3.5-pre. H3: career_field 기반 guide_id 조회 (전공 인식 매칭)
+    const careerGuideIds = new Set<string>();
+    if (input.careerFieldHint) {
+      const { data: cf } = await supabase
+        .from("exploration_guide_career_fields")
+        .select("id")
+        .ilike("name_kor", `%${input.careerFieldHint}%`)
+        .limit(3);
+      const cfIds = (cf ?? []).map((r) => r.id);
+      if (cfIds.length > 0) {
+        const { data: cm } = await supabase
+          .from("exploration_guide_career_mappings")
+          .select("guide_id")
+          .in("career_field_id", cfIds);
+        for (const r of cm ?? []) careerGuideIds.add(r.guide_id);
+      }
+    }
+
     // 3.5. Phase A: 이미 배정된 가이드의 sequel 타겟 추가
     const sequelGuideIds = new Set<string>();
     if (input.studentId) {
@@ -129,13 +149,14 @@ export async function autoRecommendGuidesAction(input: {
       }
     }
 
-    // 4. UNION + match_reason 결정 (3축 비트마스크 → 라벨)
+    // 4. UNION + match_reason 결정 (3축 + career 비트마스크 → 라벨)
     const guideReasonMap = new Map<string, MatchReason>();
     const allIds = new Set<string>([
       ...classGuideIds,
       ...subjectGuideIds,
       ...activityGuideIds,
       ...sequelGuideIds,
+      ...careerGuideIds,
     ]);
 
     for (const id of allIds) {
@@ -143,6 +164,8 @@ export async function autoRecommendGuidesAction(input: {
       const s = subjectGuideIds.has(id);
       const a = activityGuideIds.has(id);
       const sq = sequelGuideIds.has(id);
+      // H3: career_field 매칭은 기존 reason을 유지하되, 단독 매칭 시에만 match_reason 설정
+      const cf = careerGuideIds.has(id);
       let reason: MatchReason;
       if (c && s && a) reason = "all";
       else if (c && s) reason = "both"; // 레거시 호환 — phase-s2-edges priority
@@ -152,6 +175,7 @@ export async function autoRecommendGuidesAction(input: {
       else if (s) reason = "subject";
       else if (a) reason = "activity";
       else if (sq) reason = "sequel";
+      else if (cf) reason = "classification"; // career field 단독은 classification급
       else reason = "classification";
       guideReasonMap.set(id, reason);
     }

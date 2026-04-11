@@ -233,7 +233,7 @@ export async function executeSynthesisPhase1(
       ctx.unifiedInput = await buildUnifiedGradeInput({
         studentId: ctx.studentId,
         tenantId: ctx.tenantId,
-        studentGrade: ctx.snapshot?.grade ?? 1,
+        studentGrade: (ctx.snapshot?.grade as number | undefined) ?? 1,
         supabase: ctx.supabase,
       });
     } catch {

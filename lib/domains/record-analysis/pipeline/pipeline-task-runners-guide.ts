@@ -23,6 +23,23 @@ import * as guideRepo from "@/lib/domains/student-record/repository/guide-reposi
 import { ACTIVITY_TYPE_LABELS } from "@/lib/domains/student-record/constants";
 import { toGuideAnalysisContext, mergeGuideAnalysisContexts } from "./pipeline-task-runners-shared";
 
+// M4: 가이드 배정 컨텍스트 캐시 — Phase 4-6 간 DB 재조회 방지
+type GuideContextKey = "guide" | "summary" | "strategy";
+async function getCachedGuideContext(
+  ctx: PipelineContext,
+  studentId: string,
+  context: GuideContextKey,
+): Promise<string> {
+  if (!ctx.cachedGuideContexts) ctx.cachedGuideContexts = {};
+  const cached = ctx.cachedGuideContexts[context];
+  if (cached !== undefined) return cached;
+
+  const { buildGuideContextSection } = await import("@/lib/domains/student-record/guide-context");
+  const section = await buildGuideContextSection(studentId, context);
+  ctx.cachedGuideContexts[context] = section;
+  return section;
+}
+
 const LOG_CTX = { domain: "record-analysis", action: "pipeline-guide" };
 
 // ============================================
@@ -77,8 +94,7 @@ export async function runSetekGuide(
     const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
     guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
   }
-  const { buildGuideContextSection } = await import("@/lib/domains/student-record/guide-context");
-  const guideContextSection = await buildGuideContextSection(studentId, "guide");
+  const guideContextSection = await getCachedGuideContext(ctx, studentId, "guide");
 
   const currentYear = calculateSchoolYear();
   const improvementsSection = await buildImprovementsSection(studentId, currentYear, tenantId);
@@ -346,11 +362,10 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
     }
   }
 
-  const { buildGuideContextSection } = await import("@/lib/domains/student-record/guide-context");
-  const guideContextSection = await buildGuideContextSection(studentId, "guide");
+  const guideContextSection2 = await getCachedGuideContext(ctx, studentId, "guide");
   const improvementsSection = await buildImprovementsSection(studentId, currentSchoolYear, tenantId);
 
-  const extraSections = [guideContextSection, improvementsSection].filter(Boolean).join("\n") || undefined;
+  const extraSections = [guideContextSection2, improvementsSection].filter(Boolean).join("\n") || undefined;
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
   const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`, ctx);

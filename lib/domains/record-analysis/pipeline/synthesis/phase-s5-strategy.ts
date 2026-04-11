@@ -19,6 +19,23 @@ import {
   competencyGradeToScore,
 } from "./helpers";
 
+// M4: 가이드 배정 컨텍스트 캐시 — Phase 간 DB 재조회 방지
+type GuideContextKey = "guide" | "summary" | "strategy";
+async function getCachedGuideContext(
+  ctx: PipelineContext,
+  studentId: string,
+  context: GuideContextKey,
+): Promise<string> {
+  if (!ctx.cachedGuideContexts) ctx.cachedGuideContexts = {};
+  const cached = ctx.cachedGuideContexts[context];
+  if (cached !== undefined) return cached;
+
+  const { buildGuideContextSection } = await import("@/lib/domains/student-record/guide-context");
+  const section = await buildGuideContextSection(studentId, context);
+  ctx.cachedGuideContexts[context] = section;
+  return section;
+}
+
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
 // ============================================
@@ -40,9 +57,8 @@ export async function runActivitySummary(
     const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
     summaryEdgeSection = buildEdgePromptSection(computedEdges, "summary");
   }
-  // Phase 6: 가이드 배정 컨텍스트 → 요약서 프롬프트에 투입
-  const { buildGuideContextSection } = await import("@/lib/domains/student-record/guide-context");
-  const summaryContextSection = await buildGuideContextSection(studentId, "summary");
+  // Phase 6: 가이드 배정 컨텍스트 → 요약서 프롬프트에 투입 (M4: ctx 캐시 활용)
+  const summaryContextSection = await getCachedGuideContext(ctx, studentId, "summary");
 
   // 진단 데이터 → 요약서에 강점/약점 맥락 투입
   let diagnosisSection: string | undefined;
@@ -99,14 +115,12 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
 
   const currentSchoolYear = calculateSchoolYear();
 
-  // 1~3. 진단 + 역량 + 기존 전략 + 가이드 컨텍스트 병렬 조회
+  // 1~3. 진단 + 역량 + 기존 전략 + 가이드 컨텍스트 병렬 조회 (M4: ctx 캐시 활용)
   const [diagnosis, aiScores, existingStrategies, guideContextSection] = await Promise.all([
     diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai"),
     competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai"),
     diagnosisRepo.findStrategies(studentId, currentSchoolYear, tenantId),
-    import("@/lib/domains/student-record/guide-context").then(({ buildGuideContextSection: build }) =>
-      build(studentId, "strategy"),
-    ).catch((err) => {
+    getCachedGuideContext(ctx, studentId, "strategy").catch((err) => {
       logActionError({ ...LOG_CTX, action: "pipeline.guideContext" }, err, { pipelineId });
       return "";
     }),

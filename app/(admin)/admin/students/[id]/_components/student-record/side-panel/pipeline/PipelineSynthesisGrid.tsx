@@ -15,7 +15,8 @@ import {
 } from "./pipeline-constants";
 import { CockpitCell } from "./PipelineCockpitCell";
 import type { GradeAwarePipelineStatus } from "@/lib/domains/student-record/actions/pipeline-orchestrator-types";
-import { Check, Loader2, ChevronRight } from "lucide-react";
+import { Check, Loader2, ChevronRight, AlertTriangle } from "lucide-react";
+import { useState } from "react";
 
 interface PipelineSynthesisGridProps {
   sp: GradeAwarePipelineStatus["synthesisPipeline"];
@@ -119,6 +120,9 @@ export function PipelineSynthesisGrid({
         })}
       </div>
 
+      {/* H4: 미배정(orphan) 가이드 피드백 */}
+      <OrphanGuideFeedback previews={sp?.previews ?? {}} />
+
       {/* 상태 범례 */}
       <div className="pt-1 border-t border-[var(--border-secondary)] mt-3">
         <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
@@ -152,6 +156,54 @@ export function PipelineSynthesisGrid({
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── H4: 미배정 가이드 피드백 ─────────────────────────────────────────────────
+
+function OrphanGuideFeedback({ previews }: { previews: Record<string, string> }) {
+  const [open, setOpen] = useState(false);
+  const raw = previews["guide_matching_orphans"];
+  if (!raw) return null;
+
+  let orphans: { count: number; guides: Array<{ id: string; title: string }> };
+  try {
+    orphans = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!orphans.guides || orphans.guides.length === 0) return null;
+
+  return (
+    <div className="rounded border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20 p-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+      >
+        <AlertTriangle className="h-3 w-3 shrink-0" />
+        미배정 가이드 {orphans.count}건 (과목 풀 불일치)
+        <ChevronRight className={cn("h-3 w-3 ml-auto transition-transform", open && "rotate-90")} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-1 pt-1.5">
+          {orphans.guides.map((g) => (
+            <a
+              key={g.id}
+              href={`/admin/guides/${g.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate text-[10px] text-amber-600 underline decoration-amber-300 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200"
+            >
+              {g.title}
+            </a>
+          ))}
+          {orphans.count > orphans.guides.length && (
+            <span className="text-[10px] text-[var(--text-tertiary)]">외 {orphans.count - orphans.guides.length}건</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

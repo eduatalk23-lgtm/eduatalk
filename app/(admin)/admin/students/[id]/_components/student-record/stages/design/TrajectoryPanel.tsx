@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TrendingUp } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { studentTopicTrajectoriesQueryOptions } from "@/lib/query-options/explorationGuide";
+import { normalizeConfidence } from "@/lib/domains/guide/confidence";
 
 const DIFF_COLORS: Record<string, string> = {
   basic: "bg-green-500",
@@ -31,20 +32,6 @@ const SOURCE_COLORS: Record<string, string> = {
   auto_from_pipeline: "text-primary-500 dark:text-primary-400",
   consultant_manual: "text-amber-500 dark:text-amber-400",
 };
-
-/** 소스별 신뢰 가중치 — raw confidence에 곱하여 보정 */
-const SOURCE_CONFIDENCE_WEIGHT: Record<string, number> = {
-  consultant_manual: 1.0,
-  auto_from_assignment: 0.9,
-  auto_from_pipeline: 0.85,
-  extracted_from_neis: 0.75,
-  seed_from_major: 0.6,
-};
-
-function normalizeConfidence(raw: number, source: string): number {
-  const weight = SOURCE_CONFIDENCE_WEIGHT[source] ?? 0.7;
-  return Math.min(1, raw * weight);
-}
 
 interface TrajectoryRow {
   id: string;
