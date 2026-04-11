@@ -4499,6 +4499,29 @@ export type Database = {
           },
         ]
       }
+      exploration_guide_activity_mappings: {
+        Row: {
+          activity_type: string
+          guide_id: string
+        }
+        Insert: {
+          activity_type: string
+          guide_id: string
+        }
+        Update: {
+          activity_type?: string
+          guide_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_activity_mappings_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exploration_guide_assignments: {
         Row: {
           ai_recommendation_reason: string | null
@@ -4850,6 +4873,76 @@ export type Database = {
           },
         ]
       }
+      exploration_guide_sequels: {
+        Row: {
+          confidence: number
+          created_at: string
+          created_by: string
+          difficulty_step: number
+          from_guide_id: string
+          id: string
+          reason: string | null
+          relation_type: string
+          to_guide_id: string
+          topic_cluster_id: string | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          created_by?: string
+          difficulty_step: number
+          from_guide_id: string
+          id?: string
+          reason?: string | null
+          relation_type: string
+          to_guide_id: string
+          topic_cluster_id?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          created_by?: string
+          difficulty_step?: number
+          from_guide_id?: string
+          id?: string
+          reason?: string | null
+          relation_type?: string
+          to_guide_id?: string
+          topic_cluster_id?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_sequels_from_guide_id_fkey"
+            columns: ["from_guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_sequels_to_guide_id_fkey"
+            columns: ["to_guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_sequels_topic_cluster_id_fkey"
+            columns: ["topic_cluster_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_topic_clusters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exploration_guide_shares: {
         Row: {
           created_at: string
@@ -4941,8 +5034,63 @@ export type Database = {
           },
         ]
       }
+      exploration_guide_topic_clusters: {
+        Row: {
+          career_field_codes: string[]
+          created_at: string
+          description: string | null
+          difficulty_distribution: Json
+          guide_count: number
+          guide_type: string
+          id: string
+          name: string
+          parent_cluster_id: string | null
+          source: string
+          subject_hints: string[]
+          updated_at: string
+        }
+        Insert: {
+          career_field_codes?: string[]
+          created_at?: string
+          description?: string | null
+          difficulty_distribution?: Json
+          guide_count?: number
+          guide_type: string
+          id?: string
+          name: string
+          parent_cluster_id?: string | null
+          source?: string
+          subject_hints?: string[]
+          updated_at?: string
+        }
+        Update: {
+          career_field_codes?: string[]
+          created_at?: string
+          description?: string | null
+          difficulty_distribution?: Json
+          guide_count?: number
+          guide_type?: string
+          id?: string
+          name?: string
+          parent_cluster_id?: string | null
+          source?: string
+          subject_hints?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_topic_clusters_parent_cluster_id_fkey"
+            columns: ["parent_cluster_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_topic_clusters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exploration_guides: {
         Row: {
+          agent_question: Json | null
+          ai_generation_meta: Json | null
           ai_model_version: string | null
           ai_prompt_version: string | null
           book_author: string | null
@@ -4973,6 +5121,8 @@ export type Database = {
           subject_select: string | null
           tenant_id: string | null
           title: string
+          topic_cluster_confidence: number | null
+          topic_cluster_id: string | null
           unit_major: string | null
           unit_minor: string | null
           updated_at: string
@@ -4980,6 +5130,8 @@ export type Database = {
           version_message: string | null
         }
         Insert: {
+          agent_question?: Json | null
+          ai_generation_meta?: Json | null
           ai_model_version?: string | null
           ai_prompt_version?: string | null
           book_author?: string | null
@@ -5010,6 +5162,8 @@ export type Database = {
           subject_select?: string | null
           tenant_id?: string | null
           title: string
+          topic_cluster_confidence?: number | null
+          topic_cluster_id?: string | null
           unit_major?: string | null
           unit_minor?: string | null
           updated_at?: string
@@ -5017,6 +5171,8 @@ export type Database = {
           version_message?: string | null
         }
         Update: {
+          agent_question?: Json | null
+          ai_generation_meta?: Json | null
           ai_model_version?: string | null
           ai_prompt_version?: string | null
           book_author?: string | null
@@ -5047,6 +5203,8 @@ export type Database = {
           subject_select?: string | null
           tenant_id?: string | null
           title?: string
+          topic_cluster_confidence?: number | null
+          topic_cluster_id?: string | null
           unit_major?: string | null
           unit_minor?: string | null
           updated_at?: string
@@ -5087,6 +5245,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guides_topic_cluster_id_fkey"
+            columns: ["topic_cluster_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_topic_clusters"
             referencedColumns: ["id"]
           },
         ]
@@ -13012,6 +13177,60 @@ export type Database = {
           },
         ]
       }
+      student_record_haengteuk_guide_links: {
+        Row: {
+          created_at: string
+          evaluation_item: string
+          exploration_guide_assignment_id: string
+          haengteuk_guide_id: string
+          id: string
+          reasoning: string | null
+          relevance_score: number | null
+          source: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          evaluation_item: string
+          exploration_guide_assignment_id: string
+          haengteuk_guide_id: string
+          id?: string
+          reasoning?: string | null
+          relevance_score?: number | null
+          source?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          evaluation_item?: string
+          exploration_guide_assignment_id?: string
+          haengteuk_guide_id?: string
+          id?: string
+          reasoning?: string | null
+          relevance_score?: number | null
+          source?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_haengteuk_guid_exploration_guide_assignment_fkey"
+            columns: ["exploration_guide_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_haengteuk_guide_links_haengteuk_guide_id_fkey"
+            columns: ["haengteuk_guide_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_haengteuk_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_haengteuk_guides: {
         Row: {
           cautions: string | null
@@ -13476,6 +13695,7 @@ export type Database = {
           reading_id: string
           record_id: string
           record_type: string
+          tenant_id: string
         }
         Insert: {
           connection_note?: string | null
@@ -13484,6 +13704,7 @@ export type Database = {
           reading_id: string
           record_id: string
           record_type: string
+          tenant_id: string
         }
         Update: {
           connection_note?: string | null
@@ -13492,6 +13713,7 @@ export type Database = {
           reading_id?: string
           record_id?: string
           record_type?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -13499,6 +13721,13 @@ export type Database = {
             columns: ["reading_id"]
             isOneToOne: false
             referencedRelation: "student_record_reading"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_reading_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -13834,6 +14063,7 @@ export type Database = {
           record_type: string
           sort_order: number
           storyline_id: string
+          tenant_id: string
         }
         Insert: {
           connection_note?: string | null
@@ -13844,6 +14074,7 @@ export type Database = {
           record_type: string
           sort_order?: number
           storyline_id: string
+          tenant_id: string
         }
         Update: {
           connection_note?: string | null
@@ -13854,6 +14085,7 @@ export type Database = {
           record_type?: string
           sort_order?: number
           storyline_id?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -13861,6 +14093,13 @@ export type Database = {
             columns: ["storyline_id"]
             isOneToOne: false
             referencedRelation: "student_record_storylines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_storyline_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -14049,6 +14288,63 @@ export type Database = {
             columns: ["subject_id_2"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_topic_trajectories: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          evidence: Json
+          grade: number
+          id: string
+          source: string
+          student_id: string
+          tenant_id: string
+          topic_cluster_id: string | null
+          topic_theme: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          evidence?: Json
+          grade: number
+          id?: string
+          source: string
+          student_id: string
+          tenant_id: string
+          topic_cluster_id?: string | null
+          topic_theme?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          evidence?: Json
+          grade?: number
+          id?: string
+          source?: string
+          student_id?: string
+          tenant_id?: string
+          topic_cluster_id?: string | null
+          topic_theme?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_topic_trajectories_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_topic_trajectories_topic_cluster_id_fkey"
+            columns: ["topic_cluster_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_topic_clusters"
             referencedColumns: ["id"]
           },
         ]
@@ -16898,6 +17194,15 @@ export type Database = {
         Args: { user_email: string; user_role?: string }
         Returns: string
       }
+      create_ai_storyline_with_links: {
+        Args: {
+          p_links?: Json
+          p_storyline: Json
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       create_chat_room: {
         Args: {
           p_category?: string
@@ -16933,6 +17238,21 @@ export type Database = {
           p_student_plan?: Json
         }
         Returns: Json
+      }
+      create_sequel_links: {
+        Args: {
+          p_cluster_id: string
+          p_direction?: string
+          p_from_guide_id: string
+          p_limit?: number
+          p_min_similarity?: number
+          p_target_level: string
+        }
+        Returns: number
+      }
+      delete_ai_storylines_by_student: {
+        Args: { p_student_id: string; p_tenant_id: string }
+        Returns: number
       }
       delete_calendar_cascade: {
         Args: { p_calendar_id: string; p_tenant_id?: string }
@@ -16999,6 +17319,17 @@ export type Database = {
         Returns: {
           user_id: string
           user_type: string
+        }[]
+      }
+      find_nearest_guides: {
+        Args: { p_guide_id: string; p_limit?: number }
+        Returns: {
+          cluster_name: string
+          difficulty_level: string
+          guide_id: string
+          similarity: number
+          title: string
+          topic_cluster_id: string
         }[]
       }
       find_popular_guides_by_classification: {
@@ -17252,6 +17583,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: number
+      }
+      refresh_topic_cluster_stats: {
+        Args: { p_cluster_id: string }
+        Returns: undefined
       }
       replace_draft_analysis_tags: {
         Args: {
@@ -17761,4 +18096,3 @@ export const Constants = {
     },
   },
 } as const
-
