@@ -67,8 +67,8 @@ export function checkContentQuality(qualityScores: ContentQualityRow[]): RecordW
 // [메타 패턴 — meta]
 // M1  교사관찰불가         → PATTERN_MAP["M1_교사관찰불가"]    → ruleId: "setek_teacher_unobservable"
 
-// issues 코드 → 경고 매핑
-const PATTERN_MAP: Record<string, { ruleId: RecordWarning["ruleId"]; severity: RecordWarning["severity"]; title: string; suggestion: string }> = {
+/** E1: 패턴 코드 → 경고 메타데이터 매핑 (가이드 프롬프트 주입용으로도 사용) */
+export const PATTERN_MAP: Record<string, { ruleId: RecordWarning["ruleId"]; severity: RecordWarning["severity"]; title: string; suggestion: string }> = {
   P1_나열식: {
     ruleId: "setek_enumeration",
     severity: "medium",
@@ -124,7 +124,8 @@ const PATTERN_PREFIXES = Object.keys(PATTERN_MAP).map((key) => {
   return { prefix, key };
 });
 
-function matchPattern(issue: string): typeof PATTERN_MAP[string] | undefined {
+/** E1: 이슈 코드를 PATTERN_MAP에 매칭 (prefix 기반 유연 매칭). 가이드 프롬프트 주입에도 사용. */
+export function matchPattern(issue: string): typeof PATTERN_MAP[string] | undefined {
   // 1. 정확 매칭 시도
   if (PATTERN_MAP[issue]) return PATTERN_MAP[issue];
   // 2. prefix 매칭 (issue가 "P1"로 시작하면 P1_나열식에 매핑)

@@ -123,7 +123,7 @@ export function buildUserPrompt(input: HaengteukGuideInput): string {
 
   // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
   if (input.analysisContext) {
-    const { qualityIssues, weakCompetencies } = input.analysisContext;
+    const { qualityIssues, weakCompetencies, warningPatterns } = input.analysisContext;
     // 행특 관련 이슈 우선 (없으면 창체도 포함)
     const haengteukIssues = qualityIssues.filter(
       (qi) => qi.issues.length > 0 && qi.recordType === "haengteuk",
@@ -131,19 +131,35 @@ export function buildUserPrompt(input: HaengteukGuideInput): string {
     const relevantIssues = haengteukIssues.length > 0
       ? haengteukIssues
       : qualityIssues.filter((qi) => qi.issues.length > 0 && qi.recordType === "changche");
+    const hasWarnings = warningPatterns && warningPatterns.length > 0;
     const hasIssues = relevantIssues.length > 0;
     // community 역량 약점만 (행특은 community 역량 핵심)
     const communityWeak = weakCompetencies.filter((wc) => wc.item.startsWith("community_"));
     const hasWeakComp = communityWeak.length > 0;
 
-    if (hasIssues || hasWeakComp) {
+    if (hasWarnings || hasIssues || hasWeakComp) {
       prompt += `## 역량 분석 결과 (이 학생의 구체적 약점)\n\n`;
-      prompt += `→ 아래 약점을 보완하는 행특 방향을 제안하세요.\n\n`;
+      prompt += `→ 아래 약점을 보완하는 행특 방향을 제안하세요. 심각도가 높을수록 우선적으로 대응하세요.\n\n`;
+
+      // E1: 경고 패턴 (severity + suggestion 포함)
+      if (hasWarnings) {
+        prompt += `### 감지된 경고 패턴\n`;
+        for (const wp of warningPatterns!) {
+          prompt += `- **[${wp.severity.toUpperCase()}]** ${wp.title}\n`;
+          prompt += `  → ${wp.suggestion}\n`;
+        }
+        prompt += "\n";
+      }
 
       if (hasIssues) {
-        const allIssues = [...new Set(relevantIssues.flatMap((qi) => qi.issues))];
-        prompt += `### 감지된 패턴\n`;
-        prompt += allIssues.map((i) => `- ${i}`).join("\n") + "\n\n";
+        // 경고 패턴에 매칭되지 않은 일반 이슈만 표시
+        const warningCodes = new Set((warningPatterns ?? []).map((wp) => wp.code));
+        const remainingIssues = [...new Set(relevantIssues.flatMap((qi) => qi.issues))]
+          .filter((i) => !warningCodes.has(i));
+        if (remainingIssues.length > 0) {
+          prompt += `### 기타 품질 이슈\n`;
+          prompt += remainingIssues.map((i) => `- ${i}`).join("\n") + "\n\n";
+        }
 
         const feedbacks = relevantIssues.filter((qi) => qi.feedback).slice(0, 2);
         if (feedbacks.length > 0) {

@@ -10,7 +10,9 @@ import type {
   CompetencyAnalysisContext,
   StudentProfileCard,
 } from "./pipeline-types";
-import type { HighlightAnalysisResult, GuideAnalysisContext } from "../llm/types";
+import type { HighlightAnalysisResult, GuideAnalysisContext, GuideWarningPattern } from "../llm/types";
+import { matchPattern } from "@/lib/domains/student-record/warnings/checkers-quality";
+import { SCIENTIFIC_PATTERN_CODES } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 
 // ============================================
 // 동시성 제어
@@ -122,6 +124,53 @@ export function collectAnalysisContext(
 }
 
 /**
+ * E1: issues 배열에서 경고 패턴 메타데이터를 추출한다.
+ * PATTERN_MAP (P1/P3/P4/F10/F12/F16/M1) + SCIENTIFIC_PATTERN_CODES (F1~F6) 매칭.
+ * 중복 ruleId는 1회만 포함.
+ */
+function extractWarningPatterns(allIssues: string[]): GuideWarningPattern[] {
+  const patterns: GuideWarningPattern[] = [];
+  const seenRuleIds = new Set<string>();
+  const scientificCodes: string[] = [];
+
+  for (const issue of allIssues) {
+    // 개별 패턴 매칭 (P1, P3, P4, F10, F12, F16, M1)
+    const mapping = matchPattern(issue);
+    if (mapping && !seenRuleIds.has(mapping.ruleId)) {
+      seenRuleIds.add(mapping.ruleId);
+      patterns.push({
+        code: issue,
+        severity: mapping.severity,
+        title: mapping.title,
+        suggestion: mapping.suggestion,
+      });
+    }
+
+    // 과학적 정합성 패턴 (F1~F6) 수집
+    const normalized = issue.replace(/[\s:_]/g, "");
+    if (SCIENTIFIC_PATTERN_CODES.some((p) => normalized.startsWith(p.split("_")[0]))) {
+      scientificCodes.push(issue);
+    }
+  }
+
+  // 과학적 정합성 통합 경고 (F1~F6)
+  if (scientificCodes.length > 0 && !seenRuleIds.has("content_quality_scientific")) {
+    patterns.push({
+      code: scientificCodes[0],
+      severity: scientificCodes.length >= 2 ? "high" : "medium",
+      title: `과학적 정합성 문제 ${scientificCodes.length}건`,
+      suggestion: "탐구 전제-실험-결론의 논리적 연결과 개념 정확성을 검토하세요",
+    });
+  }
+
+  // severity 높은 순 정렬 (high → medium → low)
+  const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  patterns.sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3));
+
+  return patterns;
+}
+
+/**
  * GradeAnalysisContext → GuideAnalysisContext 변환.
  * Phase 4-6(가이드 생성) 호출부에서 사용.
  * gradeCtx가 undefined이거나 데이터가 없으면 undefined를 반환(프롬프트 섹션 생략).
@@ -141,9 +190,14 @@ export function toGuideAnalysisContext(gradeCtx: GradeAnalysisContext | undefine
     return undefined;
   }
 
+  // E1: issues에서 경고 패턴 메타데이터 추출
+  const allIssues = [...new Set(qualityIssues.flatMap((qi) => qi.issues))];
+  const warningPatterns = extractWarningPatterns(allIssues);
+
   return {
     qualityIssues,
     weakCompetencies: gradeCtx.weakCompetencies,
+    warningPatterns: warningPatterns.length > 0 ? warningPatterns : undefined,
   };
 }
 
@@ -159,6 +213,7 @@ export function mergeGuideAnalysisContexts(
 
   // weakCompetencies는 item 기준으로 중복 제거 (가장 낮은 등급 유지)
   const GRADE_NUM: Record<string, number> = { "A+": 5, "A-": 4, "B+": 3, "B": 2, "B-": 1, "C": 0 };
+  const SEVERITY_NUM: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const weakMap = new Map<string, CompetencyAnalysisContext>();
   for (const ctx of defined) {
     for (const wc of ctx.weakCompetencies) {
@@ -169,9 +224,23 @@ export function mergeGuideAnalysisContexts(
     }
   }
 
+  // E1: warningPatterns 병합 (ruleId 기반 중복 제거, severity 높은 쪽 유지)
+  const patternMap = new Map<string, GuideWarningPattern>();
+  for (const ctx of defined) {
+    for (const wp of ctx.warningPatterns ?? []) {
+      const existing = patternMap.get(wp.title);
+      if (!existing || (SEVERITY_NUM[wp.severity] ?? 3) < (SEVERITY_NUM[existing.severity] ?? 3)) {
+        patternMap.set(wp.title, wp);
+      }
+    }
+  }
+  const mergedPatterns = [...patternMap.values()];
+  mergedPatterns.sort((a, b) => (SEVERITY_NUM[a.severity] ?? 3) - (SEVERITY_NUM[b.severity] ?? 3));
+
   return {
     qualityIssues: defined.flatMap((c) => c.qualityIssues),
     weakCompetencies: [...weakMap.values()],
+    warningPatterns: mergedPatterns.length > 0 ? mergedPatterns : undefined,
   };
 }
 
@@ -202,9 +271,14 @@ export function buildGuideAnalysisContextFromReport(
 
   if (qualityIssues.length === 0 && allWeak.length === 0) return undefined;
 
+  // E1: issues에서 경고 패턴 메타데이터 추출
+  const allIssues = [...new Set(qualityIssues.flatMap((qi) => qi.issues))];
+  const warningPatterns = extractWarningPatterns(allIssues);
+
   return {
     qualityIssues,
     weakCompetencies: allWeak,
+    warningPatterns: warningPatterns.length > 0 ? warningPatterns : undefined,
   };
 }
 

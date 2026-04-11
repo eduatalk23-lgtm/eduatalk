@@ -10,6 +10,18 @@ import type { CompetencyAnalysisContext } from "../pipeline";
 // 역량 분석 맥락 주입 타입 (가이드 프롬프트용)
 // ============================================
 
+/** E1: 경고 엔진 패턴 메타데이터 (severity + suggestion 포함) */
+export interface GuideWarningPattern {
+  /** 원본 이슈 코드 (예: "P1_나열식", "F16_진로과잉도배") */
+  code: string;
+  /** 경고 심각도 */
+  severity: "critical" | "high" | "medium" | "low";
+  /** 사람이 읽을 수 있는 제목 */
+  title: string;
+  /** 구체적 개선 제안 */
+  suggestion: string;
+}
+
 /**
  * 가이드 프롬프트에 주입할 분석 맥락.
  * Phase 1-3(역량 분석) 결과에서 추출한 약점/이슈 정보.
@@ -27,6 +39,11 @@ export interface GuideAnalysisContext {
   }>;
   /** B- 이하 역량 항목 */
   weakCompetencies: CompetencyAnalysisContext[];
+  /**
+   * E1: 경고 엔진 패턴 (severity + suggestion 메타데이터 포함).
+   * qualityIssues.issues에서 매칭된 패턴만 포함. 매칭 없으면 빈 배열 또는 undefined.
+   */
+  warningPatterns?: GuideWarningPattern[];
 }
 
 /** AI가 제안하는 개별 태그 */
