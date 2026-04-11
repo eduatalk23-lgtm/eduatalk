@@ -101,6 +101,7 @@ export function calculateCourseAdequacy(
   return {
     score,
     majorCategory,
+    curriculumYear,
     totalRecommended: allRecommended.length,
     totalAvailable,
     taken,
@@ -267,7 +268,7 @@ export function computeCourseAchievementGrades(
 
   // Q1: 일반선택 대비 진로선택 성취수준
   if (courseAdequacy) {
-    const recommended = getMajorRecommendedCourses(courseAdequacy.majorCategory);
+    const recommended = getMajorRecommendedCourses(courseAdequacy.majorCategory, courseAdequacy.curriculumYear);
     if (recommended) {
       const generalSet = new Set(recommended.general.map(normalizeSubjectName));
       const careerSet = new Set(recommended.career.map(normalizeSubjectName));

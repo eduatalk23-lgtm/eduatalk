@@ -155,7 +155,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
 
     // Course Adequacy (통합 쿼리에서 subject 추출)
     const targetMajor = (ctx.snapshot?.target_major as string) ?? null;
-    let courseAdequacy: import("@/lib/domains/student-record/course-adequacy").CourseAdequacyResult | null = null;
+    let courseAdequacy: import("@/lib/domains/student-record/types/service-types").CourseAdequacyResult | null = null;
     if (targetMajor && internalScoreRows) {
       const takenSubjects = [...new Set(
         internalScoreRows.map((s) => s.subject?.name).filter((n): n is string => !!n),

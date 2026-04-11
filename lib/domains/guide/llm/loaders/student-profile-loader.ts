@@ -96,10 +96,25 @@ async function loadProfileInternal(
     }
   }
 
-  // 4. 전공 권장교과
+  // 4. 전공 권장교과 (교육과정 연도 반영)
   let recommendedCourses: StudentProfileContext["recommendedCourses"];
   if (targetMajor) {
-    const courses = getMajorRecommendedCourses(targetMajor);
+    // 학생 교육과정 연도 resolve (students.curriculum_revision → curriculum_revisions.year)
+    let curriculumYear: number | undefined;
+    const { data: currRev } = await supabase
+      .from("students")
+      .select("curriculum_revision")
+      .eq("id", studentId)
+      .maybeSingle();
+    if (currRev?.curriculum_revision) {
+      const { data: rev } = await supabase
+        .from("curriculum_revisions")
+        .select("year")
+        .eq("name", currRev.curriculum_revision as string)
+        .maybeSingle();
+      curriculumYear = rev?.year ?? undefined;
+    }
+    const courses = getMajorRecommendedCourses(targetMajor, curriculumYear);
     if (courses) {
       recommendedCourses = {
         general: courses.general,

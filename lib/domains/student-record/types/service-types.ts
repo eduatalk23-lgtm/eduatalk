@@ -146,6 +146,8 @@ export interface DiagnosisTabData {
 export interface CourseAdequacyResult {
   score: number;
   majorCategory: string;
+  /** 교육과정 연도 (2015 또는 2022) — 추천교과 상수 선택에 사용 */
+  curriculumYear?: number;
   totalRecommended: number;
   totalAvailable: number;
   taken: string[];
