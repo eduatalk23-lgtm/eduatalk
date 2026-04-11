@@ -1,10 +1,13 @@
 import { TopicListClient } from "./_components/TopicListClient";
+import { getAllActiveCurriculumRevisions } from "@/lib/data/subjects";
 
 export const metadata = {
   title: "AI 추천 주제 관리 | TimeLevelUp",
 };
 
-export default function TopicsPage() {
+export default async function TopicsPage() {
+  const curriculumRevisions = await getAllActiveCurriculumRevisions();
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -17,7 +20,7 @@ export default function TopicsPage() {
           </p>
         </div>
       </div>
-      <TopicListClient />
+      <TopicListClient curriculumRevisions={curriculumRevisions} />
     </div>
   );
 }

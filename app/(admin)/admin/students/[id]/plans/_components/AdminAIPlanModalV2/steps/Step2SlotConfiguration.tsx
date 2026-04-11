@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Sparkles, BookOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAIPlanModalActions, useAIPlanModalSelectors } from '../context/AIPlanModalContext';
 import type { ContentSlot, AIConfig, ExistingContentConfig, RangeConfig } from '@/lib/domains/admin-plan/types/aiPlanSlot';
-import { SUPPORTED_SUBJECT_CATEGORIES, SUBJECTS_BY_CATEGORY, type SubjectCategory, type DifficultyLevel } from '@/lib/domains/plan/llm/actions/coldStart/types';
+import type { DifficultyLevel } from '@/lib/domains/plan/llm/actions/coldStart/types';
+import { SUPPORTED_SUBJECT_CATEGORIES, SUBJECTS_BY_CATEGORY } from '@/lib/domains/plan/llm/actions/coldStart/types';
+import { fetchColdStartSubjectsAction } from '@/lib/domains/plan/actions/slotRecommendation';
 import { MasterContentSearchModal } from '../../admin-wizard/steps/_components/MasterContentSearchModal';
 import type { SelectedContent } from '../../admin-wizard/_context/types';
 
@@ -224,8 +227,22 @@ interface AIConfigFormProps {
 }
 
 function AIConfigForm({ slotId, config, onChange }: AIConfigFormProps) {
+  // DB 기반 교과/과목 데이터 (fallback: 하드코딩 상수)
+  const { data: subjectData } = useQuery({
+    queryKey: ['coldStartSubjects'],
+    queryFn: () => fetchColdStartSubjectsAction(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const categories = subjectData?.success
+    ? subjectData.categories ?? SUPPORTED_SUBJECT_CATEGORIES
+    : SUPPORTED_SUBJECT_CATEGORIES;
+  const subjectsByCategory = subjectData?.success
+    ? subjectData.subjectsByCategory ?? SUBJECTS_BY_CATEGORY
+    : SUBJECTS_BY_CATEGORY;
+
   const subjectOptions = config.subjectCategory
-    ? SUBJECTS_BY_CATEGORY[config.subjectCategory as SubjectCategory] || []
+    ? subjectsByCategory[config.subjectCategory] || []
     : [];
 
   return (
@@ -246,7 +263,7 @@ function AIConfigForm({ slotId, config, onChange }: AIConfigFormProps) {
             className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           >
             <option value="">선택</option>
-            {SUPPORTED_SUBJECT_CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>

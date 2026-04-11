@@ -20,6 +20,7 @@ import {
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { getSubjectDataFromDB } from "@/lib/domains/plan/llm/actions/coldStart/subjectDataService";
 
 // Re-export types for client use
 export type {
@@ -166,6 +167,34 @@ export async function recommendSlotsForCurrentStudentAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * Cold Start UI용 교과/과목 데이터 조회 (DB 기반)
+ */
+export async function fetchColdStartSubjectsAction(): Promise<{
+  success: boolean;
+  categories?: string[];
+  subjectsByCategory?: Record<string, string[]>;
+  error?: string;
+}> {
+  try {
+    const data = await getSubjectDataFromDB();
+    return {
+      success: true,
+      categories: data.categories,
+      subjectsByCategory: data.subjectsByCategory,
+    };
+  } catch (error) {
+    logActionError(
+      { domain: "plan", action: "fetchColdStartSubjectsAction" },
+      error,
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "교과 데이터 조회 실패",
     };
   }
 }

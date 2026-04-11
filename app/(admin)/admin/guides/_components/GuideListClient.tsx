@@ -43,7 +43,6 @@ import {
   GUIDE_STATUSES,
   GUIDE_SOURCE_TYPES,
   QUALITY_TIERS,
-  CURRICULUM_REVISION_IDS,
   DIFFICULTY_LEVELS,
   DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
@@ -69,7 +68,11 @@ const selectClass = cn(
   "bg-white dark:bg-secondary-900 text-[var(--text-primary)]",
 );
 
-export function GuideListClient() {
+interface GuideListClientProps {
+  curriculumRevisions: Array<{ id: string; year: number | null }>;
+}
+
+export function GuideListClient({ curriculumRevisions }: GuideListClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -102,8 +105,12 @@ export function GuideListClient() {
   const clusters = clustersRes?.success ? clustersRes.data ?? [] : [];
 
   // 교육과정별 과목 그룹
+  const yearOptions = useMemo(
+    () => curriculumRevisions.map((r) => String(r.year)),
+    [curriculumRevisions],
+  );
   const curriculumRevisionId = filters.curriculumYear
-    ? CURRICULUM_REVISION_IDS[filters.curriculumYear]
+    ? curriculumRevisions.find((r) => String(r.year) === filters.curriculumYear)?.id
     : undefined;
   const { data: groupedSubjectsRes } = useQuery(
     groupedSubjectsQueryOptions(curriculumRevisionId ?? ""),
@@ -431,7 +438,7 @@ export function GuideListClient() {
         <CurriculumCascadeSelect
           placeholderStyle="filter"
           className="pl-1 border-l-2 border-primary-300 dark:border-primary-700"
-          yearOptions={["2022", "2015"]}
+          yearOptions={yearOptions}
           groupedSubjects={groupedSubjects}
           majorUnits={majorUnits}
           minorUnits={minorUnits}

@@ -24,7 +24,6 @@ import type { TopicListFilter, SuggestedTopic, DifficultyLevel } from "@/lib/dom
 import {
   GUIDE_TYPE_LABELS,
   GUIDE_TYPES,
-  CURRICULUM_REVISION_IDS,
   DIFFICULTY_LEVELS,
   DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
@@ -41,7 +40,11 @@ const selectClass = cn(
   "bg-white dark:bg-secondary-900 text-[var(--text-primary)]",
 );
 
-export function TopicListClient() {
+interface TopicListClientProps {
+  curriculumRevisions: Array<{ id: string; year: number | null }>;
+}
+
+export function TopicListClient({ curriculumRevisions }: TopicListClientProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const toast = useToast();
@@ -66,8 +69,12 @@ export function TopicListClient() {
   const { data: careerFieldsRes } = useQuery(guideCareerFieldsQueryOptions());
   const careerFields = careerFieldsRes?.success ? careerFieldsRes.data ?? [] : [];
 
+  const yearOptions = useMemo(
+    () => curriculumRevisions.map((r) => String(r.year)),
+    [curriculumRevisions],
+  );
   const curriculumRevisionId = selectedCurriculumYear
-    ? CURRICULUM_REVISION_IDS[selectedCurriculumYear]
+    ? curriculumRevisions.find((r) => String(r.year) === selectedCurriculumYear)?.id
     : undefined;
   const { data: groupedSubjectsRes } = useQuery(
     groupedSubjectsQueryOptions(curriculumRevisionId ?? ""),
@@ -283,7 +290,7 @@ export function TopicListClient() {
         <CurriculumCascadeSelect
           placeholderStyle="filter"
           className="pl-1 border-l-2 border-primary-300 dark:border-primary-700"
-          yearOptions={["2022", "2015"]}
+          yearOptions={yearOptions}
           groupedSubjects={groupedSubjects}
           majorUnits={majorUnits}
           minorUnits={minorUnits}

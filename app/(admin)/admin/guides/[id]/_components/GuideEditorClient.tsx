@@ -45,7 +45,6 @@ import {
   GUIDE_TYPE_LABELS,
   GUIDE_STATUSES,
   GUIDE_STATUS_LABELS,
-  CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import { GuideMetaForm } from "./GuideMetaForm";
 import { GuideContentEditor } from "./GuideContentEditor";
@@ -64,6 +63,7 @@ import { VersionCommitDialog } from "./VersionCommitDialog";
 interface GuideEditorClientProps {
   /** 편집 시 guideId, 생성 시 undefined */
   guideId?: string;
+  curriculumRevisions: Array<{ id: string; year: number | null }>;
 }
 
 const REVIEW_DIMENSION_LABELS: Record<string, string> = {
@@ -75,7 +75,7 @@ const REVIEW_DIMENSION_LABELS: Record<string, string> = {
   outlineQuality: "탐구 로드맵 품질",
 };
 
-export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
+export function GuideEditorClient({ guideId, curriculumRevisions }: GuideEditorClientProps) {
   const router = useRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -84,7 +84,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   // 교육과정 연도 (groupedSubjects 쿼리에 필요하므로 먼저 선언)
   const [curriculumYear, setCurriculumYear] = useState("");
   const curriculumRevisionId = curriculumYear
-    ? CURRICULUM_REVISION_IDS[curriculumYear] ?? ""
+    ? curriculumRevisions.find((r) => String(r.year) === curriculumYear)?.id ?? ""
     : "";
 
   // 데이터 로딩

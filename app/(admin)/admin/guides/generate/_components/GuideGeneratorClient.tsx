@@ -31,7 +31,6 @@ import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   GUIDE_TYPES,
   GUIDE_TYPE_LABELS,
-  CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import type { GuideType, DifficultyLevel } from "@/lib/domains/guide/types";
 import { DIFFICULTY_LEVELS, DIFFICULTY_LABELS } from "@/lib/domains/guide/types";
@@ -52,7 +51,11 @@ import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
 type SourceMode = "keyword" | "clone_variant" | "pdf_extract" | "url_extract";
 
-export function GuideGeneratorClient() {
+interface GuideGeneratorClientProps {
+  curriculumRevisions: Array<{ id: string; year: number | null }>;
+}
+
+export function GuideGeneratorClient({ curriculumRevisions }: GuideGeneratorClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
@@ -88,8 +91,12 @@ export function GuideGeneratorClient() {
   const [curriculumYear, setCurriculumYear] = useState<number>(
     prefill?.curriculumYear ?? 2022,
   );
+  const yearOptions = useMemo(
+    () => curriculumRevisions.map((r) => String(r.year)),
+    [curriculumRevisions],
+  );
   const curriculumRevisionId =
-    CURRICULUM_REVISION_IDS[String(curriculumYear)] ?? "";
+    curriculumRevisions.find((r) => r.year === curriculumYear)?.id ?? "";
 
   const { data: groupedSubjectsRes, isError: isSubjectsError, error: subjectsError } = useQuery(
     groupedSubjectsQueryOptions(curriculumRevisionId),
@@ -647,7 +654,7 @@ export function GuideGeneratorClient() {
                   <CurriculumCascadeSelect
                     placeholderStyle="form"
                     showSeparators
-                    yearOptions={["2022", "2015"]}
+                    yearOptions={yearOptions}
                     groupedSubjects={groupedSubjects}
                     majorUnits={majorUnits}
                     minorUnits={minorUnits}
