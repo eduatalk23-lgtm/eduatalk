@@ -8,13 +8,14 @@ import { useMemo } from "react";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 import {
   buildAreaRadarData,
-  buildSemesterGrowthData,
+  buildGrowthDataFromScores,
   buildSemesterHeatmapData,
   buildSemesterQualityBoxData,
   buildRecordSemesterMapping,
   type ContentQualityWithSemester,
   type SemesterRangeOptions,
   type SubjectSemesterMap,
+  type GrowthTrendInfo,
 } from "@/lib/domains/student-record/chart-data";
 import { COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyScore, ActivityTag, RecordTabData } from "@/lib/domains/student-record";
@@ -98,18 +99,18 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
       .map(([g]) => Number(g));
   }, [recordDataByGrade]);
 
-  // 학기별 LineChart 데이터
-  const { data: semesterLineData } = useMemo(() => {
-    if (!recordDataByGrade || Object.keys(recordDataByGrade).length === 0) return { data: null, annotations: null };
-    return buildSemesterGrowthData(activityTags, recordDataByGrade, rangeOptions);
-  }, [activityTags, recordDataByGrade, rangeOptions]);
+  // A4: competency_scores 기반 학년별 성장 추이 (activity_tags → scores 통폐합)
+  const { data: growthLineData, trendInfo } = useMemo(
+    () => buildGrowthDataFromScores(competencyScores),
+    [competencyScores],
+  );
 
-  const semesterLines = useMemo(() => {
-    if (!semesterLineData || semesterLineData.length < 2) return [];
+  const growthLines = useMemo(() => {
+    if (!growthLineData || growthLineData.length < 2) return [];
     return (["academic", "career", "community"] as const)
       .map((area) => COMPETENCY_AREA_LABELS[area])
-      .filter((label) => semesterLineData.some((d) => label in d));
-  }, [semesterLineData]);
+      .filter((label) => growthLineData.some((d) => label in d));
+  }, [growthLineData]);
 
   // 학기별 Heatmap 데이터
   const heatmapData = useMemo(() => {
@@ -149,15 +150,15 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
 
   // Y축 하한 동적 계산
   const yMin = useMemo(() => {
-    if (!semesterLineData) return 0;
+    if (!growthLineData) return 0;
     let min = 5;
-    for (const d of semesterLineData) {
+    for (const d of growthLineData) {
       for (const [k, v] of Object.entries(d)) {
-        if (k !== "학기" && typeof v === "number" && v < min) min = v;
+        if (k !== "학년" && typeof v === "number" && v < min) min = v;
       }
     }
     return Math.max(0, Math.floor(min) - 1);
-  }, [semesterLineData]);
+  }, [growthLineData]);
 
   const AREA_COLORS_LINE: Record<string, string> = {
     [COMPETENCY_AREA_LABELS.academic]: AREA_COLORS.academic,
@@ -239,34 +240,36 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
         )}
       </div>
 
-      {/* 학기별 3영역 LineChart */}
-      {!chartsLoading && recharts && semesterLineData && semesterLineData.length >= 2 && semesterLines.length > 0 && (() => {
+      {/* A4: 학년별 3영역 성장 추이 LineChart (competency_scores 기반) */}
+      {!chartsLoading && recharts && growthLineData && growthLineData.length >= 2 && growthLines.length > 0 && (() => {
         const {
           LineChart, Line, XAxis, YAxis, CartesianGrid,
           ResponsiveContainer: RC, Tooltip: TT, Legend: LG,
         } = recharts;
         return (
           <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
-            <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">학기별 역량 성장 추이</h4>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)]">학년별 역량 성장 추이</h4>
+              {trendInfo && (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                  trendInfo.overallTrend === "rising" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                  : trendInfo.overallTrend === "falling" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                  : trendInfo.overallTrend === "volatile" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                  : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                }`}>
+                  {trendInfo.overallTrend === "rising" ? "성장세" : trendInfo.overallTrend === "falling" ? "하락세" : trendInfo.overallTrend === "volatile" ? "변동" : "안정"}
+                  {trendInfo.anomalies.length > 0 && ` · 이상 ${trendInfo.anomalies.length}`}
+                </span>
+              )}
+            </div>
             <RC width="100%" height={180}>
-              <LineChart data={semesterLineData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <LineChart data={growthLineData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary, #f0f0f0)" />
-                <XAxis
-                  dataKey="학기"
-                  tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
-                    const isDes = designGrades.includes(Number(payload.value.split("-")[0]));
-                    return (
-                      <text x={x} y={y + 12} textAnchor="middle" fontSize={10}
-                        fill={isDes ? "#3b82f6" : "var(--text-secondary, #6b7280)"}>
-                        {payload.value}{isDes ? "*" : ""}
-                      </text>
-                    );
-                  }}
-                />
+                <XAxis dataKey="학년" tick={{ fontSize: 10 }} />
                 <YAxis domain={[yMin, 5]} tick={{ fontSize: 10 }} tickCount={6 - yMin} />
                 <TT contentStyle={{ fontSize: 11 }} />
                 <LG wrapperStyle={{ fontSize: 9 }} iconSize={8} />
-                {semesterLines.map((label) => (
+                {growthLines.map((label) => (
                   <Line
                     key={label}
                     type="monotone"
@@ -284,6 +287,15 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
                 ))}
               </LineChart>
             </RC>
+            {trendInfo && trendInfo.anomalies.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {trendInfo.anomalies.map((a, i) => (
+                  <p key={i} className="text-[10px] text-amber-600 dark:text-amber-400">
+                    ⚠ {a.competencyName}: {a.reason}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}

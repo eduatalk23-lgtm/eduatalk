@@ -16,7 +16,7 @@ import {
 import { gradeToNum } from "@/lib/domains/student-record/rubric-matcher";
 import {
   buildAreaRadarData,
-  buildSemesterGrowthData,
+  buildGrowthDataFromScores,
   buildSemesterHeatmapData,
   buildSubjectSemesterMap,
   type SemesterRangeOptions,
@@ -76,37 +76,34 @@ export function CompetencySection({ diagnosisData, recordDataByGrade, studentGra
     [studentGrade, subjectSemesterMap],
   );
 
-  // 학기별 성장 추이 (LineChart용)
-  const { data: semesterGrowthData } = useMemo(
-    () =>
-      recordDataByGrade
-        ? buildSemesterGrowthData(activityTags, recordDataByGrade, rangeOptions)
-        : { data: null, annotations: null },
-    [activityTags, recordDataByGrade, rangeOptions],
+  // A4: competency_scores 기반 학년별 성장 추이 (activity_tags → scores 통폐합)
+  const { data: growthData, trendInfo } = useMemo(
+    () => buildGrowthDataFromScores([...aiScores, ...consultantScores]),
+    [aiScores, consultantScores],
   );
 
   const growthLines = useMemo(() => {
-    if (!semesterGrowthData || semesterGrowthData.length < 2) return [];
+    if (!growthData || growthData.length < 2) return [];
     return (["academic", "career", "community"] as const)
       .map((area) => ({
         label: COMPETENCY_AREA_LABELS[area],
         color: AREA_COLORS[area],
       }))
-      .filter((line) => semesterGrowthData.some((d) => line.label in d));
-  }, [semesterGrowthData]);
+      .filter((line) => growthData.some((d) => line.label in d));
+  }, [growthData]);
 
-  const hasGrowthChart = !!semesterGrowthData && semesterGrowthData.length >= 2 && growthLines.length > 0;
+  const hasGrowthChart = !!growthData && growthData.length >= 2 && growthLines.length > 0;
 
   const yMin = useMemo(() => {
-    if (!semesterGrowthData) return 0;
+    if (!growthData) return 0;
     let min = 5;
-    for (const d of semesterGrowthData) {
+    for (const d of growthData) {
       for (const [k, v] of Object.entries(d)) {
-        if (k !== "학기" && typeof v === "number" && v < min) min = v;
+        if (k !== "학년" && typeof v === "number" && v < min) min = v;
       }
     }
     return Math.max(0, Math.floor(min) - 1);
-  }, [semesterGrowthData]);
+  }, [growthData]);
 
   // 학기별 역량 Heatmap
   const heatmapData = useMemo(
@@ -191,30 +188,29 @@ export function CompetencySection({ diagnosisData, recordDataByGrade, studentGra
               </div>
             </div>
 
-            {/* 학기별 역량 성장 추이 LineChart */}
+            {/* A4: 학년별 역량 성장 추이 LineChart (competency_scores 기반) */}
             {hasGrowthChart && (
               <div>
                 <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>
-                  학기별 역량 성장 추이
+                  학년별 역량 성장 추이
+                  {trendInfo && (
+                    <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-[9px] font-normal",
+                      trendInfo.overallTrend === "rising" ? "bg-emerald-50 text-emerald-700"
+                      : trendInfo.overallTrend === "falling" ? "bg-red-50 text-red-700"
+                      : trendInfo.overallTrend === "volatile" ? "bg-amber-50 text-amber-700"
+                      : "bg-gray-50 text-gray-600"
+                    )}>
+                      {trendInfo.overallTrend === "rising" ? "성장세" : trendInfo.overallTrend === "falling" ? "하락세" : trendInfo.overallTrend === "volatile" ? "변동" : "안정"}
+                    </span>
+                  )}
                 </h3>
                 <ResponsiveContainer width="100%" height={220} minHeight={180}>
                   <LineChart
-                    data={semesterGrowthData ?? []}
+                    data={growthData ?? []}
                     margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary, #f0f0f0)" />
-                    <XAxis
-                      dataKey="학기"
-                      tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
-                        const isDesign = designGrades.includes(Number(payload.value.split("-")[0]));
-                        return (
-                          <text x={x} y={y + 12} textAnchor="middle" fontSize={10}
-                            fill={isDesign ? "#3b82f6" : "var(--text-secondary, #6b7280)"}>
-                            {payload.value}{isDesign ? "*" : ""}
-                          </text>
-                        );
-                      }}
-                    />
+                    <XAxis dataKey="학년" tick={{ fontSize: 10 }} />
                     <YAxis domain={[yMin, 5]} tick={{ fontSize: 10 }} tickCount={6 - yMin} />
                     <Tooltip
                       contentStyle={{ fontSize: 11 }}

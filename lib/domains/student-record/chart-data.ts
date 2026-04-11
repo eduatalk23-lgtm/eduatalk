@@ -710,7 +710,187 @@ export function buildSemesterQualityBoxData(
 }
 
 // ============================================
-// 7. 전략 매트릭스 데이터
+// 7. 역량 점수 기반 성장 추이 (A4 통폐합)
+// competency_scores(A+~C) → 0-5 정규화 + 인라인 이상감지
+// client-safe: record-analysis 의존 없음
+// ============================================
+
+/** 추세 분류 (timeseries-analyzer와 동일 사양) */
+export type GrowthTrendType = "rising" | "falling" | "stable" | "volatile";
+
+/** 역량별 이상 감지 결과 */
+export interface GrowthAnomaly {
+  competencyName: string;
+  reason: string;
+}
+
+/** 성장 추이 분석 메타데이터 */
+export interface GrowthTrendInfo {
+  /** 전체 추세 */
+  overallTrend: GrowthTrendType;
+  /** 전체 성장률 (0-5 scale, 양수=성장) */
+  overallGrowthRate: number;
+  /** 최종 학년 기준 최강 역량 */
+  strongestCompetency: string;
+  /** 최종 학년 기준 최약 역량 */
+  weakestCompetency: string;
+  /** 이상 감지된 역량 목록 */
+  anomalies: GrowthAnomaly[];
+  /** 한 줄 요약 */
+  summary: string;
+}
+
+// ── 인라인 추세/이상 감지 (timeseries-analyzer 로직 경량 복제) ──
+
+/** 임계값 (0-5 scale 기준, timeseries-analyzer의 0-100 scale을 1/20로 축소) */
+const TREND_THRESHOLD = 0.15; // ≈ 3/20
+const SHARP_DROP_THRESHOLD = -0.75; // ≈ -15/20
+const STAGNANT_RANGE = 0.1; // ≈ 2/20
+const REVERSAL_THRESHOLD = -0.5; // ≈ -10/20
+
+function detectGrowthTrend(scores: number[]): GrowthTrendType {
+  if (scores.length <= 1) return "stable";
+  const deltas = scores.slice(1).map((s, i) => s - scores[i]);
+  const avg = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+  if (Math.abs(avg) <= TREND_THRESHOLD) return "stable";
+  if (deltas.every((d) => d > 0) && avg > TREND_THRESHOLD) return "rising";
+  if (deltas.every((d) => d < 0) && avg < -TREND_THRESHOLD) return "falling";
+  return "volatile";
+}
+
+function detectGrowthAnomaly(
+  itemLabel: string,
+  scores: number[],
+): GrowthAnomaly | null {
+  if (scores.length <= 1) return null;
+  const deltas = scores.slice(1).map((s, i) => s - scores[i]);
+  // 급격 하락
+  const drop = deltas.find((d) => d < SHARP_DROP_THRESHOLD);
+  if (drop !== undefined) {
+    return { competencyName: itemLabel, reason: `급격한 하락 감지 (${drop.toFixed(1)}점)` };
+  }
+  // 정체
+  const range = Math.max(...scores) - Math.min(...scores);
+  if (range < STAGNANT_RANGE) {
+    return { competencyName: itemLabel, reason: `전 학년 정체 (범위 ${range.toFixed(1)}점)` };
+  }
+  // 역전 (마지막이 첫번째보다 크게 하락)
+  if (scores.length >= 2) {
+    const reversal = scores[scores.length - 1] - scores[0];
+    if (reversal < REVERSAL_THRESHOLD) {
+      return { competencyName: itemLabel, reason: `마지막 학년이 첫 학년보다 하락 (${reversal.toFixed(1)}점)` };
+    }
+  }
+  return null;
+}
+
+/**
+ * A4: competency_scores 기반 학년별 성장 추이 데이터.
+ * activity_tags 대신 등급(A+~C)을 직접 사용하여 일관된 점수 산출.
+ *
+ * @param competencyScores - 전체 역량 점수 (source 필터링은 내부에서 처리)
+ * @param options.source - 필터할 source (기본: "ai")
+ * @returns data: GrowthDataPoint[] (0-5 scale), trendInfo: 추세/이상감지 메타데이터
+ */
+export function buildGrowthDataFromScores(
+  competencyScores: CompetencyScore[],
+  options?: { source?: string },
+): { data: GrowthDataPoint[] | null; trendInfo: GrowthTrendInfo | null } {
+  const source = options?.source ?? "ai";
+  const filtered = competencyScores.filter((s) => s.source === source);
+  if (filtered.length === 0) return { data: null, trendInfo: null };
+
+  // school_year → 학년 매핑 (오름차순 정렬 → 1학년, 2학년, 3학년)
+  const uniqueYears = [...new Set(filtered.map((s) => s.school_year))].sort((a, b) => a - b);
+  const yearToGrade = new Map<number, number>();
+  uniqueYears.forEach((y, i) => yearToGrade.set(y, i + 1));
+
+  if (uniqueYears.length < 2) return { data: null, trendInfo: null };
+
+  const areas = ["academic", "career", "community"] as const;
+
+  // 학년별 영역별 평균 점수 계산
+  const data: GrowthDataPoint[] = uniqueYears.map((year) => {
+    const grade = yearToGrade.get(year)!;
+    const yearScores = filtered.filter((s) => s.school_year === year);
+    const point: GrowthDataPoint = { 학년: `${grade}학년` };
+
+    for (const area of areas) {
+      const areaScores = yearScores.filter((s) => s.competency_area === area);
+      if (areaScores.length > 0) {
+        const avg = areaScores.reduce((sum, s) => sum + gradeToNum(s.grade_value), 0) / areaScores.length;
+        point[COMPETENCY_AREA_LABELS[area]] = Number(avg.toFixed(1));
+      }
+    }
+
+    return point;
+  });
+
+  // ── 추세 + 이상 분석 (역량 항목별) ──
+
+  // 역량 항목별 학년 정렬된 점수
+  const itemScores = new Map<string, { label: string; scores: number[] }>();
+  for (const item of COMPETENCY_ITEMS) {
+    const scores = uniqueYears.map((year) => {
+      const match = filtered.find((s) => s.school_year === year && s.competency_item === item.code);
+      return match ? gradeToNum(match.grade_value) : -1;
+    }).filter((s) => s >= 0);
+    if (scores.length >= 2) {
+      itemScores.set(item.code, { label: item.label, scores });
+    }
+  }
+
+  const anomalies: GrowthAnomaly[] = [];
+  const trendCounts: Record<GrowthTrendType, number> = { rising: 0, falling: 0, stable: 0, volatile: 0 };
+  let growthRateSum = 0;
+  let growthRateCount = 0;
+  let bestItem = { label: "", score: -1 };
+  let worstItem = { label: "", score: 6 };
+
+  for (const [, { label, scores }] of itemScores) {
+    const trend = detectGrowthTrend(scores);
+    trendCounts[trend]++;
+    const growth = scores[scores.length - 1] - scores[0];
+    growthRateSum += growth;
+    growthRateCount++;
+
+    const lastScore = scores[scores.length - 1];
+    if (lastScore > bestItem.score) bestItem = { label, score: lastScore };
+    if (lastScore < worstItem.score) worstItem = { label, score: lastScore };
+
+    const anomaly = detectGrowthAnomaly(label, scores);
+    if (anomaly) anomalies.push(anomaly);
+  }
+
+  const overallTrend = (Object.entries(trendCounts) as [GrowthTrendType, number][])
+    .sort((a, b) => b[1] - a[1])[0][0];
+  const overallGrowthRate = growthRateCount > 0
+    ? Number((growthRateSum / growthRateCount).toFixed(1))
+    : 0;
+
+  // 한 줄 요약
+  const growthLabel = overallGrowthRate > 0.25 ? "전반적 성장세" : overallGrowthRate < -0.25 ? "전반적 하락세" : "전반적 안정세";
+  const summaryParts = [
+    `${growthLabel} (평균 ${overallGrowthRate > 0 ? "+" : ""}${overallGrowthRate}점)`,
+    `강점: ${bestItem.label}`,
+    `보완: ${worstItem.label}`,
+  ];
+  if (anomalies.length > 0) summaryParts.push(`이상 감지 ${anomalies.length}개`);
+
+  const trendInfo: GrowthTrendInfo = {
+    overallTrend,
+    overallGrowthRate,
+    strongestCompetency: bestItem.label,
+    weakestCompetency: worstItem.label,
+    anomalies,
+    summary: summaryParts.join(" / "),
+  };
+
+  return { data, trendInfo };
+}
+
+// ============================================
+// 8. 전략 매트릭스 데이터
 // ============================================
 
 export interface MatrixCell {

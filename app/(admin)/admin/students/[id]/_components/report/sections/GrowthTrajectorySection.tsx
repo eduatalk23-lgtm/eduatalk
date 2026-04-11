@@ -10,7 +10,7 @@ import type { GradeStage } from "@/lib/domains/student-record/grade-stage";
 import { GRADE_STAGE_CONFIG } from "@/lib/domains/student-record/grade-stage";
 import { COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record/constants";
 import {
-  buildSemesterGrowthData,
+  buildGrowthDataFromScores,
   buildSemesterHeatmapData,
   buildSemesterQualityBoxData,
   buildSubjectSemesterMap,
@@ -89,20 +89,20 @@ export function GrowthTrajectorySection({
     [studentGrade, subjectSemesterMap],
   );
 
-  // 학기별 3영역 LineChart
-  const { data: semesterLineData } = useMemo(
-    () => buildSemesterGrowthData(activityTags, recordDataByGrade, rangeOptions),
-    [activityTags, recordDataByGrade, rangeOptions],
+  // A4: competency_scores 기반 학년별 성장 추이 (activity_tags → scores 통폐합)
+  const { data: growthLineData, trendInfo } = useMemo(
+    () => buildGrowthDataFromScores(scores),
+    [scores],
   );
 
-  const semesterLines = useMemo(() => {
-    if (!semesterLineData || semesterLineData.length < 2) return [];
+  const growthLines = useMemo(() => {
+    if (!growthLineData || growthLineData.length < 2) return [];
     return (["academic", "career", "community"] as const)
       .map((area) => ({ label: COMPETENCY_AREA_LABELS[area], color: AREA_COLORS[area] }))
-      .filter((line) => semesterLineData.some((d) => line.label in d));
-  }, [semesterLineData]);
+      .filter((line) => growthLineData.some((d) => line.label in d));
+  }, [growthLineData]);
 
-  const hasLineChart = !!semesterLineData && semesterLineData.length >= 2 && semesterLines.length > 0;
+  const hasLineChart = !!growthLineData && growthLineData.length >= 2 && growthLines.length > 0;
 
   // 학기별 역량 Heatmap
   const heatmapData = useMemo(
@@ -133,15 +133,15 @@ export function GrowthTrajectorySection({
 
   // Y축 하한 동적 계산 — 데이터 최소값에서 1 빼되 0 이상
   const yMin = useMemo(() => {
-    if (!semesterLineData) return 0;
+    if (!growthLineData) return 0;
     let min = 5;
-    for (const d of semesterLineData) {
+    for (const d of growthLineData) {
       for (const [k, v] of Object.entries(d)) {
-        if (k !== "학기" && typeof v === "number" && v < min) min = v;
+        if (k !== "학년" && typeof v === "number" && v < min) min = v;
       }
     }
     return Math.max(0, Math.floor(min) - 1);
-  }, [semesterLineData]);
+  }, [growthLineData]);
 
   if (!hasAnyData && scores.length === 0) return null;
 
@@ -156,37 +156,29 @@ export function GrowthTrajectorySection({
 
   return (
     <section className="print-break-before">
-      <ReportSectionHeader icon={TrendingUp} title="3년 성장 궤적" subtitle="학기별 역량 변화 추이" />
+      <ReportSectionHeader icon={TrendingUp} title="3년 성장 궤적" subtitle="학년별 역량 변화 추이" />
 
       {!hasAnyData ? (
         <div className="mt-4 rounded-lg border border-dashed border-[var(--border-secondary)] p-6 text-center">
-          <p className={TYPO.body}>2개 학기 이상의 데이터가 필요합니다.</p>
-          <p className={cn("mt-1", TYPO.caption)}>활동 기록이 쌓이면 학기별 성장 궤적이 표시됩니다.</p>
+          <p className={TYPO.body}>2개 학년 이상의 데이터가 필요합니다.</p>
+          <p className={cn("mt-1", TYPO.caption)}>활동 기록이 쌓이면 학년별 성장 궤적이 표시됩니다.</p>
         </div>
       ) : (
         <div className="space-y-4 pt-4">
-          {/* 학기별 3영역 LineChart */}
+          {/* A4: 학년별 3영역 LineChart (competency_scores 기반) */}
           {hasLineChart && (
             <div className="print-avoid-break">
+              {trendInfo && (
+                <p className={cn("mb-2", TYPO.caption)}>{trendInfo.summary}</p>
+              )}
               <ResponsiveContainer width="100%" height={220} minHeight={180}>
-                <LineChart data={semesterLineData!} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <LineChart data={growthLineData!} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary, #f0f0f0)" />
-                  <XAxis
-                    dataKey="학기"
-                    tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
-                      const isDesign = designGrades.includes(Number(payload.value.split("-")[0]));
-                      return (
-                        <text x={x} y={y + 12} textAnchor="middle" fontSize={10}
-                          fill={isDesign ? "#3b82f6" : "var(--text-secondary, #6b7280)"}>
-                          {payload.value}{isDesign ? "*" : ""}
-                        </text>
-                      );
-                    }}
-                  />
+                  <XAxis dataKey="학년" tick={{ fontSize: 10 }} />
                   <YAxis domain={[yMin, 5]} tick={{ fontSize: 10 }} tickCount={6 - yMin} />
                   <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value: number) => [value.toFixed(1), ""]} />
                   <Legend wrapperStyle={{ fontSize: 9, paddingTop: 4 }} iconSize={8} />
-                  {semesterLines.map((line) => (
+                  {growthLines.map((line) => (
                     <Line
                       key={line.label}
                       type="monotone"
@@ -200,6 +192,15 @@ export function GrowthTrajectorySection({
                   ))}
                 </LineChart>
               </ResponsiveContainer>
+              {trendInfo && trendInfo.anomalies.length > 0 && (
+                <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 dark:border-amber-800 dark:bg-amber-900/20">
+                  {trendInfo.anomalies.map((a, i) => (
+                    <p key={i} className={cn("text-amber-700 dark:text-amber-400", TYPO.caption)}>
+                      {a.competencyName}: {a.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
