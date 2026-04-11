@@ -191,6 +191,11 @@ export function SetekGuidePanel({
                     >
                       {statusInfo.label}
                     </span>
+                    {guide.is_stale && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        갱신 필요
+                      </span>
+                    )}
                     <span className="text-[10px] text-[var(--text-tertiary)]">
                       {guide.source === "ai" ? "🤖AI" : "👤수동"} ·{" "}
                       {new Date(guide.created_at).toLocaleDateString("ko-KR")}

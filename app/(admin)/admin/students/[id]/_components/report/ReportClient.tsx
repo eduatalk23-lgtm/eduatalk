@@ -58,7 +58,8 @@ interface SectionDef {
   content: ReactNode;
   isGradeHeader?: boolean;
   parentGrade?: number;
-  isPartBHeader?: boolean;
+  /** 파트 구분 헤더 (TOC 사이드바에 표시, 렌더링에서 제외) */
+  partHeader?: { partNumber: 1 | 2 | 3; label: string };
   importance?: SectionImportance;
 }
 
@@ -134,15 +135,24 @@ export function ReportClient({ studentId }: ReportClientProps) {
     return stages;
   }, [data, yearGradePairs]);
 
-  // gradeStages 확정 후 expandedGrades 초기화 (prospective 아닌 학년만 기본 펼침)
+  // 학년 분류: NEIS 있는 학년(분석) vs 없는 학년(설계)
+  const analysisGradePairs = useMemo(
+    () => yearGradePairs.filter(({ grade }) => gradeStages[grade] !== "prospective"),
+    [yearGradePairs, gradeStages],
+  );
+  const designGradePairs = useMemo(
+    () => yearGradePairs.filter(({ grade }) => gradeStages[grade] === "prospective"),
+    [yearGradePairs, gradeStages],
+  );
+  const hasDesignGrades = designGradePairs.length > 0;
+
+  // 모든 학년 기본 펼침 (설계 모드 학년 포함)
   useEffect(() => {
     if (!data || yearGradePairs.length === 0) return;
     const expanded = new Set<number>();
     for (const { grade } of yearGradePairs) {
-      if (gradeStages[grade] !== "prospective") expanded.add(grade);
+      expanded.add(grade);
     }
-    // 모두 prospective이면 첫 학년은 펼침
-    if (expanded.size === 0) expanded.add(yearGradePairs[0].grade);
     setExpandedGrades(expanded);
   // 의존성: data 또는 studentId 변경 시 재설정 (학생 전환 대응)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,6 +203,121 @@ export function ReportClient({ studentId }: ReportClientProps) {
       (d.changche?.length ?? 0) + (d.readings?.length ?? 0) + (d.haengteuk ? 1 : 0);
   }, 0);
 
+  // 학년별 8섹션 생성 헬퍼 (Part 1 / Part 2에서 재사용)
+  function buildGradeSections(
+    pairs: Array<{ grade: number; schoolYear: number }>,
+  ): SectionDef[] {
+    return pairs.flatMap(({ grade, schoolYear }) => {
+      const gradeRecords = data.recordDataByGrade[grade];
+      const stage = gradeStages[grade] ?? "prospective";
+      const gradePlans = data.coursePlans.filter((p) => p.grade === grade);
+      const gradeSetekGuides = data.setekGuides;
+      const gradeChangcheGuides = data.changcheGuides.filter(
+        (g) => g.school_year === schoolYear,
+      );
+      const gradeHaengteukGuide =
+        data.haengteukGuides.find((g) => g.school_year === schoolYear) ?? null;
+      const gradeRoadmap = data.storylineData.roadmapItems.filter(
+        (r) => r.grade === grade,
+      );
+      const gradeReadings = gradeRecords?.readings ?? [];
+      const isExpanded = expandedGrades.has(grade);
+
+      return [
+        {
+          id: `grade-${grade}`,
+          title: `${grade}학년 (${schoolYear})`,
+          content: (
+            <GradeHeaderSection
+              grade={grade}
+              schoolYear={schoolYear}
+              stage={stage}
+              expanded={isExpanded}
+              onToggle={() => toggleGrade(grade)}
+            />
+          ),
+          isGradeHeader: true,
+        },
+        {
+          id: `grade-${grade}-plan`,
+          title: "수강 계획",
+          content: isExpanded ? <CoursePlanSection grade={grade} plans={gradePlans} /> : null,
+          parentGrade: grade,
+        },
+        {
+          id: `grade-${grade}-setek-guide`,
+          title: "세특 방향",
+          content: isExpanded ? (
+            <SetekGuideSection
+              guides={gradeSetekGuides}
+              stage={stage}
+              seteks={gradeRecords?.seteks}
+            />
+          ) : null,
+          parentGrade: grade,
+        },
+        {
+          id: `grade-${grade}-changche-guide`,
+          title: "창체 방향",
+          content: isExpanded ? (
+            <ChangcheGuideSection
+              guides={gradeChangcheGuides}
+              stage={stage}
+              changche={gradeRecords?.changche}
+            />
+          ) : null,
+          parentGrade: grade,
+        },
+        {
+          id: `grade-${grade}-haengteuk-guide`,
+          title: "행특 방향",
+          content: isExpanded ? (
+            <HaengteukGuideSection
+              guide={gradeHaengteukGuide}
+              stage={stage}
+              haengteuk={gradeRecords?.haengteuk}
+            />
+          ) : null,
+          parentGrade: grade,
+        },
+        {
+          id: `grade-${grade}-reading`,
+          title: "독서 활동",
+          content: isExpanded ? (
+            <ReadingSection
+              readings={gradeReadings}
+              stage={stage}
+              roadmapItems={gradeRoadmap}
+            />
+          ) : null,
+          parentGrade: grade,
+        },
+        {
+          id: `grade-${grade}-roadmap`,
+          title: "로드맵",
+          content: isExpanded ? <RoadmapSection items={gradeRoadmap} grade={grade} stage={stage} /> : null,
+          parentGrade: grade,
+        },
+        {
+          id: `grade-${grade}-progress`,
+          title: "달성도",
+          content: isExpanded ? (
+            <ProgressSection
+              grade={grade}
+              roadmapItems={gradeRoadmap}
+              coursePlans={gradePlans}
+              setekCount={gradeRecords?.seteks?.length ?? 0}
+              changcheCount={gradeRecords?.changche?.length ?? 0}
+              hasHaengteuk={!!gradeRecords?.haengteuk}
+              stage={stage}
+            />
+          ) : null,
+          parentGrade: grade,
+        },
+      ] satisfies SectionDef[];
+    });
+  }
+
   const sections: SectionDef[] = [
     // ── 표지 + 요약 ──
     {
@@ -211,7 +336,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
         />
       ),
     },
-    { id: "toc", title: "섹션 목록", content: <TableOfContents /> },
+    { id: "toc", title: "섹션 목록", content: <TableOfContents hasDesignGrades={hasDesignGrades} /> },
     // ── Phase 1.2: AI 종합 분석을 첫 화면으로 승격 (표지·TOC 직후, importance primary) ──
     ...(data.executiveSummary ? [{
       id: "pipeline-exec",
@@ -315,141 +440,13 @@ export function ReportClient({ studentId }: ReportClientProps) {
     },
     { id: "activity", title: "활동 요약서", content: <ActivitySummaryReportSection summaries={data.activitySummaries} /> },
 
-    // ── Part A: 학년별 상세 ──
-    ...yearGradePairs.flatMap(({ grade, schoolYear }) => {
-      const gradeRecords = data.recordDataByGrade[grade];
-      const stage = gradeStages[grade] ?? "prospective";
-      const gradePlans = data.coursePlans.filter((p) => p.grade === grade);
-      const gradeSetekGuides = data.setekGuides.filter(() => {
-        // setekGuides에는 school_year가 없고 subject_id 기반이므로 전체 표시
-        // schoolYear 필터는 changche/haengteuk에서만 적용
-        return true;
-      });
-      const gradeChangcheGuides = data.changcheGuides.filter(
-        (g) => g.school_year === schoolYear,
-      );
-      const gradeHaengteukGuide =
-        data.haengteukGuides.find((g) => g.school_year === schoolYear) ?? null;
-      const gradeRoadmap = data.storylineData.roadmapItems.filter(
-        (r) => r.grade === grade,
-      );
-      const gradeReadings = gradeRecords?.readings ?? [];
+    // ── Part 1: 분석 현황 ──
+    { id: "part-1-header", title: "분석 현황", content: null, partHeader: { partNumber: 1, label: "분석 현황" } },
 
-      const isExpanded = expandedGrades.has(grade);
+    // Part 1 학년별 상세 (NEIS 있는 학년)
+    ...buildGradeSections(analysisGradePairs),
 
-      return [
-        {
-          id: `grade-${grade}`,
-          title: `${grade}학년 (${schoolYear})`,
-          content: (
-            <GradeHeaderSection
-              grade={grade}
-              schoolYear={schoolYear}
-              stage={stage}
-              expanded={isExpanded}
-              onToggle={() => toggleGrade(grade)}
-            />
-          ),
-          isGradeHeader: true,
-        },
-        {
-          id: `grade-${grade}-plan`,
-          title: "수강 계획",
-          content: isExpanded ? <CoursePlanSection grade={grade} plans={gradePlans} /> : null,
-          parentGrade: grade,
-        },
-        {
-          id: `grade-${grade}-setek-guide`,
-          title: "세특 방향",
-          content: isExpanded ? (
-            <SetekGuideSection
-              guides={gradeSetekGuides}
-              stage={stage}
-              seteks={gradeRecords?.seteks}
-            />
-          ) : null,
-          parentGrade: grade,
-        },
-        {
-          id: `grade-${grade}-changche-guide`,
-          title: "창체 방향",
-          content: isExpanded ? (
-            <ChangcheGuideSection
-              guides={gradeChangcheGuides}
-              stage={stage}
-              changche={gradeRecords?.changche}
-            />
-          ) : null,
-          parentGrade: grade,
-        },
-        {
-          id: `grade-${grade}-haengteuk-guide`,
-          title: "행특 방향",
-          content: isExpanded ? (
-            <HaengteukGuideSection
-              guide={gradeHaengteukGuide}
-              stage={stage}
-              haengteuk={gradeRecords?.haengteuk}
-            />
-          ) : null,
-          parentGrade: grade,
-        },
-        {
-          id: `grade-${grade}-reading`,
-          title: "독서 활동",
-          content: isExpanded ? (
-            <ReadingSection
-              readings={gradeReadings}
-              stage={stage}
-              roadmapItems={gradeRoadmap}
-            />
-          ) : null,
-          parentGrade: grade,
-        },
-        {
-          id: `grade-${grade}-roadmap`,
-          title: "로드맵",
-          content: isExpanded ? <RoadmapSection items={gradeRoadmap} grade={grade} stage={stage} /> : null,
-          parentGrade: grade,
-        },
-        {
-          id: `grade-${grade}-progress`,
-          title: "달성도",
-          content: isExpanded ? (
-            <ProgressSection
-              grade={grade}
-              roadmapItems={gradeRoadmap}
-              coursePlans={gradePlans}
-              setekCount={gradeRecords?.seteks?.length ?? 0}
-              changcheCount={gradeRecords?.changche?.length ?? 0}
-              hasHaengteuk={!!gradeRecords?.haengteuk}
-              stage={stage}
-            />
-          ) : null,
-          parentGrade: grade,
-        },
-      ] satisfies SectionDef[];
-    }),
-
-    // ── Part B: 전체 분석 ──
-    { id: "part-b-header", title: "전체 분석", content: null, isPartBHeader: true },
-
-    // L6: 설계 방향 섹션 (projected 데이터가 있을 때만 표시)
-    ...(data.projectedData ? [{
-      id: "projected-analysis",
-      title: "설계 방향 분석",
-      content: (
-        <ProjectedAnalysisSection
-          projectedScores={data.projectedData.competencyScores}
-          projectedEdges={data.projectedData.edges}
-          leveling={data.projectedData.leveling}
-          designGrades={data.projectedData.designGrades}
-          contentQuality={data.projectedData.contentQuality}
-        />
-      ),
-      importance: "primary" as SectionImportance,
-    }] : []),
-
+    // Part 1 전체 분석 (NEIS 기반)
     {
       id: "score",
       title: "교과 성적 분석",
@@ -537,6 +534,29 @@ export function ReportClient({ studentId }: ReportClientProps) {
       ),
       importance: "secondary" as SectionImportance,
     },
+
+    // ── Part 2: 설계 방향 ── (설계 모드 학년이 있을 때만)
+    ...(hasDesignGrades ? [
+      { id: "part-2-header", title: "설계 방향", content: null, partHeader: { partNumber: 2 as const, label: "설계 방향" } },
+      ...buildGradeSections(designGradePairs),
+      ...(data.projectedData ? [{
+        id: "projected-analysis",
+        title: "설계 방향 분석",
+        content: (
+          <ProjectedAnalysisSection
+            projectedScores={data.projectedData.competencyScores}
+            projectedEdges={data.projectedData.edges}
+            leveling={data.projectedData.leveling}
+            designGrades={data.projectedData.designGrades}
+            contentQuality={data.projectedData.contentQuality}
+          />
+        ),
+        importance: "primary" as SectionImportance,
+      }] : []),
+    ] satisfies SectionDef[] : []),
+
+    // ── Part 3: 종합 ──
+    { id: "part-3-header", title: "종합", content: null, partHeader: { partNumber: 3, label: "종합" } },
     {
       id: "strategy",
       title: "보완 전략",
@@ -627,7 +647,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
   ];
 
   // TOC 렌더링용: isPartBHeader인 더미 섹션은 콘텐츠 페이지에서 제외
-  const renderableSections = sections.filter((s) => !s.isPartBHeader);
+  const renderableSections = sections.filter((s) => !s.partHeader);
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col lg:flex-row print:-mt-16">
@@ -646,11 +666,11 @@ export function ReportClient({ studentId }: ReportClientProps) {
 
           <nav aria-label="리포트 목차" className="flex flex-col gap-0.5">
             {sections.map((sec) => {
-              if (sec.isPartBHeader) {
+              if (sec.partHeader) {
                 return (
                   <div key={sec.id} className="mt-3 mb-1 px-1">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      전체 분석
+                      Part {sec.partHeader.partNumber}: {sec.partHeader.label}
                     </p>
                   </div>
                 );
@@ -780,7 +800,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
           aria-label="섹션으로 이동"
         >
           {sections
-            .filter((s) => !s.isPartBHeader)
+            .filter((s) => !s.partHeader)
             .map((sec) => (
               <option key={sec.id} value={sec.id}>
                 {sec.parentGrade != null ? `\u00A0\u00A0${sec.title}` : sec.title}

@@ -385,6 +385,45 @@ export async function deleteAnalysisCacheByStudentId(
 }
 
 /**
+ * 특정 학년의 AI 분석 캐시만 삭제 — 해당 학년 레코드의 LLM 강제 재호출.
+ * deleteAnalysisCacheByStudentId와 달리 다른 학년 캐시는 보존하여 LLM 비용 절감.
+ */
+export async function deleteAnalysisCacheByGrade(
+  studentId: string,
+  tenantId: string,
+  grade: number,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  // 해당 학년의 record ID 조회 (deleteAnalysisResultsByGrade와 동일 패턴)
+  const [sRes, cRes, hRes] = await Promise.all([
+    supabase.from("student_record_seteks")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade).is("deleted_at", null),
+    supabase.from("student_record_changche")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
+    supabase.from("student_record_haengteuk")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
+  ]);
+
+  const recordIds = [
+    ...(sRes.data ?? []).map((r) => r.id as string),
+    ...(cRes.data ?? []).map((r) => r.id as string),
+    ...(hRes.data ?? []).map((r) => r.id as string),
+  ];
+
+  if (recordIds.length === 0) return;
+
+  const { error } = await supabase
+    .from("student_record_analysis_cache")
+    .delete()
+    .in("record_id", recordIds)
+    .eq("tenant_id", tenantId)
+    .eq("source", "ai");
+
+  if (error) throw error;
+}
+
+/**
  * 특정 학년의 AI 파생 분석 데이터 삭제 — 재실행 시 이전 결과 잔류 방지.
  * analysis_cache와 별개로 competency_scores, activity_tags, content_quality를 정리한다.
  *

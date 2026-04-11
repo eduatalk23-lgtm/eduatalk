@@ -72,6 +72,8 @@ export async function fetchSetekGuides(
   overall_direction: string | null;
   prompt_version: string | null;
   guide_mode: string;
+  is_stale: boolean;
+  stale_reason: string | null;
   confirmed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -83,7 +85,7 @@ export async function fetchSetekGuides(
     const { data, error } = await supabase
       .from("student_record_setek_guides")
       .select(
-        "id, school_year, subject_id, source, status, direction, keywords, competency_focus, cautions, teacher_points, overall_direction, prompt_version, guide_mode, confirmed_at, created_at, updated_at",
+        "id, school_year, subject_id, source, status, direction, keywords, competency_focus, cautions, teacher_points, overall_direction, prompt_version, guide_mode, is_stale, stale_reason, confirmed_at, created_at, updated_at",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -125,6 +127,8 @@ export async function fetchSetekGuides(
       overall_direction: string | null;
       prompt_version: string | null;
       guide_mode: string;
+      is_stale: boolean;
+      stale_reason: string | null;
       confirmed_at: string | null;
       created_at: string;
       updated_at: string;

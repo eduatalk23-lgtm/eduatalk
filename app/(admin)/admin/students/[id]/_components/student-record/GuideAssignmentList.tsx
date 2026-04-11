@@ -110,6 +110,13 @@ export function GuideAssignmentList({
         </div>
       )}
 
+      {/* stale 요약 */}
+      {assignments.filter((a) => a.is_stale).length > 0 && (
+        <p className="text-xs text-amber-600">
+          ⚠ {assignments.filter((a) => a.is_stale).length}건 갱신 필요
+        </p>
+      )}
+
       {/* 배정 목록 */}
       {assignments.length === 0 ? (
         <p className="py-8 text-center text-sm text-gray-400">
@@ -138,6 +145,11 @@ export function GuideAssignmentList({
                     {guide?.guide_type && (
                       <span className="shrink-0 text-xs text-gray-400">
                         {GUIDE_TYPE_LABELS[guide.guide_type as GuideType]}
+                      </span>
+                    )}
+                    {a.is_stale && (
+                      <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        갱신 필요
                       </span>
                     )}
                   </div>

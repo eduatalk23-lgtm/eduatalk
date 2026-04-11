@@ -199,6 +199,8 @@ export interface SetekGuideRow {
   overall_direction: string | null;
   model_tier: string | null;
   prompt_version: string | null;
+  is_stale: boolean;
+  stale_reason: string | null;
   confirmed_at: string | null;
   confirmed_by: string | null;
   created_by: string | null;
@@ -238,6 +240,8 @@ export interface ChangcheGuideRow {
   overall_direction: string | null;
   model_tier: string | null;
   prompt_version: string | null;
+  is_stale: boolean;
+  stale_reason: string | null;
   confirmed_at: string | null;
   confirmed_by: string | null;
   created_by: string | null;
@@ -270,6 +274,8 @@ export interface HaengteukGuideRow {
   overall_direction: string | null;
   model_tier: string | null;
   prompt_version: string | null;
+  is_stale: boolean;
+  stale_reason: string | null;
   confirmed_at: string | null;
   confirmed_by: string | null;
   created_by: string | null;

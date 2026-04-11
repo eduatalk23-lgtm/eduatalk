@@ -103,11 +103,17 @@ export async function rerunGradePipelineTasks(
       const targetSchoolYear = gradeToSchoolYear(pipelineGrade, studentGrade, currentSchoolYear);
 
       await Promise.all([
-        // LLM 캐시 삭제 → 강제 재호출
-        competencyRepo.deleteAnalysisCacheByStudentId(
-          pipeline.student_id as string,
-          pipeline.tenant_id as string,
-        ),
+        // LLM 캐시 삭제 → 해당 학년만 강제 재호출 (다른 학년 캐시 보존)
+        ...(pipelineGrade != null
+          ? [competencyRepo.deleteAnalysisCacheByGrade(
+              pipeline.student_id as string,
+              pipeline.tenant_id as string,
+              pipelineGrade,
+            )]
+          : [competencyRepo.deleteAnalysisCacheByStudentId(
+              pipeline.student_id as string,
+              pipeline.tenant_id as string,
+            )]),
         // 파생 데이터 삭제 → 이전 scores/tags/quality 잔류 방지
         ...(pipelineGrade != null
           ? [competencyRepo.deleteAnalysisResultsByGrade(
