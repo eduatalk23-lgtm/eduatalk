@@ -193,56 +193,15 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
 
   const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");
 
-  // ── 풀 후보 수집 ──
-  type RecommendedGuide = { id: string; title: string; guide_type: string | null; match_reason: string };
-  const guideMap = new Map<string, RecommendedGuide>();
+  // ── D6 v2: AI 설계 선행 → 풀 매칭 → 없으면 셸 생성 ──
+  // 학생 맥락(스토리라인 + 방향가이드 + 수강계획)을 AI가 먼저 분석하여
+  // "이 학생에게 필요한 탐구"를 설계한 뒤, 설계 결과에 맞는 풀 가이드를 매칭.
+  // 풀에 없는 것만 셸(queued_generation)로 생성.
 
-  // (1) classification 단독 매칭
-  const classResult = await autoRecommendGuidesAction({ studentId, classificationId, limit: 10 });
-  if (classResult.success && Array.isArray(classResult.data)) {
-    for (const g of classResult.data) guideMap.set(g.id, g);
-  }
-
-  // (2) 수강계획 과목 매칭 (세특용)
-  // Wave 5.1d 후속: 8개로 확장 — 3학년 plans 5 + 2학년 plans 3 까지 커버.
-  // DB only 라 rate limit 고민 없음.
-  const plannedNames = collectPlannedSubjectNames(ctx);
-  for (const subjectName of plannedNames.slice(0, 8)) {
-    const subjectResult = await autoRecommendGuidesAction({
-      studentId,
-      classificationId,
-      subjectName,
-      limit: 5,
-    });
-    if (subjectResult.success && Array.isArray(subjectResult.data)) {
-      for (const g of subjectResult.data) {
-        const existing = guideMap.get(g.id);
-        if (!existing || g.match_reason === "both" || g.match_reason === "all") {
-          guideMap.set(g.id, g);
-        }
-      }
-    }
-  }
-
-  // (3) activity_type 매칭 (창체용 — Wave 3.2 신규)
-  for (const activityType of ["autonomy", "club", "career"] as const) {
-    const activityResult = await autoRecommendGuidesAction({
-      studentId,
-      classificationId,
-      activityType,
-      limit: 5,
-    });
-    if (activityResult.success && Array.isArray(activityResult.data)) {
-      for (const g of activityResult.data) {
-        if (!guideMap.has(g.id)) guideMap.set(g.id, g);
-      }
-    }
-  }
-
-  // ── D4: 12계열 연속성 ranking ──
   const clubHistory = await fetchClubHistory(supabase, studentId, tenantId);
+  const plannedNames = collectPlannedSubjectNames(ctx);
 
-  // ── 전공 권장 과목 subject_id 세트 구성 (majorBonus용) ──
+  // 전공 권장 과목 subject_id 세트 (ranking용)
   let majorRecommendedSubjectIds: Set<string> | undefined;
   const targetMajor = (snapshot?.target_major as string) ?? null;
   if (targetMajor) {
@@ -275,33 +234,110 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     }
   }
 
-  const ranked = await applyContinuityRanking(
-    [...guideMap.values()],
-    clubHistory,
-    studentGrade,
-    supabase,
-    studentId,
-    majorRecommendedSubjectIds,
-  );
+  let ranked: RankedGuide[] = [];
 
-  // ── D6: 조건부 AI 생성 (옵션, feature flag) ──
-  // Decision #2 Q2-1: 설계 학년 + storyline 존재 + 매칭 < N건일 때만
-  if (ENABLE_AI_GENERATION && shouldTriggerAiGeneration(ctx, ranked.length)) {
+  // ── Phase A: AI 탐구 설계 (설계 학년 + 스토리라인 존재 시) ──
+  const canDesign = ENABLE_AI_GENERATION && shouldTriggerAiGeneration(ctx, 0);
+
+  if (canDesign) {
     try {
-      const aiGuides = await triggerAiGuideGeneration(ctx, ranked);
-      for (const g of aiGuides) {
-        if (!guideMap.has(g.id)) {
-          ranked.push(g);
+      // AI가 학생 맥락을 분석하여 필요한 탐구 N건을 설계
+      const designs = await runExplorationDesign(ctx);
+
+      for (const design of designs) {
+        // 설계 결과의 키워드/제목으로 풀 매칭 시도
+        const poolMatch = await matchDesignToPool(
+          design,
+          { studentId, classificationId, autoRecommendGuidesAction },
+        );
+
+        if (poolMatch) {
+          // 풀에 맞는 가이드 있음 → 기존 가이드 사용
+          ranked.push({
+            ...poolMatch,
+            match_reason: "ai_design_pool_match",
+            baseScore: 3, // AI 설계 + 풀 매칭 = 최고 적합도
+          });
+          logActionDebug(LOG_CTX, `D6: 설계 "${design.title}" → 풀 매칭 "${poolMatch.title}"`, { studentId });
+        } else {
+          // 풀에 없음 → 셸 생성 (2단계에서 전문 생성)
+          const shell = await createDesignShell(design, ctx);
+          if (shell) {
+            ranked.push(shell);
+            logActionDebug(LOG_CTX, `D6: 설계 "${design.title}" → 셸 생성`, { studentId });
+          }
         }
       }
     } catch (err) {
-      // AI 생성 실패는 치명적이지 않음 — 기존 풀 결과로 진행
       logActionWarn(
         LOG_CTX,
-        `AI 가이드 생성 실패 (fallback to pool only): ${err instanceof Error ? err.message : String(err)}`,
+        `D6: AI 탐구 설계 실패 — 기존 풀 매칭으로 fallback: ${err instanceof Error ? err.message : String(err)}`,
         { studentId },
       );
     }
+  }
+
+  // ── Phase B: 기존 풀 보충 매칭 (AI 설계 불가 or fallback) ──
+  // AI 설계가 비활성이거나 실패한 경우, 또는 AI 설계 결과가 부족한 경우 보충
+  if (ranked.length < MIN_GUIDES_FOR_AI_TRIGGER) {
+    type RecommendedGuide = { id: string; title: string; guide_type: string | null; match_reason: string };
+    const guideMap = new Map<string, RecommendedGuide>();
+    // 이미 ranked에 있는 가이드 제외
+    const rankedIds = new Set(ranked.map((r) => r.id));
+
+    // (1) classification 매칭
+    const classResult = await autoRecommendGuidesAction({ studentId, classificationId, limit: 10 });
+    if (classResult.success && Array.isArray(classResult.data)) {
+      for (const g of classResult.data) {
+        if (!rankedIds.has(g.id)) guideMap.set(g.id, g);
+      }
+    }
+
+    // (2) 수강계획 과목 매칭
+    for (const subjectName of plannedNames.slice(0, 8)) {
+      const subjectResult = await autoRecommendGuidesAction({
+        studentId,
+        classificationId,
+        subjectName,
+        limit: 5,
+      });
+      if (subjectResult.success && Array.isArray(subjectResult.data)) {
+        for (const g of subjectResult.data) {
+          if (!rankedIds.has(g.id)) {
+            const existing = guideMap.get(g.id);
+            if (!existing || g.match_reason === "both" || g.match_reason === "all") {
+              guideMap.set(g.id, g);
+            }
+          }
+        }
+      }
+    }
+
+    // (3) activity_type 매칭 (창체용)
+    for (const activityType of ["autonomy", "club", "career"] as const) {
+      const activityResult = await autoRecommendGuidesAction({
+        studentId,
+        classificationId,
+        activityType,
+        limit: 5,
+      });
+      if (activityResult.success && Array.isArray(activityResult.data)) {
+        for (const g of activityResult.data) {
+          if (!rankedIds.has(g.id) && !guideMap.has(g.id)) guideMap.set(g.id, g);
+        }
+      }
+    }
+
+    // ranking 적용 후 기존 ranked에 추가
+    const poolRanked = await applyContinuityRanking(
+      [...guideMap.values()],
+      clubHistory,
+      studentGrade,
+      supabase,
+      studentId,
+      majorRecommendedSubjectIds,
+    );
+    ranked.push(...poolRanked);
   }
 
   // ── 배정 INSERT ──
@@ -626,20 +662,19 @@ function shouldTriggerAiGeneration(ctx: PipelineContext, currentMatchCount: numb
   return true;
 }
 
-async function triggerAiGuideGeneration(
+// ============================================
+// D6 v2: AI 설계 선행 → 풀 매칭 → 셸 생성
+// ============================================
+
+import type { ExplorationDesignItem } from "@/lib/domains/guide/llm/types";
+
+/** AI 탐구 설계 수행 — 학생 맥락에서 필요한 탐구 N건을 설계 */
+async function runExplorationDesign(
   ctx: PipelineContext,
-  existingGuides: RankedGuide[],
-): Promise<RankedGuide[]> {
-  // D6(M7): 1단계 — AI 탐구 설계 → 셸 INSERT → 배정 대상으로 반환
-  // 2단계 (전문 생성)는 별도 API Route에서 클라이언트 주도로 실행
+): Promise<{ designs: ExplorationDesignItem[]; overallStrategy: string }> {
+  const { supabase, studentId, snapshot, consultingGrades } = ctx;
 
-  const { supabase, studentId, tenantId, snapshot, consultingGrades } = ctx;
-  const neededCount = Math.max(0, MIN_GUIDES_FOR_AI_TRIGGER - existingGuides.length);
-  if (neededCount === 0) return [];
-
-  // ── 맥락 수집 ──
-
-  // 1. 스토리라인 (DB에서 직접 조회 — ctx.results에는 count만 있음)
+  // 1. 스토리라인 (DB 조회)
   const { data: storylineRows } = await supabase
     .from("student_record_storylines")
     .select("title, keywords, narrative, grade_1_theme, grade_2_theme, grade_3_theme, strength")
@@ -657,9 +692,9 @@ async function triggerAiGuideGeneration(
     strength: s.strength as string | null,
   }));
 
-  if (storylines.length === 0) return []; // 스토리라인 없으면 설계 불가
+  if (storylines.length === 0) return { designs: [], overallStrategy: "" };
 
-  // 2. 방향 가이드 (unifiedInput에서 설계 학년의 directionGuides 수집)
+  // 2. 방향 가이드
   const directionGuides: {
     type: "setek" | "changche" | "haengteuk";
     subject?: string;
@@ -686,15 +721,13 @@ async function triggerAiGuideGeneration(
     }
   }
 
-  // 3. 수강계획 과목명
+  // 3. 수강계획 과목명 + 설계 학년
   const plannedSubjects = collectPlannedSubjectNames(ctx);
-
-  // 4. 설계 학년 결정
   const designGrade = (consultingGrades ?? []).length > 0
     ? Math.max(...(consultingGrades ?? []))
     : ctx.studentGrade;
 
-  // ── AI 탐구 설계 호출 (Gemini Flash, ~15초) ──
+  // 4. AI 호출
   const { generateObjectWithRateLimit } = await import("@/lib/domains/plan/llm/ai-sdk");
   const { geminiQuotaTracker } = await import("@/lib/domains/plan/llm/providers/gemini");
   const { zodSchema } = await import("ai");
@@ -707,83 +740,136 @@ async function triggerAiGuideGeneration(
   const quota = geminiQuotaTracker.getQuotaStatus();
   if (quota.isExceeded) {
     logActionWarn(LOG_CTX, "D6: Gemini 할당량 초과 — AI 탐구 설계 스킵", { studentId });
-    return [];
+    return { designs: [], overallStrategy: "" };
   }
 
-  const designCtx = {
-    targetMajor: (snapshot?.target_major as string) ?? null,
-    desiredCareerField: (snapshot?.desired_career_field as string) ?? null,
-    designGrade,
-    storylines,
-    directionGuides,
-    plannedSubjects,
-    existingGuides: existingGuides.map((g) => ({
-      title: g.title,
-      guideType: g.guide_type ?? "topic_exploration",
-      difficultyLevel: null as string | null,
-    })),
-    neededCount,
-  };
-
-  const systemPrompt = buildExplorationDesignSystemPrompt();
-  const userPrompt = buildExplorationDesignUserPrompt(designCtx);
-
-  const designResult = await generateObjectWithRateLimit({
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+  const result = await generateObjectWithRateLimit({
+    system: buildExplorationDesignSystemPrompt(),
+    messages: [{
+      role: "user",
+      content: buildExplorationDesignUserPrompt({
+        targetMajor: (snapshot?.target_major as string) ?? null,
+        desiredCareerField: (snapshot?.desired_career_field as string) ?? null,
+        designGrade,
+        storylines,
+        directionGuides,
+        plannedSubjects,
+        existingGuides: [], // 아직 매칭 전이므로 빈 배열
+        neededCount: MIN_GUIDES_FOR_AI_TRIGGER + 1, // 여유 있게 설계 요청
+      }),
+    }],
     schema: zodSchema(explorationDesignSchema),
     modelTier: "fast" as const,
     temperature: 0.4,
     maxTokens: 4096,
   });
 
-  const designs = designResult.object.designs;
-  if (designs.length === 0) return [];
-
-  logActionDebug(LOG_CTX, `D6: ${designs.length}건 탐구 설계 완료`, {
+  logActionDebug(LOG_CTX, `D6: ${result.object.designs.length}건 탐구 설계 완료`, {
     studentId,
-    strategy: designResult.object.overallStrategy,
+    strategy: result.object.overallStrategy,
   });
 
-  // ── 셸 INSERT + RankedGuide 반환 ──
-  const { createGuideShell } = await import("@/lib/domains/guide/repository");
-  const results: RankedGuide[] = [];
+  return { designs: result.object.designs, overallStrategy: result.object.overallStrategy };
+}
 
-  for (const design of designs) {
-    try {
-      const guideId = await createGuideShell({
-        tenantId,
-        title: design.title,
-        guideType: design.guideType,
-        difficultyLevel: design.difficultyLevel,
-        sourceType: "ai_pipeline_design",
-        aiGenerationMeta: {
-          ...design,
-          studentId,
-          designGrade,
-          overallStrategy: designResult.object.overallStrategy,
-          designedAt: new Date().toISOString(),
-        },
-      });
+/** 설계 결과를 키워드로 풀에서 매칭 시도 */
+async function matchDesignToPool(
+  design: ExplorationDesignItem,
+  opts: {
+    studentId: string;
+    classificationId: number | null;
+    autoRecommendGuidesAction: (input: { studentId: string; classificationId: number | null; subjectName?: string; limit?: number }) => Promise<{ success: boolean; data?: { id: string; title: string; guide_type: string | null; match_reason: string }[] }>;
+  },
+): Promise<RankedGuide | null> {
+  // 설계의 교과 연계에서 과목명 추출 (예: "생명과학II > 세포와 물질대사" → "생명과학II")
+  const subjectName = design.subjectConnect?.split(" > ")[0]?.trim();
+  if (!subjectName) return null;
 
-      results.push({
-        id: guideId,
-        title: design.title,
-        guide_type: design.guideType,
-        match_reason: "ai_designed",
-        baseScore: 2,
-        continuityScore: 1.0,
-        difficultyScore: 1.0,
-        sequelBonus: 1.0,
-        majorBonus: 1.0,
-        finalScore: 2.0,
-      });
-    } catch (err) {
-      logActionError(LOG_CTX, err, { studentId, design: design.title });
+  const result = await opts.autoRecommendGuidesAction({
+    studentId: opts.studentId,
+    classificationId: opts.classificationId,
+    subjectName,
+    limit: 5,
+  });
+
+  if (!result.success || !Array.isArray(result.data) || result.data.length === 0) return null;
+
+  // 설계 키워드와 제목이 겹치는 가이드를 우선 선택
+  const designKeywords = new Set(design.keyTopics.map((k) => k.toLowerCase()));
+  let bestMatch = result.data[0];
+  let bestOverlap = 0;
+
+  for (const candidate of result.data) {
+    const titleLower = candidate.title.toLowerCase();
+    let overlap = 0;
+    for (const kw of designKeywords) {
+      if (titleLower.includes(kw)) overlap++;
+    }
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      bestMatch = candidate;
     }
   }
 
-  return results;
+  // 키워드 겹침이 없으면 풀 매칭 실패 — 맥락 불일치
+  if (bestOverlap === 0) return null;
+
+  return {
+    id: bestMatch.id,
+    title: bestMatch.title,
+    guide_type: bestMatch.guide_type,
+    match_reason: "ai_design_pool_match",
+    baseScore: 3,
+    continuityScore: 1.0,
+    difficultyScore: 1.0,
+    sequelBonus: 1.0,
+    majorBonus: 1.0,
+    finalScore: 3.0,
+  };
+}
+
+/** 풀에 없는 설계 → 셸(queued_generation) 생성 */
+async function createDesignShell(
+  design: ExplorationDesignItem,
+  ctx: PipelineContext,
+): Promise<RankedGuide | null> {
+  const { tenantId, studentId, consultingGrades } = ctx;
+  const designGrade = (consultingGrades ?? []).length > 0
+    ? Math.max(...(consultingGrades ?? []))
+    : ctx.studentGrade;
+
+  try {
+    const { createGuideShell } = await import("@/lib/domains/guide/repository");
+    const guideId = await createGuideShell({
+      tenantId,
+      title: design.title,
+      guideType: design.guideType,
+      difficultyLevel: design.difficultyLevel,
+      sourceType: "ai_pipeline_design",
+      aiGenerationMeta: {
+        ...design,
+        studentId,
+        designGrade,
+        designedAt: new Date().toISOString(),
+      },
+    });
+
+    return {
+      id: guideId,
+      title: design.title,
+      guide_type: design.guideType,
+      match_reason: "ai_designed",
+      baseScore: 2,
+      continuityScore: 1.0,
+      difficultyScore: 1.0,
+      sequelBonus: 1.0,
+      majorBonus: 1.0,
+      finalScore: 2.0,
+    };
+  } catch (err) {
+    logActionError(LOG_CTX, err, { studentId, design: design.title });
+    return null;
+  }
 }
 
 // ============================================
