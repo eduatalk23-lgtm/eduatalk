@@ -8,6 +8,7 @@ import {
   createErrorResponse,
 } from "@/lib/types/actionResponse";
 import type { ActionResponse } from "@/lib/types/actionResponse";
+import { diversifyByCluster } from "../utils/cluster-diversity";
 
 const LOG_CTX = { domain: "guide", action: "autoRecommend" } as const;
 
@@ -198,22 +199,26 @@ export async function autoRecommendGuidesAction(input: {
       return createSuccessResponse([]);
     }
 
-    // 6. approved 필터 + 메타 JOIN
+    // 6. approved 필터 + 메타 JOIN (topic_cluster_id 포함 — L3 다양성)
+    // limit 여유분: diversify에서 round-robin 선택하므로 후보를 넉넉히 확보
+    const fetchLimit = Math.min(candidateIds.length, limit * 3);
     const { data: guides } = await supabase
       .from("exploration_guides")
-      .select("id, title, guide_type, book_title")
+      .select("id, title, guide_type, book_title, topic_cluster_id")
       .in("id", candidateIds)
       .eq("status", "approved")
       .eq("is_latest", true)
-      .limit(limit);
+      .limit(fetchLimit);
 
-    const result: RecommendedGuide[] = (guides ?? []).map((g) => ({
-      id: g.id,
-      title: g.title,
-      guide_type: g.guide_type,
-      book_title: g.book_title,
-      match_reason: guideReasonMap.get(g.id) ?? "classification",
-    }));
+    const result: (RecommendedGuide & { topic_cluster_id: string | null })[] =
+      (guides ?? []).map((g) => ({
+        id: g.id,
+        title: g.title,
+        guide_type: g.guide_type,
+        book_title: g.book_title,
+        match_reason: guideReasonMap.get(g.id) ?? "classification",
+        topic_cluster_id: g.topic_cluster_id ?? null,
+      }));
 
     // 매치 강도 우선 정렬: 3축 모두 > 2축 > 1축
     const REASON_ORDER: Record<MatchReason, number> = {
@@ -230,7 +235,17 @@ export async function autoRecommendGuidesAction(input: {
       (a, b) => REASON_ORDER[a.match_reason] - REASON_ORDER[b.match_reason],
     );
 
-    return createSuccessResponse(result);
+    // L3: 클러스터 다양성 — 특정 클러스터 편중 방지
+    const diversified = diversifyByCluster(
+      result,
+      (g) => g.topic_cluster_id,
+      limit,
+    );
+
+    // topic_cluster_id 제거 후 반환 (API 계약 유지)
+    return createSuccessResponse(
+      diversified.map(({ topic_cluster_id: _, ...rest }) => rest),
+    );
   } catch (error) {
     logActionError(LOG_CTX, error, { studentId: input.studentId });
     return createErrorResponse("가이드 추천 조회에 실패했습니다.");

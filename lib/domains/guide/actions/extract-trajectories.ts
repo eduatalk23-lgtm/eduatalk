@@ -30,6 +30,8 @@ const KNN_K = 10;
 const MIN_CLUSTER_SIMILARITY = 0.45;
 const MAX_CLUSTERS_PER_GRADE = 5;
 const MIN_TEXT_LENGTH = 50;
+/** L3: 클러스터 투표 시 단일 클러스터가 차지할 수 있는 최대 투표 수 */
+const MAX_VOTES_PER_CLUSTER = 4;
 
 export interface ExtractedTrajectory {
   grade: number;
@@ -174,7 +176,7 @@ export async function executeExtractTrajectories(
       }
     }
 
-    // 클러스터 투표 (similarity-weighted)
+    // 클러스터 투표 (similarity-weighted, L3: ceiling 적용)
     const clusterVotes = new Map<
       string,
       { count: number; totalSim: number; difficulties: string[] }
@@ -187,6 +189,8 @@ export async function executeExtractTrajectories(
       if (!cluster) continue;
       const existing = clusterVotes.get(cluster.clusterId);
       if (existing) {
+        // L3: 단일 클러스터 ceiling — 편중 방지
+        if (existing.count >= MAX_VOTES_PER_CLUSTER) continue;
         existing.count++;
         existing.totalSim += n.score;
         if (cluster.difficulty) existing.difficulties.push(cluster.difficulty);

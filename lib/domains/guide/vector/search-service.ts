@@ -10,6 +10,7 @@ import { google } from "@ai-sdk/google";
 import { geminiRateLimiter, geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
+import { diversifyByCluster } from "../utils/cluster-diversity";
 
 const LOG_TAG = "guide.vector-search";
 const EMBEDDING_MODEL = "gemini-embedding-2-preview";
@@ -82,5 +83,26 @@ export async function searchGuidesByVector(
     throw new Error(`가이드 검색 RPC 실패: ${error.message}`);
   }
 
-  return (data ?? []) as GuideSearchResult[];
+  const results = (data ?? []) as GuideSearchResult[];
+
+  // L3: 클러스터 다양성 — 상위 결과가 특정 클러스터에 편중되지 않도록 분산
+  if (results.length <= 1) return results;
+
+  // guide_id → topic_cluster_id 조회
+  const guideIds = results.map((r) => r.guide_id);
+  const { data: clusterRows } = await supabase
+    .from("exploration_guides")
+    .select("id, topic_cluster_id")
+    .in("id", guideIds);
+
+  const clusterMap = new Map<string, string | null>();
+  for (const row of clusterRows ?? []) {
+    clusterMap.set(row.id, row.topic_cluster_id);
+  }
+
+  return diversifyByCluster(
+    results,
+    (r) => clusterMap.get(r.guide_id),
+    matchCount,
+  );
 }
