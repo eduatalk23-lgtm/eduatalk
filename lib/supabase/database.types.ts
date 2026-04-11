@@ -14421,6 +14421,64 @@ export type Database = {
           },
         ]
       }
+      student_record_warning_snapshots: {
+        Row: {
+          created_at: string
+          grade: number | null
+          id: string
+          pipeline_id: string
+          pipeline_type: string
+          student_id: string
+          tenant_id: string
+          warning_count: number
+          warnings: Json
+        }
+        Insert: {
+          created_at?: string
+          grade?: number | null
+          id?: string
+          pipeline_id: string
+          pipeline_type: string
+          student_id: string
+          tenant_id: string
+          warning_count?: number
+          warnings: Json
+        }
+        Update: {
+          created_at?: string
+          grade?: number | null
+          id?: string
+          pipeline_id?: string
+          pipeline_type?: string
+          student_id?: string
+          tenant_id?: string
+          warning_count?: number
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_warning_snapshots_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_warning_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_warning_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_reminder_settings: {
         Row: {
           created_at: string | null
@@ -18111,4 +18169,3 @@ export const Constants = {
     },
   },
 } as const
-

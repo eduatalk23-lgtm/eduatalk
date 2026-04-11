@@ -186,7 +186,7 @@ export function buildUserPrompt(input: SetekGuideInput): string {
       // E1: 경고 패턴 (severity + suggestion 포함)
       if (hasWarnings) {
         prompt += `### 감지된 경고 패턴\n`;
-        for (const wp of warningPatterns!) {
+        for (const wp of warningPatterns) {
           prompt += `- **[${wp.severity.toUpperCase()}]** ${wp.title}\n`;
           prompt += `  → ${wp.suggestion}\n`;
         }

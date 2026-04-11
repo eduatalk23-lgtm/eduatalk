@@ -29,14 +29,12 @@ export async function POST(request: NextRequest) {
 
     // guideId 미지정 시 가장 오래된 queued_generation 1건 pop
     let targetId = guideId ?? "";
-    let meta: Record<string, unknown> | null = null;
 
     if (!guideId) {
-      // NOTE: ai_generation_meta는 신규 컬럼 — database.types.ts 미반영이므로 raw select 사용
       const { data: queued } = await admin
         .from("exploration_guides")
         .select("id, title")
-        .eq("status", "queued_generation" as string)
+        .eq("status", "queued_generation")
         .eq("is_latest", true)
         .order("created_at", { ascending: true })
         .limit(1)
@@ -46,22 +44,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ completed: true, message: "대기 중인 가이드 없음" });
       }
       targetId = queued.id;
-
-      // ai_generation_meta는 신규 컬럼 — select("*")로 읽고 타입 단언
-      const { data: rawRow } = await admin
-        .from("exploration_guides")
-        .select("*")
-        .eq("id", targetId)
-        .single();
-      meta = (rawRow as Record<string, unknown> | null)?.ai_generation_meta as Record<string, unknown> | null;
-    } else {
-      const { data: rawRow } = await admin
-        .from("exploration_guides")
-        .select("*")
-        .eq("id", targetId)
-        .single();
-      meta = (rawRow as Record<string, unknown> | null)?.ai_generation_meta as Record<string, unknown> | null;
     }
+
+    // ai_generation_meta 읽기
+    const { data: guideRow } = await admin
+      .from("exploration_guides")
+      .select("ai_generation_meta")
+      .eq("id", targetId)
+      .single();
+    const meta = guideRow?.ai_generation_meta as Record<string, unknown> | null;
 
     if (!targetId || !meta) {
       if (targetId) {
@@ -76,7 +67,7 @@ export async function POST(request: NextRequest) {
     // 상태를 ai_generating으로 전환 (중복 실행 방지)
     await admin
       .from("exploration_guides")
-      .update({ status: "ai_generating" as string })
+      .update({ status: "ai_generating" })
       .eq("id", targetId);
 
     // 메타에서 GuideGenerationInput 조립
@@ -108,7 +99,7 @@ export async function POST(request: NextRequest) {
       // 성공 시 pending_approval로 승격
       await admin
         .from("exploration_guides")
-        .update({ status: "pending_approval" as string })
+        .update({ status: "pending_approval" })
         .eq("id", targetId);
 
       logActionDebug(LOG_CTX, `D6 2단계 완료: ${meta.title}`, { guideId: targetId });
@@ -117,7 +108,7 @@ export async function POST(request: NextRequest) {
       const { count } = await admin
         .from("exploration_guides")
         .select("id", { count: "exact", head: true })
-        .eq("status", "queued_generation" as string)
+        .eq("status", "queued_generation")
         .eq("is_latest", true);
 
       return NextResponse.json({
@@ -131,7 +122,7 @@ export async function POST(request: NextRequest) {
 
       await admin
         .from("exploration_guides")
-        .update({ status: "ai_failed" as string, ai_model_version: msg.slice(0, 500) })
+        .update({ status: "ai_failed", ai_model_version: msg.slice(0, 500) })
         .eq("id", targetId);
 
       return NextResponse.json({ error: msg.slice(0, 200) }, { status: 500 });

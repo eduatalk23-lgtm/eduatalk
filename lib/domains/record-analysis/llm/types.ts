@@ -205,6 +205,8 @@ export interface StepATaggingResult {
   coveredItems: CompetencyItemCode[];
   /** 전체 신뢰도 (0.0~1.0) — Cascading 판정에 사용 */
   overallConfidence: number;
+  /** 유효하지 않아 스킵된 태그 수 (디버깅용) */
+  skippedTagCount?: number;
 }
 
 /** Step B 출력: 루브릭 기반 등급 채점 */

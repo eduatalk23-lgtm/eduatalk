@@ -307,7 +307,7 @@ export function GuideEditorClient({ guideId, curriculumRevisions }: GuideEditorC
         const { meta, content } = buildMetaAndContent();
         await autoSaveGuideContentAction({ guideId, meta, content });
         setAutoSaveTime(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) + " (DB)");
-      } catch { /* DB 자동 저장 실패 — 무시, localStorage 백업 존재 */ }
+      } catch (e) { console.warn("[GuideEditor] DB 자동 저장 실패:", e instanceof Error ? e.message : e); }
     }, 30000);
     return () => {
       if (dbAutoSaveRef.current) clearTimeout(dbAutoSaveRef.current);

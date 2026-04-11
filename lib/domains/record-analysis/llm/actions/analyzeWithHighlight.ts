@@ -7,7 +7,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import { handleLlmActionError } from "../error-handler";
 import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
@@ -111,7 +111,7 @@ async function runPipelineAnalysis(
   stepA.overallConfidence = computeOverallConfidence(stepA, input.recordType);
 
   if (stepA.overallConfidence < PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN) {
-    logActionDebug(LOG_CTX, `[Pipeline] Cascading fallback: confidence=${stepA.overallConfidence.toFixed(2)} < ${PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN}`);
+    logActionWarn(LOG_CTX, `[Pipeline] Cascading fallback: confidence=${stepA.overallConfidence.toFixed(2)} < ${PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN}`);
     // 모놀리식 fallback
     const monolithic = await runMonolithicAnalysis(input);
     // Step A 토큰도 합산
@@ -145,7 +145,7 @@ async function runPipelineAnalysis(
       }),
       { label: "pipeline.stepB" },
     ),
-    // Step C: 품질 평가
+    // Step C: 품질 평가 (0.3 — 5축 점수에 약간의 변동 허용, A/B의 0.2보다 높음)
     withRetry(
       () => generateTextWithRateLimit({
         system: STEP_C_SYSTEM_PROMPT,

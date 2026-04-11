@@ -7,6 +7,7 @@
 import { logActionWarn } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 import type { WarningSnapshot } from "../warnings/history-types";
 
 const LOG_CTX = { domain: "student-record", action: "warning-history" };
@@ -47,7 +48,7 @@ export async function saveWarningSnapshot(
           student_id: studentId,
           pipeline_type: pipelineType,
           grade,
-          warnings: warnings as unknown as Record<string, unknown>[],
+          warnings: warnings as unknown as Json[],
           warning_count: warnings.length,
         },
         { onConflict: "pipeline_id", ignoreDuplicates: true },
@@ -79,7 +80,7 @@ export async function fetchWarningSnapshots(
     .limit(limit);
 
   if (error) {
-    logActionWarn(LOG_CTX, `스냅샷 조회 실패: ${error.message}`, { studentId });
+    logActionWarn(LOG_CTX, `스냅샷 조회 실패 (빈 배열 반환): ${error.code} ${error.message}`, { studentId });
     return [];
   }
 

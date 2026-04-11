@@ -151,6 +151,7 @@ export function parseStepAResponse(content: string): StepATaggingResult {
 
   const sections: SectionWithUncertainty[] = [];
   const coveredItemSet = new Set<CompetencyItemCode>();
+  let skippedTagCount = 0;
 
   for (const s of rawSections) {
     if (!s || typeof s !== "object") continue;
@@ -158,9 +159,10 @@ export function parseStepAResponse(content: string): StepATaggingResult {
     const tags: TagWithUncertainty[] = [];
 
     for (const t of s.tags ?? []) {
-      if (!VALID_ITEMS.has(t.competencyItem)) continue;
-      if (!VALID_EVALS.has(t.evaluation)) continue;
-      if (!t.highlight || typeof t.highlight !== "string") continue;
+      if (!VALID_ITEMS.has(t.competencyItem) || !VALID_EVALS.has(t.evaluation) || !t.highlight || typeof t.highlight !== "string") {
+        skippedTagCount++;
+        continue;
+      }
 
       const confidence = typeof t.confidence === "number"
         ? Math.max(0, Math.min(1, t.confidence))
@@ -188,9 +190,14 @@ export function parseStepAResponse(content: string): StepATaggingResult {
 
   const coveredItems = [...coveredItemSet];
 
+  if (skippedTagCount > 0 && typeof globalThis.console !== "undefined") {
+    console.debug(`[stepA-tagging] ${skippedTagCount}개 태그 스킵 (유효하지 않은 competencyItem/evaluation/highlight)`);
+  }
+
   return {
     sections,
     coveredItems,
+    skippedTagCount,
     overallConfidence: 0, // 오케스트레이터에서 계산
   };
 }

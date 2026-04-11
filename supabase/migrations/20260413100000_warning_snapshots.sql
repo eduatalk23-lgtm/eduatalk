@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS student_record_warning_snapshots (
   id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   pipeline_id   uuid        NOT NULL REFERENCES student_record_analysis_pipelines(id) ON DELETE CASCADE,
-  tenant_id     uuid        NOT NULL REFERENCES tenants(id),
+  tenant_id     uuid        NOT NULL REFERENCES tenants(id) ON UPDATE CASCADE ON DELETE CASCADE,
   student_id    uuid        NOT NULL REFERENCES students(id) ON UPDATE CASCADE ON DELETE CASCADE,
   pipeline_type varchar(20) NOT NULL,   -- 'grade' | 'synthesis'
   grade         smallint,               -- NULL for synthesis
