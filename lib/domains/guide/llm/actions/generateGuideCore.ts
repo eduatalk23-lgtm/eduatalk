@@ -31,9 +31,15 @@ import {
 import { extractTextFromPdfUrl } from "../extract/pdf-extractor";
 import { extractTextFromUrl } from "../extract/url-extractor";
 import { enrichGuideResources } from "../services/enrich-sources";
+import { validateGuideOutput } from "../validators/deterministic-validator";
+import { checkCoherence } from "../validators/coherence-checker";
+import {
+  repairViolations,
+  MAX_REPAIR_ATTEMPTS,
+} from "../validators/targeted-repair";
 
 const LOG_CTX = { domain: "guide", action: "generateGuide" };
-const AI_PROMPT_VERSION = "c3.1-v1";
+const AI_PROMPT_VERSION = "c3.3-v1";
 
 /** 진행 단계 콜백 타입 */
 export type GenerateProgressCallback = (
@@ -169,7 +175,8 @@ export async function generateGuideCore(
       };
     }
 
-    // 독서탐구 도서 실존 검증
+    // ── Deterministic Validation ─────────────────────────────
+    // 기본 보정: confidence 미지정 → medium 기본값
     if (generated.guideType === "reading") {
       if (!generated.bookConfidence && generated.bookTitle) {
         generated.bookConfidence = "medium";
@@ -178,66 +185,7 @@ export async function generateGuideCore(
             "AI 생성 시 confidence 미지정 — 컨설턴트 검수 필요";
         }
       }
-
-      const { logActionWarn: logBookWarn } = await import(
-        "@/lib/logging/actionLogger"
-      );
-
-      if (generated.bookConfidence === "low") {
-        logBookWarn(
-          LOG_CTX,
-          `도서 신뢰도 low — 할루시네이션 위험: "${generated.bookTitle}" (${generated.bookAuthor})`,
-          {
-            bookTitle: generated.bookTitle,
-            bookAuthor: generated.bookAuthor,
-            bookConfidence: generated.bookConfidence,
-            bookVerificationNote: generated.bookVerificationNote,
-          },
-        );
-      } else if (generated.bookConfidence === "medium") {
-        logBookWarn(
-          LOG_CTX,
-          `도서 신뢰도 medium — 검수 필요: "${generated.bookTitle}" (${generated.bookAuthor})`,
-          {
-            bookTitle: generated.bookTitle,
-            bookConfidence: generated.bookConfidence,
-            bookVerificationNote: generated.bookVerificationNote,
-          },
-        );
-      }
-
-      if (!generated.bookTitle?.trim()) {
-        logBookWarn(LOG_CTX, "독서탐구인데 bookTitle이 비어 있음", {
-          source: input.source,
-        });
-      }
     }
-
-    // outline 밀도 검증
-    const contentOutlines = generated.sections
-      .filter((s) => s.key === "content_sections" && s.outline?.length)
-      .flatMap((s) => s.outline ?? []);
-    const outlineStats = {
-      total: contentOutlines.length,
-      depth0: contentOutlines.filter((o) => o.depth === 0).length,
-      tips: contentOutlines.filter((o) => o.tip).length,
-      resources: contentOutlines.filter((o) => o.resources?.length).length,
-    };
-    if (
-      outlineStats.total < 40 ||
-      outlineStats.depth0 < 5 ||
-      outlineStats.tips < 6 ||
-      outlineStats.resources < 5
-    ) {
-      const { logActionWarn } = await import("@/lib/logging/actionLogger");
-      logActionWarn(
-        LOG_CTX,
-        `Outline 밀도 미달: total=${outlineStats.total}/40, depth0=${outlineStats.depth0}/5, tips=${outlineStats.tips}/6, resources=${outlineStats.resources}/5`,
-        { source: input.source, outlineStats },
-      );
-    }
-
-    // 논문 실존 검증
     if (generated.relatedPapers?.length) {
       for (const paper of generated.relatedPapers) {
         if (!paper.confidence) {
@@ -248,48 +196,118 @@ export async function generateGuideCore(
           }
         }
       }
+    }
 
+    // 자동 필터: low confidence 논문 제거
+    if (generated.relatedPapers?.length) {
       const lowPapers = generated.relatedPapers.filter(
         (p) => p.confidence === "low",
       );
       if (lowPapers.length > 0) {
-        const { logActionWarn: logPaperWarn } = await import(
-          "@/lib/logging/actionLogger"
-        );
-        logPaperWarn(
-          LOG_CTX,
-          `논문 ${lowPapers.length}건 low confidence 제거: ${lowPapers.map((p) => p.title).join(", ")}`,
-          {
-            removed: lowPapers.map((p) => ({
-              title: p.title,
-              verificationNote: p.verificationNote,
-            })),
-          },
-        );
         generated.relatedPapers = generated.relatedPapers.filter(
           (p) => p.confidence !== "low",
         );
       }
+    }
 
-      const mediumPapers = generated.relatedPapers.filter(
-        (p) => p.confidence === "medium",
-      );
-      if (mediumPapers.length > 0) {
-        const { logActionWarn: logPaperMedWarn } = await import(
-          "@/lib/logging/actionLogger"
-        );
-        logPaperMedWarn(
-          LOG_CTX,
-          `논문 ${mediumPapers.length}건 medium confidence — 검수 필요: ${mediumPapers.map((p) => p.title).join(", ")}`,
-          {
-            papers: mediumPapers.map((p) => ({
-              title: p.title,
-              verificationNote: p.verificationNote,
-            })),
-          },
-        );
+    // ── A-L1: Deterministic Validation ────────────────────────
+    const guideType = generated.guideType as import("../../types").GuideType;
+    const l1Validation = validateGuideOutput(
+      generated,
+      guideType,
+      input.selectedSectionKeys,
+    );
+
+    // ── A-L2: Coherence Check (Flash LLM) ───────────────────
+    let allViolations = [...l1Validation.violations];
+    try {
+      const coherenceResult = await checkCoherence(generated);
+      allViolations = [...allViolations, ...coherenceResult.violations];
+
+      if (coherenceResult.violations.length > 0) {
+        const { logActionWarn } = await import("@/lib/logging/actionLogger");
+        for (const v of coherenceResult.violations) {
+          logActionWarn(LOG_CTX, `[coherence] [${v.rule}] ${v.message}`, {
+            severity: v.severity,
+            sectionKey: v.sectionKey,
+            source: input.source,
+          });
+        }
+      }
+    } catch (coherenceError) {
+      // Coherence check 실패는 non-fatal — L1 결과만으로 진행
+      const { logActionWarn } = await import("@/lib/logging/actionLogger");
+      logActionWarn(LOG_CTX, "Coherence check failed (non-fatal)", {
+        error:
+          coherenceError instanceof Error
+            ? coherenceError.message
+            : String(coherenceError),
+      });
+    }
+
+    // 검증 결과 로깅 (L1)
+    if (l1Validation.violations.length > 0) {
+      const { logActionWarn } = await import("@/lib/logging/actionLogger");
+      for (const v of l1Validation.violations) {
+        logActionWarn(LOG_CTX, `[L1] [${v.rule}] ${v.message}`, {
+          severity: v.severity,
+          sectionKey: v.sectionKey,
+          actual: v.actual,
+          expected: v.expected,
+          source: input.source,
+        });
       }
     }
+
+    // ── Targeted Repair (DeCRIM) ────────────────────────────
+    const hasErrors = allViolations.some((v) => v.severity === "error");
+    if (hasErrors) {
+      try {
+        for (let attempt = 0; attempt < MAX_REPAIR_ATTEMPTS; attempt++) {
+          const repairResult = await repairViolations(
+            generated,
+            allViolations,
+          );
+
+          if (repairResult.repaired) {
+            const { logActionDebug: logRepairDebug } = await import(
+              "@/lib/logging/actionLogger"
+            );
+            logRepairDebug(
+              LOG_CTX,
+              `Targeted repair attempt ${attempt + 1}: ${repairResult.repairedSectionKeys.join(", ")}`,
+              {
+                repairedKeys: repairResult.repairedSectionKeys,
+                remainingErrors: repairResult.remainingViolations.filter(
+                  (v) => v.severity === "error",
+                ).length,
+                usage: repairResult.usage,
+                source: input.source,
+              },
+            );
+
+            // 수리 결과 반영
+            generated = repairResult.output;
+            allViolations = repairResult.remainingViolations;
+
+            // 남은 error가 없으면 루프 종료
+            if (!allViolations.some((v) => v.severity === "error")) break;
+          } else {
+            break;
+          }
+        }
+      } catch (repairError) {
+        // Repair 실패는 non-fatal — 원본 출력 유지
+        const { logActionWarn } = await import("@/lib/logging/actionLogger");
+        logActionWarn(LOG_CTX, "Targeted repair failed (non-fatal)", {
+          error:
+            repairError instanceof Error
+              ? repairError.message
+              : String(repairError),
+        });
+      }
+    }
+    // ── End Validation + Repair ──────────────────────────────
 
     // 출처 수집 (non-fatal)
     onProgress?.("enriching", "출처 검증 및 수집 중");

@@ -21,7 +21,7 @@ import type { GuideGenerationInput } from "../types";
 import type { OutlineItem } from "../../types";
 
 const LOG_CTX = { domain: "guide", action: "generateGuide" };
-const AI_PROMPT_VERSION = "c3.1-v1";
+const AI_PROMPT_VERSION = "c3.3-v1";
 
 /**
  * 가이드 AI 생성 실행 — API route에서 호출
