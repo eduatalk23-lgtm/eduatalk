@@ -3,10 +3,11 @@
 // ============================================
 // 세특 인라인 하이라이트 분석 Server Action
 // Phase 6.1 — 원문 구절 인용 + 역량 태깅
+// Phase 1 (Level 4) — 3-Step 분해 + Cascading
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { handleLlmActionError } from "../error-handler";
 import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
@@ -17,10 +18,249 @@ import {
   buildBatchHighlightUserPrompt,
   parseBatchHighlightResponse,
 } from "../prompts/competencyHighlight";
-import type { HighlightAnalysisInput, HighlightAnalysisResult, BatchHighlightInput, BatchHighlightResult } from "../types";
+import type {
+  HighlightAnalysisInput,
+  HighlightAnalysisResult,
+  BatchHighlightInput,
+  BatchHighlightResult,
+  StepATaggingResult,
+  CompetencyItemCode,
+} from "../types";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
 const LOG_CTX = { domain: "record-analysis", action: "analyzeWithHighlight" };
+
+// ============================================
+// Phase 1 (Level 4): 3-Step 파이프라인 오케스트레이터
+// ============================================
+
+/** Step A 신뢰도 계산: 태그 confidence 평균 + 커버리지 비율 */
+function computeOverallConfidence(stepA: StepATaggingResult, recordType: string): number {
+  const allTags = stepA.sections.flatMap((s) => s.tags);
+  if (allTags.length === 0) return 0;
+
+  const meanConf = allTags.reduce((sum, t) => sum + t.confidence, 0) / allTags.length;
+
+  // career_course_effort/achievement는 데이터 기반이므로 텍스트 태깅에서 제외
+  const expectedCount = recordType === "setek" || recordType === "personal_setek" ? 8 : 6;
+  const coverageRatio = Math.min(1, stepA.coveredItems.length / expectedCount);
+
+  // needs_review 비율이 50% 초과이면 페널티
+  const reviewRatio = allTags.filter((t) => t.evaluation === "needs_review").length / allTags.length;
+  const penalty = reviewRatio > 0.5 ? 0.1 : 0;
+
+  return Math.max(0, meanConf * 0.6 + coverageRatio * 0.3 + 0.1 - penalty);
+}
+
+/** Step A 태그에서 confidence를 제거하여 HighlightAnalysisResult.sections으로 변환 */
+function stripConfidenceFromSections(stepA: StepATaggingResult): HighlightAnalysisResult["sections"] {
+  return stepA.sections.map((s) => ({
+    sectionType: s.sectionType,
+    ...(s.sectionText ? { sectionText: s.sectionText } : {}),
+    tags: s.tags.map((t) => ({
+      competencyItem: t.competencyItem,
+      evaluation: t.evaluation,
+      highlight: t.highlight,
+      reasoning: t.reasoning,
+    })),
+    needsReview: s.needsReview,
+  }));
+}
+
+/**
+ * 3-Step 파이프라인 실행:
+ * Step A(태깅) → confidence 검사 → Step B(루브릭) + Step C(품질) 병렬
+ */
+async function runPipelineAnalysis(
+  input: HighlightAnalysisInput,
+): Promise<{ data: HighlightAnalysisResult; usage?: { inputTokens: number; outputTokens: number }; path: "pipeline" | "monolithic" }> {
+  // --- Step A: 태깅 ---
+  const { STEP_A_SYSTEM_PROMPT, buildStepAUserPrompt, parseStepAResponse } = await import("../prompts/stepA-tagging");
+
+  const stepAUserPrompt = buildStepAUserPrompt(input);
+  const stepARaw = await withRetry(
+    () => generateTextWithRateLimit({
+      system: STEP_A_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: stepAUserPrompt }],
+      modelTier: "fast",
+      temperature: 0.2,
+      maxTokens: 8192,
+      responseFormat: "json",
+    }),
+    { label: "pipeline.stepA" },
+  );
+
+  if (!stepARaw.content) {
+    throw new Error("Step A: AI 응답이 비어있습니다.");
+  }
+
+  const stepA = parseStepAResponse(stepARaw.content);
+  let totalInputTokens = stepARaw.usage?.inputTokens ?? 0;
+  let totalOutputTokens = stepARaw.usage?.outputTokens ?? 0;
+
+  // 빈 결과면 early return
+  if (stepA.sections.length === 0) {
+    return {
+      data: { sections: [], competencyGrades: [], summary: "해당 텍스트에서 명확한 역량 근거를 찾지 못했습니다." },
+      usage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } : undefined,
+      path: "pipeline",
+    };
+  }
+
+  // --- Cascading 판정 ---
+  stepA.overallConfidence = computeOverallConfidence(stepA, input.recordType);
+
+  if (stepA.overallConfidence < PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN) {
+    logActionDebug(LOG_CTX, `[Pipeline] Cascading fallback: confidence=${stepA.overallConfidence.toFixed(2)} < ${PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN}`);
+    // 모놀리식 fallback
+    const monolithic = await runMonolithicAnalysis(input);
+    // Step A 토큰도 합산
+    const mUsage = monolithic.usage;
+    return {
+      data: monolithic.data,
+      usage: {
+        inputTokens: totalInputTokens + (mUsage?.inputTokens ?? 0),
+        outputTokens: totalOutputTokens + (mUsage?.outputTokens ?? 0),
+      },
+      path: "monolithic",
+    };
+  }
+
+  logActionDebug(LOG_CTX, `[Pipeline] Step A passed: confidence=${stepA.overallConfidence.toFixed(2)}, tags=${stepA.sections.flatMap((s) => s.tags).length}, items=${stepA.coveredItems.length}`);
+
+  // --- Step B + Step C 병렬 ---
+  const { buildStepBUserPrompt, parseStepBResponse, STEP_B_SYSTEM_PROMPT } = await import("../prompts/stepB-rubric");
+  const { buildStepCUserPrompt, parseStepCResponse, STEP_C_SYSTEM_PROMPT } = await import("../prompts/stepC-quality");
+
+  const [stepBResult, stepCResult] = await Promise.allSettled([
+    // Step B: 루브릭 채점
+    withRetry(
+      () => generateTextWithRateLimit({
+        system: STEP_B_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: buildStepBUserPrompt(input, stepA) }],
+        modelTier: "fast",
+        temperature: 0.2,
+        maxTokens: 4096,
+        responseFormat: "json",
+      }),
+      { label: "pipeline.stepB" },
+    ),
+    // Step C: 품질 평가
+    withRetry(
+      () => generateTextWithRateLimit({
+        system: STEP_C_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: buildStepCUserPrompt(input, stepA) }],
+        modelTier: "fast",
+        temperature: 0.3,
+        maxTokens: 2048,
+        responseFormat: "json",
+      }),
+      { label: "pipeline.stepC" },
+    ),
+  ]);
+
+  // --- 결과 합성 ---
+  const sections = stripConfidenceFromSections(stepA);
+  let competencyGrades: HighlightAnalysisResult["competencyGrades"] = [];
+  let summary = "";
+  let contentQuality: HighlightAnalysisResult["contentQuality"] = undefined;
+
+  // Step B 결과 처리
+  if (stepBResult.status === "fulfilled" && stepBResult.value.content) {
+    try {
+      const stepB = parseStepBResponse(stepBResult.value.content);
+      competencyGrades = stepB.competencyGrades;
+      summary = stepB.summary;
+      if (stepBResult.value.usage) {
+        totalInputTokens += stepBResult.value.usage.inputTokens;
+        totalOutputTokens += stepBResult.value.usage.outputTokens;
+      }
+    } catch (e) {
+      logActionError({ ...LOG_CTX, action: "pipeline.stepB.parse" }, e);
+      // Step B 파싱 실패 → 모놀리식에서 등급만 추출
+      const fallback = await runMonolithicAnalysis(input);
+      competencyGrades = fallback.data.competencyGrades;
+      summary = fallback.data.summary;
+      if (fallback.usage) {
+        totalInputTokens += fallback.usage.inputTokens;
+        totalOutputTokens += fallback.usage.outputTokens;
+      }
+    }
+  } else {
+    logActionError({ ...LOG_CTX, action: "pipeline.stepB" }, stepBResult.status === "rejected" ? stepBResult.reason : "empty response");
+    // Step B 실패 → 모놀리식에서 등급만 추출
+    const fallback = await runMonolithicAnalysis(input);
+    competencyGrades = fallback.data.competencyGrades;
+    summary = fallback.data.summary;
+    if (fallback.usage) {
+      totalInputTokens += fallback.usage.inputTokens;
+      totalOutputTokens += fallback.usage.outputTokens;
+    }
+  }
+
+  // Step C 결과 처리 (실패해도 contentQuality는 optional이므로 생략)
+  if (stepCResult.status === "fulfilled" && stepCResult.value.content) {
+    try {
+      const stepC = parseStepCResponse(stepCResult.value.content);
+      contentQuality = stepC.contentQuality;
+      if (stepCResult.value.usage) {
+        totalInputTokens += stepCResult.value.usage.inputTokens;
+        totalOutputTokens += stepCResult.value.usage.outputTokens;
+      }
+    } catch (e) {
+      logActionError({ ...LOG_CTX, action: "pipeline.stepC.parse" }, e);
+    }
+  } else if (stepCResult.status === "rejected") {
+    logActionError({ ...LOG_CTX, action: "pipeline.stepC" }, stepCResult.reason);
+  }
+
+  return {
+    data: {
+      sections,
+      competencyGrades,
+      summary,
+      ...(contentQuality ? { contentQuality } : {}),
+    },
+    usage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } : undefined,
+    path: "pipeline",
+  };
+}
+
+/**
+ * 모놀리식 분석 (기존 단일 호출 경로).
+ * Cascading fallback 및 Step B/C 실패 시 사용.
+ */
+async function runMonolithicAnalysis(
+  input: HighlightAnalysisInput,
+): Promise<{ data: HighlightAnalysisResult; usage?: { inputTokens: number; outputTokens: number } }> {
+  const userPrompt = buildHighlightUserPrompt(input);
+  const result = await withRetry(
+    () => generateTextWithRateLimit({
+      system: HIGHLIGHT_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier: "advanced",
+      temperature: 0.3,
+      maxTokens: 16384,
+      responseFormat: "json",
+    }),
+    { label: "analyzeSetekWithHighlight.monolithic" },
+  );
+
+  if (!result.content) {
+    throw new Error("모놀리식 분석: AI 응답이 비어있습니다.");
+  }
+
+  const parsed = parseHighlightResponse(result.content);
+  const usage = result.usage
+    ? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }
+    : undefined;
+
+  return { data: parsed, usage };
+}
+
+// ============================================
+// Public API — 외부 인터페이스 변경 없음
+// ============================================
 
 /**
  * careerContext가 없고 studentId가 제공되면 DB에서 자동 조회합니다.
@@ -55,49 +295,48 @@ export async function analyzeSetekWithHighlight(
       }
     }
 
-    const userPrompt = buildHighlightUserPrompt(input);
+    let data: HighlightAnalysisResult;
+    let usage: { inputTokens: number; outputTokens: number } | undefined;
 
-    const result = await withRetry(
-      () => generateTextWithRateLimit({
-        system: HIGHLIGHT_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userPrompt }],
-        modelTier: "advanced",
-        temperature: 0.3,
-        maxTokens: 16384,
-        responseFormat: "json",
-      }),
-      { label: "analyzeSetekWithHighlight" },
-    );
-
-    if (!result.content) {
-      return { success: false, error: "AI 응답이 비어있습니다." };
+    // Phase 1 (Level 4): 3-Step 파이프라인 vs 모놀리식 분기
+    if (PIPELINE_THRESHOLDS.PIPELINE_SPLIT_ENABLED) {
+      try {
+        const pipelineResult = await runPipelineAnalysis(input);
+        data = pipelineResult.data;
+        usage = pipelineResult.usage;
+        logActionDebug(LOG_CTX, `[Pipeline] path=${pipelineResult.path}`);
+      } catch (pipelineError) {
+        // 파이프라인 전체 실패 → 모놀리식 fallback
+        logActionError({ ...LOG_CTX, action: "pipeline.fullFallback" }, pipelineError);
+        const monolithic = await runMonolithicAnalysis(input);
+        data = monolithic.data;
+        usage = monolithic.usage;
+      }
+    } else {
+      // 플래그 비활성 → 기존 모놀리식
+      const monolithic = await runMonolithicAnalysis(input);
+      data = monolithic.data;
+      usage = monolithic.usage;
     }
-
-    const parsed = parseHighlightResponse(result.content);
 
     // Phase 6.2: sectionText 검증 — 커버리지 70% 미만이면 폴백
     if (input.recordType === "setek" || input.recordType === "personal_setek") {
-      const totalCovered = parsed.sections.reduce((sum, s) => sum + (s.sectionText?.length ?? 0), 0);
+      const totalCovered = data.sections.reduce((sum, s) => sum + (s.sectionText?.length ?? 0), 0);
       if (totalCovered > 0 && totalCovered < input.content.length * 0.7) {
-        for (const s of parsed.sections) {
+        for (const s of data.sections) {
           delete s.sectionText;
         }
       }
     }
 
-    if (parsed.sections.length === 0) {
+    if (data.sections.length === 0) {
       return {
         success: true,
         data: { sections: [], competencyGrades: [], summary: "해당 텍스트에서 명확한 역량 근거를 찾지 못했습니다." },
       };
     }
 
-    // Phase 0: 토큰 사용량 반환
-    const usage = result.usage
-      ? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }
-      : undefined;
-
-    return { success: true, data: parsed, usage };
+    return { success: true, data, usage };
   } catch (error) {
     return handleLlmActionError(error, "역량 분석", LOG_CTX);
   }
@@ -106,6 +345,7 @@ export async function analyzeSetekWithHighlight(
 // ============================================
 // 배치 분석 (파이프라인 전용)
 // 3-4개 레코드를 1회 LLM 호출로 묶어 처리
+// Phase 1에서는 모놀리식 유지
 // ============================================
 
 /**

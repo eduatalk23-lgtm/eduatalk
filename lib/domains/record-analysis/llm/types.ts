@@ -176,6 +176,59 @@ export interface HighlightAnalysisResult {
 }
 
 // ============================================
+// Phase 1 (Level 4): 3-Step 분해 중간 표현 타입
+// Step A(태깅) → Step B(루브릭) → Step C(품질)
+// ============================================
+
+/** Step A: confidence 메타데이터가 포함된 태그 */
+export interface TagWithUncertainty {
+  competencyItem: CompetencyItemCode;
+  evaluation: "positive" | "negative" | "needs_review";
+  highlight: string;
+  reasoning: string;
+  /** LLM 자체 평가 신뢰도 (0.0~1.0) */
+  confidence: number;
+}
+
+/** Step A: uncertainty 메타데이터가 포함된 구간 */
+export interface SectionWithUncertainty {
+  sectionType: "학업태도" | "학업수행능력" | "탐구활동" | "전체";
+  sectionText?: string;
+  tags: TagWithUncertainty[];
+  needsReview: boolean;
+}
+
+/** Step A 출력: 구간분류 + 태그추출 + confidence */
+export interface StepATaggingResult {
+  sections: SectionWithUncertainty[];
+  /** 태그가 1개 이상 발견된 역량 항목 코드 목록 */
+  coveredItems: CompetencyItemCode[];
+  /** 전체 신뢰도 (0.0~1.0) — Cascading 판정에 사용 */
+  overallConfidence: number;
+}
+
+/** Step B 출력: 루브릭 기반 등급 채점 */
+export interface StepBRubricResult {
+  competencyGrades: HighlightAnalysisResult["competencyGrades"];
+  summary: string;
+}
+
+/** Step C 출력: 5축 품질 평가 */
+export interface StepCQualityResult {
+  contentQuality: ContentQualityScore;
+}
+
+/** 3-Step 파이프라인 토큰 사용량 추적 */
+export interface PipelineStepUsage {
+  stepA: { inputTokens: number; outputTokens: number } | null;
+  stepB: { inputTokens: number; outputTokens: number } | null;
+  stepC: { inputTokens: number; outputTokens: number } | null;
+  total: { inputTokens: number; outputTokens: number };
+  /** 실행 경로: "pipeline" = 3-step, "monolithic" = 기존 단일 호출 */
+  path: "pipeline" | "monolithic";
+}
+
+// ============================================
 // 배치 하이라이트 분석 타입
 // ============================================
 

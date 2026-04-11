@@ -241,6 +241,22 @@ export async function runTaskWithState(
     ctx.errors,
     isFinal,
   );
+
+  // E2: 파이프라인 완료 시 경고 스냅샷 저장 (best-effort, 실패해도 파이프라인 영향 없음)
+  if (isFinal && finalStatus === "completed") {
+    await import("@/lib/domains/student-record/actions/warning-history")
+      .then(({ saveWarningSnapshot }) =>
+        saveWarningSnapshot(
+          ctx.pipelineId,
+          ctx.studentId,
+          ctx.tenantId,
+          ctx.studentGrade,
+          ctx.pipelineType,
+          ctx.targetGrade ?? null,
+        ),
+      )
+      .catch(() => {});
+  }
 }
 
 // ============================================
