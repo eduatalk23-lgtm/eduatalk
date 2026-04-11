@@ -350,6 +350,57 @@ export async function bulkDeleteGuides(guideIds: string[]): Promise<number> {
   return data?.length ?? 0;
 }
 
+// ============================================================
+// D6(M7): 가이드 셸 (queued_generation) 관련
+// ============================================================
+
+/** 가이드 셸 생성 (탐구 설계 메타만, 본문 없음) */
+export async function createGuideShell(input: {
+  tenantId: string;
+  title: string;
+  guideType: string;
+  difficultyLevel: string;
+  sourceType: string;
+  aiGenerationMeta: Record<string, unknown>;
+}, adminClient?: SupabaseAdminClient): Promise<string> {
+  const supabase = adminClient ?? await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guides")
+    .insert({
+      tenant_id: input.tenantId,
+      title: input.title,
+      guide_type: input.guideType,
+      difficulty_level: input.difficultyLevel,
+      status: "queued_generation",
+      source_type: input.sourceType,
+      quality_tier: "ai_draft",
+      is_latest: true,
+      version: 1,
+      ai_generation_meta: input.aiGenerationMeta,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
+/** queued_generation 상태 가이드 목록 조회 */
+export async function findQueuedGuides(
+  limit = 10,
+  adminClient?: SupabaseAdminClient,
+): Promise<{ id: string; title: string; ai_generation_meta: Record<string, unknown> | null }[]> {
+  const supabase = adminClient ?? await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guides")
+    .select("id, title, ai_generation_meta")
+    .eq("status", "queued_generation")
+    .eq("is_latest", true)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as { id: string; title: string; ai_generation_meta: Record<string, unknown> | null }[];
+}
+
 /** 가이드 메타 UPSERT (legacy_id 기준) */
 export async function upsertGuideByLegacyId(
   input: GuideUpsertInput & { legacyId: number },

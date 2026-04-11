@@ -288,7 +288,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   // Decision #2 Q2-1: 설계 학년 + storyline 존재 + 매칭 < N건일 때만
   if (ENABLE_AI_GENERATION && shouldTriggerAiGeneration(ctx, ranked.length)) {
     try {
-      const aiGuides = await triggerAiGuideGeneration(ctx);
+      const aiGuides = await triggerAiGuideGeneration(ctx, ranked);
       for (const g of aiGuides) {
         if (!guideMap.has(g.id)) {
           ranked.push(g);
@@ -627,19 +627,163 @@ function shouldTriggerAiGeneration(ctx: PipelineContext, currentMatchCount: numb
 }
 
 async function triggerAiGuideGeneration(
-  _ctx: PipelineContext,
+  ctx: PipelineContext,
+  existingGuides: RankedGuide[],
 ): Promise<RankedGuide[]> {
-  // TODO (Wave 5+): generateGuideCore 호출 — student-specific guides 생성.
-  //   현재는 schema에 student_id 컬럼이 없어 "공용 풀 + pending_approval" 방식 필요.
-  //   이는 Decision #2 Q2-5 (재사용 정책)와 함께 별도 wave로 분리.
-  //
-  //   호출 골격:
-  //     const { generateGuideCore } = await import("@/lib/domains/guide/llm/actions/generateGuideCore");
-  //     const result = await generateGuideCore({ source: "keyword", keyword: { ... } }, userId);
-  //     → status='pending_approval' 가이드 4건 생성 후 RankedGuide[] 반환
-  //
-  //   현재는 PHASE2_AI_GUIDE_GENERATION=1 환경변수가 켜져있어도 빈 배열 반환.
-  return [];
+  // D6(M7): 1단계 — AI 탐구 설계 → 셸 INSERT → 배정 대상으로 반환
+  // 2단계 (전문 생성)는 별도 API Route에서 클라이언트 주도로 실행
+
+  const { supabase, studentId, tenantId, snapshot, consultingGrades } = ctx;
+  const neededCount = Math.max(0, MIN_GUIDES_FOR_AI_TRIGGER - existingGuides.length);
+  if (neededCount === 0) return [];
+
+  // ── 맥락 수집 ──
+
+  // 1. 스토리라인 (DB에서 직접 조회 — ctx.results에는 count만 있음)
+  const { data: storylineRows } = await supabase
+    .from("student_record_storylines")
+    .select("title, keywords, narrative, grade_1_theme, grade_2_theme, grade_3_theme, strength")
+    .eq("student_id", studentId)
+    .order("sort_order", { ascending: true })
+    .limit(5);
+
+  const storylines = (storylineRows ?? []).map((s) => ({
+    title: s.title ?? "",
+    keywords: (s.keywords as string[]) ?? [],
+    narrative: s.narrative as string | null,
+    grade1Theme: s.grade_1_theme as string | null,
+    grade2Theme: s.grade_2_theme as string | null,
+    grade3Theme: s.grade_3_theme as string | null,
+    strength: s.strength as string | null,
+  }));
+
+  if (storylines.length === 0) return []; // 스토리라인 없으면 설계 불가
+
+  // 2. 방향 가이드 (unifiedInput에서 설계 학년의 directionGuides 수집)
+  const directionGuides: {
+    type: "setek" | "changche" | "haengteuk";
+    subject?: string;
+    activityType?: string;
+    direction: string;
+    keywords: string[];
+    competencyFocus: string[];
+  }[] = [];
+
+  if (ctx.unifiedInput) {
+    for (const grade of consultingGrades ?? []) {
+      const gradeData = ctx.unifiedInput.grades[grade];
+      if (!gradeData) continue;
+      for (const dg of gradeData.directionGuides) {
+        directionGuides.push({
+          type: dg.type,
+          subject: dg.subjectName,
+          activityType: dg.activityType,
+          direction: dg.direction,
+          keywords: dg.keywords,
+          competencyFocus: dg.competencyFocus,
+        });
+      }
+    }
+  }
+
+  // 3. 수강계획 과목명
+  const plannedSubjects = collectPlannedSubjectNames(ctx);
+
+  // 4. 설계 학년 결정
+  const designGrade = (consultingGrades ?? []).length > 0
+    ? Math.max(...(consultingGrades ?? []))
+    : ctx.studentGrade;
+
+  // ── AI 탐구 설계 호출 (Gemini Flash, ~15초) ──
+  const { generateObjectWithRateLimit } = await import("@/lib/domains/plan/llm/ai-sdk");
+  const { geminiQuotaTracker } = await import("@/lib/domains/plan/llm/providers/gemini");
+  const { zodSchema } = await import("ai");
+  const { explorationDesignSchema } = await import("@/lib/domains/guide/llm/types");
+  const {
+    buildExplorationDesignSystemPrompt,
+    buildExplorationDesignUserPrompt,
+  } = await import("@/lib/domains/guide/llm/prompts/exploration-design");
+
+  const quota = geminiQuotaTracker.getQuotaStatus();
+  if (quota.isExceeded) {
+    logActionWarn(LOG_CTX, "D6: Gemini 할당량 초과 — AI 탐구 설계 스킵", { studentId });
+    return [];
+  }
+
+  const designCtx = {
+    targetMajor: (snapshot?.target_major as string) ?? null,
+    desiredCareerField: (snapshot?.desired_career_field as string) ?? null,
+    designGrade,
+    storylines,
+    directionGuides,
+    plannedSubjects,
+    existingGuides: existingGuides.map((g) => ({
+      title: g.title,
+      guideType: g.guide_type ?? "topic_exploration",
+      difficultyLevel: null as string | null,
+    })),
+    neededCount,
+  };
+
+  const systemPrompt = buildExplorationDesignSystemPrompt();
+  const userPrompt = buildExplorationDesignUserPrompt(designCtx);
+
+  const designResult = await generateObjectWithRateLimit({
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    schema: zodSchema(explorationDesignSchema),
+    modelTier: "fast" as const,
+    temperature: 0.4,
+    maxTokens: 4096,
+  });
+
+  const designs = designResult.object.designs;
+  if (designs.length === 0) return [];
+
+  logActionDebug(LOG_CTX, `D6: ${designs.length}건 탐구 설계 완료`, {
+    studentId,
+    strategy: designResult.object.overallStrategy,
+  });
+
+  // ── 셸 INSERT + RankedGuide 반환 ──
+  const { createGuideShell } = await import("@/lib/domains/guide/repository");
+  const results: RankedGuide[] = [];
+
+  for (const design of designs) {
+    try {
+      const guideId = await createGuideShell({
+        tenantId,
+        title: design.title,
+        guideType: design.guideType,
+        difficultyLevel: design.difficultyLevel,
+        sourceType: "ai_pipeline_design",
+        aiGenerationMeta: {
+          ...design,
+          studentId,
+          designGrade,
+          overallStrategy: designResult.object.overallStrategy,
+          designedAt: new Date().toISOString(),
+        },
+      });
+
+      results.push({
+        id: guideId,
+        title: design.title,
+        guide_type: design.guideType,
+        match_reason: "ai_designed",
+        baseScore: 2,
+        continuityScore: 1.0,
+        difficultyScore: 1.0,
+        sequelBonus: 1.0,
+        majorBonus: 1.0,
+        finalScore: 2.0,
+      });
+    } catch (err) {
+      logActionError(LOG_CTX, err, { studentId, design: design.title });
+    }
+  }
+
+  return results;
 }
 
 // ============================================

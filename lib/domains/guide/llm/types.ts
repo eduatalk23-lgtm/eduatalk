@@ -376,3 +376,56 @@ export const versionAnalysisSchema = z.object({
 });
 
 export type VersionAnalysisOutput = z.infer<typeof versionAnalysisSchema>;
+
+// ============================================================
+// D6(M7): AI 탐구 설계 스키마 — 1단계 메타 생성
+// ============================================================
+
+const explorationDesignItemSchema = z.object({
+  title: z
+    .string()
+    .describe("가이드 제목 (40~80자). 학생의 스토리라인과 연결되는 구체적 탐구 주제"),
+  guideType: z
+    .enum([
+      "topic_exploration",
+      "experiment",
+      "reading",
+      "subject_performance",
+      "program",
+      "reflection_program",
+      "club_deep_dive",
+      "career_exploration_project",
+    ])
+    .describe("가이드 유형"),
+  difficultyLevel: z
+    .enum(["basic", "intermediate", "advanced"])
+    .describe("난이도. 학년/내신 기반: 고1=basic, 고2=intermediate, 고3=advanced 원칙이되 맥락에 따라 조정"),
+  subjectConnect: z
+    .string()
+    .describe("연계 교과 > 단원. 예: '생명과학II > 세포와 물질대사'"),
+  storylineConnect: z
+    .string()
+    .describe("이전 탐구와의 연결. 예: '고1 화성 토양 조사에서 극한환경 생물로 심화'"),
+  keyTopics: z
+    .array(z.string())
+    .min(2)
+    .max(5)
+    .describe("핵심 탐구 토픽 키워드 (2~5개)"),
+  rationale: z
+    .string()
+    .describe("이 가이드가 필요한 이유: 스토리라인 강화, 역량 보완, 난이도 차별화 등 1~2문장"),
+});
+
+export const explorationDesignSchema = z.object({
+  designs: z
+    .array(explorationDesignItemSchema)
+    .min(1)
+    .max(4)
+    .describe("설계된 탐구 가이드 메타 (1~4건)"),
+  overallStrategy: z
+    .string()
+    .describe("전체 설계 전략 요약: 이 가이드들이 학생의 스토리라인을 어떻게 강화하는지 2~3문장"),
+});
+
+export type ExplorationDesignOutput = z.infer<typeof explorationDesignSchema>;
+export type ExplorationDesignItem = z.infer<typeof explorationDesignItemSchema>;

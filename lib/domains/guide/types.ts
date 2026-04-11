@@ -31,6 +31,7 @@ export const GUIDE_STATUSES = [
   "pending_approval",
   "approved",
   "archived",
+  "queued_generation",
 ] as const;
 export type GuideStatus = (typeof GUIDE_STATUSES)[number];
 
@@ -44,6 +45,7 @@ export const GUIDE_SOURCE_TYPES = [
   "ai_clone_variant",
   "ai_improve",
   "ai_hybrid",
+  "ai_pipeline_design",
   "revert",
 ] as const;
 export type GuideSourceType = (typeof GUIDE_SOURCE_TYPES)[number];
@@ -121,6 +123,7 @@ export const GUIDE_STATUS_LABELS: Record<GuideStatus, string> = {
   pending_approval: "승인 대기",
   approved: "승인됨",
   archived: "보관됨",
+  queued_generation: "생성 대기",
 };
 
 export const GUIDE_SOURCE_TYPE_LABELS: Record<GuideSourceType, string> = {
@@ -133,6 +136,7 @@ export const GUIDE_SOURCE_TYPE_LABELS: Record<GuideSourceType, string> = {
   ai_clone_variant: "AI 클론",
   ai_improve: "AI 개선",
   ai_hybrid: "AI 하이브리드",
+  ai_pipeline_design: "AI 파이프라인 설계",
   revert: "되돌리기",
 };
 
