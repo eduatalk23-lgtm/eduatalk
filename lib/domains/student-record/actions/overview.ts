@@ -93,7 +93,7 @@ async function computeProgressCountsFromDb(
 // warnings: 기존 service 함수 재사용
 // ============================================
 
-async function computeWarningsFromData(
+export async function computeWarningsFromData(
   studentId: string,
   tenantId: string,
   studentGrade: number,

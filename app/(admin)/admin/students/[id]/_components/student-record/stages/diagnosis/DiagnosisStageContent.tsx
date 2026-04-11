@@ -1,8 +1,14 @@
 "use client";
 
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { RecordTabData, ActivityTag, DiagnosisTabData } from "@/lib/domains/student-record";
 import type { RecordWarning } from "@/lib/domains/student-record/warnings/types";
+import type { ExecutiveSummary } from "@/lib/domains/record-analysis/eval/executive-summary";
+import type { UniversityMatchAnalysis } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
+import type { TimeSeriesAnalysis } from "@/lib/domains/record-analysis/eval/timeseries-analyzer";
+import { computeWarningDiff } from "@/lib/domains/student-record/warnings/history";
+import { warningSnapshotsQueryOptions } from "@/lib/query-options/studentRecord";
 import { useStudentRecordContext } from "../../StudentRecordContext";
 import { StageDivider, StrategySection, SectionSkeleton } from "../../StudentRecordHelpers";
 import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
@@ -13,6 +19,9 @@ import { LevelingCard } from "./LevelingCard";
 import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 import { RecordWarningPanel } from "./RecordWarningPanel";
+import { ExecutiveSummaryCard } from "./ExecutiveSummaryCard";
+import { UniversityMatchCard } from "./UniversityMatchCard";
+import { TimeSeriesCard } from "./TimeSeriesCard";
 
 const ProjectedAnalysisSection = lazy(() =>
   import("../../../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })),
@@ -39,6 +48,9 @@ export type DiagnosisStageContentProps = {
   recordByGrade: Map<number, { grade: number; schoolYear: number; data: RecordTabData }>;
   isPipelineRunning: boolean;
   warnings: RecordWarning[];
+  executiveSummary?: ExecutiveSummary | null;
+  universityMatch?: UniversityMatchAnalysis | null;
+  timeSeriesAnalysis?: TimeSeriesAnalysis | null;
 };
 
 // ─── Component ────────────────────────────────────────
@@ -53,13 +65,38 @@ export function DiagnosisStageContent({
   recordByGrade,
   isPipelineRunning,
   warnings,
+  executiveSummary,
+  universityMatch,
+  timeSeriesAnalysis,
 }: DiagnosisStageContentProps) {
   const { studentId, tenantId, studentGrade, initialSchoolYear, schoolName } = useStudentRecordContext();
+
+  // E2: 경고 히스토리 — 이전 스냅샷과 비교
+  const { data: snapshots } = useQuery(warningSnapshotsQueryOptions(studentId));
+  const warningDiff = useMemo(() => {
+    if (!snapshots || snapshots.length < 2) return null;
+    // snapshots[0] = 최신 (방금 완료), snapshots[1] = 이전
+    return computeWarningDiff(warnings, snapshots[1]);
+  }, [warnings, snapshots]);
 
   return (
     <>
       {/* ─── 🔍 진단 스테이지 구분선 ──────────── */}
       <StageDivider emoji="🔍" label="진단" />
+
+      {/* F1: AI 종합 분석 (Synthesis 완료 시에만 표시) */}
+      {executiveSummary && (
+        <StrategySection id="sec-executive-summary" title="AI 종합 분석">
+          <ExecutiveSummaryCard summary={executiveSummary} />
+        </StrategySection>
+      )}
+
+      {/* F4: 역량 시계열 분석 (Synthesis 완료 시에만 표시) */}
+      {timeSeriesAnalysis && (
+        <StrategySection id="sec-timeseries" title="역량 성장 추이">
+          <TimeSeriesCard analysis={timeSeriesAnalysis} />
+        </StrategySection>
+      )}
 
       <StrategySection id="sec-diagnosis-analysis" title="역량 분석">
         {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
@@ -168,6 +205,13 @@ export function DiagnosisStageContent({
         )}
       </StrategySection>
 
+      {/* F2: 계열 적합도 (Synthesis 완료 시에만 표시) */}
+      {universityMatch && (
+        <StrategySection id="sec-university-match" title="계열 적합도">
+          <UniversityMatchCard analysis={universityMatch} />
+        </StrategySection>
+      )}
+
       <StrategySection id="sec-diagnosis-adequacy" title="교과이수적합도">
         {diagnosisLoading ? <SectionSkeleton /> : (
           <CourseAdequacyDisplay
@@ -181,7 +225,7 @@ export function DiagnosisStageContent({
       </StrategySection>
 
       <StrategySection id="sec-warnings" title="조기 경보">
-        <RecordWarningPanel warnings={warnings} />
+        <RecordWarningPanel warnings={warnings} warningDiff={warningDiff} />
       </StrategySection>
     </>
   );

@@ -43,6 +43,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "changcheGuides", studentId] as const,
   haengteukGuide: (studentId: string) =>
     [...studentRecordKeys.all, "haengteukGuide", studentId] as const,
+  warningSnapshots: (studentId: string) =>
+    [...studentRecordKeys.all, "warningSnapshots", studentId] as const,
 };
 
 // ============================================
@@ -239,6 +241,22 @@ export function gradeAwarePipelineStatusQueryOptions(studentId: string) {
 // ============================================
 // Phase 9.1: Report
 // ============================================
+
+/** E2: 경고 히스토리 스냅샷 (최근 2개 — 이전 vs 현재 비교용) */
+export function warningSnapshotsQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.warningSnapshots(studentId),
+    queryFn: async () => {
+      const { fetchWarningSnapshots } = await import(
+        "@/lib/domains/student-record/actions/warning-history"
+      );
+      return fetchWarningSnapshots(studentId, 2);
+    },
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
 
 export function reportDataQueryOptions(studentId: string) {
   return queryOptions({

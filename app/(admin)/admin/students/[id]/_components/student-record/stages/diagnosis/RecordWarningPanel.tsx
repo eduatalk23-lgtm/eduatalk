@@ -2,11 +2,16 @@
 
 // ============================================
 // Phase 6.5 — 조기 경보 패널
+// E2: 경고 히스토리 (신규/해결됨/지속 표시)
 // ============================================
 
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import type { RecordWarning, RecordWarningCategory, RecordWarningRuleId, RecordWarningSeverity } from "@/lib/domains/student-record/warnings/types";
-import { AlertTriangle, BookOpen, GraduationCap, LineChart, CheckCircle, ExternalLink, Target } from "lucide-react";
+import type { WarningDiff } from "@/lib/domains/student-record/warnings/history-types";
+import { getWarningChangeStatus } from "@/lib/domains/student-record/warnings/history";
+import { WARNING_LABELS } from "@/lib/domains/student-record/warnings/types";
+import { AlertTriangle, BookOpen, GraduationCap, LineChart, CheckCircle, ExternalLink, Target, ChevronDown } from "lucide-react";
 
 /** 경고 ruleId → 이동할 섹션 ID */
 const RULE_SECTION_MAP: Partial<Record<RecordWarningRuleId, string>> = {
@@ -27,6 +32,7 @@ const RULE_SECTION_MAP: Partial<Record<RecordWarningRuleId, string>> = {
 
 type Props = {
   warnings: RecordWarning[];
+  warningDiff?: WarningDiff | null;
 };
 
 const SEVERITY_STYLE: Record<RecordWarningSeverity, { bg: string; text: string; border: string }> = {
@@ -46,10 +52,15 @@ const CATEGORY_META: Record<RecordWarningCategory, { label: string; Icon: typeof
   storyline: { label: "스토리라인", Icon: LineChart },
   min_score: { label: "수능최저", Icon: AlertTriangle },
   strategy: { label: "전략", Icon: Target },
+  quality: { label: "품질", Icon: AlertTriangle },
+  roadmap: { label: "로드맵", Icon: Target },
+  forbidden: { label: "금칙어", Icon: AlertTriangle },
 };
 
-export function RecordWarningPanel({ warnings }: Props) {
-  if (warnings.length === 0) {
+export function RecordWarningPanel({ warnings, warningDiff }: Props) {
+  const [showResolved, setShowResolved] = useState(false);
+
+  if (warnings.length === 0 && (!warningDiff || warningDiff.resolvedWarnings.length === 0)) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50/50 p-4 dark:border-green-800 dark:bg-green-900/10">
         <CheckCircle size={16} className="text-green-600 dark:text-green-400" />
@@ -68,15 +79,20 @@ export function RecordWarningPanel({ warnings }: Props) {
 
   // 심각도 순 정렬
   const severityOrder: RecordWarningSeverity[] = ["critical", "high", "medium", "low"];
-  const sortedCategories: RecordWarningCategory[] = ["record", "course", "storyline", "min_score", "strategy"];
+  const sortedCategories: RecordWarningCategory[] = ["record", "course", "storyline", "min_score", "strategy", "quality", "roadmap", "forbidden"];
 
   const criticalCount = warnings.filter((w) => w.severity === "critical").length;
   const highCount = warnings.filter((w) => w.severity === "high").length;
 
+  // E2: diff 통계
+  const newCount = warningDiff?.newRuleIds.size ?? 0;
+  const resolvedCount = warningDiff?.resolvedWarnings.length ?? 0;
+  const hasDiff = warningDiff && (newCount > 0 || resolvedCount > 0);
+
   return (
     <div className="flex flex-col gap-4">
       {/* 요약 */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium text-[var(--text-primary)]">
           총 {warnings.length}건
         </span>
@@ -88,6 +104,14 @@ export function RecordWarningPanel({ warnings }: Props) {
         {highCount > 0 && (
           <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
             높음 {highCount}
+          </span>
+        )}
+        {/* E2: 변화 요약 */}
+        {hasDiff && (
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            이전 대비:
+            {newCount > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">+{newCount} 신규</span>}
+            {resolvedCount > 0 && <span className="ml-1 text-emerald-600 dark:text-emerald-400">-{resolvedCount} 해결</span>}
           </span>
         )}
       </div>
@@ -112,12 +136,19 @@ export function RecordWarningPanel({ warnings }: Props) {
               {sorted.map((w, i) => {
                 const style = SEVERITY_STYLE[w.severity];
                 const targetSection = RULE_SECTION_MAP[w.ruleId];
+                const changeStatus = getWarningChangeStatus(w.ruleId, warningDiff ?? null);
                 return (
                   <div key={i} className={cn("rounded-md border px-3 py-2", style.bg, style.border)}>
                     <div className="flex items-center gap-2">
                       <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", style.text)}>
                         {SEVERITY_LABEL[w.severity]}
                       </span>
+                      {/* E2: 신규 배지 */}
+                      {changeStatus === "new" && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                          신규
+                        </span>
+                      )}
                       <span className="text-xs font-medium text-[var(--text-primary)]">{w.title}</span>
                       {targetSection && (
                         <button
@@ -130,7 +161,7 @@ export function RecordWarningPanel({ warnings }: Props) {
                     </div>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{w.message}</p>
                     {w.suggestion && (
-                      <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">💡 {w.suggestion}</p>
+                      <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">→ {w.suggestion}</p>
                     )}
                   </div>
                 );
@@ -139,6 +170,32 @@ export function RecordWarningPanel({ warnings }: Props) {
           </div>
         );
       })}
+
+      {/* E2: 해결된 경고 섹션 */}
+      {resolvedCount > 0 && warningDiff && (
+        <div>
+          <button
+            onClick={() => setShowResolved((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+          >
+            <CheckCircle size={14} />
+            해결됨 {resolvedCount}건
+            <ChevronDown size={12} className={cn("transition-transform", showResolved && "rotate-180")} />
+          </button>
+          {showResolved && (
+            <div className="mt-2 flex flex-col gap-1">
+              {warningDiff.resolvedWarnings.map((w, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 dark:border-emerald-800 dark:bg-emerald-900/10">
+                  <CheckCircle size={12} className="shrink-0 text-emerald-500 dark:text-emerald-400" />
+                  <span className="text-xs text-emerald-700 line-through dark:text-emerald-400">
+                    {WARNING_LABELS[w.ruleId] ?? w.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

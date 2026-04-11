@@ -46,6 +46,7 @@ export function useStudentRecordOverview({
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.setekGuides(studentId) });
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.changcheGuides(studentId) });
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.haengteukGuide(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.warningSnapshots(studentId) });
     }
   }, [isPipelineRunning, queryClient, studentId, initialSchoolYear]);
 

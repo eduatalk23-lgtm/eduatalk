@@ -11916,9 +11916,11 @@ export type Database = {
           created_at: string
           evaluation: string
           evidence_summary: string | null
+          highlight_phrase: string | null
           id: string
           record_id: string
           record_type: string
+          section_type: string | null
           source: string
           status: string
           student_id: string
@@ -11930,9 +11932,11 @@ export type Database = {
           created_at?: string
           evaluation?: string
           evidence_summary?: string | null
+          highlight_phrase?: string | null
           id?: string
           record_id: string
           record_type: string
+          section_type?: string | null
           source?: string
           status?: string
           student_id: string
@@ -11944,9 +11948,11 @@ export type Database = {
           created_at?: string
           evaluation?: string
           evidence_summary?: string | null
+          highlight_phrase?: string | null
           id?: string
           record_id?: string
           record_type?: string
+          section_type?: string | null
           source?: string
           status?: string
           student_id?: string
@@ -12620,6 +12626,8 @@ export type Database = {
           school_year: number
           scope: string
           source: string
+          source_record_ids: string[] | null
+          source_tag_ids: string[] | null
           status: string
           student_id: string
           tenant_id: string
@@ -12639,6 +12647,8 @@ export type Database = {
           school_year: number
           scope?: string
           source?: string
+          source_record_ids?: string[] | null
+          source_tag_ids?: string[] | null
           status?: string
           student_id: string
           tenant_id: string
@@ -12658,6 +12668,8 @@ export type Database = {
           school_year?: number
           scope?: string
           source?: string
+          source_record_ids?: string[] | null
+          source_tag_ids?: string[] | null
           status?: string
           student_id?: string
           tenant_id?: string
@@ -12688,6 +12700,7 @@ export type Database = {
           feedback: string | null
           grammar: number
           id: string
+          issue_tag_ids: string[] | null
           issues: string[]
           overall_score: number
           record_id: string
@@ -12707,6 +12720,7 @@ export type Database = {
           feedback?: string | null
           grammar: number
           id?: string
+          issue_tag_ids?: string[] | null
           issues?: string[]
           overall_score: number
           record_id: string
@@ -12726,6 +12740,7 @@ export type Database = {
           feedback?: string | null
           grammar?: number
           id?: string
+          issue_tag_ids?: string[] | null
           issues?: string[]
           overall_score?: number
           record_id?: string
@@ -18096,3 +18111,4 @@ export const Constants = {
     },
   },
 } as const
+

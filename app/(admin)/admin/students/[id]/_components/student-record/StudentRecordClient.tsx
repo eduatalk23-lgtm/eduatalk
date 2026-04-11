@@ -721,6 +721,9 @@ export function StudentRecordClient({
             recordByGrade={recordByGrade}
             isPipelineRunning={isPipelineRunning}
             warnings={warnings}
+            executiveSummary={(pipelineData?.taskResults?.["_executiveSummary"] as import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary) ?? null}
+            universityMatch={((pipelineData?.taskResults?.["ai_strategy"] as Record<string, unknown> | undefined)?.["_universityMatch"] as import("@/lib/domains/record-analysis/eval/university-profile-matcher").UniversityMatchAnalysis) ?? null}
+            timeSeriesAnalysis={((pipelineData?.taskResults?.["ai_diagnosis"] as Record<string, unknown> | undefined)?.["_timeSeriesAnalysis"] as import("@/lib/domains/record-analysis/eval/timeseries-analyzer").TimeSeriesAnalysis) ?? null}
           />
 
           {/* ─── 설계 스테이지 ───────────────────── */}
