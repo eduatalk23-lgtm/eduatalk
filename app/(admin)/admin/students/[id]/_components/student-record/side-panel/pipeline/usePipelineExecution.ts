@@ -385,6 +385,25 @@ export function usePipelineExecution({
               ctrl.signal,
             );
             invalidate();
+
+            // D6(M7): Phase 2(guide_matching) 완료 후 queued_generation 가이드 전문 생성
+            if (phase === 2) {
+              try {
+                let remaining = 1;
+                while (remaining > 0 && !isAborted()) {
+                  const genRes = await fetchPhase(
+                    "/api/admin/pipeline/ai-guide-gen",
+                    {},
+                    ctrl.signal,
+                  ) as { remainingQueued?: number };
+                  remaining = genRes?.remainingQueued ?? 0;
+                }
+              } catch {
+                // AI 가이드 생성 실패는 치명적이지 않음 — 계속 진행
+              }
+              invalidate();
+            }
+
             break;
           } catch (e) {
             if ((e as Error)?.name === "AbortError") return;
