@@ -2,14 +2,14 @@
 
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Plus, ExternalLink } from "lucide-react";
+import { ArrowLeft, Plus, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   fetchClusterDetailAction,
   type ClusterDetail,
   type ClusterGuide,
-  type SequelLink,
 } from "@/lib/domains/guide/actions/cluster-detail";
+import { SequelGraph } from "./SequelGraph";
 
 function clusterDetailQueryOptions(clusterId: string) {
   return queryOptions({
@@ -164,7 +164,7 @@ export function ClusterDetailClient({ clusterId }: { clusterId: string }) {
                     ({guides.length})
                   </span>
                 </div>
-                <span className="text-[10px] text-[var(--text-secondary)]">
+                <span className="text-xs text-[var(--text-secondary)]">
                   {meta.grade}
                 </span>
               </div>
@@ -190,17 +190,16 @@ export function ClusterDetailClient({ clusterId }: { clusterId: string }) {
         })}
       </div>
 
-      {/* 사슬 관계 */}
+      {/* M3: 사슬 관계 그래프 */}
       {sequelLinks.length > 0 && (
         <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 p-5">
           <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
             사슬 관계 ({sequelLinks.length}건)
           </h2>
-          <div className="space-y-1.5">
-            {sequelLinks.map((link, i) => (
-              <SequelRow key={i} link={link} />
-            ))}
-          </div>
+          <SequelGraph
+            guidesByDifficulty={guidesByDifficulty}
+            sequelLinks={sequelLinks}
+          />
         </div>
       )}
     </div>
@@ -225,7 +224,7 @@ function GuideCard({ guide }: { guide: ClusterGuide }) {
         <div className="flex items-center gap-1.5 mt-1">
           <span
             className={cn(
-              "px-1.5 py-0.5 rounded text-[10px] font-medium",
+              "px-1.5 py-0.5 rounded text-xs font-medium",
               statusColor,
             )}
           >
@@ -234,7 +233,7 @@ function GuideCard({ guide }: { guide: ClusterGuide }) {
           {guide.qualityScore != null && (
             <span
               className={cn(
-                "text-[10px] font-medium",
+                "text-xs font-medium",
                 guide.qualityScore >= 80
                   ? "text-green-600"
                   : guide.qualityScore >= 60
@@ -288,48 +287,3 @@ function GenerateButton({
   );
 }
 
-function SequelRow({ link }: { link: SequelLink }) {
-  const fromDiff = link.fromDifficulty
-    ? DIFF_META[link.fromDifficulty as keyof typeof DIFF_META]
-    : null;
-  const toDiff = link.toDifficulty
-    ? DIFF_META[link.toDifficulty as keyof typeof DIFF_META]
-    : null;
-
-  return (
-    <div className="flex items-center gap-2 text-xs px-2 py-1.5 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800/50">
-      {fromDiff && (
-        <span
-          className={cn(
-            "w-1.5 h-1.5 rounded-full shrink-0",
-            fromDiff.dot,
-          )}
-        />
-      )}
-      <Link
-        href={`/admin/guides/${link.fromId}`}
-        className="truncate max-w-[160px] text-[var(--text-primary)] hover:text-primary-600 dark:hover:text-primary-400"
-      >
-        {link.fromTitle}
-      </Link>
-      <ArrowRight className="w-3 h-3 text-[var(--text-secondary)] shrink-0" />
-      {toDiff && (
-        <span
-          className={cn(
-            "w-1.5 h-1.5 rounded-full shrink-0",
-            toDiff.dot,
-          )}
-        />
-      )}
-      <Link
-        href={`/admin/guides/${link.toId}`}
-        className="truncate max-w-[160px] text-[var(--text-primary)] hover:text-primary-600 dark:hover:text-primary-400"
-      >
-        {link.toTitle}
-      </Link>
-      <span className="text-[10px] text-[var(--text-secondary)] ml-auto shrink-0">
-        {(link.confidence * 100).toFixed(0)}%
-      </span>
-    </div>
-  );
-}
