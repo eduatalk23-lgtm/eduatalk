@@ -844,3 +844,176 @@ export async function searchGuidesForRecommendationAction(
     return createErrorResponse("가이드 검색에 실패했습니다.");
   }
 }
+
+// ============================================================
+// E3: AI 파이프라인 설계 가이드 승인 큐
+// ============================================================
+
+export interface PendingAiGuideItem {
+  id: string;
+  title: string;
+  guide_type: string;
+  difficulty_level: string | null;
+  created_at: string;
+  ai_generation_meta: {
+    title?: string;
+    guideType?: string;
+    difficultyLevel?: string;
+    subjectConnect?: string;
+    storylineConnect?: string;
+    keyTopics?: string[];
+    rationale?: string;
+    studentId?: string;
+    designGrade?: number;
+    designedAt?: string;
+    overallStrategy?: string;
+  } | null;
+  student_name: string | null;
+}
+
+/** AI 파이프라인 설계 가이드 중 pending_approval 목록 조회 */
+export async function fetchPendingAiGuidesAction(
+  limit = 50,
+): Promise<ActionResponse<PendingAiGuideItem[]>> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { data: guides, error } = await supabase
+      .from("exploration_guides")
+      .select("id, title, guide_type, difficulty_level, created_at, ai_generation_meta")
+      .eq("status", "pending_approval")
+      .eq("source_type", "ai_pipeline_design")
+      .eq("is_latest", true)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    const items = (guides ?? []) as Array<{
+      id: string;
+      title: string;
+      guide_type: string;
+      difficulty_level: string | null;
+      created_at: string;
+      ai_generation_meta: PendingAiGuideItem["ai_generation_meta"];
+    }>;
+
+    // studentId 목록 추출 → 이름 일괄 조회
+    const studentIds = [...new Set(
+      items
+        .map((g) => g.ai_generation_meta?.studentId)
+        .filter((id): id is string => !!id),
+    )];
+
+    const nameMap = new Map<string, string>();
+    if (studentIds.length > 0) {
+      const { data: students } = await supabase
+        .from("students")
+        .select("id, name")
+        .in("id", studentIds);
+      (students ?? []).forEach((s: { id: string; name: string }) => nameMap.set(s.id, s.name));
+    }
+
+    const result: PendingAiGuideItem[] = items.map((g) => ({
+      ...g,
+      student_name: g.ai_generation_meta?.studentId
+        ? (nameMap.get(g.ai_generation_meta.studentId) ?? null)
+        : null,
+    }));
+
+    return createSuccessResponse(result);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPendingAiGuides" }, error, {});
+    return createErrorResponse("승인 대기 가이드를 불러올 수 없습니다.");
+  }
+}
+
+// ============================================================
+// L2: 중복 감지 조회
+// ============================================================
+
+export interface DuplicateSuspect {
+  guideId: string;
+  title: string;
+  similarity: number;
+}
+
+/** 가이드의 벡터 기반 중복 의심 항목 조회 (임베딩 존재 시) */
+export async function checkGuideDuplicateAction(
+  guideId: string,
+): Promise<ActionResponse<DuplicateSuspect | null>> {
+  try {
+    await requireAdminOrConsultant();
+    const { autoClassifyGuide } = await import("../vector/auto-classify");
+    const result = await autoClassifyGuide(guideId);
+    if (!result?.duplicate) return createSuccessResponse(null);
+    return createSuccessResponse(result.duplicate);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "checkGuideDuplicate" }, error, { guideId });
+    return createSuccessResponse(null); // 중복 감지 실패는 무시
+  }
+}
+
+// ============================================================
+// M5: 자동 저장 (DB 동기화, 새 버전 생성 없음)
+// ============================================================
+
+/** 가이드 콘텐츠 자동 저장 — 새 버전을 생성하지 않고 현재 버전의 콘텐츠만 덮어쓰기 */
+export async function autoSaveGuideContentAction(input: {
+  guideId: string;
+  meta: Partial<GuideUpsertInput>;
+  content: GuideContentInput;
+}): Promise<ActionResponse<{ savedAt: string }>> {
+  try {
+    await requireAdminOrConsultant();
+
+    await Promise.all([
+      updateGuide(input.guideId, {
+        ...input.meta,
+        contentFormat: "html",
+      }),
+      upsertGuideContent(input.guideId, input.content),
+    ]);
+
+    return createSuccessResponse({ savedAt: new Date().toISOString() });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "autoSaveGuideContent" }, error, {
+      guideId: input.guideId,
+    });
+    return createErrorResponse("자동 저장에 실패했습니다.");
+  }
+}
+
+// ============================================================
+// D6: 공용 풀 승격
+// ============================================================
+
+/** AI 가이드 승인 + 공용 풀 승격 (tenant_id → NULL) */
+export async function approveAndPromoteGuideAction(
+  guideId: string,
+): Promise<ActionResponse<{ promoted: boolean }>> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { error } = await supabase
+      .from("exploration_guides")
+      .update({ status: "approved", tenant_id: null })
+      .eq("id", guideId);
+
+    if (error) throw error;
+
+    // 임베딩 생성 (공용 풀 노출을 위해)
+    lazyEmbedSingleGuide(guideId).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "approveAndPromote.embedding" }, err, { guideId });
+    });
+
+    return createSuccessResponse({ promoted: true });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "approveAndPromoteGuide" }, error, { guideId });
+    return createErrorResponse("승인 및 공용 승격에 실패했습니다.");
+  }
+}

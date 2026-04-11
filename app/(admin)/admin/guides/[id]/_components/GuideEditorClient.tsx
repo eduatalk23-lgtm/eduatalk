@@ -23,7 +23,10 @@ import {
   saveWithNewVersionAction,
   revertToVersionAction,
   getLatestVersionIdAction,
+  autoSaveGuideContentAction,
+  checkGuideDuplicateAction,
 } from "@/lib/domains/guide/actions/crud";
+import type { DuplicateSuspect } from "@/lib/domains/guide/actions/crud";
 import { generateGuideImageAction } from "@/lib/domains/guide/actions/ai-image";
 import type { AspectRatio } from "@/lib/domains/guide/actions/ai-image";
 import { AiImageDialog } from "@/components/editor/AiImageDialog";
@@ -294,6 +297,23 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     return () => clearTimeout(timer);
   }, [isDirty, guideId, isNew, title, guideType, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections]);
 
+  // DB 자동 저장: isDirty 후 30초 debounce → DB 동기화 (새 버전 생성 없음)
+  const dbAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isDirty || !guideId || isNew) return;
+    if (dbAutoSaveRef.current) clearTimeout(dbAutoSaveRef.current);
+    dbAutoSaveRef.current = setTimeout(async () => {
+      try {
+        const { meta, content } = buildMetaAndContent();
+        await autoSaveGuideContentAction({ guideId, meta, content });
+        setAutoSaveTime(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) + " (DB)");
+      } catch { /* DB 자동 저장 실패 — 무시, localStorage 백업 존재 */ }
+    }, 30000);
+    return () => {
+      if (dbAutoSaveRef.current) clearTimeout(dbAutoSaveRef.current);
+    };
+  }, [isDirty, guideId, isNew, buildMetaAndContent]);
+
   // 저장 성공 시 localStorage 초안 삭제
   useEffect(() => {
     if (!isDirty && guideId) {
@@ -313,6 +333,19 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         if (draft.savedAt) setHasDraftRecovery(true);
       } catch { /* 손상된 데이터 — 무시 */ }
     }
+  }, [guideId, isNew]);
+
+  // L2: 중복 감지 — 가이드 로드 시 1회 체크
+  const [duplicateSuspect, setDuplicateSuspect] = useState<DuplicateSuspect | null>(null);
+  useEffect(() => {
+    if (!guideId || isNew) return;
+    let cancelled = false;
+    checkGuideDuplicateAction(guideId).then((res) => {
+      if (!cancelled && res.success && res.data) {
+        setDuplicateSuspect(res.data);
+      }
+    });
+    return () => { cancelled = true; };
   }, [guideId, isNew]);
 
   // AI 처리 중 상태 — 자동 갱신 (3초 폴링)
@@ -884,6 +917,31 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 setHasDraftRecovery(false);
               }}
               className="px-3 py-1 rounded text-xs font-medium text-amber-600 hover:text-amber-700"
+            >
+              무시
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* L2: 중복 감지 경고 */}
+      {duplicateSuspect && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-700">
+          <p className="text-sm text-orange-700 dark:text-orange-300">
+            유사 가이드 감지 (유사도 {(duplicateSuspect.similarity * 100).toFixed(1)}%): <strong>{duplicateSuspect.title}</strong>
+          </p>
+          <div className="flex gap-2">
+            <Link
+              href={`/admin/guides/${duplicateSuspect.guideId}`}
+              target="_blank"
+              className="px-3 py-1 rounded text-xs font-medium bg-orange-500 text-white hover:bg-orange-600"
+            >
+              확인
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDuplicateSuspect(null)}
+              className="px-3 py-1 rounded text-xs font-medium text-orange-600 hover:text-orange-700"
             >
               무시
             </button>

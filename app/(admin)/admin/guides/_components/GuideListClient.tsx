@@ -15,6 +15,7 @@ import {
   X,
   Trash2,
   CheckSquare,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
@@ -263,6 +264,13 @@ export function GuideListClient() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <Link
+            href="/admin/guides/pending-approval"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-orange-300 text-orange-600 text-sm font-medium hover:bg-orange-50 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-900/20 transition-colors"
+          >
+            <Inbox className="w-4 h-4" />
+            승인 큐
+          </Link>
           <Link
             href="/admin/guides/topics"
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-secondary-300 text-[var(--text-secondary)] text-sm font-medium hover:bg-secondary-50 dark:border-secondary-600 dark:hover:bg-secondary-800 transition-colors"

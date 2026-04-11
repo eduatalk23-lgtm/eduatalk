@@ -65,6 +65,53 @@ const STATUS_COLORS: Record<string, string> = {
   ai_failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
 };
 
+const QUALITY_TIER_BADGE: Record<string, { label: string; cls: string }> = {
+  expert_authored: { label: "전문가", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
+  expert_reviewed: { label: "검수됨", cls: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400" },
+  ai_reviewed_approved: { label: "AI 검수", cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  ai_draft: { label: "AI 초안", cls: "bg-secondary-100 text-secondary-600 dark:bg-secondary-800 dark:text-secondary-400" },
+};
+
+function ClusterQualityStats({ guidesByDifficulty }: { guidesByDifficulty: ClusterDetail["guidesByDifficulty"] }) {
+  const all = [...guidesByDifficulty.basic, ...guidesByDifficulty.intermediate, ...guidesByDifficulty.advanced];
+  if (all.length === 0) return null;
+
+  const scored = all.filter((g) => g.qualityScore != null);
+  const avgScore = scored.length > 0
+    ? Math.round(scored.reduce((s, g) => s + g.qualityScore!, 0) / scored.length)
+    : null;
+  const approvedCount = all.filter((g) => g.status === "approved").length;
+  const approvalRate = Math.round((approvedCount / all.length) * 100);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2">
+      {avgScore != null && (
+        <span className={cn(
+          "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium",
+          avgScore >= 80 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+            : avgScore >= 60 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+        )}>
+          평균 {avgScore}점
+        </span>
+      )}
+      <span className={cn(
+        "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium",
+        approvalRate >= 80 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+          : approvalRate >= 50 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+          : "bg-secondary-100 text-secondary-600 dark:bg-secondary-800 dark:text-secondary-400",
+      )}>
+        승인 {approvalRate}% ({approvedCount}/{all.length})
+      </span>
+      {scored.length > 0 && scored.length < all.length && (
+        <span className="text-[11px] text-[var(--text-tertiary)]">
+          (미평가 {all.length - scored.length}건)
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function ClusterDetailClient({ clusterId }: { clusterId: string }) {
   const { data: res, isLoading } = useQuery(
     clusterDetailQueryOptions(clusterId),
@@ -127,6 +174,7 @@ export function ClusterDetailClient({ clusterId }: { clusterId: string }) {
               총 {cluster.guideCount}건
             </span>
           </div>
+          <ClusterQualityStats guidesByDifficulty={guidesByDifficulty} />
         </div>
       </div>
 
@@ -242,6 +290,11 @@ function GuideCard({ guide }: { guide: ClusterGuide }) {
               )}
             >
               {guide.qualityScore}점
+            </span>
+          )}
+          {guide.qualityTier && QUALITY_TIER_BADGE[guide.qualityTier] && (
+            <span className={cn("px-1 py-0.5 rounded text-[10px] font-medium", QUALITY_TIER_BADGE[guide.qualityTier].cls)}>
+              {QUALITY_TIER_BADGE[guide.qualityTier].label}
             </span>
           )}
         </div>
