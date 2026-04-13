@@ -7,6 +7,7 @@ import type { SetekGuideInput, SetekGuideResult } from "../types";
 import type { SetekGuideItem } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
 import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
+import { renderNarrativeContextSection } from "./narrativeContext";
 import {
   formatSetekFlowArrow,
   CAREER_DIFFERENTIAL,
@@ -235,6 +236,12 @@ export function buildUserPrompt(input: SetekGuideInput): string {
   {
     const themesSection = renderCrossSubjectThemesSection(input.analysisContext?.crossSubjectThemes);
     if (themesSection) prompt += themesSection;
+  }
+
+  // L4-E / Phase 2-1: 보강 우선순위(severity 통합) + 설계 모드 레코드 우선순위
+  {
+    const narrativeSection = renderNarrativeContextSection(input.analysisContext?.narrativeContext);
+    if (narrativeSection) prompt += narrativeSection;
   }
 
   // 가이드 배정 (Phase R2, prospective 특히 유용)

@@ -183,6 +183,7 @@ export function DiagnosisStageContent({
               leveling={diagnosisData.projectedData.leveling}
               designGrades={diagnosisData.projectedData.designGrades}
               contentQuality={diagnosisData.projectedData.contentQuality}
+              narrativeContext={diagnosisData.projectedData.narrativeContext}
             />
           </Suspense>
         </StrategySection>

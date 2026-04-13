@@ -49,6 +49,16 @@ export interface GuideAnalysisContext {
    * dominantThemeIds 우선 노출. 없으면 가이드 프롬프트에서 섹션 자체 생략.
    */
   crossSubjectThemes?: GradeCrossSubjectThemesContext;
+  /**
+   * L4-E: 서사 기반 보강 우선순위 (severity 정렬) + 설계 모드 레코드 우선순위.
+   * - prioritizedWeaknesses: 양 경로(pipeline / reportData) 모두 채워짐.
+   * - recordPriorityOrder: reportData 경로(prospective)에서만 채워짐.
+   * 데이터 부족 시 omit.
+   */
+  narrativeContext?: {
+    prioritizedWeaknesses?: import("../pipeline/narrative-context").PrioritizedWeakness[];
+    recordPriorityOrder?: import("../pipeline/narrative-context").RecordPriority[];
+  };
 }
 
 /**
@@ -294,6 +304,50 @@ export interface GradeThemeExtractionResult {
   truncationWarning?: boolean;
 }
 
+// ============================================
+// H2 / L3-B: Interest Consistency Narrative
+// 이전 학년 누적 데이터 → 관심 일관성 서사 1회 LLM 호출
+// ============================================
+
+/** 서사 생성에 들어가는 압축 입력 */
+export interface InterestConsistencyInput {
+  /** 분석 대상의 priorSchoolYears (예: [2024, 2025]) */
+  priorSchoolYears: number[];
+  /** 목표 전공 (있으면 진로 일관성 판단에 활용) */
+  targetMajor?: string;
+  /** crossGradeThemes 요약 (없으면 빈 배열) */
+  themes: Array<{
+    id: string;
+    label: string;
+    years: number[];
+    affectedSubjects: string[];
+  }>;
+  /** 진로역량 추이 (없으면 omit) */
+  careerTrajectory?: {
+    byYear: Array<{ year: number; averageNumericGrade: number }>;
+    trend: "rising" | "stable" | "falling";
+    growthDelta: number;
+  };
+  /** 지속 강점 항목 (최대 5개) */
+  persistentStrengths: Array<{ competencyItem: string; bestGrade: string }>;
+  /** 지속 약점 항목 (최대 5개) */
+  persistentWeaknesses: Array<{ competencyItem: string; worstGrade: string }>;
+  /** 이전 학년 세특 요약 (subject + 핵심 1줄). 토큰 절감용 — 최대 12건 권장 */
+  priorSetekHighlights?: Array<{
+    schoolYear: number;
+    subjectName?: string;
+    snippet: string;
+  }>;
+}
+
+/** Interest Consistency 서사 LLM 출력 */
+export interface InterestConsistencyResult {
+  narrative: string;
+  sourceThemeIds: string[];
+  confidence: number;
+  elapsedMs: number;
+}
+
 /** Cross-subject Theme Extractor 입력 */
 export interface GradeThemeExtractionInput {
   grade: number;
@@ -453,6 +507,8 @@ export interface SuggestStrategiesResult {
   suggestions: StrategySuggestion[];
   /** 전체 요약 */
   summary: string;
+  /** L1 validator 경고/에러 (선택) — 컨설턴트 가시화용 */
+  warnings?: string[];
 }
 
 // ============================================

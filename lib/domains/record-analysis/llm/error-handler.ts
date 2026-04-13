@@ -1,15 +1,15 @@
 import { logActionError } from "@/lib/logging/actionLogger";
-import type { ActionResponse } from "@/lib/types/actionResponse";
 
 /**
  * LLM 액션의 catch 블록을 표준화한다.
  * 에러를 로깅하고 종류별 사용자 친화적 메시지를 반환한다.
+ * 항상 실패 분기만 반환하므로 호출부의 제네릭 success 타입과 자유롭게 합성 가능.
  */
-export function handleLlmActionError<T = unknown>(
+export function handleLlmActionError(
   error: unknown,
   actionLabel: string,
   logCtx: { domain: string; action: string },
-): ActionResponse<T> {
+): { success: false; error: string } {
   logActionError(logCtx, error);
 
   const msg = error instanceof Error ? error.message : String(error);

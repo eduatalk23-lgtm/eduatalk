@@ -267,6 +267,18 @@ export interface StudentProfileCard {
     years: number[];
     affectedSubjects: string[];
   }>;
+  /**
+   * H2 LLM 서사: 이전 학년 관심사·궤적의 일관성에 대한 2~3문장 평가.
+   * 데이터가 부족하거나 LLM 호출 실패 시 undefined.
+   */
+  interestConsistency?: {
+    /** 한국어 2~3문장 서사. */
+    narrative: string;
+    /** 서사가 근거로 삼은 crossGradeThemes id (없으면 빈 배열). */
+    sourceThemeIds: string[];
+    /** LLM 자체 신뢰도 0~1. */
+    confidence: number;
+  };
 }
 
 /**

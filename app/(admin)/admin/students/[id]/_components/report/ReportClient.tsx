@@ -549,6 +549,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
             leveling={data.projectedData.leveling}
             designGrades={data.projectedData.designGrades}
             contentQuality={data.projectedData.contentQuality}
+            narrativeContext={data.projectedData.narrativeContext}
           />
         ),
         importance: "primary" as SectionImportance,

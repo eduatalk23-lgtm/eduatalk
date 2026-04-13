@@ -140,6 +140,12 @@ export interface DiagnosisTabData {
       issues: string[];
       feedback: string | null;
     }>;
+    /**
+     * L4-E: 서사 기반 설계 우선순위.
+     * 진단 탭은 record 단위 컨텍스트가 없으므로 `prioritizedWeaknesses`만 채워진다
+     * (ReportClient 경로와 달리 `recordPriorityOrder`는 항상 빈 배열).
+     */
+    narrativeContext?: import("@/lib/domains/record-analysis/pipeline/narrative-context").NarrativeContext;
   };
 }
 

@@ -72,6 +72,8 @@ async function assembleProjectedData(
   schoolYear: number,
   tenantId: string,
   studentGrade: number,
+  weakCompetencies: Array<{ item: string; grade: string; reasoning?: string | null }>,
+  analysisIssuesPerRecord: string[][],
 ): Promise<DiagnosisTabData["projectedData"]> {
   const projScores = await competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai_projected");
   if (projScores.length === 0) return undefined;
@@ -99,6 +101,22 @@ async function assembleProjectedData(
     });
   } catch { /* leveling 실패해도 계속 */ }
 
+  // L4-E: 서사 기반 prioritizedWeaknesses 합성
+  // recordPriorityOrder는 record 단위 컨텍스트가 없어 빈 배열로 남김
+  let narrativeContext: import("@/lib/domains/record-analysis/pipeline/narrative-context").NarrativeContext | undefined;
+  try {
+    const { computePrioritizedWeaknessesFromInputs } = await import(
+      "@/lib/domains/record-analysis/pipeline/narrative-context"
+    );
+    const prioritizedWeaknesses = computePrioritizedWeaknessesFromInputs(
+      weakCompetencies,
+      analysisIssuesPerRecord,
+    );
+    if (prioritizedWeaknesses.length > 0) {
+      narrativeContext = { prioritizedWeaknesses, recordPriorityOrder: [] };
+    }
+  } catch { /* narrative 합성 실패는 비치명 */ }
+
   return {
     competencyScores: projScores,
     edges: projEdges,
@@ -110,6 +128,7 @@ async function assembleProjectedData(
       issues: ((cq.issues ?? []) as string[]),
       feedback: (cq.feedback as string) ?? null,
     })),
+    ...(narrativeContext ? { narrativeContext } : {}),
   };
 }
 
@@ -218,7 +237,28 @@ export async function fetchDiagnosisTabData(
       scientific_validity: (r.scientific_validity as number | null) ?? null,
     }));
 
-    const projectedData = await assembleProjectedData(studentId, schoolYear, tenantId, studentGrade);
+    // L4-E narrative 합성 입력: 현재 분석(ai) 약점 + 분석 소스 quality issues
+    // 컨설턴트 등급(consultant)이 있으면 우선, 없으면 ai 사용
+    const scoresForWeakness = consultantScores.length > 0 ? consultantScores : aiScores;
+    const weakCompetenciesInput = scoresForWeakness
+      .filter((s) => s.grade_value === "B-" || s.grade_value === "C")
+      .map((s) => ({
+        item: s.competency_item,
+        grade: s.grade_value ?? "",
+        reasoning: s.narrative ?? null,
+      }));
+    // 품질 이슈는 분석 소스만 반영 (ai_projected 제외 — 그건 projection의 결과이지 현재 약점 아님)
+    // 현재 qualityRows에는 source 컬럼이 없어 전체를 사용. 프로덕션에서는 대부분 analysis 소스라 문제 없음.
+    const issuesPerRecordInput = qualityScores.map((q) => q.issues ?? []);
+
+    const projectedData = await assembleProjectedData(
+      studentId,
+      schoolYear,
+      tenantId,
+      studentGrade,
+      weakCompetenciesInput,
+      issuesPerRecordInput,
+    );
 
     // 학기별 차트 보정용 과목 학기 힌트
     const scoreSemesterHints = (scoreSemesterResult.data ?? []).map((r) => ({

@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, AlertTriangle, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Compass, AlertTriangle, TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record/constants";
@@ -8,6 +8,7 @@ import { DIFFICULTY_LABELS } from "@/lib/domains/student-record/leveling/types";
 import type { CompetencyScore } from "@/lib/domains/student-record/types";
 import type { PersistedEdge } from "@/lib/domains/student-record/repository/edge-repository";
 import type { LevelingResult, DifficultyLevel } from "@/lib/domains/student-record/leveling/types";
+import type { NarrativeContext } from "@/lib/domains/record-analysis/pipeline/narrative-context";
 
 interface ContentQualityRow {
   record_type: string;
@@ -22,6 +23,8 @@ interface ProjectedAnalysisSectionProps {
   leveling: LevelingResult | null;
   designGrades: number[];
   contentQuality?: ContentQualityRow[];
+  /** L4-E: 서사 기반 설계 우선순위 */
+  narrativeContext?: NarrativeContext;
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -42,6 +45,7 @@ export function ProjectedAnalysisSection({
   leveling,
   designGrades,
   contentQuality,
+  narrativeContext,
 }: ProjectedAnalysisSectionProps) {
   if (projectedScores.length === 0 && !leveling) return null;
 
@@ -71,6 +75,11 @@ export function ProjectedAnalysisSection({
 
       {/* 갭 분석 (레벨링 결과) */}
       {leveling && <GapAnalysis leveling={leveling} />}
+
+      {/* L4-E: 설계 우선순위 TOP 3 */}
+      {narrativeContext && (
+        <DesignPriorityPanel narrativeContext={narrativeContext} />
+      )}
 
       {/* 항목별 충족 요약 (M2) */}
       {projectedScores.length > 0 && (() => {
@@ -263,6 +272,88 @@ function GapAnalysis({ leveling }: { leveling: LevelingResult }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ─── L4-E: 설계 우선순위 패널 ──
+
+const SEVERITY_BADGE: Record<"high" | "medium" | "low", string> = {
+  high: "bg-red-100 text-red-700 border-red-200",
+  medium: "bg-amber-100 text-amber-700 border-amber-200",
+  low: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+const RECORD_TYPE_LABEL: Record<"setek" | "changche" | "haengteuk", string> = {
+  setek: "세특",
+  changche: "창체",
+  haengteuk: "행특",
+};
+
+function DesignPriorityPanel({ narrativeContext }: { narrativeContext: NarrativeContext }) {
+  const top = narrativeContext.recordPriorityOrder.slice(0, 3);
+  const weaknessTop = narrativeContext.prioritizedWeaknesses.slice(0, 3);
+  if (top.length === 0 && weaknessTop.length === 0) return null;
+
+  return (
+    <div className="mt-6 rounded-lg border border-indigo-200 bg-indigo-50/40 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Target className="h-5 w-5 text-indigo-600" />
+        <h3 className="font-semibold text-gray-900">설계 우선순위</h3>
+        <span className="text-xs text-gray-500">서사·약점 기반 자동 산출</span>
+      </div>
+
+      {weaknessTop.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-600 mb-2">우선 보강 약점</p>
+          <div className="flex flex-wrap gap-2">
+            {weaknessTop.map((w) => (
+              <span
+                key={`${w.source}:${w.code}`}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs",
+                  SEVERITY_BADGE[w.severity],
+                )}
+                title={w.rationale}
+              >
+                <span className="font-medium">{w.label}</span>
+                <span className="text-[10px] uppercase opacity-70">{w.severity}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {top.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-600 mb-2">레코드 작성 순서 TOP 3</p>
+          <ol className="space-y-2">
+            {top.map((rec, idx) => (
+              <li
+                key={rec.recordId}
+                className="flex items-start gap-3 rounded-md bg-white border border-gray-200 px-3 py-2"
+              >
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                      {RECORD_TYPE_LABEL[rec.recordType]}
+                    </span>
+                    <span className="font-medium text-gray-900 truncate">{rec.label}</span>
+                    <span className="text-xs text-gray-400">{rec.grade}학년</span>
+                    <span className="ml-auto text-xs font-semibold text-indigo-700">{rec.priority}</span>
+                  </div>
+                  {rec.reasons.length > 0 && (
+                    <p className="mt-0.5 text-xs text-gray-600">{rec.reasons.join(" · ")}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

@@ -74,6 +74,7 @@ vi.mock("../pipeline/pipeline-task-runners-shared", () => ({
   collectAnalysisContext: vi.fn(),
   // Layer 0 profile card는 유닛 테스트 환경에서는 빈 카드로 처리 (undefined 반환)
   buildStudentProfileCard: vi.fn().mockResolvedValue(undefined),
+  enrichCardWithInterestConsistency: vi.fn(async (card: unknown) => card),
   renderStudentProfileCard: vi.fn().mockReturnValue(""),
 }));
 

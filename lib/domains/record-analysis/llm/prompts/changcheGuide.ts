@@ -8,6 +8,7 @@ import type { ChangcheGuideItem } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
 import { CHANGCHE_ACTIVITY_CONFIGS } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
+import { renderNarrativeContextSection } from "./narrativeContext";
 
 // ============================================
 // 시스템 프롬프트
@@ -212,6 +213,12 @@ export function buildUserPrompt(input: ChangcheGuideInput): string {
   {
     const themesSection = renderCrossSubjectThemesSection(input.analysisContext?.crossSubjectThemes);
     if (themesSection) prompt += themesSection;
+  }
+
+  // L4-E / Phase 2-1: 보강 우선순위 + 설계 모드 레코드 우선순위
+  {
+    const narrativeSection = renderNarrativeContextSection(input.analysisContext?.narrativeContext);
+    if (narrativeSection) prompt += narrativeSection;
   }
 
   // 세특 방향 컨텍스트

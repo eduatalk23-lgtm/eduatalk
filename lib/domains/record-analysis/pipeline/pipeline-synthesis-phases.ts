@@ -193,7 +193,10 @@ async function loadComputedEdges(
   ctx: PipelineContext,
 ): Promise<PersistedEdge[] | CrossRefEdge[]> {
   const { findEdges } = await import("@/lib/domains/student-record/repository/edge-repository");
-  return findEdges(ctx.studentId, ctx.tenantId);
+  // L3-C: analysis(S2 기준) + synthesis_inferred(S3 이후 추론) 합집합.
+  // projected(설계 모드 가안)는 진단 프롬프트에서 별도 섹션으로 처리하므로 여기선 제외.
+  // Phase 4(S3) 호출 시엔 synthesis_inferred가 아직 없어 analysis만 반환, Phase 5(S5) 호출 시엔 합집합.
+  return findEdges(ctx.studentId, ctx.tenantId, ["analysis", "synthesis_inferred"]);
 }
 
 // ============================================

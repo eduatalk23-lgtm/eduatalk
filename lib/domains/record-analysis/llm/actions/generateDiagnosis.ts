@@ -39,6 +39,18 @@ import type { DiagnosisImprovement, DiagnosisEnrichedContext, CoursePlanContext 
 
 const LOG_CTX = { domain: "record-analysis", action: "generateDiagnosis" };
 
+/**
+ * L3-C: 진단 LLM이 서술 과정에서 추론한 동적 cross-reference.
+ * 레코드 ID 대신 라벨을 사용하며, 서버에서 라벨→ID로 resolve한 뒤 insertEdges()로 저장.
+ */
+export interface DiagnosisInferredEdge {
+  sourceLabel: string;
+  targetLabel: string;
+  edgeType: string;
+  reason: string;
+  sharedCompetencies?: string[];
+}
+
 export interface DiagnosisGenerationResult {
   overallGrade: string;
   recordDirection: string;
@@ -49,6 +61,7 @@ export interface DiagnosisGenerationResult {
   improvements: DiagnosisImprovement[];
   recommendedMajors: string[];
   strategyNotes: string;
+  inferredEdges?: DiagnosisInferredEdge[];
   warnings?: string[];
 }
 
@@ -244,18 +257,147 @@ export async function generateAiDiagnosis(
       });
     }
 
+    // L3-C: inferredEdges 파싱 — LLM이 진단 근거로 언급한 연결만 추출.
+    // 라벨 기반 (레코드 ID 불필요), 서버에서 이후 ID resolve.
+    const inferredEdges: DiagnosisInferredEdge[] = [];
+    if (Array.isArray(parsed.inferredEdges)) {
+      const allowedTypes = new Set([
+        "TEACHER_VALIDATION", "COMPETENCY_SHARED", "COURSE_SUPPORTS",
+        "TEMPORAL_GROWTH", "CONTENT_REFERENCE", "READING_ENRICHES", "THEME_CONVERGENCE",
+      ]);
+      for (const raw of parsed.inferredEdges) {
+        if (!raw || typeof raw !== "object") continue;
+        const e = raw as Record<string, unknown>;
+        const sourceLabel = typeof e.sourceLabel === "string" ? e.sourceLabel.trim() : "";
+        const targetLabel = typeof e.targetLabel === "string" ? e.targetLabel.trim() : "";
+        const edgeType = typeof e.edgeType === "string" ? e.edgeType : "";
+        const reason = typeof e.reason === "string" ? e.reason.trim() : "";
+        if (!sourceLabel || !targetLabel || !edgeType || !reason) continue;
+        if (!allowedTypes.has(edgeType)) continue;
+        if (sourceLabel === targetLabel) continue;
+        const sharedCompetencies = Array.isArray(e.sharedCompetencies)
+          ? e.sharedCompetencies.filter((c): c is string => typeof c === "string")
+          : undefined;
+        inferredEdges.push({ sourceLabel, targetLabel, edgeType, reason, sharedCompetencies });
+        if (inferredEdges.length >= 10) break;
+      }
+    }
+
+    const finalData: DiagnosisGenerationResult = {
+      overallGrade: !gradeFallback ? (parsed.overallGrade as string) : "B",
+      recordDirection: String(parsed.recordDirection ?? "").slice(0, 50),
+      directionStrength: !strengthFallback ? (parsed.directionStrength as "strong" | "moderate" | "weak") : "moderate",
+      directionReasoning: String(parsed.directionReasoning ?? ""),
+      strengths: aiStrengths,
+      weaknesses: aiWeaknesses,
+      improvements: aiImprovements,
+      recommendedMajors: Array.isArray(parsed.recommendedMajors) ? parsed.recommendedMajors.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
+      strategyNotes: String(parsed.strategyNotes ?? "").slice(0, 500),
+      ...(inferredEdges.length > 0 ? { inferredEdges } : {}),
+    };
+
+    // L4-D / L1+L2+L3: Hypothesis-Verify Loop
+    // L1 규칙 검증 → L2 coherence (Flash judge) → L3 targeted repair (Flash, MAX=1)
+    // 각 단계 실패는 non-fatal — 이전 단계 결과로 진행.
+    const { formatViolationLabels } = await import("../validators/types");
+    let diagnosisData: DiagnosisGenerationResult = finalData;
+    const l1Violations: import("../validators/types").Violation[] = [];
+    const l2Violations: import("../validators/types").Violation[] = [];
+
+    try {
+      const { validateDiagnosisOutput } = await import("../validators/diagnosis-validator");
+      const validation = validateDiagnosisOutput(diagnosisData);
+      if (validation.violations.length > 0) {
+        l1Violations.push(...validation.violations);
+        logActionWarn(LOG_CTX, "L1 validator violations", {
+          errorCount: validation.errorCount,
+          warningCount: validation.warningCount,
+          rules: validation.violations.map((v) => v.rule),
+        });
+      }
+    } catch (validatorErr) {
+      logActionWarn(LOG_CTX, "L1 validator skipped (non-fatal)", { error: String(validatorErr) });
+    }
+
+    try {
+      const { checkDiagnosisCoherence } = await import("../validators/diagnosis-coherence-checker");
+      const coherence = await checkDiagnosisCoherence(
+        diagnosisData,
+        competencyScores,
+        activityTags,
+        studentInfo,
+      );
+      if (coherence.violations.length > 0) {
+        l2Violations.push(...coherence.violations);
+        logActionWarn(LOG_CTX, "L2 coherence violations", {
+          errorCount: coherence.errorCount,
+          warningCount: coherence.warningCount,
+          rules: coherence.violations.map((v) => v.rule),
+        });
+      }
+    } catch (coherenceErr) {
+      logActionWarn(LOG_CTX, "L2 coherence check skipped (non-fatal)", {
+        error: coherenceErr instanceof Error ? coherenceErr.message : String(coherenceErr),
+      });
+    }
+
+    // L3 Targeted Repair — L1+L2 error만 대상, MAX=1 (재시도 금지)
+    const combinedViolations = [...l1Violations, ...l2Violations];
+    const hasErrors = combinedViolations.some((v) => v.severity === "error");
+    let repairApplied = false;
+    let postRepairViolations: import("../validators/types").Violation[] | null = null;
+
+    if (hasErrors) {
+      try {
+        const { repairDiagnosis } = await import("../validators/diagnosis-repair");
+        const repair = await repairDiagnosis(
+          diagnosisData,
+          combinedViolations,
+          competencyScores,
+          activityTags,
+          studentInfo,
+        );
+        if (repair.repaired) {
+          diagnosisData = {
+            ...repair.output,
+            // L3-C: inferredEdges는 L1/L2 검증 대상 아님 — repair 이후에도 원본 보존
+            ...(finalData.inferredEdges ? { inferredEdges: finalData.inferredEdges } : {}),
+          };
+          repairApplied = true;
+          postRepairViolations = repair.remainingViolations;
+          warnings.push(
+            `[REPAIRED] ${repair.repairedFieldPaths.join(", ")} 필드를 L3 repair로 재생성했습니다`,
+          );
+          logActionWarn(LOG_CTX, "L3 repair applied", {
+            repairedFieldPaths: repair.repairedFieldPaths,
+            remainingViolationCount: repair.remainingViolations.length,
+            usage: repair.usage,
+          });
+        }
+      } catch (repairErr) {
+        logActionWarn(LOG_CTX, "L3 repair skipped (non-fatal)", {
+          error: repairErr instanceof Error ? repairErr.message : String(repairErr),
+        });
+      }
+    }
+
+    // Warnings 첨부: repair 여부에 따라 분기
+    if (repairApplied && postRepairViolations) {
+      // repair 후: L1 재검증 결과 + L2 warnings (L2는 재실행하지 않음 — 비용)
+      warnings.push(...formatViolationLabels(postRepairViolations));
+      const l2Warnings = l2Violations.filter((v) => v.severity === "warning");
+      if (l2Warnings.length > 0) warnings.push(...formatViolationLabels(l2Warnings));
+    } else {
+      // repair 없음/실패: L1+L2 violations 그대로 첨부
+      if (combinedViolations.length > 0) {
+        warnings.push(...formatViolationLabels(combinedViolations));
+      }
+    }
+
     return {
       success: true,
       data: {
-        overallGrade: !gradeFallback ? (parsed.overallGrade as string) : "B",
-        recordDirection: String(parsed.recordDirection ?? "").slice(0, 50),
-        directionStrength: !strengthFallback ? (parsed.directionStrength as "strong" | "moderate" | "weak") : "moderate",
-        directionReasoning: String(parsed.directionReasoning ?? ""),
-        strengths: aiStrengths,
-        weaknesses: aiWeaknesses,
-        improvements: aiImprovements,
-        recommendedMajors: Array.isArray(parsed.recommendedMajors) ? parsed.recommendedMajors.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
-        strategyNotes: String(parsed.strategyNotes ?? "").slice(0, 500),
+        ...diagnosisData,
         ...(warnings.length > 0 ? { warnings } : {}),
       },
     };

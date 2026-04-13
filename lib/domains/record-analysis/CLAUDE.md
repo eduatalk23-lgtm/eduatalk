@@ -19,7 +19,8 @@ record-analysis/
 │   └── synthesis/                # S1-S6 Synthesis Phase (7파일)
 ├── llm/                   # LLM 액션, 프롬프트, 유틸리티
 │   ├── actions/           # 18개 서버 액션 (generate*, analyze*, suggest*, detect*)
-│   ├── prompts/           # 12개 프롬프트 빌더
+│   ├── prompts/           # 13개 프롬프트 빌더 (narrativeContext 포함)
+│   ├── validators/        # L4-D Hypothesis-Verify Loop (L1 deterministic + L2 coherence + L3 targeted repair: diagnosis & strategy 전부 완료)
 │   ├── ai-client.ts       # AI SDK 래퍼
 │   ├── retry.ts           # 지수 백오프 재시도 (1s→3s→10s, 최대 3회)
 │   ├── extractJson.ts     # LLM 응답 JSON 파서
@@ -153,6 +154,14 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `aggregateQualityPatterns()` | 전 학년 DB 조회 → 반복 패턴 집계 | Synthesis 진단/전략 |
 | `buildCrossGradeDirections()` | 이전 분석 학년 보완방향 텍스트 빌드 | Prospective 가이드 생성 시 |
 | `buildStudentProfileCard()` / `renderStudentProfileCard()` | 이전 학년 역량/품질 집계 → Layer 0 프로필 카드 텍스트 | P1-P3 역량 분석 진입 시 (1회, `ctx.profileCard` 캐시) |
+| `enrichCardWithInterestConsistency()` | H2 서사 LLM 호출(standard tier) → `interestConsistency` 부착 | profileCard 빌드 직후, 학생당 1회 |
+| `buildNarrativeContext()` (`pipeline/narrative-context.ts`) | reportData → `prioritizedWeaknesses` + `recordPriorityOrder` 합성 (L4-E) | `fetchReportData` projectedData 빌드 시 |
+| `validateDiagnosisOutput()` (`llm/validators/diagnosis-validator.ts`) | ai_diagnosis L1 deterministic 검증 (11종 규칙) | `generateAiDiagnosis` finalData 빌드 후 |
+| `validateStrategyOutput()` (`llm/validators/strategy-validator.ts`) | ai_strategy L1 deterministic 검증 (12종 규칙) | `suggestStrategies` parseResponse 후 |
+| `checkDiagnosisCoherence()` (`llm/validators/diagnosis-coherence-checker.ts`) | ai_diagnosis L2 coherence 검증 (Flash LLM-judge, 6종 규칙) | `generateAiDiagnosis` L1 validator 직후 (non-fatal) |
+| `checkStrategyCoherence()` (`llm/validators/strategy-coherence-checker.ts`) | ai_strategy L2 coherence 검증 (Flash LLM-judge, 5종 규칙) | `suggestStrategies` L1 validator 직후 (non-fatal) |
+| `repairDiagnosis()` (`llm/validators/diagnosis-repair.ts`) | ai_diagnosis L3 targeted repair (Flash, MAX=1, 필드 단위) | `generateAiDiagnosis` L2 직후 error 있을 때만 (non-fatal) |
+| `repairStrategies()` (`llm/validators/strategy-repair.ts`) | ai_strategy L3 targeted repair (Flash, MAX=1, suggestions[i] 단위) | `suggestStrategies` L2 직후 error 있을 때만 (non-fatal) |
 
 ### DB 테이블 (핵심)
 
@@ -169,7 +178,7 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `student_record_setek_guides` | 세특 방향 가이드 | P4 출력 |
 | `student_record_changche_guides` | 창체 방향 가이드 | P5 출력 |
 | `student_record_haengteuk_guides` | 행특 방향 가이드 | P6 출력 |
-| `student_record_edges` | 레코드 간 연결 그래프 (`edge_context`: analysis/projected) | S2+P8 출력 |
+| `student_record_edges` | 레코드 간 연결 그래프 (`edge_context`: analysis/projected/synthesis_inferred) | S2+P8 출력 + S3 동적 추론 |
 | `student_record_strategies` | 보완전략 | S5 출력 |
 | `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
 
@@ -224,7 +233,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | activity_tags | `tag_context` | `analysis` | `draft_analysis` |
 | competency_scores | `source` | `ai` | `ai_projected` |
 | content_quality | `source` | `ai` | `ai_projected` |
-| edges | `edge_context` | `analysis` | `projected` |
+| edges | `edge_context` | `analysis` / `synthesis_inferred`(S3 동적 추론, L3-C) | `projected` |
 | guides | `guide_mode` | `retrospective` | `prospective` |
 
 ### LLM Actions (`llm/actions/`)
@@ -235,7 +244,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `generateSetekGuide.ts` | `generateSetekGuide()`, `generateProspectiveSetekGuide()` | standard | 세특 방향 가이드 |
 | `generateChangcheGuide.ts` | `generateChangcheGuide()`, `generateProspectiveChangcheGuide()` | standard | 창체 방향 가이드 |
 | `generateHaengteukGuide.ts` | `generateHaengteukGuide()`, `generateProspectiveHaengteukGuide()` | standard | 행특 방향 가이드 |
-| `generateDiagnosis.ts` | `generateAiDiagnosis()` | standard | 종합진단 |
+| `generateDiagnosis.ts` | `generateAiDiagnosis()` | standard | 종합진단 + **inferredEdges(L3-C 동적 링크 예측)** |
 | `suggestStrategies.ts` | `suggestStrategies()` | standard | 보완전략 |
 | `generateInterviewQuestions.ts` | `generateInterviewQuestions()` | standard | 면접 예상질문 |
 | `generateRoadmap.ts` | `generateAiRoadmap()` | standard | 학기별 로드맵 |

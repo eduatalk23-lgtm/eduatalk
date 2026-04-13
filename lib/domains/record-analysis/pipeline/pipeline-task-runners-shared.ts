@@ -13,6 +13,7 @@ import type {
 import type { HighlightAnalysisResult, GuideAnalysisContext, GuideWarningPattern, GradeThemeExtractionResult, GradeCrossSubjectThemesContext } from "../llm/types";
 import { matchPattern } from "@/lib/domains/student-record/warnings/checkers-quality";
 import { SCIENTIFIC_PATTERN_CODES } from "@/lib/domains/student-record/evaluation-criteria/defaults";
+import { computePrioritizedWeaknessesFromInputs } from "./narrative-context";
 
 // ============================================
 // 동시성 제어
@@ -233,11 +234,18 @@ export function toGuideAnalysisContext(
   const allIssues = [...new Set(qualityIssues.flatMap((qi) => qi.issues))];
   const warningPatterns = extractWarningPatterns(allIssues);
 
+  // L4-E: 약점 우선순위 합성 (recordPriorityOrder는 pipeline path에서 미산출)
+  const prioritizedWeaknesses = computePrioritizedWeaknessesFromInputs(
+    gradeCtx.weakCompetencies.map((w) => ({ item: w.item, grade: w.grade, reasoning: w.reasoning })),
+    gradeCtx.qualityIssues.map((q) => q.issues),
+  );
+
   return {
     qualityIssues,
     weakCompetencies: gradeCtx.weakCompetencies,
     warningPatterns: warningPatterns.length > 0 ? warningPatterns : undefined,
     ...(crossSubjectThemes ? { crossSubjectThemes } : {}),
+    ...(prioritizedWeaknesses.length > 0 ? { narrativeContext: { prioritizedWeaknesses } } : {}),
   };
 }
 
@@ -293,11 +301,48 @@ export function mergeGuideAnalysisContexts(
       ? { dominantThemes: mergedThemes, crossSubjectPatternCount: totalCrossSubjectPattern }
       : undefined;
 
+  // L4-E: narrativeContext 병합 — code별 dedup, 더 높은 severity 유지
+  const SEV_NUM: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const weakKey = (w: { source: string; code: string }) => `${w.source}:${w.code}`;
+  const narrativeWeakMap = new Map<string, NonNullable<GuideAnalysisContext["narrativeContext"]>["prioritizedWeaknesses"] extends (infer T)[] | undefined ? T : never>();
+  const recordKey = (r: { recordType: string; recordId: string }) => `${r.recordType}:${r.recordId}`;
+  const recordOrderMap = new Map<string, NonNullable<GuideAnalysisContext["narrativeContext"]>["recordPriorityOrder"] extends (infer T)[] | undefined ? T : never>();
+  for (const ctx of defined) {
+    const nc = ctx.narrativeContext;
+    if (!nc) continue;
+    for (const w of nc.prioritizedWeaknesses ?? []) {
+      const key = weakKey(w);
+      const existing = narrativeWeakMap.get(key);
+      if (!existing || (SEV_NUM[w.severity] ?? 3) < (SEV_NUM[existing.severity] ?? 3)) {
+        narrativeWeakMap.set(key, w);
+      }
+    }
+    for (const r of nc.recordPriorityOrder ?? []) {
+      const key = recordKey(r);
+      const existing = recordOrderMap.get(key);
+      if (!existing || r.priority > existing.priority) recordOrderMap.set(key, r);
+    }
+  }
+  const mergedNarrativeWeak = [...narrativeWeakMap.values()].sort((a, b) => {
+    if (b.weight !== a.weight) return b.weight - a.weight;
+    if (a.source !== b.source) return a.source === "competency" ? -1 : 1;
+    return a.code.localeCompare(b.code);
+  });
+  const mergedRecordOrder = [...recordOrderMap.values()].sort((a, b) => b.priority - a.priority);
+  const mergedNarrative: GuideAnalysisContext["narrativeContext"] | undefined =
+    mergedNarrativeWeak.length > 0 || mergedRecordOrder.length > 0
+      ? {
+          ...(mergedNarrativeWeak.length > 0 ? { prioritizedWeaknesses: mergedNarrativeWeak } : {}),
+          ...(mergedRecordOrder.length > 0 ? { recordPriorityOrder: mergedRecordOrder } : {}),
+        }
+      : undefined;
+
   return {
     qualityIssues: defined.flatMap((c) => c.qualityIssues),
     weakCompetencies: [...weakMap.values()],
     warningPatterns: mergedPatterns.length > 0 ? mergedPatterns : undefined,
     ...(crossSubjectThemes ? { crossSubjectThemes } : {}),
+    ...(mergedNarrative ? { narrativeContext: mergedNarrative } : {}),
   };
 }
 
@@ -332,10 +377,25 @@ export function buildGuideAnalysisContextFromReport(
   const allIssues = [...new Set(qualityIssues.flatMap((qi) => qi.issues))];
   const warningPatterns = extractWarningPatterns(allIssues);
 
+  // L4-E: narrativeContext 합성. recordPriorityOrder는 projectedData에 이미 빌드된 게 있으면 통과,
+  // 없으면 prioritizedWeaknesses만 자체 산출 (recordType 필터 적용 — 가이드 단위와 정합).
+  const persisted = reportData.projectedData?.narrativeContext;
+  const prioritizedWeaknesses = persisted?.prioritizedWeaknesses
+    ?? computePrioritizedWeaknessesFromInputs(allWeak, filteredQuality.map((q) => q.issues));
+  const recordPriorityOrder = persisted?.recordPriorityOrder ?? [];
+  const narrativeContext: GuideAnalysisContext["narrativeContext"] | undefined =
+    prioritizedWeaknesses.length > 0 || recordPriorityOrder.length > 0
+      ? {
+          ...(prioritizedWeaknesses.length > 0 ? { prioritizedWeaknesses } : {}),
+          ...(recordPriorityOrder.length > 0 ? { recordPriorityOrder } : {}),
+        }
+      : undefined;
+
   return {
     qualityIssues,
     weakCompetencies: allWeak,
     warningPatterns: warningPatterns.length > 0 ? warningPatterns : undefined,
+    ...(narrativeContext ? { narrativeContext } : {}),
   };
 }
 
@@ -721,6 +781,58 @@ export async function buildStudentProfileCard(
 }
 
 /**
+ * H2 LLM 서사: 이미 집계된 `StudentProfileCard`를 입력으로 1회 LLM 호출 → `interestConsistency` 부착.
+ * 신호량 부족하거나 LLM 실패 시 카드 그대로 반환 (graceful degradation).
+ *
+ * @param targetMajor 진로 일관성 판단 보조용 (없으면 omit)
+ */
+export async function enrichCardWithInterestConsistency(
+  card: StudentProfileCard,
+  targetMajor?: string,
+): Promise<StudentProfileCard> {
+  if (card.interestConsistency) return card;
+  try {
+    const [{ extractInterestConsistency }, { isInterestConsistencyInputInsufficient }] =
+      await Promise.all([
+        import("../llm/actions/extractInterestConsistency"),
+        import("../llm/actions/extractInterestConsistency.helpers"),
+      ]);
+    const input = {
+      priorSchoolYears: card.priorSchoolYears,
+      ...(targetMajor ? { targetMajor } : {}),
+      themes: (card.crossGradeThemes ?? []).map((t) => ({
+        id: t.id,
+        label: t.label,
+        years: t.years,
+        affectedSubjects: t.affectedSubjects,
+      })),
+      ...(card.careerTrajectory ? { careerTrajectory: card.careerTrajectory } : {}),
+      persistentStrengths: card.persistentStrengths.map((s) => ({
+        competencyItem: s.competencyItem,
+        bestGrade: s.bestGrade,
+      })),
+      persistentWeaknesses: card.persistentWeaknesses.map((w) => ({
+        competencyItem: w.competencyItem,
+        worstGrade: w.worstGrade,
+      })),
+    };
+    if (isInterestConsistencyInputInsufficient(input)) return card;
+    const res = await extractInterestConsistency(input);
+    if (!res.success) return card;
+    return {
+      ...card,
+      interestConsistency: {
+        narrative: res.data.narrative,
+        sourceThemeIds: res.data.sourceThemeIds,
+        confidence: res.data.confidence,
+      },
+    };
+  } catch {
+    return card;
+  }
+}
+
+/**
  * `StudentProfileCard`를 prompt 섹션 문자열로 렌더.
  * 섹션 제목 + 핵심 지표 bullet + 평가 지침으로 구성.
  */
@@ -777,8 +889,11 @@ export function renderStudentProfileCard(card: StudentProfileCard): string {
       .join(", ");
     lines.push(`- 지속 테마: ${text}`);
   }
+  if (card.interestConsistency && card.interestConsistency.narrative) {
+    lines.push(`- 관심 일관성 서사: ${card.interestConsistency.narrative}`);
+  }
 
   lines.push("");
-  lines.push("**평가 지침**: 위 '지속 약점'으로 이미 평가된 역량이 본 텍스트에서 또 드러나면 엄격히(B- 이하로) 평가하세요. '지속 강점'은 이미 입증된 역량이므로 본 텍스트에서 동일 역량을 재평가할 때 기준을 높게 잡으세요(단순 언급만으론 A- 이상 부여 금지). '반복 품질 이슈'는 이 셀에서도 동일 문제가 보이면 issues에 반드시 포함하세요. '진로역량 추이'가 하락이면 원인(성적·세특 약점) 진단에 반영하고, '지속 테마'가 있으면 본 텍스트가 해당 테마를 연속·심화하는지 주목하여 평가하세요.");
+  lines.push("**평가 지침**: 위 '지속 약점'으로 이미 평가된 역량이 본 텍스트에서 또 드러나면 엄격히(B- 이하로) 평가하세요. '지속 강점'은 이미 입증된 역량이므로 본 텍스트에서 동일 역량을 재평가할 때 기준을 높게 잡으세요(단순 언급만으론 A- 이상 부여 금지). '반복 품질 이슈'는 이 셀에서도 동일 문제가 보이면 issues에 반드시 포함하세요. '진로역량 추이'가 하락이면 원인(성적·세특 약점) 진단에 반영하고, '지속 테마'가 있으면 본 텍스트가 해당 테마를 연속·심화하는지 주목하여 평가하세요. '관심 일관성 서사'와 본 텍스트가 정합하면(같은 흐름을 잇거나 심화하면) 진로역량/탐구역량 가산 근거로 삼고, 충돌하면(전혀 다른 주제로 이탈) 그 사유를 reasoning에 명시하세요.");
   return lines.join("\n");
 }

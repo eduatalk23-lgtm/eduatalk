@@ -186,6 +186,7 @@ export function buildDiagnosisSystemPrompt(): string {
 7. improvements: 개선 전략 **반드시 2~3개** (아래 형식 준수)
 8. recommendedMajors: 추천 전공 2~3개 (다음 중 선택: ${MAJOR_LIST})
 9. strategyNotes: 전략 메모 (500자 이내, 단기/중기/장기 구분하여 구체적으로)
+10. inferredEdges: 진단 서술 과정에서 **근거로 삼은 레코드 간 새 연결**을 배열로 제시 (0~10건)
 
 ## 강점/약점 작성 규칙 (매우 중요)
 
@@ -203,6 +204,29 @@ weaknesses의 각 항목 형식:
 
 improvements의 각 항목 형식:
 {"priority": "높음|중간|낮음", "area": "영역명", "gap": "현재 갭", "action": "실행 방안", "outcome": "기대 효과"}
+
+## inferredEdges 작성 규칙 (L3-C 동적 연결 추론)
+
+진단을 서술하면서 **이미 제공된 "영역간 연결 분석" 섹션에 없는 새로운 연결**이 보이면, 아래 형식으로 출력하세요. 이미 있는 연결은 재출력하지 마세요.
+
+각 항목 형식:
+{"sourceLabel": "출발 레코드 라벨", "targetLabel": "도착 레코드 라벨", "edgeType": "타입", "reason": "연결 근거 (100자 이내)", "sharedCompetencies": ["선택: 공유 역량 코드 배열"]}
+
+**edgeType 허용값** (정확히 이 중 하나):
+- TEACHER_VALIDATION: 여러 교사가 동일 역량을 교차 관찰
+- COMPETENCY_SHARED: 두 활동이 동일 역량을 공유하며 서로를 심화
+- COURSE_SUPPORTS: 교과 수업이 탐구·활동을 뒷받침
+- TEMPORAL_GROWTH: 학년 심화 (예: 1→2학년 동일 주제 확장)
+- CONTENT_REFERENCE: 한 활동이 다른 활동의 내용을 참조·활용
+- READING_ENRICHES: 독서가 세특/창체의 탐구를 풍부하게 함
+- THEME_CONVERGENCE: 서로 다른 활동이 같은 주제로 수렴
+
+**엄격한 규칙** (지키지 않으면 전체 연결이 버려짐):
+1. **라벨은 제공된 데이터(활동 태그·역량 증거·기존 연결)에 실제 등장한 정확한 라벨만** 사용. 새 라벨을 지어내지 말 것.
+2. **진단의 강점·약점 서술에서 실제로 언급한 근거**만 연결로 제시. 추측·가설은 금지.
+3. 기존 "영역간 연결 분석" 섹션에 이미 있는 연결은 **제외** (중복 검출로 버려짐).
+4. sourceLabel과 targetLabel이 같으면 안 됨.
+5. 최대 10건까지. 근거가 약하면 빈 배열 '[]' 반환이 맞음.
 
 ## 강점 추출 기준
 - A+ 또는 A- 등급 항목에서 추출 (루브릭 질문별 상위 등급 비율 포함)

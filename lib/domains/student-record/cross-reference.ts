@@ -56,6 +56,8 @@ export interface CrossRefEdge {
   reason: string;
   /** 공유 역량 항목 (COMPETENCY_SHARED용) */
   sharedCompetencies?: string[];
+  /** 엣지 산출 맥락 (UI 구분용). DB 영속화 엣지일 때만 제공. */
+  edgeContext?: "analysis" | "projected" | "synthesis_inferred";
 }
 
 // ============================================

@@ -241,6 +241,35 @@ export async function runAiDiagnosis(
     status: "draft",
   } as DiagnosisInsert);
 
+  // L3-C: 진단이 추론한 inferredEdges → synthesis_inferred로 저장 (non-fatal)
+  let inferredEdgesInserted = 0;
+  if (result.data.inferredEdges && result.data.inferredEdges.length > 0) {
+    try {
+      const edgeRepo = await import("@/lib/domains/student-record/repository/edge-repository");
+      const resolved = resolveInferredEdges(
+        result.data.inferredEdges,
+        computedEdges,
+      );
+      if (resolved.length > 0) {
+        inferredEdgesInserted = await edgeRepo.insertEdges(
+          studentId,
+          tenantId,
+          pipelineId,
+          resolved,
+          "synthesis_inferred",
+        );
+        logActionDebug(LOG_CTX, "synthesis_inferred edges 저장", {
+          pipelineId,
+          llmProposed: result.data.inferredEdges.length,
+          resolved: resolved.length,
+          inserted: inferredEdgesInserted,
+        });
+      }
+    } catch (infErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.insertInferredEdges" }, infErr, { pipelineId });
+    }
+  }
+
   const warnSuffix = result.data.warnings?.length ? ` ⚠️ ${result.data.warnings.join(", ")}` : "";
   const diagLabel = !hasNeisData
     ? "예비진단(수강계획 기반)"
@@ -255,13 +284,16 @@ export async function runAiDiagnosis(
     if (warnings.length > 0) coverageWarnings = warnings;
   }
 
+  const inferredSuffix = inferredEdgesInserted > 0 ? ` + 추론연결 ${inferredEdgesInserted}건` : "";
+
   return {
-    preview: `${diagLabel} 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
+    preview: `${diagLabel} 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${inferredSuffix}${warnSuffix}`,
     // 진단 상세(weaknesses/improvements)는 DB(student_record_diagnosis)에 저장됨 → ctx에는 카운트만 유지
     result: {
       overallGrade: result.data.overallGrade,
       weaknessCount: Array.isArray(result.data.weaknesses) ? result.data.weaknesses.length : 0,
       improvementCount: Array.isArray(result.data.improvements) ? (result.data.improvements as unknown[]).length : 0,
+      inferredEdgesInserted,
       coverageWarnings,
       // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
       ...(savedTsAnalysis ? { _timeSeriesAnalysis: savedTsAnalysis } : {}),
@@ -269,6 +301,79 @@ export async function runAiDiagnosis(
       ...(ctx.qualityPatterns && ctx.qualityPatterns.length > 0 ? { qualityPatterns: ctx.qualityPatterns } : {}),
     },
   };
+}
+
+// ============================================
+// L3-C: LLM inferredEdges(라벨 기반) → InferredEdgeInput(ID 기반) 해소
+// ============================================
+
+/**
+ * LLM이 출력한 라벨 쌍을 기존 computedEdges의 source_label/target_label과 매칭하여
+ * 레코드 ID를 복원. 라벨 일치 없는 엣지는 폐기. 기존 엣지와 중복이면 제외 (DB 레벨에서도 UNIQUE).
+ * 테스트 노출을 위해 export.
+ */
+export function resolveInferredEdges(
+  inferred: import("../../llm/actions/generateDiagnosis").DiagnosisInferredEdge[],
+  computedEdges: PersistedEdge[] | CrossRefEdge[],
+): import("@/lib/domains/student-record/repository/edge-repository").InferredEdgeInput[] {
+  // 라벨 → {recordType, recordId, grade} 맵 빌드
+  // PersistedEdge만 라벨 + ID를 둘 다 가지므로, CrossRefEdge는 source 쪽만 라벨 매칭 가능
+  type LabelEntry = { recordType: string; recordId: string; grade: number | null };
+  const labelMap = new Map<string, LabelEntry>();
+  // 기존 엣지 중복 검출용 키: "sourceId|targetId|edgeType"
+  const existingKeys = new Set<string>();
+
+  for (const e of computedEdges) {
+    if ("source_label" in e) {
+      // PersistedEdge
+      if (e.source_label) {
+        labelMap.set(e.source_label, {
+          recordType: e.source_record_type,
+          recordId: e.source_record_id,
+          grade: e.source_grade,
+        });
+      }
+      if (e.target_label && e.target_record_id) {
+        labelMap.set(e.target_label, {
+          recordType: e.target_record_type,
+          recordId: e.target_record_id,
+          grade: e.target_grade,
+        });
+        existingKeys.add(`${e.source_record_id}|${e.target_record_id}|${e.edge_type}`);
+      }
+    }
+  }
+
+  const resolved: import("@/lib/domains/student-record/repository/edge-repository").InferredEdgeInput[] = [];
+  const seenInBatch = new Set<string>();
+
+  for (const inf of inferred) {
+    const src = labelMap.get(inf.sourceLabel);
+    const tgt = labelMap.get(inf.targetLabel);
+    if (!src || !tgt) continue;
+    if (src.recordId === tgt.recordId) continue;
+
+    const dedupKey = `${src.recordId}|${tgt.recordId}|${inf.edgeType}`;
+    if (existingKeys.has(dedupKey) || seenInBatch.has(dedupKey)) continue;
+    seenInBatch.add(dedupKey);
+
+    resolved.push({
+      sourceRecordType: src.recordType,
+      sourceRecordId: src.recordId,
+      sourceLabel: inf.sourceLabel,
+      sourceGrade: src.grade,
+      targetRecordType: tgt.recordType,
+      targetRecordId: tgt.recordId,
+      targetLabel: inf.targetLabel,
+      targetGrade: tgt.grade,
+      edgeType: inf.edgeType as import("@/lib/domains/student-record/cross-reference").CrossRefEdgeType,
+      reason: inf.reason,
+      sharedCompetencies: inf.sharedCompetencies ?? null,
+      confidence: 0.55, // THEME_CONVERGENCE 기본값보다 약간 낮음 — LLM 추론이므로 보수적
+    });
+  }
+
+  return resolved;
 }
 
 // ============================================

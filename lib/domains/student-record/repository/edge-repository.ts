@@ -4,13 +4,13 @@
 // ============================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ConnectionGraph, CrossRefEdge, CrossRefEdgeType } from "./cross-reference";
+import type { ConnectionGraph, CrossRefEdge, CrossRefEdgeType } from "../cross-reference";
 
 // ============================================
 // 1. 타입
 // ============================================
 
-export type EdgeContext = "analysis" | "projected";
+export type EdgeContext = "analysis" | "projected" | "synthesis_inferred";
 
 export interface PersistedEdge {
   id: string;
@@ -50,11 +50,15 @@ export interface EdgeSnapshot {
 // 2. 조회
 // ============================================
 
-/** 학생의 현재 엣지 목록 조회 (edgeContext 미지정 시 전체, 기본적으로 stale 제외) */
+/**
+ * 학생의 현재 엣지 목록 조회.
+ * edgeContext: 단일 컨텍스트(기존 호환) | 배열(합집합 조회, S5 전략 등) | 미지정(전체)
+ * 기본적으로 stale 제외.
+ */
 export async function findEdges(
   studentId: string,
   tenantId: string,
-  edgeContext?: EdgeContext,
+  edgeContext?: EdgeContext | EdgeContext[],
   options?: { includeStale?: boolean },
 ): Promise<PersistedEdge[]> {
   const supabase = await createSupabaseServerClient();
@@ -64,7 +68,11 @@ export async function findEdges(
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId);
 
-  if (edgeContext) {
+  if (Array.isArray(edgeContext)) {
+    if (edgeContext.length > 0) {
+      query = query.in("edge_context", edgeContext);
+    }
+  } else if (edgeContext) {
     query = query.eq("edge_context", edgeContext);
   }
 
@@ -126,6 +134,69 @@ export async function replaceEdges(
 
   if (error) throw error;
   return (data as number) ?? rows.length;
+}
+
+// ============================================
+// 3-b. 보존형 삽입 (L3-C: synthesis_inferred 등 동적 확장)
+// ============================================
+
+/** 동적 추론 엣지 입력 — target_record_id 필수. */
+export interface InferredEdgeInput {
+  sourceRecordType: string;
+  sourceRecordId: string;
+  sourceLabel: string;
+  sourceGrade?: number | null;
+  targetRecordType: string;
+  targetRecordId: string;
+  targetLabel: string;
+  targetGrade?: number | null;
+  edgeType: CrossRefEdgeType;
+  reason: string;
+  sharedCompetencies?: string[] | null;
+  confidence?: number;
+}
+
+/**
+ * 기존 엣지를 유지한 채 새 엣지만 추가 (RPC insert_student_record_edges 래퍼).
+ * 중복(student_id+source_record_id+target_record_id+edge_type+edge_context)은 자동 스킵.
+ * 주 용도: S3 진단 이후 synthesis_inferred 엣지 추가.
+ * @returns 실제 삽입된 행 수
+ */
+export async function insertEdges(
+  studentId: string,
+  tenantId: string,
+  pipelineId: string | null,
+  edges: InferredEdgeInput[],
+  edgeContext: EdgeContext = "synthesis_inferred",
+): Promise<number> {
+  if (edges.length === 0) return 0;
+  const supabase = await createSupabaseServerClient();
+
+  const rows = edges.map((e) => ({
+    source_record_type: e.sourceRecordType,
+    source_record_id: e.sourceRecordId,
+    source_label: e.sourceLabel,
+    source_grade: e.sourceGrade ?? null,
+    target_record_type: e.targetRecordType,
+    target_record_id: e.targetRecordId,
+    target_label: e.targetLabel,
+    target_grade: e.targetGrade ?? null,
+    edge_type: e.edgeType,
+    reason: e.reason,
+    shared_competencies: e.sharedCompetencies ?? null,
+    confidence: e.confidence ?? 0.6,
+  }));
+
+  const { data, error } = await supabase.rpc("insert_student_record_edges", {
+    p_student_id: studentId,
+    p_tenant_id: tenantId,
+    p_pipeline_id: pipelineId,
+    p_edge_context: edgeContext,
+    p_edges: rows,
+  });
+
+  if (error) throw error;
+  return (data as number) ?? 0;
 }
 
 // ============================================

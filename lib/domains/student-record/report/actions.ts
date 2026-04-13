@@ -210,6 +210,11 @@ export interface ReportData {
     designGrades: number[];
     /** 가안 품질 점수 (ai_projected) */
     contentQuality: ContentQualityRow[];
+    /**
+     * L4-E: 서사 기반 설계 컨텍스트 — 보강 우선순위 약점 + 레코드 우선순위.
+     * 추가 DB 조회 없이 reportData 자체에서 합성. 데이터 부족 시 omit.
+     */
+    narrativeContext?: import("@/lib/domains/record-analysis/pipeline/narrative-context").NarrativeContext;
   };
 }
 
@@ -337,6 +342,12 @@ export async function fetchReportData(
             designGrades: consultingGrades,
             contentQuality: projContentQuality,
           };
+          // L4-E: 서사 기반 narrativeContext 합성 (실패해도 projectedData는 정상 반환)
+          try {
+            const { buildNarrativeContext } = await import("@/lib/domains/record-analysis/pipeline/narrative-context");
+            const narrative = buildNarrativeContext(reportData, consultingGrades);
+            if (narrative) reportData.projectedData.narrativeContext = narrative;
+          } catch { /* narrative 합성 실패는 비치명 */ }
         }
       }
     } catch {

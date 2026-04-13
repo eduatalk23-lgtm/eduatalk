@@ -11,7 +11,8 @@ import { generateTextWithRateLimit } from "../llm/ai-client";
 import * as guideRepo from "@/lib/domains/student-record/repository/guide-repository";
 import { withRetry } from "../llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
-import { getCharLimit, PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
+import { getCharLimit, PIPELINE_THRESHOLDS, COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
+import type { CompetencyArea } from "@/lib/domains/student-record/types";
 import { computeLevelingForStudent } from "@/lib/domains/student-record/leveling";
 import {
   SETEK_DRAFT_SYSTEM_PROMPT,
@@ -21,6 +22,29 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LOG_CTX = { domain: "record-analysis", action: "draftGeneration" };
+
+const COMPETENCY_AREA_BY_CODE = new Map<string, CompetencyArea>(
+  COMPETENCY_ITEMS.map((item) => [item.code, item.area] as const),
+);
+
+/**
+ * L4-E: ctx.analysisContext에 채워진 prior grade weakCompetencies를 area set으로 환산.
+ * 1학년 또는 prior 분석 미수행 시 빈 Set 반환 → 정렬은 기존 동작.
+ */
+function collectPriorWeakAreas(ctx: PipelineContext): Set<CompetencyArea> {
+  const out = new Set<CompetencyArea>();
+  const buckets = ctx.analysisContext;
+  if (!buckets) return out;
+  for (const grade of Object.keys(buckets)) {
+    const ac = buckets[Number(grade)];
+    if (!ac) continue;
+    for (const w of ac.weakCompetencies) {
+      const area = COMPETENCY_AREA_BY_CODE.get(w.item);
+      if (area) out.add(area);
+    }
+  }
+  return out;
+}
 
 // ─── Private 헬퍼 ──
 
@@ -167,12 +191,23 @@ export async function runDraftGenerationForGrade(
       if (typeName.includes("진로") || typeName.includes("전문")) careerSubjectIds.add(s.id);
     }
 
-    // 진로교과 우선 정렬 (설계 명세: "진로교과 위주")
+    // L4-E: 서사 기반 정렬 — 진로교과 + 이전 학년 약점 area 매칭
+    // ctx.analysisContext에 채워진 prior grade weakCompetencies를 area로 환산하여 우선순위 가중.
+    // priorWeakAreas가 비면 기존 "진로교과 우선 → 학기순"과 동일하게 동작 (graceful degradation).
+    const priorWeakAreas = collectPriorWeakAreas(ctx);
+    const careerWeak = priorWeakAreas.has("career");
+    const academicWeak = priorWeakAreas.has("academic");
     const sortedRecords = [...(setekRecords as Array<{ id: string; subject_id: string; semester: number; content: string | null; ai_draft_content: string | null }>)]
       .sort((a, b) => {
-        const aCareer = careerSubjectIds.has(a.subject_id) ? 0 : 1;
-        const bCareer = careerSubjectIds.has(b.subject_id) ? 0 : 1;
-        return aCareer - bCareer || a.semester - b.semester;
+        const aCareer = careerSubjectIds.has(a.subject_id);
+        const bCareer = careerSubjectIds.has(b.subject_id);
+        // Tier 0: 진로교과 + career 약점 → 가장 시급
+        // Tier 1: 진로교과만 (기본 진로 우선)
+        // Tier 2: 비진로 + academic 약점 → 학업역량 보강 필요
+        // Tier 3: 비진로
+        const aTier = aCareer ? (careerWeak ? 0 : 1) : (academicWeak ? 2 : 3);
+        const bTier = bCareer ? (careerWeak ? 0 : 1) : (academicWeak ? 2 : 3);
+        return aTier - bTier || a.semester - b.semester;
       });
 
     for (const record of sortedRecords) {

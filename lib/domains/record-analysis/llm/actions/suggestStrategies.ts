@@ -6,6 +6,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import { handleLlmActionError } from "../error-handler";
 import { generateTextWithRateLimit } from "../ai-client";
 import { withRetry } from "../retry";
@@ -56,7 +57,89 @@ export async function suggestStrategies(
       };
     }
 
-    return { success: true, data: parsed };
+    // L4-D / L1+L2+L3: Hypothesis-Verify Loop
+    // L1 규칙 검증 → L2 coherence (Flash judge) → L3 targeted repair (Flash, MAX=1)
+    // 각 단계 실패는 non-fatal — 이전 단계 결과로 진행.
+    const warnings: string[] = [];
+    const { formatViolationLabels } = await import("../validators/types");
+    let strategyData: SuggestStrategiesResult = parsed;
+    const l1Violations: import("../validators/types").Violation[] = [];
+    const l2Violations: import("../validators/types").Violation[] = [];
+
+    try {
+      const { validateStrategyOutput } = await import("../validators/strategy-validator");
+      const validation = validateStrategyOutput(strategyData);
+      if (validation.violations.length > 0) {
+        l1Violations.push(...validation.violations);
+        logActionWarn(LOG_CTX, "L1 validator violations", {
+          errorCount: validation.errorCount,
+          warningCount: validation.warningCount,
+          rules: validation.violations.map((v) => v.rule),
+        });
+      }
+    } catch (validatorErr) {
+      logActionWarn(LOG_CTX, "L1 validator skipped (non-fatal)", { error: String(validatorErr) });
+    }
+
+    try {
+      const { checkStrategyCoherence } = await import("../validators/strategy-coherence-checker");
+      const coherence = await checkStrategyCoherence(strategyData, input);
+      if (coherence.violations.length > 0) {
+        l2Violations.push(...coherence.violations);
+        logActionWarn(LOG_CTX, "L2 coherence violations", {
+          errorCount: coherence.errorCount,
+          warningCount: coherence.warningCount,
+          rules: coherence.violations.map((v) => v.rule),
+        });
+      }
+    } catch (coherenceErr) {
+      logActionWarn(LOG_CTX, "L2 coherence check skipped (non-fatal)", {
+        error: coherenceErr instanceof Error ? coherenceErr.message : String(coherenceErr),
+      });
+    }
+
+    // L3 Targeted Repair — suggestions[i] 단위 error만 대상, MAX=1
+    const combinedViolations = [...l1Violations, ...l2Violations];
+    const hasErrors = combinedViolations.some((v) => v.severity === "error");
+    let repairApplied = false;
+    let postRepairViolations: import("../validators/types").Violation[] | null = null;
+
+    if (hasErrors) {
+      try {
+        const { repairStrategies } = await import("../validators/strategy-repair");
+        const repair = await repairStrategies(strategyData, combinedViolations, input);
+        if (repair.repaired) {
+          strategyData = repair.output;
+          repairApplied = true;
+          postRepairViolations = repair.remainingViolations;
+          warnings.push(
+            `[REPAIRED] ${repair.repairedFieldPaths.join(", ")} suggestions를 L3 repair로 재생성했습니다`,
+          );
+          logActionWarn(LOG_CTX, "L3 repair applied", {
+            repairedFieldPaths: repair.repairedFieldPaths,
+            remainingViolationCount: repair.remainingViolations.length,
+            usage: repair.usage,
+          });
+        }
+      } catch (repairErr) {
+        logActionWarn(LOG_CTX, "L3 repair skipped (non-fatal)", {
+          error: repairErr instanceof Error ? repairErr.message : String(repairErr),
+        });
+      }
+    }
+
+    if (repairApplied && postRepairViolations) {
+      warnings.push(...formatViolationLabels(postRepairViolations));
+      const l2Warnings = l2Violations.filter((v) => v.severity === "warning");
+      if (l2Warnings.length > 0) warnings.push(...formatViolationLabels(l2Warnings));
+    } else if (combinedViolations.length > 0) {
+      warnings.push(...formatViolationLabels(combinedViolations));
+    }
+
+    return {
+      success: true,
+      data: warnings.length > 0 ? { ...strategyData, warnings } : strategyData,
+    };
   } catch (error) {
     return handleLlmActionError(error, "보완전략 제안", LOG_CTX);
   }

@@ -114,6 +114,29 @@ export function ConnectionsPanelApp({
         </span>
       </div>
 
+      {/* 범례 — synthesis_inferred/projected 있을 때만 */}
+      {(() => {
+        const hasInferred = persistedEdges?.some((e: PersistedEdge) => e.edge_context === "synthesis_inferred") ?? false;
+        const hasProjected = persistedEdges?.some((e: PersistedEdge) => e.edge_context === "projected") ?? false;
+        if (!hasInferred && !hasProjected) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-2 px-4 pb-1 text-[10px] text-[var(--text-tertiary)]">
+            {hasInferred && (
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-sm bg-violet-500 px-1 font-bold text-white">추론</span>
+                Synthesis 진단 후 추가
+              </span>
+            )}
+            {hasProjected && (
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-sm bg-amber-500 px-1 font-bold text-white">예상</span>
+                설계 모드 가안
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* 그룹핑 토글 */}
       <div className="flex gap-1 px-4 pb-2">
         {(["node", "edgeType"] as const).map((mode) => (
@@ -264,6 +287,7 @@ function buildGraphFromPersistedEdges(edges: PersistedEdge[]): ConnectionGraph {
       targetLabel: e.target_label,
       reason: e.reason,
       sharedCompetencies: e.shared_competencies ?? undefined,
+      edgeContext: e.edge_context as CrossRefEdge["edgeContext"],
     };
 
     if (existing) {
