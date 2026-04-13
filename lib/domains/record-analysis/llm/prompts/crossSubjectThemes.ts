@@ -116,6 +116,45 @@ export function buildCrossSubjectThemesUserPrompt(input: GradeThemeExtractionInp
 }
 
 // ============================================
+// 가이드 프롬프트용 컨텍스트 렌더러 (H1 → 다운스트림 주입)
+// ============================================
+
+import type { GradeCrossSubjectThemesContext } from "../types";
+
+const EVOLUTION_LABEL: Record<NonNullable<GradeCrossSubjectThemesContext["dominantThemes"][number]["evolutionSignal"]>, string> = {
+  deepening: "심화",
+  stagnant: "정체",
+  pivot: "전환",
+  new: "신규",
+};
+
+/**
+ * H1 dominant themes → 가이드 프롬프트 섹션 문자열.
+ * 가이드(세특/창체/행특)가 학년 전체 테마 일관성에 정렬되도록 안내한다.
+ * 데이터가 없으면 빈 문자열 반환 — 호출부에서 그대로 concat 가능.
+ */
+export function renderCrossSubjectThemesSection(
+  ctx: GradeCrossSubjectThemesContext | undefined,
+): string {
+  if (!ctx || ctx.dominantThemes.length === 0) return "";
+
+  const lines: string[] = [];
+  lines.push(`## 학년 관통 테마 (과목 교차 ${ctx.crossSubjectPatternCount}개)`);
+  lines.push("");
+  lines.push(`→ 아래 테마는 학년 내 ≥2개 과목/활동에 걸쳐 반복되는 핵심 의미입니다. 이 가이드는 dominant 테마와 일관되게(또는 보강하는 방향으로) 작성하세요.`);
+  lines.push("");
+
+  for (const t of ctx.dominantThemes) {
+    const subjects = t.affectedSubjects.length > 0 ? ` [${t.affectedSubjects.join(", ")}]` : "";
+    const evolution = t.evolutionSignal ? ` · ${EVOLUTION_LABEL[t.evolutionSignal]}` : "";
+    const keywords = t.keywords.length > 0 ? ` · 키워드: ${t.keywords.join(", ")}` : "";
+    lines.push(`- **${t.label}** (${t.subjectCount}과목${evolution})${subjects}${keywords}`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+// ============================================
 // 응답 파서
 // ============================================
 

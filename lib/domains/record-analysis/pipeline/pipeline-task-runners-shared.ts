@@ -10,7 +10,7 @@ import type {
   CompetencyAnalysisContext,
   StudentProfileCard,
 } from "./pipeline-types";
-import type { HighlightAnalysisResult, GuideAnalysisContext, GuideWarningPattern } from "../llm/types";
+import type { HighlightAnalysisResult, GuideAnalysisContext, GuideWarningPattern, GradeThemeExtractionResult, GradeCrossSubjectThemesContext } from "../llm/types";
 import { matchPattern } from "@/lib/domains/student-record/warnings/checkers-quality";
 import { SCIENTIFIC_PATTERN_CODES } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 
@@ -171,12 +171,51 @@ function extractWarningPatterns(allIssues: string[]): GuideWarningPattern[] {
 }
 
 /**
+ * H1: GradeThemeExtractionResult → GuideAnalysisContext에 주입할 컨텍스트로 압축.
+ * dominantThemeIds 기준으로 themes 배열을 필터링·정렬하여 가이드 프롬프트 토큰을 절감한다.
+ * dominant가 없으면 undefined.
+ */
+export function toCrossSubjectThemesContext(
+  themes: GradeThemeExtractionResult | undefined,
+): GradeCrossSubjectThemesContext | undefined {
+  if (!themes || themes.themes.length === 0) return undefined;
+  const themeById = new Map(themes.themes.map((t) => [t.id, t]));
+  const dominantThemes = themes.dominantThemeIds
+    .map((id) => themeById.get(id))
+    .filter((t): t is NonNullable<typeof t> => Boolean(t))
+    .map((t) => ({
+      id: t.id,
+      label: t.label,
+      keywords: t.keywords.slice(0, 5),
+      affectedSubjects: t.affectedSubjects.slice(0, 5),
+      subjectCount: t.subjectCount,
+      ...(t.evolutionSignal ? { evolutionSignal: t.evolutionSignal } : {}),
+    }));
+  if (dominantThemes.length === 0) return undefined;
+  return {
+    dominantThemes,
+    crossSubjectPatternCount: themes.crossSubjectPatternCount,
+  };
+}
+
+/**
  * GradeAnalysisContext → GuideAnalysisContext 변환.
  * Phase 4-6(가이드 생성) 호출부에서 사용.
  * gradeCtx가 undefined이거나 데이터가 없으면 undefined를 반환(프롬프트 섹션 생략).
+ *
+ * @param gradeCtx 학년별 역량 분석 맥락
+ * @param gradeThemes (옵션) H1 cross-subject 테마 결과 — 있으면 dominant만 추출하여 주입.
+ *                    qualityIssues/weakCompetencies가 모두 비어 있어도 themes만 있으면 컨텍스트 반환.
  */
-export function toGuideAnalysisContext(gradeCtx: GradeAnalysisContext | undefined): GuideAnalysisContext | undefined {
-  if (!gradeCtx) return undefined;
+export function toGuideAnalysisContext(
+  gradeCtx: GradeAnalysisContext | undefined,
+  gradeThemes?: GradeThemeExtractionResult,
+): GuideAnalysisContext | undefined {
+  const crossSubjectThemes = toCrossSubjectThemesContext(gradeThemes);
+
+  if (!gradeCtx) {
+    return crossSubjectThemes ? { qualityIssues: [], weakCompetencies: [], crossSubjectThemes } : undefined;
+  }
 
   const qualityIssues = gradeCtx.qualityIssues
     .filter((q) => q.issues.length > 0)
@@ -186,7 +225,7 @@ export function toGuideAnalysisContext(gradeCtx: GradeAnalysisContext | undefine
       feedback: q.feedback,
     }));
 
-  if (qualityIssues.length === 0 && gradeCtx.weakCompetencies.length === 0) {
+  if (qualityIssues.length === 0 && gradeCtx.weakCompetencies.length === 0 && !crossSubjectThemes) {
     return undefined;
   }
 
@@ -198,6 +237,7 @@ export function toGuideAnalysisContext(gradeCtx: GradeAnalysisContext | undefine
     qualityIssues,
     weakCompetencies: gradeCtx.weakCompetencies,
     warningPatterns: warningPatterns.length > 0 ? warningPatterns : undefined,
+    ...(crossSubjectThemes ? { crossSubjectThemes } : {}),
   };
 }
 
@@ -237,10 +277,27 @@ export function mergeGuideAnalysisContexts(
   const mergedPatterns = [...patternMap.values()];
   mergedPatterns.sort((a, b) => (SEVERITY_NUM[a.severity] ?? 3) - (SEVERITY_NUM[b.severity] ?? 3));
 
+  // H1: crossSubjectThemes 병합 — 학년별로 dominant가 다를 수 있으므로 단순 병합 후 dedup
+  const themeMap = new Map<string, GradeCrossSubjectThemesContext["dominantThemes"][number]>();
+  let totalCrossSubjectPattern = 0;
+  for (const ctx of defined) {
+    if (!ctx.crossSubjectThemes) continue;
+    totalCrossSubjectPattern += ctx.crossSubjectThemes.crossSubjectPatternCount;
+    for (const t of ctx.crossSubjectThemes.dominantThemes) {
+      if (!themeMap.has(t.id)) themeMap.set(t.id, t);
+    }
+  }
+  const mergedThemes = [...themeMap.values()];
+  const crossSubjectThemes: GradeCrossSubjectThemesContext | undefined =
+    mergedThemes.length > 0
+      ? { dominantThemes: mergedThemes, crossSubjectPatternCount: totalCrossSubjectPattern }
+      : undefined;
+
   return {
     qualityIssues: defined.flatMap((c) => c.qualityIssues),
     weakCompetencies: [...weakMap.values()],
     warningPatterns: mergedPatterns.length > 0 ? mergedPatterns : undefined,
+    ...(crossSubjectThemes ? { crossSubjectThemes } : {}),
   };
 }
 

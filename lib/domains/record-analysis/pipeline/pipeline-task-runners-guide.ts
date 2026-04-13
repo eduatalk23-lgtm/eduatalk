@@ -375,7 +375,7 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
     // targetSchoolYear 전달 필수 — 미지정 시 generateSetekGuide가 calculateSchoolYear()(현재 학년도)로 저장해
     // 여러 학년의 보완 방향이 같은 row에 덮어써지는 버그 발생
     const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
-    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade], ctx.gradeThemes);
     const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, gradeReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
@@ -387,7 +387,7 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
     const { generateSetekDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
-    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade], ctx.gradeThemes);
     const result = await generateSetekDirection(
       studentId, tenantId, guideUserId,
       gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx,
@@ -443,7 +443,7 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
     // NEIS 학년 → 분석형 창체 가이드
     // targetSchoolYear 전달 필수 — 미지정 시 학년별 결과가 현재 학년도 1개 row에 덮어써짐
     const { analyzeChangcheGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
-    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const gradeAnalysisCtx = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade], ctx.gradeThemes);
     const result = await analyzeChangcheGuide(studentId, [targetGrade], undefined, undefined, targetSchoolYear, gradeAnalysisCtx, gradeReport);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
@@ -464,7 +464,7 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
     ? `## 세특 방향 요약\n${setekCtxRows.map((r) => `- ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
-  const gradeAnalysisCtxForChangche = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+  const gradeAnalysisCtxForChangche = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade], ctx.gradeThemes);
   await generateChangcheDirection(
     studentId, tenantId, guideUserId,
     gradeReport, coursePlanData ?? null, undefined, setekCtx, targetSchoolYear, gradeAnalysisCtxForChangche,
@@ -516,7 +516,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
     // NEIS 학년 → 분석형 행특 가이드
     // targetSchoolYear 전달 필수 — 미지정 시 학년별 결과가 현재 학년도 1개 row에 덮어써짐
     const { analyzeHaengteukGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
-    const gradeAnalysisCtxH = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+    const gradeAnalysisCtxH = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade], ctx.gradeThemes);
     const result = await analyzeHaengteukGuide(studentId, [targetGrade], undefined, undefined, targetSchoolYear, gradeAnalysisCtxH, gradeReport);
     if (!result.success) throw new Error(result.error);
     return `${targetGrade}학년 행특 방향 생성 완료`;
@@ -536,7 +536,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
     ? `## 창체 방향 요약\n${changcheCtxRows.map((r) => `- ${ACTIVITY_TYPE_LABELS[r.activity_type] ?? r.activity_type}: ${r.direction?.slice(0, 100) ?? ""} [${(r.keywords ?? []).slice(0, 3).join(", ")}]`).join("\n")}`
     : undefined;
 
-  const gradeAnalysisCtxForHaengteuk = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade]);
+  const gradeAnalysisCtxForHaengteuk = toGuideAnalysisContext(ctx.analysisContext?.[targetGrade], ctx.gradeThemes);
   await generateHaengteukDirection(
     studentId, tenantId, guideUserId,
     gradeReport, coursePlanData ?? null, undefined, changcheCtx, targetSchoolYear, gradeAnalysisCtxForHaengteuk,

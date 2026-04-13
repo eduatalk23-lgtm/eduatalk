@@ -44,6 +44,29 @@ export interface GuideAnalysisContext {
    * qualityIssues.issues에서 매칭된 패턴만 포함. 매칭 없으면 빈 배열 또는 undefined.
    */
   warningPatterns?: GuideWarningPattern[];
+  /**
+   * H1 / L3-A: 과목 교차 테마 (학년 내 ≥2 과목 반복 테마).
+   * dominantThemeIds 우선 노출. 없으면 가이드 프롬프트에서 섹션 자체 생략.
+   */
+  crossSubjectThemes?: GradeCrossSubjectThemesContext;
+}
+
+/**
+ * 가이드 프롬프트에 주입할 cross-subject theme 요약.
+ * 전체 GradeThemeExtractionResult보다 가벼운 형태로 압축 (프롬프트 토큰 절감).
+ */
+export interface GradeCrossSubjectThemesContext {
+  /** 학년 전체를 관통하는 dominant 테마 (최대 3개) */
+  dominantThemes: Array<{
+    id: string;
+    label: string;
+    keywords: string[];
+    affectedSubjects: string[];
+    subjectCount: number;
+    evolutionSignal?: "deepening" | "stagnant" | "pivot" | "new";
+  }>;
+  /** ≥2 과목에 걸친 반복 테마 총 개수 (UI/로그 참고용) */
+  crossSubjectPatternCount: number;
 }
 
 /** AI가 제안하는 개별 태그 */

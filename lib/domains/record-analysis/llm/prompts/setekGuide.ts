@@ -6,6 +6,7 @@
 import type { SetekGuideInput, SetekGuideResult } from "../types";
 import type { SetekGuideItem } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
+import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
 import {
   formatSetekFlowArrow,
   CAREER_DIFFERENTIAL,
@@ -227,6 +228,13 @@ export function buildUserPrompt(input: SetekGuideInput): string {
         prompt += "\n";
       }
     }
+  }
+
+  // H1 / L3-A: 학년 관통 테마 (과목 교차 dominant)
+  // analysisContext 블록 외부에서 주입 — analysisContext가 비어도 themes만 있으면 표시
+  {
+    const themesSection = renderCrossSubjectThemesSection(input.analysisContext?.crossSubjectThemes);
+    if (themesSection) prompt += themesSection;
   }
 
   // 가이드 배정 (Phase R2, prospective 특히 유용)

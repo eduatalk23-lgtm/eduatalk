@@ -70,6 +70,11 @@ export async function generateAiDiagnosis(
    * aggregateQualityPatterns()가 생성한 섹션을 그대로 전달. 없으면 생략.
    */
   qualityPatternSection?: string,
+  /**
+   * H1 후속: 전 학년 cross-subject theme 집계 섹션 (마크다운 문자열).
+   * buildCrossSubjectThemesDiagnosisSection()이 생성한 섹션을 전달. 없으면 생략.
+   */
+  crossSubjectThemesSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -161,6 +166,7 @@ export async function generateAiDiagnosis(
       gapSection,
       edgeSummarySection,
       qualityPatternSection,
+      crossSubjectThemesSection,
       coursePlanSection,
     });
 

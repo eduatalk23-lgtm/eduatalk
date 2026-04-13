@@ -19,6 +19,8 @@ import {
   aggregateQualityPatterns,
   fetchAllYearCompetencyScores,
   buildTimeseriesPromptSection,
+  aggregateGradeThemes,
+  buildCrossSubjectThemesDiagnosisSection,
 } from "./helpers";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
@@ -191,6 +193,19 @@ export async function runAiDiagnosis(
     }
   }
 
+  // H1 후속: 전 학년 cross-subject theme 집계 → 진단 프롬프트 섹션.
+  // 실패해도 진단 생성은 계속 (graceful degradation, 기존 qualityPattern과 동일).
+  let crossSubjectThemesSection: string | undefined;
+  if (hasNeisData) {
+    try {
+      const byGrade = await aggregateGradeThemes(ctx);
+      const section = buildCrossSubjectThemesDiagnosisSection(byGrade);
+      if (section) crossSubjectThemesSection = section;
+    } catch (gtErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.aggregateGradeThemes" }, gtErr, { pipelineId });
+    }
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -206,7 +221,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

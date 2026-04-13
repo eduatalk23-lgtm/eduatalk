@@ -31,6 +31,7 @@ import {
   runHaengteukGuideForGrade,
   runDraftGenerationForGrade,
   runDraftAnalysisForGrade,
+  runCrossSubjectThemeExtractionForGrade,
 } from "./pipeline-task-runners";
 
 // ============================================
@@ -244,13 +245,25 @@ export async function executeGradePhase3(
 }
 
 // ============================================
-// Grade Phase 4: 세특 가이드 + 슬롯 생성 (병렬)
+// Grade Phase 4: 과목 교차 테마 추출(P3.5 → 직렬) + 세특 가이드 + 슬롯 생성 (병렬)
 // ============================================
 
 export async function executeGradePhase4(
   ctx: PipelineContext,
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
+
+  // ── P3.5: 과목 교차 테마 추출 (선행 P1-P3 완료 후 1회) ──
+  // - guides 호출 전에 직렬 실행하여 ctx.gradeThemes를 미리 채운다.
+  // - 실패해도 후속 가이드는 themes 없이 진행 (graceful degradation).
+  // - prereq 실패(ctx.tasks.competency_*)이면 skipIfPrereqFailed가 failed로 마킹.
+  const skipTheme = skipIfPrereqFailed(ctx, "cross_subject_theme_extraction");
+  if (!skipTheme && ctx.tasks["cross_subject_theme_extraction"] !== "completed") {
+    await runTaskWithState(ctx, "cross_subject_theme_extraction", () =>
+      runCrossSubjectThemeExtractionForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
 
   const skipGuide = skipIfPrereqFailed(ctx, "setek_guide");
   const skipSlot = skipIfPrereqFailed(ctx, "slot_generation");
@@ -326,6 +339,8 @@ export async function executeGradePhase6(
   if (ctx.gradeMode === "analysis") {
     const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
       if (k === "draft_generation" || k === "draft_analysis") return true;
+      // cross_subject_theme_extraction은 옵션 enhancement — 실패해도 분석 모드 완료 판정에 영향 없음
+      if (k === "cross_subject_theme_extraction") return true;
       return ctx.tasks[k] === "completed";
     });
     await updatePipelineState(
@@ -379,9 +394,11 @@ export async function executeGradePhase8(
     );
   }
   // 스킵이든 실행이든 최종 상태 판정은 항상 수행
-  const allCompleted = GRADE_PIPELINE_TASK_KEYS.every(
-    (k) => ctx.tasks[k] === "completed",
-  );
+  const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
+    // cross_subject_theme_extraction은 옵션 enhancement — 실패해도 설계 모드 완료 판정에 영향 없음
+    if (k === "cross_subject_theme_extraction") return true;
+    return ctx.tasks[k] === "completed";
+  });
 
   await updatePipelineState(
     ctx.supabase as SupabaseAdminClient,

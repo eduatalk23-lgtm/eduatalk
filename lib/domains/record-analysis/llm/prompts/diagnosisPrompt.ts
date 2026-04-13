@@ -232,6 +232,11 @@ ${formatDiagnosisMacroPatterns()}
   - 고1→고2→고3으로 탐구 깊이가 심화되는가 (넓은 관심 → 선별 심화 → 확장+제언)
   - 학년 간 깊이가 동일하면 strategyNotes에 "성장 곡선 부재" 명시
   - 여러 교사가 동일한 역량을 공통 언급(교차 관찰 일관성)하면 해당 역량을 강점에 높은 가중치로 반영
+- **학년별 과목 교차 테마** (H1 섹션이 제공되면):
+  - 각 학년의 dominant 테마가 ≥2과목에 걸쳐 반복되는지, 학년이 올라가며 심화(deepening)되는지 평가
+  - 다학년 반복 테마가 존재하면 전공 정합성의 **강점 증거**로 구체 인용 (예: \`social-minority\`가 1→2→3학년 모두 dominant)
+  - 모든 학년 dominant가 단일 진로 키워드에만 수렴하고 교과 맥락이 부족하면 **진로과잉도배(F16)** 약점으로 명시하고 strategyNotes에도 경고
+  - 학년 간 테마가 서로 이질적이고 pivot이 반복되면 "방향 정체성 약함"으로 directionStrength에 반영
 - JSON으로만 응답`;
 }
 
@@ -246,12 +251,13 @@ export function buildDiagnosisUserPrompt(params: {
   gapSection: string;
   edgeSummarySection?: string;
   qualityPatternSection?: string;
+  crossSubjectThemesSection?: string;
   coursePlanSection: string;
 }): string {
   const {
     studentInfo, activityTags, gradesSummary, tagsSummary,
     trendSection, adequacySection, gapSection,
-    edgeSummarySection, qualityPatternSection, coursePlanSection,
+    edgeSummarySection, qualityPatternSection, crossSubjectThemesSection, coursePlanSection,
   } = params;
 
   return `## 학생 정보
@@ -264,6 +270,6 @@ ${gradesSummary}
 ## 활동 태그 (총 ${activityTags.length}건)
 ${tagsSummary}
 ${trendSection}${adequacySection}${gapSection}
-${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${coursePlanSection}
-위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요.`;
+${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${crossSubjectThemesSection ? `\n${crossSubjectThemesSection}\n` : ""}${coursePlanSection}
+위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요. 학년별 과목 교차 테마가 제공된 경우 다학년 반복·심화 테마를 강점 증거로 구체 인용하고, 단일 진로 수렴 시 진로과잉도배 약점으로 명시하세요.`;
 }

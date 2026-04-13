@@ -161,7 +161,7 @@ describe("Grade Phase 오케스트레이션", () => {
       expect(runTaskWithState).not.toHaveBeenCalled();
     });
 
-    it("P1-P3 모두 completed이면 정상 실행", async () => {
+    it("P1-P3 모두 completed이면 정상 실행 (P3.5 cross-subject + P4 guide+slot)", async () => {
       const ctx = makeCtx({
         tasks: {
           competency_setek: "completed",
@@ -171,7 +171,9 @@ describe("Grade Phase 오케스트레이션", () => {
       });
       await executeGradePhase4(ctx);
 
-      expect(runTaskWithState).toHaveBeenCalledTimes(2);
+      // P3.5 cross_subject_theme_extraction (직렬) + setek_guide + slot_generation (병렬)
+      expect(runTaskWithState).toHaveBeenCalledTimes(3);
+      expect(ctx.tasks["cross_subject_theme_extraction"]).toBe("completed");
       expect(ctx.tasks["setek_guide"]).toBe("completed");
       expect(ctx.tasks["slot_generation"]).toBe("completed");
     });

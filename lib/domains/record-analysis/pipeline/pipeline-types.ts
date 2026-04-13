@@ -69,6 +69,15 @@ export interface PipelineTaskResultMap {
   competency_changche: { allCached: boolean; elapsedMs?: number; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } };
   /** P3: 행특 역량 분석 결과 */
   competency_haengteuk: { allCached: boolean; elapsedMs?: number; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } };
+  /** P3.5: 과목 교차 테마 추출 (dominantThemeIds + 전체 themes 영속화, S3에서 소비) */
+  cross_subject_theme_extraction: {
+    themeCount: number;
+    crossSubjectPatternCount: number;
+    dominantThemeIds: string[];
+    themes?: import("../llm/types").GradeTheme[];
+    truncationWarning?: boolean;
+    elapsedMs?: number;
+  };
   /** P4-a: 세특 방향 가이드 */
   setek_guide: { cached?: boolean; elapsedMs?: number };
   /** P4-b: 슬롯 생성 (string preview만 반환 → result는 elapsedMs만) */
@@ -301,6 +310,12 @@ export interface PipelineContext {
   unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
   /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
   qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
+  /**
+   * H1 / L3-A: 학년 단위 과목 교차 테마 추출 결과 (Grade Pipeline 한정).
+   * Phase 4 진입 직전 1회 산출 → setek/changche/haengteuk 가이드 프롬프트에 주입.
+   * 실패/스킵 시 undefined (가이드는 themes 없이 동작 — graceful degradation).
+   */
+  gradeThemes?: import("../llm/types").GradeThemeExtractionResult;
   /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
   cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
 }

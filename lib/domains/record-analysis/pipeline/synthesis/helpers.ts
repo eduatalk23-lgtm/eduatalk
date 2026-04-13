@@ -229,3 +229,122 @@ export async function aggregateQualityPatterns(ctx: Pick<CorePipelineFields, "su
 
   return { repeatingPatterns, qualityPatternSection };
 }
+
+// ============================================
+// H1 후속: 전 학년 cross-subject theme 집계 (S3 진단 주입용)
+// ============================================
+
+import type { GradeTheme } from "../../llm/types";
+
+export interface GradeThemesByGrade {
+  [grade: number]: {
+    themes: GradeTheme[];
+    dominantThemeIds: string[];
+  };
+}
+
+/**
+ * 완료된 Grade Pipeline의 `task_results.cross_subject_theme_extraction`을 학년별로 집계한다.
+ * H1 cross-subject theme은 학년 단위로만 산출되므로, Synthesis(S3 진단)에서 다학년 관통
+ * 서사를 형성하려면 이렇게 aggregation 단계가 필요하다.
+ */
+export async function aggregateGradeThemes(
+  ctx: Pick<CorePipelineFields, "supabase" | "studentId" | "tenantId">,
+): Promise<GradeThemesByGrade> {
+  const { supabase, studentId, tenantId } = ctx;
+
+  const { data: rows } = await supabase
+    .from("student_record_analysis_pipelines")
+    .select("grade, task_results, created_at")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("pipeline_type", "grade")
+    .eq("status", "completed")
+    .order("created_at", { ascending: false });
+
+  const byGrade: GradeThemesByGrade = {};
+  for (const row of (rows ?? []) as Array<{ grade: number | null; task_results: unknown }>) {
+    if (row.grade == null || byGrade[row.grade]) continue; // 최신 1개만 유지
+    const tr = row.task_results as Record<string, unknown> | null;
+    const entry = tr?.cross_subject_theme_extraction as Record<string, unknown> | undefined;
+    if (!entry) continue;
+    const themes = Array.isArray(entry.themes) ? (entry.themes as GradeTheme[]) : [];
+    const dominantThemeIds = Array.isArray(entry.dominantThemeIds)
+      ? (entry.dominantThemeIds as unknown[]).filter((x): x is string => typeof x === "string")
+      : [];
+    if (themes.length === 0) continue;
+    byGrade[row.grade] = { themes, dominantThemeIds };
+  }
+  return byGrade;
+}
+
+/**
+ * aggregateGradeThemes 결과 → 진단 프롬프트 주입용 마크다운 섹션.
+ *
+ * 출력 구성:
+ * 1) 학년별 dominant 테마 라인 (id/label/affectedSubjects/evolutionSignal)
+ * 2) 다학년 반복 테마 (id 기준으로 ≥2학년 등장) — F16(진로과잉도배) 구조 감지용 시그널
+ *
+ * 데이터가 비면 빈 문자열 반환 — 호출부에서 그대로 concat.
+ */
+export function buildCrossSubjectThemesDiagnosisSection(byGrade: GradeThemesByGrade): string {
+  const grades = Object.keys(byGrade).map(Number).sort();
+  if (grades.length === 0) return "";
+
+  const EVOLUTION_LABEL: Record<NonNullable<GradeTheme["evolutionSignal"]>, string> = {
+    deepening: "심화",
+    stagnant: "정체",
+    pivot: "전환",
+    new: "신규",
+  };
+
+  const lines: string[] = ["## 학년별 과목 교차 테마 (H1 cross-subject)", ""];
+
+  // 1) 학년별 dominant 테마
+  for (const g of grades) {
+    const { themes, dominantThemeIds } = byGrade[g];
+    const themeById = new Map(themes.map((t) => [t.id, t]));
+    const dominants = dominantThemeIds
+      .map((id) => themeById.get(id))
+      .filter((t): t is GradeTheme => Boolean(t));
+    if (dominants.length === 0) continue;
+    lines.push(`### ${g}학년 dominant`);
+    for (const t of dominants) {
+      const subjects = t.affectedSubjects.length > 0 ? ` [${t.affectedSubjects.join(", ")}]` : "";
+      const evolution = t.evolutionSignal ? ` · ${EVOLUTION_LABEL[t.evolutionSignal]}` : "";
+      lines.push(`- \`${t.id}\` ${t.label} (${t.subjectCount}과목${evolution})${subjects}`);
+    }
+    lines.push("");
+  }
+
+  // 2) 다학년 반복 테마 (id 동일하거나 label 정확히 동일)
+  const idToGrades = new Map<string, { label: string; grades: number[]; evolution: Set<string> }>();
+  for (const g of grades) {
+    for (const t of byGrade[g].themes) {
+      const key = t.id;
+      const entry = idToGrades.get(key) ?? { label: t.label, grades: [], evolution: new Set<string>() };
+      entry.grades.push(g);
+      if (t.evolutionSignal) entry.evolution.add(t.evolutionSignal);
+      idToGrades.set(key, entry);
+    }
+  }
+  const recurring = [...idToGrades.entries()]
+    .filter(([, v]) => v.grades.length >= 2)
+    .sort((a, b) => b[1].grades.length - a[1].grades.length);
+
+  if (recurring.length > 0) {
+    lines.push("### 다학년 반복 테마 (≥2학년 등장)");
+    for (const [id, v] of recurring) {
+      const evoLabel = v.evolution.size > 0
+        ? ` · 변화: ${[...v.evolution].map((e) => EVOLUTION_LABEL[e as NonNullable<GradeTheme["evolutionSignal"]>]).join("/")}`
+        : "";
+      lines.push(`- \`${id}\` ${v.label} — ${v.grades.join("/")}학년 (${v.grades.length}회)${evoLabel}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("→ 위 테마 분포를 근거로 학년 간 심화 곡선(넓게 → 좁고 깊게)과 전공 정합성을 평가하세요.");
+  lines.push("→ 모든 학년 dominant가 단일 진로 키워드에 수렴하면 **진로과잉도배** 위험으로 약점/개선전략에 반드시 반영하세요.");
+
+  return lines.join("\n");
+}

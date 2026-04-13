@@ -7,6 +7,7 @@ import type { HaengteukGuideInput, HaengteukGuideResult } from "../types";
 import type { HaengteukGuideItem } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
 import { formatHaengteukItemsDetailed } from "@/lib/domains/student-record/evaluation-criteria/defaults";
+import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
 
 // ============================================
 // 시스템 프롬프트
@@ -182,6 +183,12 @@ export function buildUserPrompt(input: HaengteukGuideInput): string {
         prompt += "\n";
       }
     }
+  }
+
+  // H1 / L3-A: 학년 관통 테마 (과목 교차 dominant)
+  {
+    const themesSection = renderCrossSubjectThemesSection(input.analysisContext?.crossSubjectThemes);
+    if (themesSection) prompt += themesSection;
   }
 
   // 창체 방향 컨텍스트

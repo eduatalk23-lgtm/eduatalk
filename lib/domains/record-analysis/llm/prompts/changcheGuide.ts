@@ -7,6 +7,7 @@ import type { ChangcheGuideInput, ChangcheGuideResult } from "../types";
 import type { ChangcheGuideItem } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
 import { CHANGCHE_ACTIVITY_CONFIGS } from "@/lib/domains/student-record/evaluation-criteria/defaults";
+import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
 
 // ============================================
 // 시스템 프롬프트
@@ -205,6 +206,12 @@ export function buildUserPrompt(input: ChangcheGuideInput): string {
         prompt += "\n";
       }
     }
+  }
+
+  // H1 / L3-A: 학년 관통 테마 (과목 교차 dominant)
+  {
+    const themesSection = renderCrossSubjectThemesSection(input.analysisContext?.crossSubjectThemes);
+    if (themesSection) prompt += themesSection;
   }
 
   // 세특 방향 컨텍스트

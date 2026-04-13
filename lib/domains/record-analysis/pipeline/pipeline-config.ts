@@ -31,6 +31,7 @@ export const GRADE_PIPELINE_TASK_KEYS = [
   "competency_setek",
   "competency_changche",
   "competency_haengteuk",
+  "cross_subject_theme_extraction",
   "setek_guide",
   "slot_generation",
   "changche_guide",
@@ -95,9 +96,11 @@ function invertDependents<T extends string>(
  * - changche_guide 완료 후 haengteuk_guide 실행 가능
  */
 export const GRADE_TASK_DEPENDENTS: Partial<Record<_GradeKey, _GradeKey[]>> = {
-  competency_setek: ["slot_generation", "setek_guide", "changche_guide", "haengteuk_guide"],
-  competency_changche: ["slot_generation", "changche_guide", "haengteuk_guide"],
-  competency_haengteuk: ["slot_generation", "haengteuk_guide"],
+  competency_setek: ["slot_generation", "setek_guide", "changche_guide", "haengteuk_guide", "cross_subject_theme_extraction"],
+  competency_changche: ["slot_generation", "changche_guide", "haengteuk_guide", "cross_subject_theme_extraction"],
+  competency_haengteuk: ["slot_generation", "haengteuk_guide", "cross_subject_theme_extraction"],
+  // cross_subject_theme_extraction은 가이드의 강한 prereq가 아님 — 실패해도 가이드는 themes 없이 진행 (graceful degradation).
+  // 따라서 setek_guide/changche_guide/haengteuk_guide의 prereq에는 추가하지 않는다.
   setek_guide: ["changche_guide", "haengteuk_guide", "draft_generation"],
   changche_guide: ["haengteuk_guide", "draft_generation"],
   haengteuk_guide: ["draft_generation", "draft_analysis"],
@@ -146,6 +149,7 @@ export const GRADE_PIPELINE_TASK_LABELS: Record<_GradeKey, string> = {
   competency_setek: "세특 역량 분석",
   competency_changche: "창체 역량 분석",
   competency_haengteuk: "행특 역량 분석",
+  cross_subject_theme_extraction: "과목 교차 테마",
   setek_guide: "세특 방향",
   slot_generation: "슬롯 생성",
   changche_guide: "창체 방향",
@@ -159,6 +163,7 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   competency_setek: 280_000,   // 세특이 가장 오래 걸림 (Vercel 5분 제한 내 여유)
   competency_changche: 120_000,
   competency_haengteuk: 120_000,
+  cross_subject_theme_extraction: 120_000,
   setek_guide: 120_000,
   slot_generation: 30_000,
   changche_guide: 120_000,
