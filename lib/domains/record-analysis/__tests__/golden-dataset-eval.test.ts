@@ -311,7 +311,9 @@ describe("이슈 패턴 커버리지", () => {
     expect(samplesWithIssue("F2").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("F10(성장부재) 패턴 샘플이 2개 이상이다", () => {
+  // F10(다학년 성장부재)은 단일 세특 판정이 구조적으로 불가능(기존 f10-physics/chemistry/
+  // earth-science는 P1으로 재분류됨, 커밋 b3d796db). 단일 레코드 골든셋에서는 제외.
+  it.skip("F10(성장부재) 패턴 샘플이 2개 이상이다 — 다학년 비교 필요로 단일 세특 판정 불가 (reclassified to P1)", () => {
     expect(samplesWithIssue("F10").length).toBeGreaterThanOrEqual(2);
   });
 

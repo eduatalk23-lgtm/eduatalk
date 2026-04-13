@@ -94,19 +94,31 @@ import type { PipelineContext } from "../pipeline/pipeline-types";
 // ---- Fixtures ----
 
 function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
+  // Phase 0 증거 체인: saveResult가 .select("id").eq().eq().eq().eq() 체인을 호출하므로
+  // self-returning chain으로 mock하여 모든 chainable 메서드 호출 후 빈 data 반환.
+  const makeChain = (terminalData: unknown = { data: [], error: null }): Record<string, unknown> => {
+    const chain: Record<string, unknown> = {};
+    const self = () => chain;
+    const terminal = vi.fn().mockResolvedValue(terminalData);
+    chain.select = vi.fn().mockImplementation(self);
+    chain.eq = vi.fn().mockImplementation(self);
+    chain.in = vi.fn().mockImplementation(self);
+    chain.is = vi.fn().mockImplementation(self);
+    chain.order = vi.fn().mockImplementation(self);
+    chain.limit = vi.fn().mockImplementation(self);
+    chain.returns = vi.fn().mockImplementation(self);
+    chain.upsert = vi.fn().mockResolvedValue({ error: null });
+    chain.insert = vi.fn().mockResolvedValue({ error: null });
+    chain.delete = vi.fn().mockImplementation(self);
+    chain.maybeSingle = terminal;
+    (chain as { then: unknown }).then = (
+      resolve: (v: unknown) => void,
+      reject: (e: unknown) => void,
+    ) => (terminal() as Promise<unknown>).then(resolve, reject);
+    return chain;
+  };
   const supabaseMock = {
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: [], error: null }),
-          }),
-        }),
-      }),
-      upsert: vi.fn().mockReturnValue({
-        then: vi.fn().mockImplementation((cb: (r: { error: null }) => void) => { cb({ error: null }); }),
-      }),
-    }),
+    from: vi.fn().mockImplementation(() => makeChain()),
   };
 
   return {

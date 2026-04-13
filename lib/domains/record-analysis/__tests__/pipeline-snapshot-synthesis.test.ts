@@ -146,6 +146,7 @@ function buildDefaultSupabase() {
     chain.limit = vi.fn().mockResolvedValue({ data: [], error: null });
     chain.order = vi.fn().mockImplementation(self);
     chain.upsert = vi.fn().mockResolvedValue({ error: null });
+    chain.delete = vi.fn().mockImplementation(self);
     chain.returns = vi.fn().mockResolvedValue({ data: [], error: null });
     chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     // then 핸들러로 await 지원
@@ -727,14 +728,25 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
     const mockSupabase = {
       from: vi.fn().mockImplementation((table: string) => {
         if (table === "student_record_interview_questions") {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-              }),
+          // upsert 전 DELETE 호출 대응 (chain: delete().eq().eq())
+          const chain: Record<string, unknown> = {};
+          chain.select = vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: [], error: null }),
             }),
-            upsert: vi.fn().mockResolvedValue({ error: null }),
-          };
+          });
+          // delete().eq().eq().eq() 체인 지원
+          const deleteChain: Record<string, unknown> = {};
+          const deleteTerminal = vi.fn().mockResolvedValue({ error: null });
+          deleteChain.eq = vi.fn().mockImplementation(() => deleteChain);
+          (deleteChain as { then: unknown }).then = (
+            resolve: (v: unknown) => void,
+            reject: (e: unknown) => void,
+          ) => (deleteTerminal() as Promise<unknown>).then(resolve, reject);
+          chain.delete = vi.fn().mockReturnValue(deleteChain);
+          chain.upsert = vi.fn().mockResolvedValue({ error: null });
+          chain.insert = vi.fn().mockResolvedValue({ error: null });
+          return chain;
         }
         const chain: Record<string, unknown> = {};
         chain.select = vi.fn().mockReturnValue(chain);
@@ -771,11 +783,13 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
     expect(callArg).toMatchInlineSnapshot(`
       {
         "additionalRecords": [],
+        "appliedUniversities": undefined,
         "careerContext": undefined,
         "content": "확률과 통계를 활용하여 사회 현상을 수량화하는 탐구 프로젝트를 수행하였으며, 정규분포와 표준편차 개념을 적용하여 실생활 데이터를 분석하였습니다.",
         "diagnosticWeaknesses": undefined,
         "existingQuestions": undefined,
         "grade": 1,
+        "qualityIssues": undefined,
         "recordType": "setek",
         "subjectName": "수학I",
         "weakCompetencies": undefined,

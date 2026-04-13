@@ -352,8 +352,13 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
 
   // ── 배정 INSERT ──
   let assigned = 0;
+  let skippedOrphan = 0;
+  let skippedOrphanGuides: Array<{ id: string; title: string }> = [];
   if (ranked.length > 0) {
-    assigned = await insertAssignments(ctx, ranked);
+    const r = await insertAssignments(ctx, ranked);
+    assigned = r.count;
+    skippedOrphan = r.skippedOrphan;
+    skippedOrphanGuides = r.skippedOrphanGuides;
   }
 
   // ── D7: 결과 메시지 ──
@@ -362,7 +367,6 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     ? ` / ${clubHistory.length}건 동아리 이력 반영`
     : "";
 
-  // targetMajorClassificationField는 H3 careerFieldHint로 대체됨 — void 삭제
   const orphanHint = skippedOrphan > 0
     ? ` / ${skippedOrphan}건 미배정(과목 풀 불일치: ${skippedOrphanGuides.map((g) => g.title).slice(0, 3).join(", ")}${skippedOrphan > 3 ? " 외" : ""})`
     : "";
@@ -898,7 +902,7 @@ async function createDesignShell(
 async function insertAssignments(
   ctx: PipelineContext,
   ranked: RankedGuide[],
-): Promise<number> {
+): Promise<{ count: number; skippedOrphan: number; skippedOrphanGuides: Array<{ id: string; title: string }> }> {
   const { supabase, studentId, tenantId, studentGrade } = ctx;
 
   // 이미 배정된 가이드 제외
@@ -908,7 +912,7 @@ async function insertAssignments(
     .eq("student_id", studentId);
   const existingIds = new Set((existing ?? []).map((a) => a.guide_id));
   const newGuides = ranked.filter((g) => !existingIds.has(g.id));
-  if (newGuides.length === 0) return 0;
+  if (newGuides.length === 0) return { count: 0, skippedOrphan: 0, skippedOrphanGuides: [] };
 
   const currentSchoolYear = calculateSchoolYear();
 
@@ -1058,7 +1062,7 @@ async function insertAssignments(
       `runGuideMatching: insert할 배정 없음 (candidates=${newGuides.length}, skippedOrphan=${skippedOrphan})`,
       { studentId },
     );
-    return 0;
+    return { count: 0, skippedOrphan, skippedOrphanGuides };
   }
 
   const { error: insertErr, count } = await supabase
@@ -1067,7 +1071,7 @@ async function insertAssignments(
 
   if (insertErr) {
     logActionError(LOG_CTX, insertErr, { studentId, attempted: insertRows.length });
-    return 0;
+    return { count: 0, skippedOrphan, skippedOrphanGuides };
   }
   logActionDebug(
     LOG_CTX,
@@ -1077,7 +1081,7 @@ async function insertAssignments(
   // Phase A: 학생 궤적 자동 기록 (fire-and-forget)
   upsertTopicTrajectories(supabase, studentId, insertRows.map((r) => r.guide_id), studentGrade).catch(() => {});
 
-  return count ?? insertRows.length;
+  return { count: count ?? insertRows.length, skippedOrphan, skippedOrphanGuides };
 }
 
 /** Phase A: 배정된 가이드들의 궤적을 일괄 UPSERT */
