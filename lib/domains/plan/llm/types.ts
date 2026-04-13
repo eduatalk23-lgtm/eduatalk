@@ -262,6 +262,11 @@ export interface GeneratePlanResult {
 }
 
 /**
+ * 미리보기 플랜 생성 결과 (GeneratePlanResult 와 동일 구조)
+ */
+export type PreviewPlanResult = GeneratePlanResult;
+
+/**
  * LLM 플랜 생성 응답
  */
 export interface LLMPlanGenerationResponse {

@@ -95,9 +95,8 @@ export {
   generatePlanWithAI,
   previewPlanWithAI,
   type GeneratePlanInput,
-  type GeneratePlanResult,
-  type PreviewPlanResult,
 } from "./actions/generatePlan";
+export type { GeneratePlanResult, PreviewPlanResult } from "./types";
 
 // 스트리밍 액션
 export {

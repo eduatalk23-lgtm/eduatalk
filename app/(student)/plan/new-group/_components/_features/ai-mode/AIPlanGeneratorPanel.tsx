@@ -12,8 +12,8 @@
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import { textPrimary, textSecondary, textMuted } from "@/lib/utils/darkMode";
-import { previewPlanWithAI, type PreviewPlanResult } from "@/lib/domains/plan/llm/actions/generatePlan";
-import type { LLMPlanGenerationResponse, ModelTier } from "@/lib/domains/plan/llm/types";
+import { previewPlanWithAI } from "@/lib/domains/plan/llm/actions/generatePlan";
+import type { LLMPlanGenerationResponse, ModelTier, PreviewPlanResult } from "@/lib/domains/plan/llm/types";
 import { StreamingProgress } from "./StreamingProgress";
 import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
 import { WebSearchResultsPanel } from "@/components/plan";

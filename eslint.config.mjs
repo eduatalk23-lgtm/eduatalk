@@ -2,6 +2,60 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+// 커스텀 룰: "use server" 모듈에서 type re-export 금지.
+// Next.js는 "use server" 파일의 모든 named export를 런타임 참조로 처리한다.
+// import type 로 지워진 심볼을 export type 로 재-export 하면 런타임에
+// ReferenceError 를 일으킨다 (CLAUDE.md 및 과거 이슈 750ac11f, 58586dcb, 9558e99e).
+const noUseServerTypeReexport = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        'Disallow "export type" in files with top-level "use server" directive',
+    },
+    schema: [],
+    messages: {
+      forbidden:
+        '"use server" 모듈에서 type export 금지. Next.js가 런타임 값 참조로 처리하여 ReferenceError 발생. 타입은 별도 파일(.types.ts 등)에서 export 하고, 소비자는 원천에서 직접 import.',
+    },
+  },
+  create(context) {
+    let isUseServer = false;
+    return {
+      Program(node) {
+        const first = node.body[0];
+        if (
+          first &&
+          first.type === "ExpressionStatement" &&
+          (first.directive === "use server" ||
+            (first.expression &&
+              first.expression.type === "Literal" &&
+              first.expression.value === "use server"))
+        ) {
+          isUseServer = true;
+        }
+      },
+      ExportNamedDeclaration(node) {
+        if (!isUseServer) return;
+        // export type { Foo }  또는  export type { Foo } from "..."
+        // (로컬 선언은 제외: export type Foo = ..., export interface Foo 는 SWC가 strip)
+        if (node.exportKind === "type" && !node.declaration) {
+          context.report({ node, messageId: "forbidden" });
+          return;
+        }
+        // export { type Foo, bar } 혼합 지정자에서 type 지정자만 플래그
+        if (node.specifiers && node.specifiers.length) {
+          for (const spec of node.specifiers) {
+            if (spec.exportKind === "type") {
+              context.report({ node: spec, messageId: "forbidden" });
+            }
+          }
+        }
+      },
+    };
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -22,7 +76,16 @@ const eslintConfig = defineConfig([
     "serena/**",
   ]),
   {
+    plugins: {
+      local: {
+        rules: {
+          "no-use-server-type-reexport": noUseServerTypeReexport,
+        },
+      },
+    },
     rules: {
+      // "use server" 모듈의 type export 금지 (런타임 ReferenceError 방지)
+      "local/no-use-server-type-reexport": "error",
       // React Compiler 미사용 — 컴파일러 전용 린트 규칙 비활성화
       "react-hooks/error-boundaries": "off",
       "react-hooks/set-state-in-effect": "off",

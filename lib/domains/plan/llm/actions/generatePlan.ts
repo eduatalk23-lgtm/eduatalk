@@ -19,9 +19,7 @@ import { MetricsBuilder, logRecommendationError } from "../metrics";
 import { createMessage, estimateCost, type WebSearchResult } from "@/lib/domains/plan/llm/client";
 // ... (imports)
 
-// Re-exports for index.ts
-export type { GeneratePlanResult } from "@/lib/domains/plan/llm/types";
-export type PreviewPlanResult = GeneratePlanResult; // Alias
+// NOTE: 타입 re-export 금지 ("use server" 모듈). 소비자는 @/lib/domains/plan/llm/types 에서 직접 import.
 
 // ... (GeneratePlanInput definition)
 import {

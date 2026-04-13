@@ -12,15 +12,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // ============================================================================
-// Types - Re-export from types file for backwards compatibility
+// Types
+// NOTE: "use server" 모듈은 type re-export 금지. 소비자는 원천에서 직접 import.
+// @/lib/domains/today/types/milestone
 // ============================================================================
-
-export type {
-  MilestoneType,
-  MilestoneSetting,
-  AchievedMilestone,
-  MilestoneCheckResult,
-} from "@/lib/domains/today/types/milestone";
 
 import type {
   MilestoneType,
