@@ -429,29 +429,34 @@ export const GOLDEN_DATASET: EvalSample[] = [
 
   {
     id: "setek-m1-math",
-    description: "수학 — 자기주도성 부재 (재분류: M1 교사관찰불가는 단독 판정 어려움)",
+    description: "수학 — 학생 자술만 있고 교사 관찰 서술 전무 (M1 복원, F12 동반)",
     recordType: "setek",
     subjectName: "수학I",
     grade: 1,
     content:
       "함수의 극값과 변곡점을 직접 계산하는 연습을 많이 했다. 복잡한 합성함수의 미분도 할 수 있게 되었다. 정적분의 기하학적 의미를 이해하고 넓이 계산에 적용할 수 있다. 로피탈 정리를 적용하는 방법을 익혔다. 앞으로도 꾸준히 공부할 것이다.",
     expected: {
+      // Week 3 정밀화: 프롬프트에 M1 단독 탐지 규칙 추가 후 복원.
+      // 학생 1인칭 자술만 있고 "교사가 ~평가함" 류 서술이 0개 → M1 핵심 신호.
+      // F12(자기주도성부재)와 자주 동반되므로 둘 중 하나만 감지되어도 PASS.
       maxScore: 60,
-      mustHaveIssues: ["F12"],
+      mustHaveIssues: ["M1"],
     },
   },
 
   {
     id: "setek-m1-econ",
-    description: "경제 — P1 나열 (재분류: M1은 단독 판정 어려움)",
+    description: "경제 — 개념 학습 자술만, 교사 관찰 전무 (M1 복원, P1 동반)",
     recordType: "setek",
     subjectName: "경제",
     grade: 2,
     content:
       "시장 실패의 원인을 공부하였다. 외부효과, 공공재, 정보 비대칭, 독과점의 개념을 이해하였다. 탄소세가 부정적 외부효과를 내부화하는 원리를 학습하였다. 코즈 정리도 이해하였다. 이를 통해 정부의 시장 개입이 필요한 경우를 정리하였다.",
     expected: {
+      // Week 3 정밀화: M1 규칙 추가 후 복원. 전 문장이 "~공부하였다 / ~이해하였다 / ~학습하였다".
+      // P1_나열식과 동반되므로 둘 중 하나만 감지되어도 PASS.
       maxScore: 55,
-      mustHaveIssues: ["P1"],
+      mustHaveIssues: ["M1"],
     },
   },
 
