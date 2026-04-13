@@ -10,27 +10,21 @@ import {
   recommendSlots,
   recommendSlotsFromPreset,
   getAvailablePresets,
-  type StudentProfile,
-  type RecommendationOptions,
-  type SlotRecommendationResult,
-  type GradeLevel,
-  type PlanPurpose,
-  type StudyIntensity,
+} from "@/lib/plan/slotRecommendationService";
+import type {
+  StudentProfile,
+  RecommendationOptions,
+  SlotRecommendationResult,
+  GradeLevel,
+  PlanPurpose,
 } from "@/lib/plan/slotRecommendationService";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { getSubjectDataFromDB } from "@/lib/domains/plan/llm/actions/coldStart/subjectDataService";
 
-// Re-export types for client use
-export type {
-  StudentProfile,
-  RecommendationOptions,
-  SlotRecommendationResult,
-  GradeLevel,
-  PlanPurpose,
-  StudyIntensity,
-};
+// NOTE: "use server" 모듈은 type re-export 금지 (Next.js 런타임 ReferenceError).
+// 소비자는 @/lib/plan/slotRecommendationService 에서 타입을 직접 import 할 것.
 
 /**
  * 학생 프로필 기반 슬롯 추천

@@ -8,10 +8,12 @@ import {
   recommendSlotsAction,
   getAvailablePresetsAction,
   recommendSlotsFromPresetAction,
-  type GradeLevel,
-  type PlanPurpose,
-  type StudyIntensity,
 } from "@/lib/domains/plan/actions/slotRecommendation";
+import type {
+  GradeLevel,
+  PlanPurpose,
+  StudyIntensity,
+} from "@/lib/plan/slotRecommendationService";
 
 // ============================================================================
 // 타입 정의
