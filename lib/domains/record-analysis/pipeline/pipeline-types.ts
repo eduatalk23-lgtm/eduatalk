@@ -238,6 +238,35 @@ export interface StudentProfileCard {
   recurringQualityIssues: Array<{ code: string; count: number }>;
   /** 이전 학년 평균 품질 점수 (overall_score 평균, 소수 1자리) */
   averageQualityScore: number | null;
+  // ── H2 (L3-B) Narrative 서사 벡터 ──
+  /**
+   * 진로역량(career_*) 등급의 학년별 평균 추이.
+   * byYear 길이 < 2이면 trend는 'stable' 고정. 데이터 부족 시 undefined.
+   */
+  careerTrajectory?: {
+    byYear: Array<{ year: number; averageNumericGrade: number }>;
+    trend: "rising" | "stable" | "falling";
+    /** byYear의 마지막 - 첫 값 (numeric 1~6 스케일) */
+    growthDelta: number;
+  };
+  /**
+   * content_quality.depth 축(0~5)의 학년별 평균.
+   * byYear 길이 < 2이면 undefined 반환 (의미 있는 추이가 성립하지 않음).
+   */
+  depthProgression?: {
+    byYear: Array<{ year: number; averageDepth: number }>;
+    trend: "rising" | "stable" | "falling";
+  };
+  /**
+   * H1 cross-subject theme 중 이전 학년 dominant 테마.
+   * Grade Pipeline task_results에서 복원. 1건 이상일 때만 세팅.
+   */
+  crossGradeThemes?: Array<{
+    id: string;
+    label: string;
+    years: number[];
+    affectedSubjects: string[];
+  }>;
 }
 
 /**

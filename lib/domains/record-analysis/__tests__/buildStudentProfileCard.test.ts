@@ -227,6 +227,189 @@ describe("buildStudentProfileCard — recurring quality issues", () => {
 });
 
 // ============================================
+// 6.5. H2 서사 벡터 — careerTrajectory / depthProgression / crossGradeThemes
+// ============================================
+
+describe("buildStudentProfileCard — H2 careerTrajectory", () => {
+  it("aggregates career_* items per school_year, detects rising trend", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: {
+        data: [
+          // 2024: career_course_effort=B(3), career_exploration=B-(2) → avg=2.5
+          { school_year: 2024, competency_item: "career_course_effort", grade: "B" },
+          { school_year: 2024, competency_item: "career_exploration", grade: "B-" },
+          // 2025: career_course_achievement=A-(5), career_exploration=B+(4) → avg=4.5
+          { school_year: 2025, competency_item: "career_course_achievement", grade: "A-" },
+          { school_year: 2025, competency_item: "career_exploration", grade: "B+" },
+          // 비진로 항목 → 제외
+          { school_year: 2025, competency_item: "academic_inquiry", grade: "A+" },
+        ],
+        error: null,
+      },
+      student_record_content_quality: { data: [], error: null },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    expect(result?.careerTrajectory).toBeDefined();
+    expect(result!.careerTrajectory!.byYear).toEqual([
+      { year: 2024, averageNumericGrade: 2.5 },
+      { year: 2025, averageNumericGrade: 4.5 },
+    ]);
+    expect(result!.careerTrajectory!.trend).toBe("rising");
+    expect(result!.careerTrajectory!.growthDelta).toBe(2);
+  });
+
+  it("marks stable when delta below threshold", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: {
+        data: [
+          { school_year: 2024, competency_item: "career_course_effort", grade: "B" },
+          { school_year: 2025, competency_item: "career_course_effort", grade: "B+" }, // delta=1 → rising? no — only 1 item
+        ],
+        error: null,
+      },
+      student_record_content_quality: { data: [], error: null },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    // 3(B) → 4(B+) delta=1, threshold=0.5 → rising
+    expect(result?.careerTrajectory?.trend).toBe("rising");
+  });
+
+  it("undefined when no career_* items exist", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: {
+        data: [
+          { school_year: 2024, competency_item: "academic_attitude", grade: "A+" },
+        ],
+        error: null,
+      },
+      student_record_content_quality: { data: [], error: null },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    expect(result?.careerTrajectory).toBeUndefined();
+  });
+});
+
+describe("buildStudentProfileCard — H2 depthProgression", () => {
+  it("computes per-year average depth when >=2 years", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: { data: [], error: null },
+      student_record_content_quality: {
+        data: [
+          { school_year: 2024, overall_score: 60, issues: [], depth: 2 },
+          { school_year: 2024, overall_score: 70, issues: [], depth: 3 },  // 2024 avg=2.5
+          { school_year: 2025, overall_score: 80, issues: [], depth: 4 },
+          { school_year: 2025, overall_score: 85, issues: [], depth: 4 },  // 2025 avg=4.0
+        ],
+        error: null,
+      },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    expect(result?.depthProgression).toBeDefined();
+    expect(result!.depthProgression!.byYear).toEqual([
+      { year: 2024, averageDepth: 2.5 },
+      { year: 2025, averageDepth: 4.0 },
+    ]);
+    expect(result!.depthProgression!.trend).toBe("rising");
+  });
+
+  it("undefined when only 1 year of depth data", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: { data: [], error: null },
+      student_record_content_quality: {
+        data: [
+          { school_year: 2024, overall_score: 70, issues: [], depth: 3 },
+        ],
+        error: null,
+      },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    expect(result?.depthProgression).toBeUndefined();
+  });
+
+  it("ignores rows with null depth", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: { data: [], error: null },
+      student_record_content_quality: {
+        data: [
+          { school_year: 2024, overall_score: 70, issues: [], depth: null },
+          { school_year: 2024, overall_score: 70, issues: [], depth: 2 },
+          { school_year: 2025, overall_score: 70, issues: [], depth: 2 },
+        ],
+        error: null,
+      },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    // 2024=2.0, 2025=2.0 → stable
+    expect(result?.depthProgression?.byYear).toEqual([
+      { year: 2024, averageDepth: 2.0 },
+      { year: 2025, averageDepth: 2.0 },
+    ]);
+    expect(result?.depthProgression?.trend).toBe("stable");
+  });
+});
+
+describe("buildStudentProfileCard — H2 crossGradeThemes", () => {
+  it("restores dominant themes from grade pipeline task_results", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: {
+        data: [{ school_year: 2024, competency_item: "academic_inquiry", grade: "A+" }],
+        error: null,
+      },
+      student_record_content_quality: { data: [], error: null },
+      student_record_analysis_pipelines: {
+        data: [
+          {
+            grade: 1,
+            task_results: {
+              cross_subject_theme_extraction: {
+                dominantThemeIds: ["social-minority"],
+                themes: [
+                  { id: "social-minority", label: "사회적 약자 이해", affectedSubjects: ["수학", "사회"] },
+                  { id: "other-theme", label: "기타", affectedSubjects: ["국어"] },
+                ],
+              },
+            },
+          },
+          {
+            grade: 2,
+            task_results: {
+              cross_subject_theme_extraction: {
+                dominantThemeIds: ["social-minority"],
+                themes: [
+                  { id: "social-minority", label: "사회적 약자 이해", affectedSubjects: ["경제"] },
+                ],
+              },
+            },
+          },
+        ],
+        error: null,
+      },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    expect(result?.crossGradeThemes).toBeDefined();
+    const theme = result!.crossGradeThemes!.find((t) => t.id === "social-minority");
+    expect(theme).toBeDefined();
+    expect(theme!.years.sort()).toEqual([2024, 2025]);
+    expect(theme!.affectedSubjects.sort()).toEqual(["경제", "사회", "수학"]);
+    // non-dominant "other-theme"은 포함 안 됨
+    expect(result!.crossGradeThemes!.find((t) => t.id === "other-theme")).toBeUndefined();
+  });
+
+  it("undefined when no pipeline has theme results", async () => {
+    const supabase = makeSupabaseMock({
+      student_record_competency_scores: {
+        data: [{ school_year: 2024, competency_item: "academic_inquiry", grade: "A+" }],
+        error: null,
+      },
+      student_record_content_quality: { data: [], error: null },
+      student_record_analysis_pipelines: { data: [], error: null },
+    });
+    const result = await buildStudentProfileCard(supabase, "s", "t", 2026, 3);
+    expect(result?.crossGradeThemes).toBeUndefined();
+  });
+});
+
+// ============================================
 // 7. renderStudentProfileCard
 // ============================================
 
@@ -283,6 +466,37 @@ describe("renderStudentProfileCard", () => {
     const rendered = renderStudentProfileCard(singleYearCard);
     expect(rendered).toContain("2025학년도");
     expect(rendered).not.toContain("2025~");
+  });
+
+  it("renders careerTrajectory/depthProgression/crossGradeThemes when present", () => {
+    const narrativeCard: StudentProfileCard = {
+      ...fullCard,
+      careerTrajectory: {
+        byYear: [
+          { year: 2024, averageNumericGrade: 3.0 },
+          { year: 2025, averageNumericGrade: 4.5 },
+        ],
+        trend: "rising",
+        growthDelta: 1.5,
+      },
+      depthProgression: {
+        byYear: [
+          { year: 2024, averageDepth: 2.5 },
+          { year: 2025, averageDepth: 3.8 },
+        ],
+        trend: "rising",
+      },
+      crossGradeThemes: [
+        { id: "social-minority", label: "사회적 약자 이해", years: [2024, 2025], affectedSubjects: ["수학", "사회"] },
+      ],
+    };
+    const rendered = renderStudentProfileCard(narrativeCard);
+    expect(rendered).toContain("- 진로역량 추이:");
+    expect(rendered).toContain("[상승]");
+    expect(rendered).toContain("+1.5");
+    expect(rendered).toContain("- 탐구 깊이 추이: 2024=2.5 → 2025=3.8/5 [상승]");
+    expect(rendered).toContain("`social-minority` 사회적 약자 이해 (2024/2025학년)");
+    expect(rendered).toContain("'진로역량 추이'가 하락이면");
   });
 
   it("omits empty sections gracefully", () => {

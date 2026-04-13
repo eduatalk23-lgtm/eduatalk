@@ -443,6 +443,22 @@ const GRADE_TO_NUMERIC: Record<string, number> = {
 };
 const NUMERIC_TO_GRADE = ["C", "B-", "B", "B+", "A-", "A+"] as const;
 
+/** 진로역량 competency_item 코드 (COMPETENCY_ITEMS.area="career") */
+const CAREER_COMPETENCY_ITEMS = new Set([
+  "career_course_effort",
+  "career_course_achievement",
+  "career_exploration",
+]);
+
+/** H2 trend 판정 임계값 — numeric grade(1~6) / depth(0~5) 공용 */
+const TRAJECTORY_DELTA_THRESHOLD = 0.5;
+
+function judgeTrend(delta: number): "rising" | "stable" | "falling" {
+  if (delta >= TRAJECTORY_DELTA_THRESHOLD) return "rising";
+  if (delta <= -TRAJECTORY_DELTA_THRESHOLD) return "falling";
+  return "stable";
+}
+
 /**
  * 이전 학년(priorSchoolYears)의 `competency_scores` + `content_quality` (source=ai)를
  * 집계하여 `StudentProfileCard` 반환. 분석 대상이 1학년이면 prior 없음 → undefined.
@@ -471,7 +487,10 @@ export async function buildStudentProfileCard(
   if (priorSchoolYears.length === 0) return undefined;
 
   try {
-    const [scoresRes, qualityRes] = await Promise.all([
+    const priorGrades: number[] = [];
+    for (let g = 1; g < targetGrade; g++) priorGrades.push(g);
+
+    const [scoresRes, qualityRes, pipelinesRes] = await Promise.all([
       supabase.from("student_record_competency_scores")
         .select("school_year, competency_item, grade")
         .eq("student_id", studentId)
@@ -480,12 +499,22 @@ export async function buildStudentProfileCard(
         .in("school_year", priorSchoolYears)
         .limit(200),
       supabase.from("student_record_content_quality")
-        .select("school_year, overall_score, issues")
+        .select("school_year, overall_score, issues, depth")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId)
         .eq("source", "ai")
         .in("school_year", priorSchoolYears)
         .limit(500),
+      // H2: 이전 학년의 cross_subject_theme_extraction task_results 복원용.
+      // 실패하거나 비어도 non-fatal — crossGradeThemes만 세팅되지 않음.
+      supabase.from("student_record_analysis_pipelines")
+        .select("grade, task_results")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .eq("pipeline_type", "grade")
+        .eq("status", "completed")
+        .in("grade", priorGrades)
+        .limit(50),
     ]);
 
     const scores = (scoresRes.data ?? []) as Array<{
@@ -497,6 +526,11 @@ export async function buildStudentProfileCard(
       school_year: number;
       overall_score: number | null;
       issues: string[] | null;
+      depth: number | null;
+    }>;
+    const pipelineRows = (pipelinesRes.data ?? []) as Array<{
+      grade: number | null;
+      task_results: Record<string, unknown> | null;
     }>;
 
     if (scores.length === 0 && quality.length === 0) return undefined;
@@ -567,6 +601,109 @@ export async function buildStudentProfileCard(
       ? Math.round((qualitySum / qualityCount) * 10) / 10
       : null;
 
+    // --- H2: careerTrajectory ---
+    const careerByYear = new Map<number, { sum: number; count: number }>();
+    for (const row of scores) {
+      if (!CAREER_COMPETENCY_ITEMS.has(row.competency_item)) continue;
+      const numeric = GRADE_TO_NUMERIC[row.grade];
+      if (numeric == null) continue;
+      const entry = careerByYear.get(row.school_year) ?? { sum: 0, count: 0 };
+      entry.sum += numeric;
+      entry.count++;
+      careerByYear.set(row.school_year, entry);
+    }
+    let careerTrajectory: StudentProfileCard["careerTrajectory"];
+    if (careerByYear.size > 0) {
+      const byYear = [...careerByYear.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([year, v]) => ({
+          year,
+          averageNumericGrade: Math.round((v.sum / v.count) * 10) / 10,
+        }));
+      const growthDelta = byYear.length >= 2
+        ? Math.round((byYear.at(-1)!.averageNumericGrade - byYear[0].averageNumericGrade) * 10) / 10
+        : 0;
+      careerTrajectory = {
+        byYear,
+        trend: byYear.length >= 2 ? judgeTrend(growthDelta) : "stable",
+        growthDelta,
+      };
+    }
+
+    // --- H2: depthProgression ---
+    const depthByYear = new Map<number, { sum: number; count: number }>();
+    for (const row of quality) {
+      if (row.depth == null) continue;
+      const entry = depthByYear.get(row.school_year) ?? { sum: 0, count: 0 };
+      entry.sum += row.depth;
+      entry.count++;
+      depthByYear.set(row.school_year, entry);
+    }
+    let depthProgression: StudentProfileCard["depthProgression"];
+    if (depthByYear.size >= 2) {
+      const byYear = [...depthByYear.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([year, v]) => ({
+          year,
+          averageDepth: Math.round((v.sum / v.count) * 10) / 10,
+        }));
+      const delta = byYear.at(-1)!.averageDepth - byYear[0].averageDepth;
+      depthProgression = { byYear, trend: judgeTrend(delta) };
+    }
+
+    // --- H2: crossGradeThemes (from H1 task_results) ---
+    // priorGrades는 위에서 targetGrade보다 작은 1..n 학년.
+    // targetGrade=3일 때 1,2학년 / targetGrade=2일 때 1학년만.
+    const gradeToYear = new Map<number, number>();
+    for (let idx = 0; idx < priorGrades.length; idx++) {
+      gradeToYear.set(priorGrades[idx], priorSchoolYears[idx]);
+    }
+    const themeAccumulator = new Map<string, { label: string; years: Set<number>; subjects: Set<string> }>();
+    for (const row of pipelineRows) {
+      if (row.grade == null) continue;
+      const year = gradeToYear.get(row.grade);
+      if (year == null) continue;
+      const entry = row.task_results?.cross_subject_theme_extraction as Record<string, unknown> | undefined;
+      if (!entry) continue;
+      const dominantIds = Array.isArray(entry.dominantThemeIds)
+        ? (entry.dominantThemeIds as unknown[]).filter((x): x is string => typeof x === "string")
+        : [];
+      const themesList = Array.isArray(entry.themes)
+        ? (entry.themes as Array<Record<string, unknown>>)
+        : [];
+      for (const t of themesList) {
+        const id = typeof t.id === "string" ? t.id : "";
+        if (!id || !dominantIds.includes(id)) continue;
+        const label = typeof t.label === "string" ? t.label : id;
+        const affected = Array.isArray(t.affectedSubjects)
+          ? (t.affectedSubjects as unknown[]).filter((x): x is string => typeof x === "string")
+          : [];
+        const acc = themeAccumulator.get(id) ?? { label, years: new Set<number>(), subjects: new Set<string>() };
+        acc.years.add(year);
+        for (const s of affected) acc.subjects.add(s);
+        themeAccumulator.set(id, acc);
+      }
+    }
+    let crossGradeThemes: StudentProfileCard["crossGradeThemes"];
+    if (themeAccumulator.size > 0) {
+      crossGradeThemes = [...themeAccumulator.entries()]
+        // 등장 학년 수 내림차순 → 동률 시 subjects 수 내림차순 → id 오름차순
+        .sort((a, b) => {
+          const byYears = b[1].years.size - a[1].years.size;
+          if (byYears !== 0) return byYears;
+          const bySubjects = b[1].subjects.size - a[1].subjects.size;
+          if (bySubjects !== 0) return bySubjects;
+          return a[0].localeCompare(b[0]);
+        })
+        .slice(0, 5)
+        .map(([id, v]) => ({
+          id,
+          label: v.label,
+          years: [...v.years].sort((x, y) => x - y),
+          affectedSubjects: [...v.subjects].slice(0, 5),
+        }));
+    }
+
     return {
       priorSchoolYears,
       overallAverageGrade,
@@ -574,6 +711,9 @@ export async function buildStudentProfileCard(
       persistentWeaknesses: persistentWeaknesses.slice(0, 5),
       recurringQualityIssues,
       averageQualityScore,
+      ...(careerTrajectory ? { careerTrajectory } : {}),
+      ...(depthProgression ? { depthProgression } : {}),
+      ...(crossGradeThemes ? { crossGradeThemes } : {}),
     };
   } catch {
     return undefined;
@@ -605,7 +745,40 @@ export function renderStudentProfileCard(card: StudentProfileCard): string {
     const q = card.recurringQualityIssues.map((x) => `${x.code}(${x.count}회)`).join(", ");
     lines.push(`- 반복 품질 이슈: ${q}`);
   }
+
+  // ── H2 서사 벡터 ──
+  const TREND_LABEL: Record<"rising" | "stable" | "falling", string> = {
+    rising: "상승",
+    stable: "정체",
+    falling: "하락",
+  };
+  if (card.careerTrajectory && card.careerTrajectory.byYear.length > 0) {
+    const ct = card.careerTrajectory;
+    const numericToLabel = (n: number): string => {
+      const idx = Math.max(0, Math.min(5, Math.round(n) - 1));
+      return NUMERIC_TO_GRADE[idx];
+    };
+    const yearsText = ct.byYear
+      .map((p) => `${p.year}=${numericToLabel(p.averageNumericGrade)}`)
+      .join(" → ");
+    const deltaText = ct.growthDelta !== 0
+      ? ` (Δ ${ct.growthDelta > 0 ? "+" : ""}${ct.growthDelta.toFixed(1)})`
+      : "";
+    lines.push(`- 진로역량 추이: ${yearsText} [${TREND_LABEL[ct.trend]}]${deltaText}`);
+  }
+  if (card.depthProgression && card.depthProgression.byYear.length >= 2) {
+    const dp = card.depthProgression;
+    const yearsText = dp.byYear.map((p) => `${p.year}=${p.averageDepth.toFixed(1)}`).join(" → ");
+    lines.push(`- 탐구 깊이 추이: ${yearsText}/5 [${TREND_LABEL[dp.trend]}]`);
+  }
+  if (card.crossGradeThemes && card.crossGradeThemes.length > 0) {
+    const text = card.crossGradeThemes
+      .map((t) => `\`${t.id}\` ${t.label} (${t.years.join("/")}학년)`)
+      .join(", ");
+    lines.push(`- 지속 테마: ${text}`);
+  }
+
   lines.push("");
-  lines.push("**평가 지침**: 위 '지속 약점'으로 이미 평가된 역량이 본 텍스트에서 또 드러나면 엄격히(B- 이하로) 평가하세요. '지속 강점'은 이미 입증된 역량이므로 본 텍스트에서 동일 역량을 재평가할 때 기준을 높게 잡으세요(단순 언급만으론 A- 이상 부여 금지). '반복 품질 이슈'는 이 셀에서도 동일 문제가 보이면 issues에 반드시 포함하세요.");
+  lines.push("**평가 지침**: 위 '지속 약점'으로 이미 평가된 역량이 본 텍스트에서 또 드러나면 엄격히(B- 이하로) 평가하세요. '지속 강점'은 이미 입증된 역량이므로 본 텍스트에서 동일 역량을 재평가할 때 기준을 높게 잡으세요(단순 언급만으론 A- 이상 부여 금지). '반복 품질 이슈'는 이 셀에서도 동일 문제가 보이면 issues에 반드시 포함하세요. '진로역량 추이'가 하락이면 원인(성적·세특 약점) 진단에 반영하고, '지속 테마'가 있으면 본 텍스트가 해당 테마를 연속·심화하는지 주목하여 평가하세요.");
   return lines.join("\n");
 }
