@@ -54,7 +54,7 @@
 
 import { generateText, generateObject, streamText, APICallError } from "ai";
 import { google } from "@ai-sdk/google";
-import { openai } from "@ai-sdk/openai";
+import { openai, createOpenAI } from "@ai-sdk/openai";
 import type { Schema, LanguageModel } from "ai";
 import type { ModelTier } from "./types";
 import type {
@@ -86,7 +86,10 @@ import {
 // advanced: 세특 심층 분석 (단일 레코드, 루브릭 채점)
 // ⚠ fast/standard 현재 동일 모델 — standard 전용 모델 출시 시 분리
 
-export type LlmProvider = "gemini" | "openai";
+export type LlmProvider = "gemini" | "openai" | "ollama";
+
+/** Ollama 로컬 모델 ID — dev에서 `LLM_OLLAMA_MODEL` env로 오버라이드 가능 (기본: gemma4:latest) */
+const OLLAMA_MODEL = process.env.LLM_OLLAMA_MODEL || "gemma4:latest";
 
 const MODEL_ID_MAP: Record<LlmProvider, Record<ModelTier, string>> = {
   gemini: {
@@ -98,6 +101,13 @@ const MODEL_ID_MAP: Record<LlmProvider, Record<ModelTier, string>> = {
     fast: "gpt-4o-mini",
     standard: "gpt-4o-mini",
     advanced: "gpt-4o",
+  },
+  // Ollama: 로컬에 설치된 단일 모델을 모든 tier에 매핑 (현재 gemma4 단일 자원).
+  // 필요시 LLM_OLLAMA_MODEL로 다른 모델로 교체.
+  ollama: {
+    fast: OLLAMA_MODEL,
+    standard: OLLAMA_MODEL,
+    advanced: OLLAMA_MODEL,
   },
 };
 
@@ -115,6 +125,11 @@ const MODEL_FALLBACK_CHAIN: Record<LlmProvider, Record<ModelTier, string[]>> = {
     fast: ["gpt-4o-mini"],
     standard: ["gpt-4o-mini"],
     advanced: ["gpt-4o", "gpt-4o-mini"],
+  },
+  ollama: {
+    fast: [OLLAMA_MODEL],
+    standard: [OLLAMA_MODEL],
+    advanced: [OLLAMA_MODEL],
   },
 };
 
@@ -207,33 +222,52 @@ let _warnedOpenAiGrounding = false;
 
 function resolveEffectiveProvider(): LlmProvider {
   const raw = process.env.LLM_PROVIDER_OVERRIDE?.toLowerCase();
-  if (raw !== "openai") {
-    return "gemini";
-  }
-  if (!process.env.OPENAI_API_KEY) {
+  if (raw === "openai") {
+    if (!process.env.OPENAI_API_KEY) {
+      if (!_loggedProviderOverride) {
+        _loggedProviderOverride = true;
+        logActionWarn(
+          "ai-sdk.providerOverride",
+          `[DEV] LLM_PROVIDER_OVERRIDE=openai 설정되었으나 OPENAI_API_KEY가 없습니다. gemini로 fallback합니다.`,
+        );
+      }
+      return "gemini";
+    }
     if (!_loggedProviderOverride) {
       _loggedProviderOverride = true;
       logActionWarn(
         "ai-sdk.providerOverride",
-        `[DEV] LLM_PROVIDER_OVERRIDE=openai 설정되었으나 OPENAI_API_KEY가 없습니다. gemini로 fallback합니다.`,
+        `[DEV] LLM_PROVIDER_OVERRIDE=openai 활성 — 모든 LLM 요청이 OpenAI로 라우팅됩니다. 프로덕션 금지.`,
       );
     }
-    return "gemini";
+    return "openai";
   }
-  if (!_loggedProviderOverride) {
-    _loggedProviderOverride = true;
-    logActionWarn(
-      "ai-sdk.providerOverride",
-      `[DEV] LLM_PROVIDER_OVERRIDE=openai 활성 — 모든 LLM 요청이 OpenAI로 라우팅됩니다. 프로덕션 금지.`,
-    );
+  if (raw === "ollama" || raw === "gemma") {
+    if (!_loggedProviderOverride) {
+      _loggedProviderOverride = true;
+      logActionWarn(
+        "ai-sdk.providerOverride",
+        `[DEV] LLM_PROVIDER_OVERRIDE=${raw} 활성 — 모든 LLM 요청이 Ollama(local ${OLLAMA_MODEL})로 라우팅됩니다. 프로덕션 금지.`,
+      );
+    }
+    return "ollama";
   }
-  return "openai";
+  return "gemini";
 }
+
+/** Ollama는 OpenAI-compatible endpoint 제공 → createOpenAI로 baseURL만 교체 */
+const ollamaClient = createOpenAI({
+  baseURL: process.env.LLM_OLLAMA_BASE_URL || "http://localhost:11434/v1",
+  apiKey: "ollama", // Ollama는 인증 요구 안 하지만 SDK 검증 통과를 위해 placeholder
+});
 
 /** provider + modelId → AI SDK LanguageModel 인스턴스 */
 function getLanguageModel(provider: LlmProvider, modelId: string): LanguageModel {
   if (provider === "openai") {
     return openai(modelId);
+  }
+  if (provider === "ollama") {
+    return ollamaClient(modelId);
   }
   return google(modelId);
 }
@@ -248,13 +282,14 @@ async function executeWithProviderGuards<T>(
   provider: LlmProvider,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (provider === "openai") {
+  // gemini만 rate limiter/quota tracker를 거친다. openai/ollama는 직통.
+  if (provider !== "gemini") {
     return fn();
   }
   return geminiRateLimiter.execute(fn);
 }
 
-/** providerOptions 빌더 — Gemini는 thinking budget, OpenAI는 omit */
+/** providerOptions 빌더 — Gemini는 thinking budget, 그 외 provider는 omit */
 function buildProviderOptions(provider: LlmProvider, tier: ModelTier) {
   if (provider !== "gemini") return undefined;
   return {
@@ -266,15 +301,15 @@ function buildProviderOptions(provider: LlmProvider, tier: ModelTier) {
   };
 }
 
-/** Grounding 도구 빌더 — OpenAI는 google_search 미지원, 비활성화 + 경고 */
+/** Grounding 도구 빌더 — Gemini만 google_search 지원, 그 외 provider는 비활성화 + 경고 */
 function buildGroundingTools(provider: LlmProvider, grounding?: GroundingConfig) {
   if (!grounding?.enabled) return undefined;
-  if (provider === "openai") {
+  if (provider !== "gemini") {
     if (!_warnedOpenAiGrounding) {
       _warnedOpenAiGrounding = true;
       logActionWarn(
         "ai-sdk.grounding",
-        `[DEV] LLM_PROVIDER_OVERRIDE=openai에서는 google_search grounding을 지원하지 않습니다. grounding 비활성 상태로 호출합니다.`,
+        `[DEV] LLM_PROVIDER_OVERRIDE=${provider}에서는 google_search grounding을 지원하지 않습니다. grounding 비활성 상태로 호출합니다.`,
       );
     }
     return undefined;
