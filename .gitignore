@@ -10,7 +10,7 @@
 /.llm-cache/
 
 # eval CI artifacts
-eval-results.json
+eval-results*.json
 
 # dependencies
 /node_modules

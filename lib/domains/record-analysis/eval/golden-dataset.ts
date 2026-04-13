@@ -38,6 +38,19 @@ export interface EvalExpectation {
   mustHaveIssues?: string[];
   /** 이 코드들이 issues 배열에 하나도 없어야 함 (접두사 매칭) */
   mustNotHaveIssues?: string[];
+  /**
+   * Stage 1 (측정 루프): Step B 루브릭 등급 기대값.
+   * 역량 코드(academic_inquiry, community_collaboration 등) → 허용 등급 집합.
+   * 일치율은 "기대값에 해당하는 역량만" 집계하므로 전체 역량을 채우지 않아도 됨.
+   * 허용 등급 여러 개 가능 (예: ["A","B"]로 경계 샘플 수용).
+   */
+  expectedGrades?: Record<string, string | string[]>;
+  /**
+   * Stage 1 (측정 루프): Step C가 감지해야 하는 8단계 순환 흐름 중 최소 개수.
+   * 고품질 샘플에 ≥6 설정, 저품질 샘플에 ≤3 설정해 flow 감지 품질을 회귀 측정.
+   * 현재 Step C 출력에 flow 단계 수 필드가 없으면 smoke check로만 동작.
+   */
+  expectedFlowStagesMin?: number;
 }
 
 export interface EvalSample {

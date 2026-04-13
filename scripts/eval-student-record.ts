@@ -6,12 +6,18 @@
  * contentQuality 점수·이슈가 기댓값을 충족하는지 검증한다.
  *
  * 사용법:
- *   npx tsx scripts/eval-student-record.ts             # 전체 실행
+ *   npx tsx scripts/eval-student-record.ts             # 전체 실행 (legacy flash)
  *   npx tsx scripts/eval-student-record.ts --dry-run   # 샘플 목록만 표시
  *   npx tsx scripts/eval-student-record.ts --id=setek-high-math  # 특정 샘플
  *   npx tsx scripts/eval-student-record.ts --fast      # flash 모델 (저비용)
  *   npx tsx scripts/eval-student-record.ts --ci        # CI 모드 (JSON 요약 출력)
  *   npx tsx scripts/eval-student-record.ts --ci --threshold=80  # 통과 기준 80%
+ *
+ * Stage 1 (측정 루프) 변형:
+ *   --variant=legacy    # (기본) 인라인 flash 프롬프트. CI 비용 보존.
+ *   --variant=mono      # 프로덕션 runMonolithicAnalysis (advanced/Pro)
+ *   --variant=pipeline  # 프로덕션 runPipelineAnalysis (3-Step flash×3)
+ *   --variant=both      # mono + pipeline 순차 실행 + side-by-side diff 리포트
  *
  * 환경 변수:
  *   GOOGLE_GENERATIVE_AI_API_KEY  (필수, .env.local에서 자동 로드)
@@ -56,10 +62,29 @@ const args = process.argv.slice(2);
 const isDryRun = args.includes("--dry-run");
 const isFast = args.includes("--fast");
 const isCi = args.includes("--ci");
-const targetId = args.find((a) => a.startsWith("--id="))?.split("=")[1];
+const targetIdArg = args.find((a) => a.startsWith("--id="))?.split("=")[1];
+const targetIds = targetIdArg ? targetIdArg.split(",").map((s) => s.trim()).filter(Boolean) : null;
 const threshold = Number(
   args.find((a) => a.startsWith("--threshold="))?.split("=")[1] ?? "70",
 );
+
+/**
+ * Stage 1 (측정 루프): 실행 변형 선택
+ *   - legacy   (default): 기존 인라인 flash 프롬프트 경로. CI 비용 보존.
+ *   - mono     : 프로덕션 runMonolithicAnalysis (advanced/Pro 모델)
+ *   - pipeline : 프로덕션 runPipelineAnalysis (3-Step flash×3)
+ *   - both     : mono + pipeline 각 샘플에 병렬 실행 + side-by-side diff 리포트
+ */
+type Variant = "legacy" | "mono" | "pipeline" | "both";
+const variantArg = args.find((a) => a.startsWith("--variant="))?.split("=")[1];
+const VARIANT: Variant = ((): Variant => {
+  if (!variantArg) return "legacy";
+  if (variantArg === "mono" || variantArg === "pipeline" || variantArg === "both" || variantArg === "legacy") {
+    return variantArg;
+  }
+  console.error(`알 수 없는 --variant 값: ${variantArg}. 허용: legacy | mono | pipeline | both`);
+  process.exit(1);
+})();
 
 const MODEL = isFast ? "gemini-2.5-flash" : "gemini-2.5-flash";
 // 역량 분석은 advanced(pro)가 정확하나, 회귀 테스트는 flash로 충분
@@ -82,7 +107,12 @@ interface CheckResult {
   reasons: string[];
 }
 
-function checkExpectation(sample: EvalSample, score: number, issues: string[]): CheckResult {
+function checkExpectation(
+  sample: EvalSample,
+  score: number,
+  issues: string[],
+  competencyGrades?: { item: string; grade: string }[],
+): CheckResult & { gradeHits?: number; gradeExpected?: number } {
   const { expected } = sample;
   const reasons: string[] = [];
   let pass = true;
@@ -108,7 +138,25 @@ function checkExpectation(sample: EvalSample, score: number, issues: string[]): 
     }
   }
 
-  return { pass, reasons };
+  // Stage 1: 루브릭 등급 검증 (expectedGrades 있는 경우만)
+  let gradeHits: number | undefined;
+  let gradeExpected: number | undefined;
+  if (expected.expectedGrades && competencyGrades) {
+    gradeHits = 0;
+    gradeExpected = Object.keys(expected.expectedGrades).length;
+    for (const [item, expectedGrade] of Object.entries(expected.expectedGrades)) {
+      const actual = competencyGrades.find((g) => g.item === item)?.grade;
+      const allowed = Array.isArray(expectedGrade) ? expectedGrade : [expectedGrade];
+      if (actual && allowed.includes(actual)) {
+        gradeHits++;
+      } else {
+        pass = false;
+        reasons.push(`등급 '${item}' 기대=${allowed.join("|")} actual=${actual ?? "없음"}`);
+      }
+    }
+  }
+
+  return { pass, reasons, gradeHits, gradeExpected };
 }
 
 // ─── 단일 샘플 평가 ──────────────────────────────────────────────────────
@@ -122,6 +170,13 @@ interface EvalResult {
   elapsedMs: number;
   /** A2: 하이라이트 원문 검증 집계 (LLM 응답에 sections가 있을 때만) */
   highlightVerification?: AggregatedVerification;
+  /** Stage 1 — 루브릭 등급 적중 */
+  gradeHits?: number;
+  gradeExpected?: number;
+  /** Stage 1 — 프로덕션 경로 메트릭 (variant ≠ legacy) */
+  prodMetrics?: import("../lib/domains/record-analysis/llm/types").AnalyzeRunMetrics;
+  /** Stage 1 — 루브릭 등급 결과 (mono↔pipeline 일치율 계산용) */
+  competencyGrades?: { item: string; grade: string }[];
   error?: string;
 }
 
@@ -166,7 +221,13 @@ async function evalSample(sample: EvalSample, googleClient: ReturnType<typeof cr
       };
     }
 
-    const { pass, reasons } = checkExpectation(sample, cq.overallScore, cq.issues);
+    const grades = result.competencyGrades?.map((g) => ({ item: g.item, grade: g.grade }));
+    const { pass, reasons, gradeHits, gradeExpected } = checkExpectation(
+      sample,
+      cq.overallScore,
+      cq.issues,
+      grades,
+    );
 
     return {
       sample,
@@ -176,6 +237,9 @@ async function evalSample(sample: EvalSample, googleClient: ReturnType<typeof cr
       reasons,
       elapsedMs: Date.now() - start,
       highlightVerification,
+      gradeHits,
+      gradeExpected,
+      competencyGrades: grades,
     };
   } catch (err) {
     return {
@@ -188,6 +252,227 @@ async function evalSample(sample: EvalSample, googleClient: ReturnType<typeof cr
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+// ─── Stage 1 (측정 루프): 프로덕션 경로 러너 ────────────────────────────
+
+/**
+ * 프로덕션 경로(runMonolithicAnalysis | runPipelineAnalysis)로 단일 샘플 평가.
+ * legacy 경로(evalSample)와 동일한 EvalResult 스키마 + prodMetrics 추가.
+ */
+async function evalSampleProd(sample: EvalSample, variant: "mono" | "pipeline"): Promise<EvalResult> {
+  const start = Date.now();
+  try {
+    const mod = await import("../lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
+    const runFn = variant === "mono" ? mod.runMonolithicAnalysis : mod.runPipelineAnalysis;
+
+    const runResult = await runFn({
+      content: sample.content,
+      recordType: sample.recordType,
+      subjectName: sample.subjectName,
+      grade: sample.grade,
+    });
+
+    const result = runResult.data;
+    const cq = result.contentQuality;
+
+    const allHighlights = extractAllHighlights(result.sections);
+    const highlightVerification =
+      allHighlights.length > 0
+        ? aggregateVerification(verifyHighlights(allHighlights, sample.content))
+        : undefined;
+
+    if (!cq) {
+      return {
+        sample,
+        score: null,
+        issues: [],
+        pass: false,
+        reasons: [`contentQuality 미반환 (${variant} path=${runResult.metrics.path})`],
+        elapsedMs: Date.now() - start,
+        highlightVerification,
+        prodMetrics: runResult.metrics,
+      };
+    }
+
+    const grades = result.competencyGrades?.map((g) => ({ item: g.item, grade: g.grade }));
+    const { pass, reasons, gradeHits, gradeExpected } = checkExpectation(
+      sample,
+      cq.overallScore,
+      cq.issues,
+      grades,
+    );
+
+    return {
+      sample,
+      score: cq.overallScore,
+      issues: cq.issues,
+      pass,
+      reasons,
+      elapsedMs: Date.now() - start,
+      highlightVerification,
+      gradeHits,
+      gradeExpected,
+      competencyGrades: grades,
+      prodMetrics: runResult.metrics,
+    };
+  } catch (err) {
+    return {
+      sample,
+      score: null,
+      issues: [],
+      pass: false,
+      reasons: [],
+      elapsedMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+// ─── Stage 1 (측정 루프): mono vs pipeline 비교 ──────────────────────────
+
+interface DiffEntry {
+  id: string;
+  scoreMono: number | null;
+  scorePipeline: number | null;
+  scoreDelta: number | null;
+  issuesJaccard: number | null;
+  gradeAgreement: number | null;
+  gradeAgreementCount?: number;
+  tokenRatio: number | null;
+  latencyRatio: number | null;
+  stepAConfidence: number | null;
+  fallbackReason?: string;
+}
+
+function jaccardSimilarity(a: string[], b: string[]): number {
+  if (a.length === 0 && b.length === 0) return 1;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let intersect = 0;
+  for (const x of setA) if (setB.has(x)) intersect++;
+  const unionSize = setA.size + setB.size - intersect;
+  return unionSize === 0 ? 1 : intersect / unionSize;
+}
+
+function computeGradeAgreement(
+  mono?: { item: string; grade: string }[],
+  pipe?: { item: string; grade: string }[],
+): { rate: number | null; count: number } {
+  if (!mono || !pipe || mono.length === 0 || pipe.length === 0) {
+    return { rate: null, count: 0 };
+  }
+  const pipeMap = new Map(pipe.map((g) => [g.item, g.grade]));
+  let hits = 0;
+  let total = 0;
+  for (const g of mono) {
+    const other = pipeMap.get(g.item);
+    if (other !== undefined) {
+      total++;
+      if (other === g.grade) hits++;
+    }
+  }
+  return { rate: total === 0 ? null : hits / total, count: total };
+}
+
+function usageTotal(u?: { inputTokens: number; outputTokens: number }): number {
+  return u ? u.inputTokens + u.outputTokens : 0;
+}
+
+function buildDiffEntry(mono: EvalResult, pipe: EvalResult): DiffEntry {
+  const scoreDelta =
+    mono.score != null && pipe.score != null ? pipe.score - mono.score : null;
+  const issuesJaccard = jaccardSimilarity(mono.issues, pipe.issues);
+  const gradeAg = computeGradeAgreement(mono.competencyGrades, pipe.competencyGrades);
+
+  const monoTokens =
+    usageTotal(mono.prodMetrics?.stepUsage?.monolithic) ||
+    usageTotal(mono.prodMetrics?.stepUsage?.stepA) +
+      usageTotal(mono.prodMetrics?.stepUsage?.stepB) +
+      usageTotal(mono.prodMetrics?.stepUsage?.stepC);
+  const pipeTokens =
+    usageTotal(pipe.prodMetrics?.stepUsage?.stepA) +
+    usageTotal(pipe.prodMetrics?.stepUsage?.stepB) +
+    usageTotal(pipe.prodMetrics?.stepUsage?.stepC) +
+    usageTotal(pipe.prodMetrics?.stepUsage?.monolithic);
+  const tokenRatio = monoTokens > 0 ? pipeTokens / monoTokens : null;
+
+  const latencyRatio =
+    mono.elapsedMs > 0 ? pipe.elapsedMs / mono.elapsedMs : null;
+
+  return {
+    id: mono.sample.id,
+    scoreMono: mono.score,
+    scorePipeline: pipe.score,
+    scoreDelta,
+    issuesJaccard,
+    gradeAgreement: gradeAg.rate,
+    gradeAgreementCount: gradeAg.count,
+    tokenRatio,
+    latencyRatio,
+    stepAConfidence: pipe.prodMetrics?.stepAConfidence ?? null,
+    fallbackReason: pipe.prodMetrics?.fallbackReason,
+  };
+}
+
+function printDiffSummary(entries: DiffEntry[]): void {
+  if (entries.length === 0) return;
+  const valid = entries.filter((e) => e.scoreMono != null && e.scorePipeline != null);
+  const avg = (xs: number[]): number =>
+    xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
+
+  const scoreDeltas = valid.map((e) => e.scoreDelta!).filter((x): x is number => x != null);
+  const jaccards = valid.map((e) => e.issuesJaccard!).filter((x): x is number => x != null);
+  const gradeAgs = valid
+    .map((e) => e.gradeAgreement)
+    .filter((x): x is number => x != null);
+  const tokenRatios = valid
+    .map((e) => e.tokenRatio)
+    .filter((x): x is number => x != null);
+  const latencyRatios = valid
+    .map((e) => e.latencyRatio)
+    .filter((x): x is number => x != null);
+  const confidences = valid
+    .map((e) => e.stepAConfidence)
+    .filter((x): x is number => x != null);
+  const fallbacks = valid.filter((e) => !!e.fallbackReason).length;
+
+  console.log();
+  console.log("═".repeat(64));
+  console.log(" Stage 1: mono vs pipeline 비교 (side-by-side)");
+  console.log("═".repeat(64));
+  console.log(` 샘플 수: ${valid.length}/${entries.length}`);
+  console.log(` overallScore Δ (pipe-mono): 평균 ${avg(scoreDeltas).toFixed(2)}, ` +
+    `범위 [${Math.min(...scoreDeltas).toFixed(1)}, ${Math.max(...scoreDeltas).toFixed(1)}]`);
+  console.log(` issues Jaccard:        평균 ${avg(jaccards).toFixed(3)}`);
+  if (gradeAgs.length > 0) {
+    console.log(` 등급 일치율:            평균 ${(avg(gradeAgs) * 100).toFixed(1)}%  (${gradeAgs.length}건 측정)`);
+  }
+  if (tokenRatios.length > 0) {
+    console.log(` 토큰 비율 (pipe/mono): 평균 ${avg(tokenRatios).toFixed(2)}x`);
+  }
+  if (latencyRatios.length > 0) {
+    console.log(` 지연 비율 (pipe/mono): 평균 ${avg(latencyRatios).toFixed(2)}x`);
+  }
+  if (confidences.length > 0) {
+    console.log(` stepA confidence:      평균 ${avg(confidences).toFixed(3)}, ` +
+      `범위 [${Math.min(...confidences).toFixed(2)}, ${Math.max(...confidences).toFixed(2)}]`);
+  }
+  console.log(` monolithic fallback:   ${fallbacks}건 / ${valid.length}건`);
+
+  // 등급 불일치 상위 케이스
+  const gradeMisses = valid
+    .filter((e) => e.gradeAgreement != null && e.gradeAgreement < 1)
+    .sort((a, b) => (a.gradeAgreement ?? 1) - (b.gradeAgreement ?? 1))
+    .slice(0, 5);
+  if (gradeMisses.length > 0) {
+    console.log();
+    console.log(" 등급 불일치 상위 5건:");
+    for (const e of gradeMisses) {
+      console.log(`   ${e.id.padEnd(32)} 일치율 ${((e.gradeAgreement ?? 0) * 100).toFixed(0)}%  Δscore=${e.scoreDelta}`);
+    }
+  }
+  console.log();
 }
 
 // ─── A3: 시계열 분석 모의 데이터 + 실행 ─────────────────────────────────
@@ -383,19 +668,19 @@ function formatExpected(sample: EvalSample): string {
 async function main() {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-  const samples = targetId
-    ? GOLDEN_DATASET.filter((s) => s.id === targetId)
+  const samples = targetIds
+    ? GOLDEN_DATASET.filter((s) => targetIds.includes(s.id))
     : GOLDEN_DATASET;
 
   if (samples.length === 0) {
-    console.error(`샘플 '${targetId}'을 찾을 수 없습니다.`);
+    console.error(`샘플 '${targetIds?.join(",") ?? ""}'을 찾을 수 없습니다.`);
     console.error(`사용 가능한 ID: ${GOLDEN_DATASET.map((s) => s.id).join(", ")}`);
     process.exit(1);
   }
 
   console.log("═".repeat(64));
   console.log(" 생기부 품질 평가 회귀 테스트");
-  console.log(` 모델: ${MODEL}   샘플: ${samples.length}개${isDryRun ? "   [DRY RUN]" : ""}`);
+  console.log(` 모델: ${MODEL}   variant: ${VARIANT}   샘플: ${samples.length}개${isDryRun ? "   [DRY RUN]" : ""}`);
   console.log("═".repeat(64));
   console.log();
 
@@ -419,37 +704,76 @@ async function main() {
 
   const googleClient = createGoogleGenerativeAI({ apiKey });
   const results: EvalResult[] = [];
+  // Stage 1: --variant=both 시 두 결과를 샘플별로 보관해 side-by-side diff 계산
+  const monoResults: EvalResult[] = [];
+  const pipelineResults: EvalResult[] = [];
+
+  const runOne = async (
+    sample: EvalSample,
+    mode: Variant,
+  ): Promise<EvalResult> => {
+    if (mode === "legacy") return evalSample(sample, googleClient);
+    if (mode === "mono") return evalSampleProd(sample, "mono");
+    if (mode === "pipeline") return evalSampleProd(sample, "pipeline");
+    // "both"는 여기 들어오지 않음 (메인 루프에서 분기)
+    throw new Error(`runOne: unexpected mode ${mode}`);
+  };
+
+  const printResult = (tag: string, result: EvalResult): void => {
+    if (result.error) {
+      console.log(`${tag} \x1b[31m오류\x1b[0m — ${result.error}`);
+      return;
+    }
+    const status = result.pass ? PASS : FAIL;
+    const scoreStr = result.score != null ? `score=${result.score}` : "score=N/A";
+    const gradeStr =
+      result.gradeHits != null && result.gradeExpected != null
+        ? ` grade=${result.gradeHits}/${result.gradeExpected}`
+        : "";
+    const pathStr = result.prodMetrics ? ` path=${result.prodMetrics.path}` : "";
+    const confStr =
+      result.prodMetrics?.stepAConfidence != null
+        ? ` conf=${result.prodMetrics.stepAConfidence.toFixed(2)}`
+        : "";
+    console.log(`${tag} ${status}  ${scoreStr}${gradeStr}${pathStr}${confStr}  (${result.elapsedMs}ms)`);
+    if (!result.pass) {
+      for (const r of result.reasons) {
+        console.log(`${" ".repeat(tag.length)}          → ${r}`);
+      }
+    }
+    if (result.issues.length > 0) {
+      console.log(`${" ".repeat(tag.length)}          issues: [${result.issues.join(", ")}]`);
+    }
+    if (result.highlightVerification) {
+      const hv = result.highlightVerification;
+      const hvStatus = hv.passRate >= 80 ? "\x1b[32m" : hv.passRate >= 50 ? "\x1b[33m" : "\x1b[31m";
+      console.log(
+        `${" ".repeat(tag.length)}          highlight: ${hvStatus}통과율 ${hv.passRate}%\x1b[0m  ` +
+        `exact=${hv.exactMatchRate}%  fuzzy=${hv.fuzzyMatchRate}%  ` +
+        `sim=${hv.avgSimilarity.toFixed(2)}  coverage=${hv.avgCoverage}%  (${hv.total}건)`,
+      );
+    }
+  };
 
   for (let i = 0; i < samples.length; i++) {
     const sample = samples[i];
-    process.stdout.write(`[${i + 1}/${samples.length}] ${sample.id} ... `);
+    process.stdout.write(`[${i + 1}/${samples.length}] ${sample.id}\n`);
 
-    const result = await evalSample(sample, googleClient);
-    results.push(result);
-
-    if (result.error) {
-      console.log(`\x1b[31m오류\x1b[0m — ${result.error}`);
+    if (VARIANT === "both") {
+      const r1 = await evalSampleProd(sample, "mono");
+      // rate limit 보호: mono/pipeline 사이에도 짧은 지연
+      await new Promise((r) => setTimeout(r, 1500));
+      const r2 = await evalSampleProd(sample, "pipeline");
+      monoResults.push(r1);
+      pipelineResults.push(r2);
+      printResult("  [mono]    ", r1);
+      printResult("  [pipeline]", r2);
+      // pass 판정은 pipeline 기준(프로덕션 현재 기본)
+      results.push(r2);
     } else {
-      const status = result.pass ? PASS : FAIL;
-      const scoreStr = result.score != null ? `score=${result.score}` : "score=N/A";
-      console.log(`${status}  ${scoreStr}  (${result.elapsedMs}ms)`);
-      if (!result.pass) {
-        for (const r of result.reasons) {
-          console.log(`         → ${r}`);
-        }
-      }
-      if (result.issues.length > 0) {
-        console.log(`         issues: [${result.issues.join(", ")}]`);
-      }
-      if (result.highlightVerification) {
-        const hv = result.highlightVerification;
-        const hvStatus = hv.passRate >= 80 ? "\x1b[32m" : hv.passRate >= 50 ? "\x1b[33m" : "\x1b[31m";
-        console.log(
-          `         highlight: ${hvStatus}통과율 ${hv.passRate}%\x1b[0m  ` +
-          `exact=${hv.exactMatchRate}%  fuzzy=${hv.fuzzyMatchRate}%  ` +
-          `sim=${hv.avgSimilarity.toFixed(2)}  coverage=${hv.avgCoverage}%  (${hv.total}건)`,
-        );
-      }
+      const result = await runOne(sample, VARIANT);
+      results.push(result);
+      printResult("  ", result);
     }
 
     // Gemini rate limit 보호: 샘플 사이 1.5초 대기
@@ -513,10 +837,18 @@ async function main() {
   }
   console.log("═".repeat(64));
 
+  // ─── Stage 1 (both 모드): mono vs pipeline side-by-side diff ──────────
+  let diffEntries: DiffEntry[] = [];
+  if (VARIANT === "both" && monoResults.length > 0 && pipelineResults.length === monoResults.length) {
+    diffEntries = monoResults.map((m, i) => buildDiffEntry(m, pipelineResults[i]));
+    printDiffSummary(diffEntries);
+  }
+
   // ─── CI 모드: JSON 요약 출력 + threshold 기반 종료 ─────────────────────
   if (isCi) {
-    const ciSummary = {
+    const ciSummary: Record<string, unknown> = {
       model: MODEL,
+      variant: VARIANT,
       total,
       passed,
       failed,
@@ -536,10 +868,32 @@ async function main() {
       })),
     };
 
+    if (VARIANT === "both" && diffEntries.length > 0) {
+      const valid = diffEntries.filter((e) => e.scoreMono != null && e.scorePipeline != null);
+      const avg = (xs: number[]): number => (xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length);
+      const scoreDeltas = valid.map((e) => e.scoreDelta!).filter((x): x is number => x != null);
+      const jaccards = valid.map((e) => e.issuesJaccard!).filter((x): x is number => x != null);
+      const gradeAgs = valid.map((e) => e.gradeAgreement).filter((x): x is number => x != null);
+      const tokenRatios = valid.map((e) => e.tokenRatio).filter((x): x is number => x != null);
+      const latencyRatios = valid.map((e) => e.latencyRatio).filter((x): x is number => x != null);
+      const confidences = valid.map((e) => e.stepAConfidence).filter((x): x is number => x != null);
+      ciSummary.diff = {
+        samples: valid.length,
+        scoreDeltaAvg: Math.round(avg(scoreDeltas) * 100) / 100,
+        issuesJaccardAvg: Math.round(avg(jaccards) * 1000) / 1000,
+        gradeAgreementAvg: gradeAgs.length > 0 ? Math.round(avg(gradeAgs) * 1000) / 1000 : null,
+        tokenRatioAvg: tokenRatios.length > 0 ? Math.round(avg(tokenRatios) * 100) / 100 : null,
+        latencyRatioAvg: latencyRatios.length > 0 ? Math.round(avg(latencyRatios) * 100) / 100 : null,
+        stepAConfidenceAvg: confidences.length > 0 ? Math.round(avg(confidences) * 1000) / 1000 : null,
+        fallbackCount: valid.filter((e) => !!e.fallbackReason).length,
+      };
+      ciSummary.diffEntries = diffEntries;
+    }
+
     const fs = await import("node:fs");
     fs.writeFileSync("eval-results.json", JSON.stringify(ciSummary, null, 2));
     console.log();
-    console.log(`CI 요약 → eval-results.json (threshold=${threshold}%, actual=${rate}%)`);
+    console.log(`CI 요약 → eval-results.json (variant=${VARIANT}, threshold=${threshold}%, actual=${rate}%)`);
 
     process.exit(rate >= threshold ? 0 : 1);
   }

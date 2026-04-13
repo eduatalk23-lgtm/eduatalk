@@ -25,6 +25,8 @@ import type {
   BatchHighlightResult,
   StepATaggingResult,
   CompetencyItemCode,
+  AnalyzeRunMetrics,
+  AnalyzeRunResult,
 } from "../types";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
@@ -67,17 +69,34 @@ function stripConfidenceFromSections(stepA: StepATaggingResult): HighlightAnalys
   }));
 }
 
+function sumUsage(
+  u: { inputTokens: number; outputTokens: number } | undefined,
+  acc: { inputTokens: number; outputTokens: number },
+): void {
+  if (!u) return;
+  acc.inputTokens += u.inputTokens;
+  acc.outputTokens += u.outputTokens;
+}
+
 /**
  * 3-Step 파이프라인 실행:
  * Step A(태깅) → confidence 검사 → Step B(루브릭) + Step C(품질) 병렬
+ *
+ * Stage 1 (측정 루프): 외부 eval 스크립트 호출을 위해 export.
+ * 내부 `analyzeSetekWithHighlight`도 이 함수를 사용한다.
  */
-async function runPipelineAnalysis(
+export async function runPipelineAnalysis(
   input: HighlightAnalysisInput,
-): Promise<{ data: HighlightAnalysisResult; usage?: { inputTokens: number; outputTokens: number }; path: "pipeline" | "monolithic" }> {
+): Promise<AnalyzeRunResult> {
+  const tStart = Date.now();
+  const metrics: AnalyzeRunMetrics = { path: "pipeline", stepUsage: {}, latencyMs: {} };
+  const totals = { inputTokens: 0, outputTokens: 0 };
+
   // --- Step A: 태깅 ---
   const { STEP_A_SYSTEM_PROMPT, buildStepAUserPrompt, parseStepAResponse } = await import("../prompts/stepA-tagging");
 
   const stepAUserPrompt = buildStepAUserPrompt(input);
+  const tStepA = Date.now();
   const stepARaw = await withRetry(
     () => generateTextWithRateLimit({
       system: STEP_A_SYSTEM_PROMPT,
@@ -89,51 +108,62 @@ async function runPipelineAnalysis(
     }),
     { label: "pipeline.stepA" },
   );
+  metrics.latencyMs!.stepA = Date.now() - tStepA;
 
   if (!stepARaw.content) {
     throw new Error("Step A: AI 응답이 비어있습니다.");
   }
 
   const stepA = parseStepAResponse(stepARaw.content);
-  let totalInputTokens = stepARaw.usage?.inputTokens ?? 0;
-  let totalOutputTokens = stepARaw.usage?.outputTokens ?? 0;
+  if (stepARaw.usage) {
+    metrics.stepUsage!.stepA = { inputTokens: stepARaw.usage.inputTokens, outputTokens: stepARaw.usage.outputTokens };
+    sumUsage(stepARaw.usage, totals);
+  }
 
   // 빈 결과면 early return
   if (stepA.sections.length === 0) {
+    metrics.latencyMs!.total = Date.now() - tStart;
     return {
       data: { sections: [], competencyGrades: [], summary: "해당 텍스트에서 명확한 역량 근거를 찾지 못했습니다." },
-      usage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } : undefined,
-      path: "pipeline",
+      usage: totals.inputTokens > 0 ? totals : undefined,
+      metrics,
     };
   }
 
   // --- Cascading 판정 ---
   stepA.overallConfidence = computeOverallConfidence(stepA, input.recordType);
+  metrics.stepAConfidence = stepA.overallConfidence;
+  metrics.stepACoveredItems = stepA.coveredItems.length;
+  const allTagsForMetrics = stepA.sections.flatMap((s) => s.tags);
+  metrics.stepATagCount = allTagsForMetrics.length;
+  metrics.stepANeedsReviewRatio = allTagsForMetrics.length > 0
+    ? allTagsForMetrics.filter((t) => t.evaluation === "needs_review").length / allTagsForMetrics.length
+    : 0;
 
   if (stepA.overallConfidence < PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN) {
     logActionWarn(LOG_CTX, `[Pipeline] Cascading fallback: confidence=${stepA.overallConfidence.toFixed(2)} < ${PIPELINE_THRESHOLDS.STEP_A_CONFIDENCE_MIN}`);
-    // 모놀리식 fallback
+    metrics.path = "monolithic";
+    metrics.fallbackReason = "confidence_below_threshold";
     const monolithic = await runMonolithicAnalysis(input);
-    // Step A 토큰도 합산
-    const mUsage = monolithic.usage;
-    return {
-      data: monolithic.data,
-      usage: {
-        inputTokens: totalInputTokens + (mUsage?.inputTokens ?? 0),
-        outputTokens: totalOutputTokens + (mUsage?.outputTokens ?? 0),
-      },
-      path: "monolithic",
-    };
+    sumUsage(monolithic.usage, totals);
+    if (monolithic.metrics.stepUsage?.monolithic) {
+      metrics.stepUsage!.monolithic = monolithic.metrics.stepUsage.monolithic;
+    }
+    if (monolithic.metrics.latencyMs?.monolithic) {
+      metrics.latencyMs!.monolithic = monolithic.metrics.latencyMs.monolithic;
+    }
+    metrics.latencyMs!.total = Date.now() - tStart;
+    return { data: monolithic.data, usage: totals, metrics };
   }
 
-  logActionDebug(LOG_CTX, `[Pipeline] Step A passed: confidence=${stepA.overallConfidence.toFixed(2)}, tags=${stepA.sections.flatMap((s) => s.tags).length}, items=${stepA.coveredItems.length}`);
+  logActionDebug(LOG_CTX, `[Pipeline] Step A passed: confidence=${stepA.overallConfidence.toFixed(2)}, tags=${metrics.stepATagCount}, items=${metrics.stepACoveredItems}`);
 
   // --- Step B + Step C 병렬 ---
   const { buildStepBUserPrompt, parseStepBResponse, STEP_B_SYSTEM_PROMPT } = await import("../prompts/stepB-rubric");
   const { buildStepCUserPrompt, parseStepCResponse, STEP_C_SYSTEM_PROMPT } = await import("../prompts/stepC-quality");
 
+  const tBC = Date.now();
   const [stepBResult, stepCResult] = await Promise.allSettled([
-    // Step B: 루브릭 채점
     withRetry(
       () => generateTextWithRateLimit({
         system: STEP_B_SYSTEM_PROMPT,
@@ -145,7 +175,6 @@ async function runPipelineAnalysis(
       }),
       { label: "pipeline.stepB" },
     ),
-    // Step C: 품질 평가 (0.3 — 5축 점수에 약간의 변동 허용, A/B의 0.2보다 높음)
     withRetry(
       () => generateTextWithRateLimit({
         system: STEP_C_SYSTEM_PROMPT,
@@ -158,6 +187,10 @@ async function runPipelineAnalysis(
       { label: "pipeline.stepC" },
     ),
   ]);
+  // B/C 병렬이므로 두 경과 중 더 긴 쪽이 실제 벽시계 소요
+  const bcElapsed = Date.now() - tBC;
+  metrics.latencyMs!.stepB = bcElapsed;
+  metrics.latencyMs!.stepC = bcElapsed;
 
   // --- 결과 합성 ---
   const sections = stripConfidenceFromSections(stepA);
@@ -165,47 +198,51 @@ async function runPipelineAnalysis(
   let summary = "";
   let contentQuality: HighlightAnalysisResult["contentQuality"] = undefined;
 
-  // Step B 결과 처리
   if (stepBResult.status === "fulfilled" && stepBResult.value.content) {
     try {
       const stepB = parseStepBResponse(stepBResult.value.content);
       competencyGrades = stepB.competencyGrades;
       summary = stepB.summary;
       if (stepBResult.value.usage) {
-        totalInputTokens += stepBResult.value.usage.inputTokens;
-        totalOutputTokens += stepBResult.value.usage.outputTokens;
+        metrics.stepUsage!.stepB = {
+          inputTokens: stepBResult.value.usage.inputTokens,
+          outputTokens: stepBResult.value.usage.outputTokens,
+        };
+        sumUsage(stepBResult.value.usage, totals);
       }
     } catch (e) {
       logActionError({ ...LOG_CTX, action: "pipeline.stepB.parse" }, e);
-      // Step B 파싱 실패 → 모놀리식에서 등급만 추출
+      metrics.fallbackReason = "stepB_parse_failed";
       const fallback = await runMonolithicAnalysis(input);
       competencyGrades = fallback.data.competencyGrades;
       summary = fallback.data.summary;
-      if (fallback.usage) {
-        totalInputTokens += fallback.usage.inputTokens;
-        totalOutputTokens += fallback.usage.outputTokens;
+      sumUsage(fallback.usage, totals);
+      if (fallback.metrics.stepUsage?.monolithic) {
+        metrics.stepUsage!.monolithic = fallback.metrics.stepUsage.monolithic;
       }
     }
   } else {
     logActionError({ ...LOG_CTX, action: "pipeline.stepB" }, stepBResult.status === "rejected" ? stepBResult.reason : "empty response");
-    // Step B 실패 → 모놀리식에서 등급만 추출
+    metrics.fallbackReason = "stepB_failed";
     const fallback = await runMonolithicAnalysis(input);
     competencyGrades = fallback.data.competencyGrades;
     summary = fallback.data.summary;
-    if (fallback.usage) {
-      totalInputTokens += fallback.usage.inputTokens;
-      totalOutputTokens += fallback.usage.outputTokens;
+    sumUsage(fallback.usage, totals);
+    if (fallback.metrics.stepUsage?.monolithic) {
+      metrics.stepUsage!.monolithic = fallback.metrics.stepUsage.monolithic;
     }
   }
 
-  // Step C 결과 처리 (실패해도 contentQuality는 optional이므로 생략)
   if (stepCResult.status === "fulfilled" && stepCResult.value.content) {
     try {
       const stepC = parseStepCResponse(stepCResult.value.content);
       contentQuality = stepC.contentQuality;
       if (stepCResult.value.usage) {
-        totalInputTokens += stepCResult.value.usage.inputTokens;
-        totalOutputTokens += stepCResult.value.usage.outputTokens;
+        metrics.stepUsage!.stepC = {
+          inputTokens: stepCResult.value.usage.inputTokens,
+          outputTokens: stepCResult.value.usage.outputTokens,
+        };
+        sumUsage(stepCResult.value.usage, totals);
       }
     } catch (e) {
       logActionError({ ...LOG_CTX, action: "pipeline.stepC.parse" }, e);
@@ -214,6 +251,8 @@ async function runPipelineAnalysis(
     logActionError({ ...LOG_CTX, action: "pipeline.stepC" }, stepCResult.reason);
   }
 
+  metrics.latencyMs!.total = Date.now() - tStart;
+
   return {
     data: {
       sections,
@@ -221,18 +260,21 @@ async function runPipelineAnalysis(
       summary,
       ...(contentQuality ? { contentQuality } : {}),
     },
-    usage: totalInputTokens > 0 ? { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } : undefined,
-    path: "pipeline",
+    usage: totals.inputTokens > 0 ? totals : undefined,
+    metrics,
   };
 }
 
 /**
  * 모놀리식 분석 (기존 단일 호출 경로).
  * Cascading fallback 및 Step B/C 실패 시 사용.
+ *
+ * Stage 1 (측정 루프): 외부 eval 스크립트 호출을 위해 export.
  */
-async function runMonolithicAnalysis(
+export async function runMonolithicAnalysis(
   input: HighlightAnalysisInput,
-): Promise<{ data: HighlightAnalysisResult; usage?: { inputTokens: number; outputTokens: number } }> {
+): Promise<AnalyzeRunResult> {
+  const tStart = Date.now();
   const userPrompt = buildHighlightUserPrompt(input);
   const result = await withRetry(
     () => generateTextWithRateLimit({
@@ -245,6 +287,7 @@ async function runMonolithicAnalysis(
     }),
     { label: "analyzeSetekWithHighlight.monolithic" },
   );
+  const elapsed = Date.now() - tStart;
 
   if (!result.content) {
     throw new Error("모놀리식 분석: AI 응답이 비어있습니다.");
@@ -255,7 +298,13 @@ async function runMonolithicAnalysis(
     ? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }
     : undefined;
 
-  return { data: parsed, usage };
+  const metrics: AnalyzeRunMetrics = {
+    path: "monolithic",
+    stepUsage: usage ? { monolithic: usage } : {},
+    latencyMs: { total: elapsed, monolithic: elapsed },
+  };
+
+  return { data: parsed, usage, metrics };
 }
 
 // ============================================
@@ -304,7 +353,7 @@ export async function analyzeSetekWithHighlight(
         const pipelineResult = await runPipelineAnalysis(input);
         data = pipelineResult.data;
         usage = pipelineResult.usage;
-        logActionDebug(LOG_CTX, `[Pipeline] path=${pipelineResult.path}`);
+        logActionDebug(LOG_CTX, `[Pipeline] path=${pipelineResult.metrics.path}`);
       } catch (pipelineError) {
         // 파이프라인 전체 실패 → 모놀리식 fallback
         logActionError({ ...LOG_CTX, action: "pipeline.fullFallback" }, pipelineError);

@@ -231,6 +231,49 @@ export interface PipelineStepUsage {
 }
 
 // ============================================
+// Stage 1 (측정 루프 닫기): 오프라인 A/B 러너 메트릭
+// ============================================
+
+export type PipelineFallbackReason =
+  | "confidence_below_threshold"
+  | "stepB_parse_failed"
+  | "stepB_failed"
+  | "full_fallback";
+
+export interface AnalyzeRunMetrics {
+  path: "pipeline" | "monolithic";
+  /** Cascading 판정에 사용된 Step A 종합 신뢰도 (0~1) */
+  stepAConfidence?: number;
+  /** Step A에서 태그가 1개 이상 발견된 역량 항목 수 */
+  stepACoveredItems?: number;
+  /** Step A에서 생성된 총 태그 수 */
+  stepATagCount?: number;
+  /** Step A 태그 중 needs_review 비율 (0~1) */
+  stepANeedsReviewRatio?: number;
+  /** monolithic fallback 원인 (파이프라인 경로에서만 세팅) */
+  fallbackReason?: PipelineFallbackReason;
+  stepUsage?: {
+    stepA?: { inputTokens: number; outputTokens: number };
+    stepB?: { inputTokens: number; outputTokens: number };
+    stepC?: { inputTokens: number; outputTokens: number };
+    monolithic?: { inputTokens: number; outputTokens: number };
+  };
+  latencyMs?: {
+    total?: number;
+    stepA?: number;
+    stepB?: number;
+    stepC?: number;
+    monolithic?: number;
+  };
+}
+
+export interface AnalyzeRunResult {
+  data: HighlightAnalysisResult;
+  usage?: { inputTokens: number; outputTokens: number };
+  metrics: AnalyzeRunMetrics;
+}
+
+// ============================================
 // 배치 하이라이트 분석 타입
 // ============================================
 
