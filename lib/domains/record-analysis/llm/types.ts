@@ -198,6 +198,13 @@ export interface SectionWithUncertainty {
   needsReview: boolean;
 }
 
+/** Step A 사전 분석: 태깅 이전 착안점 (Plan-then-Execute lite) */
+export interface StepAPreAnalysis {
+  mainTheme: string;
+  careerLink: string;
+  qualityConcerns: string;
+}
+
 /** Step A 출력: 구간분류 + 태그추출 + confidence */
 export interface StepATaggingResult {
   sections: SectionWithUncertainty[];
@@ -207,12 +214,79 @@ export interface StepATaggingResult {
   overallConfidence: number;
   /** 유효하지 않아 스킵된 태그 수 (디버깅용) */
   skippedTagCount?: number;
+  /** 태깅 전 사전 착안점 (일관성 보강용, LLM이 누락 시 undefined) */
+  preAnalysis?: StepAPreAnalysis;
 }
 
 /** Step B 출력: 루브릭 기반 등급 채점 */
 export interface StepBRubricResult {
   competencyGrades: HighlightAnalysisResult["competencyGrades"];
   summary: string;
+}
+
+// ============================================
+// H1 / L3-A: Cross-subject Theme Extractor
+// 학년 내 여러 레코드를 한 프롬프트에 일괄 주입 → 과목 교차 테마 감지
+// ============================================
+
+/** 테마가 등장한 레코드 인용 */
+export interface GradeThemeRecordRef {
+  recordId: string;
+  recordType: "setek" | "changche" | "haengteuk" | "personal_setek";
+  subjectName?: string;
+  /** 원문에서 추출한 핵심 구절 (100자 이하) */
+  evidenceSnippet: string;
+}
+
+/** 학년 단위 과목 교차 테마 1건 */
+export interface GradeTheme {
+  /** 영문 lowercase slug (예: "social-minority", "data-modeling") */
+  id: string;
+  /** 사람이 읽을 수 있는 테마명 */
+  label: string;
+  /** 테마를 표현하는 핵심 키워드 */
+  keywords: string[];
+  /** 이 테마가 등장한 레코드 */
+  records: GradeThemeRecordRef[];
+  /** 해당 테마가 등장한 과목명 목록 (중복 제거) */
+  affectedSubjects: string[];
+  /** 몇 개 과목에 걸쳐 있는가 */
+  subjectCount: number;
+  /** 선행 학년 대비 변화 신호 (profileCard 있을 때만) */
+  evolutionSignal?: "deepening" | "stagnant" | "pivot" | "new";
+  /** LLM 자체 평가 확신도 0~1 */
+  confidence: number;
+}
+
+/** Cross-subject Theme Extractor 출력 */
+export interface GradeThemeExtractionResult {
+  themes: GradeTheme[];
+  themeCount: number;
+  /** subjectCount >= 2 인 테마 수 */
+  crossSubjectPatternCount: number;
+  /** 학년 전체를 관통하는 상위 3개 테마 id */
+  dominantThemeIds: string[];
+  elapsedMs: number;
+  /** 토큰 절감 위해 content 요약한 경우 true */
+  truncationWarning?: boolean;
+}
+
+/** Cross-subject Theme Extractor 입력 */
+export interface GradeThemeExtractionInput {
+  grade: number;
+  targetMajor?: string;
+  /** 이전 학년 profileCard 마크다운 (Layer 0) */
+  profileCard?: string;
+  records: Array<{
+    recordId: string;
+    recordType: "setek" | "changche" | "haengteuk" | "personal_setek";
+    subjectName?: string;
+    content: string;
+    /** 사전 분석된 역량 태그 요약 (선택) */
+    competencyTags?: string[];
+    /** 사전 감지된 품질 이슈 코드 (선택) */
+    qualityIssues?: string[];
+  }>;
 }
 
 /** Step C 출력: 5축 품질 평가 */
