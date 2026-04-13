@@ -1,3 +1,11 @@
+> ⚠️ **DEPRECATED — 2025-12-09 리팩토링 TODO**
+>
+> 당시 Phase 1~3 리팩토링의 TODO 체크리스트였으며 **이미 완료/초과 진행**되었습니다.
+> 현재 프로젝트 구조: [`ARCHITECTURE.md`](../ARCHITECTURE.md)
+> 도메인 규칙: `lib/domains/*/CLAUDE.md`
+
+---
+
 # 3. Phase별 TODO 리스트
 
 ## 작성일: 2025-12-09

@@ -1,3 +1,14 @@
+> ⚠️ **DEPRECATED — 완료된 구현 로그 (2026-03-20 완료)**
+>
+> 이 문서는 **과거 구현 계획**이며 현재 시스템 상태를 반영하지 않습니다.
+> - 현재 아키텍처: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+> - 현재 파이프라인 규칙: [`lib/domains/record-analysis/CLAUDE.md`](../lib/domains/record-analysis/CLAUDE.md)
+> - 현재 도메인 모델: [`lib/domains/student-record/CLAUDE.md`](../lib/domains/student-record/CLAUDE.md)
+>
+> 완료 로그 성격이므로 보존하되 **새 작업의 참조로 사용하지 마세요.** 분기 정리 시 `docs/archive/`로 이동 예정.
+
+---
+
 # 생기부(학교생활기록부) 모형 구현 계획
 
 > 작성일: 2026-02-23
