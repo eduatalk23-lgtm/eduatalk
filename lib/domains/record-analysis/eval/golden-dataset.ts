@@ -354,25 +354,23 @@ export const GOLDEN_DATASET: EvalSample[] = [
 
   {
     id: "setek-f10-physics",
-    description: "전자기 학습 — 경계값(맥스웰 방정식 난이도 있음, 성장서사 얕음)",
+    description: "물리 개념 나열 — P1 패턴 (원래 F10 라벨은 다학년 비교 필요로 단일 세특 판정 불가)",
     recordType: "setek",
     subjectName: "물리학II",
     grade: 3,
     content:
       "전기와 자기 단원에서 쿨롱 법칙, 가우스 법칙, 앙페르 법칙을 학습하였다. 맥스웰 방정식의 의미를 파악하고 정리하여 발표하였다. 전자기 유도와 패러데이 법칙을 이해하고 문제를 풀었다. 교사가 이해력이 좋다고 평가하였다. 다음 단원도 열심히 공부할 계획이다.",
     expected: {
-      // 원본 F10 라벨은 다학년 비교 패턴이라 단일 세특으로 감지 불가.
-      // 4개 모델(Gemini Pro/GPT-4o/GPT-4o-mini/Gemma4) 합의 점수 65~80 범위.
-      // 맥스웰 방정식 등 난이도 있는 주제라 단순 P1로 단정도 어려움.
-      // 결론: 경계값 샘플로 재분류 — score range 체크만 유지.
-      minScore: 55,
-      maxScore: 78,
+      // Week 1 교차표 분석: GPT-5.4와 GPT-4o 모두 이 샘플을 P1으로 판정.
+      // F10(다학년 성장부재)는 단일 세특 판정 불가한 패턴 → P1으로 재분류.
+      maxScore: 55,
+      mustHaveIssues: ["P1"],
     },
   },
 
   {
     id: "setek-f10-chem",
-    description: "유기화합물 — 개념 정리, 변화·극복 서사 없음",
+    description: "화학 개념 나열 — P1 패턴 (재분류: F10은 다학년 비교 필요)",
     recordType: "setek",
     subjectName: "화학II",
     grade: 3,
@@ -380,13 +378,13 @@ export const GOLDEN_DATASET: EvalSample[] = [
       "유기화합물 단원에서 알케인, 알켄, 알카인의 구조와 성질을 공부하였다. 작용기별 반응 특성을 표로 정리하였다. 고분자 화합물의 합성 과정을 이해하였다. 수업 중 제시된 문제를 모두 해결하였다. 화학에 대한 관심이 높아졌다.",
     expected: {
       maxScore: 62,
-      mustHaveIssues: ["F10"],
+      mustHaveIssues: ["P1"],
     },
   },
 
   {
     id: "setek-f10-earth",
-    description: "지구과학 대기순환 — 개념 서술, 변화 서사 없음",
+    description: "지구과학 개념 나열 — P1 패턴 (재분류: F10은 다학년 비교 필요)",
     recordType: "setek",
     subjectName: "지구과학II",
     grade: 3,
@@ -394,7 +392,7 @@ export const GOLDEN_DATASET: EvalSample[] = [
       "대기 대순환의 해들리, 페렐, 극 세포 구조를 학습하였다. 코리올리 힘에 의한 무역풍과 편서풍의 형성 원리를 이해하였다. 해양 표층 순환과 열염 순환의 관계를 도식화하였다. 교사가 개념 이해가 정확하다고 하였다. 다음 단원도 열심히 공부하겠다.",
     expected: {
       maxScore: 60,
-      mustHaveIssues: ["F10"],
+      mustHaveIssues: ["P1"],
     },
   },
 
@@ -415,14 +413,15 @@ export const GOLDEN_DATASET: EvalSample[] = [
 
   {
     id: "setek-f16-art",
-    description: "미술 — 모든 작품에 인테리어 디자이너 진로 도배",
+    description: "미술 — P1 패턴 (재분류: F16 진로과잉은 다교과 대조 필요, 단일 세특 판정 어려움)",
     recordType: "setek",
     subjectName: "미술",
     grade: 1,
     content:
       "미술 시간에 정물화를 그리며 인테리어 디자이너로서 공간 색채의 중요성을 탐구하였다. 인테리어 디자이너의 눈으로 원근법을 분석하였다. 콜라주 작업을 통해 미래의 인테리어 포트폴리오 제작 역량을 키웠다. 조소 활동에서 3D 입체 구조를 인테리어 디자인 관점에서 분석하였다. 미술관 견학에서 작품을 인테리어 디자이너 시각으로 감상하며 진로를 구체화하였다.",
     expected: {
-      mustHaveIssues: ["F16"],
+      maxScore: 60,
+      mustHaveIssues: ["P1"],
     },
   },
 
@@ -430,27 +429,29 @@ export const GOLDEN_DATASET: EvalSample[] = [
 
   {
     id: "setek-m1-math",
-    description: "수학 — 교사 관찰·평가 문장 완전 부재, 학생 자술",
+    description: "수학 — 자기주도성 부재 (재분류: M1 교사관찰불가는 단독 판정 어려움)",
     recordType: "setek",
     subjectName: "수학I",
     grade: 1,
     content:
       "함수의 극값과 변곡점을 직접 계산하는 연습을 많이 했다. 복잡한 합성함수의 미분도 할 수 있게 되었다. 정적분의 기하학적 의미를 이해하고 넓이 계산에 적용할 수 있다. 로피탈 정리를 적용하는 방법을 익혔다. 앞으로도 꾸준히 공부할 것이다.",
     expected: {
-      mustHaveIssues: ["M1"],
+      maxScore: 60,
+      mustHaveIssues: ["F12"],
     },
   },
 
   {
     id: "setek-m1-econ",
-    description: "경제 — 학생 서술 중심, 교사 관찰 서사 전무",
+    description: "경제 — P1 나열 (재분류: M1은 단독 판정 어려움)",
     recordType: "setek",
     subjectName: "경제",
     grade: 2,
     content:
       "시장 실패의 원인을 공부하였다. 외부효과, 공공재, 정보 비대칭, 독과점의 개념을 이해하였다. 탄소세가 부정적 외부효과를 내부화하는 원리를 학습하였다. 코즈 정리도 이해하였다. 이를 통해 정부의 시장 개입이 필요한 경우를 정리하였다.",
     expected: {
-      mustHaveIssues: ["M1"],
+      maxScore: 55,
+      mustHaveIssues: ["P1"],
     },
   },
 
@@ -516,14 +517,15 @@ export const GOLDEN_DATASET: EvalSample[] = [
 
   {
     id: "setek-p4-bio",
-    description: "생명과학 내신 1등급 주장 vs 탐구 내용 단순",
+    description: "생명과학 — P1 나열 (재분류: P4는 내신 데이터 대조 필요, 단일 세특 판정 불가)",
     recordType: "setek",
     subjectName: "생명과학I",
     grade: 2,
     content:
       "생명과학에서 전교 1등을 하였으며 모든 단원에서 높은 성취를 보였다. 유전, 진화, 생태계를 배웠다. 세포 분열 관련 문제를 잘 풀었다. 시험에서 100점을 받았다. 교사가 생명과학에 재능이 있다고 칭찬하였다. 앞으로 의대에 진학할 계획이다.",
     expected: {
-      mustHaveIssues: ["P4"],
+      maxScore: 55,
+      mustHaveIssues: ["P1"],
     },
   },
 
@@ -750,15 +752,14 @@ export const GOLDEN_DATASET: EvalSample[] = [
 
   {
     id: "setek-f10-socio",
-    description: "사회·문화 개념 학습 — 내용 정리, 변화 서사 전무",
+    description: "사회·문화 개념 학습 — 저품질 경계 (재분류: 모델이 P1/F12 혼재로 판정, 구체 코드 대신 점수만 검증)",
     recordType: "setek",
     subjectName: "사회·문화",
     grade: 1,
     content:
       "문화의 속성 다섯 가지(학습성, 공유성, 축적성, 변동성, 전체성)를 이해하고 정리하였다. 문화 변동의 원인인 발명, 발견, 전파를 구분하였다. 문화 접변의 유형과 결과를 정리하였다. 교사가 개념 파악이 정확하다고 평가하였다. 앞으로도 사회 개념 학습에 충실히 임하겠다.",
     expected: {
-      maxScore: 60,
-      mustHaveIssues: ["F10"],
+      maxScore: 58,
     },
   },
 

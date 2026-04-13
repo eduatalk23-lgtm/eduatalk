@@ -21,6 +21,18 @@
  *
  * 환경 변수:
  *   GOOGLE_GENERATIVE_AI_API_KEY  (필수, .env.local에서 자동 로드)
+ *
+ * 모델 업그레이드 테스트 (eval 전용):
+ *   LLM_MODEL_OVERRIDE=gemini-3.1-pro-preview  → Gemini 3.1 Pro (advanced tier에만 적용)
+ *   LLM_MODEL_OVERRIDE=gpt-5.4                 → GPT-5.4
+ *   LLM_GEMINI_THINKING_BUDGET=2048            → Gemini thinking MEDIUM 수준
+ *   LLM_OPENAI_REASONING_EFFORT=low            → GPT-5.4 reasoning=low
+ *
+ * 예시:
+ *   LLM_PROVIDER_OVERRIDE=openai LLM_MODEL_OVERRIDE=gpt-5.4 LLM_OPENAI_REASONING_EFFORT=low \
+ *     npx tsx scripts/eval-student-record.ts --variant=mono --id=setek-high-math,...
+ *   LLM_MODEL_OVERRIDE=gemini-3.1-pro-preview LLM_GEMINI_THINKING_BUDGET=2048 \
+ *     npx tsx scripts/eval-student-record.ts --variant=mono --id=setek-high-math,...
  */
 
 import { config } from "dotenv";
@@ -75,16 +87,27 @@ const threshold = Number(
  *   - pipeline : 프로덕션 runPipelineAnalysis (3-Step flash×3)
  *   - both     : mono + pipeline 각 샘플에 병렬 실행 + side-by-side diff 리포트
  */
-type Variant = "legacy" | "mono" | "pipeline" | "both";
+type Variant = "legacy" | "mono" | "pipeline" | "both" | "claude-cli";
 const variantArg = args.find((a) => a.startsWith("--variant="))?.split("=")[1];
 const VARIANT: Variant = ((): Variant => {
   if (!variantArg) return "legacy";
-  if (variantArg === "mono" || variantArg === "pipeline" || variantArg === "both" || variantArg === "legacy") {
+  if (
+    variantArg === "mono" ||
+    variantArg === "pipeline" ||
+    variantArg === "both" ||
+    variantArg === "legacy" ||
+    variantArg === "claude-cli"
+  ) {
     return variantArg;
   }
-  console.error(`알 수 없는 --variant 값: ${variantArg}. 허용: legacy | mono | pipeline | both`);
+  console.error(
+    `알 수 없는 --variant 값: ${variantArg}. 허용: legacy | mono | pipeline | both | claude-cli`,
+  );
   process.exit(1);
 })();
+/** Claude Code CLI 모델 선택 (기본: sonnet). --claude-model=opus 등 */
+const CLAUDE_MODEL =
+  args.find((a) => a.startsWith("--claude-model="))?.split("=")[1] ?? "sonnet";
 
 const MODEL = isFast ? "gemini-2.5-flash" : "gemini-2.5-flash";
 // 역량 분석은 advanced(pro)가 정확하나, 회귀 테스트는 flash로 충분
@@ -315,6 +338,110 @@ async function evalSampleProd(sample: EvalSample, variant: "mono" | "pipeline"):
       gradeExpected,
       competencyGrades: grades,
       prodMetrics: runResult.metrics,
+    };
+  } catch (err) {
+    return {
+      sample,
+      score: null,
+      issues: [],
+      pass: false,
+      reasons: [],
+      elapsedMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+// ─── Claude Code CLI 러너 (크레딧 없이 구독 기반 시뮬레이션) ───────────
+//
+// 제약: --bare가 OAuth/keychain 접근을 차단해서 구독 인증 안 됨.
+//        따라서 --tools "" --system-prompt <ours> --model sonnet 조합으로
+//        CC 기본 프롬프트만 교체 + 도구 제거. 훅/스킬은 일부 남을 수 있음.
+//        Temperature 명시 설정 불가 (CC 기본값).
+
+async function evalSampleClaudeCli(sample: EvalSample): Promise<EvalResult> {
+  const start = Date.now();
+  try {
+    const { HIGHLIGHT_SYSTEM_PROMPT, buildHighlightUserPrompt, parseHighlightResponse } =
+      await import("../lib/domains/record-analysis/llm/prompts/competencyHighlight");
+    const userPrompt = buildHighlightUserPrompt({
+      content: sample.content,
+      recordType: sample.recordType,
+      subjectName: sample.subjectName,
+      grade: sample.grade,
+    });
+
+    const { spawn } = await import("node:child_process");
+    const text = await new Promise<string>((resolve, reject) => {
+      const proc = spawn(
+        "claude",
+        [
+          "-p",
+          userPrompt,
+          "--system-prompt",
+          HIGHLIGHT_SYSTEM_PROMPT,
+          "--tools",
+          "",
+          "--model",
+          CLAUDE_MODEL,
+          "--output-format",
+          "text",
+        ],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+      proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+      proc.on("error", reject);
+      proc.on("close", (code) => {
+        if (code === 0) resolve(stdout);
+        else reject(new Error(`claude CLI exit=${code} stdout=${stdout.slice(0, 300)} stderr=${stderr.slice(0, 300)}`));
+      });
+      // 5분 타임아웃 (Claude Code + 긴 프롬프트)
+      setTimeout(() => { proc.kill("SIGTERM"); reject(new Error("claude CLI timeout 300s")); }, 300_000);
+    });
+
+    const result = parseHighlightResponse(text);
+    const cq = result.contentQuality;
+
+    const allHighlights = extractAllHighlights(result.sections);
+    const highlightVerification =
+      allHighlights.length > 0
+        ? aggregateVerification(verifyHighlights(allHighlights, sample.content))
+        : undefined;
+
+    if (!cq) {
+      return {
+        sample,
+        score: null,
+        issues: [],
+        pass: false,
+        reasons: [`contentQuality 미반환 (claude-cli model=${CLAUDE_MODEL})`],
+        elapsedMs: Date.now() - start,
+        highlightVerification,
+      };
+    }
+
+    const grades = result.competencyGrades?.map((g) => ({ item: g.item, grade: g.grade }));
+    const { pass, reasons, gradeHits, gradeExpected } = checkExpectation(
+      sample,
+      cq.overallScore,
+      cq.issues,
+      grades,
+    );
+
+    return {
+      sample,
+      score: cq.overallScore,
+      issues: cq.issues,
+      pass,
+      reasons,
+      elapsedMs: Date.now() - start,
+      highlightVerification,
+      gradeHits,
+      gradeExpected,
+      competencyGrades: grades,
     };
   } catch (err) {
     return {
@@ -678,9 +805,18 @@ async function main() {
     process.exit(1);
   }
 
+  const modelOverride = process.env.LLM_MODEL_OVERRIDE;
+  const providerOverride = process.env.LLM_PROVIDER_OVERRIDE;
+  const thinkingBudget = process.env.LLM_GEMINI_THINKING_BUDGET;
+  const reasoningEffort = process.env.LLM_OPENAI_REASONING_EFFORT;
+
   console.log("═".repeat(64));
   console.log(" 생기부 품질 평가 회귀 테스트");
   console.log(` 모델: ${MODEL}   variant: ${VARIANT}   샘플: ${samples.length}개${isDryRun ? "   [DRY RUN]" : ""}`);
+  if (providerOverride) console.log(` provider: ${providerOverride}`);
+  if (modelOverride) console.log(` model override: ${modelOverride}`);
+  if (thinkingBudget) console.log(` gemini thinking budget: ${thinkingBudget}`);
+  if (reasoningEffort) console.log(` openai reasoning effort: ${reasoningEffort}`);
   console.log("═".repeat(64));
   console.log();
 
@@ -696,13 +832,16 @@ async function main() {
     return;
   }
 
-  if (!apiKey) {
+  // claude-cli variant는 Claude Code subprocess만 사용하므로 Google API key 불필요
+  if (!apiKey && VARIANT !== "claude-cli") {
     console.error("❌ GOOGLE_GENERATIVE_AI_API_KEY 환경 변수가 없습니다.");
     console.error("   .env.local에 GOOGLE_GENERATIVE_AI_API_KEY=<키> 를 추가하세요.");
     process.exit(1);
   }
 
-  const googleClient = createGoogleGenerativeAI({ apiKey });
+  const googleClient = apiKey
+    ? createGoogleGenerativeAI({ apiKey })
+    : (createGoogleGenerativeAI({ apiKey: "dummy-for-claude-cli-variant" }));
   const results: EvalResult[] = [];
   // Stage 1: --variant=both 시 두 결과를 샘플별로 보관해 side-by-side diff 계산
   const monoResults: EvalResult[] = [];
@@ -715,6 +854,7 @@ async function main() {
     if (mode === "legacy") return evalSample(sample, googleClient);
     if (mode === "mono") return evalSampleProd(sample, "mono");
     if (mode === "pipeline") return evalSampleProd(sample, "pipeline");
+    if (mode === "claude-cli") return evalSampleClaudeCli(sample);
     // "both"는 여기 들어오지 않음 (메인 루프에서 분기)
     throw new Error(`runOne: unexpected mode ${mode}`);
   };

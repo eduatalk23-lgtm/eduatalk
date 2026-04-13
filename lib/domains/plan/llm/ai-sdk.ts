@@ -255,6 +255,33 @@ function resolveEffectiveProvider(): LlmProvider {
   return "gemini";
 }
 
+// ============================================
+// LLM Model Override — eval 전용 (env: LLM_MODEL_OVERRIDE)
+// ============================================
+//
+// advanced tier 모델 ID를 환경변수로 직접 지정. MODEL_ID_MAP 변경 없이
+// 특정 모델(gemini-3.1-pro-preview, gpt-5.4 등)을 eval 스크립트에서 테스트할 때 사용.
+//
+//   LLM_MODEL_OVERRIDE=gemini-3.1-pro-preview  → Gemini 3.1 Pro
+//   LLM_MODEL_OVERRIDE=gpt-5.4                 → GPT-5.4
+//
+// advanced tier에만 적용. fast/standard는 기존 매핑 유지.
+// ⚠ 프로덕션 금지 — 로컬 eval 전용.
+
+/** advanced tier 호출 시 사용할 모델 ID override (eval 전용) */
+const LLM_MODEL_OVERRIDE = process.env.LLM_MODEL_OVERRIDE;
+
+/**
+ * fallback chain 해소.
+ * advanced + LLM_MODEL_OVERRIDE 설정 시 단일 원소 체인 반환 (override 모델만).
+ */
+function resolveFallbackChain(provider: LlmProvider, tier: ModelTier): string[] {
+  if (tier === "advanced" && LLM_MODEL_OVERRIDE) {
+    return [LLM_MODEL_OVERRIDE];
+  }
+  return MODEL_FALLBACK_CHAIN[provider][tier];
+}
+
 /** Ollama는 OpenAI-compatible endpoint 제공 → createOpenAI로 baseURL만 교체 */
 const ollamaClient = createOpenAI({
   baseURL: process.env.LLM_OLLAMA_BASE_URL || "http://localhost:11434/v1",
@@ -289,16 +316,40 @@ async function executeWithProviderGuards<T>(
   return geminiRateLimiter.execute(fn);
 }
 
-/** providerOptions 빌더 — Gemini는 thinking budget, 그 외 provider는 omit */
+/**
+ * providerOptions 빌더
+ *
+ * Gemini: thinking budget
+ *   - LLM_GEMINI_THINKING_BUDGET env로 override 가능 (eval 전용)
+ *   - 기본: advanced=1024, 그 외=0
+ *   - 예: LLM_GEMINI_THINKING_BUDGET=2048 (MEDIUM 수준)
+ *
+ * OpenAI: reasoning effort (GPT-5.4 등 reasoning 모델용)
+ *   - LLM_OPENAI_REASONING_EFFORT env로 설정 (none/low/medium/high/xhigh)
+ *   - 미설정 시 providerOptions 없음 (기존 GPT-4o 동작 유지)
+ */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function buildProviderOptions(provider: LlmProvider, tier: ModelTier) {
-  if (provider !== "gemini") return undefined;
-  return {
-    google: {
-      thinkingConfig: {
-        thinkingBudget: tier === "advanced" ? 1024 : 0,
+  if (provider === "gemini") {
+    const budgetEnv = process.env.LLM_GEMINI_THINKING_BUDGET;
+    const thinkingBudget = budgetEnv
+      ? parseInt(budgetEnv, 10)
+      : tier === "advanced"
+        ? 1024
+        : 0;
+    return {
+      google: {
+        thinkingConfig: { thinkingBudget },
       },
-    },
-  };
+    };
+  }
+  if (provider === "openai") {
+    const effort = process.env.LLM_OPENAI_REASONING_EFFORT;
+    if (effort) {
+      return { openai: { reasoningEffort: effort } };
+    }
+  }
+  return undefined;
 }
 
 /** Grounding 도구 빌더 — Gemini만 google_search 지원, 그 외 provider는 비활성화 + 경고 */
@@ -611,7 +662,7 @@ export async function generateTextWithRateLimit(
   }
   // ──────────────────────────────────────────────────────
 
-  const fallbackChain = MODEL_FALLBACK_CHAIN[provider][tier];
+  const fallbackChain = resolveFallbackChain(provider, tier);
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 1; // 서버리스 환경: 재시도 1회로 제한
@@ -663,7 +714,8 @@ export async function generateTextWithRateLimit(
             ...(useJsonOutput && {
               output: jsonModeOutput as never,
             }),
-            ...(providerOptions && { providerOptions }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(providerOptions && { providerOptions: providerOptions as any }),
           });
         });
 
@@ -815,7 +867,7 @@ export async function generateObjectWithRateLimit<T>(
   }
   // ──────────────────────────────────────────────────────
 
-  const fallbackChain = MODEL_FALLBACK_CHAIN[provider][tier];
+  const fallbackChain = resolveFallbackChain(provider, tier);
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 1;
@@ -865,7 +917,8 @@ export async function generateObjectWithRateLimit<T>(
             temperature,
             maxRetries: 1,
             ...(abortSignal ? { abortSignal } : {}),
-            ...(providerOptions && { providerOptions }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(providerOptions && { providerOptions: providerOptions as any }),
           });
         });
 
@@ -964,7 +1017,7 @@ export async function streamTextWithRateLimit(
 ): Promise<AiSdkResult> {
   const provider = resolveEffectiveProvider();
   const tier = resolveEffectiveTier(options.modelTier ?? "standard");
-  const fallbackChain = MODEL_FALLBACK_CHAIN[provider][tier];
+  const fallbackChain = resolveFallbackChain(provider, tier);
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
