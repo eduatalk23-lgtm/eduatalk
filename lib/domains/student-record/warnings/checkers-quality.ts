@@ -139,9 +139,17 @@ export function matchPattern(issue: string): typeof PATTERN_MAP[string] | undefi
 /**
  * ContentQualityRow.issues 배열에 포함된 패턴 코드(P1~F16)를 기반으로
  * 합격률 낮은 세특 패턴 경고를 발행한다.
+ *
+ * @param options.skipNarrativeSignals — true면 F10(성장부재)/M1(교사관찰불가)는 스킵.
+ *   Layer 3 narrative_arc가 제공된 경우 `checkNarrativeArc()`가 더 정확한 판정을 하므로 중복 방지.
  */
-export function checkContentQualityPatterns(qualityScores: ContentQualityRow[]): RecordWarning[] {
+export function checkContentQualityPatterns(
+  qualityScores: ContentQualityRow[],
+  options: { skipNarrativeSignals?: boolean } = {},
+): RecordWarning[] {
   const warnings: RecordWarning[] = [];
+  const { skipNarrativeSignals = false } = options;
+  const NARRATIVE_RULES = new Set(["setek_no_growth_curve", "setek_teacher_unobservable"]);
 
   const seenRules = new Set<string>();
   const scientificIssues: string[] = [];
@@ -151,6 +159,7 @@ export function checkContentQualityPatterns(qualityScores: ContentQualityRow[]):
       // 패턴 코드 매칭 (prefix 기반 유연 매칭)
       const mapping = matchPattern(issue);
       if (mapping && !seenRules.has(mapping.ruleId)) {
+        if (skipNarrativeSignals && NARRATIVE_RULES.has(mapping.ruleId)) continue;
         seenRules.add(mapping.ruleId);
         warnings.push({
           ruleId: mapping.ruleId,

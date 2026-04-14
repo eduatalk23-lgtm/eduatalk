@@ -111,7 +111,7 @@ export async function computeWarningsFromData(
   const { getRecordTabData, getStorylineTabData } = await import("../service");
   const { getStrategyTabData } = await import("../service-strategy");
 
-  const [recordResults, storylineResult, strategyResult, diagnosisResult, scoresResult] = await Promise.all([
+  const [recordResults, storylineResult, strategyResult, diagnosisResult, scoresResult, narrativeArcsResult] = await Promise.all([
     Promise.all(yearPairs.map((p) => getRecordTabData(studentId, p.schoolYear, tenantId))),
     getStorylineTabData(studentId, initialSchoolYear, tenantId),
     getStrategyTabData(studentId, initialSchoolYear, tenantId),
@@ -128,6 +128,17 @@ export async function computeWarningsFromData(
         .eq("student_id", studentId)
         .returns<Array<{ grade: number; semester: number; rank_grade: number | null; subject: { name: string } | null }>>();
       return data ?? [];
+    })(),
+    // Phase 2 Step 5: Layer 3 narrative_arc (F10/M1 재계산용)
+    (async () => {
+      const supabase = await createSupabaseServerClient();
+      const { data } = await supabase
+        .from("student_record_narrative_arc")
+        .select("record_type, record_id, grade, growth_narrative_present, teacher_observation_present, stages_present_count")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .eq("source", "ai");
+      return (data ?? []) as import("../warnings/engine").NarrativeArcRow[];
     })(),
   ]);
 
@@ -162,6 +173,7 @@ export async function computeWarningsFromData(
     targetMajorField: diagnosisResult?.targetMajor ?? null,
     curriculumYear,
     roadmapItems: storylineResult?.roadmapItems,
+    narrativeArcs: narrativeArcsResult,
   };
 
   return computeWarnings(warningInput);

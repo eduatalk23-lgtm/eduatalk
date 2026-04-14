@@ -408,13 +408,19 @@ export async function fetchActiveWarnings(
     }
 
     // 진단/전략 데이터 (경고 계산에 필요한 핵심 데이터)
-    const [diagnosisData, strategyData, storylineData, contentQualityRes] = await Promise.allSettled([
+    const [diagnosisData, strategyData, storylineData, contentQualityRes, narrativeArcRes] = await Promise.allSettled([
       fetchDiagnosisTabData(studentId, currentSchoolYear, tenantId!),
       service.getStrategyTabData(studentId, currentSchoolYear, tenantId!),
       service.getStorylineTabData(studentId, currentSchoolYear, tenantId!),
       supabase
         .from("student_record_content_quality")
         .select("record_type, record_id, overall_score, issues, feedback")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId!)
+        .eq("source", "ai"),
+      supabase
+        .from("student_record_narrative_arc")
+        .select("record_type, record_id, grade, growth_narrative_present, teacher_observation_present, stages_present_count")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId!)
         .eq("source", "ai"),
@@ -425,6 +431,11 @@ export async function fetchActiveWarnings(
         ? (contentQualityRes.value.data ?? [])
         : [];
 
+    const narrativeArcs =
+      narrativeArcRes.status === "fulfilled"
+        ? (narrativeArcRes.value.data ?? [])
+        : [];
+
     return computeWarnings({
       recordsByGrade,
       storylineData: storylineData.status === "fulfilled" ? storylineData.value : null,
@@ -432,6 +443,7 @@ export async function fetchActiveWarnings(
       strategyData: strategyData.status === "fulfilled" ? strategyData.value : null,
       currentGrade: studentGrade,
       qualityScores: contentQuality as ContentQualityRow[],
+      narrativeArcs: narrativeArcs as import("../warnings/engine").NarrativeArcRow[],
     });
   } catch {
     // graceful degradation — 경고 조회 실패 시 빈 배열 반환

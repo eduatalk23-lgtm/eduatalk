@@ -23,12 +23,14 @@
 //       issues 배열에 세부 코드(F1~F6)가 보존되어 message로 노출됨.
 //
 // [거시적 패턴 — macro]
-// F10 성장부재            → checkContentQualityPatterns (PATTERN_MAP["F10_성장부재"])      → ruleId: "setek_no_growth_curve"
+// F10 성장부재            → Phase 2 Step 5 이후 checkNarrativeArc (growth_narrative_present=false) 우선 → ruleId: "setek_no_growth_curve"
+//                          narrativeArcs 미제공 시 checkContentQualityPatterns (PATTERN_MAP["F10_성장부재"]) fallback
 // F12 자기주도성부재       → checkContentQualityPatterns (PATTERN_MAP["F12_자기주도성부재"]) → ruleId: "setek_abstract_generic"
 // F16 진로과잉도배         → checkContentQualityPatterns (PATTERN_MAP["F16_진로과잉도배"])   → ruleId: "setek_career_overdose"
 //
 // [메타 패턴 — meta]
-// M1  교사관찰불가         → checkContentQualityPatterns (PATTERN_MAP["M1_교사관찰불가"])    → ruleId: "setek_teacher_unobservable"
+// M1  교사관찰불가         → Phase 2 Step 5 이후 checkNarrativeArc (teacher_observation_present=false) 우선 → ruleId: "setek_teacher_unobservable"
+//                          narrativeArcs 미제공 시 checkContentQualityPatterns (PATTERN_MAP["M1_교사관찰불가"]) fallback
 //
 // ============================================
 
@@ -63,6 +65,11 @@ import {
   checkContentQuality,
   checkContentQualityPatterns,
 } from "./checkers-quality";
+import {
+  checkNarrativeArc,
+  hasNarrativeArcSignal,
+  type NarrativeArcRow,
+} from "./checkers-narrative";
 
 /** 학기별 성적 (경보 엔진용 경량 타입) */
 export interface GradeEntry {
@@ -104,7 +111,15 @@ export interface WarningCheckInput {
   qualityScores?: ContentQualityRow[];
   /** 로드맵 항목 (미완료 이전 학년 경고용, optional) */
   roadmapItems?: RoadmapItem[];
+  /**
+   * Phase 2 Step 5 (2026-04-14): Layer 3 narrative_arc 행.
+   * 제공 시 F10(성장부재)/M1(교사관찰불가)은 narrative_arc 기반으로 재계산되며,
+   * 기존 issues[] 기반 동일 ruleId는 스킵 (중복 방지). 미제공 시 기존 휴리스틱 유지.
+   */
+  narrativeArcs?: NarrativeArcRow[];
 }
+
+export type { NarrativeArcRow } from "./checkers-narrative";
 
 /** 레코드의 유효 콘텐츠 (4-layer: imported > confirmed > content > ai_draft) */
 export function getEffective(rec: { imported_content?: string | null; confirmed_content?: string | null; content?: string | null; ai_draft_content?: string | null }): string {
@@ -144,7 +159,16 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
   // ─── 품질 관련 ───
   if (input.qualityScores && input.qualityScores.length > 0) {
     pushAll(checkContentQuality(input.qualityScores));
-    pushAll(checkContentQualityPatterns(input.qualityScores));
+    pushAll(
+      checkContentQualityPatterns(input.qualityScores, {
+        skipNarrativeSignals: hasNarrativeArcSignal(input.narrativeArcs),
+      }),
+    );
+  }
+
+  // ─── 서사 관련 (Layer 3 narrative_arc 기반 F10/M1) ───
+  if (input.narrativeArcs && input.narrativeArcs.length > 0) {
+    pushAll(checkNarrativeArc(input.narrativeArcs));
   }
 
   // ─── 로드맵 관련 ───
