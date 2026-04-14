@@ -48,6 +48,26 @@ export interface ExplorationDesignContext {
 
   /** 부족 수량 (3 - 현재 매칭 수) */
   neededCount: number;
+
+  /**
+   * P2: Layer 2 hyperedge 테마 (최대 5개) — 세특+독서+동아리 등 이미 수렴 중인
+   * N-ary 탐구축. 설계는 이 축을 **확장**하거나 **새 축을 추가**하는 방향.
+   */
+  hyperedgeThemes?: string[];
+
+  /**
+   * P2: Layer 3 narrative_arc 단계 분포 (8단계 + 총 N).
+   * 약한 단계를 채우는 탐구를 우선 설계하도록 AI에 힌트.
+   */
+  narrativeStageDistribution?: {
+    total: number;
+    stages: { stage: string; count: number }[];
+  };
+
+  /**
+   * P2: Layer 0 profile_card 요약 — 지속 강·약점, 관심사 일관성.
+   */
+  profileCardSummary?: string;
 }
 
 export function buildExplorationDesignSystemPrompt(): string {
@@ -125,6 +145,48 @@ export function buildExplorationDesignUserPrompt(
       lines.push(`- [${label}] ${dg.direction}`);
       if (dg.keywords.length > 0) lines.push(`  키워드: ${dg.keywords.join(", ")}`);
       if (dg.competencyFocus.length > 0) lines.push(`  역량 초점: ${dg.competencyFocus.join(", ")}`);
+    }
+  }
+
+  // P2: 학생 서사 맥락 (Layer 0/2/3)
+  const hasNarrativeContext =
+    !!ctx.profileCardSummary ||
+    (ctx.hyperedgeThemes?.length ?? 0) > 0 ||
+    !!ctx.narrativeStageDistribution;
+
+  if (hasNarrativeContext) {
+    lines.push("");
+    lines.push("## 학생 서사 맥락");
+
+    if (ctx.profileCardSummary) {
+      lines.push(`### 누적 프로필 (Layer 0)`);
+      lines.push(`- ${ctx.profileCardSummary}`);
+    }
+
+    if (ctx.hyperedgeThemes?.length) {
+      lines.push(`### 수렴 탐구축 (Layer 2)`);
+      lines.push(
+        `- ${ctx.hyperedgeThemes.slice(0, 5).map((t) => `"${t}"`).join(", ")}`,
+      );
+      lines.push(
+        `- 설계는 이 축을 **심화 확장**하거나 **명시적으로 새 축을 추가**하는 방향이어야 합니다`,
+      );
+    }
+
+    if (ctx.narrativeStageDistribution && ctx.narrativeStageDistribution.total > 0) {
+      const { total, stages } = ctx.narrativeStageDistribution;
+      const threshold = Math.max(1, Math.round(total * 0.5));
+      const weak = stages.filter((s) => s.count < threshold).map((s) => s.stage);
+      const strong = stages
+        .filter((s) => s.count >= Math.round(total * 0.8))
+        .map((s) => s.stage);
+      lines.push(`### 서사 8단계 진단 (Layer 3, N=${total})`);
+      if (strong.length > 0) lines.push(`- 자주 나타난 단계: ${strong.join(", ")}`);
+      if (weak.length > 0) {
+        lines.push(
+          `- **약한 단계 (설계가 반드시 보강해야)**: ${weak.join(", ")}`,
+        );
+      }
     }
   }
 

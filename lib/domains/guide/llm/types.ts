@@ -66,6 +66,35 @@ export interface StudentProfileContext {
   weakCompetencies?: string[];
   /** 스토리라인 키워드 (예: ["국제인권", "난민정책"]) */
   storylineKeywords?: string[];
+  /**
+   * 스토리라인 서사 구조 (title/narrative/grade 테마) — P1:
+   * keywords 만 쓰면 서사가 납작해지므로 title·narrative·학년별 테마를
+   * 프롬프트에 주입해 "서사 관통" 가이드 생성을 유도한다.
+   */
+  storylineNarratives?: {
+    title: string;
+    narrative: string | null;
+    grade1Theme: string | null;
+    grade2Theme: string | null;
+    grade3Theme: string | null;
+    strength: string | null;
+  }[];
+  /**
+   * Layer 2 hyperedge 테마(최대 5개) — P1:
+   * "세특+독서+동아리 수렴" 같은 N-ary 탐구축을 라벨 문자열로 주입.
+   */
+  hyperedgeThemes?: string[];
+  /**
+   * Layer 3 narrative_arc 단계 분포 — P1:
+   * 현재까지 학생이 주로 어느 서사 단계에 있는지 + 아직 약한 단계를
+   * 프롬프트에 힌트로 주입해 "다음 단계 유도" 가이드 생성을 돕는다.
+   */
+  narrativeStageDistribution?: { stage: string; count: number }[];
+  /**
+   * Layer 0 profile_card 요약 텍스트(h2 영속화) — P1:
+   * 이전 학년 역량·품질 누적 프로필을 한 문단으로 주입.
+   */
+  profileCardSummary?: string;
   /** 전공 권장교과 — getMajorRecommendedCourses() 결과 */
   recommendedCourses?: {
     general: string[];

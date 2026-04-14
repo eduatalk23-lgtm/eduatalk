@@ -136,21 +136,102 @@ async function loadProfileInternal(
     suggestedDifficulty = averageGrade <= 2.5 ? "advanced" : averageGrade <= 4.5 ? "intermediate" : "basic";
   }
 
-  // 6. 스토리라인 키워드 (있으면)
+  // 6. 스토리라인 (keywords + narrative 구조)
   let storylineKeywords: string[] | undefined;
+  let storylineNarratives: StudentProfileContext["storylineNarratives"];
   const { data: storylines } = await supabase
     .from("student_record_storylines")
-    .select("keywords")
+    .select("title, keywords, narrative, grade_1_theme, grade_2_theme, grade_3_theme, strength")
     .eq("student_id", studentId)
+    .order("sort_order", { ascending: true })
     .limit(5);
 
   if (storylines && storylines.length > 0) {
     const allKeywords = storylines.flatMap(
       (sl) => (sl.keywords as string[]) ?? [],
     );
-    // 중복 제거, 최대 10개
     storylineKeywords = [...new Set(allKeywords)].slice(0, 10);
     if (storylineKeywords.length === 0) storylineKeywords = undefined;
+
+    storylineNarratives = storylines.map((sl) => ({
+      title: (sl.title as string) ?? "",
+      narrative: (sl.narrative as string | null) ?? null,
+      grade1Theme: (sl.grade_1_theme as string | null) ?? null,
+      grade2Theme: (sl.grade_2_theme as string | null) ?? null,
+      grade3Theme: (sl.grade_3_theme as string | null) ?? null,
+      strength: (sl.strength as string | null) ?? null,
+    }));
+  }
+
+  // 7. P1: Layer 2 hyperedge 테마 (최대 5개, analysis context 만)
+  let hyperedgeThemes: string[] | undefined;
+  const { data: hyperedges } = await supabase
+    .from("student_record_hyperedges")
+    .select("theme_label, member_count, confidence")
+    .eq("student_id", studentId)
+    .eq("edge_context", "analysis")
+    .order("member_count", { ascending: false })
+    .limit(5);
+  if (hyperedges && hyperedges.length > 0) {
+    const labels = hyperedges
+      .map((h) => (h.theme_label as string | null) ?? null)
+      .filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+    if (labels.length > 0) hyperedgeThemes = labels;
+  }
+
+  // 8. P1: Layer 3 narrative_arc 단계 분포 — 8단계 중 약한 단계 식별
+  let narrativeStageDistribution: StudentProfileContext["narrativeStageDistribution"];
+  const { data: arcRows } = await supabase
+    .from("student_record_narrative_arc")
+    .select(
+      "curiosity_present, topic_selection_present, inquiry_content_present, references_present, conclusion_present, teacher_observation_present, growth_narrative_present, reinquiry_present",
+    )
+    .eq("student_id", studentId);
+  if (arcRows && arcRows.length > 0) {
+    const total = arcRows.length;
+    const count = (key: keyof typeof arcRows[number]) =>
+      arcRows.filter((r) => r[key] === true).length;
+    narrativeStageDistribution = [
+      { stage: "지적호기심", count: count("curiosity_present") },
+      { stage: "주제선정", count: count("topic_selection_present") },
+      { stage: "탐구내용/이론", count: count("inquiry_content_present") },
+      { stage: "참고문헌", count: count("references_present") },
+      { stage: "결론/제언", count: count("conclusion_present") },
+      { stage: "교사관찰", count: count("teacher_observation_present") },
+      { stage: "성장서사", count: count("growth_narrative_present") },
+      { stage: "오류분석→재탐구", count: count("reinquiry_present") },
+    ];
+    // 분모 정보(총 레코드 수)는 프롬프트 렌더링 시 비율 계산을 위해 별도 필드에 포함
+    // → 현재는 count 만 넘기고 프롬프트에서 "N건 중 X건 present" 표기 대신
+    //   "약한 단계 = count < total*0.5" 로 분류하도록 한다.
+    // 총 레코드 수를 넘기기 위해 배열 첫 원소에 가상 stage="__total"로 인코딩.
+    narrativeStageDistribution.unshift({ stage: "__total", count: total });
+  }
+
+  // 9. P1: Layer 0 profile_card 요약 (target_grade 최신 1건)
+  let profileCardSummary: string | undefined;
+  const { data: cardRow } = await supabase
+    .from("student_record_profile_cards")
+    .select(
+      "persistent_strengths, persistent_weaknesses, recurring_quality_issues, cross_grade_themes, interest_consistency",
+    )
+    .eq("student_id", studentId)
+    .order("target_grade", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (cardRow) {
+    const parts: string[] = [];
+    const strengths = cardRow.persistent_strengths as string[] | null;
+    const weaknesses = cardRow.persistent_weaknesses as string[] | null;
+    const issues = cardRow.recurring_quality_issues as string[] | null;
+    const themes = cardRow.cross_grade_themes as string[] | null;
+    const consistency = cardRow.interest_consistency as string | null;
+    if (strengths?.length) parts.push(`지속 강점: ${strengths.slice(0, 4).join(", ")}`);
+    if (weaknesses?.length) parts.push(`지속 약점: ${weaknesses.slice(0, 3).join(", ")}`);
+    if (issues?.length) parts.push(`반복 품질 이슈: ${issues.slice(0, 3).join(", ")}`);
+    if (themes?.length) parts.push(`학년 관통 테마: ${themes.slice(0, 4).join(", ")}`);
+    if (consistency) parts.push(`관심사 일관성: ${consistency}`);
+    if (parts.length > 0) profileCardSummary = parts.join(" | ");
   }
 
   return {
@@ -161,6 +242,10 @@ async function loadProfileInternal(
     topCompetencies,
     weakCompetencies,
     storylineKeywords,
+    storylineNarratives,
+    hyperedgeThemes,
+    narrativeStageDistribution,
+    profileCardSummary,
     recommendedCourses,
     suggestedDifficulty,
   };

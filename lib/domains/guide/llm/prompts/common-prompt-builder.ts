@@ -177,6 +177,64 @@ export function buildStudentProfilePrompt(
     );
   }
 
+  // P1: 서사 맥락 블록 (Layer 0/2/3 + storyline 구조)
+  const narrativeLines: string[] = [];
+
+  if (profile.profileCardSummary) {
+    narrativeLines.push(`### 누적 프로필 (Layer 0)`);
+    narrativeLines.push(`- ${profile.profileCardSummary}`);
+  }
+
+  if (profile.storylineNarratives?.length) {
+    narrativeLines.push(`### 스토리라인 서사 구조`);
+    for (const sl of profile.storylineNarratives.slice(0, 3)) {
+      const header = sl.title ? `- **${sl.title}**` : `- (무제)`;
+      narrativeLines.push(header);
+      if (sl.narrative) narrativeLines.push(`  - 서사: ${sl.narrative}`);
+      const themes: string[] = [];
+      if (sl.grade1Theme) themes.push(`1학년=${sl.grade1Theme}`);
+      if (sl.grade2Theme) themes.push(`2학년=${sl.grade2Theme}`);
+      if (sl.grade3Theme) themes.push(`3학년=${sl.grade3Theme}`);
+      if (themes.length > 0) narrativeLines.push(`  - 학년별: ${themes.join(" / ")}`);
+      if (sl.strength) narrativeLines.push(`  - 강점축: ${sl.strength}`);
+    }
+  }
+
+  if (profile.hyperedgeThemes?.length) {
+    narrativeLines.push(`### 수렴 탐구축 (Layer 2 Hyperedge)`);
+    narrativeLines.push(
+      `- ${profile.hyperedgeThemes.slice(0, 5).map((t) => `"${t}"`).join(", ")}`,
+    );
+  }
+
+  if (profile.narrativeStageDistribution?.length) {
+    // 첫 원소는 __total 인코딩
+    const totalEntry = profile.narrativeStageDistribution.find((s) => s.stage === "__total");
+    const stages = profile.narrativeStageDistribution.filter((s) => s.stage !== "__total");
+    const total = totalEntry?.count ?? 0;
+    if (total > 0 && stages.length > 0) {
+      const threshold = Math.max(1, Math.round(total * 0.5));
+      const weak = stages
+        .filter((s) => s.count < threshold)
+        .map((s) => s.stage);
+      const strong = stages
+        .filter((s) => s.count >= Math.round(total * 0.8))
+        .map((s) => s.stage);
+      narrativeLines.push(`### 서사 8단계 진단 (Layer 3, N=${total})`);
+      if (strong.length > 0) {
+        narrativeLines.push(`- 자주 나타난 단계: ${strong.join(", ")}`);
+      }
+      if (weak.length > 0) {
+        narrativeLines.push(`- **약한 단계 (다음 가이드가 보강해야)**: ${weak.join(", ")}`);
+      }
+    }
+  }
+
+  if (narrativeLines.length > 0) {
+    lines.push(`\n## 학생 서사 맥락`);
+    lines.push(...narrativeLines);
+  }
+
   lines.push(`
 ## 진로 연계 지침
 - 탐구 동기에 학생의 진로/전공 관심과 연결되는 개인적 경험을 포함합니다
@@ -184,7 +242,8 @@ export function buildStudentProfilePrompt(
 - 탐구 고찰에서 이 탐구가 전공 적합성에 어떻게 기여하는지 해석합니다
 - 느낀점에서 이 탐구가 진로 결정에 미친 영향을 서술합니다
 - 세특 예시에 진로역량+학업역량+탐구력 키워드를 포함합니다
-- 스토리라인 키워드와의 서사적 연결을 자연스럽게 보여줍니다`);
+- 스토리라인 키워드와의 서사적 연결을 자연스럽게 보여줍니다
+- **위 "학생 서사 맥락"이 있으면** 수렴 탐구축/약한 단계를 명시적으로 의식하여, 이 가이드가 학생의 약한 서사 단계를 채우거나 수렴 축을 확장하는 방향으로 작성합니다`);
 
   return lines.join("\n");
 }

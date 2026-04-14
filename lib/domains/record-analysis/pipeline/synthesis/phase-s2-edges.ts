@@ -171,12 +171,32 @@ interface RankedGuide {
   sequelBonus: number;
   /** 전공 적합도 보너스 (1.0 기본, 1.2 전공 권장 과목 매칭) */
   majorBonus: number;
-  /** 최종 가중치 점수 = baseScore × continuityScore × difficultyScore × sequelBonus × majorBonus */
+  /** P3: Layer 2 hyperedge 테마 부합 (1.0 기본, 1.15 일치) */
+  hyperedgeBonus?: number;
+  /** P3: Layer 3 narrative_arc 약한 단계 보강 (1.0 기본, 1.1 해당) */
+  narrativeArcBonus?: number;
+  /** 최종 가중치 점수 (모든 보너스 승수 곱) */
   finalScore: number;
 }
 
+/**
+ * P3: narrative_arc 8단계 중 "약한 단계"를 보강 가능한 guide_type 매핑.
+ * 휴리스틱(컨설턴트 직관 기반). 정확한 모델링은 향후 개선.
+ */
+const WEAK_STAGE_GUIDE_TYPE_MAP: Record<string, string[]> = {
+  "참고문헌": ["reading"],
+  "탐구내용/이론": ["topic_exploration", "experiment"],
+  "결론/제언": ["experiment", "topic_exploration"],
+  "성장서사": ["career_exploration_project", "reflection_program"],
+  "오류분석→재탐구": ["experiment"],
+  "교사관찰": ["reflection_program"],
+  "주제선정": ["topic_exploration", "career_exploration_project"],
+};
+
 const MIN_GUIDES_FOR_AI_TRIGGER = 3; // Decision #2 Q2-1: 매칭이 3건 미만일 때만 AI 생성
-const ENABLE_AI_GENERATION = process.env.PHASE2_AI_GUIDE_GENERATION === "1"; // D6 feature flag
+// P2: 기본 ON. 명시적 "0"일 때만 OFF. Gemini 할당량 초과 시 runExplorationDesign
+//     내부에서 자동 스킵하므로 안전. D6 feature flag.
+const ENABLE_AI_GENERATION = process.env.PHASE2_AI_GUIDE_GENERATION !== "0";
 
 export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunnerOutput> {
   assertSynthesisCtx(ctx);
@@ -247,10 +267,43 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   // ── Phase A: AI 탐구 설계 (설계 학년 + 스토리라인 존재 시) ──
   const canDesign = ENABLE_AI_GENERATION && shouldTriggerAiGeneration(ctx, 0);
 
+  // P2 진단(2026-04-14): Phase A가 왜 안/도는지 task_previews 에 박제.
+  ctx.previews["d6_diagnosis"] = JSON.stringify({
+    enableAiGeneration: ENABLE_AI_GENERATION,
+    canDesign,
+    consultingGrades: ctx.consultingGrades ?? null,
+    hasAnyDesign: ctx.unifiedInput?.hasAnyDesign ?? null,
+    hasUnifiedInput: !!ctx.unifiedInput,
+    storylineCount:
+      (ctx.results?.storyline_generation as { storylineCount?: number } | undefined)?.storylineCount ?? null,
+  });
+
   if (canDesign) {
     try {
       // AI가 학생 맥락을 분석하여 필요한 탐구 N건을 설계
-      const designs = await runExplorationDesign(ctx);
+      const { designs, overallStrategy } = await runExplorationDesign(ctx);
+
+      // P2 진단: Phase A 결과 박제
+      ctx.previews["d6_phase_a_result"] = JSON.stringify({
+        attempted: true,
+        designsCount: designs.length,
+        overallStrategy: overallStrategy?.slice(0, 200) ?? null,
+        designs: designs.map((d) => ({
+          title: d.title?.slice(0, 60) ?? null,
+          guideType: d.guideType,
+          difficulty: d.difficultyLevel,
+          subjectConnect: d.subjectConnect?.slice(0, 60) ?? null,
+        })),
+      });
+
+      // P2 진단: 각 design의 풀 매칭 / 셸 생성 결과 박제
+      const designOutcomes: Array<{
+        title: string;
+        poolMatch: boolean;
+        poolMatchTitle?: string;
+        shellCreated?: boolean;
+        shellError?: string;
+      }> = [];
 
       for (const design of designs) {
         // 설계 결과의 키워드/제목으로 풀 매칭 시도
@@ -266,28 +319,73 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
             match_reason: "ai_design_pool_match",
             baseScore: 3, // AI 설계 + 풀 매칭 = 최고 적합도
           });
+          designOutcomes.push({
+            title: design.title?.slice(0, 60) ?? "",
+            poolMatch: true,
+            poolMatchTitle: poolMatch.title?.slice(0, 60),
+          });
           logActionDebug(LOG_CTX, `D6: 설계 "${design.title}" → 풀 매칭 "${poolMatch.title}"`, { studentId });
         } else {
           // 풀에 없음 → 셸 생성 (2단계에서 전문 생성)
-          const shell = await createDesignShell(design, ctx);
-          if (shell) {
-            ranked.push(shell);
-            logActionDebug(LOG_CTX, `D6: 설계 "${design.title}" → 셸 생성`, { studentId });
+          let shellCreated = false;
+          let shellError: string | undefined;
+          try {
+            const shell = await createDesignShell(design, ctx);
+            if (shell) {
+              ranked.push(shell);
+              shellCreated = true;
+              logActionDebug(LOG_CTX, `D6: 설계 "${design.title}" → 셸 생성`, { studentId });
+            } else {
+              shellError = "createDesignShell returned null";
+            }
+          } catch (shellErr) {
+            // Supabase error 객체는 instanceof Error=false 이고 String()이 [object Object]가 되므로
+            // JSON.stringify 로 message/code/details/hint 모두 추출.
+            if (shellErr instanceof Error) {
+              shellError = shellErr.message;
+            } else if (shellErr && typeof shellErr === "object") {
+              try {
+                shellError = JSON.stringify(shellErr);
+              } catch {
+                shellError = "(unstringifiable shell error)";
+              }
+            } else {
+              shellError = String(shellErr);
+            }
           }
+          designOutcomes.push({
+            title: design.title?.slice(0, 60) ?? "",
+            poolMatch: false,
+            shellCreated,
+            ...(shellError ? { shellError: shellError.slice(0, 300) } : {}),
+          });
         }
       }
+      ctx.previews["d6_design_outcomes"] = JSON.stringify(designOutcomes);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // P2 진단: AI 설계 실패 박제
+      ctx.previews["d6_phase_a_result"] = JSON.stringify({
+        attempted: true,
+        error: msg.slice(0, 500),
+      });
       logActionWarn(
         LOG_CTX,
-        `D6: AI 탐구 설계 실패 — 기존 풀 매칭으로 fallback: ${err instanceof Error ? err.message : String(err)}`,
+        `D6: AI 탐구 설계 실패 — 기존 풀 매칭으로 fallback: ${msg}`,
         { studentId },
       );
     }
   }
 
   // ── Phase B: 기존 풀 보충 매칭 (AI 설계 불가 or fallback) ──
-  // AI 설계가 비활성이거나 실패한 경우, 또는 AI 설계 결과가 부족한 경우 보충
-  if (ranked.length < MIN_GUIDES_FOR_AI_TRIGGER) {
+  //
+  // P3 라스트마일(2026-04-14): 임계 3 → 항상 합집합으로 변경.
+  //   이전 가드(`< 3`)는 Phase A가 4건 처리(풀 매칭 1 + 셸 3)되면 임계 통과 못해
+  //   Phase B 풀 보충이 0건 → 학생 전체 배정이 1건으로 격감하는 문제 유발.
+  //   상용 MVP 기준선은 "AI 맞춤 설계 + 풀 보충 모두 제공"이 합리적이라
+  //   Phase A 결과와 Phase B 보충을 항상 합집합으로 합산.
+  //   (성능: Phase B는 DB만 사용, LLM 호출 없음 → 안전)
+  if (true) {
     type RecommendedGuide = { id: string; title: string; guide_type: string | null; match_reason: string };
     const guideMap = new Map<string, RecommendedGuide>();
     // 이미 ranked에 있는 가이드 제외
@@ -494,6 +592,61 @@ async function applyContinuityRanking(
 
   const guideIds = guides.map((g) => g.id);
 
+  // P3: 학생 hyperedge 테마 + narrative_arc 약한 단계 사전 조회
+  const [hyperedgeThemeRows, narrativeRowsP3] = await Promise.all([
+    supabase
+      .from("student_record_hyperedges")
+      .select("theme_label")
+      .eq("student_id", studentId)
+      .eq("edge_context", "analysis")
+      .order("member_count", { ascending: false })
+      .limit(5)
+      .then((r) => r.data),
+    supabase
+      .from("student_record_narrative_arc")
+      .select(
+        "curiosity_present, topic_selection_present, inquiry_content_present, references_present, conclusion_present, teacher_observation_present, growth_narrative_present, reinquiry_present",
+      )
+      .eq("student_id", studentId)
+      .then((r) => r.data),
+  ]);
+
+  // hyperedge theme_label을 토큰화 (공백/중점 분리, 2자 이상만 유효)
+  const hyperedgeTokens = new Set<string>();
+  for (const row of hyperedgeThemeRows ?? []) {
+    const label = (row.theme_label as string | null) ?? "";
+    if (!label) continue;
+    for (const tok of label.split(/[\s·,·/]+/)) {
+      const t = tok.trim();
+      if (t.length >= 2) hyperedgeTokens.add(t);
+    }
+  }
+
+  // narrative_arc 약한 단계 → 우선 보강 가이드 타입 세트
+  const weakStageGuideTypes = new Set<string>();
+  if (narrativeRowsP3 && narrativeRowsP3.length > 0) {
+    const total = narrativeRowsP3.length;
+    const threshold = Math.max(1, Math.round(total * 0.5));
+    const check = (key: keyof typeof narrativeRowsP3[number]): number =>
+      narrativeRowsP3.filter((r) => r[key] === true).length;
+    const stageCounts: Record<string, number> = {
+      "지적호기심": check("curiosity_present"),
+      "주제선정": check("topic_selection_present"),
+      "탐구내용/이론": check("inquiry_content_present"),
+      "참고문헌": check("references_present"),
+      "결론/제언": check("conclusion_present"),
+      "교사관찰": check("teacher_observation_present"),
+      "성장서사": check("growth_narrative_present"),
+      "오류분석→재탐구": check("reinquiry_present"),
+    };
+    for (const [stage, cnt] of Object.entries(stageCounts)) {
+      if (cnt < threshold) {
+        const types = WEAK_STAGE_GUIDE_TYPE_MAP[stage];
+        if (types) for (const t of types) weakStageGuideTypes.add(t);
+      }
+    }
+  }
+
   // ── 병렬 메타데이터 조회: 12계열 + Phase A (난이도/클러스터/사슬) ──
   const [cfRows, phaseARows, existingAssignments, sequelRows, trajectoryRows, subjectMappingRows] = await Promise.all([
     // (1) career_field_mappings → 12계열
@@ -619,6 +772,22 @@ async function applyContinuityRanking(
     // 전공 적합도 보너스: 전공 권장 과목에 매핑된 가이드 → 1.2×
     const majorBonus = majorMatchGuides.has(g.id) ? 1.2 : 1.0;
 
+    // P3: Layer 2 hyperedge 테마 부합 — 가이드 title에 학생 수렴축 토큰이 포함되면 1.15×
+    let hyperedgeBonus = 1.0;
+    if (hyperedgeTokens.size > 0) {
+      const titleLower = g.title.toLowerCase();
+      for (const tok of hyperedgeTokens) {
+        if (titleLower.includes(tok.toLowerCase())) {
+          hyperedgeBonus = 1.15;
+          break;
+        }
+      }
+    }
+
+    // P3: Layer 3 narrative_arc 약한 단계 보강 — guide_type이 약한 단계에 매핑되면 1.1×
+    const narrativeArcBonus =
+      g.guide_type && weakStageGuideTypes.has(g.guide_type) ? 1.1 : 1.0;
+
     return {
       id: g.id,
       title: g.title,
@@ -629,7 +798,16 @@ async function applyContinuityRanking(
       difficultyScore,
       sequelBonus,
       majorBonus,
-      finalScore: baseScore * continuityScore * difficultyScore * sequelBonus * majorBonus,
+      hyperedgeBonus,
+      narrativeArcBonus,
+      finalScore:
+        baseScore *
+        continuityScore *
+        difficultyScore *
+        sequelBonus *
+        majorBonus *
+        hyperedgeBonus *
+        narrativeArcBonus,
     };
   });
 
@@ -677,8 +855,16 @@ function computeDifficultyFit(studentGrade: number, difficulty: string | null | 
 function shouldTriggerAiGeneration(ctx: PipelineContext, currentMatchCount: number): boolean {
   // Decision #2 Q2-1: 설계 학년 + storyline 존재 + 매칭 < 3건
   if (currentMatchCount >= MIN_GUIDES_FOR_AI_TRIGGER) return false;
-  const hasDesignGrade = ctx.unifiedInput?.hasAnyDesign === true;
+
+  // P2 (2026-04-14): mode=analysis 학생도 consultingGrades에 설계 학년이 잡혀 있으면
+  //   AI 설계 trigger. 이전엔 `unifiedInput.hasAnyDesign === true`만 봤는데
+  //   김세린(mode=analysis, 3학년만 설계) 같은 케이스에서 hasAnyDesign이 null로 잡혀
+  //   AI 설계가 한 번도 안 도는 문제가 있었다. consultingGrades가 더 정확한 신호.
+  const hasDesignGrade =
+    ctx.unifiedInput?.hasAnyDesign === true ||
+    (ctx.consultingGrades?.length ?? 0) > 0;
   if (!hasDesignGrade) return false;
+
   // storyline 존재 여부는 task_results에서 확인
   const storylineResult = ctx.results?.storyline_generation as { storylineCount?: number } | undefined;
   if (!storylineResult || (storylineResult.storylineCount ?? 0) === 0) return false;
@@ -750,6 +936,77 @@ async function runExplorationDesign(
     ? Math.max(...(consultingGrades ?? []))
     : ctx.studentGrade;
 
+  // P2: Layer 0/2/3 — 이 시점에 hyperedge_computation/narrative_arc_extraction이
+  //     이미 선행 실행되어 DB에 있다(synthesis phase 2 순서상).
+  //     이 데이터를 설계 프롬프트에 주입해 "약한 서사 단계 보강 / 수렴축 확장" 방향의 설계 유도.
+  const [hyperedgeRows, narrativeRows, profileCardRow] = await Promise.all([
+    supabase
+      .from("student_record_hyperedges")
+      .select("theme_label, member_count")
+      .eq("student_id", studentId)
+      .eq("edge_context", "analysis")
+      .order("member_count", { ascending: false })
+      .limit(5)
+      .then((r) => r.data),
+    supabase
+      .from("student_record_narrative_arc")
+      .select(
+        "curiosity_present, topic_selection_present, inquiry_content_present, references_present, conclusion_present, teacher_observation_present, growth_narrative_present, reinquiry_present",
+      )
+      .eq("student_id", studentId)
+      .then((r) => r.data),
+    supabase
+      .from("student_record_profile_cards")
+      .select("persistent_strengths, persistent_weaknesses, recurring_quality_issues, cross_grade_themes, interest_consistency")
+      .eq("student_id", studentId)
+      .order("target_grade", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then((r) => r.data),
+  ]);
+
+  const hyperedgeThemes = (hyperedgeRows ?? [])
+    .map((h) => (h.theme_label as string | null) ?? null)
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+
+  let narrativeStageDistribution:
+    | { total: number; stages: { stage: string; count: number }[] }
+    | undefined;
+  if (narrativeRows && narrativeRows.length > 0) {
+    const total = narrativeRows.length;
+    const cnt = (key: keyof typeof narrativeRows[number]) =>
+      narrativeRows.filter((r) => r[key] === true).length;
+    narrativeStageDistribution = {
+      total,
+      stages: [
+        { stage: "지적호기심", count: cnt("curiosity_present") },
+        { stage: "주제선정", count: cnt("topic_selection_present") },
+        { stage: "탐구내용/이론", count: cnt("inquiry_content_present") },
+        { stage: "참고문헌", count: cnt("references_present") },
+        { stage: "결론/제언", count: cnt("conclusion_present") },
+        { stage: "교사관찰", count: cnt("teacher_observation_present") },
+        { stage: "성장서사", count: cnt("growth_narrative_present") },
+        { stage: "오류분석→재탐구", count: cnt("reinquiry_present") },
+      ],
+    };
+  }
+
+  let profileCardSummary: string | undefined;
+  if (profileCardRow) {
+    const parts: string[] = [];
+    const s = profileCardRow.persistent_strengths as string[] | null;
+    const w = profileCardRow.persistent_weaknesses as string[] | null;
+    const iss = profileCardRow.recurring_quality_issues as string[] | null;
+    const th = profileCardRow.cross_grade_themes as string[] | null;
+    const ic = profileCardRow.interest_consistency as string | null;
+    if (s?.length) parts.push(`지속 강점: ${s.slice(0, 4).join(", ")}`);
+    if (w?.length) parts.push(`지속 약점: ${w.slice(0, 3).join(", ")}`);
+    if (iss?.length) parts.push(`반복 품질 이슈: ${iss.slice(0, 3).join(", ")}`);
+    if (th?.length) parts.push(`학년 관통 테마: ${th.slice(0, 4).join(", ")}`);
+    if (ic) parts.push(`관심사 일관성: ${ic}`);
+    if (parts.length > 0) profileCardSummary = parts.join(" | ");
+  }
+
   // 4. AI 호출
   const { generateObjectWithRateLimit } = await import("@/lib/domains/plan/llm/ai-sdk");
   const { geminiQuotaTracker } = await import("@/lib/domains/plan/llm/providers/gemini");
@@ -779,6 +1036,9 @@ async function runExplorationDesign(
         plannedSubjects,
         existingGuides: [], // 아직 매칭 전이므로 빈 배열
         neededCount: MIN_GUIDES_FOR_AI_TRIGGER + 1, // 여유 있게 설계 요청
+        ...(hyperedgeThemes.length > 0 ? { hyperedgeThemes } : {}),
+        ...(narrativeStageDistribution ? { narrativeStageDistribution } : {}),
+        ...(profileCardSummary ? { profileCardSummary } : {}),
       }),
     }],
     schema: zodSchema(explorationDesignSchema),
@@ -851,7 +1111,7 @@ async function matchDesignToPool(
   };
 }
 
-/** 풀에 없는 설계 → 셸(queued_generation) 생성 */
+/** 풀에 없는 설계 → 셸(queued_generation) 생성. P2: 실패 시 throw하여 호출자가 사유 박제 */
 async function createDesignShell(
   design: ExplorationDesignItem,
   ctx: PipelineContext,
@@ -861,9 +1121,13 @@ async function createDesignShell(
     ? Math.max(...(consultingGrades ?? []))
     : ctx.studentGrade;
 
-  try {
-    const { createGuideShell } = await import("@/lib/domains/guide/repository");
-    const guideId = await createGuideShell({
+  // P2 (2026-04-14): synthesis pipeline은 server-autonomous라 RLS 우회용 admin client 필요.
+  //   기본 server client는 사용자 권한 → exploration_guides INSERT 시 RLS 정책 차단(42501).
+  const { createGuideShell } = await import("@/lib/domains/guide/repository");
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
+  const guideId = await createGuideShell(
+    {
       tenantId,
       title: design.title,
       guideType: design.guideType,
@@ -875,24 +1139,48 @@ async function createDesignShell(
         designGrade,
         designedAt: new Date().toISOString(),
       },
-    });
+    },
+    adminClient,
+  );
 
-    return {
-      id: guideId,
-      title: design.title,
-      guide_type: design.guideType,
-      match_reason: "ai_designed",
-      baseScore: 2,
-      continuityScore: 1.0,
-      difficultyScore: 1.0,
-      sequelBonus: 1.0,
-      majorBonus: 1.0,
-      finalScore: 2.0,
-    };
-  } catch (err) {
-    logActionError(LOG_CTX, err, { studentId, design: design.title });
-    return null;
+  // P3 라스트마일(2026-04-14): 셸 가이드는 subject_mapping이 비어있어 area-resolver가
+  //   학생 과목 슬롯에 link 못함 → 무조건 orphan 처리됐던 문제. design.subjectConnect
+  //   ("교과명 > 단원명") 에서 교과명을 normalize 매칭해 subject_mappings 자동 INSERT.
+  const subjectName = design.subjectConnect?.split(" > ")[0]?.trim();
+  if (subjectName) {
+    try {
+      const { normalizeSubjectName } = await import("@/lib/domains/subject/normalize");
+      const normalized = normalizeSubjectName(subjectName);
+      const { data: allSubjects } = await adminClient
+        .from("subjects")
+        .select("id, name");
+      const matchedIds = (allSubjects ?? [])
+        .filter((s) => normalizeSubjectName(s.name) === normalized)
+        .map((s) => s.id as string);
+      if (matchedIds.length > 0) {
+        await adminClient
+          .from("exploration_guide_subject_mappings")
+          .insert(matchedIds.map((sid) => ({ guide_id: guideId, subject_id: sid })));
+      }
+    } catch {
+      // mapping 실패는 셸 생성을 막지 않음 (best-effort). area-resolver에서 orphan 처리됨.
+    }
   }
+
+  void logActionError;
+
+  return {
+    id: guideId,
+    title: design.title,
+    guide_type: design.guideType,
+    match_reason: "ai_designed",
+    baseScore: 2,
+    continuityScore: 1.0,
+    difficultyScore: 1.0,
+    sequelBonus: 1.0,
+    majorBonus: 1.0,
+    finalScore: 2.0,
+  };
 }
 
 // ============================================
@@ -927,12 +1215,15 @@ async function insertAssignments(
   const { resolveGuideTargetArea, collectStudentSubjectPool } = await import(
     "@/lib/domains/guide/actions/area-resolver"
   );
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminForAreaResolver = createSupabaseAdminClient();
   const studentSubjectPool = await collectStudentSubjectPool(studentId, {
     gradeFilter: consultingGradesSet.size > 0 ? consultingGradesSet : undefined,
   });
+  // P3 라스트마일: 셸 가이드(status=queued_generation)의 subject_mappings 를 RLS 우회로 read.
   const areaMap = await resolveGuideTargetArea(
     newGuides.map((g) => g.id),
-    { preferredSubjectIds: studentSubjectPool },
+    { preferredSubjectIds: studentSubjectPool, adminClient: adminForAreaResolver },
   );
 
   // 세특 슬롯 조회 (subject_id 기반 auto-link) — 설계 학년만
@@ -982,6 +1273,36 @@ async function insertAssignments(
     }
   }
 
+  // P4: 추천 시점 어느 스토리라인 키워드와 매칭됐는지 박제용 사전 조회.
+  //     가이드 title을 토큰화해 각 storyline.keywords 와의 겹침이 가장 많은 것을 선택.
+  const { data: storylineRows } = await supabase
+    .from("student_record_storylines")
+    .select("id, keywords")
+    .eq("student_id", studentId);
+  const storylineKwIndex: { id: string; keywords: string[] }[] =
+    (storylineRows ?? []).map((s) => ({
+      id: s.id as string,
+      keywords: ((s.keywords as string[]) ?? []).filter((k) => k && k.length >= 2),
+    }));
+
+  function pickStorylineIdForGuide(guideTitle: string): string | null {
+    if (storylineKwIndex.length === 0) return null;
+    const titleLower = guideTitle.toLowerCase();
+    let bestId: string | null = null;
+    let bestOverlap = 0;
+    for (const sl of storylineKwIndex) {
+      let overlap = 0;
+      for (const kw of sl.keywords) {
+        if (titleLower.includes(kw.toLowerCase())) overlap++;
+      }
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestId = sl.id;
+      }
+    }
+    return bestOverlap > 0 ? bestId : null;
+  }
+
   // Phase 2 Wave 5.1d: orphan 배정 skip + school_year 를 linked 레코드 기반으로 저장
   let skippedOrphan = 0;
   const skippedOrphanGuides: Array<{ id: string; title: string }> = [];
@@ -999,6 +1320,7 @@ async function insertAssignments(
     linked_record_type: "setek" | "changche" | null;
     linked_record_id: string | null;
     ai_recommendation_reason: string;
+    storyline_id: string | null;
   }> = [];
 
   for (const g of newGuides) {
@@ -1053,6 +1375,7 @@ async function insertAssignments(
       linked_record_type: linkedRecordType,
       linked_record_id: linkedRecordId,
       ai_recommendation_reason: g.match_reason,
+      storyline_id: pickStorylineIdForGuide(g.title),
     });
   }
 

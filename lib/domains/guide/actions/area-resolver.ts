@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type ActivityType = "autonomy" | "club" | "career";
 
@@ -33,12 +34,20 @@ export interface GuideTargetArea {
  */
 export async function resolveGuideTargetArea(
   guideIds: string[],
-  opts: { preferredSubjectIds?: Set<string> } = {},
+  opts: {
+    preferredSubjectIds?: Set<string>;
+    /**
+     * P3 라스트마일(2026-04-14): synthesis pipeline에서 방금 admin 으로 INSERT한
+     *   셸 가이드(status='queued_generation')의 subject_mappings 를 조회해야 하는데,
+     *   server client(사용자 권한)는 RLS로 read 차단됨. admin client 전달 시 우회.
+     */
+    adminClient?: SupabaseAdminClient;
+  } = {},
 ): Promise<Map<string, GuideTargetArea>> {
   const result = new Map<string, GuideTargetArea>();
   if (guideIds.length === 0) return result;
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = opts.adminClient ?? (await createSupabaseServerClient());
   const preferred = opts.preferredSubjectIds;
 
   // 1. subject_mappings — 세특 영역

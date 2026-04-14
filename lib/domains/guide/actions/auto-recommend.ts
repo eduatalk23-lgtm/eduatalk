@@ -115,13 +115,21 @@ export async function autoRecommendGuidesAction(input: {
     }
 
     // 3.5-pre. H3: career_field 기반 guide_id 조회 (전공 인식 매칭)
+    // P5: careerFieldHint는 "자연과학" 등 학생 광역코드. 가이드 DB는 "자연계열" 등
+    //     name_kor 이라 직접 ilike substring 매칭이 실패(이전 버그)했었다.
+    //     getCompatibleGuideCareerFields() 로 호환 이름 세트로 변환해 IN 매칭.
+    const { getCompatibleGuideCareerFields } = await import(
+      "@/lib/domains/student-record/constants"
+    );
+    const compatibleGuideFields = getCompatibleGuideCareerFields(
+      input.careerFieldHint ?? null,
+    );
     const careerGuideIds = new Set<string>();
-    if (input.careerFieldHint) {
+    if (compatibleGuideFields && compatibleGuideFields.length > 0) {
       const { data: cf } = await supabase
         .from("exploration_guide_career_fields")
         .select("id")
-        .ilike("name_kor", `%${input.careerFieldHint}%`)
-        .limit(3);
+        .in("name_kor", compatibleGuideFields);
       const cfIds = (cf ?? []).map((r) => r.id);
       if (cfIds.length > 0) {
         const { data: cm } = await supabase
@@ -151,13 +159,19 @@ export async function autoRecommendGuidesAction(input: {
     }
 
     // 4. UNION + match_reason 결정 (3축 + career 비트마스크 → 라벨)
+    //
+    // P5 (2026-04-14): careerGuideIds 는 union 에서 제외.
+    //   - 이전 ilike 매칭 시 최대 3 cf 매칭이라 careerGuideIds 가 적어 union 추가 안전.
+    //   - P5에서 IN 매칭으로 바꾸면서 호환 풀이 수천 건(예: 자연/의약/공학+전계열+미분류 = 7천+)이 되어
+    //     candidateIds 가 폭증 → 후속 supabase `.in()` 호출이 PostgREST URL 한도 초과로 빈 결과 반환.
+    //   - 어차피 P5 호환성 하드 필터(compatibleGuideFields)가 비호환 가이드를 차단하므로,
+    //     career 매칭은 reason 라벨링용으로만 두고 풀 확장 효과는 호환 필터 통과로 자연 흡수.
     const guideReasonMap = new Map<string, MatchReason>();
     const allIds = new Set<string>([
       ...classGuideIds,
       ...subjectGuideIds,
       ...activityGuideIds,
       ...sequelGuideIds,
-      ...careerGuideIds,
     ]);
 
     for (const id of allIds) {
@@ -199,13 +213,52 @@ export async function autoRecommendGuidesAction(input: {
       return createSuccessResponse([]);
     }
 
+    // 5.5. P5: 전공 호환성 하드 필터 — 학생 careerFieldHint가 있을 때,
+    //      career_mappings가 비호환 계열에만 매핑된 가이드는 제외.
+    //      매핑이 아예 없는 가이드는 통과(보수적: 범용/미분류 가이드 살림).
+    let filteredCandidateIds = candidateIds;
+    if (compatibleGuideFields && compatibleGuideFields.length > 0) {
+      const { data: mappingRows } = await supabase
+        .from("exploration_guide_career_mappings")
+        .select("guide_id, exploration_guide_career_fields!inner(name_kor)")
+        .in("guide_id", candidateIds);
+
+      const compatSet = new Set(compatibleGuideFields);
+      const fieldsByGuide = new Map<string, string[]>();
+      for (const row of mappingRows ?? []) {
+        const r = row as {
+          guide_id: string;
+          exploration_guide_career_fields:
+            | { name_kor: string }
+            | { name_kor: string }[];
+        };
+        const name = Array.isArray(r.exploration_guide_career_fields)
+          ? r.exploration_guide_career_fields[0]?.name_kor
+          : r.exploration_guide_career_fields?.name_kor;
+        if (!name) continue;
+        const list = fieldsByGuide.get(r.guide_id) ?? [];
+        list.push(name);
+        fieldsByGuide.set(r.guide_id, list);
+      }
+
+      filteredCandidateIds = candidateIds.filter((id) => {
+        const fields = fieldsByGuide.get(id);
+        if (!fields || fields.length === 0) return true; // 매핑 없음 → 통과
+        return fields.some((f) => compatSet.has(f)); // 하나라도 호환
+      });
+
+      if (filteredCandidateIds.length === 0) {
+        return createSuccessResponse([]);
+      }
+    }
+
     // 6. approved 필터 + 메타 JOIN (topic_cluster_id 포함 — L3 다양성)
     // limit 여유분: diversify에서 round-robin 선택하므로 후보를 넉넉히 확보
-    const fetchLimit = Math.min(candidateIds.length, limit * 3);
+    const fetchLimit = Math.min(filteredCandidateIds.length, limit * 3);
     const { data: guides } = await supabase
       .from("exploration_guides")
       .select("id, title, guide_type, book_title, topic_cluster_id")
-      .in("id", candidateIds)
+      .in("id", filteredCandidateIds)
       .eq("status", "approved")
       .eq("is_latest", true)
       .limit(fetchLimit);

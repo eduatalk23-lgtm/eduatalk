@@ -198,7 +198,8 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   ai_diagnosis: 120_000,          // 2분 (실제 20-30s, 여유 포함)
   course_recommendation: 120_000,
   slot_generation: 30_000,        // 30초 (DB upsert 위주)
-  guide_matching: 60_000,         // DB 조회 위주
+  guide_matching: 200_000,        // P2(2026-04-14): Phase A LLM 설계 + design 4건 풀매칭/셸생성 +
+                                  //   Phase B fallback이 한 태스크에 묶여 있어 60s 초과. LLM 태스크 수준 상향.
   bypass_analysis: 120_000,
   setek_guide: 120_000,
   changche_guide: 120_000,

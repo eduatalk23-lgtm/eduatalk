@@ -445,6 +445,33 @@ export function inferCareerFieldFromMajor(targetMajor: string): string | null {
   return MAJOR_TO_CAREER_FIELD[targetMajor] ?? null;
 }
 
+/**
+ * 학생 광역계열(careerField) → 호환 가능한 `exploration_guide_career_fields.name_kor` 세트.
+ * 가이드 풀의 DB 값은 "자연계열/공학계열/의약계열/..." 형태이므로 학생 코드와 1:1이 아님.
+ * 인접 계열은 compat에 포함하여 융합 탐구 소실을 막는다. "전계열"·"미분류"는 항상 통과.
+ */
+const CAREER_FIELD_COMPAT_GUIDE_FIELDS: Record<string, readonly string[]> = {
+  인문사회: ["인문계열", "사회계열", "교육계열"],
+  자연과학: ["자연계열", "의약계열", "공학계열"],
+  의약: ["의약계열", "자연계열"],
+  공학: ["공학계열", "자연계열"],
+  예체능: ["예체능계열", "인문계열"],
+};
+
+/**
+ * 학생 careerField 힌트를 가이드 DB name_kor 호환 세트로 변환.
+ * 항상 "전계열"·"미분류"를 포함해 범용 가이드는 살린다.
+ * 매핑 없으면 null (필터 비활성 = 전량 통과).
+ */
+export function getCompatibleGuideCareerFields(
+  careerFieldHint: string | null | undefined,
+): string[] | null {
+  if (!careerFieldHint) return null;
+  const base = CAREER_FIELD_COMPAT_GUIDE_FIELDS[careerFieldHint];
+  if (!base) return null;
+  return [...base, "전계열", "미분류"];
+}
+
 // ============================================
 // 7. 9등급↔5등급 환산 상수
 // ============================================
