@@ -10,6 +10,7 @@ import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PersistedEdge } from "../repository/edge-repository";
 import type { PersistedHyperedge } from "../repository/hyperedge-repository";
+import type { PersistedNarrativeArc } from "../repository/narrative-arc-repository";
 
 const LOG_CTX = { domain: "student-record", action: "diagnosis-helpers" };
 
@@ -39,6 +40,21 @@ export async function fetchPersistedHyperedges(
     return await findHyperedges(studentId, tenantId, { contexts: ["analysis", "synthesis_inferred"] });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchPersistedHyperedges" }, error, { studentId });
+    return [];
+  }
+}
+
+/** 학생의 DB 영속화 narrative_arc 목록 조회 (Phase 2 Layer 3) */
+export async function fetchPersistedNarrativeArcs(
+  studentId: string,
+  tenantId: string,
+): Promise<PersistedNarrativeArc[]> {
+  try {
+    await requireAdminOrConsultant();
+    const { findNarrativeArcsByStudent } = await import("../repository/narrative-arc-repository");
+    return await findNarrativeArcsByStudent(studentId, tenantId, { source: "ai" });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPersistedNarrativeArcs" }, error, { studentId });
     return [];
   }
 }

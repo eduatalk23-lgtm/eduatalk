@@ -39,6 +39,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "edges", studentId] as const,
   hyperedges: (studentId: string) =>
     [...studentRecordKeys.all, "hyperedges", studentId] as const,
+  narrativeArcs: (studentId: string) =>
+    [...studentRecordKeys.all, "narrativeArcs", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -136,6 +138,22 @@ export function hyperedgesQueryOptions(studentId: string, tenantId: string) {
         "@/lib/domains/student-record/actions/diagnosis-helpers"
       );
       return fetchPersistedHyperedges(studentId, tenantId);
+    },
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** Phase 2 Layer 3: DB 영속화 narrative_arc 조회 (8단계 서사 태깅) */
+export function narrativeArcsQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.narrativeArcs(studentId),
+    queryFn: async () => {
+      const { fetchPersistedNarrativeArcs } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchPersistedNarrativeArcs(studentId, tenantId);
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,

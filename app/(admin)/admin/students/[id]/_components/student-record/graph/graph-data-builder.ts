@@ -9,7 +9,46 @@
 import type { ElementDefinition } from "cytoscape";
 import type { PersistedEdge } from "@/lib/domains/student-record/repository/edge-repository";
 import type { PersistedHyperedge } from "@/lib/domains/student-record/repository/hyperedge-repository";
+import type { PersistedNarrativeArc } from "@/lib/domains/student-record/repository/narrative-arc-repository";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
+
+// Phase 2 Layer 3 — 8단계 서사 (순서 고정, UI 라벨 매핑)
+export const NARRATIVE_STAGES = [
+  { key: "curiosity", col: "curiosity_present", label: "호기심", index: 1 },
+  { key: "topicSelection", col: "topic_selection_present", label: "주제선정", index: 2 },
+  { key: "inquiryContent", col: "inquiry_content_present", label: "탐구내용", index: 3 },
+  { key: "references", col: "references_present", label: "참고문헌", index: 4 },
+  { key: "conclusion", col: "conclusion_present", label: "결론", index: 5 },
+  { key: "teacherObservation", col: "teacher_observation_present", label: "교사관찰", index: 6 },
+  { key: "growthNarrative", col: "growth_narrative_present", label: "성장서사", index: 7 },
+  { key: "reinquiry", col: "reinquiry_present", label: "재탐구", index: 8 },
+] as const;
+
+export type NarrativeStageKey = typeof NARRATIVE_STAGES[number]["key"];
+
+export interface NarrativeArcSummary {
+  stagesPresent: Record<NarrativeStageKey, boolean>;
+  stageDetails: Record<string, { confidence: number; evidence: string }>;
+  stagesPresentCount: number;
+}
+
+export function extractStageFlags(arc: PersistedNarrativeArc): NarrativeArcSummary {
+  const stagesPresent = {
+    curiosity: arc.curiosity_present,
+    topicSelection: arc.topic_selection_present,
+    inquiryContent: arc.inquiry_content_present,
+    references: arc.references_present,
+    conclusion: arc.conclusion_present,
+    teacherObservation: arc.teacher_observation_present,
+    growthNarrative: arc.growth_narrative_present,
+    reinquiry: arc.reinquiry_present,
+  } satisfies Record<NarrativeStageKey, boolean>;
+  return {
+    stagesPresent,
+    stageDetails: arc.stage_details ?? {},
+    stagesPresentCount: arc.stages_present_count ?? 0,
+  };
+}
 
 export const COMPETENCY_LABEL_MAP: Record<string, string> = Object.fromEntries(
   COMPETENCY_ITEMS.map((c) => [c.code, c.label]),
@@ -37,11 +76,18 @@ export function localizeCompetencyList(codes: string[]): string[] {
 export interface BuildGraphInput {
   edges: PersistedEdge[];
   hyperedges: PersistedHyperedge[];
+  narrativeArcs?: PersistedNarrativeArc[];
 }
 
-export function buildGraphElements({ edges, hyperedges }: BuildGraphInput): ElementDefinition[] {
+export function buildGraphElements({ edges, hyperedges, narrativeArcs }: BuildGraphInput): ElementDefinition[] {
   const elements: ElementDefinition[] = [];
   const seenNodes = new Set<string>();
+
+  // Phase 2 Step 4a: record_type:record_id → narrative_arc 맵
+  const arcMap = new Map<string, NarrativeArcSummary>();
+  for (const arc of narrativeArcs ?? []) {
+    arcMap.set(`${arc.record_type}:${arc.record_id}`, extractStageFlags(arc));
+  }
 
   const addRecordNode = (
     recordType: string,
@@ -52,14 +98,21 @@ export function buildGraphElements({ edges, hyperedges }: BuildGraphInput): Elem
     const id = `${recordType}:${recordId}`;
     if (seenNodes.has(id)) return;
     seenNodes.add(id);
+    const arc = arcMap.get(id);
+    const displayLabel = arc ? `${label}  ${arc.stagesPresentCount}/8` : label;
     elements.push({
       data: {
         id,
-        label,
+        label: displayLabel,
+        baseLabel: label,
         recordType,
         recordId,
         grade: grade ?? 0,
         kind: "record",
+        // 서사 태깅이 있는 노드에만 narrative* 필드 부착
+        narrativeStagesCount: arc?.stagesPresentCount ?? null,
+        narrativeStages: arc?.stagesPresent ?? null,
+        narrativeDetails: arc?.stageDetails ?? null,
       },
     });
   };

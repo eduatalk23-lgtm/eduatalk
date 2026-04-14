@@ -27,14 +27,21 @@ function ensureFcose() {
     fcoseRegistered = true;
   }
 }
-import { edgesQueryOptions, hyperedgesQueryOptions } from "@/lib/query-options/studentRecord";
+import {
+  edgesQueryOptions,
+  hyperedgesQueryOptions,
+  narrativeArcsQueryOptions,
+} from "@/lib/query-options/studentRecord";
 import { cn } from "@/lib/cn";
 import {
   buildGraphElements,
+  NARRATIVE_STAGES,
   RECORD_TYPE_LABEL,
+  type NarrativeStageKey,
 } from "./graph-data-builder";
 import {
   graphStylesheet,
+  NARRATIVE_BORDER_COLOR,
   RECORD_TYPE_COLORS,
   EDGE_TYPE_COLORS,
   EDGE_TYPE_LABEL,
@@ -70,6 +77,9 @@ export function StudentRecordGraph({
   const { data: hyperedges, isLoading: hyperedgesLoading } = useQuery(
     hyperedgesQueryOptions(studentId, tenantId),
   );
+  const { data: narrativeArcs } = useQuery(
+    narrativeArcsQueryOptions(studentId, tenantId),
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<CytoscapeCore | null>(null);
@@ -79,10 +89,17 @@ export function StudentRecordGraph({
   const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set());
   const [showHyperedges, setShowHyperedges] = useState(true);
   const [gradeFilter, setGradeFilter] = useState<number | null>(null);
+  // Phase 2 Step 4a: 서사 결여(stages ≤ 3) 전용 필터
+  const [onlyWeakNarrative, setOnlyWeakNarrative] = useState(false);
 
   const elements: ElementDefinition[] = useMemo(
-    () => buildGraphElements({ edges: edges ?? [], hyperedges: hyperedges ?? [] }),
-    [edges, hyperedges],
+    () =>
+      buildGraphElements({
+        edges: edges ?? [],
+        hyperedges: hyperedges ?? [],
+        narrativeArcs: narrativeArcs ?? [],
+      }),
+    [edges, hyperedges, narrativeArcs],
   );
 
   const activeEdgeTypes = useMemo(() => {
@@ -219,16 +236,15 @@ export function StudentRecordGraph({
       cy.elements("[kind = 'hyperedge'], [kind = 'hyperedge-spoke']").forEach((el) => {
         el.style("display", showHyperedges ? "element" : "none");
       });
-      if (gradeFilter == null) {
-        cy.nodes("[kind = 'record']").forEach((n) => n.style("opacity", 1));
-      } else {
-        cy.nodes("[kind = 'record']").forEach((n) => {
-          const g = n.data("grade") as number;
-          n.style("opacity", g === gradeFilter ? 1 : 0.15);
-        });
-      }
+      cy.nodes("[kind = 'record']").forEach((n) => {
+        const g = n.data("grade") as number;
+        const count = n.data("narrativeStagesCount") as number | null;
+        const gradeHidden = gradeFilter != null && g !== gradeFilter;
+        const narrativeHidden = onlyWeakNarrative && (count == null || count > 3);
+        n.style("opacity", gradeHidden || narrativeHidden ? 0.15 : 1);
+      });
     });
-  }, [hiddenEdgeTypes, showHyperedges, gradeFilter]);
+  }, [hiddenEdgeTypes, showHyperedges, gradeFilter, onlyWeakNarrative]);
 
   const toggleEdgeType = useCallback((type: string) => {
     setHiddenEdgeTypes((prev) => {
@@ -356,6 +372,21 @@ export function StudentRecordGraph({
           >
             통합 테마
           </button>
+          {(narrativeArcs?.length ?? 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => setOnlyWeakNarrative((v) => !v)}
+              title="서사 단계 ≤3 레코드만 강조"
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[11px] font-medium transition",
+                onlyWeakNarrative
+                  ? "border-transparent bg-red-500 text-white"
+                  : "border-gray-300 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-900",
+              )}
+            >
+              서사 결여
+            </button>
+          )}
           {availableGrades.length > 1 && (
             <div className="ml-1 flex items-center gap-1 text-[11px]">
               <span className="text-gray-500">학년:</span>
@@ -512,6 +543,25 @@ export function StudentRecordGraph({
               ))}
             </div>
           </div>
+          {(narrativeArcs?.length ?? 0) > 0 && (
+            <div className="rounded-md border border-gray-200 bg-white/90 px-2 py-1 backdrop-blur dark:border-gray-700 dark:bg-gray-900/90">
+              <div className="mb-1 font-semibold text-gray-700 dark:text-gray-300">서사 8단계</div>
+              <div className="flex flex-col gap-0.5 text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ border: `2px solid ${NARRATIVE_BORDER_COLOR.critical}` }} />
+                  ≤ 3 결여
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ border: `2px solid ${NARRATIVE_BORDER_COLOR.warn}` }} />
+                  4~5 보통
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ border: `2px solid ${NARRATIVE_BORDER_COLOR.ok}` }} />
+                  ≥ 6 충실
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {selected && (
@@ -536,12 +586,20 @@ function HoverTooltipCard({ info }: { info: HoverTooltip }) {
       {kind === "record" && (
         <>
           <p className="font-semibold text-gray-900 dark:text-gray-100">
-            {String(data.label ?? "")}
+            {String(data.baseLabel ?? data.label ?? "")}
           </p>
           <p className="text-[10px] text-gray-500">
             {RECORD_TYPE_LABEL[String(data.recordType)] ?? String(data.recordType)}
             {data.grade ? ` · ${data.grade}학년` : ""}
           </p>
+          {typeof data.narrativeStagesCount === "number" && (
+            <div className="pt-1">
+              <NarrativeMiniGrid
+                stages={data.narrativeStages as Record<NarrativeStageKey, boolean>}
+                count={data.narrativeStagesCount}
+              />
+            </div>
+          )}
         </>
       )}
       {kind === "hyperedge" && (
@@ -597,12 +655,19 @@ function SelectedInfoPanel({
       {kind === "record" && (
         <>
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {String(data.label ?? "")}
+            {String(data.baseLabel ?? data.label ?? "")}
           </p>
           <p className="text-[11px] text-gray-500">
             {RECORD_TYPE_LABEL[String(data.recordType)] ?? String(data.recordType)}
             {data.grade ? ` · ${data.grade}학년` : ""}
           </p>
+          {typeof data.narrativeStagesCount === "number" && (
+            <NarrativeStageChecklist
+              stages={data.narrativeStages as Record<NarrativeStageKey, boolean>}
+              details={data.narrativeDetails as Record<string, { confidence: number; evidence: string }> | null}
+              count={data.narrativeStagesCount}
+            />
+          )}
         </>
       )}
       {kind === "hyperedge" && (
@@ -648,6 +713,93 @@ function SelectedInfoPanel({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// Phase 2 Layer 3 — 서사 8단계 시각 컴포넌트
+// Hover 툴팁용: 8개 미니 도트 가로 배치
+function NarrativeMiniGrid({
+  stages,
+  count,
+}: {
+  stages: Record<NarrativeStageKey, boolean> | null;
+  count: number;
+}) {
+  if (!stages) return null;
+  const countColor =
+    count <= 3 ? NARRATIVE_BORDER_COLOR.critical : count <= 5 ? NARRATIVE_BORDER_COLOR.warn : NARRATIVE_BORDER_COLOR.ok;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-0.5">
+        {NARRATIVE_STAGES.map((s) => {
+          const present = stages[s.key];
+          return (
+            <span
+              key={s.key}
+              className="inline-block h-2 w-2 rounded-full"
+              style={{
+                backgroundColor: present ? countColor : "transparent",
+                border: `1px solid ${present ? countColor : "#d1d5db"}`,
+              }}
+              title={`${s.index}. ${s.label}${present ? " ✓" : ""}`}
+            />
+          );
+        })}
+      </div>
+      <span className="text-[10px] font-semibold" style={{ color: countColor }}>
+        {count}/8
+      </span>
+    </div>
+  );
+}
+
+// 선택 패널용: 8단계 체크리스트 + evidence
+function NarrativeStageChecklist({
+  stages,
+  details,
+  count,
+}: {
+  stages: Record<NarrativeStageKey, boolean> | null;
+  details: Record<string, { confidence: number; evidence: string }> | null;
+  count: number;
+}) {
+  if (!stages) return null;
+  const countColor =
+    count <= 3 ? NARRATIVE_BORDER_COLOR.critical : count <= 5 ? NARRATIVE_BORDER_COLOR.warn : NARRATIVE_BORDER_COLOR.ok;
+  return (
+    <div className="mt-1 rounded border border-gray-100 bg-gray-50 p-1.5 dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="flex items-center justify-between pb-1">
+        <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400">서사 8단계</span>
+        <span className="text-[11px] font-bold" style={{ color: countColor }}>
+          {count}/8
+        </span>
+      </div>
+      <ul className="flex flex-col gap-0.5">
+        {NARRATIVE_STAGES.map((s) => {
+          const present = stages[s.key];
+          const detail = details?.[s.key];
+          return (
+            <li key={s.key} className="flex items-start gap-1.5 text-[10px] leading-tight">
+              <span
+                className="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{
+                  backgroundColor: present ? countColor : "transparent",
+                  border: `1px solid ${present ? countColor : "#d1d5db"}`,
+                }}
+              />
+              <span className={present ? "text-gray-700 dark:text-gray-300" : "text-gray-400"}>
+                {s.index}. {s.label}
+              </span>
+              {present && detail?.evidence && (
+                <span className="flex-1 truncate text-gray-500" title={detail.evidence}>
+                  · {detail.evidence}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
