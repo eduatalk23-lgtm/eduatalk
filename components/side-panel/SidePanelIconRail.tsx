@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { StickyNote, MessageSquare, BarChart2, Network, Gauge, type LucideIcon } from "lucide-react";
+import { StickyNote, MessageSquare, BarChart2, Network, Gauge, GitFork, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useSidePanel } from "./SidePanelContext";
 import { BASE_SIDE_PANEL_APPS, type SidePanelAppConfig } from "./types";
@@ -13,6 +13,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   BarChart2,
   Network,
   Gauge,
+  GitFork,
 };
 
 const RAIL_WIDTH = 48;

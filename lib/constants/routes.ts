@@ -86,10 +86,10 @@ export const ROLE_ALLOWED_PATHS: Record<string, readonly string[]> = {
     "/report",
     "/reports",
   ],
-  admin: ["/admin", "/agent-popout"],
-  consultant: ["/admin", "/agent-popout"],
+  admin: ["/admin", "/agent-popout", "/student-graph"],
+  consultant: ["/admin", "/agent-popout", "/student-graph"],
   parent: ["/parent"],
-  superadmin: ["/superadmin", "/admin"],
+  superadmin: ["/superadmin", "/admin", "/student-graph"],
 } as const;
 
 /** 역할별 기본 대시보드 경로 */

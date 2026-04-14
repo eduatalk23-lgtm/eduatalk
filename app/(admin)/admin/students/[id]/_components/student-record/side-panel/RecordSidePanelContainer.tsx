@@ -30,6 +30,11 @@ const ConnectionsPanelApp = dynamic(
   { ssr: false },
 );
 
+const StudentRecordGraph = dynamic(
+  () => import("../graph/StudentRecordGraph").then((m) => ({ default: m.StudentRecordGraph })),
+  { ssr: false },
+);
+
 const PipelinePanelApp = dynamic(
   () => import("./PipelinePanelApp").then((m) => ({ default: m.PipelinePanelApp })),
   { ssr: false },
@@ -53,6 +58,9 @@ export function RecordSidePanelContainer() {
         {activeApp === "chat" && <ChatPanelApp recordTopic={activeSubjectId} />}
         {activeApp === "connections" && (
           <ConnectionsPanelApp studentId={studentId} tenantId={tenantId} />
+        )}
+        {activeApp === "graph" && (
+          <StudentRecordGraph studentId={studentId} tenantId={tenantId} />
         )}
         {activeApp === "pipeline" && (
           <PipelinePanelApp

@@ -1,5 +1,5 @@
 /** 사이드 패널에 등록된 앱 ID */
-export type SidePanelAppId = "memo" | "chat" | "connections" | "scores" | "pipeline";
+export type SidePanelAppId = "memo" | "chat" | "connections" | "graph" | "scores" | "pipeline";
 
 export interface SidePanelAppConfig {
   id: SidePanelAppId;
@@ -15,10 +15,11 @@ export const BASE_SIDE_PANEL_APPS: SidePanelAppConfig[] = [
   { id: "chat", label: "채팅", icon: "MessageSquare" },
 ];
 
-/** 생기부 전용 앱 (연결 + 파이프라인) */
+/** 생기부 전용 앱 (연결 + 그래프 + 파이프라인) */
 export const RECORD_SIDE_PANEL_APPS: SidePanelAppConfig[] = [
   ...BASE_SIDE_PANEL_APPS,
   { id: "connections", label: "연결", icon: "Network" },
+  { id: "graph", label: "그래프", icon: "GitFork", wide: true },
   { id: "pipeline", label: "AI 파이프라인", icon: "Gauge", wide: true },
 ];
 

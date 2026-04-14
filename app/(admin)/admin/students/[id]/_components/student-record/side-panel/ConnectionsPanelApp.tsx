@@ -16,6 +16,7 @@ import type { PersistedEdge } from "@/lib/domains/student-record/repository/edge
 import { useStudentRecordContext } from "../StudentRecordContext";
 import { ConnectionNodeCard } from "./ConnectionNodeCard";
 import { ConnectionEmptyState } from "./ConnectionEmptyState";
+import { ThemeConvergencePanel } from "./ThemeConvergencePanel";
 import { cn } from "@/lib/cn";
 import { ArrowLeft, Network } from "lucide-react";
 
@@ -155,6 +156,9 @@ export function ConnectionsPanelApp({
           </button>
         ))}
       </div>
+
+      {/* Phase 1 Layer 2: 통합 테마 (hyperedge) 리스트 */}
+      <ThemeConvergencePanel studentId={studentId} tenantId={tenantId} />
 
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
