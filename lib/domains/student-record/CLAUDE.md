@@ -24,7 +24,7 @@ student-record/
 ├── leveling/             # L0~L6 설계 모드 레벨링 (engine.ts, types.ts, resolve-tier.ts)
 ├── evaluation-criteria/  # 루브릭/포맷터/flow-completion (record-analysis/llm 에서도 사용)
 ├── cohort/               # 코호트 분석
-├── repository/           # 11개 repository (record/competency/diagnosis/edge/storyline/...)
+├── repository/           # 12개 repository (record/competency/diagnosis/edge/hyperedge/storyline/...)
 ├── actions/              # CRUD/오케스트레이터 액션 (24파일)
 └── report/               # 리포트 빌드/공유
 ```

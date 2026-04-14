@@ -25,6 +25,7 @@ import {
   runEdgeComputation,
   runGuideMatching,
   runHaengteukGuideLinking,
+  runHyperedgeComputation,
   runAiDiagnosis,
   runCourseRecommendation,
   runBypassAnalysis,
@@ -262,6 +263,45 @@ export async function executeSynthesisPhase2(
     await runTaskWithState(ctx, "edge_computation", () =>
       runEdgeComputation(ctx),
     );
+  }
+
+  // Phase 1 Hypergraph (Layer 2): edge_computation 직후 best-effort.
+  // 실패해도 phase 전체 실패 안 시킴 — Layer 1 엣지는 이미 DB에 있고, hyperedge는 보강 레이어.
+  if (ctx.tasks.edge_computation === "completed") {
+    try {
+      const hyperedgeResult = await runHyperedgeComputation(ctx);
+      const preview = typeof hyperedgeResult === "string" ? hyperedgeResult : hyperedgeResult.preview;
+      logActionDebug(
+        { domain: "record-analysis", action: "hyperedge_computation" },
+        `하이퍼엣지 계산: ${preview}`,
+      );
+      // 관측성: 기존 edge_computation task_result에 hyperedge 통계 merge
+      if (typeof hyperedgeResult !== "string") {
+        const existing = getTaskResult(ctx.results, "edge_computation");
+        if (existing) {
+          setTaskResult(ctx.results, "edge_computation", {
+            ...existing,
+            hyperedge: {
+              computedHyperedges: hyperedgeResult.result.computedHyperedges,
+              filteredBySize: hyperedgeResult.result.filteredBySize,
+              filteredByConfidence: hyperedgeResult.result.filteredByConfidence,
+              filteredByCompetency: hyperedgeResult.result.filteredByCompetency,
+              pairsExplored: hyperedgeResult.result.pairsExplored,
+              themeLabels: hyperedgeResult.result.themeLabels,
+              mergedByJaccard: hyperedgeResult.result.mergedByJaccard,
+              droppedByRanking: hyperedgeResult.result.droppedByRanking,
+              filteredByShallow: hyperedgeResult.result.filteredByShallow,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      logActionError(
+        { domain: "record-analysis", action: "hyperedge_computation" },
+        err instanceof Error ? err : new Error(String(err)),
+        { studentId: ctx.studentId },
+      );
+    }
   }
 
   if (await checkCancelled(ctx)) return;

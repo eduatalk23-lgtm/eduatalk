@@ -99,8 +99,27 @@ export interface PipelineTaskResultMap {
     coverageWarnings?: DataCoverageWarning[];
     elapsedMs?: number;
   };
-  /** S2-a: 엣지 연결 그래프 */
-  edge_computation: { totalEdges: number; nodeCount: number; elapsedMs?: number };
+  /** S2-a: 엣지 연결 그래프 (+ best-effort hyperedge 후속 결과) */
+  edge_computation: {
+    totalEdges: number;
+    nodeCount: number;
+    elapsedMs?: number;
+    /** Phase 1 Layer 2 — hyperedge_computation 결과 (best-effort, 실패 시 omit) */
+    hyperedge?: {
+      computedHyperedges: number;
+      filteredBySize: number;
+      filteredByConfidence: number;
+      filteredByCompetency: number;
+      pairsExplored: number;
+      themeLabels: string[];
+      /** 세션 4: 부분 중첩(Jaccard≥0.6) 병합된 건수 */
+      mergedByJaccard?: number;
+      /** 세션 4: top-N(8) 캡으로 탈락한 건수 */
+      droppedByRanking?: number;
+      /** 세션 5 polish: sharedCompetencies.size<2 로 탈락한 건수 */
+      filteredByShallow?: number;
+    };
+  };
   /** S3-a: AI 종합 진단 */
   ai_diagnosis: {
     overallGrade: string;

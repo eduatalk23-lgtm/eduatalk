@@ -9,6 +9,7 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PersistedEdge } from "../repository/edge-repository";
+import type { PersistedHyperedge } from "../repository/hyperedge-repository";
 
 const LOG_CTX = { domain: "student-record", action: "diagnosis-helpers" };
 
@@ -23,6 +24,21 @@ export async function fetchPersistedEdges(
     return await findEdges(studentId, tenantId);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchPersistedEdges" }, error, { studentId });
+    return [];
+  }
+}
+
+/** 학생의 DB 영속화 하이퍼엣지 목록 조회 (Phase 1 Layer 2) */
+export async function fetchPersistedHyperedges(
+  studentId: string,
+  tenantId: string,
+): Promise<PersistedHyperedge[]> {
+  try {
+    await requireAdminOrConsultant();
+    const { findHyperedges } = await import("../repository/hyperedge-repository");
+    return await findHyperedges(studentId, tenantId, { contexts: ["analysis", "synthesis_inferred"] });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPersistedHyperedges" }, error, { studentId });
     return [];
   }
 }

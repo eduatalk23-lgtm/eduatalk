@@ -500,6 +500,8 @@ export interface SuggestStrategiesInput {
   universityMatchContext?: string;
   /** 배정 가이드 컨텍스트 (P4-P6 탐구 방향/키워드). 없으면 프롬프트에서 생략. */
   guideContextSection?: string;
+  /** Phase 1 Layer 2: 통합 테마 (hyperedge) 요약. 수렴 서사/반사실 추론 근거. */
+  hyperedgeSummarySection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */

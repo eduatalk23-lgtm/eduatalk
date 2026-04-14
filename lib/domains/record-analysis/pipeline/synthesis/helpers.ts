@@ -348,3 +348,41 @@ export function buildCrossSubjectThemesDiagnosisSection(byGrade: GradeThemesByGr
 
   return lines.join("\n");
 }
+
+// ============================================
+// Phase 1 Layer 2: Hyperedge 프롬프트 섹션 빌더
+// ============================================
+
+type HyperedgeLike = {
+  theme_label: string;
+  member_count: number;
+  members: Array<{ label: string; grade: number | null }>;
+  confidence: number;
+  evidence: string | null;
+  shared_competencies: string[] | null;
+};
+
+/**
+ * hyperedge 목록 → S5 전략 프롬프트 주입용 섹션.
+ * 컨설턴트 관점: "3+ 레코드가 하나의 주제로 수렴하는 축"을 전략 우선순위 근거로 제시.
+ * 데이터 없으면 빈 문자열.
+ */
+export function buildHyperedgeSummarySection(hyperedges: HyperedgeLike[]): string {
+  if (hyperedges.length === 0) return "";
+
+  const sorted = [...hyperedges].sort((a, b) => b.confidence - a.confidence);
+  const lines: string[] = ["## 통합 테마 (3+ 레코드 수렴, Layer 2 hyperedge)", ""];
+  for (const h of sorted) {
+    const comps = h.shared_competencies && h.shared_competencies.length > 0
+      ? ` · 공유역량 ${h.shared_competencies.join("/")}`
+      : "";
+    const memberSummary = h.members
+      .map((m) => (m.grade ? `${m.grade}학년 ${m.label}` : m.label))
+      .join(" + ");
+    lines.push(`- **${h.theme_label}** (${h.member_count}개 레코드, conf ${h.confidence.toFixed(2)}${comps})`);
+    lines.push(`  · 멤버: ${memberSummary}`);
+  }
+  lines.push("");
+  lines.push("→ 위 통합 테마는 학생의 **수렴 서사축**입니다. 보완전략은 이 축을 강화/보강하거나, 축과 괴리된 활동을 재정렬하는 방향으로 우선 배치하세요.");
+  return lines.join("\n");
+}

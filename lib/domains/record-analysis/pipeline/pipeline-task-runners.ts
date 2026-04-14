@@ -26,6 +26,7 @@ export {
   runCourseRecommendation,
   runGuideMatching,
   runHaengteukGuideLinking,
+  runHyperedgeComputation,
   runActivitySummary,
   runAiStrategy,
   runBypassAnalysis,

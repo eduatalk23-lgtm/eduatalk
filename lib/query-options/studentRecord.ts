@@ -37,6 +37,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "gradeAwarePipelineStatus", studentId] as const,
   edges: (studentId: string) =>
     [...studentRecordKeys.all, "edges", studentId] as const,
+  hyperedges: (studentId: string) =>
+    [...studentRecordKeys.all, "hyperedges", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -118,6 +120,22 @@ export function edgesQueryOptions(studentId: string, tenantId: string) {
         "@/lib/domains/student-record/actions/diagnosis"
       );
       return fetchPersistedEdges(studentId, tenantId);
+    },
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** Phase 1 Layer 2: DB 영속화 하이퍼엣지 조회 */
+export function hyperedgesQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.hyperedges(studentId),
+    queryFn: async () => {
+      const { fetchPersistedHyperedges } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchPersistedHyperedges(studentId, tenantId);
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,

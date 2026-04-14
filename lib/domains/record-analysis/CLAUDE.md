@@ -82,12 +82,31 @@ Grade Pipeline (학년별, 9태스크×8Phase)
 
 Synthesis Pipeline (종합, 10태스크×6Phase)
   S1: storyline_generation
-  S2: edge_computation + guide_matching
-  S3: ai_diagnosis + course_recommendation  ← aggregateQualityPatterns 주입
+  S2: edge_computation + guide_matching      ← edge_computation 직후 hyperedge_computation (Layer 2, best-effort 후속)
+  S3: ai_diagnosis + course_recommendation   ← aggregateQualityPatterns 주입
   S4: bypass_analysis
-  S5: activity_summary + ai_strategy       ← qualityPatterns 주입
+  S5: activity_summary + ai_strategy         ← qualityPatterns + hyperedgeSummarySection 주입
   S6: interview_generation + roadmap_generation
 ```
+
+### Layer 2 Hypergraph (Phase 1, 2026-04-14)
+
+**목적**: Layer 1 binary edge로 표현 불가능한 N-ary 수렴 서사축을 별도 엔티티로 영속화.
+`{세특 A + 독서 B + 동아리 C}가 하나의 탐구 주제로 수렴`을 **1개 hyperedge**로 저장.
+
+**컴퓨테이션 위치**: `pipeline/synthesis/phase-s2-hyperedges.ts` — `runEdgeComputation` 성공 직후 best-effort 후속 실행 (`executeSynthesisPhase2` 내).
+
+**알고리즘 B' (pair-seed 클러스터링)**:
+1. eligible 엣지 필터 — `edge_type ∈ {COMPETENCY_SHARED, THEME_CONVERGENCE, READING_ENRICHES}` + `confidence ≥ 0.7` + `target_record_id` 존재 + `shared_competencies.length ≥ 2`
+2. 각 엣지의 `shared_competencies`에서 모든 2-조합(pair) 추출 — pair = 테마 시드
+3. pair별 서브그래프: 해당 pair를 포함하는 엣지만 뽑아 union-find
+4. size ∈ [3, 5] 컴포넌트만 hyperedge 후보
+5. member set 기준 dedup, `shared_competencies`는 합집합으로 병합
+6. `confidence = min(member edge confidence)`, `theme_slug = djb2(shared + members)`
+
+**왜 단순 union-find가 아닌가**: 범용 역량(`academic_inquiry` 등)이 대부분 엣지에 등장하여 단일 거대 컴포넌트 형성 → size cap에서 전량 탈락. pair-seed 방식은 "범용 pair는 자연스럽게 size>5로 탈락, 선명한 pair만 통과"라는 자기 조절을 가짐.
+
+**S5 주입**: `findHyperedges(studentId, tenantId, { contexts: ['analysis'] })` → `buildHyperedgeSummarySection()` → `SuggestStrategiesInput.hyperedgeSummarySection`로 전달.
 
 ### Phase 간 데이터 흐름 (핵심)
 
@@ -179,6 +198,7 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `student_record_changche_guides` | 창체 방향 가이드 | P5 출력 |
 | `student_record_haengteuk_guides` | 행특 방향 가이드 | P6 출력 |
 | `student_record_edges` | 레코드 간 연결 그래프 (`edge_context`: analysis/projected/synthesis_inferred) | S2+P8 출력 + S3 동적 추론 |
+| `student_record_hyperedges` | N-ary 수렴 테마(Layer 2, `hyperedge_type='theme_convergence'`) | S2 hyperedge_computation 출력, S5 주입 |
 | `student_record_strategies` | 보완전략 | S5 출력 |
 | `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
 

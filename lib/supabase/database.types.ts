@@ -13347,6 +13347,94 @@ export type Database = {
           },
         ]
       }
+      student_record_hyperedges: {
+        Row: {
+          confidence: number
+          created_at: string
+          edge_context: string
+          evidence: string | null
+          hyperedge_type: string
+          id: string
+          is_stale: boolean
+          member_count: number
+          members: Json
+          pipeline_id: string | null
+          shared_competencies: string[] | null
+          shared_keywords: string[] | null
+          snapshot_version: number
+          stale_reason: string | null
+          student_id: string
+          tenant_id: string
+          theme_label: string
+          theme_slug: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          edge_context?: string
+          evidence?: string | null
+          hyperedge_type?: string
+          id?: string
+          is_stale?: boolean
+          member_count: number
+          members: Json
+          pipeline_id?: string | null
+          shared_competencies?: string[] | null
+          shared_keywords?: string[] | null
+          snapshot_version?: number
+          stale_reason?: string | null
+          student_id: string
+          tenant_id: string
+          theme_label: string
+          theme_slug: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          edge_context?: string
+          evidence?: string | null
+          hyperedge_type?: string
+          id?: string
+          is_stale?: boolean
+          member_count?: number
+          members?: Json
+          pipeline_id?: string | null
+          shared_competencies?: string[] | null
+          shared_keywords?: string[] | null
+          snapshot_version?: number
+          stale_reason?: string | null
+          student_id?: string
+          tenant_id?: string
+          theme_label?: string
+          theme_slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_hyperedges_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_hyperedges_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_hyperedges_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_interview_questions: {
         Row: {
           created_at: string
@@ -17622,6 +17710,26 @@ export type Database = {
         Args: { p_topic_id: string }
         Returns: undefined
       }
+      insert_student_record_edges: {
+        Args: {
+          p_edge_context?: string
+          p_edges?: Json
+          p_pipeline_id: string
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      insert_student_record_hyperedges: {
+        Args: {
+          p_edge_context?: string
+          p_hyperedges?: Json
+          p_pipeline_id: string
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
       invite_chat_members: {
         Args: {
           p_member_ids: string[]
@@ -17690,6 +17798,16 @@ export type Database = {
         Args: {
           p_edge_context: string
           p_edges?: Json
+          p_pipeline_id: string
+          p_student_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      replace_student_record_hyperedges: {
+        Args: {
+          p_edge_context: string
+          p_hyperedges?: Json
           p_pipeline_id: string
           p_student_id: string
           p_tenant_id: string

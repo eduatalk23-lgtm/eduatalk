@@ -196,9 +196,9 @@ describe("calculateCourseAdequacy", () => {
   // ── 2022 교육과정 fusion 카테고리 ──
 
   it("2022 교육과정 — fusion 과목 포함하여 totalRecommended 증가", () => {
-    // 컴퓨터·정보: general=5, career=4, fusion=3 → total=12
+    // 컴퓨터·정보: general=6, career=4, fusion=3 → total=13
     const result = calculateCourseAdequacy("컴퓨터·정보", [], null, 2022);
-    expect(result!.totalRecommended).toBe(12);
+    expect(result!.totalRecommended).toBe(13);
     expect(result!.fusionRate).toBe(0);
   });
 
@@ -219,16 +219,16 @@ describe("calculateCourseAdequacy", () => {
   });
 
   it("2022 교육과정 — 전체 이수 시 100% (fusion 포함)", () => {
-    // 경영·경제: general=7, career=3, fusion=2 → total=12
+    // 경영·경제: general=8, career=3, fusion=2 → total=13
     const allSubjects = [
-      "미적분", "확률과 통계", "세계지리", "세계사", "경제", "정치와 법", "사회와 문화",
+      "대수", "미적분Ⅰ", "확률과 통계", "세계시민과 지리", "세계사", "경제", "정치", "사회와 문화",
       "경제수학", "국제 경제", "사회과제 탐구",
       "금융과 경제생활", "창업과 경영",
     ];
     const result = calculateCourseAdequacy("경영·경제", allSubjects, null, 2022);
     expect(result!.score).toBe(100);
     expect(result!.fusionRate).toBe(100);
-    expect(result!.taken).toHaveLength(12);
+    expect(result!.taken).toHaveLength(13);
   });
 
   it("2022 교육과정 — 학교 미개설 fusion 과목은 분모에서 제외", () => {

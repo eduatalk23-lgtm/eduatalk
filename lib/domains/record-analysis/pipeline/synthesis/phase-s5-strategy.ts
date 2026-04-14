@@ -16,8 +16,10 @@ import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosi
 import {
   fetchAllYearCompetencyScores,
   buildUniversityMatchPromptSection,
+  buildHyperedgeSummarySection,
   competencyGradeToScore,
 } from "./helpers";
+import { findHyperedges } from "@/lib/domains/student-record/repository/hyperedge-repository";
 
 // M4: 가이드 배정 컨텍스트 캐시 — Phase 간 DB 재조회 방지
 type GuideContextKey = "guide" | "summary" | "strategy";
@@ -254,6 +256,19 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     } catch { /* 재집계 실패해도 전략 생성은 계속 */ }
   }
 
+  // Phase 1 Layer 2: 통합 테마(hyperedge) 주입 — 수렴 서사축을 전략 근거로 공급
+  let hyperedgeSummarySection: string | undefined;
+  try {
+    const hyperedges = await findHyperedges(studentId, tenantId, {
+      contexts: ["analysis"],
+    });
+    if (hyperedges.length > 0) {
+      hyperedgeSummarySection = buildHyperedgeSummarySection(hyperedges);
+    }
+  } catch (hyperErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.hyperedges" }, hyperErr, { pipelineId });
+  }
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -265,6 +280,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     existingStrategies: existingContents,
     universityMatchContext,
     guideContextSection: guideContextSection || undefined,
+    hyperedgeSummarySection: hyperedgeSummarySection || undefined,
     qualityPatterns: ctx.qualityPatterns,
   });
   if (!result.success) throw new Error(result.error);
