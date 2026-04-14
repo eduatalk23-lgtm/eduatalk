@@ -11,6 +11,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PersistedEdge } from "../repository/edge-repository";
 import type { PersistedHyperedge } from "../repository/hyperedge-repository";
 import type { PersistedNarrativeArc } from "../repository/narrative-arc-repository";
+import type { PersistedProfileCard } from "../repository/profile-card-repository";
 
 const LOG_CTX = { domain: "student-record", action: "diagnosis-helpers" };
 
@@ -55,6 +56,21 @@ export async function fetchPersistedNarrativeArcs(
     return await findNarrativeArcsByStudent(studentId, tenantId, { source: "ai" });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchPersistedNarrativeArcs" }, error, { studentId });
+    return [];
+  }
+}
+
+/** 학생의 DB 영속화 profile_card 목록 조회 (H2 Layer 0, 학년별) */
+export async function fetchPersistedProfileCards(
+  studentId: string,
+  tenantId: string,
+): Promise<PersistedProfileCard[]> {
+  try {
+    await requireAdminOrConsultant();
+    const { findProfileCardsByStudent } = await import("../repository/profile-card-repository");
+    return await findProfileCardsByStudent(studentId, tenantId, { source: "ai" });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPersistedProfileCards" }, error, { studentId });
     return [];
   }
 }

@@ -41,6 +41,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "hyperedges", studentId] as const,
   narrativeArcs: (studentId: string) =>
     [...studentRecordKeys.all, "narrativeArcs", studentId] as const,
+  profileCards: (studentId: string) =>
+    [...studentRecordKeys.all, "profileCards", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -154,6 +156,22 @@ export function narrativeArcsQueryOptions(studentId: string, tenantId: string) {
         "@/lib/domains/student-record/actions/diagnosis-helpers"
       );
       return fetchPersistedNarrativeArcs(studentId, tenantId);
+    },
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** Phase 2 Step 4b: DB 영속화 profile_card 조회 (H2 Layer 0, 학년별 서사 프로필) */
+export function profileCardsQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.profileCards(studentId),
+    queryFn: async () => {
+      const { fetchPersistedProfileCards } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchPersistedProfileCards(studentId, tenantId);
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
