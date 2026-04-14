@@ -713,6 +713,18 @@ describe("computePipelineFinalStatus()", () => {
     expect(computePipelineFinalStatus("grade", "analysis", tasks)).toBe("completed");
   });
 
+  it("grade+analysis: cross_subject_theme_extraction이 pending이어도 completed (optional enhancement)", () => {
+    const tasks = allAnalysisCompleted();
+    tasks.cross_subject_theme_extraction = "pending";
+    expect(computePipelineFinalStatus("grade", "analysis", tasks)).toBe("completed");
+  });
+
+  it("grade+design: cross_subject_theme_extraction이 pending이어도 completed (optional enhancement)", () => {
+    const tasks = allDesignCompleted();
+    tasks.cross_subject_theme_extraction = "pending";
+    expect(computePipelineFinalStatus("grade", "design", tasks)).toBe("completed");
+  });
+
   it("grade+design: draft_*까지 전부 completed여야 completed", () => {
     expect(computePipelineFinalStatus("grade", "design", allDesignCompleted())).toBe("completed");
   });

@@ -103,9 +103,12 @@ export async function updatePipelineState(
  * - 모든 required가 terminal(completed/failed)이지만 일부라도 failed면 "failed"
  *
  * required 태스크 집합:
- * - grade + analysis mode: GRADE_PIPELINE_TASK_KEYS − {draft_generation, draft_analysis}
- * - grade + design mode:   GRADE_PIPELINE_TASK_KEYS (전체 9개)
+ * - grade + analysis mode: GRADE_PIPELINE_TASK_KEYS − {draft_generation, draft_analysis, cross_subject_theme_extraction}
+ * - grade + design mode:   GRADE_PIPELINE_TASK_KEYS − {cross_subject_theme_extraction}
  * - synthesis:             SYNTHESIS_PIPELINE_TASK_KEYS (전체 10개)
+ *
+ * `cross_subject_theme_extraction`은 optional enhancement (Phase 6/8 finalize 로직이
+ * 이미 동일하게 취급). 이 태스크가 홀로 pending으로 남아도 파이프라인은 종결 가능해야 함.
  *
  * 기존에는 각 phase 파일(Phase 6 analysis, Phase 8 design, Phase S6)에만 finalize 로직이
  * 있어 경로가 누락되면 파이프라인이 running에 잠기는 버그가 있었다. 이 헬퍼를
@@ -122,9 +125,14 @@ export function computePipelineFinalStatus(
     pipelineType === "synthesis"
       ? SYNTHESIS_PIPELINE_TASK_KEYS
       : gradeMode === "design"
-        ? GRADE_PIPELINE_TASK_KEYS
+        ? GRADE_PIPELINE_TASK_KEYS.filter(
+            (k) => k !== "cross_subject_theme_extraction",
+          )
         : GRADE_PIPELINE_TASK_KEYS.filter(
-            (k) => k !== "draft_generation" && k !== "draft_analysis",
+            (k) =>
+              k !== "draft_generation" &&
+              k !== "draft_analysis" &&
+              k !== "cross_subject_theme_extraction",
           );
 
   const states = requiredKeys.map((k) => tasks[k] ?? "pending");
