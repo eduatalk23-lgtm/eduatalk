@@ -82,7 +82,7 @@ Grade Pipeline (학년별, 9태스크×8Phase)
 
 Synthesis Pipeline (종합, 10태스크×6Phase)
   S1: storyline_generation
-  S2: edge_computation + guide_matching      ← edge_computation 직후 hyperedge_computation (Layer 2, best-effort 후속)
+  S2: edge_computation + guide_matching      ← edge_computation 직후 hyperedge_computation (Layer 2) + narrative_arc_extraction (Layer 3) best-effort 후속
   S3: ai_diagnosis + course_recommendation   ← aggregateQualityPatterns 주입
   S4: bypass_analysis
   S5: activity_summary + ai_strategy         ← qualityPatterns + hyperedgeSummarySection 주입
@@ -199,6 +199,7 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `student_record_haengteuk_guides` | 행특 방향 가이드 | P6 출력 |
 | `student_record_edges` | 레코드 간 연결 그래프 (`edge_context`: analysis/projected/synthesis_inferred) | S2+P8 출력 + S3 동적 추론 |
 | `student_record_hyperedges` | N-ary 수렴 테마(Layer 2, `hyperedge_type='theme_convergence'`) | S2 hyperedge_computation 출력, S5 주입 |
+| `student_record_narrative_arc` | 레코드별 8단계 서사 태깅(Layer 3, `source='ai'\|'manual'`) | S2 narrative_arc_extraction 출력. Phase 2 |
 | `student_record_strategies` | 보완전략 | S5 출력 |
 | `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
 
@@ -269,6 +270,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `generateInterviewQuestions.ts` | `generateInterviewQuestions()` | standard | 면접 예상질문 |
 | `generateRoadmap.ts` | `generateAiRoadmap()` | standard | 학기별 로드맵 |
 | `generateSetekDraft.ts` | `generateSetekDraftAction()` | standard | 세특 AI 초안 (fire-and-forget) |
+| `extractNarrativeArc.ts` | `extractNarrativeArc()` | fast (Pro fallback) | Layer 3 8단계 서사 태깅 (Phase 2) |
 | `generateChangcheDraft.ts` | `generateChangcheDraftAction()` | standard | 창체 AI 초안 (fire-and-forget) |
 | `generateHaengteukDraft.ts` | `generateHaengteukDraftAction()` | standard | 행특 AI 초안 (fire-and-forget) |
 | `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |

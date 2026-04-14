@@ -10,6 +10,7 @@ export { runStorylineGeneration } from "./phase-s1-storyline";
 export { runEdgeComputation, runGuideMatching } from "./phase-s2-edges";
 export { runHaengteukGuideLinking } from "./phase-s2-haengteuk-linking";
 export { runHyperedgeComputation } from "./phase-s2-hyperedges";
+export { runNarrativeArcExtraction } from "./phase-s2-narrative-arc";
 
 // S3
 export { runAiDiagnosis, runCourseRecommendation } from "./phase-s3-diagnosis";

@@ -26,6 +26,7 @@ import {
   runGuideMatching,
   runHaengteukGuideLinking,
   runHyperedgeComputation,
+  runNarrativeArcExtraction,
   runAiDiagnosis,
   runCourseRecommendation,
   runBypassAnalysis,
@@ -302,6 +303,39 @@ export async function executeSynthesisPhase2(
         { studentId: ctx.studentId },
       );
     }
+  }
+
+  // Phase 2 Narrative Arc (Layer 3): 레코드 단위 8단계 서사 태깅.
+  // edge_computation 선행 아님 — 레코드 원문만 있으면 실행 가능.
+  // best-effort: 실패해도 phase 전체 실패 안 시킴.
+  try {
+    const narrativeResult = await runNarrativeArcExtraction(ctx);
+    const preview = typeof narrativeResult === "string" ? narrativeResult : narrativeResult.preview;
+    logActionDebug(
+      { domain: "record-analysis", action: "narrative_arc_extraction" },
+      `서사 태깅: ${preview}`,
+    );
+    if (typeof narrativeResult !== "string") {
+      const existing = getTaskResult(ctx.results, "edge_computation");
+      if (existing) {
+        setTaskResult(ctx.results, "edge_computation", {
+          ...existing,
+          narrativeArc: {
+            total: narrativeResult.result.total,
+            succeeded: narrativeResult.result.succeeded,
+            failed: narrativeResult.result.failed,
+            skippedAlreadyAnalyzed: narrativeResult.result.skippedAlreadyAnalyzed,
+            skippedShortContent: narrativeResult.result.skippedShortContent,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    logActionError(
+      { domain: "record-analysis", action: "narrative_arc_extraction" },
+      err instanceof Error ? err : new Error(String(err)),
+      { studentId: ctx.studentId },
+    );
   }
 
   if (await checkCancelled(ctx)) return;

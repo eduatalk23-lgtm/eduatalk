@@ -27,6 +27,7 @@ export {
   runGuideMatching,
   runHaengteukGuideLinking,
   runHyperedgeComputation,
+  runNarrativeArcExtraction,
   runActivitySummary,
   runAiStrategy,
   runBypassAnalysis,

@@ -119,6 +119,14 @@ export interface PipelineTaskResultMap {
       /** 세션 5 polish: sharedCompetencies.size<2 로 탈락한 건수 */
       filteredByShallow?: number;
     };
+    /** Phase 2 Layer 3 — narrative_arc_extraction 결과 (best-effort, 실패 시 omit) */
+    narrativeArc?: {
+      total: number;
+      succeeded: number;
+      failed: number;
+      skippedAlreadyAnalyzed: number;
+      skippedShortContent: number;
+    };
   };
   /** S3-a: AI 종합 진단 */
   ai_diagnosis: {
