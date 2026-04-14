@@ -122,21 +122,32 @@ export function matchRecommendationsToSubjects(
 // 3단계: 학년/학기 배치 + 학교 개설 필터
 // ============================================
 
-/** subject_type → 기본 배치 학년 (fallback) */
-const TYPE_DEFAULT_GRADES: Record<string, number[]> = {
-  "공통": [1],
-  "일반선택": [2],
-  "진로선택": [2, 3],
-  "융합선택": [2, 3],
+/**
+ * 선택과목 타입별 기본 배치 슬롯 (라운드로빈 순서대로 채움)
+ *
+ * 교육적 우선순위 반영:
+ * - 일반선택: 기초 학력 → 2학년 (1/2학기 라운드로빈)
+ * - 진로선택: 전공 심화 → 3학년 우선, 넘치면 2-2
+ * - 융합선택: 통합 사고 → 3학년 (1/2학기 라운드로빈)
+ *
+ * 학교 개설 정보(`school_offered_subjects.grades/semesters`)가 있으면 그 값을
+ * 우선 존중한다 (1학년 개설 정보 포함). 이 슬롯은 정보가 없을 때만 fallback.
+ */
+const SELECTIVE_SLOTS: Record<"general" | "career" | "fusion", Array<[number, number]>> = {
+  general: [[2, 1], [2, 2]],
+  career: [[3, 1], [3, 2], [2, 2]],
+  fusion: [[3, 1], [3, 2]],
 };
 
 /**
  * 추천 과목에 학년/학기를 배정
  *
  * 우선순위:
- * 1. school_offered_subjects.grades[] 사용
- * 2. subject_type 기반 fallback
- * 3. 정적 기본값 (2학년 1학기)
+ * 1. school_offered_subjects.grades/semesters (학교 실제 개설 정보)
+ * 2. SELECTIVE_SLOTS 라운드로빈 (타입별 교육적 분산)
+ *
+ * 공통과목(subjectType === "공통" 또는 "공통(성취평가)")은 이 함수에서 제외하고
+ * common-courses.ts 의 고정 시드로 별도 처리한다.
  */
 export function assignGradeSemesters(
   matched: MatchedRecommendation[],
@@ -151,38 +162,43 @@ export function assignGradeSemesters(
   );
   const takenSet = new Set(takenSubjectIds);
 
+  // 타입별 라운드로빈 카운터
+  const counters: Record<"general" | "career" | "fusion", number> = {
+    general: 0,
+    career: 0,
+    fusion: 0,
+  };
+
   const results: CourseRecommendation[] = [];
 
   for (const rec of matched) {
     // 이미 이수한 과목은 skip
     if (takenSet.has(rec.subjectId)) continue;
 
+    // 공통과목은 별도 시드 경로 → 여기서 제외
+    if (rec.subjectType === "공통" || rec.subjectType === "공통(성취평가)") continue;
+
     const offered = offeredMap.get(rec.subjectId);
     const isSchoolOffered = offered ? true : (offeredSubjects.length === 0 ? null : false);
 
-    // 학년 결정
-    let targetGrades: number[];
+    let grade: number;
+    let semester: number;
+
     if (offered && offered.grades.length > 0) {
-      // 학교에서 제공하는 학년 정보 사용
-      targetGrades = offered.grades.filter((g) => g >= studentCurrentGrade);
-      if (targetGrades.length === 0) targetGrades = offered.grades;
+      // 학교 실제 개설 정보 우선 (1학년 개설 포함 가능)
+      const validGrades = offered.grades.filter((g) => g >= studentCurrentGrade);
+      const gradePool = validGrades.length > 0 ? validGrades : offered.grades;
+      grade = gradePool[0];
+      semester = offered.semesters.length > 0 ? offered.semesters[0] : 1;
     } else {
-      // subject_type fallback
-      const defaults = TYPE_DEFAULT_GRADES[rec.subjectType ?? ""] ?? [2];
-      targetGrades = defaults.filter((g) => g >= studentCurrentGrade);
-      if (targetGrades.length === 0) targetGrades = defaults;
+      // SELECTIVE_SLOTS 라운드로빈 (타입별 교육적 분산)
+      const slots = SELECTIVE_SLOTS[rec.type];
+      const validSlots = slots.filter(([g]) => g >= studentCurrentGrade);
+      const pool = validSlots.length > 0 ? validSlots : slots;
+      const idx = counters[rec.type] % pool.length;
+      counters[rec.type]++;
+      [grade, semester] = pool[idx];
     }
-
-    // 학기 결정
-    let targetSemesters: number[];
-    if (offered && offered.semesters.length > 0) {
-      targetSemesters = offered.semesters;
-    } else {
-      targetSemesters = [1]; // 기본 1학기
-    }
-
-    const grade = targetGrades[0];
-    const semester = targetSemesters[0];
 
     // 중복 체크
     const key = `${rec.subjectId}:${grade}:${semester}`;

@@ -157,15 +157,70 @@ describe("assignGradeSemesters", () => {
     },
   ];
 
-  it("학교 개설 정보가 없으면 subject_type 기반 fallback", () => {
+  it("학교 개설 정보가 없으면 SELECTIVE_SLOTS 라운드로빈 적용", () => {
     const result = assignGradeSemesters(matched, [], [], [], 1);
     expect(result.length).toBe(3);
 
     const calcRec = result.find((r) => r.subjectId === "s1");
-    expect(calcRec?.grade).toBe(2); // 일반선택 → 2학년
+    expect(calcRec?.grade).toBe(2); // 일반선택 → 2-1 (slots[0])
 
     const geoRec = result.find((r) => r.subjectId === "s6");
-    expect(geoRec?.grade).toBe(2); // 진로선택 → 2-3학년 중 첫 번째
+    expect(geoRec?.grade).toBe(3); // 진로선택 → 3-1 (3학년 우선, slots[0])
+    expect(geoRec?.semester).toBe(1);
+  });
+
+  it("일반선택 다건은 2-1/2-2 로 라운드로빈된다", () => {
+    const generalBatch = [
+      { name: "A", type: "general" as const, majorCategory: "t",
+        subjectId: "a1", subjectName: "A", subjectType: "일반선택" },
+      { name: "B", type: "general" as const, majorCategory: "t",
+        subjectId: "a2", subjectName: "B", subjectType: "일반선택" },
+      { name: "C", type: "general" as const, majorCategory: "t",
+        subjectId: "a3", subjectName: "C", subjectType: "일반선택" },
+    ];
+    const result = assignGradeSemesters(generalBatch, [], [], [], 1);
+    const a = result.find((r) => r.subjectId === "a1");
+    const b = result.find((r) => r.subjectId === "a2");
+    const c = result.find((r) => r.subjectId === "a3");
+    expect(a?.semester).toBe(1); // 2-1
+    expect(b?.semester).toBe(2); // 2-2
+    expect(c?.semester).toBe(1); // 2-1 (wrap)
+  });
+
+  it("진로선택 다건은 3-1/3-2/2-2 로 분산된다", () => {
+    const careerBatch = [
+      { name: "X", type: "career" as const, majorCategory: "t",
+        subjectId: "c1", subjectName: "X", subjectType: "진로선택" },
+      { name: "Y", type: "career" as const, majorCategory: "t",
+        subjectId: "c2", subjectName: "Y", subjectType: "진로선택" },
+      { name: "Z", type: "career" as const, majorCategory: "t",
+        subjectId: "c3", subjectName: "Z", subjectType: "진로선택" },
+    ];
+    const result = assignGradeSemesters(careerBatch, [], [], [], 1);
+    const x = result.find((r) => r.subjectId === "c1");
+    const y = result.find((r) => r.subjectId === "c2");
+    const z = result.find((r) => r.subjectId === "c3");
+    expect(x?.grade).toBe(3);
+    expect(x?.semester).toBe(1);
+    expect(y?.grade).toBe(3);
+    expect(y?.semester).toBe(2);
+    expect(z?.grade).toBe(2);
+    expect(z?.semester).toBe(2);
+  });
+
+  it("공통과목은 별도 시드 경로 → 이 함수에서 제외된다", () => {
+    const commonBatch = [
+      { name: "공통국어1", type: "general" as const, majorCategory: "t",
+        subjectId: "k1", subjectName: "공통국어1", subjectType: "공통" },
+      { name: "과학탐구실험1", type: "general" as const, majorCategory: "t",
+        subjectId: "k2", subjectName: "과학탐구실험1", subjectType: "공통(성취평가)" },
+      { name: "미적분", type: "general" as const, majorCategory: "t",
+        subjectId: "k3", subjectName: "미적분", subjectType: "일반선택" },
+    ];
+    const result = assignGradeSemesters(commonBatch, [], [], [], 1);
+    expect(result.find((r) => r.subjectId === "k1")).toBeUndefined();
+    expect(result.find((r) => r.subjectId === "k2")).toBeUndefined();
+    expect(result.find((r) => r.subjectId === "k3")).toBeDefined();
   });
 
   it("학교 개설 정보가 있으면 해당 학년 사용", () => {

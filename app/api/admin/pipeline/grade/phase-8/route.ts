@@ -11,7 +11,10 @@ const LOG_CTX = { domain: "student-record", action: "pipeline.grade.phase-8" };
 
 export async function POST(request: NextRequest) {
   try {
-    const { pipelineId } = (await request.json()) as { pipelineId: string };
+    const { pipelineId, chunkSize } = (await request.json()) as {
+      pipelineId: string;
+      chunkSize?: number;
+    };
 
     if (!pipelineId) {
       return NextResponse.json(
@@ -35,7 +38,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await executeGradePhase8(ctx);
+    const phaseResult = await executeGradePhase8(
+      ctx,
+      chunkSize != null ? { chunkSize } : undefined,
+    );
+
+    // 청크 모드: hasMore=true 면 다음 학년 확인 전 반환
+    if (phaseResult.hasMore) {
+      return NextResponse.json({
+        phase: 8,
+        grade: ctx.targetGrade,
+        hasMore: true,
+        chunkProcessed: phaseResult.chunkProcessed,
+        totalUncached: phaseResult.totalUncached,
+      });
+    }
 
     // 다음 학년 파이프라인 확인 (phase-8이 최종 phase)
     const admin = createSupabaseAdminClient();
@@ -59,6 +76,7 @@ export async function POST(request: NextRequest) {
       phase: 8,
       grade: ctx.targetGrade,
       completed: true,
+      hasMore: false,
       nextGradePipelineId: nextPipeline?.id ?? null,
       nextGrade: nextPipeline?.grade ?? null,
       allGradesCompleted,

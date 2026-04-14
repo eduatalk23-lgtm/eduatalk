@@ -63,6 +63,7 @@ export {
 export {
   runDraftGenerationForGrade,
   runDraftAnalysisForGrade,
+  runDraftAnalysisChunkForGrade,
 } from "./pipeline-task-runners-draft";
 
 // H1 / L3-A: Cross-subject Theme Extraction (Grade Pipeline P3.5)

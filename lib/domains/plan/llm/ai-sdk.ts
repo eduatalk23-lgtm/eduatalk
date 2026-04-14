@@ -139,6 +139,34 @@ const DEFAULT_MAX_TOKENS: Record<ModelTier, number> = {
   advanced: 16384,
 };
 
+/**
+ * provider 별 completion token 상한.
+ * 호출부가 설정한 maxTokens 가 이 값을 넘으면 자동으로 clamp 한다.
+ *
+ * - OpenAI: gpt-4o/gpt-4o-mini 전부 16384 완성 토큰 제한 (2026-04 기준)
+ * - Gemini: 2.5 계열은 65k+ 지원 → 상한 없음
+ * - Ollama: 모델별 편차 크지만 보수적으로 32768
+ */
+const PROVIDER_MAX_TOKENS: Record<LlmProvider, number | null> = {
+  openai: 16384,
+  gemini: null,
+  ollama: 32768,
+};
+
+/**
+ * 호출부 maxTokens 를 provider 상한으로 clamp.
+ * Gemini 기준(32768 등)으로 짠 코드를 OpenAI dev override 에서 재사용할 때 필요.
+ */
+function clampMaxTokens(provider: LlmProvider, requested: number): number {
+  const cap = PROVIDER_MAX_TOKENS[provider];
+  if (cap == null || requested <= cap) return requested;
+  logActionDebug(
+    "ai-sdk.clampMaxTokens",
+    `maxTokens clamp: ${requested} → ${cap} (provider=${provider})`,
+  );
+  return cap;
+}
+
 const DEFAULT_TEMPERATURE: Record<ModelTier, number> = {
   fast: 0.3,
   standard: 0.5,
@@ -669,7 +697,7 @@ export async function generateTextWithRateLimit(
   // ──────────────────────────────────────────────────────
 
   const fallbackChain = resolveFallbackChain(provider, tier);
-  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
+  const maxTokens = clampMaxTokens(provider, options.maxTokens ?? DEFAULT_MAX_TOKENS[tier]);
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 1; // 서버리스 환경: 재시도 1회로 제한
   const abortSignal = options.timeoutMs
@@ -874,7 +902,7 @@ export async function generateObjectWithRateLimit<T>(
   // ──────────────────────────────────────────────────────
 
   const fallbackChain = resolveFallbackChain(provider, tier);
-  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
+  const maxTokens = clampMaxTokens(provider, options.maxTokens ?? DEFAULT_MAX_TOKENS[tier]);
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 1;
   // 시도할 모델 범위 (체이닝 재시도 시 이미 시도한 모델 건너뛰기용)
@@ -1024,7 +1052,7 @@ export async function streamTextWithRateLimit(
   const provider = resolveEffectiveProvider();
   const tier = resolveEffectiveTier(options.modelTier ?? "standard");
   const fallbackChain = resolveFallbackChain(provider, tier);
-  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
+  const maxTokens = clampMaxTokens(provider, options.maxTokens ?? DEFAULT_MAX_TOKENS[tier]);
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
 

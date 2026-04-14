@@ -10,6 +10,8 @@ import {
   matchRecommendationsToSubjects,
   assignGradeSemesters,
 } from "./recommendation";
+import { getCommonCourseSeeds } from "./common-courses";
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 import { gradeToSchoolYear, calculateSchoolYear, getCurriculumYear } from "@/lib/utils/schoolYear";
 import { saveSetek } from "../service";
 import type {
@@ -253,10 +255,45 @@ export async function generateAndSaveRecommendations(
     (r) => !analysisGrades.has(r.grade),
   );
 
+  // 공통과목 시드: 진로와 무관하게 전 계열 공통으로 이수하는 1학년 과목을 시드.
+  //   선택과목 추천이 1학년을 커버하지 못하는 근본 공백(공통과목이 추천 대상이
+  //   아니었음)을 해소한다. analysisGrades 에 1학년이 있으면(이미 NEIS import 됨)
+  //   공통 시드도 skip 해야 충돌/중복이 없다.
+  const commonSeedInputs: CoursePlanInput[] = [];
+  if (!analysisGrades.has(1)) {
+    const commonSeeds = getCommonCourseSeeds(curriculumYear);
+    const subjectByName = new Map<string, SubjectInfo>();
+    for (const s of subjectInfos) {
+      subjectByName.set(normalizeSubjectName(s.name), s);
+    }
+    const existingKeys = new Set(
+      existingPlans.map((p) => `${p.subject_id}:${p.grade}:${p.semester}`),
+    );
+    for (const seed of commonSeeds) {
+      const subject = subjectByName.get(normalizeSubjectName(seed.name));
+      if (!subject) continue; // DB 에 없는 공통과목은 skip
+      const key = `${subject.id}:${seed.grade}:${seed.semester}`;
+      if (existingKeys.has(key)) continue;
+      existingKeys.add(key);
+      commonSeedInputs.push({
+        tenantId,
+        studentId,
+        subjectId: subject.id,
+        grade: seed.grade,
+        semester: seed.semester,
+        planStatus: "recommended",
+        source: "auto",
+        recommendationReason: "공통과목 (전 계열 필수 이수)",
+        isSchoolOffered: null,
+        priority: 3,
+      });
+    }
+  }
+
   // 기존 추천 삭제 후 새로 저장
   await repo.removeRecommendedByStudent(studentId);
 
-  const inputs: CoursePlanInput[] = designRecommendations.map((r) => ({
+  const selectiveInputs: CoursePlanInput[] = designRecommendations.map((r) => ({
     tenantId,
     studentId,
     subjectId: r.subjectId,
@@ -269,7 +306,7 @@ export async function generateAndSaveRecommendations(
     priority: r.priority,
   }));
 
-  await repo.bulkUpsert(inputs);
+  await repo.bulkUpsert([...commonSeedInputs, ...selectiveInputs]);
 
   // 최신 데이터 반환
   return repo.findByStudent(studentId);

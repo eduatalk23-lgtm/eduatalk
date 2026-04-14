@@ -337,3 +337,319 @@ export async function runDraftAnalysisForGrade(
   if (projectedEdgeCount > 0) parts.push(`${projectedEdgeCount}건 예상엣지`);
   return `설계 모드 가안 분석 완료: ${parts.join(" + ")} (source=ai_projected)`;
 }
+
+// ============================================
+// P8 청크 버전 (트랙 A, 2026-04-14)
+//
+// 단일 route 280s 한도 초과 문제 해결.
+// 기존 runDraftAnalysisForGrade 는 세특+창체+행특 18건을 순차 분석 → 540s (dev GPT-4o-mini).
+// 청크 버전: 레코드 K개씩 처리 → hasMore=false 까지 클라이언트 loop.
+//
+// 커서 전략: content_quality 에 source='ai_projected' 있는 record_id 는 분석 완료로 간주.
+// 즉 "이 학년에 가안 분석이 남은 레코드 = 가안이 있지만 ai_projected quality 미저장인 레코드".
+//
+// 누적 state: competencyGrades 는 per-record LLM 응답이라 최종 집계 필요.
+//   ctx.results["draft_analysis_accumulated_grades"] 에 청크마다 append, 마지막 청크에서 aggregate.
+//
+// atomic 태그 교체: 기존 RPC replace_draft_analysis_tags 는 p_record_ids 범위로 delete+insert.
+//   청크의 record_ids 만 넘기면 per-chunk atomic 유지 + 다른 청크는 unaffected.
+// ============================================
+
+type UnifiedRec = {
+  id: string;
+  subject_id?: string;
+  confirmed_content?: string | null;
+  content?: string | null;
+  ai_draft_content?: string | null;
+  imported_content?: string | null;
+  grade?: number;
+  recordType: "setek" | "changche" | "haengteuk";
+};
+
+export async function runDraftAnalysisChunkForGrade(
+  ctx: PipelineContext,
+  chunkSize: number,
+): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
+  const { studentId, tenantId, studentGrade, targetGrade, supabase } = ctx;
+
+  // 설계 모드 판별 (기존 runDraftAnalysisForGrade 와 동일)
+  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const hasNeis = gradeResolved?.hasAnyNeis ?? false;
+  if (hasNeis) {
+    return {
+      preview: "분석 모드 학년 — 가안 분석 스킵 (P1-P3에서 처리)",
+      hasMore: false,
+      totalUncached: 0,
+      chunkProcessed: 0,
+    };
+  }
+
+  const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
+  const currentSchoolYear = calcSchoolYear();
+  const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
+
+  // 이미 분석 완료된 record_id 집합 (커서)
+  const { data: analyzedRows } = await supabase
+    .from("student_record_content_quality")
+    .select("record_id")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("school_year", targetSchoolYear)
+    .eq("source", "ai_projected");
+  const analyzedSet = new Set(((analyzedRows ?? []) as Array<{ record_id: string }>).map((r) => r.record_id));
+
+  // 학년 대상 레코드 전량 조회 + 미처리만 필터
+  const [setekRes, changcheRes, haengteukRes] = await Promise.all([
+    supabase
+      .from("student_record_seteks")
+      .select("id, subject_id, confirmed_content, content, ai_draft_content, imported_content, grade")
+      .eq("student_id", studentId)
+      .eq("school_year", targetSchoolYear),
+    supabase
+      .from("student_record_changche")
+      .select("id, activity_type, confirmed_content, content, ai_draft_content, imported_content, grade")
+      .eq("student_id", studentId)
+      .eq("school_year", targetSchoolYear),
+    supabase
+      .from("student_record_haengteuk")
+      .select("id, confirmed_content, content, ai_draft_content, imported_content, grade")
+      .eq("student_id", studentId)
+      .eq("school_year", targetSchoolYear),
+  ]);
+
+  // 분석 가능한 레코드 = resolveEffectiveContent 가 20자 이상 반환하는 것만.
+  //   content 전부 비어있는 레코드는 pending 에서 아예 제외 → 무한 루프 방지.
+  //   (draft_generation 이 중간에 실패/미실행한 경우 content 가 비어 있을 수 있음)
+  const pending: UnifiedRec[] = [];
+  const hasAnalyzableContent = (r: UnifiedRec): boolean => {
+    const { text } = resolveEffectiveContent(r);
+    return !!text && text.length >= 20;
+  };
+  for (const r of (setekRes.data ?? []) as UnifiedRec[]) {
+    if (!analyzedSet.has(r.id) && hasAnalyzableContent(r)) pending.push({ ...r, recordType: "setek" });
+  }
+  for (const r of (changcheRes.data ?? []) as UnifiedRec[]) {
+    if (!analyzedSet.has(r.id) && hasAnalyzableContent(r)) pending.push({ ...r, recordType: "changche" });
+  }
+  for (const r of (haengteukRes.data ?? []) as UnifiedRec[]) {
+    if (!analyzedSet.has(r.id) && hasAnalyzableContent(r)) pending.push({ ...r, recordType: "haengteuk" });
+  }
+
+  const totalUncached = pending.length;
+
+  // 처리할 게 없으면 즉시 finalize (이미 전부 완료된 상태)
+  if (totalUncached === 0) {
+    return finalizeDraftAnalysisChunked(ctx, targetGrade, targetSchoolYear);
+  }
+
+  const thisChunk = pending.slice(0, chunkSize);
+  const hasMore = totalUncached > chunkSize;
+
+  const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");
+  const subjectIds = [...new Set(thisChunk.filter((r) => r.subject_id).map((r) => r.subject_id as string))];
+  const subjectNameMap = subjectIds.length > 0 ? await fetchSubjectNames(supabase, subjectIds) : new Map<string, string>();
+
+  const chunkCollectedTags: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary: string }> = [];
+  const chunkCompetencyGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> = [];
+  const chunkRecordIds: string[] = [];
+
+  for (const rec of thisChunk) {
+    const { text: content } = resolveEffectiveContent(rec);
+    if (!content || content.length < 20) continue;
+
+    try {
+      const result = await analyzeSetekWithHighlight({
+        recordType: rec.recordType,
+        content,
+        subjectName: rec.subject_id ? subjectNameMap.get(rec.subject_id) : undefined,
+        grade: rec.grade ?? targetGrade,
+      });
+
+      if (result.success && result.data.sections) {
+        for (const section of result.data.sections) {
+          for (const tag of section.tags) {
+            chunkCollectedTags.push({
+              record_type: rec.recordType,
+              record_id: rec.id,
+              competency_item: tag.competencyItem,
+              evaluation: tag.evaluation,
+              evidence_summary: `[가안분석] ${tag.reasoning}\n근거: "${tag.highlight}"`,
+            });
+          }
+        }
+        if (result.data.contentQuality) {
+          await saveContentQuality(
+            supabase,
+            tenantId,
+            studentId,
+            targetSchoolYear,
+            rec.recordType,
+            rec.id,
+            result.data.contentQuality,
+          );
+        }
+        if (result.data.competencyGrades?.length) {
+          chunkCompetencyGrades.push(...result.data.competencyGrades);
+        }
+        chunkRecordIds.push(rec.id);
+      }
+    } catch (err) {
+      logActionError(LOG_CTX, err, { recordId: rec.id, phase: `draft_analysis_chunk_${rec.recordType}` });
+    }
+  }
+
+  // 청크 범위 atomic 태그 교체 (이 청크의 record_ids 만)
+  if (chunkRecordIds.length > 0 || chunkCollectedTags.length > 0) {
+    const { error: rpcError } = await supabase.rpc("replace_draft_analysis_tags", {
+      p_student_id: studentId,
+      p_tenant_id: tenantId,
+      p_record_ids: chunkRecordIds,
+      p_new_tags: chunkCollectedTags,
+    });
+    if (rpcError) {
+      logActionError(LOG_CTX, rpcError, { phase: "draft_analysis_chunk_atomic_replace" });
+    }
+  }
+
+  // competencyGrades 를 pipeline.results 에 누적 (updatePipelineState 에서 영속화됨)
+  ctx.results ??= {};
+  const existingGrades = (ctx.results["draft_analysis_accumulated_grades"] as Array<{ item: string; grade: string; reasoning?: string; rubricScores?: unknown }>) ?? [];
+  ctx.results["draft_analysis_accumulated_grades"] = [...existingGrades, ...chunkCompetencyGrades];
+
+  // 무한 루프 방지 가드: 청크가 레코드를 하나도 처리하지 못했다면(전부 LLM 실패 등)
+  //   pending 이 줄지 않아 client 가 무한 loop — hasMore 강제 false + 경고 로그로 탈출.
+  if (chunkRecordIds.length === 0 && thisChunk.length > 0) {
+    logActionError(
+      LOG_CTX,
+      new Error(`청크 진행 정지 (0/${thisChunk.length} 처리) — 잔여 ${totalUncached}건을 남기고 finalize 로 전환`),
+      { phase: "draft_analysis_chunk_no_progress", targetGrade, totalUncached },
+    );
+    return finalizeDraftAnalysisChunked(ctx, targetGrade, targetSchoolYear);
+  }
+
+  if (hasMore) {
+    return {
+      preview: `${targetGrade}학년 가안 분석 진행: ${chunkRecordIds.length}건 처리, 잔여 ${totalUncached - chunkRecordIds.length}건`,
+      hasMore: true,
+      totalUncached,
+      chunkProcessed: chunkRecordIds.length,
+    };
+  }
+
+  // 마지막 청크 — 집계 + competency_scores 저장 + projected edges
+  return finalizeDraftAnalysisChunked(ctx, targetGrade, targetSchoolYear);
+}
+
+async function finalizeDraftAnalysisChunked(
+  ctx: PipelineContext,
+  targetGrade: number,
+  targetSchoolYear: number,
+): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
+  const { studentId, tenantId, supabase } = ctx;
+
+  const allCompetencyGrades = (ctx.results?.["draft_analysis_accumulated_grades"] as Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }>) ?? [];
+
+  let competencyScoresSaved = 0;
+  if (allCompetencyGrades.length > 0) {
+    try {
+      const { aggregateCompetencyGrades } = await import("@/lib/domains/student-record/rubric-matcher");
+      const competencyRepo = await import("@/lib/domains/student-record/repository/competency-repository");
+      const aggregated = aggregateCompetencyGrades(allCompetencyGrades);
+
+      for (const ag of aggregated) {
+        const narrative = ag.rubricScores
+          ?.filter((rs) => rs.reasoning)
+          .map((rs) => rs.reasoning)
+          .join(" ") || null;
+
+        await competencyRepo.upsertCompetencyScore({
+          tenant_id: tenantId,
+          student_id: studentId,
+          school_year: targetSchoolYear,
+          scope: "yearly",
+          competency_area: ag.area,
+          competency_item: ag.item,
+          grade_value: ag.finalGrade,
+          narrative,
+          notes: `[AI설계] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합 (${targetGrade}학년)`,
+          rubric_scores: (await import("@/lib/domains/student-record/types")).toDbJson(ag.rubricScores),
+          source: "ai_projected",
+          status: "suggested",
+        } as import("@/lib/domains/student-record/types").CompetencyScoreInsert);
+        competencyScoresSaved++;
+      }
+    } catch (err) {
+      logActionError(LOG_CTX, err, { phase: "draft_analysis_competency_scores" });
+    }
+  }
+
+  // ctx.analysisContext 에 P8 약점 축적 (Synthesis 참조용)
+  if (allCompetencyGrades.length > 0) {
+    const WEAK_GRADES = new Set(["B-", "C"]);
+    const weakItems = allCompetencyGrades
+      .filter((cg) => WEAK_GRADES.has(cg.grade))
+      .map((cg) => ({
+        item: cg.item,
+        grade: cg.grade,
+        reasoning: cg.reasoning ?? null,
+        rubricScores: cg.rubricScores,
+      }));
+
+    if (weakItems.length > 0) {
+      if (!ctx.analysisContext) ctx.analysisContext = {};
+      if (!ctx.analysisContext[targetGrade]) {
+        ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+      }
+      ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
+    }
+  }
+
+  // projected 엣지 생성 (draft_analysis 태그 기반)
+  let projectedEdgeCount = 0;
+  try {
+    const { buildConnectionGraph } = await import("@/lib/domains/student-record/cross-reference");
+    const { fetchCrossRefData } = await import("@/lib/domains/student-record/actions/cross-ref-data-builder");
+    const edgeRepo = await import("@/lib/domains/student-record/repository/edge-repository");
+    const competencyRepo = await import("@/lib/domains/student-record/repository/competency-repository");
+    const draftTags = await competencyRepo.findActivityTags(studentId, tenantId, { tagContext: "draft_analysis" });
+
+    if (draftTags.length > 0) {
+      const crd = await fetchCrossRefData(studentId, tenantId);
+      const graph = buildConnectionGraph({
+        allTags: draftTags,
+        storylineLinks: crd.storylineLinks,
+        readingLinks: crd.readingLinks,
+        recordLabelMap: new Map(Object.entries(crd.recordLabelMap)),
+        readingLabelMap: new Map(Object.entries(crd.readingLabelMap)),
+        recordContentMap: crd.recordContentMap
+          ? new Map(Object.entries(crd.recordContentMap))
+          : undefined,
+      });
+      projectedEdgeCount = await edgeRepo.replaceEdges(
+        studentId, tenantId, ctx.pipelineId, graph, "projected",
+      );
+    }
+  } catch (err) {
+    logActionError(LOG_CTX, err, { phase: "draft_analysis_projected_edges" });
+  }
+
+  // 누적 state 정리 (완료했으니 제거)
+  if (ctx.results) {
+    delete ctx.results["draft_analysis_accumulated_grades"];
+  }
+
+  const parts: string[] = [];
+  if (competencyScoresSaved > 0) parts.push(`${competencyScoresSaved}건 역량점수`);
+  if (projectedEdgeCount > 0) parts.push(`${projectedEdgeCount}건 예상엣지`);
+
+  return {
+    preview: parts.length > 0
+      ? `${targetGrade}학년 가안 분석 완료: ${parts.join(" + ")} (source=ai_projected)`
+      : `${targetGrade}학년 가안 분석 완료 — 저장 대상 없음`,
+    hasMore: false,
+    totalUncached: 0,
+    chunkProcessed: 0,
+  };
+}

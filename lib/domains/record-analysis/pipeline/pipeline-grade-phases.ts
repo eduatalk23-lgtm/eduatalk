@@ -31,6 +31,7 @@ import {
   runHaengteukGuideForGrade,
   runDraftGenerationForGrade,
   runDraftAnalysisForGrade,
+  runDraftAnalysisChunkForGrade,
   runCrossSubjectThemeExtractionForGrade,
 } from "./pipeline-task-runners";
 
@@ -385,17 +386,76 @@ export async function executeGradePhase7(
 
 export async function executeGradePhase8(
   ctx: PipelineContext,
-): Promise<void> {
-  if (await checkCancelled(ctx)) return;
+  chunkOpts?: { chunkSize?: number },
+): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
 
+  // 청크 모드
+  if (chunkOpts?.chunkSize != null) {
+    if (skipIfPrereqFailed(ctx, "draft_analysis")) {
+      // 선행 실패로 스킵 — 최종 상태만 판정하고 종료
+      await finalizeDesignModeStatus(ctx);
+      return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+    }
+
+    // 태스크 상태 관리 직접 (runTaskWithState 는 단일 호출 가정)
+    // 첫 청크 진입 시 running 으로 전환, 마지막 청크에서 completed 로 마감
+    const existingStatus = ctx.tasks["draft_analysis"];
+    if (existingStatus !== "running") {
+      ctx.tasks["draft_analysis"] = "running";
+    }
+
+    try {
+      const result = await runDraftAnalysisChunkForGrade(ctx, chunkOpts.chunkSize);
+
+      if (result.preview) ctx.previews["draft_analysis"] = result.preview;
+
+      // 진행 상황을 DB 에 영속화 (heartbeat + results 누적)
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId,
+        "running",
+        ctx.tasks,
+        ctx.previews,
+        ctx.results ?? {},
+        ctx.errors ?? {},
+        false,
+      );
+
+      if (!result.hasMore) {
+        ctx.tasks["draft_analysis"] = "completed";
+        await finalizeDesignModeStatus(ctx);
+      }
+
+      return {
+        completed: !result.hasMore,
+        hasMore: result.hasMore,
+        chunkProcessed: result.chunkProcessed,
+        totalUncached: result.totalUncached,
+      };
+    } catch (err) {
+      ctx.tasks["draft_analysis"] = "failed";
+      ctx.errors = ctx.errors ?? {};
+      ctx.errors["draft_analysis"] = err instanceof Error ? err.message : String(err);
+      await finalizeDesignModeStatus(ctx);
+      throw err;
+    }
+  }
+
+  // 단일 호출 (기존 동작 유지 — 호환성)
   if (!skipIfPrereqFailed(ctx, "draft_analysis")) {
     await runTaskWithState(ctx, "draft_analysis", () =>
       runDraftAnalysisForGrade(ctx),
     );
   }
-  // 스킵이든 실행이든 최종 상태 판정은 항상 수행
+  await finalizeDesignModeStatus(ctx);
+  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+}
+
+async function finalizeDesignModeStatus(ctx: PipelineContext): Promise<void> {
   const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
-    // cross_subject_theme_extraction은 옵션 enhancement — 실패해도 설계 모드 완료 판정에 영향 없음
     if (k === "cross_subject_theme_extraction") return true;
     return ctx.tasks[k] === "completed";
   });
@@ -408,6 +468,6 @@ export async function executeGradePhase8(
     ctx.previews,
     ctx.results ?? {},
     ctx.errors ?? {},
-    true, // isFinal
+    true,
   );
 }

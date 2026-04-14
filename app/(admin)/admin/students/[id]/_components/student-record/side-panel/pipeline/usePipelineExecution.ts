@@ -278,7 +278,9 @@ export function usePipelineExecution({
       setRunningStartMs(Date.now());
 
       const MAX_RETRIES = 2;
-      if (phase <= 3) {
+      // 청크 지원 phase: P1~P3 (역량 분석 배치) + P8 (가안 분석 배치, 트랙 A 2026-04-14)
+      const isChunkedPhase = phase <= 3 || phase === 8;
+      if (isChunkedPhase) {
         let hasMore = true;
         let retries = 0;
         while (hasMore && !isAborted()) {

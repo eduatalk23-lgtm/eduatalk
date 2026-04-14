@@ -16,4 +16,7 @@ export {
   generateAndSaveDraft,
 } from "./pipeline-task-runners-draft-generation";
 
-export { runDraftAnalysisForGrade } from "./pipeline-task-runners-draft-analysis";
+export {
+  runDraftAnalysisForGrade,
+  runDraftAnalysisChunkForGrade,
+} from "./pipeline-task-runners-draft-analysis";
