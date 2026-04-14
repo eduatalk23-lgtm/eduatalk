@@ -76,6 +76,7 @@ vi.mock("../pipeline/pipeline-task-runners-shared", () => ({
   buildStudentProfileCard: vi.fn().mockResolvedValue(undefined),
   enrichCardWithInterestConsistency: vi.fn(async (card: unknown) => card),
   renderStudentProfileCard: vi.fn().mockReturnValue(""),
+  computeProfileCardStructuralHash: vi.fn().mockReturnValue("hash-stub"),
 }));
 
 vi.mock("@/lib/domains/student-record/constants", () => ({

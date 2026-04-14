@@ -173,7 +173,9 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `aggregateQualityPatterns()` | 전 학년 DB 조회 → 반복 패턴 집계 | Synthesis 진단/전략 |
 | `buildCrossGradeDirections()` | 이전 분석 학년 보완방향 텍스트 빌드 | Prospective 가이드 생성 시 |
 | `buildStudentProfileCard()` / `renderStudentProfileCard()` | 이전 학년 역량/품질 집계 → Layer 0 프로필 카드 텍스트 | P1-P3 역량 분석 진입 시 (1회, `ctx.profileCard` 캐시) |
-| `enrichCardWithInterestConsistency()` | H2 서사 LLM 호출(standard tier) → `interestConsistency` 부착 | profileCard 빌드 직후, 학생당 1회 |
+| `computeProfileCardStructuralHash()` | StudentProfileCard 구조 필드(LLM 독립) → djb2 hash | H2 영속화 staleness 판정 |
+| `enrichCardWithInterestConsistency()` | H2 서사 LLM 호출(standard tier) → `interestConsistency` 부착 | profileCard 빌드 직후, 학생당 1회 (DB cache miss 시에만) |
+| `findProfileCard() / upsertProfileCard()` (`student-record/repository/profile-card-repository.ts`) | H2 프로필 카드 DB CRUD | 파이프라인 P1-P3 진입 시 DB cache lookup → hit 시 LLM 스킵, miss/stale 시 upsert |
 | `buildNarrativeContext()` (`pipeline/narrative-context.ts`) | reportData → `prioritizedWeaknesses` + `recordPriorityOrder` 합성 (L4-E) | `fetchReportData` projectedData 빌드 시 |
 | `validateDiagnosisOutput()` (`llm/validators/diagnosis-validator.ts`) | ai_diagnosis L1 deterministic 검증 (11종 규칙) | `generateAiDiagnosis` finalData 빌드 후 |
 | `validateStrategyOutput()` (`llm/validators/strategy-validator.ts`) | ai_strategy L1 deterministic 검증 (12종 규칙) | `suggestStrategies` parseResponse 후 |
@@ -200,6 +202,7 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 | `student_record_edges` | 레코드 간 연결 그래프 (`edge_context`: analysis/projected/synthesis_inferred) | S2+P8 출력 + S3 동적 추론 |
 | `student_record_hyperedges` | N-ary 수렴 테마(Layer 2, `hyperedge_type='theme_convergence'`) | S2 hyperedge_computation 출력, S5 주입 |
 | `student_record_narrative_arc` | 레코드별 8단계 서사 태깅(Layer 3, `source='ai'\|'manual'`) | S2 narrative_arc_extraction 출력. Phase 2 |
+| `student_record_profile_cards` | Layer 0 학생 프로필 카드 영속화(H2, `source='ai'\|'manual'`, UNIQUE by `(tenant, student, target_grade, source)`) | P1-P3 진입 시 cache lookup → 재실행 LLM 스킵 |
 | `student_record_strategies` | 보완전략 | S5 출력 |
 | `student_record_analysis_pipelines` | 파이프라인 실행 상태 | 오케스트레이션 |
 

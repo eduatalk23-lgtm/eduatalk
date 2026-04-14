@@ -90,24 +90,66 @@ async function runCompetencyForRecords(
     return { succeeded, failed, skipped, allResults, hasMore: false, totalUncached: 0, tokenUsage: undefined };
   }
 
-  // Layer 0: 학생 프로필 카드 — 파이프라인 1회 빌드, ctx 캐시
+  // Layer 0: 학생 프로필 카드 — 파이프라인 1회 빌드, ctx 캐시 + DB 영속화(H2)
   // 3-state invariant: undefined=미빌드, ""=시도했으나 데이터 없음, "..."=빌드 완료
   // setek/changche/haengteuk × chunked run (최대 6회 호출) 간 중복 DB 조회 방지
+  // DB cache hit = 이전 파이프라인 실행의 interest_consistency 재사용 → LLM 호출 스킵
   if (ctx.profileCard === undefined) {
     const {
       buildStudentProfileCard,
       enrichCardWithInterestConsistency,
       renderStudentProfileCard,
+      computeProfileCardStructuralHash,
     } = await import("./pipeline-task-runners-shared");
+    const profileCardRepo = await import(
+      "@/lib/domains/student-record/repository/profile-card-repository"
+    );
+
     let card = await buildStudentProfileCard(supabase, studentId, tenantId, targetSchoolYear, targetGrade);
+    let cacheOutcome: "hit" | "stale" | "miss" | "skip" = "skip";
     if (card) {
-      const targetMajor = (snapshot?.target_major as string | undefined) ?? undefined;
-      card = await enrichCardWithInterestConsistency(card, targetMajor);
+      const structuralHash = computeProfileCardStructuralHash(card, targetGrade);
+      const existing = await profileCardRepo.findProfileCard(
+        studentId, tenantId, targetGrade, "ai", supabase,
+      );
+
+      if (existing && existing.content_hash === structuralHash && existing.interest_consistency) {
+        // 캐시 히트: 저장된 interestConsistency 재사용, LLM 호출 스킵
+        card = { ...card, interestConsistency: existing.interest_consistency };
+        cacheOutcome = "hit";
+      } else {
+        // 캐시 미스 또는 해시 불일치: LLM 호출 + upsert
+        cacheOutcome = existing ? "stale" : "miss";
+        const targetMajor = (snapshot?.target_major as string | undefined) ?? undefined;
+        card = await enrichCardWithInterestConsistency(card, targetMajor);
+        try {
+          await profileCardRepo.upsertProfileCard(
+            studentId,
+            tenantId,
+            {
+              targetGrade,
+              targetSchoolYear,
+              card,
+              contentHash: structuralHash,
+              source: "ai",
+              modelName: card.interestConsistency ? "gemini-2.5-flash" : null,
+              pipelineId: ctx.pipelineId,
+            },
+            supabase,
+          );
+        } catch (err) {
+          // non-fatal: 영속화 실패해도 메모리 카드로 파이프라인 진행
+          logActionWarn(LOG_CTX, "profileCard upsert failed", {
+            studentId, targetGrade,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
     }
     ctx.profileCard = card ? renderStudentProfileCard(card) : "";
     logActionDebug(
       LOG_CTX,
-      `profileCard built: ${card ? `${card.priorSchoolYears.length}yrs, ${card.persistentWeaknesses.length}약점, narrative=${card.interestConsistency ? "yes" : "no"}` : "empty"}`,
+      `profileCard built: ${card ? `${card.priorSchoolYears.length}yrs, ${card.persistentWeaknesses.length}약점, narrative=${card.interestConsistency ? "yes" : "no"}, cache=${cacheOutcome}` : "empty"}`,
       { studentId, targetGrade },
     );
   }

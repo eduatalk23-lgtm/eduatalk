@@ -833,6 +833,42 @@ export async function enrichCardWithInterestConsistency(
 }
 
 /**
+ * H2 영속화용: 구조 필드(LLM 독립) 기반 결정론적 해시.
+ * 동일 hash = 이전 분석과 동일한 집계 결과 → 저장된 interest_consistency 재사용 가능.
+ * interestConsistency는 해시에서 제외(LLM 출력 변동 허용).
+ */
+export function computeProfileCardStructuralHash(
+  card: StudentProfileCard,
+  targetGrade: number,
+): string {
+  const canonical = JSON.stringify({
+    targetGrade,
+    priorSchoolYears: [...card.priorSchoolYears].sort((a, b) => a - b),
+    overallAverageGrade: card.overallAverageGrade,
+    averageQualityScore: card.averageQualityScore,
+    persistentStrengths: [...card.persistentStrengths].sort((a, b) =>
+      a.competencyItem.localeCompare(b.competencyItem),
+    ),
+    persistentWeaknesses: [...card.persistentWeaknesses].sort((a, b) =>
+      a.competencyItem.localeCompare(b.competencyItem),
+    ),
+    recurringQualityIssues: [...card.recurringQualityIssues].sort((a, b) =>
+      a.code.localeCompare(b.code),
+    ),
+    careerTrajectory: card.careerTrajectory ?? null,
+    depthProgression: card.depthProgression ?? null,
+    crossGradeThemes: card.crossGradeThemes
+      ? [...card.crossGradeThemes].sort((a, b) => a.id.localeCompare(b.id))
+      : null,
+  });
+  let hash = 5381;
+  for (let i = 0; i < canonical.length; i++) {
+    hash = ((hash << 5) + hash + canonical.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
  * `StudentProfileCard`를 prompt 섹션 문자열로 렌더.
  * 섹션 제목 + 핵심 지표 bullet + 평가 지침으로 구성.
  */

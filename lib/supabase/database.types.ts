@@ -13821,6 +13821,100 @@ export type Database = {
           },
         ]
       }
+      student_record_profile_cards: {
+        Row: {
+          average_quality_score: number | null
+          career_trajectory: Json | null
+          content_hash: string
+          created_at: string
+          cross_grade_themes: Json | null
+          depth_progression: Json | null
+          id: string
+          interest_consistency: Json | null
+          model_name: string | null
+          overall_average_grade: string
+          persistent_strengths: Json
+          persistent_weaknesses: Json
+          pipeline_id: string | null
+          prior_school_years: number[]
+          recurring_quality_issues: Json
+          source: string
+          student_id: string
+          target_grade: number
+          target_school_year: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          average_quality_score?: number | null
+          career_trajectory?: Json | null
+          content_hash: string
+          created_at?: string
+          cross_grade_themes?: Json | null
+          depth_progression?: Json | null
+          id?: string
+          interest_consistency?: Json | null
+          model_name?: string | null
+          overall_average_grade: string
+          persistent_strengths?: Json
+          persistent_weaknesses?: Json
+          pipeline_id?: string | null
+          prior_school_years: number[]
+          recurring_quality_issues?: Json
+          source?: string
+          student_id: string
+          target_grade: number
+          target_school_year: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          average_quality_score?: number | null
+          career_trajectory?: Json | null
+          content_hash?: string
+          created_at?: string
+          cross_grade_themes?: Json | null
+          depth_progression?: Json | null
+          id?: string
+          interest_consistency?: Json | null
+          model_name?: string | null
+          overall_average_grade?: string
+          persistent_strengths?: Json
+          persistent_weaknesses?: Json
+          pipeline_id?: string | null
+          prior_school_years?: number[]
+          recurring_quality_issues?: Json
+          source?: string
+          student_id?: string
+          target_grade?: number
+          target_school_year?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_profile_cards_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_profile_cards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_profile_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_reading: {
         Row: {
           author: string | null
