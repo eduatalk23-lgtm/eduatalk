@@ -741,3 +741,60 @@ export interface RoadmapGeneratedItem {
   storyline_title?: string;
   rationale: string;
 }
+
+// ============================================
+// Phase 2 Layer 3: Narrative Arc 8단계 서사 태깅
+// setek-evaluation-framework Phase B 규칙 구조화
+// ============================================
+
+/** 8단계 서사 stage key — DB 컬럼과 1:1 매핑 */
+export type NarrativeArcStage =
+  | "curiosity"           // ①호기심
+  | "topicSelection"      // ②주제선정
+  | "inquiryContent"      // ③탐구내용
+  | "references"          // ④참고문헌
+  | "conclusion"          // ⑤결론
+  | "teacherObservation"  // ⑥교사관찰
+  | "growthNarrative"     // ⑦성장서사
+  | "reinquiry";          // ⑧재탐구
+
+/** 단일 레코드의 Narrative Arc 추출 입력 */
+export interface NarrativeArcExtractionInput {
+  recordType: "setek" | "personal_setek" | "changche" | "haengteuk";
+  recordId: string;
+  schoolYear: number;
+  grade: number;
+  /** 교과 세특만 제공 */
+  subjectName?: string;
+  /** 분석 대상 원문 (NEIS 또는 가안) */
+  content: string;
+  /** 진로역량 가중 평가 힌트 (있으면 재탐구·성장서사 판정 보조) */
+  targetMajor?: string;
+}
+
+/** 단계별 평가 결과 */
+export interface NarrativeArcStageResult {
+  /** 해당 단계가 원문에서 식별되는가 */
+  present: boolean;
+  /** LLM 자체 확신도 0~1 */
+  confidence: number;
+  /** 원문 인용 또는 짧은 근거 (150자 이하). present=false일 때는 빈 문자열 */
+  evidence: string;
+}
+
+/** Narrative Arc 추출 최종 결과 */
+export interface NarrativeArcExtractionResult {
+  curiosity: NarrativeArcStageResult;
+  topicSelection: NarrativeArcStageResult;
+  inquiryContent: NarrativeArcStageResult;
+  references: NarrativeArcStageResult;
+  conclusion: NarrativeArcStageResult;
+  teacherObservation: NarrativeArcStageResult;
+  growthNarrative: NarrativeArcStageResult;
+  reinquiry: NarrativeArcStageResult;
+  /** 0~8 (present=true 카운트) */
+  stagesPresentCount: number;
+  elapsedMs: number;
+  /** 실제 호출된 모델 (fallback 시 변경 가능) */
+  modelName?: string;
+}
