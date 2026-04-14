@@ -9,7 +9,6 @@
 // SynthPhase 6: interview_generation + roadmap_generation → 최종 상태
 // ============================================
 
-import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { PipelineContext, SynthesisPipelineTaskKey } from "./pipeline-types";
 import { SYNTHESIS_PIPELINE_TASK_KEYS, SYNTHESIS_TASK_PREREQUISITES, getTaskResult, setTaskResult } from "./pipeline-types";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
@@ -255,6 +254,13 @@ export async function executeSynthesisPhase1(
 // Synthesis Phase 2: 연결 그래프 + 가이드 매칭
 // ============================================
 
+// 트랙 D (2026-04-14): Phase 2 재구성.
+//   기존: edge + hyperedge(best-effort) + narrative(best-effort, LLM × N) + guide_matching + haengteuk_link(best-effort)
+//         → 단일 HTTP 300s 벽 초과 (김세린 사례 elapsed 301s).
+//   신규: narrative_arc_extraction을 별도 청크 sub-route(`phase-2/narrative-chunk`)로 분리 +
+//         hyperedge/haengteuk_linking을 정식 task_key로 승격(runTaskWithState 래핑).
+//   주의: narrative 청크는 클라이언트가 phase-2 main 호출 전에 hasMore=false까지 선행 루프.
+//         서버는 narrative 완료를 강제하지 않고, guide_matching 내부에서 DB 상태로 부드럽게 소비.
 export async function executeSynthesisPhase2(
   ctx: PipelineContext,
 ): Promise<void> {
@@ -266,75 +272,14 @@ export async function executeSynthesisPhase2(
     );
   }
 
-  // Phase 1 Hypergraph (Layer 2): edge_computation 직후 best-effort.
-  // 실패해도 phase 전체 실패 안 시킴 — Layer 1 엣지는 이미 DB에 있고, hyperedge는 보강 레이어.
-  if (ctx.tasks.edge_computation === "completed") {
-    try {
-      const hyperedgeResult = await runHyperedgeComputation(ctx);
-      const preview = typeof hyperedgeResult === "string" ? hyperedgeResult : hyperedgeResult.preview;
-      logActionDebug(
-        { domain: "record-analysis", action: "hyperedge_computation" },
-        `하이퍼엣지 계산: ${preview}`,
-      );
-      // 관측성: 기존 edge_computation task_result에 hyperedge 통계 merge
-      if (typeof hyperedgeResult !== "string") {
-        const existing = getTaskResult(ctx.results, "edge_computation");
-        if (existing) {
-          setTaskResult(ctx.results, "edge_computation", {
-            ...existing,
-            hyperedge: {
-              computedHyperedges: hyperedgeResult.result.computedHyperedges,
-              filteredBySize: hyperedgeResult.result.filteredBySize,
-              filteredByConfidence: hyperedgeResult.result.filteredByConfidence,
-              filteredByCompetency: hyperedgeResult.result.filteredByCompetency,
-              pairsExplored: hyperedgeResult.result.pairsExplored,
-              themeLabels: hyperedgeResult.result.themeLabels,
-              mergedByJaccard: hyperedgeResult.result.mergedByJaccard,
-              droppedByRanking: hyperedgeResult.result.droppedByRanking,
-              filteredByShallow: hyperedgeResult.result.filteredByShallow,
-            },
-          });
-        }
-      }
-    } catch (err) {
-      logActionError(
-        { domain: "record-analysis", action: "hyperedge_computation" },
-        err instanceof Error ? err : new Error(String(err)),
-        { studentId: ctx.studentId },
-      );
-    }
-  }
-
-  // Phase 2 Narrative Arc (Layer 3): 레코드 단위 8단계 서사 태깅.
-  // edge_computation 선행 아님 — 레코드 원문만 있으면 실행 가능.
-  // best-effort: 실패해도 phase 전체 실패 안 시킴.
-  try {
-    const narrativeResult = await runNarrativeArcExtraction(ctx);
-    const preview = typeof narrativeResult === "string" ? narrativeResult : narrativeResult.preview;
-    logActionDebug(
-      { domain: "record-analysis", action: "narrative_arc_extraction" },
-      `서사 태깅: ${preview}`,
-    );
-    if (typeof narrativeResult !== "string") {
-      const existing = getTaskResult(ctx.results, "edge_computation");
-      if (existing) {
-        setTaskResult(ctx.results, "edge_computation", {
-          ...existing,
-          narrativeArc: {
-            total: narrativeResult.result.total,
-            succeeded: narrativeResult.result.succeeded,
-            failed: narrativeResult.result.failed,
-            skippedAlreadyAnalyzed: narrativeResult.result.skippedAlreadyAnalyzed,
-            skippedShortContent: narrativeResult.result.skippedShortContent,
-          },
-        });
-      }
-    }
-  } catch (err) {
-    logActionError(
-      { domain: "record-analysis", action: "narrative_arc_extraction" },
-      err instanceof Error ? err : new Error(String(err)),
-      { studentId: ctx.studentId },
+  // Layer 2 Hypergraph — edge_computation 선행 필수 (엣지 DB에서 읽음). task_key 승격.
+  if (await checkCancelled(ctx)) return;
+  if (
+    ctx.tasks.edge_computation === "completed" &&
+    !skipIfSynthPrereqFailed(ctx, "hyperedge_computation")
+  ) {
+    await runTaskWithState(ctx, "hyperedge_computation", () =>
+      runHyperedgeComputation(ctx),
     );
   }
 
@@ -345,24 +290,105 @@ export async function executeSynthesisPhase2(
     runGuideMatching(ctx),
   );
 
-  // Phase 2 Wave 4.2 (Decision #3 / D5):
-  // guide_matching 직후 행특 ↔ 탐구 가이드 링크 생성. best-effort, 실패해도 전체 phase 실패 안 시킴.
+  // 행특 ↔ 탐구 가이드 링크 — guide_matching 선행. task_key 승격.
   if (await checkCancelled(ctx)) return;
-  if (ctx.tasks.guide_matching === "completed") {
-    try {
-      const result = await runHaengteukGuideLinking(ctx);
-      const preview = typeof result === "string" ? result : result.preview;
-      logActionDebug(
-        { domain: "record-analysis", action: "haengteuk_linking" },
-        `행특 링크 생성: ${preview}`,
-      );
-    } catch (err) {
-      logActionError(
-        { domain: "record-analysis", action: "haengteuk_linking" },
-        err instanceof Error ? err : new Error(String(err)),
-        { studentId: ctx.studentId },
-      );
+  if (
+    ctx.tasks.guide_matching === "completed" &&
+    !skipIfSynthPrereqFailed(ctx, "haengteuk_linking")
+  ) {
+    await runTaskWithState(ctx, "haengteuk_linking", () =>
+      runHaengteukGuideLinking(ctx),
+    );
+  }
+}
+
+// ============================================
+// Synthesis Phase 2 — Narrative Chunk (트랙 D, 2026-04-14)
+// ============================================
+
+/**
+ * narrative_arc_extraction 청크 실행 진입점.
+ * grade P1~P3 자기치유 청크 패턴과 동일 — DB 캐시가 진실 소스, offset 불필요.
+ * 성공하면 마지막 청크(!hasMore)에서 task_key completed로 박제.
+ */
+export interface PhaseChunkResult {
+  completed: boolean;
+  hasMore: boolean;
+  chunkProcessed: number;
+  totalUncached: number;
+}
+
+export async function executeSynthesisPhase2NarrativeChunk(
+  ctx: PipelineContext,
+  chunkSize: number,
+): Promise<PhaseChunkResult> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
+  if (ctx.tasks["narrative_arc_extraction"] === "completed") {
+    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
+  const startMs = Date.now();
+
+  // 첫 청크이면 running 마킹
+  if (ctx.tasks["narrative_arc_extraction"] !== "running") {
+    ctx.tasks["narrative_arc_extraction"] = "running";
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+  }
+
+  try {
+    const output = await runNarrativeArcExtraction(ctx, chunkSize);
+    const { hasMore, totalUncached, chunkProcessed, preview, result } = output;
+
+    ctx.previews["narrative_arc_extraction"] = preview;
+    if (!hasMore) {
+      ctx.tasks["narrative_arc_extraction"] = "completed";
+      setTaskResult(ctx.results, "narrative_arc_extraction", {
+        ...result,
+        elapsedMs: Date.now() - startMs,
+      });
     }
+
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+
+    return {
+      completed: !hasMore,
+      hasMore,
+      chunkProcessed,
+      totalUncached,
+    };
+  } catch (err) {
+    ctx.tasks["narrative_arc_extraction"] = "failed";
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.errors["narrative_arc_extraction"] = msg;
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
   }
 }
 

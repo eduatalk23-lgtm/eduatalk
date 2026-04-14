@@ -197,6 +197,38 @@ export function usePipelineExecution({
         pid = json.pipelineId;
         invalidate();
       }
+
+      // 트랙 D (2026-04-14): Phase 2 진입 전 narrative_arc chunked 선행.
+      //   Vercel 300s 벽 회피 — grade P1~P3 자기치유 청크 패턴과 동일.
+      if (phase === 2) {
+        const narrativeStatus = sp?.tasks?.narrative_arc_extraction;
+        if (narrativeStatus !== "completed") {
+          let hasMore = true;
+          let retries = 0;
+          while (hasMore) {
+            try {
+              const r = await fetch(
+                "/api/admin/pipeline/synthesis/phase-2/narrative-chunk",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pipelineId: pid, chunkSize: 4 }),
+                },
+              );
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              const j = (await r.json()) as { hasMore?: boolean };
+              hasMore = j.hasMore ?? false;
+              retries = 0;
+              if (hasMore) invalidate();
+            } catch {
+              retries++;
+              if (retries > 2) break;
+              await new Promise((r) => setTimeout(r, 3000));
+            }
+          }
+        }
+      }
+
       await fetch(`/api/admin/pipeline/synthesis/phase-${phase}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -377,6 +409,36 @@ export function usePipelineExecution({
 
         setRunningCell(`s-${phase}`);
         setRunningStartMs(Date.now());
+
+        // 트랙 D (2026-04-14): Phase 2 진입 전 narrative_arc chunked 선행.
+        //   Vercel 300s 벽 회피 — 자기치유 청크 패턴 (DB 캐시가 진실 소스).
+        if (phase === 2 && synthTasks.narrative_arc_extraction !== "completed") {
+          let nHasMore = true;
+          let nRetries = 0;
+          while (nHasMore && !isAborted()) {
+            try {
+              const nJson = (await fetchPhase(
+                "/api/admin/pipeline/synthesis/phase-2/narrative-chunk",
+                { pipelineId: sJson.pipelineId, chunkSize: 4 },
+                ctrl.signal,
+              )) as { hasMore?: boolean };
+              nHasMore = nJson.hasMore ?? false;
+              nRetries = 0;
+              if (nHasMore) invalidate();
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return;
+              nRetries++;
+              if (nRetries > 2) break;
+              try {
+                await abortableSleep(3000, ctrl.signal);
+              } catch {
+                return;
+              }
+            }
+          }
+          invalidate();
+        }
+
         for (let retry = 0; retry <= 2; retry++) {
           try {
             await fetchPhase(

@@ -26,7 +26,10 @@ export {
 
 export { fetchGradeAwarePipelineStatus } from "./pipeline-orchestrator-status";
 
-export { rerunGradePipelineTasks } from "./pipeline-orchestrator-rerun";
+export {
+  rerunGradePipelineTasks,
+  rerunSynthesisPipelineTasks,
+} from "./pipeline-orchestrator-rerun";
 
 // 타입 re-export — "use server" 모듈에서 타입 re-export는 금지이므로
 // 소비자 파일은 아래 경로에서 직접 import할 것:

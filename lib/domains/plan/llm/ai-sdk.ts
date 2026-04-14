@@ -291,7 +291,10 @@ const ollamaClient = createOpenAI({
 /** provider + modelId → AI SDK LanguageModel 인스턴스 */
 function getLanguageModel(provider: LlmProvider, modelId: string): LanguageModel {
   if (provider === "openai") {
-    return openai(modelId);
+    // 트랙 D (2026-04-14): Chat Completions API 사용 (Responses API는 strict schema를 강제).
+    //   non-strict 모드는 generateObject 호출 시 providerOptions로 전달한다
+    //   (buildProviderOptions 참조 — strictJsonSchema: false).
+    return openai.chat(modelId);
   }
   if (provider === "ollama") {
     return ollamaClient(modelId);
@@ -344,10 +347,13 @@ function buildProviderOptions(provider: LlmProvider, tier: ModelTier) {
     };
   }
   if (provider === "openai") {
+    // 트랙 D (2026-04-14): OpenAI @ai-sdk v3 는 기본 strictJsonSchema=true.
+    //   strict 모드는 `.optional()` zod 필드를 거부하므로 false로 강제.
+    //   reasoningEffort는 옵션일 때만 추가.
     const effort = process.env.LLM_OPENAI_REASONING_EFFORT;
-    if (effort) {
-      return { openai: { reasoningEffort: effort } };
-    }
+    const openaiOpts: Record<string, unknown> = { strictJsonSchema: false };
+    if (effort) openaiOpts.reasoningEffort = effort;
+    return { openai: openaiOpts };
   }
   return undefined;
 }

@@ -69,11 +69,13 @@ export async function fetchGradeAwarePipelineStatus(
     }
 
     // 좀비 자동 정리 (self-healing):
-    // Vercel serverless maxDuration=300초를 초과한 running 파이프라인은 서버 함수가 이미 죽은 상태.
-    // 폴링 호출마다 이런 좀비를 cancelled로 마킹하여 UI가 즉시 "이어서 실행" 배너를 표시할 수 있게 한다.
+    // 트랙 D (2026-04-14): 판정 기준을 `started_at` → `updated_at` 으로 변경.
+    //   기존: started_at 기준이라 장기 실행 synthesis(10~13분)가 정상 실행 중에도 오판되어 cancel됨.
+    //   신규: updated_at 기준 — 각 task 완료/실행 중마다 runTaskWithState가 DB write(heartbeat) 하므로,
+    //         **최근 활동이 없는 진짜 좀비**만 잡힌다. 임계값 5분 유지.
     // 조건 불만족 시 PostgreSQL UPDATE는 no-op이므로 오버헤드 적음.
     // 주의: 위의 analysis 복구가 먼저 실행되어야 성공한 파이프라인이 cancelled로 오마킹되지 않는다.
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const zombieThreshold = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     await supabase
       .from("student_record_analysis_pipelines")
       .update({
@@ -82,7 +84,7 @@ export async function fetchGradeAwarePipelineStatus(
       })
       .eq("student_id", studentId)
       .eq("status", "running")
-      .lt("started_at", fiveMinutesAgo);
+      .lt("updated_at", zombieThreshold);
 
     const { data: rows, error } = await supabase
       .from("student_record_analysis_pipelines")

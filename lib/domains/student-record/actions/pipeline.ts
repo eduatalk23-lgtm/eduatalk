@@ -103,9 +103,12 @@ export async function checkPipelineRateLimit(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<string | null> {
   // 좀비 파이프라인 자동 정리:
-  // Vercel serverless maxDuration=300초이므로 5분 이상 running은 서버 함수가 이미 죽은 상태.
-  // HMR/배포/타임아웃 등으로 DB에 running으로 남은 좀비를 cancelled로 마킹.
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  // 트랙 D (2026-04-14): 판정 기준을 `started_at` → `updated_at` 으로 변경.
+  //   synthesis 파이프라인은 phase 분할 + narrative 청크로 총 10~13분 정상 소요.
+  //   started_at 기준은 정상 실행 중인 파이프라인도 5분 초과 시 오판해 cancel하는 버그를 야기했다.
+  //   updated_at은 ON UPDATE trigger로 각 DB write마다 자동 갱신되므로,
+  //   "최근 heartbeat이 5분간 없는 진짜 좀비"만 정확히 잡는다.
+  const zombieThreshold = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const { error: zombieErr } = await supabase
     .from("student_record_analysis_pipelines")
     .update({
@@ -114,7 +117,7 @@ export async function checkPipelineRateLimit(
     })
     .eq("student_id", studentId)
     .eq("status", "running")
-    .lt("started_at", fiveMinutesAgo);
+    .lt("updated_at", zombieThreshold);
   if (zombieErr) {
     logActionError(
       { ...LOG_CTX, action: "checkPipelineRateLimit.zombieCleanup" },

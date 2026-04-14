@@ -9,10 +9,13 @@ export const PIPELINE_TASK_KEYS = [
   "competency_analysis",     // 1st: 역량 태그 + 등급 생성
   "storyline_generation",    // 2nd: 기록 분석 → 스토리라인 감지 (진단보다 먼저)
   "edge_computation",        // 3rd: 태그+스토리라인 → 7종 엣지 영속화
+  "hyperedge_computation",   // 3rd': Layer 2 N-ary 수렴 엣지 (승격)
+  "narrative_arc_extraction",// 3rd'': Layer 3 레코드별 8단계 서사 태깅 (승격+청크)
   "ai_diagnosis",            // 4th: 역량+엣지 → 종합진단(강점/약점)
   "course_recommendation",   // 5th: 수강 추천 (독립)
   "slot_generation",         // NEIS 없는 학년의 세특/창체/행특 슬롯 자동 생성 (Grade GP4에서도 실행)
   "guide_matching",          // 6th: 가이드 배정 (독립)
+  "haengteuk_linking",       // 6th': 행특↔탐구 가이드 링크 (승격)
   "bypass_analysis",         // 7th: 우회학과 분석 (독립, Phase 2)
   "setek_guide",             // 8th: 진단+엣지 → 세특 방향
   "changche_guide",          // 9th: 세특방향 → 창체 방향 (Phase 3b)
@@ -47,9 +50,12 @@ export const GRADE_PIPELINE_TASK_KEYS = [
 export const SYNTHESIS_PIPELINE_TASK_KEYS = [
   "storyline_generation",
   "edge_computation",
+  "hyperedge_computation",
+  "narrative_arc_extraction",
   "ai_diagnosis",
   "course_recommendation",
   "guide_matching",
+  "haengteuk_linking",
   "bypass_analysis",
   "activity_summary",
   "ai_strategy",
@@ -128,9 +134,11 @@ export const GRADE_TASK_PREREQUISITES: Partial<Record<_GradeKey, _GradeKey[]>> =
  * 기존 PIPELINE_TASK_DEPENDENTS에서 synthesis 태스크만 추출.
  */
 export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<_SynthKey, _SynthKey[]>> = {
-  storyline_generation: ["edge_computation", "ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-  edge_computation: ["ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-  guide_matching: ["activity_summary", "roadmap_generation"],
+  storyline_generation: ["edge_computation", "hyperedge_computation", "ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  edge_computation: ["hyperedge_computation", "ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  // hyperedge_computation은 ai_strategy 프롬프트에 테마 요약을 주입하지만, 없어도 graceful degradation이라
+  // strategy의 prereq로 걸지는 않는다. (D8 설계 — best-effort → task 승격 후에도 soft 의존 유지)
+  guide_matching: ["haengteuk_linking", "activity_summary", "roadmap_generation"],
   ai_diagnosis: ["ai_strategy", "interview_generation", "roadmap_generation"],
 };
 
@@ -176,10 +184,13 @@ export const PIPELINE_TASK_LABELS: Record<_LegacyKey, string> = {
   competency_analysis: "역량 분석",
   storyline_generation: "스토리라인 감지",
   edge_computation: "연결 분석",
+  hyperedge_computation: "통합 테마",
+  narrative_arc_extraction: "서사 태깅",
   ai_diagnosis: "종합 진단",
   course_recommendation: "수강 추천",
   slot_generation: "슬롯 생성",
   guide_matching: "가이드 매칭",
+  haengteuk_linking: "행특 링크",
   bypass_analysis: "우회학과 분석",
   setek_guide: "세특 방향",
   changche_guide: "창체 방향",
@@ -195,11 +206,15 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   competency_analysis: 280_000,   // 4분 40초 (다건 배치 — Vercel 5분 제한 내 여유)
   storyline_generation: 120_000,
   edge_computation: 30_000,       // CPU 기반 (5-10s)
+  hyperedge_computation: 60_000,  // D-track(2026-04-14): 승격. CPU 기반 (pair-seed union-find, <10s). 여유.
+  narrative_arc_extraction: 280_000, // D-track(2026-04-14): 청크 모드 기본. chunkSize=4 × LLM ~10s × 3 concurrency ≈ ~15s/청크.
+                                  //   단일 route 최대 280s → chunkSize 크게 주어도 한 청크 내 안전.
   ai_diagnosis: 120_000,          // 2분 (실제 20-30s, 여유 포함)
   course_recommendation: 120_000,
   slot_generation: 30_000,        // 30초 (DB upsert 위주)
   guide_matching: 200_000,        // P2(2026-04-14): Phase A LLM 설계 + design 4건 풀매칭/셸생성 +
                                   //   Phase B fallback이 한 태스크에 묶여 있어 60s 초과. LLM 태스크 수준 상향.
+  haengteuk_linking: 90_000,      // D-track(2026-04-14): 승격. Flash × N학년(보통 3회) ≈ 30~60s.
   bypass_analysis: 120_000,
   setek_guide: 120_000,
   changche_guide: 120_000,
@@ -247,7 +262,15 @@ export const GRADE_PHASE_TASKS: Record<number, _GradeKey[]> = {
 
 export const SYNTHESIS_PHASE_TASKS: Record<number, _SynthKey[]> = {
   1: ["storyline_generation"],
-  2: ["edge_computation", "guide_matching"],
+  // Phase 2는 narrative chunk sub-route에서 선행 처리 후 메인 route에서 나머지 4 task 처리.
+  // 모두 동일 phase 2 소속(UI 탭 단일화 유지).
+  2: [
+    "narrative_arc_extraction",
+    "edge_computation",
+    "hyperedge_computation",
+    "guide_matching",
+    "haengteuk_linking",
+  ],
   3: ["ai_diagnosis", "course_recommendation"],
   4: ["bypass_analysis"],
   5: ["activity_summary", "ai_strategy"],

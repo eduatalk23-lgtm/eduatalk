@@ -99,35 +99,36 @@ export interface PipelineTaskResultMap {
     coverageWarnings?: DataCoverageWarning[];
     elapsedMs?: number;
   };
-  /** S2-a: 엣지 연결 그래프 (+ best-effort hyperedge 후속 결과) */
+  /** S2-a: 엣지 연결 그래프 */
   edge_computation: {
     totalEdges: number;
     nodeCount: number;
     elapsedMs?: number;
-    /** Phase 1 Layer 2 — hyperedge_computation 결과 (best-effort, 실패 시 omit) */
-    hyperedge?: {
-      computedHyperedges: number;
-      filteredBySize: number;
-      filteredByConfidence: number;
-      filteredByCompetency: number;
-      pairsExplored: number;
-      themeLabels: string[];
-      /** 세션 4: 부분 중첩(Jaccard≥0.6) 병합된 건수 */
-      mergedByJaccard?: number;
-      /** 세션 4: top-N(8) 캡으로 탈락한 건수 */
-      droppedByRanking?: number;
-      /** 세션 5 polish: sharedCompetencies.size<2 로 탈락한 건수 */
-      filteredByShallow?: number;
-    };
-    /** Phase 2 Layer 3 — narrative_arc_extraction 결과 (best-effort, 실패 시 omit) */
-    narrativeArc?: {
-      total: number;
-      succeeded: number;
-      failed: number;
-      skippedAlreadyAnalyzed: number;
-      skippedShortContent: number;
-    };
   };
+  /** S2-a': Layer 2 N-ary 수렴 엣지 (승격: 트랙 D, task_key 편입) */
+  hyperedge_computation: {
+    computedHyperedges: number;
+    filteredBySize: number;
+    filteredByConfidence: number;
+    filteredByCompetency: number;
+    pairsExplored: number;
+    themeLabels: string[];
+    mergedByJaccard?: number;
+    droppedByRanking?: number;
+    filteredByShallow?: number;
+    elapsedMs?: number;
+  };
+  /** S2-a'': Layer 3 레코드별 8단계 서사 태깅 (승격+청크: 트랙 D) */
+  narrative_arc_extraction: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    skippedAlreadyAnalyzed: number;
+    skippedShortContent: number;
+    elapsedMs?: number;
+  };
+  /** S2-c: 행특 ↔ 탐구 가이드 링크 (승격: 트랙 D, string preview만 반환 → elapsedMs만) */
+  haengteuk_linking: { elapsedMs?: number };
   /** S3-a: AI 종합 진단 */
   ai_diagnosis: {
     overallGrade: string;

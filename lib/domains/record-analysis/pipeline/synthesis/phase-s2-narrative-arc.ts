@@ -189,9 +189,22 @@ async function loadCandidates(ctx: PipelineContext): Promise<CandidateRecord[]> 
   return out;
 }
 
+/**
+ * 트랙 D (2026-04-14): chunkSize를 주면 "미분석 N건만 처리 → hasMore 반환" 청크 모드.
+ * 주지 않으면 기존(전량 처리) 동작 그대로.
+ * grade P1~P3 self-healing 청크 패턴과 동일 — DB 캐시가 진실 소스, offset 불필요.
+ */
 export async function runNarrativeArcExtraction(
   ctx: PipelineContext,
-): Promise<TaskRunnerOutput & { result: NarrativeArcExtractionResult }> {
+  chunkSize?: number,
+): Promise<
+  TaskRunnerOutput & {
+    result: NarrativeArcExtractionResult;
+    hasMore: boolean;
+    totalUncached: number;
+    chunkProcessed: number;
+  }
+> {
   assertSynthesisCtx(ctx);
   const { studentId, tenantId, pipelineId } = ctx;
   const targetMajor = (ctx.snapshot?.target_major as string | undefined) ?? undefined;
@@ -207,7 +220,7 @@ export async function runNarrativeArcExtraction(
     ]);
 
     const total = candidates.length;
-    const toProcess: CandidateRecord[] = [];
+    const allToProcess: CandidateRecord[] = [];
     let skippedAlreadyAnalyzed = 0;
     for (const c of candidates) {
       if (c.content.length < MIN_CONTENT_CHARS) {
@@ -218,8 +231,13 @@ export async function runNarrativeArcExtraction(
         skippedAlreadyAnalyzed++;
         continue;
       }
-      toProcess.push(c);
+      allToProcess.push(c);
     }
+
+    const totalUncached = allToProcess.length;
+    const toProcess =
+      chunkSize != null ? allToProcess.slice(0, chunkSize) : allToProcess;
+    const hasMore = chunkSize != null ? totalUncached > chunkSize : false;
 
     const { cancelled } = await runWithConcurrency(
       toProcess,
@@ -282,8 +300,11 @@ export async function runNarrativeArcExtraction(
       },
     );
 
+    const remainingHint = hasMore
+      ? ` · 잔여 ${totalUncached - toProcess.length}건`
+      : "";
     return {
-      preview: `${succeeded}/${toProcess.length} 레코드 서사 태깅 (스킵 ${skippedAlreadyAnalyzed} 기존 + ${skippedShortContent} 짧음)`,
+      preview: `${succeeded}/${toProcess.length} 레코드 서사 태깅 (스킵 ${skippedAlreadyAnalyzed} 기존 + ${skippedShortContent} 짧음)${remainingHint}`,
       result: {
         total,
         skippedAlreadyAnalyzed,
@@ -292,6 +313,9 @@ export async function runNarrativeArcExtraction(
         failed,
         cancelled,
       },
+      hasMore,
+      totalUncached,
+      chunkProcessed: succeeded + failed,
     };
   } catch (err) {
     logActionError(LOG_CTX, err instanceof Error ? err : new Error(String(err)), {

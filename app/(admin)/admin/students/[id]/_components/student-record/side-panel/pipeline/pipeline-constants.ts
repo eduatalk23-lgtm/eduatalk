@@ -51,7 +51,18 @@ export const SYNTHESIS_PHASE_GROUPS: Array<{
   keys: SynthesisPipelineTaskKey[];
 }> = [
   { label: "스토리라인", keys: ["storyline_generation"] },
-  { label: "연결+가이드", keys: ["edge_computation", "guide_matching"] },
+  // 트랙 D: narrative_arc/hyperedge/haengteuk_linking을 정식 task_key로 승격 후
+  // Phase 2에 포함. narrative는 클라이언트가 메인 route 진입 전 청크로 선행 처리.
+  {
+    label: "연결+가이드",
+    keys: [
+      "narrative_arc_extraction",
+      "edge_computation",
+      "hyperedge_computation",
+      "guide_matching",
+      "haengteuk_linking",
+    ],
+  },
   { label: "진단+추천", keys: ["ai_diagnosis", "course_recommendation"] },
   { label: "우회학과", keys: ["bypass_analysis"] },
   { label: "요약+전략", keys: ["activity_summary", "ai_strategy"] },
@@ -73,9 +84,12 @@ export const GRADE_TASK_LABEL_MAP: Record<GradePipelineTaskKey, string> = {
 export const SYNTH_TASK_LABEL_MAP: Record<SynthesisPipelineTaskKey, string> = {
   storyline_generation: "스토리라인",
   edge_computation: "연결 그래프",
+  hyperedge_computation: "통합 테마",
+  narrative_arc_extraction: "서사 태깅",
   ai_diagnosis: "종합 진단",
   course_recommendation: "수강 추천",
   guide_matching: "가이드 매칭",
+  haengteuk_linking: "행특 링크",
   bypass_analysis: "우회학과",
   activity_summary: "활동 요약",
   ai_strategy: "보완 전략",

@@ -22,6 +22,7 @@ import type {
 } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 import { useSidePanel } from "@/components/side-panel";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   Sparkles,
   X,
@@ -62,7 +63,9 @@ export function PipelinePanelApp({
 }: PipelinePanelAppProps) {
   const { closePanel } = useSidePanel();
   const queryClient = useQueryClient();
+  const { showError, showSuccess } = useToast();
   const [isLogCollapsed, setIsLogCollapsed] = useState(false);
+  const [isResettingPhase2, setIsResettingPhase2] = useState(false);
   const pollingStartRef = useRef<number | null>(null);
 
   const {
@@ -398,6 +401,68 @@ export function PipelinePanelApp({
             onRunGradeSequence={runGradeSequence}
             isGradeRunDisabled={isAnyRunning || isCancelling}
           />
+          {/* 트랙 D (2026-04-14): Phase 2 재실행 — narrative chunk 분할 효과 측정용.
+              synthesis 파이프라인이 존재하고 Phase 2 관련 태스크가 한 번이라도 돈 경우에만 노출. */}
+          {sp?.pipelineId &&
+            (sp.tasks.guide_matching === "completed" ||
+              sp.tasks.narrative_arc_extraction === "completed" ||
+              sp.status === "completed" ||
+              sp.status === "failed") && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-subtle)] px-3 py-2">
+                <div className="text-xs text-[var(--text-secondary)]">
+                  <div className="font-medium text-[var(--text-primary)]">
+                    Phase 2 재실행 (narrative chunk 측정)
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">
+                    narrative/hyperedge/edge/guide_matching/haengteuk 초기화 + 파생 DB 클린업
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={isResettingPhase2 || isAnyRunning || isCancelling}
+                  onClick={async () => {
+                    if (!sp?.pipelineId) return;
+                    if (!window.confirm("Phase 2 태스크를 초기화하고 파생 DB(narrative/hyperedge/edge/assignments/haengteuk_links)를 삭제합니다. 계속하시겠습니까?")) return;
+                    setIsResettingPhase2(true);
+                    try {
+                      const res = await fetch("/api/admin/pipeline/synthesis/rerun", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          pipelineId: sp.pipelineId,
+                          taskKeys: [
+                            "edge_computation",
+                            "hyperedge_computation",
+                            "narrative_arc_extraction",
+                            "guide_matching",
+                            "haengteuk_linking",
+                          ],
+                        }),
+                      });
+                      if (!res.ok) {
+                        const body = (await res.json().catch(() => ({}))) as { error?: string };
+                        throw new Error(body.error ?? `HTTP ${res.status}`);
+                      }
+                      await queryClient.invalidateQueries({
+                        queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
+                      });
+                      showSuccess("Phase 2 초기화 완료 — Phase 2 셀을 클릭하여 재실행하세요");
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : "재실행 세팅 실패";
+                      showError(`Phase 2 재실행 실패: ${msg}`);
+                    } finally {
+                      setIsResettingPhase2(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+                >
+                  <RefreshCw
+                    className={`h-3 w-3 ${isResettingPhase2 ? "animate-spin" : ""}`}
+                  />
+                  {isResettingPhase2 ? "초기화 중..." : "Phase 2 초기화"}
+                </button>
+              </div>
+            )}
           <PipelineSynthesisGrid
             sp={sp}
             gp={gp}

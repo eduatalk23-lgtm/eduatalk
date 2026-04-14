@@ -80,9 +80,11 @@ Grade Pipeline (학년별, 9태스크×8Phase)
   P7: draft_generation               ← 설계 모드 전용, 레벨링 주입(L2) + 방향 가이드 기반 AI 가안
   P8: draft_analysis                 ← 가안 역량 분석 (tag=draft_analysis, scores=ai_projected, edges=projected)
 
-Synthesis Pipeline (종합, 10태스크×6Phase)
+Synthesis Pipeline (종합, 13태스크×6Phase — 트랙 D 2026-04-14 task_key 3종 승격)
   S1: storyline_generation
-  S2: edge_computation + guide_matching      ← edge_computation 직후 hyperedge_computation (Layer 2) + narrative_arc_extraction (Layer 3) best-effort 후속
+  S2: narrative_arc_extraction (chunked sub-route) → edge_computation + hyperedge_computation + guide_matching + haengteuk_linking
+        ↑ 트랙 D: 기존 best-effort 3종(hyperedge/narrative/haengteuk_link)을 정식 task_key로 승격.
+          narrative_arc는 레코드별 LLM 호출이 많아 단일 Phase 2 HTTP에 묶이면 Vercel 300s 초과 → 별도 chunked sub-route로 분리.
   S3: ai_diagnosis + course_recommendation   ← aggregateQualityPatterns 주입
   S4: bypass_analysis
   S5: activity_summary + ai_strategy         ← qualityPatterns + hyperedgeSummarySection 주입
@@ -158,6 +160,24 @@ draft_analysis    ← [haengteuk_guide, draft_generation]
 `idx_unique_running_grade_pipeline`: 학생+학년 단위 running/pending 파이프라인 1개 제한.
 `idx_unique_running_synth_pipeline`: 학생 단위 synthesis 파이프라인 1개 제한.
 위반 시 23505 에러 → 사용자 친화적 메시지 반환.
+
+### 좀비 파이프라인 판정 (heartbeat 기반, 트랙 D 2026-04-14)
+
+장시간 실행되는 synthesis 파이프라인(총 7~13분)의 좀비 판정은 **`updated_at` 기반 heartbeat** 모델을 사용한다.
+
+```sql
+-- 마이그레이션: 20260414140000_analysis_pipelines_updated_at_heartbeat.sql
+ALTER TABLE student_record_analysis_pipelines ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+CREATE TRIGGER trg_analysis_pipelines_updated_at BEFORE UPDATE ...
+  SET NEW.updated_at = NOW();
+```
+
+**정책**:
+- `pipeline-orchestrator-status.ts` (폴링) + `pipeline.ts:checkPipelineRateLimit` 양쪽에서 `status='running' AND updated_at < now() - 5분` 조건으로 cancelled 마킹.
+- `started_at` 은 **기준으로 쓰면 안 됨** — 정상 실행 중인 장기 파이프라인도 시간만 지나면 오판해 cancel됨 (김세린 사례: Phase 3 중 `started_at + 5:01` 경과 시 자동 cancel).
+- 각 `runTaskWithState`/`updatePipelineState` UPDATE는 trigger에 의해 자동 `updated_at=NOW()` 갱신 → heartbeat 역할.
+
+**설계 원칙**: 서버리스 환경에서 장기 파이프라인의 "살아있음" 판정은 시작 시각(started_at)이 아니라 **마지막 활동 시각(updated_at)**으로 해야 한다. 각 phase/task가 DB write를 통해 자연스럽게 heartbeat을 찍으므로 별도 컬럼 불필요.
 
 ### LLM 호출 재시도 (`llm/retry.ts`)
 
