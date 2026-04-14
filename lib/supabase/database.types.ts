@@ -13628,6 +13628,103 @@ export type Database = {
           },
         ]
       }
+      student_record_narrative_arc: {
+        Row: {
+          conclusion_present: boolean
+          created_at: string
+          curiosity_present: boolean
+          grade: number
+          growth_narrative_present: boolean
+          id: string
+          inquiry_content_present: boolean
+          model_name: string | null
+          pipeline_id: string | null
+          record_id: string
+          record_type: string
+          references_present: boolean
+          reinquiry_present: boolean
+          school_year: number
+          source: string
+          stage_details: Json
+          stages_present_count: number | null
+          student_id: string
+          teacher_observation_present: boolean
+          tenant_id: string
+          topic_selection_present: boolean
+          updated_at: string
+        }
+        Insert: {
+          conclusion_present?: boolean
+          created_at?: string
+          curiosity_present?: boolean
+          grade: number
+          growth_narrative_present?: boolean
+          id?: string
+          inquiry_content_present?: boolean
+          model_name?: string | null
+          pipeline_id?: string | null
+          record_id: string
+          record_type: string
+          references_present?: boolean
+          reinquiry_present?: boolean
+          school_year: number
+          source?: string
+          stage_details?: Json
+          stages_present_count?: number | null
+          student_id: string
+          teacher_observation_present?: boolean
+          tenant_id: string
+          topic_selection_present?: boolean
+          updated_at?: string
+        }
+        Update: {
+          conclusion_present?: boolean
+          created_at?: string
+          curiosity_present?: boolean
+          grade?: number
+          growth_narrative_present?: boolean
+          id?: string
+          inquiry_content_present?: boolean
+          model_name?: string | null
+          pipeline_id?: string | null
+          record_id?: string
+          record_type?: string
+          references_present?: boolean
+          reinquiry_present?: boolean
+          school_year?: number
+          source?: string
+          stage_details?: Json
+          stages_present_count?: number | null
+          student_id?: string
+          teacher_observation_present?: boolean
+          tenant_id?: string
+          topic_selection_present?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_narrative_arc_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_narrative_arc_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_narrative_arc_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_personal_seteks: {
         Row: {
           ai_draft_at: string | null
