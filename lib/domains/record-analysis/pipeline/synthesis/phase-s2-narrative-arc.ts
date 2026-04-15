@@ -300,6 +300,14 @@ export async function runNarrativeArcExtraction(
       },
     );
 
+    // B7: 청크 단위 완결성 가드 — 실패율 10% 초과면 throw. 재실행 cascade 유도.
+    const chunkTotal = succeeded + failed;
+    if (chunkTotal > 0 && failed / chunkTotal > 0.1) {
+      throw new Error(
+        `narrative_arc_extraction 청크 부분 실행: ${failed}/${chunkTotal}건 실패 (${((failed / chunkTotal) * 100).toFixed(0)}% > 10%)`,
+      );
+    }
+
     const remainingHint = hasMore
       ? ` · 잔여 ${totalUncached - toProcess.length}건`
       : "";

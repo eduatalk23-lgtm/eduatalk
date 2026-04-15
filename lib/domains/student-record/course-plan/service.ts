@@ -266,8 +266,12 @@ export async function generateAndSaveRecommendations(
     for (const s of subjectInfos) {
       subjectByName.set(normalizeSubjectName(s.name), s);
     }
+    // 확정/완료된 plans 만 중복 방지 대상으로 삼는다.
+    //   recommended 는 아래 removeRecommendedByStudent 로 wipe 된 뒤 bulkUpsert 로 재생성되므로,
+    //   existingKeys 에 포함시키면 두 번째 호출 때 commonSeed 가 "이미 존재" 로 오판되어
+    //   wipe 이후 재삽입되지 못하는 1학년 plans 손실 버그가 발생한다.
     const existingKeys = new Set(
-      existingPlans.map((p) => `${p.subject_id}:${p.grade}:${p.semester}`),
+      confirmedOrCompleted.map((p) => `${p.subject_id}:${p.grade}:${p.semester}`),
     );
     for (const seed of commonSeeds) {
       const subject = subjectByName.get(normalizeSubjectName(seed.name));

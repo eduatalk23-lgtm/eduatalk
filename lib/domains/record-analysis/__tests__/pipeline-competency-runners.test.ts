@@ -262,17 +262,19 @@ describe("실패 레코드 재시도", () => {
     vi.useRealTimers();
   });
 
-  it("재시도도 실패 → failed 카운트 증가 (에러 없이 완료)", async () => {
+  it("B7 완결성 가드: 실패율 10% 초과 시 throw (재실행 cascade 유도)", async () => {
     vi.useFakeTimers();
 
     mockAnalyze.mockResolvedValue({ success: false, error: "permanent error" });
 
     const promise = runCompetencySetekForGrade(makeCtx());
+    // unhandled rejection 방지: 즉시 catch 핸들러 부착
+    const settled = promise.catch((e) => e);
     await vi.advanceTimersByTimeAsync(10_000);
-    const result = await promise;
+    const err = await settled;
 
-    // 전부 실패해도 throw 없이 완료
-    expect(typeof result === "object" && result !== null).toBe(true);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toMatch(/부분 실행|> 10%/);
 
     vi.useRealTimers();
   });

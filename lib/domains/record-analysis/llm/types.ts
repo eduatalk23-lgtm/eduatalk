@@ -517,19 +517,33 @@ export interface SuggestStrategiesResult {
 // Phase 9.2: AI 활동 요약서 타입
 // ============================================
 
+/**
+ * B8 (2026-04-15): 시계열 모드 — 입력 콘텐츠의 출처별 분포로 결정.
+ *   - "analysis": 모든 학년이 NEIS/확정 기록 기반 (기존)
+ *   - "prospective": 모든 학년이 AI 가안 기반 (1학년 설계 학생 등)
+ *   - "hybrid": 일부 학년만 NEIS, 나머지는 가안 (2~3학년 진행 학생 등)
+ *
+ * 모드에 따라 SYSTEM_PROMPT/buildUserPrompt가 톤을 전환한다.
+ */
+export type ActivitySummaryMode = "analysis" | "prospective" | "hybrid";
+
 /** generateActivitySummary 액션의 입력 */
 export interface ActivitySummaryInput {
   studentName: string;
   grade: number;
   targetMajor?: string;
   targetGrades: number[];
+  /** B8: 전체 시계열 모드 */
+  mode: ActivitySummaryMode;
   recordDataByGrade: Record<
     number,
     {
-      seteks: Array<{ subject_name: string; content: string }>;
-      personalSeteks: Array<{ title: string; content: string }>;
-      changche: Array<{ activity_type: string; content: string }>;
-      haengteuk: { content: string } | null;
+      /** B8: 학년별 모드 — 학년 단위로 톤 전환 */
+      gradeMode: ActivitySummaryMode;
+      seteks: Array<{ subject_name: string; content: string; isDraft: boolean }>;
+      personalSeteks: Array<{ title: string; content: string; isDraft: boolean }>;
+      changche: Array<{ activity_type: string; content: string; isDraft: boolean }>;
+      haengteuk: { content: string; isDraft: boolean } | null;
       readings: Array<{ book_title: string; book_author?: string }>;
     }
   >;
@@ -538,6 +552,8 @@ export interface ActivitySummaryInput {
   edgePromptSection?: string;
   /** Q3: 이전 학년 요약 (다학년 비교 성장 서술용) */
   previousSummaryText?: string;
+  /** B8: 설계 산출물 (course_plans, guide_matching 등) — prospective/hybrid 학년 보강용 */
+  designArtifactsSection?: string;
 }
 
 /** generateActivitySummary 액션의 출력 */

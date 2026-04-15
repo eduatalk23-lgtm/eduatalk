@@ -124,7 +124,10 @@ export function GradesAndSetekSection({
       const groupName = p.subjectGroupName;
       const typeName = p.subjectTypeName;
       if (groupName === "교양") { gen.push(p); continue; }
-      if (PE_ART_GROUPS.has(groupName)) { peArt.push(p); continue; }
+      // 과학탐구실험 등 is_achievement_only(subject_type_name="공통(성취평가)") 과목은
+      //   classifySubjectId(seteks 분류) 와 동일하게 pe_art 로 묶어야 한다.
+      //   누락 시 general(planned) + pe_art(seteks) 양쪽에 동일 과목이 중복 렌더된다.
+      if (PE_ART_GROUPS.has(groupName) || typeName === "공통(성취평가)") { peArt.push(p); continue; }
       if (ELECTIVE_TYPES.has(typeName)) { elec.push(p); continue; }
       gen.push(p);
     }

@@ -62,6 +62,7 @@ export {
 // Draft Pipeline (P7-P8)
 export {
   runDraftGenerationForGrade,
+  runDraftGenerationChunkForGrade,
   runDraftAnalysisForGrade,
   runDraftAnalysisChunkForGrade,
 } from "./pipeline-task-runners-draft";

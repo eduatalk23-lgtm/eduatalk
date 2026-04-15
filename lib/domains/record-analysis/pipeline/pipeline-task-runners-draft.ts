@@ -11,6 +11,7 @@
 
 export {
   runDraftGenerationForGrade,
+  runDraftGenerationChunkForGrade,
   fetchSubjectNames,
   withLevelDirective,
   generateAndSaveDraft,

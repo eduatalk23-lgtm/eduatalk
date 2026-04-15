@@ -67,9 +67,10 @@ export function ContextTopSheet({ isOpen, onClose, studentGrade, initialSchoolYe
 
   // 학년-연도 쌍
   const currentSchoolYear = calculateSchoolYear();
+  // B13: 3년 통합 — studentGrade 무관하게 [1,2,3] 전체 학년도를 다룬다.
   const yearGradePairs = useMemo(() => {
     const pairs: Array<{ grade: number; schoolYear: number }> = [];
-    for (let g = 1; g <= studentGrade; g++) {
+    for (let g = 1; g <= 3; g++) {
       pairs.push({ grade: g, schoolYear: gradeToSchoolYear(g, studentGrade, currentSchoolYear) });
     }
     return pairs;

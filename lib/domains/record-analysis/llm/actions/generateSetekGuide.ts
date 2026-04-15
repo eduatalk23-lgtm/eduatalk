@@ -230,9 +230,13 @@ export async function generateProspectiveSetekGuide(
   const coursePlanRes = await fetchCoursePlanTabData(studentId).catch(() => null);
   const coursePlanData = coursePlanRes?.success ? coursePlanRes.data : null;
 
-  // 계획 과목 (confirmed + recommended)
+  // 계획 과목 (confirmed + recommended). runSetekGuideForGrade 는 학년별 호출이므로
+  //   grades(= [targetGrade]) 에 속하는 plans 만 LLM 에 노출해야 cross-grade 오염을 방지한다.
+  //   (이전 버그: 2/3학년 가이드 프롬프트에 1학년 공통과목이 섞여 들어가 LLM 이
+  //    엉뚱한 학년의 setek_guide 를 생성하고 전부 targetSchoolYear 로 저장되었다.)
   const plans = coursePlanData?.plans?.filter((p) =>
-    p.plan_status === "confirmed" || p.plan_status === "recommended",
+    (p.plan_status === "confirmed" || p.plan_status === "recommended") &&
+    grades.includes(p.grade),
   ) ?? [];
 
   if (plans.length === 0) {

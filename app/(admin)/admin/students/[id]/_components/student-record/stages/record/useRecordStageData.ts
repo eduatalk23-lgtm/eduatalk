@@ -40,9 +40,13 @@ export function useRecordStageData({
   const currentSchoolYear = calculateSchoolYear();
 
   // ─── 학년-연도 쌍 계산 ─────────────────────────────────
+  // B13 원칙: 3년 통합 설계 — studentGrade 무관하게 [1,2,3] 전체를 fetch.
+  //   기존 `g <= studentGrade` 는 1학년 prospective 학생이 미래 학년(2/3)
+  //   설계 산출물을 가지고 있어도 UI 에 렌더되지 못하는 문제를 유발했다.
+  //   studentGrade 는 gradeToSchoolYear 의 학년도 오프셋 계산에만 사용한다.
   const yearGradePairs = useMemo<GradeYearPair[]>(() => {
     const pairs: GradeYearPair[] = [];
-    for (let g = 1; g <= studentGrade; g++) {
+    for (let g = 1; g <= 3; g++) {
       const sy = gradeToSchoolYear(g, studentGrade, currentSchoolYear);
       pairs.push({ grade: g, schoolYear: sy });
     }

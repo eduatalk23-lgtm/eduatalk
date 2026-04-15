@@ -51,7 +51,8 @@ function extractEvidenceRecords(
 
   const results: EvidenceRecord[] = [];
 
-  for (let g = 1; g <= studentGrade; g++) {
+  // B13: 3년 통합 — 학년별 evidence 수집에서 studentGrade 상한 제거.
+  for (let g = 1; g <= 3; g++) {
     const gradeData = recordDataByGrade[g];
     if (!gradeData) continue;
 
@@ -154,7 +155,8 @@ export function StorylineSection({
     const typeCounts: Record<string, number> = { 세특: 0, 개인세특: 0, 창체: 0, 독서: 0, 행특: 0 };
     const gradeCounts: Array<{ name: string; count: number }> = [];
 
-    for (let g = 1; g <= studentGrade; g++) {
+    // B13: 3년 학년별 분포 — studentGrade 상한 제거, 빈 학년도 0으로 표시.
+    for (let g = 1; g <= 3; g++) {
       const data = recordDataByGrade[g];
       if (!data) { gradeCounts.push({ name: `${g}학년`, count: 0 }); continue; }
       const setekCount = (data.seteks ?? []).filter((s) => s.content).length;
@@ -308,7 +310,7 @@ export function StorylineSection({
                     { grade: 2, theme: sl.grade_2_theme },
                     { grade: 3, theme: sl.grade_3_theme },
                   ]
-                    .filter((t) => t.grade <= studentGrade)
+                    // B13: 3년 전체 표시. studentGrade 는 톤/currentness 판정에만 사용.
                     .map((t) => (
                       <div
                         key={t.grade}

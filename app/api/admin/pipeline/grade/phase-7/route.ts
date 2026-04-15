@@ -10,7 +10,10 @@ const LOG_CTX = { domain: "student-record", action: "pipeline.grade.phase-7" };
 
 export async function POST(request: NextRequest) {
   try {
-    const { pipelineId } = (await request.json()) as { pipelineId: string };
+    const { pipelineId, chunkSize } = (await request.json()) as {
+      pipelineId: string;
+      chunkSize?: number;
+    };
 
     if (!pipelineId) {
       return NextResponse.json(
@@ -34,12 +37,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await executeGradePhase7(ctx);
+    const phaseResult = await executeGradePhase7(
+      ctx,
+      chunkSize != null ? { chunkSize } : undefined,
+    );
+
+    if (phaseResult.hasMore) {
+      return NextResponse.json({
+        phase: 7,
+        grade: ctx.targetGrade,
+        hasMore: true,
+        chunkProcessed: phaseResult.chunkProcessed,
+        totalUncached: phaseResult.totalUncached,
+      });
+    }
 
     return NextResponse.json({
       phase: 7,
       grade: ctx.targetGrade,
       completed: true,
+      hasMore: false,
     });
   } catch (error) {
     logActionError(LOG_CTX, error);

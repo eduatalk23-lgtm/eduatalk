@@ -49,10 +49,13 @@ export async function runActivitySummary(
   computedEdges: PersistedEdge[] | CrossRefEdge[],
 ): Promise<TaskRunnerOutput> {
   assertSynthesisCtx(ctx);
-  const { studentId, tenantId, studentGrade } = ctx;
+  const { studentId, tenantId } = ctx;
 
   const { generateActivitySummary } = await import("../../llm/actions/generateActivitySummary");
-  const grades = Array.from({ length: studentGrade }, (_, i) => i + 1);
+  // B13: 3년 통합 설계 원칙 — studentGrade 와 무관하게 [1,2,3] 전체를 처리한다.
+  //   1학년 prospective 는 3년 계획, 2학년 hybrid 는 1학년 NEIS + 2학년 진행 + 3학년 설계,
+  //   3학년 analysis 는 3년 회고. studentGrade 는 generateActivitySummary 내부의 mode 분기에만 쓰인다.
+  const grades = [1, 2, 3];
   // Phase E2: 엣지 데이터 → 요약서 프롬프트에 투입
   let summaryEdgeSection: string | undefined;
   if (computedEdges.length > 0) {

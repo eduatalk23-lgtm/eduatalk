@@ -517,15 +517,13 @@ export async function runDraftAnalysisChunkForGrade(
   const existingGrades = (ctx.results["draft_analysis_accumulated_grades"] as Array<{ item: string; grade: string; reasoning?: string; rubricScores?: unknown }>) ?? [];
   ctx.results["draft_analysis_accumulated_grades"] = [...existingGrades, ...chunkCompetencyGrades];
 
-  // 무한 루프 방지 가드: 청크가 레코드를 하나도 처리하지 못했다면(전부 LLM 실패 등)
-  //   pending 이 줄지 않아 client 가 무한 loop — hasMore 강제 false + 경고 로그로 탈출.
+  // B7 완결성 가드: 청크가 레코드를 하나도 처리하지 못했다면(전부 LLM 실패 등) throw.
+  //   이전엔 finalize 로 조기 탈출해 task=completed 로 보고됐지만, 실제 데이터는 0건이라
+  //   partial 완료로 보였다. 재실행 cascade 를 통해 사용자가 다시 시도하도록 failed 처리.
   if (chunkRecordIds.length === 0 && thisChunk.length > 0) {
-    logActionError(
-      LOG_CTX,
-      new Error(`청크 진행 정지 (0/${thisChunk.length} 처리) — 잔여 ${totalUncached}건을 남기고 finalize 로 전환`),
-      { phase: "draft_analysis_chunk_no_progress", targetGrade, totalUncached },
+    throw new Error(
+      `draft_analysis 청크 진행 정지: 0/${thisChunk.length}건 처리, 잔여 ${totalUncached}건 (재실행 필요)`,
     );
-    return finalizeDraftAnalysisChunked(ctx, targetGrade, targetSchoolYear);
   }
 
   if (hasMore) {

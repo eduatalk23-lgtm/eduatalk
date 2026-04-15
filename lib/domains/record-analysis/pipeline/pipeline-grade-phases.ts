@@ -30,6 +30,7 @@ import {
   runChangcheGuideForGrade,
   runHaengteukGuideForGrade,
   runDraftGenerationForGrade,
+  runDraftGenerationChunkForGrade,
   runDraftAnalysisForGrade,
   runDraftAnalysisChunkForGrade,
   runCrossSubjectThemeExtractionForGrade,
@@ -363,21 +364,86 @@ export async function executeGradePhase6(
 
 export async function executeGradePhase7(
   ctx: PipelineContext,
-): Promise<void> {
-  if (await checkCancelled(ctx)) return;
+  chunkOpts?: { chunkSize?: number },
+): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
 
+  // 청크 모드 (B6, B5 패턴 이식)
+  if (chunkOpts?.chunkSize != null) {
+    if (skipIfPrereqFailed(ctx, "draft_generation")) {
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId, "running",
+        ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+      );
+      return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+    }
+
+    const existingStatus = ctx.tasks["draft_generation"];
+    if (existingStatus !== "running") {
+      ctx.tasks["draft_generation"] = "running";
+    }
+
+    try {
+      const result = await runDraftGenerationChunkForGrade(ctx, chunkOpts.chunkSize);
+
+      if (result.preview) ctx.previews["draft_generation"] = result.preview;
+
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId,
+        "running",
+        ctx.tasks,
+        ctx.previews,
+        ctx.results ?? {},
+        ctx.errors ?? {},
+        false,
+      );
+
+      if (!result.hasMore) {
+        ctx.tasks["draft_generation"] = "completed";
+        await updatePipelineState(
+          ctx.supabase as SupabaseAdminClient,
+          ctx.pipelineId, "running",
+          ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
+        );
+      }
+
+      return {
+        completed: !result.hasMore,
+        hasMore: result.hasMore,
+        chunkProcessed: result.chunkProcessed,
+        totalUncached: result.totalUncached,
+      };
+    } catch (err) {
+      ctx.tasks["draft_generation"] = "failed";
+      ctx.errors = ctx.errors ?? {};
+      ctx.errors["draft_generation"] = err instanceof Error ? err.message : String(err);
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId, "running",
+        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors, false,
+      );
+      throw err;
+    }
+  }
+
+  // 단일 호출 (기존 동작 유지 — 호환성)
   if (skipIfPrereqFailed(ctx, "draft_generation")) {
     await updatePipelineState(
       ctx.supabase as SupabaseAdminClient,
       ctx.pipelineId, "running",
       ctx.tasks, ctx.previews, ctx.results, ctx.errors,
     );
-    return;
+    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
   }
 
   await runTaskWithState(ctx, "draft_generation", () =>
     runDraftGenerationForGrade(ctx),
   );
+  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
 }
 
 // ============================================

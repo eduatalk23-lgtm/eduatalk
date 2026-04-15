@@ -580,6 +580,14 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
   }
 
   const total = succeeded + skipped + failed;
+
+  // B7: 완결성 가드 — 실패율이 10% 초과하면 failed 처리. 재실행 cascade로 복구 유도.
+  if (total > 0 && failed / total > 0.1) {
+    throw new Error(
+      `competency_${recordType} 부분 실행: ${failed}/${total}건 실패 (${((failed / total) * 100).toFixed(0)}% > 10%)`,
+    );
+  }
+
   const parts = [`${succeeded}건 분석`];
   if (skipped > 0) parts.push(`${skipped}건 캐시`);
   if (failed > 0) parts.push(`${failed}건 실패`);
@@ -636,6 +644,14 @@ async function runCompetencyChunkForType(
   }
 
   const total = succeeded + skipped + failed;
+
+  // B7: 청크 단위 완결성 가드 — 한 청크 내 실패율이 10% 초과면 throw. 재실행 cascade 유도.
+  if (total > 0 && failed / total > 0.1) {
+    throw new Error(
+      `competency_${recordType} 청크 부분 실행: ${failed}/${total}건 실패 (${((failed / total) * 100).toFixed(0)}% > 10%)`,
+    );
+  }
+
   const parts = [`${succeeded}건 분석`];
   if (skipped > 0) parts.push(`${skipped}건 캐시`);
   if (failed > 0) parts.push(`${failed}건 실패`);
