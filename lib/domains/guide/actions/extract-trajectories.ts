@@ -255,10 +255,33 @@ export async function executeExtractTrajectories(
       .select("tenant_id")
       .eq("id", studentId)
       .single();
+    const tenantId = student?.tenant_id ?? null;
+
+    // G14: 활성 analysis 메인 탐구 자동 연결 (NEIS 추출 = bottom-up 응축)
+    let analysisMainId: string | null = null;
+    if (tenantId) {
+      try {
+        const { getActiveMainExploration } = await import(
+          "@/lib/domains/student-record/repository/main-exploration-repository"
+        );
+        const active = await getActiveMainExploration(studentId, tenantId, {
+          scope: "overall",
+          trackLabel: null,
+          direction: "analysis",
+        });
+        analysisMainId = active?.id ?? null;
+      } catch {
+        // fallback: main_exploration_id 없이 저장
+      }
+    }
+
+    const { difficultyToTier } = await import(
+      "@/lib/domains/student-record/main-exploration/tier-mapping"
+    );
 
     const rows = allTrajectories.map((t) => ({
       student_id: studentId,
-      tenant_id: student?.tenant_id,
+      tenant_id: tenantId,
       grade: t.grade,
       topic_cluster_id: t.clusterId,
       source: "extracted_from_neis",
@@ -269,6 +292,10 @@ export async function executeExtractTrajectories(
         extraction_reasoning: "세특 내용 벡터 유사도 기반 클러스터 투표",
         extracted_at: new Date().toISOString(),
       },
+      main_exploration_id: analysisMainId,
+      main_exploration_tier: analysisMainId
+        ? difficultyToTier(t.difficultyLevel)
+        : null,
     }));
 
     const { error: upsertErr } = await supabase

@@ -15,3 +15,6 @@ export {
   updateMainExplorationTierPlan,
 } from "./sync";
 export type { TierPlan, TierPlanEntry } from "./sync";
+
+export { difficultyToTier, tierToDifficulty } from "./tier-mapping";
+export type { GuideDifficulty } from "./tier-mapping";

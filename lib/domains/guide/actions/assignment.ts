@@ -185,7 +185,7 @@ export async function fetchCareerFieldsAction(): Promise<
   }
 }
 
-/** Phase A: 가이드 배정 시 학생 궤적 UPSERT */
+/** Phase A: 가이드 배정 시 학생 궤적 UPSERT (Phase α G14: 활성 메인 탐구 자동 연결) */
 async function upsertTopicTrajectory(
   studentId: string,
   guideId: string,
@@ -203,6 +203,43 @@ async function upsertTopicTrajectory(
 
   if (!guide?.topic_cluster_id) return;
 
+  // G14: 활성 메인 탐구 자동 연결 (design 우선 → analysis fallback)
+  //   실패해도 trajectory 저장 자체는 계속 (main_exploration_id=null 로 fallback).
+  let mainExplorationId: string | null = null;
+  let mainExplorationTier: string | null = null;
+  try {
+    const { data: studentRow } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .maybeSingle();
+    const tenantId = studentRow?.tenant_id;
+    if (tenantId) {
+      const [{ getActiveMainExploration }, { difficultyToTier }] = await Promise.all([
+        import("@/lib/domains/student-record/repository/main-exploration-repository"),
+        import("@/lib/domains/student-record/main-exploration/tier-mapping"),
+      ]);
+      const design = await getActiveMainExploration(studentId, tenantId, {
+        scope: "overall",
+        trackLabel: null,
+        direction: "design",
+      });
+      const active =
+        design ??
+        (await getActiveMainExploration(studentId, tenantId, {
+          scope: "overall",
+          trackLabel: null,
+          direction: "analysis",
+        }));
+      if (active) {
+        mainExplorationId = active.id;
+        mainExplorationTier = difficultyToTier(guide.difficulty_level);
+      }
+    }
+  } catch {
+    // fallback: main_exploration_id 비워두고 계속
+  }
+
   await supabase
     .from("student_record_topic_trajectories")
     .upsert(
@@ -218,6 +255,8 @@ async function upsertTopicTrajectory(
           title: guide.title,
           assigned_at: new Date().toISOString(),
         },
+        main_exploration_id: mainExplorationId,
+        main_exploration_tier: mainExplorationTier,
       },
       { onConflict: "student_id,grade,topic_cluster_id" },
     );
