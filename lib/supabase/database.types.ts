@@ -6686,6 +6686,60 @@ export type Database = {
           },
         ]
       }
+      main_exploration_links: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          linked_id: string
+          linked_tier: string | null
+          linked_type: string
+          main_exploration_id: string
+          source: string
+          strength: number | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          direction?: string
+          id?: string
+          linked_id: string
+          linked_tier?: string | null
+          linked_type: string
+          main_exploration_id: string
+          source?: string
+          strength?: number | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          linked_id?: string
+          linked_tier?: string | null
+          linked_type?: string
+          main_exploration_id?: string
+          source?: string
+          strength?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "main_exploration_links_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "main_exploration_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       make_scenario_logs: {
         Row: {
           error_message: string | null
@@ -10214,6 +10268,63 @@ export type Database = {
           },
         ]
       }
+      student_career_tracks: {
+        Row: {
+          career_field: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          priority: number
+          source: string
+          student_id: string
+          tenant_id: string
+          track_label: string
+          updated_at: string
+        }
+        Insert: {
+          career_field?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          priority?: number
+          source: string
+          student_id: string
+          tenant_id: string
+          track_label: string
+          updated_at?: string
+        }
+        Update: {
+          career_field?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          priority?: number
+          source?: string
+          student_id?: string
+          tenant_id?: string
+          track_label?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_career_tracks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_career_tracks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_cohort_benchmarks: {
         Row: {
           acceptance_rate: number | null
@@ -10672,6 +10783,75 @@ export type Database = {
           },
         ]
       }
+      student_exploration_levels: {
+        Row: {
+          adequate_from_gpa: number | null
+          adequate_level: number
+          created_at: string
+          expected_level: number
+          gpa_average: number | null
+          grade: number
+          id: string
+          override_reason: string | null
+          school_tier: string | null
+          school_year: number
+          semester: number
+          source: string
+          student_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          adequate_from_gpa?: number | null
+          adequate_level: number
+          created_at?: string
+          expected_level: number
+          gpa_average?: number | null
+          grade: number
+          id?: string
+          override_reason?: string | null
+          school_tier?: string | null
+          school_year: number
+          semester: number
+          source?: string
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          adequate_from_gpa?: number | null
+          adequate_level?: number
+          created_at?: string
+          expected_level?: number
+          gpa_average?: number | null
+          grade?: number
+          id?: string
+          override_reason?: string | null
+          school_tier?: string | null
+          school_year?: number
+          semester?: number
+          source?: string
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_exploration_levels_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_exploration_levels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_goal_progress: {
         Row: {
           created_at: string | null
@@ -11114,6 +11294,119 @@ export type Database = {
             columns: ["lecture_id"]
             isOneToOne: false
             referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_main_explorations: {
+        Row: {
+          career_field: string | null
+          created_at: string
+          direction: string
+          exemplar_reference_ids: string[]
+          grade: number
+          id: string
+          identity_alignment_score: number | null
+          is_active: boolean
+          model_name: string | null
+          parent_version_id: string | null
+          pinned_by_consultant: boolean
+          pipeline_id: string | null
+          school_year: number
+          scope: string
+          semantic_role: string
+          semester: number
+          source: string
+          student_id: string
+          tenant_id: string
+          theme_keywords: string[]
+          theme_label: string
+          tier_plan: Json
+          track_label: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          career_field?: string | null
+          created_at?: string
+          direction: string
+          exemplar_reference_ids?: string[]
+          grade: number
+          id?: string
+          identity_alignment_score?: number | null
+          is_active?: boolean
+          model_name?: string | null
+          parent_version_id?: string | null
+          pinned_by_consultant?: boolean
+          pipeline_id?: string | null
+          school_year: number
+          scope: string
+          semantic_role: string
+          semester: number
+          source: string
+          student_id: string
+          tenant_id: string
+          theme_keywords?: string[]
+          theme_label: string
+          tier_plan?: Json
+          track_label?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          career_field?: string | null
+          created_at?: string
+          direction?: string
+          exemplar_reference_ids?: string[]
+          grade?: number
+          id?: string
+          identity_alignment_score?: number | null
+          is_active?: boolean
+          model_name?: string | null
+          parent_version_id?: string | null
+          pinned_by_consultant?: boolean
+          pipeline_id?: string | null
+          school_year?: number
+          scope?: string
+          semantic_role?: string
+          semester?: number
+          source?: string
+          student_id?: string
+          tenant_id?: string
+          theme_keywords?: string[]
+          theme_label?: string
+          tier_plan?: Json
+          track_label?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_main_explorations_parent_version_id_fkey"
+            columns: ["parent_version_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_main_explorations_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_main_explorations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_main_explorations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -12099,6 +12392,7 @@ export type Database = {
           task_results: Json | null
           tasks: Json
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           completed_at?: string | null
@@ -12119,6 +12413,7 @@ export type Database = {
           task_results?: Json | null
           tasks?: Json
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           completed_at?: string | null
@@ -12139,6 +12434,7 @@ export type Database = {
           task_results?: Json | null
           tasks?: Json
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -12522,12 +12818,17 @@ export type Database = {
           direction: string
           guide_mode: string
           id: string
+          is_stale: boolean
           keywords: string[]
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           model_tier: string | null
           overall_direction: string | null
           prompt_version: string | null
           school_year: number
+          semester: number | null
           source: string
+          stale_reason: string | null
           status: string
           student_id: string
           teacher_points: string[]
@@ -12545,12 +12846,17 @@ export type Database = {
           direction: string
           guide_mode?: string
           id?: string
+          is_stale?: boolean
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_tier?: string | null
           overall_direction?: string | null
           prompt_version?: string | null
           school_year: number
+          semester?: number | null
           source?: string
+          stale_reason?: string | null
           status?: string
           student_id: string
           teacher_points?: string[]
@@ -12568,12 +12874,17 @@ export type Database = {
           direction?: string
           guide_mode?: string
           id?: string
+          is_stale?: boolean
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_tier?: string | null
           overall_direction?: string | null
           prompt_version?: string | null
           school_year?: number
+          semester?: number | null
           source?: string
+          stale_reason?: string | null
           status?: string
           student_id?: string
           teacher_points?: string[]
@@ -12593,6 +12904,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_changche_guides_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
             referencedColumns: ["id"]
           },
           {
@@ -13258,12 +13576,17 @@ export type Database = {
           evaluation_items: Json | null
           guide_mode: string
           id: string
+          is_stale: boolean
           keywords: string[]
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           model_tier: string | null
           overall_direction: string | null
           prompt_version: string | null
           school_year: number
+          semester: number | null
           source: string
+          stale_reason: string | null
           status: string
           student_id: string
           teacher_points: string[]
@@ -13281,12 +13604,17 @@ export type Database = {
           evaluation_items?: Json | null
           guide_mode?: string
           id?: string
+          is_stale?: boolean
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_tier?: string | null
           overall_direction?: string | null
           prompt_version?: string | null
           school_year: number
+          semester?: number | null
           source?: string
+          stale_reason?: string | null
           status?: string
           student_id: string
           teacher_points?: string[]
@@ -13304,12 +13632,17 @@ export type Database = {
           evaluation_items?: Json | null
           guide_mode?: string
           id?: string
+          is_stale?: boolean
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_tier?: string | null
           overall_direction?: string | null
           prompt_version?: string | null
           school_year?: number
+          semester?: number | null
           source?: string
+          stale_reason?: string | null
           status?: string
           student_id?: string
           teacher_points?: string[]
@@ -13329,6 +13662,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_haengteuk_guides_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
             referencedColumns: ["id"]
           },
           {
@@ -13356,9 +13696,12 @@ export type Database = {
           hyperedge_type: string
           id: string
           is_stale: boolean
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           member_count: number
           members: Json
           pipeline_id: string | null
+          semester: number | null
           shared_competencies: string[] | null
           shared_keywords: string[] | null
           snapshot_version: number
@@ -13377,9 +13720,12 @@ export type Database = {
           hyperedge_type?: string
           id?: string
           is_stale?: boolean
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           member_count: number
           members: Json
           pipeline_id?: string | null
+          semester?: number | null
           shared_competencies?: string[] | null
           shared_keywords?: string[] | null
           snapshot_version?: number
@@ -13398,9 +13744,12 @@ export type Database = {
           hyperedge_type?: string
           id?: string
           is_stale?: boolean
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           member_count?: number
           members?: Json
           pipeline_id?: string | null
+          semester?: number | null
           shared_competencies?: string[] | null
           shared_keywords?: string[] | null
           snapshot_version?: number
@@ -13412,6 +13761,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_record_hyperedges_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_record_hyperedges_pipeline_id_fkey"
             columns: ["pipeline_id"]
@@ -13637,6 +13993,8 @@ export type Database = {
           growth_narrative_present: boolean
           id: string
           inquiry_content_present: boolean
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           model_name: string | null
           pipeline_id: string | null
           record_id: string
@@ -13644,6 +14002,7 @@ export type Database = {
           references_present: boolean
           reinquiry_present: boolean
           school_year: number
+          semester: number | null
           source: string
           stage_details: Json
           stages_present_count: number | null
@@ -13661,6 +14020,8 @@ export type Database = {
           growth_narrative_present?: boolean
           id?: string
           inquiry_content_present?: boolean
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_name?: string | null
           pipeline_id?: string | null
           record_id: string
@@ -13668,6 +14029,7 @@ export type Database = {
           references_present?: boolean
           reinquiry_present?: boolean
           school_year: number
+          semester?: number | null
           source?: string
           stage_details?: Json
           stages_present_count?: number | null
@@ -13685,6 +14047,8 @@ export type Database = {
           growth_narrative_present?: boolean
           id?: string
           inquiry_content_present?: boolean
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_name?: string | null
           pipeline_id?: string | null
           record_id?: string
@@ -13692,6 +14056,7 @@ export type Database = {
           references_present?: boolean
           reinquiry_present?: boolean
           school_year?: number
+          semester?: number | null
           source?: string
           stage_details?: Json
           stages_present_count?: number | null
@@ -13702,6 +14067,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_record_narrative_arc_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_record_narrative_arc_pipeline_id_fkey"
             columns: ["pipeline_id"]
@@ -14038,6 +14410,8 @@ export type Database = {
           id: string
           linked_record_id: string | null
           linked_record_type: string | null
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           match_rate: number | null
           plan_content: string
           plan_keywords: string[] | null
@@ -14062,6 +14436,8 @@ export type Database = {
           id?: string
           linked_record_id?: string | null
           linked_record_type?: string | null
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           match_rate?: number | null
           plan_content?: string
           plan_keywords?: string[] | null
@@ -14086,6 +14462,8 @@ export type Database = {
           id?: string
           linked_record_id?: string | null
           linked_record_type?: string | null
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           match_rate?: number | null
           plan_content?: string
           plan_keywords?: string[] | null
@@ -14100,6 +14478,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_record_roadmap_items_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_record_roadmap_items_storyline_id_fkey"
             columns: ["storyline_id"]
@@ -14134,12 +14519,17 @@ export type Database = {
           direction: string
           guide_mode: string
           id: string
+          is_stale: boolean
           keywords: string[]
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           model_tier: string | null
           overall_direction: string | null
           prompt_version: string | null
           school_year: number
+          semester: number | null
           source: string
+          stale_reason: string | null
           status: string
           student_id: string
           subject_id: string
@@ -14157,12 +14547,17 @@ export type Database = {
           direction: string
           guide_mode?: string
           id?: string
+          is_stale?: boolean
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_tier?: string | null
           overall_direction?: string | null
           prompt_version?: string | null
           school_year: number
+          semester?: number | null
           source?: string
+          stale_reason?: string | null
           status?: string
           student_id: string
           subject_id: string
@@ -14180,12 +14575,17 @@ export type Database = {
           direction?: string
           guide_mode?: string
           id?: string
+          is_stale?: boolean
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           model_tier?: string | null
           overall_direction?: string | null
           prompt_version?: string | null
           school_year?: number
+          semester?: number | null
           source?: string
+          stale_reason?: string | null
           status?: string
           student_id?: string
           subject_id?: string
@@ -14206,6 +14606,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_setek_guides_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
             referencedColumns: ["id"]
           },
           {
@@ -14407,7 +14814,10 @@ export type Database = {
           grade_3_theme: string | null
           id: string
           keywords: string[]
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           narrative: string | null
+          semester_themes: Json
           sort_order: number
           strength: string | null
           student_id: string
@@ -14423,7 +14833,10 @@ export type Database = {
           grade_3_theme?: string | null
           id?: string
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           narrative?: string | null
+          semester_themes?: Json
           sort_order?: number
           strength?: string | null
           student_id: string
@@ -14439,7 +14852,10 @@ export type Database = {
           grade_3_theme?: string | null
           id?: string
           keywords?: string[]
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           narrative?: string | null
+          semester_themes?: Json
           sort_order?: number
           strength?: string | null
           student_id?: string
@@ -14448,6 +14864,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_record_storylines_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_record_storylines_student_id_fkey"
             columns: ["student_id"]
@@ -14593,6 +15016,8 @@ export type Database = {
           evidence: Json
           grade: number
           id: string
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           source: string
           student_id: string
           tenant_id: string
@@ -14606,6 +15031,8 @@ export type Database = {
           evidence?: Json
           grade: number
           id?: string
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           source: string
           student_id: string
           tenant_id: string
@@ -14619,6 +15046,8 @@ export type Database = {
           evidence?: Json
           grade?: number
           id?: string
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           source?: string
           student_id?: string
           tenant_id?: string
@@ -14627,6 +15056,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_record_topic_trajectories_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_record_topic_trajectories_student_id_fkey"
             columns: ["student_id"]
@@ -17628,6 +18064,10 @@ export type Database = {
         Args: { p_student_id: string }
         Returns: undefined
       }
+      difficulty_to_leveling_floor: {
+        Args: { p_difficulty: string }
+        Returns: number
+      }
       edit_chat_message: {
         Args: {
           p_content: string
@@ -17932,6 +18372,7 @@ export type Database = {
       is_admin_or_consultant: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       leave_chat_room: { Args: { p_room_id: string }; Returns: undefined }
+      leveling_to_difficulty: { Args: { p_level: number }; Returns: string }
       mark_chat_room_as_read: { Args: { p_room_id: string }; Returns: string }
       parse_device_name: { Args: { user_agent_text: string }; Returns: string }
       pin_chat_message: {
