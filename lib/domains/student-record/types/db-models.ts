@@ -120,6 +120,24 @@ export type Strategy = Tables<"student_record_strategies">;
 export type StrategyInsert = TablesInsert<"student_record_strategies">;
 export type StrategyUpdate = TablesUpdate<"student_record_strategies">;
 
+// ── 4. Phase α 메인 탐구 인프라 (2026-04-15) ──
+
+export type MainExploration = Tables<"student_main_explorations">;
+export type MainExplorationInsert = TablesInsert<"student_main_explorations">;
+export type MainExplorationUpdate = TablesUpdate<"student_main_explorations">;
+
+export type MainExplorationLink = Tables<"main_exploration_links">;
+export type MainExplorationLinkInsert = TablesInsert<"main_exploration_links">;
+export type MainExplorationLinkUpdate = TablesUpdate<"main_exploration_links">;
+
+export type ExplorationLevel = Tables<"student_exploration_levels">;
+export type ExplorationLevelInsert = TablesInsert<"student_exploration_levels">;
+export type ExplorationLevelUpdate = TablesUpdate<"student_exploration_levels">;
+
+export type CareerTrack = Tables<"student_career_tracks">;
+export type CareerTrackInsert = TablesInsert<"student_career_tracks">;
+export type CareerTrackUpdate = TablesUpdate<"student_career_tracks">;
+
 // ── 유틸리티 ──
 
 /** LLM rubricScores → DB Json 타입 변환 */
