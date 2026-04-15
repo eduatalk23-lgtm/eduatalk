@@ -6,3 +6,12 @@ export type {
   ResolveSemanticRoleInput,
   ResolveSemanticRoleForStudentInput,
 } from "./role";
+
+export {
+  tierPlanSchema,
+  tierPlanToLinkEntries,
+  deriveTierPlanFromLinks,
+  syncLinksFromTierPlan,
+  updateMainExplorationTierPlan,
+} from "./sync";
+export type { TierPlan, TierPlanEntry } from "./sync";
