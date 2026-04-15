@@ -520,6 +520,38 @@ export interface ExemplarImportOptions {
   skipEmbedding?: boolean;
 }
 
+// ============================================
+// 6. 메인 탐구 패턴 타입 (Phase γ G8)
+// ============================================
+
+/**
+ * exemplar_records.main_exploration_pattern JSONB 스키마.
+ * student_main_explorations.tier_plan 과 동일 shape.
+ * Phase δ LLM 추출기가 이 구조로 채워넣는다.
+ */
+export interface ExemplarMainExplorationPattern {
+  theme_label: string;
+  theme_keywords: string[];
+  career_field: string | null;
+  tier_plan: {
+    foundational?: {
+      theme?: string;
+      key_questions?: string[];
+      suggested_activities?: string[];
+    };
+    development?: {
+      theme?: string;
+      key_questions?: string[];
+      suggested_activities?: string[];
+    };
+    advanced?: {
+      theme?: string;
+      key_questions?: string[];
+      suggested_activities?: string[];
+    };
+  };
+}
+
 /** Import 단일 파일 결과 */
 export interface ExemplarImportFileResult {
   filePath: string;

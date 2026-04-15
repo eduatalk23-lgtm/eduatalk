@@ -4210,6 +4210,90 @@ export type Database = {
           },
         ]
       }
+      exemplar_narrative_arcs: {
+        Row: {
+          conclusion_present: boolean
+          created_at: string
+          curiosity_present: boolean
+          exemplar_id: string
+          extractor_version: string | null
+          growth_narrative_present: boolean
+          id: string
+          inquiry_content_present: boolean
+          model_name: string | null
+          record_id: string
+          record_type: string
+          references_present: boolean
+          reinquiry_present: boolean
+          source: string
+          stage_details: Json
+          stages_present_count: number | null
+          teacher_observation_present: boolean
+          tenant_id: string
+          topic_selection_present: boolean
+          updated_at: string
+        }
+        Insert: {
+          conclusion_present?: boolean
+          created_at?: string
+          curiosity_present?: boolean
+          exemplar_id: string
+          extractor_version?: string | null
+          growth_narrative_present?: boolean
+          id?: string
+          inquiry_content_present?: boolean
+          model_name?: string | null
+          record_id: string
+          record_type: string
+          references_present?: boolean
+          reinquiry_present?: boolean
+          source?: string
+          stage_details?: Json
+          stages_present_count?: number | null
+          teacher_observation_present?: boolean
+          tenant_id: string
+          topic_selection_present?: boolean
+          updated_at?: string
+        }
+        Update: {
+          conclusion_present?: boolean
+          created_at?: string
+          curiosity_present?: boolean
+          exemplar_id?: string
+          extractor_version?: string | null
+          growth_narrative_present?: boolean
+          id?: string
+          inquiry_content_present?: boolean
+          model_name?: string | null
+          record_id?: string
+          record_type?: string
+          references_present?: boolean
+          reinquiry_present?: boolean
+          source?: string
+          stage_details?: Json
+          stages_present_count?: number | null
+          teacher_observation_present?: boolean
+          tenant_id?: string
+          topic_selection_present?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exemplar_narrative_arcs_exemplar_id_fkey"
+            columns: ["exemplar_id"]
+            isOneToOne: false
+            referencedRelation: "exemplar_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exemplar_narrative_arcs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exemplar_narrative_embeddings: {
         Row: {
           content_hash: string
@@ -4339,8 +4423,11 @@ export type Database = {
           created_at: string
           curriculum_revision: string
           enrollment_year: number
+          extractor_version: string | null
           graduation_year: number | null
           id: string
+          main_exploration_extracted_at: string | null
+          main_exploration_pattern: Json | null
           notes: string | null
           parse_errors: Json
           parse_quality_score: number | null
@@ -4360,8 +4447,11 @@ export type Database = {
           created_at?: string
           curriculum_revision?: string
           enrollment_year: number
+          extractor_version?: string | null
           graduation_year?: number | null
           id?: string
+          main_exploration_extracted_at?: string | null
+          main_exploration_pattern?: Json | null
           notes?: string | null
           parse_errors?: Json
           parse_quality_score?: number | null
@@ -4381,8 +4471,11 @@ export type Database = {
           created_at?: string
           curriculum_revision?: string
           enrollment_year?: number
+          extractor_version?: string | null
           graduation_year?: number | null
           id?: string
+          main_exploration_extracted_at?: string | null
+          main_exploration_pattern?: Json | null
           notes?: string | null
           parse_errors?: Json
           parse_quality_score?: number | null
@@ -16739,6 +16832,39 @@ export type Database = {
         }
         Relationships: []
       }
+      university_profile_main_inquiry_weights: {
+        Row: {
+          created_at: string
+          id: string
+          inquiry_category: string
+          notes: string | null
+          track: string
+          updated_at: string
+          updated_by: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inquiry_category: string
+          notes?: string | null
+          track: string
+          updated_at?: string
+          updated_by?: string | null
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inquiry_category?: string
+          notes?: string | null
+          track?: string
+          updated_at?: string
+          updated_by?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
       university_score_configs: {
         Row: {
           bonus_rules: Json
@@ -18626,6 +18752,25 @@ export type Database = {
           p_room_id: string
         }
         Returns: Json
+      }
+      search_exemplar_main_inquiries: {
+        Args: {
+          p_career_field?: string
+          p_match_count?: number
+          p_min_jaccard?: number
+          p_theme_keywords?: string[]
+          p_tier_focus?: string
+        }
+        Returns: {
+          anonymous_id: string
+          career_match: boolean
+          exemplar_id: string
+          intersection_size: number
+          jaccard_similarity: number
+          main_exploration_pattern: Json
+          school_name: string
+          union_size: number
+        }[]
       }
       search_guides:
         | {

@@ -1,5 +1,5 @@
 /**
- * 4축 합격 진단 프로필 조합 함수 (F1-2)
+ * 4축/5축 합격 진단 프로필 조합 함수 (F1-2, G9)
  *
  * 4개 기존 엔진의 결과를 조합하여 학생의 학종 합격 가능성을
  * 다차원으로 진단하는 순수 함수.
@@ -13,12 +13,16 @@
  *   2축 courseAdequacy   — 교과 이수 적합도 (calculateCourseAdequacy 결과)
  *   3축 flowCompletion   — 세특 완성도 (computeAggregateFlowCompletion 결과)
  *   4축 admissionReference — 학종 입결 내신 참조
+ *
+ * 5축 (G9):
+ *   5축 mainInquiryAlignment — 메인 탐구 정합성 (computeMainInquiryAlignment 결과)
  */
 
 import type { UniversityMatchAnalysis, CareerAlignmentResult } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 import { assessCareerAlignment } from "@/lib/domains/record-analysis/eval/university-profile-matcher";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record/types";
 import type { FlowCompletionResult } from "@/lib/domains/student-record/evaluation-criteria/flow-completion";
+import type { MainInquiryAlignmentResult } from "./main-inquiry-alignment";
 
 // ─── 공개 타입 ──────────────────────────────────────────────────────────────
 
@@ -450,5 +454,175 @@ export function buildFourAxisDiagnosis(
     summary,
     weakestAxis,
     careerAlignment,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// G9 — 5축 합격 진단 (메인 탐구 정합성 축 추가)
+// buildFourAxisDiagnosis 와 기존 타입은 절대 수정하지 않음.
+// Phase δ 에서 pipeline-synthesis-phases 호출부를 5축으로 전환.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** 5축 합격 진단 결과 */
+export interface FiveAxisDiagnosis extends Omit<FourAxisDiagnosis, "weakestAxis"> {
+  /** 5축: 메인 탐구 정합성 (null = Phase δ 이전, 컨설턴트 미입력 등) */
+  mainInquiryAlignment: MainInquiryAlignmentResult | null;
+  /** 5축 포함 가장 약한 축 */
+  weakestAxis:
+    | "profileMatch"
+    | "courseAdequacy"
+    | "flowCompletion"
+    | "admissionReference"
+    | "mainInquiryAlignment";
+}
+
+/** buildFiveAxisDiagnosis 입력 타입 */
+export interface FiveAxisDiagnosisInput extends FourAxisDiagnosisInput {
+  /**
+   * 5축 입력.
+   * null 이면 mainInquiryAlignment=null 로 반환 (백워드 호환).
+   * computeMainInquiryAlignment() 결과를 그대로 전달.
+   */
+  mainInquiryAlignment: MainInquiryAlignmentResult | null;
+}
+
+// ─── 내부 헬퍼 (5축 전용) ────────────────────────────────────────────────────
+
+/**
+ * 5축 점수를 0~100 으로 정규화.
+ * null 이면 50 기본값 (미평가 중립).
+ */
+function normalizeInquiryScore(
+  result: MainInquiryAlignmentResult | null,
+): number {
+  return result !== null ? result.score : 50;
+}
+
+/**
+ * 5축 weakestAxis 재계산.
+ * 기존 4축 정규화 점수 + 5축 점수를 비교하여 최솟값 축을 반환.
+ * 동점이면 정의 순서 우선 (기존 4축 → mainInquiryAlignment).
+ */
+function findWeakestAxisFive(
+  fourScores: Record<FourAxisDiagnosis["weakestAxis"], number>,
+  inquiryScore: number,
+): FiveAxisDiagnosis["weakestAxis"] {
+  const axes: FiveAxisDiagnosis["weakestAxis"][] = [
+    "profileMatch",
+    "courseAdequacy",
+    "flowCompletion",
+    "admissionReference",
+    "mainInquiryAlignment",
+  ];
+
+  const allScores: Record<FiveAxisDiagnosis["weakestAxis"], number> = {
+    ...fourScores,
+    mainInquiryAlignment: inquiryScore,
+  };
+
+  let weakest: FiveAxisDiagnosis["weakestAxis"] = axes[0];
+  let minScore = allScores[axes[0]];
+
+  for (const axis of axes) {
+    if (allScores[axis] < minScore) {
+      minScore = allScores[axis];
+      weakest = axis;
+    }
+  }
+
+  return weakest;
+}
+
+/**
+ * 5축 summary 보조: mainInquiryAlignment 미흡 시 한 줄 추가.
+ * grade 가 weak 또는 misaligned 일 때만 추가.
+ */
+function appendInquirySummary(
+  baseSummary: string,
+  alignment: MainInquiryAlignmentResult | null,
+): string {
+  if (alignment === null) return baseSummary;
+  if (alignment.grade === "weak" || alignment.grade === "misaligned") {
+    return (
+      baseSummary +
+      " 메인 탐구 방향이 목표 계열과 맞지 않습니다. 탐구 주제를 계열 핵심 카테고리로 전환하는 것을 권장합니다."
+    );
+  }
+  return baseSummary;
+}
+
+// ─── 공개 함수 ──────────────────────────────────────────────────────────────
+
+/**
+ * 5축 합격 진단 프로필 조합 함수 (G9)
+ *
+ * 기존 buildFourAxisDiagnosis 를 재사용하고 5번째 축(메인 탐구 정합성)을 추가한다.
+ * 순수 함수 — DB 호출 없음, async 없음.
+ *
+ * @param input.mainInquiryAlignment  computeMainInquiryAlignment() 결과.
+ *                                    null 이면 5축 미평가(백워드 호환).
+ * @returns FiveAxisDiagnosis
+ */
+export function buildFiveAxisDiagnosis(
+  input: FiveAxisDiagnosisInput,
+): FiveAxisDiagnosis {
+  // ── 기존 4축 계산 재사용 ──────────────────────────────────────
+  const four = buildFourAxisDiagnosis(input);
+
+  // ── 5축: 메인 탐구 정합성 ─────────────────────────────────────
+  const { mainInquiryAlignment } = input;
+  const inquiryScore = normalizeInquiryScore(mainInquiryAlignment);
+
+  // ── 4축 정규화 점수 재계산 (weakest 비교용) ───────────────────
+  // normalizeAxisScores 는 파일 내부 함수이므로 직접 호출 불가.
+  // 4축 각 결과에서 점수를 역산한다.
+  const fourAxisNormalized: Record<FourAxisDiagnosis["weakestAxis"], number> =
+    buildFourAxisNormalizedScores(four);
+
+  // ── weakestAxis 재계산 (5축 포함) ────────────────────────────
+  const weakestAxis = findWeakestAxisFive(fourAxisNormalized, inquiryScore);
+
+  // ── summary 조정 ──────────────────────────────────────────────
+  const summary = appendInquirySummary(four.summary, mainInquiryAlignment);
+
+  return {
+    ...four,
+    mainInquiryAlignment,
+    weakestAxis,
+    summary,
+  };
+}
+
+/**
+ * FourAxisDiagnosis 결과에서 0~100 정규화 점수를 역산.
+ *
+ * normalizeAxisScores 내부 함수의 역산 버전.
+ * - profileMatch: score 그대로
+ * - courseAdequacy: score 그대로, null=50
+ * - flowCompletion: avgPercent
+ * - admissionReference: above=90, within=70, below=40, unknown=50, null=50
+ */
+function buildFourAxisNormalizedScores(
+  four: FourAxisDiagnosis,
+): Record<FourAxisDiagnosis["weakestAxis"], number> {
+  const profileScore = four.profileMatch.score;
+  const courseScore =
+    four.courseAdequacy !== null ? four.courseAdequacy.score : 50;
+  const flowScore = four.flowCompletion.avgPercent;
+
+  let admissionScore = 50;
+  if (four.admissionReference !== null) {
+    const level = four.admissionReference.level;
+    if (level === "above") admissionScore = 90;
+    else if (level === "within") admissionScore = 70;
+    else if (level === "below") admissionScore = 40;
+    else admissionScore = 50;
+  }
+
+  return {
+    profileMatch: profileScore,
+    courseAdequacy: courseScore,
+    flowCompletion: flowScore,
+    admissionReference: admissionScore,
   };
 }
