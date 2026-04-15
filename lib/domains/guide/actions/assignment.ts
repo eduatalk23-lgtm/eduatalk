@@ -89,12 +89,27 @@ export async function assignGuideAction(input: {
   linkedRecordType?: LinkedRecordType;
   /** 연결 레코드 ID */
   linkedRecordId?: string;
+  /** Phase β G10 — 배정 학기 */
+  semester?: 1 | 2;
+  /** Phase β G10 — 난이도 cap 우회 사유 */
+  overrideReason?: string;
+  /** Phase β G10 — 배정 출처 */
+  assignmentSource?: "auto" | "consultant" | "ai_pipeline" | "ai_recommended";
 }): Promise<ActionResponse<GuideAssignment>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
     if (!tenantId) {
       return createErrorResponse("기관 정보를 찾을 수 없습니다.");
     }
+
+    // Phase β G10 — 격자 cap 컨텍스트 자동 해결
+    const ctx = await resolveAssignmentContext({
+      studentId: input.studentId,
+      guideId: input.guideId,
+      schoolYear: input.schoolYear,
+      grade: input.grade as 1 | 2 | 3,
+      semester: input.semester ?? null,
+    });
 
     const data = await createAssignment({
       tenantId,
@@ -109,6 +124,15 @@ export async function assignGuideAction(input: {
       targetActivityType: input.targetActivityType,
       linkedRecordType: input.linkedRecordType,
       linkedRecordId: input.linkedRecordId,
+      // Phase β G10
+      difficultyLevel: ctx.difficultyLevel,
+      topicClusterId: ctx.topicClusterId,
+      studentLevelAtAssign: ctx.studentLevelAtAssign,
+      semester: input.semester ?? null,
+      mainExplorationId: ctx.mainExplorationId,
+      mainExplorationTier: ctx.mainExplorationTier,
+      assignmentSource: input.assignmentSource ?? "consultant",
+      overrideReason: input.overrideReason ?? null,
     });
 
     // Phase A: 학생 궤적 자동 기록 (fire-and-forget)
@@ -183,6 +207,134 @@ export async function fetchCareerFieldsAction(): Promise<
     logActionError({ ...LOG_CTX, action: "fetchCareerFields" }, error);
     return createErrorResponse("계열 목록을 불러올 수 없습니다.");
   }
+}
+
+/**
+ * Phase β G10 — 배정 시점 격자 컨텍스트 자동 해결.
+ *   - 가이드 난이도/클러스터 스냅샷
+ *   - 활성 student_exploration_levels.adequate_level
+ *   - 활성 main_exploration(design → analysis fallback) + difficulty→tier 매핑
+ *
+ * 조회 실패 허용 — 모든 필드 null 반환. CHECK 제약은 override_reason 없으면
+ * difficulty_level + student_level_at_assign 둘 다 있을 때만 적용되므로 안전.
+ */
+async function resolveAssignmentContext(args: {
+  studentId: string;
+  guideId: string;
+  schoolYear: number;
+  grade: 1 | 2 | 3;
+  semester: 1 | 2 | null;
+}): Promise<{
+  difficultyLevel: "basic" | "intermediate" | "advanced" | null;
+  topicClusterId: string | null;
+  studentLevelAtAssign: number | null;
+  mainExplorationId: string | null;
+  mainExplorationTier: "foundational" | "development" | "advanced" | null;
+}> {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return {
+      difficultyLevel: null,
+      topicClusterId: null,
+      studentLevelAtAssign: null,
+      mainExplorationId: null,
+      mainExplorationTier: null,
+    };
+  }
+
+  const [{ data: guide }, { data: studentRow }] = await Promise.all([
+    supabase
+      .from("exploration_guides")
+      .select("difficulty_level, topic_cluster_id")
+      .eq("id", args.guideId)
+      .maybeSingle(),
+    supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", args.studentId)
+      .maybeSingle(),
+  ]);
+
+  const tenantId = studentRow?.tenant_id ?? null;
+  const difficultyLevel =
+    guide?.difficulty_level === "basic" ||
+    guide?.difficulty_level === "intermediate" ||
+    guide?.difficulty_level === "advanced"
+      ? guide.difficulty_level
+      : null;
+  const topicClusterId = guide?.topic_cluster_id ?? null;
+
+  let studentLevelAtAssign: number | null = null;
+  let mainExplorationId: string | null = null;
+  let mainExplorationTier:
+    | "foundational"
+    | "development"
+    | "advanced"
+    | null = null;
+
+  if (tenantId) {
+    try {
+      // 활성 학생 레벨 — 해당 학기 우선, 없으면 최근 스냅샷
+      const levelBase = supabase
+        .from("student_exploration_levels")
+        .select("adequate_level, school_year, semester")
+        .eq("student_id", args.studentId)
+        .eq("tenant_id", tenantId)
+        .order("school_year", { ascending: false })
+        .order("semester", { ascending: false });
+      const levelQuery =
+        args.semester != null
+          ? levelBase
+              .eq("school_year", args.schoolYear)
+              .eq("semester", args.semester)
+          : levelBase;
+      const { data: level } = await levelQuery.limit(1).maybeSingle();
+      if (level?.adequate_level != null) {
+        studentLevelAtAssign = level.adequate_level;
+      }
+    } catch {
+      // fallback: null
+    }
+
+    try {
+      const [{ getActiveMainExploration }, { difficultyToTier }] =
+        await Promise.all([
+          import(
+            "@/lib/domains/student-record/repository/main-exploration-repository"
+          ),
+          import(
+            "@/lib/domains/student-record/main-exploration/tier-mapping"
+          ),
+        ]);
+      const design = await getActiveMainExploration(
+        args.studentId,
+        tenantId,
+        { scope: "overall", trackLabel: null, direction: "design" },
+      );
+      const active =
+        design ??
+        (await getActiveMainExploration(args.studentId, tenantId, {
+          scope: "overall",
+          trackLabel: null,
+          direction: "analysis",
+        }));
+      if (active) {
+        mainExplorationId = active.id;
+        mainExplorationTier = difficultyToTier(difficultyLevel);
+      }
+    } catch {
+      // fallback: null
+    }
+  }
+
+  return {
+    difficultyLevel,
+    topicClusterId,
+    studentLevelAtAssign,
+    mainExplorationId,
+    mainExplorationTier,
+  };
 }
 
 /** Phase A: 가이드 배정 시 학생 궤적 UPSERT (Phase α G14: 활성 메인 탐구 자동 연결) */

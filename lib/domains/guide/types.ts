@@ -374,6 +374,22 @@ export interface GuideAssignment {
   confirmed_at: string | null;
   /** 확정한 컨설턴트 UUID */
   confirmed_by: string | null;
+  /** Phase β G10 — 배정 시점 난이도 스냅샷 */
+  difficulty_level: "basic" | "intermediate" | "advanced" | null;
+  /** Phase β G10 — 주제 클러스터 */
+  topic_cluster_id: string | null;
+  /** Phase β G10 — 배정 시점 학생 레벨 */
+  student_level_at_assign: number | null;
+  /** G5 학기 1급화 */
+  semester: number | null;
+  /** 배정 당시 활성 메인 탐구 */
+  main_exploration_id: string | null;
+  /** 메인 탐구 내 tier */
+  main_exploration_tier: "foundational" | "development" | "advanced" | null;
+  /** 배정 출처 */
+  assignment_source: "auto" | "consultant" | "ai_pipeline" | "ai_recommended";
+  /** 난이도 cap 우회 사유 */
+  override_reason: string | null;
 }
 
 // ------------------------------------
@@ -551,6 +567,23 @@ export interface AssignmentCreateInput {
   linkedRecordId?: string;
   /** AI 추천 사유 */
   aiRecommendationReason?: string;
+  // ---- Phase β G10 — 격자 cap 컨텍스트 (nullable, 점진 도입) ----
+  /** 배정 시점 가이드 난이도 스냅샷 */
+  difficultyLevel?: "basic" | "intermediate" | "advanced" | null;
+  /** 주제 클러스터 */
+  topicClusterId?: string | null;
+  /** 배정 시점 학생 레벨 (1~5) */
+  studentLevelAtAssign?: number | null;
+  /** 학기 (1 | 2) */
+  semester?: 1 | 2 | null;
+  /** 활성 메인 탐구 id */
+  mainExplorationId?: string | null;
+  /** 메인 탐구 내 tier */
+  mainExplorationTier?: "foundational" | "development" | "advanced" | null;
+  /** 배정 출처 */
+  assignmentSource?: "auto" | "consultant" | "ai_pipeline" | "ai_recommended";
+  /** 난이도 cap 우회 사유 */
+  overrideReason?: string | null;
 }
 
 /** 배정 + 가이드 메타 JOIN */

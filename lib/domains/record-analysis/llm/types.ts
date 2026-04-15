@@ -602,6 +602,8 @@ export interface SetekGuideInput {
   analysisContext?: GuideAnalysisContext;
   /** Impl-4: 이전 분석 학년의 보완방향 요약 (prospective 모드 전용) */
   crossGradeDirections?: string;
+  /** Phase β G7: 학생 격자 컨텍스트 (탐구 레벨 + 메인 탐구 tier_plan) */
+  gridContext?: import("./actions/cell-guide-grid-context").CellGuideGridContext;
 }
 
 /** generateSetekGuide 액션의 출력 */
@@ -688,6 +690,8 @@ export interface ChangcheGuideInput {
   analysisContext?: GuideAnalysisContext;
   /** Impl-4: 이전 분석 학년의 보완방향 요약 (prospective 모드 전용) */
   crossGradeDirections?: string;
+  /** Phase β G7: 학생 격자 컨텍스트 */
+  gridContext?: import("./actions/cell-guide-grid-context").CellGuideGridContext;
 }
 
 /** generateChangcheGuide 액션의 출력 */
@@ -732,6 +736,8 @@ export interface HaengteukGuideInput {
   analysisContext?: GuideAnalysisContext;
   /** Impl-4: 이전 분석 학년의 보완방향 요약 (prospective 모드 전용) */
   crossGradeDirections?: string;
+  /** Phase β G7: 학생 격자 컨텍스트 */
+  gridContext?: import("./actions/cell-guide-grid-context").CellGuideGridContext;
 }
 
 /** generateHaengteukGuide 액션의 출력 */

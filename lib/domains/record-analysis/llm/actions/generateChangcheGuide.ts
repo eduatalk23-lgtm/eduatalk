@@ -16,6 +16,11 @@ import { resolveEffectiveContent } from "../../pipeline";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
 import { insertChangcheGuides } from "@/lib/domains/student-record/repository/guide-repository";
 import {
+  resolveCellGuideGridContext,
+  renderCellGuideGridContextSection,
+  applyMainExplorationToRow,
+} from "./cell-guide-grid-context";
+import {
   SYSTEM_PROMPT,
   buildUserPrompt,
   parseResponse,
@@ -63,6 +68,14 @@ export async function generateProspectiveChangcheGuide(
   const { buildCrossGradeDirections } = await import("../../pipeline/pipeline-task-runners-shared");
   const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
 
+  // Phase β G7 — 격자 컨텍스트
+  const gridContext = await resolveCellGuideGridContext(
+    studentId,
+    tenantId,
+    supabase,
+  );
+  const gridSection = renderCellGuideGridContextSection(gridContext);
+
   // 활동 유형별 관련 과목 추론
   const allPlannedNames = [
     ...new Set(
@@ -106,6 +119,7 @@ ${(diagnosis?.strengths as string[] | undefined)?.length ? `## 강점 영역\n${
 ${(diagnosis?.weaknesses as string[] | undefined)?.length ? `## 보완 영역\n${(diagnosis.weaknesses as string[]).map((w: string) => `- ${w}`).join("\n")}\n` : ""}
 ${setekGuideContext ? `${setekGuideContext}\n` : ""}
 ${edgePromptSection ? `${edgePromptSection}\n` : ""}
+${gridSection}
 ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
 ## 지시사항
@@ -132,24 +146,29 @@ ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n
   );
   if (deleteResult) return deleteResult;
 
-  const rows = parsed.guides.map((g, i) => ({
-    tenant_id: tenantId,
-    student_id: studentId,
-    school_year: currentSchoolYear,
-    activity_type: g.activityType,
-    source: "ai" as const,
-    status: "draft" as const,
-    direction: g.direction,
-    keywords: g.keywords,
-    competency_focus: g.competencyFocus,
-    cautions: g.cautions || null,
-    teacher_points: g.teacherPoints,
-    overall_direction: i === 0 ? parsed.overallDirection : null,
-    model_tier: "standard",
-    prompt_version: "changche_guide_v1_prospective",
-    guide_mode: "prospective" as const,
-    created_by: userId,
-  }));
+  const rows = parsed.guides.map((g, i) =>
+    applyMainExplorationToRow(
+      {
+        tenant_id: tenantId,
+        student_id: studentId,
+        school_year: currentSchoolYear,
+        activity_type: g.activityType,
+        source: "ai" as const,
+        status: "draft" as const,
+        direction: g.direction,
+        keywords: g.keywords,
+        competency_focus: g.competencyFocus,
+        cautions: g.cautions || null,
+        teacher_points: g.teacherPoints,
+        overall_direction: i === 0 ? parsed.overallDirection : null,
+        model_tier: "standard",
+        prompt_version: "changche_guide_v1_prospective",
+        guide_mode: "prospective" as const,
+        created_by: userId,
+      },
+      gridContext,
+    ),
+  );
 
   let inserted: { id: string }[];
   try {
@@ -245,6 +264,13 @@ export async function generateChangcheGuide(
       return buildGuideAnalysisContextFromReport(report, undefined, "changche");
     })();
 
+    // Phase β G7 — 격자 컨텍스트
+    const gridContext = await resolveCellGuideGridContext(
+      studentId,
+      tenantId,
+      supabase,
+    );
+
     const input: ChangcheGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -263,6 +289,7 @@ export async function generateChangcheGuide(
       edgePromptSection,
       setekGuideContext,
       analysisContext,
+      gridContext,
     };
 
     // AI SDK 호출
@@ -287,24 +314,29 @@ export async function generateChangcheGuide(
     );
     if (deleteResult) return deleteResult;
 
-    const rows = parsed.guides.map((g, i) => ({
-      tenant_id: tenantId,
-      student_id: studentId,
-      school_year: currentSchoolYear,
-      activity_type: g.activityType,
-      source: "ai" as const,
-      status: "draft" as const,
-      direction: g.direction,
-      keywords: g.keywords,
-      competency_focus: g.competencyFocus,
-      cautions: g.cautions || null,
-      teacher_points: g.teacherPoints,
-      overall_direction: i === 0 ? parsed.overallDirection : null,
-      model_tier: "standard",
-      prompt_version: "changche_guide_v1",
-      guide_mode: "retrospective" as const,
-      created_by: userId,
-    }));
+    const rows = parsed.guides.map((g, i) =>
+      applyMainExplorationToRow(
+        {
+          tenant_id: tenantId,
+          student_id: studentId,
+          school_year: currentSchoolYear,
+          activity_type: g.activityType,
+          source: "ai" as const,
+          status: "draft" as const,
+          direction: g.direction,
+          keywords: g.keywords,
+          competency_focus: g.competencyFocus,
+          cautions: g.cautions || null,
+          teacher_points: g.teacherPoints,
+          overall_direction: i === 0 ? parsed.overallDirection : null,
+          model_tier: "standard",
+          prompt_version: "changche_guide_v1",
+          guide_mode: "retrospective" as const,
+          created_by: userId,
+        },
+        gridContext,
+      ),
+    );
 
     let inserted: { id: string }[];
     try {

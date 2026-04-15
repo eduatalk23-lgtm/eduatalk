@@ -8,6 +8,7 @@ import type { SetekGuideItem } from "@/lib/domains/student-record/types";
 import { extractJson } from "../extractJson";
 import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
 import { renderNarrativeContextSection } from "./narrativeContext";
+import { renderCellGuideGridContextSection } from "../actions/cell-guide-grid-context";
 import {
   formatSetekFlowArrow,
   CAREER_DIFFERENTIAL,
@@ -172,6 +173,12 @@ export function buildUserPrompt(input: SetekGuideInput): string {
   // 영역간 연결 (Phase E2)
   if (input.edgePromptSection) {
     prompt += input.edgePromptSection + "\n";
+  }
+
+  // Phase β G7: 학생 격자 컨텍스트 (레벨 cap + 메인 탐구 tier_plan)
+  {
+    const gridSection = renderCellGuideGridContextSection(input.gridContext);
+    if (gridSection) prompt += gridSection;
   }
 
   // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)

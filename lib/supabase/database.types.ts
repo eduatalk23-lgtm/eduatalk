@@ -4526,10 +4526,12 @@ export type Database = {
         Row: {
           ai_recommendation_reason: string | null
           assigned_by: string | null
+          assignment_source: string
           completed_at: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
+          difficulty_level: string | null
           feedback_notes: string | null
           grade: number
           guide_id: string
@@ -4537,27 +4539,35 @@ export type Database = {
           is_stale: boolean
           linked_record_id: string | null
           linked_record_type: string | null
+          main_exploration_id: string | null
+          main_exploration_tier: string | null
           notes: string | null
+          override_reason: string | null
           school_name: string | null
           school_year: number
+          semester: number | null
           stale_reason: string | null
           status: string
           storyline_id: string | null
           student_id: string
+          student_level_at_assign: number | null
           student_notes: string | null
           submitted_at: string | null
           target_activity_type: string | null
           target_subject_id: string | null
           tenant_id: string
+          topic_cluster_id: string | null
           updated_at: string
         }
         Insert: {
           ai_recommendation_reason?: string | null
           assigned_by?: string | null
+          assignment_source?: string
           completed_at?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
+          difficulty_level?: string | null
           feedback_notes?: string | null
           grade: number
           guide_id: string
@@ -4565,27 +4575,35 @@ export type Database = {
           is_stale?: boolean
           linked_record_id?: string | null
           linked_record_type?: string | null
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           notes?: string | null
+          override_reason?: string | null
           school_name?: string | null
           school_year: number
+          semester?: number | null
           stale_reason?: string | null
           status?: string
           storyline_id?: string | null
           student_id: string
+          student_level_at_assign?: number | null
           student_notes?: string | null
           submitted_at?: string | null
           target_activity_type?: string | null
           target_subject_id?: string | null
           tenant_id: string
+          topic_cluster_id?: string | null
           updated_at?: string
         }
         Update: {
           ai_recommendation_reason?: string | null
           assigned_by?: string | null
+          assignment_source?: string
           completed_at?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
+          difficulty_level?: string | null
           feedback_notes?: string | null
           grade?: number
           guide_id?: string
@@ -4593,18 +4611,24 @@ export type Database = {
           is_stale?: boolean
           linked_record_id?: string | null
           linked_record_type?: string | null
+          main_exploration_id?: string | null
+          main_exploration_tier?: string | null
           notes?: string | null
+          override_reason?: string | null
           school_name?: string | null
           school_year?: number
+          semester?: number | null
           stale_reason?: string | null
           status?: string
           storyline_id?: string | null
           student_id?: string
+          student_level_at_assign?: number | null
           student_notes?: string | null
           submitted_at?: string | null
           target_activity_type?: string | null
           target_subject_id?: string | null
           tenant_id?: string
+          topic_cluster_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4627,6 +4651,13 @@ export type Database = {
             columns: ["guide_id"]
             isOneToOne: false
             referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_main_exploration_id_fkey"
+            columns: ["main_exploration_id"]
+            isOneToOne: false
+            referencedRelation: "student_main_explorations"
             referencedColumns: ["id"]
           },
           {
@@ -4655,6 +4686,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_topic_cluster_id_fkey"
+            columns: ["topic_cluster_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_topic_clusters"
             referencedColumns: ["id"]
           },
         ]

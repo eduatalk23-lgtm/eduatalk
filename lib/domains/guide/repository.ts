@@ -611,6 +611,15 @@ export async function createAssignment(
       linked_record_type: input.linkedRecordType ?? null,
       linked_record_id: input.linkedRecordId ?? null,
       ai_recommendation_reason: input.aiRecommendationReason ?? null,
+      // Phase β G10
+      difficulty_level: input.difficultyLevel ?? null,
+      topic_cluster_id: input.topicClusterId ?? null,
+      student_level_at_assign: input.studentLevelAtAssign ?? null,
+      semester: input.semester ?? null,
+      main_exploration_id: input.mainExplorationId ?? null,
+      main_exploration_tier: input.mainExplorationTier ?? null,
+      assignment_source: input.assignmentSource ?? "consultant",
+      override_reason: input.overrideReason ?? null,
     })
     .select()
     .single();

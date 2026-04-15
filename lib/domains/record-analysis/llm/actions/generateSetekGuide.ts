@@ -16,6 +16,10 @@ import { resolveEffectiveContent } from "../../pipeline";
 import { buildSubjectMap, extractDiagnosisContext, deleteExistingGuides, syncGuideTaskStatus, callGuideAI } from "./guide-helpers";
 import { insertSetekGuides } from "@/lib/domains/student-record/repository/guide-repository";
 import {
+  resolveCellGuideGridContext,
+  applyMainExplorationToRow,
+} from "./cell-guide-grid-context";
+import {
   SYSTEM_PROMPT,
   buildUserPrompt,
   parseResponse,
@@ -107,6 +111,13 @@ export async function generateSetekGuide(
       analysisContext = buildGuideAnalysisContextFromReport(report);
     }
 
+    // Phase β G7 — 격자 컨텍스트 (레벨 cap + 메인 탐구)
+    const gridContext = await resolveCellGuideGridContext(
+      studentId,
+      tenantId,
+      supabase,
+    );
+
     const input: SetekGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -124,6 +135,7 @@ export async function generateSetekGuide(
       weaknesses: weaknesses && weaknesses.length > 0 ? weaknesses : undefined,
       edgePromptSection,
       analysisContext,
+      gridContext,
     };
 
     // AI SDK 호출
@@ -155,7 +167,7 @@ export async function generateSetekGuide(
       .map((g, i) => {
         const subjectId = nameToSubjectId.get(g.subjectName);
         if (!subjectId) return null;
-        return {
+        const base = {
           tenant_id: tenantId,
           student_id: studentId,
           school_year: currentSchoolYear,
@@ -173,6 +185,7 @@ export async function generateSetekGuide(
           guide_mode: "retrospective" as const,
           created_by: userId,
         };
+        return applyMainExplorationToRow(base, gridContext);
       })
       .filter(Boolean);
 
@@ -255,6 +268,13 @@ export async function generateProspectiveSetekGuide(
   const analysisContext = pipelineAnalysisContext ?? buildGuideAnalysisContextFromReport(report);
   const crossGradeDirections = await buildCrossGradeDirections(supabase, studentId, currentSchoolYear);
 
+  // Phase β G7 — 격자 컨텍스트
+  const gridContext = await resolveCellGuideGridContext(
+    studentId,
+    tenantId,
+    supabase,
+  );
+
   const input: SetekGuideInput = {
     mode: "prospective",
     studentName: report.student.name ?? "학생",
@@ -280,6 +300,7 @@ export async function generateProspectiveSetekGuide(
     guideAssignments: guideSection || undefined,
     analysisContext,
     crossGradeDirections,
+    gridContext,
   };
 
   const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768 });
@@ -308,7 +329,7 @@ export async function generateProspectiveSetekGuide(
     .map((g, i) => {
       const subjectId = nameToSubjectId.get(g.subjectName);
       if (!subjectId) return null;
-      return {
+      const base = {
         tenant_id: tenantId,
         student_id: studentId,
         school_year: currentSchoolYear,
@@ -326,6 +347,7 @@ export async function generateProspectiveSetekGuide(
         guide_mode: "prospective" as const,
         created_by: userId,
       };
+      return applyMainExplorationToRow(base, gridContext);
     })
     .filter(Boolean);
 

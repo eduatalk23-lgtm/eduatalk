@@ -43,6 +43,11 @@ export interface RecommendedGuide {
   guide_type: string | null;
   book_title: string | null;
   match_reason: MatchReason;
+  /** Phase β G10/G3 — 배정 시 재사용. 없으면 null. */
+  difficulty_level?: "basic" | "intermediate" | "advanced" | null;
+  topic_cluster_id?: string | null;
+  /** Phase β G3 — 활성 main_exploration tier_plan 에 연결된 클러스터면 true */
+  main_exploration_boosted?: boolean;
 }
 
 /**
@@ -66,11 +71,16 @@ export async function autoRecommendGuidesAction(input: {
   /** H3: 학생 전공 기반 career_field 힌트 (예: "인문사회", "공학") */
   careerFieldHint?: string | null;
   limit?: number;
+  /** Phase β G3 — 난이도 cap 비활성화 (테스트/컨설턴트 오버라이드) */
+  skipDifficultyCap?: boolean;
 }): Promise<ActionResponse<RecommendedGuide[]>> {
   try {
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
     const limit = input.limit ?? 5;
+
+    // Phase β G3 — 학생 격자 컨텍스트 자동 해결 (cap + tier 부스팅)
+    const gridCtx = await resolveRecommendationGridContext(input.studentId);
 
     // 1. classification 기반 guide_id 조회
     const classGuideIds = new Set<string>();
@@ -253,25 +263,55 @@ export async function autoRecommendGuidesAction(input: {
     }
 
     // 6. approved 필터 + 메타 JOIN (topic_cluster_id 포함 — L3 다양성)
-    // limit 여유분: diversify에서 round-robin 선택하므로 후보를 넉넉히 확보
+    //    Phase β G3 — difficulty cap: 학생 adequate_level 로 허용 난이도 상한 적용.
+    //    허용 풀에 null(미분류)도 포함 — cap 체계 밖의 범용 가이드 살림.
     const fetchLimit = Math.min(filteredCandidateIds.length, limit * 3);
-    const { data: guides } = await supabase
+    let guidesQuery = supabase
       .from("exploration_guides")
-      .select("id, title, guide_type, book_title, topic_cluster_id")
+      .select("id, title, guide_type, book_title, topic_cluster_id, difficulty_level")
       .in("id", filteredCandidateIds)
       .eq("status", "approved")
-      .eq("is_latest", true)
-      .limit(fetchLimit);
+      .eq("is_latest", true);
 
-    const result: (RecommendedGuide & { topic_cluster_id: string | null })[] =
-      (guides ?? []).map((g) => ({
+    if (!input.skipDifficultyCap && gridCtx.allowedDifficulties) {
+      // difficulty_level IS NULL 도 포함 (범용 가이드)
+      const csv = gridCtx.allowedDifficulties
+        .map((d) => `"${d}"`)
+        .join(",");
+      guidesQuery = guidesQuery.or(
+        `difficulty_level.is.null,difficulty_level.in.(${csv})`,
+      );
+    }
+
+    const { data: guides } = await guidesQuery.limit(fetchLimit);
+
+    type ResultRow = RecommendedGuide & {
+      topic_cluster_id: string | null;
+      difficulty_level: "basic" | "intermediate" | "advanced" | null;
+      main_exploration_boosted: boolean;
+    };
+
+    const result: ResultRow[] = (guides ?? []).map((g) => {
+      const difficulty =
+        g.difficulty_level === "basic" ||
+        g.difficulty_level === "intermediate" ||
+        g.difficulty_level === "advanced"
+          ? g.difficulty_level
+          : null;
+      const boosted =
+        g.topic_cluster_id != null &&
+        gridCtx.boostedClusterIds.has(g.topic_cluster_id);
+      return {
         id: g.id,
         title: g.title,
         guide_type: g.guide_type,
         book_title: g.book_title,
         match_reason: guideReasonMap.get(g.id) ?? "classification",
         topic_cluster_id: g.topic_cluster_id ?? null,
-      }));
+        difficulty_level: difficulty,
+        main_exploration_boosted: boosted,
+      };
+    });
 
     // 매치 강도 우선 정렬: 3축 모두 > 2축 > 1축
     const REASON_ORDER: Record<MatchReason, number> = {
@@ -284,9 +324,11 @@ export async function autoRecommendGuidesAction(input: {
       subject: 2,
       activity: 2,
     };
-    result.sort(
-      (a, b) => REASON_ORDER[a.match_reason] - REASON_ORDER[b.match_reason],
-    );
+    // Phase β G3 — main_exploration tier_plan 연결 클러스터면 1단계 승격
+    //   (boosted=true 는 reason 점수 -1 과 동등 효과).
+    const scoreOf = (r: ResultRow) =>
+      REASON_ORDER[r.match_reason] - (r.main_exploration_boosted ? 1 : 0);
+    result.sort((a, b) => scoreOf(a) - scoreOf(b));
 
     // L3: 클러스터 다양성 — 특정 클러스터 편중 방지
     const diversified = diversifyByCluster(
@@ -295,12 +337,116 @@ export async function autoRecommendGuidesAction(input: {
       limit,
     );
 
-    // topic_cluster_id 제거 후 반환 (API 계약 유지)
     return createSuccessResponse(
-      diversified.map(({ topic_cluster_id: _, ...rest }) => rest),
+      diversified.map((g) => ({
+        id: g.id,
+        title: g.title,
+        guide_type: g.guide_type,
+        book_title: g.book_title,
+        match_reason: g.match_reason,
+        difficulty_level: g.difficulty_level,
+        topic_cluster_id: g.topic_cluster_id,
+        main_exploration_boosted: g.main_exploration_boosted,
+      })),
     );
   } catch (error) {
     logActionError(LOG_CTX, error, { studentId: input.studentId });
     return createErrorResponse("가이드 추천 조회에 실패했습니다.");
   }
+}
+
+/**
+ * Phase β G3 — 추천 격자 컨텍스트.
+ *   - allowedDifficulties: 학생 adequate_level → leveling_to_difficulty cap 허용 풀
+ *   - boostedClusterIds:  활성 main_exploration tier_plan 의 linked_topic_trajectory_ids
+ *                         → topic_cluster_ids 집합
+ * 조회 실패 시 null/빈 set 로 폴백 — 기존 동작 회귀 없음.
+ */
+async function resolveRecommendationGridContext(studentId: string): Promise<{
+  allowedDifficulties: ("basic" | "intermediate" | "advanced")[] | null;
+  boostedClusterIds: Set<string>;
+}> {
+  const boostedClusterIds = new Set<string>();
+  let allowedDifficulties:
+    | ("basic" | "intermediate" | "advanced")[]
+    | null = null;
+
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return { allowedDifficulties: null, boostedClusterIds };
+
+  try {
+    const { data: studentRow } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .maybeSingle();
+    const tenantId = studentRow?.tenant_id ?? null;
+    if (!tenantId) return { allowedDifficulties: null, boostedClusterIds };
+
+    // 1. adequate_level → difficulty cap
+    const { data: level } = await supabase
+      .from("student_exploration_levels")
+      .select("adequate_level")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .order("school_year", { ascending: false })
+      .order("semester", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (level?.adequate_level != null) {
+      const lv = level.adequate_level;
+      if (lv <= 2) allowedDifficulties = ["basic"];
+      else if (lv === 3) allowedDifficulties = ["basic", "intermediate"];
+      else allowedDifficulties = ["basic", "intermediate", "advanced"];
+    }
+
+    // 2. 활성 main_exploration tier_plan → trajectory ids → topic_cluster_ids
+    const { getActiveMainExploration } = await import(
+      "@/lib/domains/student-record/repository/main-exploration-repository"
+    );
+    const design = await getActiveMainExploration(studentId, tenantId, {
+      scope: "overall",
+      trackLabel: null,
+      direction: "design",
+    });
+    const active =
+      design ??
+      (await getActiveMainExploration(studentId, tenantId, {
+        scope: "overall",
+        trackLabel: null,
+        direction: "analysis",
+      }));
+
+    if (active?.tier_plan) {
+      const trajectoryIds = collectLinkedTrajectoryIds(active.tier_plan);
+      if (trajectoryIds.length > 0) {
+        const { data: trajectories } = await supabase
+          .from("student_record_topic_trajectories")
+          .select("topic_cluster_id")
+          .in("id", trajectoryIds);
+        for (const t of trajectories ?? []) {
+          if (t.topic_cluster_id) boostedClusterIds.add(t.topic_cluster_id);
+        }
+      }
+    }
+  } catch {
+    // fallback 유지
+  }
+
+  return { allowedDifficulties, boostedClusterIds };
+}
+
+function collectLinkedTrajectoryIds(tierPlan: unknown): string[] {
+  if (!tierPlan || typeof tierPlan !== "object") return [];
+  const out = new Set<string>();
+  for (const tier of ["foundational", "development", "advanced"] as const) {
+    const entry = (tierPlan as Record<string, unknown>)[tier];
+    if (!entry || typeof entry !== "object") continue;
+    const ids = (entry as Record<string, unknown>).linked_topic_trajectory_ids;
+    if (Array.isArray(ids)) {
+      for (const id of ids) if (typeof id === "string") out.add(id);
+    }
+  }
+  return [...out];
 }

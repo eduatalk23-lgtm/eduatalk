@@ -9,6 +9,7 @@ import { extractJson } from "../extractJson";
 import { CHANGCHE_ACTIVITY_CONFIGS } from "@/lib/domains/student-record/evaluation-criteria/defaults";
 import { renderCrossSubjectThemesSection } from "./crossSubjectThemes";
 import { renderNarrativeContextSection } from "./narrativeContext";
+import { renderCellGuideGridContextSection } from "../actions/cell-guide-grid-context";
 
 // ============================================
 // 시스템 프롬프트
@@ -146,6 +147,12 @@ export function buildUserPrompt(input: ChangcheGuideInput): string {
   // 영역간 연결 (Phase E2)
   if (input.edgePromptSection) {
     prompt += input.edgePromptSection + "\n";
+  }
+
+  // Phase β G7: 학생 격자 컨텍스트
+  {
+    const gridSection = renderCellGuideGridContextSection(input.gridContext);
+    if (gridSection) prompt += gridSection;
   }
 
   // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
