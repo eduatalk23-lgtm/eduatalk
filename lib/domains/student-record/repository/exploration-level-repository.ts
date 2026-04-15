@@ -94,14 +94,30 @@ export async function listExplorationLevelSnapshots(
  * - school_tier  ← leveling.resolvedTier (명시값 → GPA 추론 → default 폴백)
  * - adequate_level / expected_level / adequate_from_gpa ← computeAdequateLevel()
  * - source = 'auto', override_reason = null
+ *
+ * **기본 guard**: 같은 slice 에 source='consultant_override' 가 이미 있으면 NO-OP 로
+ *   기존 row 반환 (덮어쓰지 않음). 의도적으로 덮어쓰려면 `overrideConsultant: true`.
  */
 export async function upsertExplorationLevelFromGpa(
   studentId: string,
   tenantId: string,
   slice: ExplorationLevelSlice & { grade: 1 | 2 | 3 },
+  options?: { overrideConsultant?: boolean },
   client?: Client,
 ): Promise<ExplorationLevel> {
   const supabase = await resolveClient(client);
+
+  if (!options?.overrideConsultant) {
+    const existing = await getExplorationLevelSnapshot(
+      studentId,
+      tenantId,
+      slice,
+      supabase,
+    );
+    if (existing && existing.source === "consultant_override") {
+      return existing;
+    }
+  }
 
   const [{ schoolAvg }, leveling] = await Promise.all([
     calculateAverageGrade(studentId, tenantId),
