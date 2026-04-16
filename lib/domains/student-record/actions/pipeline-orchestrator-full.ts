@@ -80,13 +80,18 @@ export async function runFullOrchestration(
     const supabase = await createSupabaseServerClient();
 
     // ── 1. L0 전제: 활성 메인 탐구 확인 ────────────────────
-    const { data: activeMain } = await supabase
+    // 스키마는 is_active: boolean — 'status' 컬럼 없음 (20260415400000 마이그레이션).
+    const { data: activeMain, error: activeMainErr } = await supabase
       .from("student_main_explorations")
       .select("id")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
-      .eq("status", "active")
+      .eq("is_active", true)
       .limit(1);
+    if (activeMainErr) {
+      logActionError(LOG_CTX, activeMainErr, { studentId, step: "checkActiveMain" });
+      return createErrorResponse("활성 메인 탐구 조회 실패");
+    }
     if (!activeMain || activeMain.length === 0) {
       return createErrorResponse(
         "활성 메인 탐구가 설정되어 있지 않습니다. 먼저 메인 탐구를 설정해주세요.",
