@@ -347,8 +347,10 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   }
 
   // 캐시 체크: 상위 역량 분석이 모두 캐시 + 기존 AI 가이드 존재 → LLM 스킵
+  // 설계 모드 전용 — analysis 모드는 ctx.analysisContext/ctx.gradeThemes가 풀런마다 변동하므로
+  // competency content 미변경이어도 가이드 입력이 바뀌어 outdated 결과 재사용 위험 (2026-04-16 G).
   const setekUpstream = ctx.results["competency_setek"] as Record<string, unknown> | undefined;
-  if (setekUpstream?.allCached === true) {
+  if (ctx.gradeMode === "design" && setekUpstream?.allCached === true) {
     const count = await guideRepo.countSetekGuides(
       { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
       ctx.supabase,
@@ -433,9 +435,10 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   }
 
   // 캐시 체크: 상위 역량 분석 캐시 + 세특 방향 안정 + 기존 AI 가이드 존재 → LLM 스킵
+  // 설계 모드 전용 — setek_guide가 이미 analysis 모드에서 캐시 우회되므로 setekGuideStable은 natural false.
   const changcheUpstream = ctx.results["competency_changche"] as Record<string, unknown> | undefined;
   const setekGuideStable = (ctx.results["setek_guide"] as Record<string, unknown> | undefined)?.cached === true;
-  if (changcheUpstream?.allCached === true && setekGuideStable) {
+  if (ctx.gradeMode === "design" && changcheUpstream?.allCached === true && setekGuideStable) {
     const changcheCount = await guideRepo.countChangcheGuides(
       { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
       ctx.supabase,
@@ -516,9 +519,10 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   }
 
   // 캐시 체크: 상위 역량 분석 캐시 + 창체 방향 안정 + 기존 AI 가이드 존재 → LLM 스킵
+  // 설계 모드 전용 — changche_guide가 이미 analysis 모드에서 캐시 우회되므로 changcheGuideStable은 natural false.
   const haengteukUpstream = ctx.results["competency_haengteuk"] as Record<string, unknown> | undefined;
   const changcheGuideStable = (ctx.results["changche_guide"] as Record<string, unknown> | undefined)?.cached === true;
-  if (haengteukUpstream?.allCached === true && changcheGuideStable) {
+  if (ctx.gradeMode === "design" && haengteukUpstream?.allCached === true && changcheGuideStable) {
     const haengteukCount = await guideRepo.countHaengteukGuides(
       { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
       ctx.supabase,
