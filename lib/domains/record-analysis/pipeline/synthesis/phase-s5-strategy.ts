@@ -280,8 +280,16 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   }
 
   // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
-  const { fetchActiveMainExplorationSection } = await import("./helpers");
+  const { fetchActiveMainExplorationSection, buildBlueprintContextSection, buildGapTrackerContextSection } = await import("./helpers");
   const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
+
+  // Blueprint-Axis: blueprint 설계 기준 + gap bridge 우선순위 (best-effort)
+  const blueprintSection = buildBlueprintContextSection(ctx);
+  const gapSection = buildGapTrackerContextSection(ctx);
+  // hyperedge 요약에 blueprint/gap 컨텍스트 병합
+  const combinedHyperedgeSection = [hyperedgeSummarySection, blueprintSection, gapSection]
+    .filter(Boolean)
+    .join("\n\n") || undefined;
 
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
@@ -294,7 +302,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     existingStrategies: existingContents,
     universityMatchContext,
     guideContextSection: guideContextSection || undefined,
-    hyperedgeSummarySection: hyperedgeSummarySection || undefined,
+    hyperedgeSummarySection: combinedHyperedgeSection,
     qualityPatterns: ctx.qualityPatterns,
     mainExplorationSection: mainExplorationSection || undefined,
   });

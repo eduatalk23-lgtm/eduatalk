@@ -40,6 +40,107 @@ export async function fetchActiveMainExplorationSection(
 }
 
 // ============================================
+// Blueprint-Axis: 프롬프트 섹션 빌더
+// ============================================
+
+/**
+ * Blueprint Phase 산출물 → 프롬프트 섹션 문자열.
+ * S3(진단), S5(전략), S6(면접/로드맵)에서 best-effort 주입.
+ * ctx.results._blueprintPhase가 없으면 빈 문자열 반환.
+ */
+export function buildBlueprintContextSection(
+  ctx: Pick<PipelineContext, "results">,
+): string {
+  const bp = ctx.results?._blueprintPhase as import("../../blueprint/types").BlueprintPhaseOutput | undefined;
+  if (!bp || !bp.targetConvergences?.length) return "";
+
+  const lines: string[] = ["## 설계 청사진 (Blueprint Phase)"];
+  lines.push("");
+  lines.push("아래는 학생의 진로에서 역산한 3년 수렴 설계입니다. 진단/전략에 반영하세요.");
+  lines.push("");
+
+  // 스토리라인 골격
+  if (bp.storylineSkeleton?.overarchingTheme) {
+    lines.push(`### 3년 관통 테마`);
+    lines.push(`${bp.storylineSkeleton.overarchingTheme}`);
+    lines.push("");
+  }
+
+  // 학년별 수렴 요약
+  const byGrade = new Map<number, typeof bp.targetConvergences>();
+  for (const conv of bp.targetConvergences) {
+    if (!byGrade.has(conv.grade)) byGrade.set(conv.grade, []);
+    byGrade.get(conv.grade)!.push(conv);
+  }
+  for (const [grade, convs] of [...byGrade.entries()].sort((a, b) => a[0] - b[0])) {
+    const yearTheme = bp.storylineSkeleton?.yearThemes?.[grade];
+    lines.push(`### ${grade}학년${yearTheme ? ` — ${yearTheme}` : ""}`);
+    for (const c of convs) {
+      const members = c.targetMembers.map((m) => `${m.subjectOrActivity}(${m.role})`).join(", ");
+      lines.push(`- "${c.themeLabel}": ${members}`);
+      lines.push(`  역량: ${c.sharedCompetencies.join(", ")} | ${c.rationale}`);
+    }
+    lines.push("");
+  }
+
+  // 역량 성장 타겟
+  if (bp.competencyGrowthTargets?.length) {
+    lines.push(`### 역량 성장 목표`);
+    for (const t of bp.competencyGrowthTargets) {
+      const current = t.currentGrade ? `${t.currentGrade}→` : "";
+      lines.push(`- ${t.competencyItem}: ${current}${t.targetGrade} (${t.yearTarget}학년) — ${t.pathway}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Gap Tracker 산출물 → 프롬프트 섹션 문자열.
+ * S5(전략), S6(로드맵)에서 best-effort 주입.
+ * ctx.results._gapTracker가 없으면 빈 문자열 반환.
+ */
+export function buildGapTrackerContextSection(
+  ctx: Pick<PipelineContext, "results">,
+): string {
+  const gap = ctx.results?._gapTracker as import("../../blueprint/types").GapTrackerOutput | undefined;
+  if (!gap || !gap.bridgeProposals?.length) return "";
+
+  const lines: string[] = ["## 정합성 분석 (Gap Tracker)"];
+  lines.push("");
+  lines.push(`- Blueprint 커버리지: ${(gap.metrics.coverage * 100).toFixed(0)}%`);
+  lines.push(`- Drift (의외 수렴): ${gap.metrics.driftCount}건`);
+  lines.push(`- 종합 정합성: ${(gap.metrics.coherenceScore * 100).toFixed(0)}%`);
+  lines.push("");
+
+  // urgency=high 우선 표시
+  const sorted = [...gap.bridgeProposals].sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return order[a.urgency] - order[b.urgency];
+  });
+
+  lines.push(`### Bridge 행동 제안 (${sorted.length}건)`);
+  for (const b of sorted.slice(0, 8)) {
+    lines.push(`- [${b.urgency}] ${b.recommendedAction}`);
+    if (b.competencyGaps.length > 0) {
+      lines.push(`  역량 갭: ${b.competencyGaps.map((g) => `${g.item}(${g.currentGrade ?? "미측정"}→${g.targetGrade})`).join(", ")}`);
+    }
+  }
+
+  // drift
+  if (gap.journeyGap.driftItems.length > 0) {
+    lines.push("");
+    lines.push(`### Drift (의외 수렴)`);
+    for (const d of gap.journeyGap.driftItems.slice(0, 5)) {
+      lines.push(`- [${d.driftType}] ${d.description}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ============================================
 // 헬퍼: eval 연결 (시계열 + 대학 프로필 매칭)
 // ============================================
 

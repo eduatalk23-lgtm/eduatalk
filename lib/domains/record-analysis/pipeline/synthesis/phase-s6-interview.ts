@@ -239,8 +239,14 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   }
 
   // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
-  const { fetchActiveMainExplorationSection } = await import("./helpers");
+  const { fetchActiveMainExplorationSection, buildBlueprintContextSection } = await import("./helpers");
   const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
+
+  // Blueprint-Axis: blueprint 서사 기준 (면접: 서사 정합성 확인 질문 생성에 활용)
+  const blueprintSection = buildBlueprintContextSection(ctx);
+  const combinedMainExploration = [mainExplorationSection, blueprintSection]
+    .filter(Boolean)
+    .join("\n\n") || undefined;
 
   const result = await generateInterviewQuestions({
     content: mainContent,
@@ -254,7 +260,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     existingQuestions: existingQuestions.length > 0 ? existingQuestions : undefined,
     qualityIssues: qualityIssues.length > 0 ? qualityIssues : undefined,
     appliedUniversities,
-    mainExplorationSection: mainExplorationSection || undefined,
+    mainExplorationSection: combinedMainExploration,
   });
 
   if (!result.success) throw new Error(result.error);

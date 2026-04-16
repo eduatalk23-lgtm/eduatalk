@@ -207,8 +207,16 @@ export async function runAiDiagnosis(
   }
 
   // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
-  const { fetchActiveMainExplorationSection } = await import("./helpers");
+  const { fetchActiveMainExplorationSection, buildBlueprintContextSection } = await import("./helpers");
   const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
+
+  // Blueprint-Axis: blueprint 설계 기준 섹션 (best-effort)
+  const blueprintSection = buildBlueprintContextSection(ctx);
+  if (blueprintSection) {
+    diagQualityPatternSection = diagQualityPatternSection
+      ? `${diagQualityPatternSection}\n\n${blueprintSection}`
+      : blueprintSection;
+  }
 
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
