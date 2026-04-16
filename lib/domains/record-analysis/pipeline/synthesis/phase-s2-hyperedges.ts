@@ -118,11 +118,29 @@ export async function runHyperedgeComputation(
   const { studentId, tenantId, pipelineId } = ctx;
 
   try {
-    const [edges, tags, crd] = await Promise.all([
+    // C2: 설계 모드 폴백 — analysis edges가 없으면 projected edges로 전환.
+    //   analysis tag가 없으면 draft_analysis tag로 전환.
+    //   저장 컨텍스트도 'analysis' vs 'projected' 분기.
+    const [analysisEdges, analysisTags, crd] = await Promise.all([
       findEdges(studentId, tenantId, "analysis", { includeStale: false }),
       findActivityTags(studentId, tenantId, { tagContext: "analysis" }),
       fetchCrossRefData(studentId, tenantId),
     ]);
+
+    let edges = analysisEdges;
+    let tags = analysisTags;
+    let edgeContext: "analysis" | "projected" = "analysis";
+
+    if (analysisEdges.length === 0) {
+      const projectedEdges = await findEdges(studentId, tenantId, "projected", { includeStale: false });
+      if (projectedEdges.length > 0) {
+        edges = projectedEdges;
+        edgeContext = "projected";
+        // projected edges → draft_analysis tags로 확장
+        tags = await findActivityTags(studentId, tenantId, { tagContext: "draft_analysis" });
+      }
+    }
+
     const expansionCtx = buildExpansionContext(tags, crd);
     if (expansionCtx.recordMap.size === 0) {
       logActionWarn(LOG_CTX, "recordMap 비어 있음 — 멤버 확장 없이 기존 경로 사용", { studentId });
@@ -130,12 +148,13 @@ export async function runHyperedgeComputation(
 
     const { hyperedges, stats } = computeHyperedges(edges, expansionCtx);
 
-    await replaceHyperedges(studentId, tenantId, pipelineId, hyperedges, "analysis");
+    await replaceHyperedges(studentId, tenantId, pipelineId, hyperedges, edgeContext);
 
     const themeLabels = hyperedges.map((h) => h.themeLabel);
 
+    const modeLabel = edgeContext === "projected" ? "[설계] " : "";
     return {
-      preview: `${stats.computedHyperedges}개 통합 테마 (pair-seed ${stats.pairsExplored}개 탐색, size ${SIZE_MIN}~${SIZE_MAX})`,
+      preview: `${modeLabel}${stats.computedHyperedges}개 통합 테마 (pair-seed ${stats.pairsExplored}개 탐색, size ${SIZE_MIN}~${SIZE_MAX})`,
       result: { ...stats, themeLabels },
     };
   } catch (err) {

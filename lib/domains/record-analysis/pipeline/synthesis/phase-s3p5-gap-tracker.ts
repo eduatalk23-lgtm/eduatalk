@@ -35,10 +35,14 @@ export async function runGapTracking(
     "@/lib/domains/student-record/repository/hyperedge-repository"
   );
 
-  const [blueprintHyperedges, analysisHyperedges] = await Promise.all([
+  const [blueprintHyperedges, analysisHyperedgesRaw] = await Promise.all([
     findHyperedges(studentId, tenantId, { contexts: ["blueprint" as "analysis"] }),
     findHyperedges(studentId, tenantId, { contexts: ["analysis"] }),
   ]);
+  // C2: 설계 모드 폴백 — analysis hyperedges가 없으면 projected로 대체해 매칭 시도
+  const analysisHyperedges = analysisHyperedgesRaw.length > 0
+    ? analysisHyperedgesRaw
+    : await findHyperedges(studentId, tenantId, { contexts: ["projected"] });
 
   if (blueprintHyperedges.length === 0) {
     return "Blueprint 하이퍼엣지 0건 — Gap Tracking 건너뜀";

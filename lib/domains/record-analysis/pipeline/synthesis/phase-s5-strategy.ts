@@ -266,12 +266,18 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     } catch { /* 재집계 실패해도 전략 생성은 계속 */ }
   }
 
-  // Phase 1 Layer 2: 통합 테마(hyperedge) 주입 — 수렴 서사축을 전략 근거로 공급
+  // Phase 1 Layer 2: 통합 테마(hyperedge) 주입 — 수렴 서사축을 전략 근거로 공급.
+  // C2: 설계 모드 폴백 — analysis hyperedges가 없으면 projected도 조회.
   let hyperedgeSummarySection: string | undefined;
   try {
-    const hyperedges = await findHyperedges(studentId, tenantId, {
+    let hyperedges = await findHyperedges(studentId, tenantId, {
       contexts: ["analysis"],
     });
+    if (hyperedges.length === 0) {
+      hyperedges = await findHyperedges(studentId, tenantId, {
+        contexts: ["projected"],
+      });
+    }
     if (hyperedges.length > 0) {
       hyperedgeSummarySection = buildHyperedgeSummarySection(hyperedges);
     }
