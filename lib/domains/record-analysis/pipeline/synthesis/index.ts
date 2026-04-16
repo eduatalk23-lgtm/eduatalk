@@ -6,6 +6,9 @@
 // S1
 export { runStorylineGeneration } from "./phase-s1-storyline";
 
+// S1.5
+export { runBlueprintGeneration } from "./phase-s1p5-blueprint";
+
 // S2
 export { runEdgeComputation, runGuideMatching } from "./phase-s2-edges";
 export { runHaengteukGuideLinking } from "./phase-s2-haengteuk-linking";
@@ -14,6 +17,9 @@ export { runNarrativeArcExtraction } from "./phase-s2-narrative-arc";
 
 // S3
 export { runAiDiagnosis, runCourseRecommendation } from "./phase-s3-diagnosis";
+
+// S3.5
+export { runGapTracking } from "./phase-s3p5-gap-tracker";
 
 // S4
 export { runBypassAnalysis } from "./phase-s4-bypass";

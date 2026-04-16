@@ -18,12 +18,14 @@ export {
   buildGuideAnalysisContextFromReport,
 } from "./pipeline-task-runners-shared";
 
-// Synthesis Pipeline (S1-S6)
+// Synthesis Pipeline (S1-S6 + S1.5 Blueprint + S3.5 Gap Tracker)
 export {
   runStorylineGeneration,
+  runBlueprintGeneration,
   runEdgeComputation,
   runAiDiagnosis,
   runCourseRecommendation,
+  runGapTracking,
   runGuideMatching,
   runHaengteukGuideLinking,
   runHyperedgeComputation,

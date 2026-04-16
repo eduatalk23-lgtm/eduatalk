@@ -157,13 +157,25 @@ export interface PipelineTaskResultMap {
   /** S6-b: 학기별 로드맵 */
   roadmap_generation: { mode: string; itemCount: number; elapsedMs?: number };
 
-  // ── Internal (Executive Summary + 4축 진단) ──
+  // ── Blueprint-Axis (S1.5 + S3.5) ──
+  /** S1.5: Blueprint Phase — 진로→3년 수렴 설계 */
+  blueprint_generation: { convergenceCount: number; milestoneGrades: number[]; growthTargetCount: number; elapsedMs?: number };
+  /** S3.5: Gap Tracker — blueprint vs analysis 정합성 */
+  gap_tracking: { coverage: number; coherenceScore: number; bridgeCount: number; driftCount: number; feasibleGapCount: number; elapsedMs?: number };
+
+  // ── Internal (Executive Summary + 4축 진단 + Blueprint) ──
   /** Synthesis Phase 6 완료 후 자동 생성되는 Executive Summary */
   _executiveSummary: import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary;
   /** Synthesis Phase 6 완료 후 자동 생성되는 4축 합격 진단 프로필 */
   _fourAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis;
   /** Phase δ-3: 5축 합격 진단(4축 + 메인 탐구 정합성). mainInquiryAlignment=null 가능. */
   _fiveAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FiveAxisDiagnosis;
+  /** S1.5: Blueprint Phase LLM 산출물 전체 */
+  _blueprintPhase: import("@/lib/domains/record-analysis/blueprint/types").BlueprintPhaseOutput;
+  /** S3.5: Gap Tracker 산출물 전체 */
+  _gapTracker: import("@/lib/domains/record-analysis/blueprint/types").GapTrackerOutput;
+  /** Journey Model 조합 스냅샷 (Blueprint + Analysis + Gap 통합 뷰) */
+  _journeyModel: import("@/lib/domains/record-analysis/blueprint/types").StudentJourneyModel;
 }
 
 // ============================================

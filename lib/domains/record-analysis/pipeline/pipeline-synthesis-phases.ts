@@ -21,6 +21,7 @@ import {
 } from "./pipeline-executor";
 import {
   runStorylineGeneration,
+  runBlueprintGeneration,
   runEdgeComputation,
   runGuideMatching,
   runHaengteukGuideLinking,
@@ -28,6 +29,7 @@ import {
   runNarrativeArcExtraction,
   runAiDiagnosis,
   runCourseRecommendation,
+  runGapTracking,
   runBypassAnalysis,
   runActivitySummary,
   runAiStrategy,
@@ -367,6 +369,13 @@ export async function executeSynthesisPhase1(
   await runTaskWithState(ctx, "storyline_generation", () =>
     runStorylineGeneration(ctx),
   );
+
+  // S1.5: Blueprint Phase (설계 모드 학생만 — 분석 모드는 자동 스킵)
+  if (!skipIfSynthPrereqFailed(ctx, "blueprint_generation")) {
+    await runTaskWithState(ctx, "blueprint_generation", () =>
+      runBlueprintGeneration(ctx),
+    );
+  }
 }
 
 // ============================================
@@ -548,6 +557,13 @@ export async function executeSynthesisPhase3(
     ));
     await Promise.allSettled(tasks);
     await refreshCoursePlanData(ctx);
+  }
+
+  // S3.5: Gap Tracker (blueprint 존재 시에만 — blueprint 없으면 자동 스킵)
+  if (!skipIfSynthPrereqFailed(ctx, "gap_tracking")) {
+    await runTaskWithState(ctx, "gap_tracking", () =>
+      runGapTracking(ctx),
+    );
   }
 }
 
