@@ -13,5 +13,6 @@ export * from "./pipeline";
 export * from "./eval/executive-summary";
 export * from "./eval/golden-dataset";
 export * from "./eval/highlight-verifier";
+export * from "./eval/journey-model";
 export * from "./eval/timeseries-analyzer";
 export * from "./eval/university-profile-matcher";

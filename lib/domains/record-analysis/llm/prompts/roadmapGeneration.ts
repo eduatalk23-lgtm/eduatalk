@@ -191,9 +191,23 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
     prompt += `${input.mainExplorationSection}\n\n`;
   }
 
+  // C3(2026-04-16): Blueprint 청사진 + Gap Tracker bridge 주입 — 학기 로드맵의 상위 설계 기준
+  if (input.blueprintSection) {
+    prompt += `${input.blueprintSection}\n\n`;
+  }
+  if (input.bridgeSection) {
+    prompt += `${input.bridgeSection}\n\n`;
+  }
+
   prompt += `위 정보를 종합하여 ${input.grade}학년부터 3학년까지의 학기별 활동 로드맵을 JSON으로 생성해주세요.`;
   if (input.mainExplorationSection) {
     prompt += ` 메인 탐구 tier_plan 이 제공된 경우, 학기별 missions 가 tier 진행(기초→발전→심화)을 따르도록 정렬하고 빈 tier 셀을 우선 채우는 미션을 학기 1개 이상 포함하세요.`;
+  }
+  if (input.blueprintSection) {
+    prompt += ` Blueprint 청사진이 제공된 경우, 학기별 로드맵이 blueprint의 targetConvergences 와 milestones 에 정합하도록 설계하세요. 각 마일스톤의 keyActivities 를 해당 학년 학기에 반드시 반영하세요.`;
+  }
+  if (input.bridgeSection) {
+    prompt += ` Bridge 제안(urgency high/medium)이 제공된 경우, 각 bridge 를 구체 학기 활동으로 1건 이상 변환하여 로드맵에 포함하세요.`;
   }
   return prompt;
 }

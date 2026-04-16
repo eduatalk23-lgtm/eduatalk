@@ -657,6 +657,10 @@ export interface RoadmapGenerationInput {
   existingActivities?: Array<{ grade: number; area: string; content: string }>;
   /** Phase δ-6 (G11): 활성 메인 탐구 섹션. 학기별 missions 정합 기준. */
   mainExplorationSection?: string;
+  /** C3(2026-04-16): Blueprint milestone 섹션. 학기별 로드맵이 Blueprint 수렴·마일스톤에 정합하도록 주입. */
+  blueprintSection?: string;
+  /** C3(2026-04-16): Gap Tracker bridge 섹션. 시급한 bridge 제안을 학기 활동으로 변환. */
+  bridgeSection?: string;
 }
 
 // ============================================

@@ -131,6 +131,50 @@ export async function generateAiRoadmap(
       // best-effort — 로드맵은 메인 탐구 없이도 생성 가능
     }
 
+    // C3(2026-04-16): Blueprint + Gap Tracker bridge 섹션 (best-effort)
+    //   blueprint/bridge는 S1.5/S3.5에서 하이퍼엣지로 DB에 영속화됨.
+    //   로드맵은 학기 단위 구체 활동이므로 blueprint milestones + bridge 제안을 직접 반영.
+    let blueprintSection: string | undefined;
+    let bridgeSection: string | undefined;
+    try {
+      const { findHyperedges } = await import(
+        "@/lib/domains/student-record/repository/hyperedge-repository"
+      );
+      const [blueprintHyperedges, bridgeHyperedges] = await Promise.all([
+        findHyperedges(studentId, tenantId, { contexts: ["blueprint" as "analysis"] }),
+        findHyperedges(studentId, tenantId, { contexts: ["bridge" as "analysis"] }),
+      ]);
+      if (blueprintHyperedges.length > 0) {
+        const lines: string[] = ["## 설계 청사진 (Blueprint 수렴 — 학기 로드맵의 상위 기준)"];
+        const byGrade = new Map<number, typeof blueprintHyperedges>();
+        for (const he of blueprintHyperedges) {
+          const g = (he.members?.[0]?.grade ?? 1) as number;
+          if (!byGrade.has(g)) byGrade.set(g, []);
+          byGrade.get(g)!.push(he);
+        }
+        for (const [g, hes] of [...byGrade.entries()].sort((a, b) => a[0] - b[0])) {
+          lines.push(`\n### ${g}학년 수렴`);
+          for (const he of hes) {
+            const members = (he.members ?? []).map((m) => m.label).join(", ");
+            lines.push(`- "${he.theme_label}": ${members}`);
+            if (he.shared_competencies?.length) {
+              lines.push(`  역량: ${he.shared_competencies.join(", ")}`);
+            }
+          }
+        }
+        blueprintSection = lines.join("\n");
+      }
+      if (bridgeHyperedges.length > 0) {
+        const lines: string[] = ["## Gap Tracker Bridge 제안 (학기 활동으로 변환 필수)"];
+        for (const he of bridgeHyperedges.slice(0, 8)) {
+          lines.push(`- "${he.theme_label}"${he.evidence ? ` — ${he.evidence}` : ""}`);
+        }
+        bridgeSection = lines.join("\n");
+      }
+    } catch {
+      // best-effort — 로드맵은 blueprint 없이도 생성 가능
+    }
+
     // 입력 조립
     const input: RoadmapGenerationInput = {
       mode,
@@ -152,6 +196,8 @@ export async function generateAiRoadmap(
       guideAssignments: guideSection || undefined,
       recommendedCourses,
       mainExplorationSection,
+      blueprintSection,
+      bridgeSection,
     };
 
     // analysis 모드 전용 데이터
