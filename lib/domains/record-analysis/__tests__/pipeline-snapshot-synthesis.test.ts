@@ -789,6 +789,7 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
         "diagnosticWeaknesses": undefined,
         "existingQuestions": undefined,
         "grade": 1,
+        "mainExplorationSection": undefined,
         "qualityIssues": undefined,
         "recordType": "setek",
         "subjectName": "수학I",

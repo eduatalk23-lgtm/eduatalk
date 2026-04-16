@@ -12,6 +12,10 @@ import type {
 // 8. 스토리라인 (storylines)
 // ============================================
 
+/**
+ * 학생 스토리라인 조회 — **scope='final' 기본 필터** (2026-04-16 D).
+ * Past Analytics의 scope='past' 스토리라인은 findStorylinesByScope로 별도 조회.
+ */
 export async function findStorylinesByStudent(
   studentId: string,
   tenantId: string,
@@ -22,9 +26,53 @@ export async function findStorylinesByStudent(
     .select("*")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
+    .eq("scope", "final")
     .order("sort_order");
   if (error) throw error;
   return (data as Storyline[]) ?? [];
+}
+
+/**
+ * scope 기준 스토리라인 조회 (2026-04-16 D: 4축×3층 아키텍처).
+ * scope='past': Past Analytics A층 산출물
+ * scope='final': Final Integration C층 산출물
+ */
+export async function findStorylinesByScope(
+  studentId: string,
+  tenantId: string,
+  scope: "past" | "final",
+): Promise<Storyline[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_storylines")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("scope", scope)
+    .order("sort_order");
+  if (error) throw error;
+  return (data as Storyline[]) ?? [];
+}
+
+/**
+ * scope 기준 스토리라인 일괄 삭제 (재실행 전 정리).
+ * storyline_links는 ON DELETE CASCADE로 자동 삭제됨.
+ */
+export async function deleteStorylinesByScope(
+  studentId: string,
+  tenantId: string,
+  scope: "past" | "final",
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_storylines")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("scope", scope)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 export async function insertStoryline(

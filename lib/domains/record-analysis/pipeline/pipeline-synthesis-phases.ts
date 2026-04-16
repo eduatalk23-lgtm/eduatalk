@@ -21,7 +21,6 @@ import {
 } from "./pipeline-executor";
 import {
   runStorylineGeneration,
-  runBlueprintGeneration,
   runEdgeComputation,
   runGuideMatching,
   runHaengteukGuideLinking,
@@ -370,12 +369,8 @@ export async function executeSynthesisPhase1(
     runStorylineGeneration(ctx),
   );
 
-  // S1.5: Blueprint Phase (설계 모드 학생만 — 분석 모드는 자동 스킵)
-  if (!skipIfSynthPrereqFailed(ctx, "blueprint_generation")) {
-    await runTaskWithState(ctx, "blueprint_generation", () =>
-      runBlueprintGeneration(ctx),
-    );
-  }
+  // Blueprint Phase는 별도 blueprint 파이프라인으로 이전됨 (2026-04-16 D).
+  // runFullOrchestration이 synthesis 이전에 blueprint 파이프라인을 선행 실행.
 }
 
 // ============================================

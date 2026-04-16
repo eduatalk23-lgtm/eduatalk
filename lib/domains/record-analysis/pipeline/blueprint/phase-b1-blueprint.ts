@@ -1,36 +1,46 @@
 // ============================================
-// S1.5: Blueprint Phase — 진로→3년 수렴 설계 (top-down)
+// B1: Blueprint Phase — 진로→3년 수렴 설계 (top-down)
 //
-// 설계 모드(prospective) 학생 전용.
+// 4축×3층 통합 아키텍처 B층(2026-04-16 D).
+// 기존 synthesis/phase-s1p5-blueprint.ts에서 이전.
+//
 // main_exploration seed + exemplar few-shot → LLM → blueprint 하이퍼엣지.
-// 분석 모드(analysis) 학생은 건너뜀 (blueprint 불필요).
+// 설계 대상 학년(consultingGrades)이 존재할 때만 실행. k=3(졸업)은 스킵.
 // ============================================
 
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
-import {
-  assertSynthesisCtx,
-  type PipelineContext,
-  type TaskRunnerOutput,
-} from "../pipeline-types";
+import type { PipelineContext, TaskRunnerOutput } from "../pipeline-types";
 import { setTaskResult } from "../pipeline-helpers";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
+/**
+ * Blueprint 파이프라인 타입 가드.
+ * pipelineType 확인만 수행 — unifiedInput 없이도 실행 가능.
+ */
+export function assertBlueprintCtx(
+  ctx: PipelineContext,
+): asserts ctx is PipelineContext & { pipelineType: "blueprint" } {
+  if (ctx.pipelineType !== "blueprint") {
+    throw new Error(`assertBlueprintCtx: expected blueprint pipeline, got ${ctx.pipelineType}`);
+  }
+}
+
 export async function runBlueprintGeneration(
   ctx: PipelineContext,
 ): Promise<TaskRunnerOutput> {
-  assertSynthesisCtx(ctx);
+  assertBlueprintCtx(ctx);
   const { studentId, tenantId, pipelineId } = ctx;
 
   // ── 설계 모드 여부 판정 ──────────────────────────
   // consultingGrades가 있으면 설계 모드(prospective) 학년 존재.
-  // 순수 분석 모드(전 학년 NEIS)면 blueprint 불필요.
+  // 순수 분석 모드(k=3, 전 학년 NEIS)면 blueprint 불필요 → 오케스트레이터가 사전 스킵.
   const hasDesignGrades = ctx.consultingGrades && ctx.consultingGrades.length > 0;
   if (!hasDesignGrades) {
     return "분석 모드 전용 — Blueprint 설계 건너뜀";
   }
 
-  // ── 활성 메인 탐구 확인 ──────────────────────────
+  // ── 활성 메인 탐구 확인 (L0 전제) ────────────────
   const { listActiveMainExplorations } = await import(
     "@/lib/domains/student-record/repository/main-exploration-repository"
   );
@@ -69,9 +79,8 @@ export async function runBlueprintGeneration(
       },
     };
   } catch (err) {
-    // non-fatal: Blueprint 실패해도 파이프라인 계속 진행 (기존 경로 유지)
     const msg = err instanceof Error ? err.message : String(err);
-    logActionError(LOG_CTX, `Blueprint Phase non-fatal 실패: ${msg}`, { pipelineId });
+    logActionError(LOG_CTX, `Blueprint Phase 실패: ${msg}`, { pipelineId });
     throw err;
   }
 }

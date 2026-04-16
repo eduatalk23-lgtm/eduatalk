@@ -4,7 +4,7 @@
 // 규칙 기반 (LLM 없음). blueprint 하이퍼엣지와 analysis 하이퍼엣지를
 // 비교하여 bridge 하이퍼엣지 + 정합성 지표를 산출.
 //
-// 의존: blueprint_generation + ai_diagnosis (역량 점수)
+// 의존: (선행 파이프라인) blueprint_generation + (동일 파이프라인) ai_diagnosis
 // ============================================
 
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";

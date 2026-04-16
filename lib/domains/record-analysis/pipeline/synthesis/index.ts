@@ -6,8 +6,8 @@
 // S1
 export { runStorylineGeneration } from "./phase-s1-storyline";
 
-// S1.5
-export { runBlueprintGeneration } from "./phase-s1p5-blueprint";
+// S1.5 Blueprint는 독립 blueprint 파이프라인으로 분리됨 (2026-04-16 D).
+// 기존 import 경로 호환은 `../blueprint` 및 `pipeline-task-runners` aggregator가 제공.
 
 // S2
 export { runEdgeComputation, runGuideMatching } from "./phase-s2-edges";

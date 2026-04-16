@@ -21,6 +21,8 @@ import type {
 import {
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
+  PAST_ANALYTICS_TASK_KEYS,
+  BLUEPRINT_TASK_KEYS,
   computePipelineFinalStatus,
 } from "@/lib/domains/record-analysis/pipeline";
 import { resolveRecordData, deriveGradeCategories } from "@/lib/domains/record-analysis/pipeline";
@@ -473,5 +475,194 @@ export async function runGradeAwarePipeline(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "runGradeAwarePipeline" }, error, { studentId });
     return createErrorResponse("학년별 파이프라인 시작 실패");
+  }
+}
+
+// ============================================
+// 7-6. runPastAnalyticsPipeline (4축×3층 A층, 2026-04-16 D)
+// ============================================
+
+/**
+ * Past Analytics 파이프라인 행 생성.
+ * NEIS 학년(k≥1)이 존재할 때만 실행. 3 Phase: Storyline → Diagnosis → Strategy.
+ * 실제 phase 실행은 API route(`/api/admin/pipeline/past-analytics/[phase]`)에서 수행.
+ */
+export async function runPastAnalyticsPipeline(
+  studentId: string,
+  tenantId: string,
+): Promise<ActionResponse<{ pipelineId: string; neisGrades: number[] }>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // NEIS 데이터 존재 학년 감지
+    const [sRes, cRes, hRes] = await Promise.all([
+      supabase
+        .from("student_record_seteks")
+        .select("id, content, imported_content, grade, subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null),
+      supabase
+        .from("student_record_changche")
+        .select("id, content, imported_content, grade, activity_type")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("student_record_haengteuk")
+        .select("id, content, imported_content, grade")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+    ]);
+    const resolvedRecords = resolveRecordData(
+      (sRes.data ?? []) as CachedSetek[],
+      (cRes.data ?? []) as CachedChangche[],
+      (hRes.data ?? []) as CachedHaengteuk[],
+    );
+    const { neisGrades } = deriveGradeCategories(resolvedRecords);
+    if (neisGrades.length === 0) {
+      return createErrorResponse("NEIS 학년 데이터가 없어 Past Analytics를 실행할 수 없습니다");
+    }
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+
+    const initTasks: Record<string, string> = {};
+    for (const key of PAST_ANALYTICS_TASK_KEYS) {
+      initTasks[key] = "pending";
+    }
+
+    const { data: pipeline, error: insertError } = await supabase
+      .from("student_record_analysis_pipelines")
+      .insert({
+        student_id: studentId,
+        tenant_id: tenantId,
+        created_by: userId,
+        status: "running",
+        pipeline_type: "past_analytics",
+        grade: null,
+        tasks: initTasks,
+        input_snapshot: { ...(student ?? {}), neisGrades },
+        started_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !pipeline) {
+      if (insertError?.code === "23505") {
+        return createErrorResponse("이미 실행 중인 Past Analytics 파이프라인이 있습니다.");
+      }
+      throw insertError ?? new Error("past_analytics 파이프라인 생성 실패");
+    }
+
+    return createSuccessResponse({ pipelineId: pipeline.id, neisGrades });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runPastAnalyticsPipeline" }, error, { studentId });
+    return createErrorResponse("Past Analytics 파이프라인 시작 실패");
+  }
+}
+
+// ============================================
+// 7-7. runBlueprintPipeline (4축×3층 B층, 2026-04-16 D)
+// ============================================
+
+/**
+ * Blueprint 파이프라인 행 생성.
+ * 설계 대상 학년(consultingGrades, k<3)이 존재할 때만 실행. 단일 Phase: blueprint_generation.
+ */
+export async function runBlueprintPipeline(
+  studentId: string,
+  tenantId: string,
+): Promise<ActionResponse<{ pipelineId: string; consultingGrades: number[] }>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // 설계 대상 학년 = 레코드 없는 학년 + 수강계획만 있는 학년
+    const [sRes, cRes, hRes] = await Promise.all([
+      supabase
+        .from("student_record_seteks")
+        .select("id, content, imported_content, grade, subject:subject_id(name)")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null),
+      supabase
+        .from("student_record_changche")
+        .select("id, content, imported_content, grade, activity_type")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("student_record_haengteuk")
+        .select("id, content, imported_content, grade")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId),
+    ]);
+    const resolvedRecords = resolveRecordData(
+      (sRes.data ?? []) as CachedSetek[],
+      (cRes.data ?? []) as CachedChangche[],
+      (hRes.data ?? []) as CachedHaengteuk[],
+    );
+    const { consultingGrades } = deriveGradeCategories(resolvedRecords);
+    if (consultingGrades.length === 0) {
+      return createErrorResponse(
+        "설계 대상 학년이 없어 Blueprint 파이프라인을 실행할 수 없습니다 (k=3, 졸업 학생)",
+      );
+    }
+
+    // L0 전제: 활성 메인 탐구 존재 확인
+    const { data: activeMain } = await supabase
+      .from("student_main_explorations")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .limit(1);
+    if (!activeMain || activeMain.length === 0) {
+      return createErrorResponse(
+        "활성 메인 탐구가 설정되어 있지 않습니다. 메인 탐구를 먼저 설정해주세요.",
+      );
+    }
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+
+    const initTasks: Record<string, string> = {};
+    for (const key of BLUEPRINT_TASK_KEYS) {
+      initTasks[key] = "pending";
+    }
+
+    const { data: pipeline, error: insertError } = await supabase
+      .from("student_record_analysis_pipelines")
+      .insert({
+        student_id: studentId,
+        tenant_id: tenantId,
+        created_by: userId,
+        status: "running",
+        pipeline_type: "blueprint",
+        grade: null,
+        tasks: initTasks,
+        input_snapshot: { ...(student ?? {}), consultingGrades },
+        started_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !pipeline) {
+      if (insertError?.code === "23505") {
+        return createErrorResponse("이미 실행 중인 Blueprint 파이프라인이 있습니다.");
+      }
+      throw insertError ?? new Error("blueprint 파이프라인 생성 실패");
+    }
+
+    return createSuccessResponse({ pipelineId: pipeline.id, consultingGrades });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runBlueprintPipeline" }, error, { studentId });
+    return createErrorResponse("Blueprint 파이프라인 시작 실패");
   }
 }

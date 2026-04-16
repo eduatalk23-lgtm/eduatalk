@@ -255,6 +255,17 @@ export async function executeGradePhase4(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
+  // ── Blueprint ctx 캐시 (설계 모드 P4~P7 프롬프트 주입용, 2026-04-16 D 결정 5) ──
+  // 설계 모드(design) 진입 시 1회만 로드, analysis 모드는 스킵.
+  // 로드 실패는 graceful degradation — blueprint 없이도 가이드 생성은 계속.
+  if (ctx.gradeMode === "design" && !ctx.blueprint) {
+    const { loadBlueprintForStudent } = await import("../blueprint/loader");
+    const loaded = await loadBlueprintForStudent(ctx.studentId, ctx.tenantId);
+    if (loaded) {
+      ctx.blueprint = loaded;
+    }
+  }
+
   // ── P3.5: 과목 교차 테마 추출 (선행 P1-P3 완료 후 1회) ──
   // - guides 호출 전에 직렬 실행하여 ctx.gradeThemes를 미리 채운다.
   // - 실패해도 후속 가이드는 themes 없이 진행 (graceful degradation).

@@ -22,6 +22,11 @@ import {
   SYNTHESIS_PIPELINE_TASK_KEYS,
   SYNTHESIS_TASK_DEPENDENTS,
   GRADE_TASK_DEPENDENTS,
+  PAST_ANALYTICS_TASK_KEYS,
+  BLUEPRINT_TASK_KEYS,
+  PIPELINE_RERUN_CASCADE,
+  derivePipelineCascadeKey,
+  type PipelineCascadeKey,
 } from "@/lib/domains/record-analysis/pipeline";
 import * as competencyRepo from "../repository/competency-repository";
 
@@ -140,31 +145,124 @@ export async function rerunGradePipelineTasks(
       }
     }
 
-    // 해당 학생의 synthesis 파이프라인이 있으면 전체 pending으로 리셋
-    const { data: synthPipeline } = await supabase
-      .from("student_record_analysis_pipelines")
-      .select("id, tasks")
-      .eq("student_id", pipeline.student_id as string)
-      .eq("pipeline_type", "synthesis")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (synthPipeline) {
-      const synthTasks: Record<string, PipelineTaskStatus> = {};
-      for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
-        synthTasks[key] = "pending";
-      }
-      await supabase
-        .from("student_record_analysis_pipelines")
-        .update({ status: "pending", tasks: synthTasks, completed_at: null })
-        .eq("id", synthPipeline.id as string);
+    // 4축×3층 (2026-04-16 D 결정 7): Pipeline-level cascade.
+    // grade_analysis 재실행 → past_analytics + blueprint + grade_design + synthesis 리셋
+    // grade_design 재실행  → synthesis 리셋
+    const pipelineMode = (pipeline.mode as "analysis" | "design" | null) ?? null;
+    const sourceKey = derivePipelineCascadeKey("grade", pipelineMode);
+    if (sourceKey) {
+      await cascadeDownstreamPipelines({
+        supabase,
+        studentId: pipeline.student_id as string,
+        sourceKey,
+      });
     }
 
     return createSuccessResponse({ pipelineId });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "rerunGradePipelineTasks" }, error, { pipelineId });
     return createErrorResponse("grade 태스크 재실행 실패");
+  }
+}
+
+// ============================================
+// Pipeline-level cascade helper (2026-04-16 D)
+// ============================================
+
+/**
+ * PIPELINE_RERUN_CASCADE에 따라 하류 파이프라인을 전체 pending으로 리셋.
+ * 각 하류 파이프라인 유형별 TASK_KEYS로 tasks 재초기화.
+ *
+ * 주의: grade_design은 pipeline_type='grade' + mode='design'이므로 별도 처리.
+ */
+async function cascadeDownstreamPipelines(params: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  studentId: string;
+  sourceKey: PipelineCascadeKey;
+}): Promise<void> {
+  const { supabase, studentId, sourceKey } = params;
+  const downstream = PIPELINE_RERUN_CASCADE[sourceKey];
+  if (!downstream || downstream.length === 0) return;
+
+  for (const target of downstream) {
+    if (target === "synthesis") {
+      const { data: synth } = await supabase
+        .from("student_record_analysis_pipelines")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("pipeline_type", "synthesis")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (synth) {
+        const tasks: Record<string, PipelineTaskStatus> = {};
+        for (const k of SYNTHESIS_PIPELINE_TASK_KEYS) tasks[k] = "pending";
+        await supabase
+          .from("student_record_analysis_pipelines")
+          .update({ status: "pending", tasks, completed_at: null })
+          .eq("id", synth.id as string);
+      }
+      continue;
+    }
+
+    if (target === "past_analytics") {
+      const { data: past } = await supabase
+        .from("student_record_analysis_pipelines")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("pipeline_type", "past_analytics")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (past) {
+        const tasks: Record<string, PipelineTaskStatus> = {};
+        for (const k of PAST_ANALYTICS_TASK_KEYS) tasks[k] = "pending";
+        await supabase
+          .from("student_record_analysis_pipelines")
+          .update({ status: "pending", tasks, completed_at: null })
+          .eq("id", past.id as string);
+      }
+      continue;
+    }
+
+    if (target === "blueprint") {
+      const { data: bp } = await supabase
+        .from("student_record_analysis_pipelines")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("pipeline_type", "blueprint")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (bp) {
+        const tasks: Record<string, PipelineTaskStatus> = {};
+        for (const k of BLUEPRINT_TASK_KEYS) tasks[k] = "pending";
+        await supabase
+          .from("student_record_analysis_pipelines")
+          .update({ status: "pending", tasks, completed_at: null })
+          .eq("id", bp.id as string);
+      }
+      continue;
+    }
+
+    if (target === "grade_design") {
+      // grade 파이프라인 중 mode='design' 전부 pending 리셋
+      const { data: designGrades } = await supabase
+        .from("student_record_analysis_pipelines")
+        .select("id, tasks")
+        .eq("student_id", studentId)
+        .eq("pipeline_type", "grade")
+        .eq("mode", "design");
+      for (const row of designGrades ?? []) {
+        const currentTasks = (row.tasks ?? {}) as Record<string, PipelineTaskStatus>;
+        for (const k of Object.keys(currentTasks)) currentTasks[k] = "pending";
+        await supabase
+          .from("student_record_analysis_pipelines")
+          .update({ status: "pending", tasks: currentTasks, completed_at: null })
+          .eq("id", row.id as string);
+      }
+      continue;
+    }
   }
 }
 

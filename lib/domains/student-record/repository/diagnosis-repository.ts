@@ -18,7 +18,10 @@ import type {
 // diagnosis
 // ============================================
 
-/** 학생의 학년도별 종합 진단 조회 (source 필수 — dual-tracking 이후 2건 가능) */
+/**
+ * 학생의 학년도별 종합 진단 조회 (source 필수).
+ * **scope='final' 기본 필터** (2026-04-16 D). Past 진단은 findDiagnosisByScope로 조회.
+ */
 export async function findDiagnosis(
   studentId: string,
   schoolYear: number,
@@ -33,13 +36,63 @@ export async function findDiagnosis(
     .eq("school_year", schoolYear)
     .eq("tenant_id", tenantId)
     .eq("source", source)
+    .eq("scope", "final")
     .maybeSingle();
 
   if (error) throw error;
   return data;
 }
 
-/** AI진단 + 컨설턴트진단 동시 조회 */
+/**
+ * scope 기준 진단 조회 (2026-04-16 D: 4축×3층 아키텍처).
+ * scope='past': Past Analytics A층 산출물 (NEIS 학년별)
+ * scope='final': Final Integration C층 산출물
+ * schoolYear=null이면 학생 전체 scope 조회.
+ */
+export async function findDiagnosisByScope(
+  studentId: string,
+  tenantId: string,
+  scope: "past" | "final",
+  schoolYear?: number,
+): Promise<Diagnosis[]> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_diagnosis")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("scope", scope);
+  if (schoolYear !== undefined) query = query.eq("school_year", schoolYear);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as Diagnosis[];
+}
+
+/**
+ * scope 기준 진단 일괄 삭제 (재실행 전 정리).
+ * diagnosis_snapshots는 FK CASCADE로 자동 삭제됨.
+ */
+export async function deleteDiagnosisByScope(
+  studentId: string,
+  tenantId: string,
+  scope: "past" | "final",
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_diagnosis")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("scope", scope)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
+/**
+ * AI진단 + 컨설턴트진단 동시 조회.
+ * **scope='final' 기본 필터** (2026-04-16 D). Past 진단은 findDiagnosisByScope로 조회.
+ */
 export async function findDiagnosisPair(
   studentId: string,
   schoolYear: number,
@@ -51,7 +104,8 @@ export async function findDiagnosisPair(
     .select("*")
     .eq("student_id", studentId)
     .eq("school_year", schoolYear)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .eq("scope", "final");
 
   if (error) throw error;
 
@@ -154,7 +208,10 @@ export async function deleteDiagnosis(id: string): Promise<void> {
 // strategies
 // ============================================
 
-/** 학생의 학년도별 보완전략 조회 */
+/**
+ * 학생의 학년도별 보완전략 조회.
+ * **scope='final' 기본 필터** (2026-04-16 D). Past 전략은 findStrategiesByScope로 조회.
+ */
 export async function findStrategies(
   studentId: string,
   schoolYear: number,
@@ -167,6 +224,7 @@ export async function findStrategies(
     .eq("student_id", studentId)
     .eq("school_year", schoolYear)
     .eq("tenant_id", tenantId)
+    .eq("scope", "final")
     .order("grade")
     .order("target_area");
 
@@ -180,6 +238,50 @@ export async function findStrategies(
     const pb = priorityOrder[b.priority ?? "medium"] ?? 2;
     return pa - pb;
   });
+}
+
+/**
+ * scope 기준 전략 조회 (2026-04-16 D: 4축×3층 아키텍처).
+ * scope='past': Past Analytics A층 산출물 (즉시 행동 권고)
+ * scope='final': Final Integration C층 산출물 (장기 전략)
+ */
+export async function findStrategiesByScope(
+  studentId: string,
+  tenantId: string,
+  scope: "past" | "final",
+  schoolYear?: number,
+): Promise<Strategy[]> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_strategies")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("scope", scope)
+    .order("grade")
+    .order("target_area");
+  if (schoolYear !== undefined) query = query.eq("school_year", schoolYear);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as Strategy[];
+}
+
+/** scope 기준 전략 일괄 삭제 (재실행 전 정리) */
+export async function deleteStrategiesByScope(
+  studentId: string,
+  tenantId: string,
+  scope: "past" | "final",
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_strategies")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("scope", scope)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 /** 보완전략 추가 (reasoning/source_urls는 마이그레이션 적용 후 자동 반영) */

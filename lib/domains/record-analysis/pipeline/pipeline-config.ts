@@ -47,11 +47,11 @@ export const GRADE_PIPELINE_TASK_KEYS = [
 
 // ============================================
 // 종합 파이프라인 태스크 (Synthesis Pipeline — 종합 10개)
+// Note: blueprint_generation은 신규 blueprint 파이프라인으로 이전(2026-04-16 D).
 // ============================================
 
 export const SYNTHESIS_PIPELINE_TASK_KEYS = [
   "storyline_generation",
-  "blueprint_generation",     // S1.5: 진로→3년 수렴 설계 (top-down)
   "edge_computation",
   "hyperedge_computation",
   "narrative_arc_extraction",
@@ -67,10 +67,32 @@ export const SYNTHESIS_PIPELINE_TASK_KEYS = [
   "roadmap_generation",
 ] as const;
 
+// ============================================
+// Past Analytics 파이프라인 태스크 (4축×3층 A층, 2026-04-16 D)
+// NEIS만 기반 과거 서사·진단·행동 3종. k≥1(NEIS 학년 존재)일 때만 실행.
+// ============================================
+
+export const PAST_ANALYTICS_TASK_KEYS = [
+  "past_storyline_generation",  // A1: NEIS 기반 과거 서사
+  "past_diagnosis",             // A2: 현상 진단 (Storyline 참조)
+  "past_strategy",              // A3: 즉시 행동 권고 (Diagnosis 참조)
+] as const;
+
+// ============================================
+// Blueprint 파이프라인 태스크 (4축×3층 B층, 2026-04-16 D)
+// 진로→3년 수렴 설계 (top-down). Synthesis에서 분리. k<3(설계 대상 학년 존재)일 때만 실행.
+// ============================================
+
+export const BLUEPRINT_TASK_KEYS = [
+  "blueprint_generation",       // B1: target_convergences + milestones + competency_growth_targets
+] as const;
+
 // Local type aliases — avoids importing from pipeline-types.ts (which imports us)
 type _GradeKey = (typeof GRADE_PIPELINE_TASK_KEYS)[number];
 type _SynthKey = (typeof SYNTHESIS_PIPELINE_TASK_KEYS)[number];
 type _LegacyKey = (typeof PIPELINE_TASK_KEYS)[number];
+type _PastAnalyticsKey = (typeof PAST_ANALYTICS_TASK_KEYS)[number];
+type _BlueprintKey = (typeof BLUEPRINT_TASK_KEYS)[number];
 
 // ============================================
 // 의존성 역산 유틸
@@ -138,9 +160,7 @@ export const GRADE_TASK_PREREQUISITES: Partial<Record<_GradeKey, _GradeKey[]>> =
  * 기존 PIPELINE_TASK_DEPENDENTS에서 synthesis 태스크만 추출.
  */
 export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<_SynthKey, _SynthKey[]>> = {
-  storyline_generation: ["blueprint_generation", "edge_computation", "hyperedge_computation", "ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-  // Blueprint Phase: storyline 이후 실행. 하류에 진단/전략/면접/로드맵이 blueprint context 참조.
-  blueprint_generation: ["ai_diagnosis", "gap_tracking", "ai_strategy", "interview_generation", "roadmap_generation"],
+  storyline_generation: ["edge_computation", "hyperedge_computation", "ai_diagnosis", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
   edge_computation: ["hyperedge_computation", "ai_diagnosis", "gap_tracking", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
   // hyperedge_computation은 ai_strategy 프롬프트에 테마 요약을 주입하지만, 없어도 graceful degradation이라
   // strategy의 prereq로 걸지는 않는다. (D8 설계 — best-effort → task 승격 후에도 soft 의존 유지)
@@ -156,6 +176,64 @@ export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<_SynthKey, _SynthKey[]>> 
  */
 export const SYNTHESIS_TASK_PREREQUISITES: Partial<Record<_SynthKey, _SynthKey[]>> =
   invertDependents(SYNTHESIS_TASK_DEPENDENTS);
+
+// ============================================
+// Past Analytics 의존 관계 (내부 순차: A1 → A2 → A3)
+// ============================================
+
+/**
+ * Past Analytics 파이프라인 내 상류 → 하류 매핑.
+ * A1(Storyline) → A2(Diagnosis) → A3(Strategy) 단방향 순차.
+ */
+export const PAST_ANALYTICS_TASK_DEPENDENTS: Partial<Record<_PastAnalyticsKey, _PastAnalyticsKey[]>> = {
+  past_storyline_generation: ["past_diagnosis", "past_strategy"],
+  past_diagnosis: ["past_strategy"],
+};
+
+/**
+ * Past Analytics 파이프라인 선행 태스크 목록.
+ * PAST_ANALYTICS_TASK_DEPENDENTS에서 자동 생성 — 수동 동기화 불필요.
+ */
+export const PAST_ANALYTICS_TASK_PREREQUISITES: Partial<Record<_PastAnalyticsKey, _PastAnalyticsKey[]>> =
+  invertDependents(PAST_ANALYTICS_TASK_DEPENDENTS);
+
+// ============================================
+// Grade Pipeline 전용 레이블/타임아웃
+// ============================================
+
+// ============================================
+// Past Analytics / Blueprint 레이블·타임아웃
+// ============================================
+
+export const PAST_ANALYTICS_TASK_LABELS: Record<_PastAnalyticsKey, string> = {
+  past_storyline_generation: "과거 서사",
+  past_diagnosis: "현상 진단",
+  past_strategy: "즉시 행동 권고",
+};
+
+export const PAST_ANALYTICS_TASK_TIMEOUTS: Record<_PastAnalyticsKey, number> = {
+  past_storyline_generation: 180_000,  // NEIS 기반 서사 LLM (Flash, ~30s)
+  past_diagnosis: 120_000,             // 현상 진단 LLM (Flash, ~20s)
+  past_strategy: 120_000,              // 즉시 행동 권고 LLM (Flash, ~20s)
+};
+
+export const PAST_ANALYTICS_PHASE_TASKS: Record<number, _PastAnalyticsKey[]> = {
+  1: ["past_storyline_generation"],
+  2: ["past_diagnosis"],
+  3: ["past_strategy"],
+};
+
+export const BLUEPRINT_TASK_LABELS: Record<_BlueprintKey, string> = {
+  blueprint_generation: "수렴 설계",
+};
+
+export const BLUEPRINT_TASK_TIMEOUTS: Record<_BlueprintKey, number> = {
+  blueprint_generation: 180_000,  // 기존 synthesis와 동일, 여유 포함
+};
+
+export const BLUEPRINT_PHASE_TASKS: Record<number, _BlueprintKey[]> = {
+  1: ["blueprint_generation"],
+};
 
 // ============================================
 // Grade Pipeline 전용 레이블/타임아웃
@@ -258,6 +336,51 @@ export const PIPELINE_TASK_DEPENDENTS: Partial<Record<_LegacyKey, _LegacyKey[]>>
 };
 
 // ============================================
+// Pipeline-level Cascade (4축×3층, 2026-04-16 D 결정 7)
+// ============================================
+
+/**
+ * 파이프라인 간 재실행 cascade.
+ * 상류 파이프라인 재실행 시 하류도 전체 pending 리셋.
+ *
+ * 실제 이름은 DB pipeline_type 기준 + mode 구분(grade_analysis vs grade_design):
+ *   - grade_analysis: grade 파이프라인 중 mode='analysis' (NEIS 학년)
+ *   - grade_design:   grade 파이프라인 중 mode='design' (Prospective 학년)
+ */
+export type PipelineCascadeKey =
+  | "grade_analysis"
+  | "past_analytics"
+  | "blueprint"
+  | "grade_design"
+  | "synthesis";
+
+export const PIPELINE_RERUN_CASCADE: Record<PipelineCascadeKey, PipelineCascadeKey[]> = {
+  grade_analysis: ["past_analytics", "blueprint", "grade_design", "synthesis"],
+  past_analytics: ["blueprint", "synthesis"],
+  blueprint: ["grade_design", "synthesis"],
+  grade_design: ["synthesis"],
+  synthesis: [],
+};
+
+/** 파이프라인 row의 (pipeline_type, mode)로 cascade key 파생. */
+export function derivePipelineCascadeKey(
+  pipelineType: string,
+  mode: "analysis" | "design" | null | undefined,
+): PipelineCascadeKey | null {
+  if (pipelineType === "grade") {
+    return mode === "design" ? "grade_design" : "grade_analysis";
+  }
+  if (
+    pipelineType === "past_analytics" ||
+    pipelineType === "blueprint" ||
+    pipelineType === "synthesis"
+  ) {
+    return pipelineType;
+  }
+  return null;
+}
+
+// ============================================
 // Phase → Task Key 매핑 (Phase 순서 검증용)
 // ============================================
 
@@ -273,7 +396,7 @@ export const GRADE_PHASE_TASKS: Record<number, _GradeKey[]> = {
 };
 
 export const SYNTHESIS_PHASE_TASKS: Record<number, _SynthKey[]> = {
-  1: ["storyline_generation", "blueprint_generation"],
+  1: ["storyline_generation"],
   // Phase 2는 narrative chunk sub-route에서 선행 처리 후 메인 route에서 나머지 4 task 처리.
   // 모두 동일 phase 2 소속(UI 탭 단일화 유지).
   2: [

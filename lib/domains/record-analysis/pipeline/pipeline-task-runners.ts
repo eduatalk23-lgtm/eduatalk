@@ -18,10 +18,10 @@ export {
   buildGuideAnalysisContextFromReport,
 } from "./pipeline-task-runners-shared";
 
-// Synthesis Pipeline (S1-S6 + S1.5 Blueprint + S3.5 Gap Tracker)
+// Synthesis Pipeline (S1-S6 + S3.5 Gap Tracker)
+// Note: Blueprint는 2026-04-16 D 에서 독립 blueprint 파이프라인으로 분리됨.
 export {
   runStorylineGeneration,
-  runBlueprintGeneration,
   runEdgeComputation,
   runAiDiagnosis,
   runCourseRecommendation,
@@ -36,6 +36,9 @@ export {
   runInterviewGeneration,
   runRoadmapGeneration,
 } from "./synthesis";
+
+// Blueprint Pipeline (B1, 2026-04-16 D)
+export { runBlueprintGeneration } from "./blueprint";
 
 // Guide Pipeline (P4-P6 + slot + ForGrade 변형 G2-G4)
 export {

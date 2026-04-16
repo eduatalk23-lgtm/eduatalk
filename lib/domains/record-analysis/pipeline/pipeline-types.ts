@@ -18,6 +18,8 @@ import {
   PIPELINE_TASK_KEYS,
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
+  PAST_ANALYTICS_TASK_KEYS,
+  BLUEPRINT_TASK_KEYS,
 } from "./pipeline-config";
 
 export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "timeout";
@@ -25,7 +27,12 @@ export type PipelineTaskStatus = "pending" | "running" | "completed" | "failed";
 
 export type GradePipelineTaskKey = (typeof GRADE_PIPELINE_TASK_KEYS)[number];
 export type SynthesisPipelineTaskKey = (typeof SYNTHESIS_PIPELINE_TASK_KEYS)[number];
+export type PastAnalyticsTaskKey = (typeof PAST_ANALYTICS_TASK_KEYS)[number];
+export type BlueprintTaskKey = (typeof BLUEPRINT_TASK_KEYS)[number];
 export type PipelineTaskKey = (typeof PIPELINE_TASK_KEYS)[number];
+
+/** 파이프라인 유형 (2026-04-16 D): 5종. legacy는 단일 파이프라인 하위 호환. */
+export type PipelineType = "grade" | "synthesis" | "past_analytics" | "blueprint" | "legacy";
 
 export interface PipelineStatus {
   id: string;
@@ -157,11 +164,19 @@ export interface PipelineTaskResultMap {
   /** S6-b: 학기별 로드맵 */
   roadmap_generation: { mode: string; itemCount: number; elapsedMs?: number };
 
-  // ── Blueprint-Axis (S1.5 + S3.5) ──
-  /** S1.5: Blueprint Phase — 진로→3년 수렴 설계 */
+  // ── Blueprint-Axis (B1: Blueprint pipeline, S3.5: Gap Tracker) ──
+  /** B1 (blueprint pipeline): 진로→3년 수렴 설계 */
   blueprint_generation: { convergenceCount: number; milestoneGrades: number[]; growthTargetCount: number; elapsedMs?: number };
   /** S3.5: Gap Tracker — blueprint vs analysis 정합성 */
   gap_tracking: { coverage: number; coherenceScore: number; bridgeCount: number; driftCount: number; feasibleGapCount: number; elapsedMs?: number };
+
+  // ── Past Analytics Pipeline (4축×3층 A층, 2026-04-16 D) ──
+  /** A1: NEIS 기반 과거 서사 (scope='past' 스토리라인 영속화) */
+  past_storyline_generation: { storylineCount: number; connectionCount: number; elapsedMs?: number };
+  /** A2: 현상 진단 (scope='past' 진단 영속화) */
+  past_diagnosis: { overallGrade: string; weaknessCount: number; schoolYears: number[]; elapsedMs?: number };
+  /** A3: 즉시 행동 권고 (scope='past' 전략 영속화) */
+  past_strategy: { savedCount: number; elapsedMs?: number };
 
   // ── Internal (Executive Summary + 4축 진단 + Blueprint) ──
   /** Synthesis Phase 6 완료 후 자동 생성되는 Executive Summary */
@@ -340,8 +355,8 @@ export interface PipelineContext {
   studentId: string;
   tenantId: string;
   supabase: import("@supabase/supabase-js").SupabaseClient<import("@/lib/supabase/database.types").Database>;
-  /** 파이프라인 유형. grade = 학년별, synthesis = 종합. */
-  pipelineType: "grade" | "synthesis";
+  /** 파이프라인 유형 (2026-04-16 D): grade / synthesis / past_analytics / blueprint / legacy. */
+  pipelineType: PipelineType;
   /** 태스크 상태 (매 태스크 완료 시 DB 저장) */
   tasks: Record<string, PipelineTaskStatus>;
   previews: Record<string, string>;
@@ -385,6 +400,12 @@ export interface PipelineContext {
    * P1-P3에서 1회만 빌드, 이후 재사용. 세 상태를 구분해 6회 호출 간 중복 DB 조회 방지.
    */
   profileCard?: string;
+  /**
+   * Blueprint 설계 산출물 캐시 (2026-04-16 D 결정 5).
+   * Grade Pipeline 설계 모드(P4~P7) 프롬프트에 주입. Phase 4 진입 시 DB 조회 후 캐시.
+   * Past Analytics는 접근 불필요(역참조 불허).
+   */
+  blueprint?: import("../blueprint/types").BlueprintPhaseOutput;
 
   // ── Synthesis Pipeline 전용 ───────────────────────────
   /** 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용) */
@@ -541,18 +562,32 @@ export {
   PIPELINE_TASK_KEYS,
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
+  PAST_ANALYTICS_TASK_KEYS,
+  BLUEPRINT_TASK_KEYS,
   GRADE_TASK_DEPENDENTS,
   GRADE_TASK_PREREQUISITES,
   SYNTHESIS_TASK_DEPENDENTS,
   SYNTHESIS_TASK_PREREQUISITES,
+  PAST_ANALYTICS_TASK_DEPENDENTS,
+  PAST_ANALYTICS_TASK_PREREQUISITES,
   GRADE_PIPELINE_TASK_LABELS,
   GRADE_PIPELINE_TASK_TIMEOUTS,
+  PAST_ANALYTICS_TASK_LABELS,
+  PAST_ANALYTICS_TASK_TIMEOUTS,
+  PAST_ANALYTICS_PHASE_TASKS,
+  BLUEPRINT_TASK_LABELS,
+  BLUEPRINT_TASK_TIMEOUTS,
+  BLUEPRINT_PHASE_TASKS,
   PIPELINE_TASK_LABELS,
   PIPELINE_TASK_TIMEOUTS,
   PIPELINE_TASK_DEPENDENTS,
   GRADE_PHASE_TASKS,
   SYNTHESIS_PHASE_TASKS,
+  PIPELINE_RERUN_CASCADE,
+  derivePipelineCascadeKey,
 } from "./pipeline-config";
+
+export type { PipelineCascadeKey } from "./pipeline-config";
 
 export {
   getTaskResult,

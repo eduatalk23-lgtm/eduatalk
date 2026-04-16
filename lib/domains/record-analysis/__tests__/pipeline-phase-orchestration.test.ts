@@ -440,8 +440,8 @@ describe("Synthesis Phase 오케스트레이션", () => {
       });
       await executeSynthesisPhase2(ctx);
 
-      // edge_computation + guide_matching 둘 다 실행됨
-      expect(runTaskWithState).toHaveBeenCalledTimes(2);
+      // edge_computation + hyperedge_computation + guide_matching + haengteuk_linking (narrative_arc_extraction은 chunk sub-route)
+      expect(runTaskWithState).toHaveBeenCalledTimes(4);
     });
   });
 

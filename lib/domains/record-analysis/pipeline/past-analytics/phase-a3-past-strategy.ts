@@ -1,0 +1,74 @@
+// ============================================
+// A3: Past Strategy — 즉시 행동 권고 (scope='past')
+//
+// 4축×3층 통합 아키텍처 A층. 2026-04-16 D.
+//
+// 입력: Past Diagnosis(DB scope='past') + 부족 역량.
+// 출력: scope='past' strategies 2~4건 영속화.
+// 톤: 이번/다음 학기 내 "즉시 행동 권고". 장기/Blueprint 언급 금지.
+// ============================================
+
+import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
+import type { PipelineContext, TaskRunnerOutput } from "../pipeline-types";
+import { assertPastAnalyticsCtx } from "./phase-a1-past-storyline";
+
+const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
+
+/** 현재 학기 판정: 3~8월 = 1학기, 9~2월 = 2학기 */
+function deriveCurrentSemester(date: Date = new Date()): 1 | 2 {
+  const m = date.getMonth() + 1;
+  return m >= 3 && m <= 8 ? 1 : 2;
+}
+
+export async function runPastStrategy(
+  ctx: PipelineContext,
+): Promise<TaskRunnerOutput> {
+  assertPastAnalyticsCtx(ctx);
+  const { pipelineId, studentId, tenantId, neisGrades, studentGrade } = ctx;
+
+  const neisYears = neisGrades ?? [];
+  if (neisYears.length === 0) {
+    return "NEIS 학년 없음 — Past Strategy 건너뜀";
+  }
+
+  logActionDebug(LOG_CTX, "A3 Past Strategy 시작", {
+    pipelineId,
+    neisGrades: neisYears,
+    currentGrade: studentGrade,
+  });
+
+  try {
+    const currentSemester = deriveCurrentSemester();
+
+    const { generatePastStrategy } = await import(
+      "../../llm/actions/generatePastStrategy"
+    );
+    const result = await generatePastStrategy(
+      studentId,
+      tenantId,
+      neisYears,
+      studentGrade,
+      currentSemester,
+    );
+
+    if (!result.success) {
+      logActionError(LOG_CTX, `Past Strategy 실패: ${result.error}`, { pipelineId });
+      throw new Error(result.error);
+    }
+
+    const { suggestions, savedCount } = result.data;
+
+    return {
+      preview: `Past Strategy ${savedCount}건 영속화 (제안 ${suggestions.length}건, ${studentGrade}학년 ${currentSemester}학기 기준)`,
+      result: {
+        savedCount,
+        suggestionCount: suggestions.length,
+        priorities: suggestions.map((s) => s.priority),
+      },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logActionError(LOG_CTX, `A3 Past Strategy 실패: ${msg}`, { pipelineId });
+    throw err;
+  }
+}

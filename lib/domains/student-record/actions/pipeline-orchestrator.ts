@@ -22,7 +22,11 @@ export {
   runGradePipeline,
   runSynthesisPipeline,
   runGradeAwarePipeline,
+  runPastAnalyticsPipeline,
+  runBlueprintPipeline,
 } from "./pipeline-orchestrator-init";
+
+export { runFullOrchestration } from "./pipeline-orchestrator-full";
 
 export { fetchGradeAwarePipelineStatus } from "./pipeline-orchestrator-status";
 

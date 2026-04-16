@@ -332,8 +332,18 @@ async function processDraftItem(
 ): Promise<{ saved: boolean; label: string }> {
   const { supabase, targetGrade } = ctx;
 
+  // Blueprint 섹션 — 설계 모드 P7 가안에 정합성 주입 (2026-04-16 D 결정 5)
+  let blueprintContextSection = "";
+  if (ctx.gradeMode === "design" && ctx.blueprint) {
+    const { buildBlueprintGuideSection } = await import(
+      "@/lib/domains/record-analysis/llm/prompts/blueprintGuideSection"
+    );
+    const section = buildBlueprintGuideSection(ctx.blueprint, [targetGrade]);
+    if (section) blueprintContextSection = `\n\n${section}\n`;
+  }
+
   if (item.kind === "setek") {
-    const userPrompt = `## 과목: ${item.subjectName} (${targetGrade}학년 ${item.semester}학기)\n\n## 세특 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
+    const userPrompt = `## 과목: ${item.subjectName} (${targetGrade}학년 ${item.semester}학기)\n\n## 세특 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}${blueprintContextSection}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
     try {
       const saved = await generateAndSaveDraft(
         supabase,
@@ -356,7 +366,7 @@ async function processDraftItem(
     const teacherSection = item.guide.teacherPoints.length > 0
       ? `## 교사 관찰 포인트\n${item.guide.teacherPoints.join("\n")}\n\n`
       : "";
-    const userPrompt = `## 활동유형: ${item.label} (${targetGrade}학년)\n\n## 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}\n\n${teacherSection}${item.charLimit}자 이내의 ${item.label} 특기사항 초안을 작성해주세요.`;
+    const userPrompt = `## 활동유형: ${item.label} (${targetGrade}학년)\n\n## 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}${blueprintContextSection}\n\n${teacherSection}${item.charLimit}자 이내의 ${item.label} 특기사항 초안을 작성해주세요.`;
     try {
       const saved = await generateAndSaveDraft(
         supabase,
@@ -379,6 +389,9 @@ async function processDraftItem(
   let userPrompt = `## 행동특성 및 종합의견 (${targetGrade}학년)\n\n## 방향\n${item.guide.direction}\n\n`;
   if (item.guide.keywords.length > 0) {
     userPrompt += `## 키워드\n${item.guide.keywords.join(", ")}\n\n`;
+  }
+  if (blueprintContextSection) {
+    userPrompt += `${blueprintContextSection.trim()}\n\n`;
   }
   if (alreadyGenerated.length > 0) {
     userPrompt += `## 이 학년의 다른 기록\n이 학년에서 ${alreadyGenerated.join(", ")} 등의 방향이 설정되어 있습니다. 이를 참고하여 행특을 작성해주세요.\n\n`;

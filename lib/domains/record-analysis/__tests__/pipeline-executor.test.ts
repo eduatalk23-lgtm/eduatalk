@@ -1312,8 +1312,11 @@ describe("validatePhasePrerequisites()", () => {
       const ctx = makeCtx({
         tasks: {
           storyline_generation: "completed",
+          narrative_arc_extraction: "completed",
           edge_computation: "completed",
+          hyperedge_computation: "completed",
           guide_matching: "completed",
+          haengteuk_linking: "completed",
         },
         pipelineType: "synthesis",
       });
@@ -1324,10 +1327,14 @@ describe("validatePhasePrerequisites()", () => {
       const ctx = makeCtx({
         tasks: {
           storyline_generation: "completed",
+          narrative_arc_extraction: "completed",
           edge_computation: "completed",
+          hyperedge_computation: "completed",
           guide_matching: "completed",
+          haengteuk_linking: "completed",
           ai_diagnosis: "completed",
           course_recommendation: "completed",
+          gap_tracking: "completed",
           bypass_analysis: "completed",
           activity_summary: "running", // Phase 5 미완료
           ai_strategy: "pending",
