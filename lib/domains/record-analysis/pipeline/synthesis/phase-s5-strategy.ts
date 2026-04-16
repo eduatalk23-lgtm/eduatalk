@@ -123,7 +123,14 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   // 1~3. 진단 + 역량 + 기존 전략 + 가이드 컨텍스트 병렬 조회 (M4: ctx 캐시 활용)
   const [diagnosis, aiScores, existingStrategies, guideContextSection] = await Promise.all([
     diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai"),
-    competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai"),
+    competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai")
+      .then(async (scores) => {
+        // 설계 모드 폴백: ai 점수 0건이고 consulting 학년이 있으면 ai_projected도 조회
+        if (scores.length === 0 && ctx.consultingGrades && ctx.consultingGrades.length > 0) {
+          return competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai_projected");
+        }
+        return scores;
+      }),
     diagnosisRepo.findStrategies(studentId, currentSchoolYear, tenantId),
     getCachedGuideContext(ctx, studentId, "strategy").catch((err) => {
       logActionError({ ...LOG_CTX, action: "pipeline.guideContext" }, err, { pipelineId });
