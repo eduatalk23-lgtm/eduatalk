@@ -330,6 +330,72 @@ export function usePipelineExecution({
     return "completed";
   }
 
+  // ─── 내부 헬퍼: Past Analytics A1/A2/A3 순차 실행 ────────────────────────
+
+  async function executePastAnalyticsPhases(
+    pipelineId: string,
+    signal: AbortSignal,
+    isAborted: () => boolean,
+  ): Promise<"completed" | "aborted"> {
+    for (const phase of [1, 2, 3] as const) {
+      if (isAborted()) return "aborted";
+      setRunningCell(`a-${phase}`);
+      setRunningStartMs(Date.now());
+      for (let retry = 0; retry <= 2; retry++) {
+        try {
+          await fetchPhase(
+            `/api/admin/pipeline/past-analytics/${phase}`,
+            { pipelineId },
+            signal,
+          );
+          invalidate();
+          break;
+        } catch (e) {
+          if ((e as Error)?.name === "AbortError") return "aborted";
+          if (retry >= 2) break;
+          try {
+            await abortableSleep(3000, signal);
+          } catch {
+            return "aborted";
+          }
+        }
+      }
+    }
+    return "completed";
+  }
+
+  // ─── 내부 헬퍼: Blueprint B1 실행 ────────────────────────────────────────
+
+  async function executeBlueprintPhase(
+    pipelineId: string,
+    signal: AbortSignal,
+    isAborted: () => boolean,
+  ): Promise<"completed" | "aborted"> {
+    setRunningCell("b-1");
+    setRunningStartMs(Date.now());
+    for (let retry = 0; retry <= 2; retry++) {
+      if (isAborted()) return "aborted";
+      try {
+        await fetchPhase(
+          "/api/admin/pipeline/blueprint",
+          { pipelineId },
+          signal,
+        );
+        invalidate();
+        return "completed";
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return "aborted";
+        if (retry >= 2) break;
+        try {
+          await abortableSleep(3000, signal);
+        } catch {
+          return "aborted";
+        }
+      }
+    }
+    return "completed"; // 실패해도 다음 단계로 진행 — 폴링/토스트로 노출
+  }
+
   // ─── 전체 시퀀스 실행 ─────────────────────────────────────────────────────
 
   const runFullSequence = async () => {
@@ -347,18 +413,32 @@ export function usePipelineExecution({
     const isAborted = () => fullRunAbortRef.current || ctrl.signal.aborted;
 
     try {
-      const json = (await fetchPhase(
-        "/api/admin/pipeline/grade/run",
+      // ── 1. Full Orchestration: 4 파이프라인 INSERT (2026-04-16 #5) ──
+      //   grade(analysis) + past_analytics + blueprint + grade(design).
+      //   Synthesis는 Grade/Past/Blueprint 완료 후 별도 INSERT.
+      const full = (await fetchPhase(
+        "/api/admin/pipeline/full-run",
         { studentId, tenantId },
         ctrl.signal,
       )) as {
-        gradePipelines?: Array<{ grade: number; pipelineId: string }>;
+        pipelineIds?: {
+          gradeNeis?: string[];
+          pastAnalytics?: string;
+          blueprint?: string;
+          gradeProspective?: string[];
+        };
+        route?: {
+          neisGrades: number[];
+          consultingGrades: number[];
+          skipped: Array<"past_analytics" | "blueprint">;
+        };
         error?: string;
       };
-      if (!json.gradePipelines) throw new Error(json.error ?? "시작 실패");
+      if (!full.pipelineIds || !full.route) {
+        throw new Error(full.error ?? "전체 파이프라인 시작 실패");
+      }
 
-      // 완료된 Phase를 정확히 스킵하려면 refetch 완료를 동기적으로 기다려야 함.
-      // invalidateQueries는 stale 마킹만 하므로 getQueryData가 이전 캐시를 반환할 수 있음.
+      // refetch로 신규 파이프라인의 mode/status 반영
       await queryClient.refetchQueries({
         queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
       });
@@ -366,18 +446,64 @@ export function usePipelineExecution({
         gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
       );
 
-      for (const gpItem of json.gradePipelines) {
+      // ── 2. Grade(analysis) 학년별 실행 ──
+      for (const grade of full.route.neisGrades) {
         if (isAborted()) return;
-        const cachedGrade =
-          cachedStatus?.gradePipelines?.[gpItem.grade as number];
+        const cachedGrade = cachedStatus?.gradePipelines?.[grade];
+        if (!cachedGrade) continue;
         const result = await executeGradePhasesForPipeline(
-          gpItem.grade as number,
-          gpItem.pipelineId,
+          grade,
+          cachedGrade.pipelineId,
           cachedGrade,
           ctrl.signal,
           isAborted,
         );
         if (result === "aborted") return;
+      }
+      if (isAborted()) return;
+
+      // ── 3. Past Analytics A1/A2/A3 (neisGrades ≥ 1일 때만) ──
+      if (full.pipelineIds.pastAnalytics) {
+        const result = await executePastAnalyticsPhases(
+          full.pipelineIds.pastAnalytics,
+          ctrl.signal,
+          isAborted,
+        );
+        if (result === "aborted") return;
+      }
+
+      // ── 4. Blueprint B1 (consultingGrades ≥ 1일 때만) ──
+      if (full.pipelineIds.blueprint) {
+        const result = await executeBlueprintPhase(
+          full.pipelineIds.blueprint,
+          ctrl.signal,
+          isAborted,
+        );
+        if (result === "aborted") return;
+      }
+
+      // ── 5. Grade(design) 학년별 실행 ──
+      //   Blueprint 산출물을 P7(draft_generation)에서 주입하므로 Blueprint 이후 실행.
+      if (full.route.consultingGrades.length > 0) {
+        await queryClient.refetchQueries({
+          queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+        });
+        const designStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
+          gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+        );
+        for (const grade of full.route.consultingGrades) {
+          if (isAborted()) return;
+          const cachedGrade = designStatus?.gradePipelines?.[grade];
+          if (!cachedGrade) continue;
+          const result = await executeGradePhasesForPipeline(
+            grade,
+            cachedGrade.pipelineId,
+            cachedGrade,
+            ctrl.signal,
+            isAborted,
+          );
+          if (result === "aborted") return;
+        }
       }
       if (isAborted()) return;
 
