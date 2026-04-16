@@ -154,14 +154,20 @@ function buildBridgeProposals(
       }));
 
     // ── Competency gaps ──
-    // 명시적 성장 타겟이 있는 역량만 gap 평가 (타겟 미설정 = 데이터 불충분 → skip)
+    // 명시적 성장 타겟이 있는 역량만 gap 평가.
+    // 타겟 미설정 + 현재 점수 있음 → blueprint sharedCompetencies에서 기본 타겟(B+) 전파 (B3).
+    // 현재 점수도 없으면(미평가) gap 판정 불가 → skip.
     const competencyGaps = (bp.sharedCompetencies ?? [])
       .map((comp) => {
-        const target = input.competencyGrowthTargets.find(
+        let target = input.competencyGrowthTargets.find(
           (t) => t.competencyItem === comp,
         );
-        if (!target) return null; // 타겟 미설정 → gap 판정 불가
         const current = scoreMap.get(comp);
+        if (!target) {
+          // 폴백: 현재 점수가 있는데 성장 타겟만 누락된 경우 → 기본 B+ 타겟 전파
+          if (!current) return null; // 미평가 역량 — gap 판정 불가
+          target = { competencyItem: comp, targetGrade: "B+", yearTarget: input.currentGrade + 1, pathway: "" };
+        }
         const currentNumeric = current ? gradeToNumeric(current) : 0;
         const targetNumeric = gradeToNumeric(target.targetGrade);
         const gap = targetNumeric - currentNumeric;

@@ -121,8 +121,9 @@ export function usePipelineExecution({
       }
       const MAX_RETRIES = 2;
 
-      if (phase <= 3) {
-        // Phase 1~3 (역량 분석): 청크 루프 — 미캐시 4건씩 처리
+      // 청크 지원 phase: P1~P3 (역량 분석) + P7 (가안 생성) + P8 (가안 분석)
+      const isChunkedPhase = phase <= 3 || phase === 7 || phase === 8;
+      if (isChunkedPhase) {
         let hasMore = true;
         let retries = 0;
         while (hasMore) {

@@ -174,6 +174,8 @@ export async function generateAiDiagnosis(
     const systemPrompt = buildDiagnosisSystemPrompt();
 
     // ── 사용자 프롬프트 ──
+    // B1: NEIS 데이터 없이 수강계획만 있으면 prospective 프레임 활성화
+    const isProspective = !!coursePlanContext && competencyScores.every((s) => s.source === "ai_projected");
     const userPrompt = buildDiagnosisUserPrompt({
       studentInfo,
       activityTags,
@@ -187,6 +189,7 @@ export async function generateAiDiagnosis(
       crossSubjectThemesSection,
       coursePlanSection,
       mainExplorationSection,
+      isProspective,
     });
 
     // Q2: 입력 복잡도 기반 모델 선택 — 태그 20개+ 또는 점수 8개+ → standard, 그 외 fast

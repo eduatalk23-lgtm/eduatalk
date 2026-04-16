@@ -261,6 +261,13 @@ ${formatDiagnosisMacroPatterns()}
   - 다학년 반복 테마가 존재하면 전공 정합성의 **강점 증거**로 구체 인용 (예: \`social-minority\`가 1→2→3학년 모두 dominant)
   - 모든 학년 dominant가 단일 진로 키워드에만 수렴하고 교과 맥락이 부족하면 **진로과잉도배(F16)** 약점으로 명시하고 strategyNotes에도 경고
   - 학년 간 테마가 서로 이질적이고 pivot이 반복되면 "방향 정체성 약함"으로 directionStrength에 반영
+- **Prospective 모드 (수강계획 기반 예비진단)**:
+  - 1학년 시작 시점이라면 NEIS 분석 데이터 0건은 "약점"이 아니라 "출발점"입니다.
+  - 교과이수적합도 0%, 역량 등급 미평가 → 결여로 판정하지 마세요. 대신 수강 계획 방향성과 Blueprint 정합도를 기준으로 평가하세요.
+  - overallGrade는 "현재 기록의 질"이 아니라 "설계 방향의 타당성"으로 산정합니다.
+  - directionStrength는 Blueprint가 제공되었으면 Blueprint와의 정합도, 없으면 수강계획+진로 일관성으로 판정합니다.
+  - 강점에는 "설계 전략의 논리성", "수강계획과 진로의 부합도" 등을 포함하세요.
+  - 약점에는 "기초 교과 커버 부족", "수렴 설계 공백" 등 설계 차원의 위험 요소만 포함하세요. "이수율 0%"는 약점이 아닙니다.
 - JSON으로만 응답`;
 }
 
@@ -279,18 +286,24 @@ export function buildDiagnosisUserPrompt(params: {
   coursePlanSection: string;
   /** Phase δ-6 (G11): 활성 메인 탐구 섹션. tier 정합성 평가 기준. */
   mainExplorationSection?: string;
+  /** B1: NEIS 데이터 없는 설계 모드 → prospective 프레임 활성화 */
+  isProspective?: boolean;
 }): string {
   const {
     studentInfo, activityTags, gradesSummary, tagsSummary,
     trendSection, adequacySection, gapSection,
     edgeSummarySection, qualityPatternSection, crossSubjectThemesSection, coursePlanSection,
-    mainExplorationSection,
+    mainExplorationSection, isProspective,
   } = params;
+
+  const prospectiveNotice = isProspective
+    ? `\n⚠ **Prospective 모드**: 이 학생은 1학년 시작 시점으로 NEIS 분석 데이터가 없습니다. 이수율 0%, 역량 미평가는 결여가 아니라 출발점입니다. 수강 계획 방향성과 Blueprint 정합도 기준으로 진단하세요.\n`
+    : "";
 
   return `## 학생 정보
 ${studentInfo?.targetMajor ? `- 희망 전공: ${studentInfo.targetMajor}` : "- 희망 전공: 미정"}
 ${studentInfo?.schoolName ? `- 학교: ${studentInfo.schoolName}` : ""}
-
+${prospectiveNotice}
 ## 역량 등급 + 루브릭 질문별 상세 (10항목 × 2~4 질문)
 ${gradesSummary}
 
