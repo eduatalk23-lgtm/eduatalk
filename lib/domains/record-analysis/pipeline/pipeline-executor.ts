@@ -7,6 +7,8 @@ import type {
   PipelineContext,
   PipelineTaskKey,
   GradePipelineTaskKey,
+  PastAnalyticsTaskKey,
+  BlueprintTaskKey,
   PipelineTaskStatus,
   PipelineTaskResults,
   TaskRunnerOutput,
@@ -15,7 +17,7 @@ import type {
   CachedHaengteuk,
 } from "./pipeline-types";
 import { resolveRecordData, resolveRecordDataForGrade, deriveGradeCategories } from "./pipeline-data-resolver";
-import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PAST_ANALYTICS_TASK_KEYS, BLUEPRINT_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
+import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PAST_ANALYTICS_TASK_KEYS, BLUEPRINT_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, PAST_ANALYTICS_TASK_TIMEOUTS, BLUEPRINT_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -36,7 +38,7 @@ const LOG_CTX = { domain: "record-analysis", action: "pipeline-executor" };
 export function withTaskTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  taskKey: PipelineTaskKey,
+  taskKey: PipelineTaskKey | GradePipelineTaskKey | PastAnalyticsTaskKey | BlueprintTaskKey,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -172,7 +174,7 @@ export async function checkCancelled(ctx: PipelineContext): Promise<boolean> {
 
 export async function runTaskWithState(
   ctx: PipelineContext,
-  key: PipelineTaskKey | GradePipelineTaskKey,
+  key: PipelineTaskKey | GradePipelineTaskKey | PastAnalyticsTaskKey | BlueprintTaskKey,
   runner: () => Promise<TaskRunnerOutput>,
 ): Promise<void> {
   if (ctx.tasks[key] === "completed") {
@@ -200,11 +202,15 @@ export async function runTaskWithState(
   const startMs = Date.now();
 
   try {
-    // grade pipeline 전용 타임아웃 우선, 없으면 legacy 타임아웃
+    // 4 파이프라인 타입별 타임아웃 맵을 순차 조회 (grade → past_analytics → blueprint → legacy).
+    // past_analytics/blueprint 키는 legacy(PIPELINE_TASK_TIMEOUTS)에 없어 undefined 조회 시
+    // `undefined/1000=NaN` 즉시 timeout 버그 발생 (세션 C 풀런에서 노출, 2026-04-16 G).
     const timeoutMs =
       (GRADE_PIPELINE_TASK_TIMEOUTS as Record<string, number>)[key] ??
+      (PAST_ANALYTICS_TASK_TIMEOUTS as Record<string, number>)[key] ??
+      (BLUEPRINT_TASK_TIMEOUTS as Record<string, number>)[key] ??
       PIPELINE_TASK_TIMEOUTS[key as PipelineTaskKey];
-    const output = await withTaskTimeout(runner(), timeoutMs, key as PipelineTaskKey);
+    const output = await withTaskTimeout(runner(), timeoutMs, key);
     const elapsedMs = Date.now() - startMs;
     ctx.tasks[key] = "completed";
     if (typeof output === "string") {
