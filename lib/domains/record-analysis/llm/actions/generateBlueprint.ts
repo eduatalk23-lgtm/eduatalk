@@ -191,11 +191,10 @@ export async function generateBlueprintDesign(
       () =>
         generateTextWithRateLimit({
           system: BLUEPRINT_SYSTEM_PROMPT,
-          prompt: userPrompt,
+          messages: [{ role: "user", content: userPrompt }],
           modelTier: "standard",
           temperature: 0.5,
           maxTokens: 4000,
-          label: "generateBlueprint",
         }),
       { label: "generateBlueprint" },
     );
