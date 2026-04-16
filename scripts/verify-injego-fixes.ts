@@ -91,7 +91,7 @@ async function main() {
     detail: `overall=${latest?.overall_grade ?? "없음"} direction=${latest?.direction_strength ?? "없음"} · weaknesses ${ws.length}건 · '이수율 0%' 포함=${hasRatioZero}`,
   });
 
-  // ── B5: Strategy Bridge reasoning ──
+  // ── B5: Strategy Bridge 대응 (한국어 "정합성 분석"/"bridge" 인용) ──
   const { data: strategies } = await supabase
     .from("student_record_strategies")
     .select("reasoning, strategy_content")
@@ -100,13 +100,14 @@ async function main() {
   const bridgeMentions = (strategies ?? []).filter((s) => {
     const reason = String(s.reasoning ?? "");
     const content = String(s.strategy_content ?? "");
-    return /bridge/i.test(reason) || /bridge/i.test(content);
+    const combined = reason + " " + content;
+    return /bridge|정합성\s*분석|bridge\s*제안/i.test(combined);
   });
   results.push({
     id: "B5",
-    label: "Strategy reasoning 중 'Bridge' 언급 포함",
+    label: "Strategy reasoning 중 'Bridge/정합성' 언급 포함",
     passed: bridgeMentions.length >= 1,
-    detail: `총 ${strategies?.length ?? 0}건 중 Bridge 언급 ${bridgeMentions.length}건`,
+    detail: `총 ${strategies?.length ?? 0}건 중 Bridge/정합성 언급 ${bridgeMentions.length}건`,
   });
 
   // ── C2: projected hyperedge ──
@@ -125,18 +126,18 @@ async function main() {
     detail: `analysis/projected 하이퍼엣지 ${anHyperedges?.length ?? 0}건`,
   });
 
-  // ── A2: haengteuk_linking 타임아웃 ──
-  const { data: synthPipe } = await supabase
+  // ── A2: haengteuk_linking 타임아웃 (task_results 컬럼 사용) ──
+  const { data: synthPipes } = await supabase
     .from("student_record_analysis_pipelines")
-    .select("results")
+    .select("id, task_results, started_at")
     .eq("student_id", STUDENT_ID)
-    .eq("pipeline_type", "synthesis")
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("pipeline_type", "synthesis");
+  const latestSynth = (synthPipes ?? [])
+    .filter((p) => p.started_at)
+    .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)))[0];
 
   const linkingResult =
-    ((synthPipe?.results as Record<string, unknown> | null)?.["haengteuk_linking"] as
+    ((latestSynth?.task_results as Record<string, unknown> | null)?.["haengteuk_linking"] as
       | { elapsedMs?: number }
       | null
       | undefined) ?? null;
@@ -148,10 +149,10 @@ async function main() {
     detail: `elapsedMs=${elapsed}`,
   });
 
-  // ── C3: Roadmap blueprint 테마 반영 ──
+  // ── C3: Roadmap blueprint 테마 반영 (rationale 컬럼 없음 — plan_content/plan_keywords 사용) ──
   const { data: roadmap } = await supabase
     .from("student_record_roadmap_items")
-    .select("plan_content, plan_keywords, rationale")
+    .select("plan_content, plan_keywords")
     .eq("student_id", STUDENT_ID);
 
   const bpThemes = (bpHyperedges ?? [])
@@ -160,8 +161,10 @@ async function main() {
     .filter((k) => k.length >= 2);
 
   const matchingRoadmap = (roadmap ?? []).filter((r) => {
-    const content = String(r.plan_content ?? "") + " " + String(r.rationale ?? "");
-    return bpThemes.some((theme) => content.includes(theme));
+    const content = String(r.plan_content ?? "");
+    const keywords = ((r.plan_keywords as string[] | null) ?? []).join(" ");
+    const haystack = content + " " + keywords;
+    return bpThemes.some((theme) => haystack.includes(theme));
   });
   results.push({
     id: "C3",

@@ -461,6 +461,13 @@ export interface BridgeHyperedgeProposal {
   themeLabel: string;
   themeKeywords: string[];
   confidence: number;
+  /**
+   * B3(2026-04-16): blueprint convergence의 sharedCompetencies 원본.
+   * competencyGaps는 score 기반 측정 gap만 포함 — ai_projected가 이미 목표 이상이면 빈 배열.
+   * 하지만 bridge 하이퍼엣지의 sharedCompetencies에는 blueprint가 요구한 역량이 그대로 필요하므로
+   * passthrough 용도로 유지.
+   */
+  blueprintSharedCompetencies: string[];
 }
 
 export type BridgeGapType =

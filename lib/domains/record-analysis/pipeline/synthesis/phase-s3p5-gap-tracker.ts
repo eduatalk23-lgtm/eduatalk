@@ -130,7 +130,13 @@ export async function runGapTracking(
         confidence: b.confidence,
         evidence: b.recommendedAction,
         sharedKeywords: b.themeKeywords,
-        sharedCompetencies: b.competencyGaps.map((g) => g.item),
+        // B3(2026-04-16): competencyGaps 는 score 기반 deficit만 포함.
+        //   ai_projected가 이미 목표 이상이면 빈 배열이 되어 bridge 역량 정보가 손실됨.
+        //   Blueprint convergence의 sharedCompetencies를 fallback으로 사용하여
+        //   "이 bridge가 요구하는 역량" 원본 정보 유지.
+        sharedCompetencies: b.competencyGaps.length > 0
+          ? b.competencyGaps.map((g) => g.item)
+          : b.blueprintSharedCompetencies,
       })).filter((input) => input.members.length >= 2); // member_count >= 2 제약
 
       if (bridgeInputs.length > 0) {

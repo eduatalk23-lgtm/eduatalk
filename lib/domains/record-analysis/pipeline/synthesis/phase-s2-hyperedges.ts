@@ -118,25 +118,27 @@ export async function runHyperedgeComputation(
   const { studentId, tenantId, pipelineId } = ctx;
 
   try {
-    // C2: 설계 모드 폴백 — analysis edges가 없으면 projected edges로 전환.
-    //   analysis tag가 없으면 draft_analysis tag로 전환.
-    //   저장 컨텍스트도 'analysis' vs 'projected' 분기.
+    // C2: 설계 모드 폴백 — analysis edges가 hyperedge 엘리지블 타입이 부족하면 projected 전환.
+    //   기존 조건(analysisEdges.length===0)은 "부적격 타입 4건"처럼 개수만 있고 pairsExplored=0 이 되는
+    //   케이스를 놓침. 엘리지블 타입(COMPETENCY_SHARED / THEME_CONVERGENCE / READING_ENRICHES) 개수로 판정.
     const [analysisEdges, analysisTags, crd] = await Promise.all([
       findEdges(studentId, tenantId, "analysis", { includeStale: false }),
       findActivityTags(studentId, tenantId, { tagContext: "analysis" }),
       fetchCrossRefData(studentId, tenantId),
     ]);
 
+    const analysisEligible = analysisEdges.filter((e) => ELIGIBLE_EDGE_TYPES.has(e.edge_type));
+
     let edges = analysisEdges;
     let tags = analysisTags;
     let edgeContext: "analysis" | "projected" = "analysis";
 
-    if (analysisEdges.length === 0) {
+    if (analysisEligible.length < 2) {
       const projectedEdges = await findEdges(studentId, tenantId, "projected", { includeStale: false });
-      if (projectedEdges.length > 0) {
+      const projectedEligible = projectedEdges.filter((e) => ELIGIBLE_EDGE_TYPES.has(e.edge_type));
+      if (projectedEligible.length > analysisEligible.length) {
         edges = projectedEdges;
         edgeContext = "projected";
-        // projected edges → draft_analysis tags로 확장
         tags = await findActivityTags(studentId, tenantId, { tagContext: "draft_analysis" });
       }
     }

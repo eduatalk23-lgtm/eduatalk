@@ -223,6 +223,7 @@ function buildBridgeProposals(
       themeLabel: `[bridge] ${bp.themeLabel}`,
       themeKeywords: bp.sharedKeywords ?? [],
       confidence: bp.confidence * (match.score || 0.5),
+      blueprintSharedCompetencies: bp.sharedCompetencies ?? [],
     });
   }
 

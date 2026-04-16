@@ -296,14 +296,32 @@ export function buildDiagnosisUserPrompt(params: {
     mainExplorationSection, isProspective,
   } = params;
 
-  const prospectiveNotice = isProspective
-    ? `\n⚠ **Prospective 모드**: 이 학생은 1학년 시작 시점으로 NEIS 분석 데이터가 없습니다. 이수율 0%, 역량 미평가는 결여가 아니라 출발점입니다. 수강 계획 방향성과 Blueprint 정합도 기준으로 진단하세요.\n`
+  const prospectiveBanner = isProspective
+    ? `# 🚨 PROSPECTIVE 모드 — 우선 적용되는 규칙
+
+이 학생은 **1학년 시작 시점**이며 NEIS 기록이 전혀 없고 수강 계획만 있습니다.
+아래 규칙은 시스템 프롬프트의 일반 "약점 추출 기준"보다 **우선 적용**됩니다:
+
+1. **"이수율 0%", "진로 관련 과목 이수 경험 없음", "전공 관련 교과 이수 노력 부족", "탐구 활동 전무"** 등 "기록이 없다"를 근거로 한 판정은 **weaknesses에 절대 포함 금지**. 1학년은 이수·활동이 시작되기 전이므로 "없다"는 것은 결여가 아니라 정상 출발 상태입니다.
+2. **진로교과 세특 품질 약점**(시스템 프롬프트의 진로교과 패턴) 규칙도 **적용 금지** — 세특이 없으니 품질을 논할 수 없음.
+3. **합격률 낮은 패턴 감지** 규칙도 **적용 금지** — 기록이 없어 패턴을 측정할 수 없음.
+4. **weaknesses는 "설계 차원 위험"만 포함**하세요:
+   - Blueprint 수렴 설계 공백 (예: "1학년 foundational 수렴이 1개 미만")
+   - 수강 계획의 진로 정합도 부족 (예: "의학 지망인데 생명과학 계열 과목 미확정")
+   - Bridge 제안(Gap Tracker) 중 urgency=high 항목
+5. **strengths는 "설계 방향의 타당성"으로 구성**:
+   - 수강 계획과 진로의 부합도
+   - Blueprint 청사진의 3년 일관성
+   - 진로 정체성 키워드의 구체성
+6. **overallGrade/directionStrength**: "현재 기록의 질"이 아닌 "설계 방향의 타당성"으로 산정. 1학년 prospective 학생에게 일반적으로 overall=B, directionStrength=moderate 이상이 합리적 (심각한 방향성 문제 없는 한).
+
+`
     : "";
 
-  return `## 학생 정보
+  return `${prospectiveBanner}## 학생 정보
 ${studentInfo?.targetMajor ? `- 희망 전공: ${studentInfo.targetMajor}` : "- 희망 전공: 미정"}
 ${studentInfo?.schoolName ? `- 학교: ${studentInfo.schoolName}` : ""}
-${prospectiveNotice}
+
 ## 역량 등급 + 루브릭 질문별 상세 (10항목 × 2~4 질문)
 ${gradesSummary}
 
