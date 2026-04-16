@@ -88,6 +88,11 @@ export async function generateAiDiagnosis(
    * buildCrossSubjectThemesDiagnosisSection()이 생성한 섹션을 전달. 없으면 생략.
    */
   crossSubjectThemesSection?: string,
+  /**
+   * Phase δ-6 (G11): 활성 메인 탐구 섹션 (마크다운 문자열).
+   * buildMainExplorationSection()이 생성한 섹션을 전달. 없으면 생략.
+   */
+  mainExplorationSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -181,6 +186,7 @@ export async function generateAiDiagnosis(
       qualityPatternSection,
       crossSubjectThemesSection,
       coursePlanSection,
+      mainExplorationSection,
     });
 
     // Q2: 입력 복잡도 기반 모델 선택 — 태그 20개+ 또는 점수 8개+ → standard, 그 외 fast

@@ -277,11 +277,14 @@ export function buildDiagnosisUserPrompt(params: {
   qualityPatternSection?: string;
   crossSubjectThemesSection?: string;
   coursePlanSection: string;
+  /** Phase δ-6 (G11): 활성 메인 탐구 섹션. tier 정합성 평가 기준. */
+  mainExplorationSection?: string;
 }): string {
   const {
     studentInfo, activityTags, gradesSummary, tagsSummary,
     trendSection, adequacySection, gapSection,
     edgeSummarySection, qualityPatternSection, crossSubjectThemesSection, coursePlanSection,
+    mainExplorationSection,
   } = params;
 
   return `## 학생 정보
@@ -294,6 +297,6 @@ ${gradesSummary}
 ## 활동 태그 (총 ${activityTags.length}건)
 ${tagsSummary}
 ${trendSection}${adequacySection}${gapSection}
-${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${crossSubjectThemesSection ? `\n${crossSubjectThemesSection}\n` : ""}${coursePlanSection}
-위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요. 학년별 과목 교차 테마가 제공된 경우 다학년 반복·심화 테마를 강점 증거로 구체 인용하고, 단일 진로 수렴 시 진로과잉도배 약점으로 명시하세요.`;
+${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${crossSubjectThemesSection ? `\n${crossSubjectThemesSection}\n` : ""}${mainExplorationSection ? `\n${mainExplorationSection}\n` : ""}${coursePlanSection}
+위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요. 학년별 과목 교차 테마가 제공된 경우 다학년 반복·심화 테마를 강점 증거로 구체 인용하고, 단일 진로 수렴 시 진로과잉도배 약점으로 명시하세요. 메인 탐구가 제공된 경우, 학생의 활동·역량이 메인 탐구 tier_plan(기초/발전/심화) 과 정합하는지 평가하여 강점 또는 약점에 반드시 반영하세요.`;
 }

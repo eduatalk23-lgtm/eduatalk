@@ -15,6 +15,7 @@ import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
 import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
 import { CrossReferenceChips } from "./CrossReferenceChips";
 import { FourAxisDiagnosisCard } from "./FourAxisDiagnosisCard";
+import { InquiryCategoryEditorSection } from "./InquiryCategoryEditor";
 import { LevelingCard } from "./LevelingCard";
 import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
@@ -199,6 +200,11 @@ export function DiagnosisStageContent({
           <FourAxisDiagnosisCard diagnosis={diagnosisData.fourAxisDiagnosis} />
         </StrategySection>
       )}
+
+      {/* Phase δ-4: 메인 탐구 카테고리 점수 (5축 진단 입력) */}
+      <StrategySection id="sec-inquiry-categories" title="메인 탐구 카테고리 (5축 입력)">
+        <InquiryCategoryEditorSection studentId={studentId} />
+      </StrategySection>
 
       {/* 레벨링 분석 (설계 모드 학생만) */}
       {!diagnosisLoading && diagnosisData?.projectedData?.leveling && (

@@ -334,6 +334,95 @@ export async function reactivateMainExplorationVersion(
   return data as MainExploration;
 }
 
+// ============================================
+// 5. category_scores (Phase δ-4)
+// ============================================
+
+/** category_scores JSONB shape (10 inquiry_category 점수 + 메타). */
+export interface MainExplorationCategoryScores {
+  scores: Record<string, number>;
+  source: "auto" | "consultant_override" | "hybrid";
+  classifierVersion?: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string;
+  reasons?: Array<{
+    category: string;
+    source: string;
+    matched: string;
+    delta: number;
+  }>;
+}
+
+/** 단일 메인 탐구의 category_scores 조회. NULL 이면 null 반환. */
+export async function getMainExplorationCategoryScores(
+  id: string,
+  client?: Client,
+): Promise<MainExplorationCategoryScores | null> {
+  const supabase = await resolveClient(client);
+  const { data, error } = await supabase
+    .from("student_main_explorations")
+    .select("category_scores")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.category_scores) return null;
+  return parseCategoryScoresJson(data.category_scores);
+}
+
+/**
+ * category_scores 업서트.
+ * source=auto 는 분류기(classifier v0/v1) 결과, consultant_override 는 컨설턴트 수동 입력.
+ * 같은 메인 탐구 id 에 덮어쓰기 (history 는 main_exploration version 체인이 책임).
+ */
+export async function upsertMainExplorationCategoryScores(
+  id: string,
+  payload: MainExplorationCategoryScores,
+  client?: Client,
+): Promise<MainExploration> {
+  const supabase = await resolveClient(client);
+  const value = {
+    scores: payload.scores,
+    source: payload.source,
+    classifier_version: payload.classifierVersion ?? null,
+    updated_by: payload.updatedBy ?? null,
+    updated_at: payload.updatedAt ?? new Date().toISOString(),
+    ...(payload.reasons ? { reasons: payload.reasons } : {}),
+  };
+
+  const { data, error } = await supabase
+    .from("student_main_explorations")
+    .update({
+      category_scores: value as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as MainExploration;
+}
+
+function parseCategoryScoresJson(
+  raw: unknown,
+): MainExplorationCategoryScores | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const scores = obj.scores;
+  const source = obj.source;
+  if (!scores || typeof scores !== "object") return null;
+  if (source !== "auto" && source !== "consultant_override" && source !== "hybrid") return null;
+  return {
+    scores: scores as Record<string, number>,
+    source,
+    classifierVersion: typeof obj.classifier_version === "string" ? obj.classifier_version : null,
+    updatedBy: typeof obj.updated_by === "string" ? obj.updated_by : null,
+    updatedAt: typeof obj.updated_at === "string" ? obj.updated_at : undefined,
+    reasons: Array.isArray(obj.reasons)
+      ? (obj.reasons as MainExplorationCategoryScores["reasons"])
+      : undefined,
+  };
+}
+
 /**
  * 컨설턴트 수동 핀. pinned_by_consultant 플래그 토글.
  * promoteToConsultantPin=true 면 semantic_role 도 consultant_pin 으로 승격.

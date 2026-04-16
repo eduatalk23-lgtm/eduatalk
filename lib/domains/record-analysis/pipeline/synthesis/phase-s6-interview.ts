@@ -238,6 +238,10 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     logActionDebug(LOG_CTX, `지원 대학/면접 포맷 조회 실패 (면접 생성 계속): ${uErr}`);
   }
 
+  // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
+  const { fetchActiveMainExplorationSection } = await import("./helpers");
+  const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -250,6 +254,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     existingQuestions: existingQuestions.length > 0 ? existingQuestions : undefined,
     qualityIssues: qualityIssues.length > 0 ? qualityIssues : undefined,
     appliedUniversities,
+    mainExplorationSection: mainExplorationSection || undefined,
   });
 
   if (!result.success) throw new Error(result.error);

@@ -110,6 +110,27 @@ export async function generateAiRoadmap(
       subjectType: p.subject?.subject_type?.name ?? undefined,
     }));
 
+    // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
+    let mainExplorationSection: string | undefined;
+    try {
+      const { listActiveMainExplorations } = await import(
+        "@/lib/domains/student-record/repository/main-exploration-repository"
+      );
+      const { buildMainExplorationSection } = await import(
+        "@/lib/domains/record-analysis/llm/main-exploration-section"
+      );
+      const active = await listActiveMainExplorations(studentId, tenantId);
+      const overall = active.filter((m) => m.scope === "overall");
+      const picked =
+        overall.find((m) => m.direction === "design") ??
+        overall.find((m) => m.direction === "analysis") ??
+        active[0];
+      const section = buildMainExplorationSection(picked);
+      if (section) mainExplorationSection = section;
+    } catch {
+      // best-effort — 로드맵은 메인 탐구 없이도 생성 가능
+    }
+
     // 입력 조립
     const input: RoadmapGenerationInput = {
       mode,
@@ -130,6 +151,7 @@ export async function generateAiRoadmap(
       })),
       guideAssignments: guideSection || undefined,
       recommendedCourses,
+      mainExplorationSection,
     };
 
     // analysis 모드 전용 데이터

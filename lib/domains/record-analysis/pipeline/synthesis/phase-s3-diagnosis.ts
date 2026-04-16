@@ -206,6 +206,10 @@ export async function runAiDiagnosis(
     }
   }
 
+  // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
+  const { fetchActiveMainExplorationSection } = await import("./helpers");
+  const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -221,7 +225,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

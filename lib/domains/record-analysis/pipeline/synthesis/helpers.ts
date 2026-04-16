@@ -5,6 +5,41 @@
 import type { PipelineContext, CorePipelineFields } from "../pipeline-types";
 
 // ============================================
+// Phase δ-6 (G11): 활성 메인 탐구 섹션 조회
+// ============================================
+
+/**
+ * 학생의 활성 메인 탐구(overall, direction=design 우선 → analysis 폴백)를 조회하여
+ * 프롬프트 섹션 문자열을 반환. 활성 entry 가 없거나 오류 시 빈 문자열 반환.
+ * S3/S5/S6 모든 산출물에서 best-effort 로 주입.
+ */
+export async function fetchActiveMainExplorationSection(
+  studentId: string,
+  tenantId: string,
+): Promise<string> {
+  try {
+    const { listActiveMainExplorations } = await import(
+      "@/lib/domains/student-record/repository/main-exploration-repository"
+    );
+    const active = await listActiveMainExplorations(studentId, tenantId);
+    if (active.length === 0) return "";
+
+    const overall = active.filter((m) => m.scope === "overall");
+    const picked =
+      overall.find((m) => m.direction === "design") ??
+      overall.find((m) => m.direction === "analysis") ??
+      active[0];
+
+    const { buildMainExplorationSection } = await import(
+      "@/lib/domains/record-analysis/llm/main-exploration-section"
+    );
+    return buildMainExplorationSection(picked);
+  } catch {
+    return "";
+  }
+}
+
+// ============================================
 // 헬퍼: eval 연결 (시계열 + 대학 프로필 매칭)
 // ============================================
 

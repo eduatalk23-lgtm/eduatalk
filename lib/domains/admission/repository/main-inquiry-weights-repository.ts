@@ -122,7 +122,11 @@ export async function getWeightsByTrackMap(
 
 // ─── 내부 헬퍼 ──────────────────────────────────────────────────────────────
 
-const ALL_CATEGORIES: InquiryCategory[] = [
+/**
+ * 10개 InquiryCategory 의 정렬된 리스트.
+ * Phase δ-3 normalize 등 외부 소비자가 사용 (export).
+ */
+export const InquiryCategoryList = [
   "natural_science",
   "life_medical",
   "engineering",
@@ -133,7 +137,9 @@ const ALL_CATEGORIES: InquiryCategory[] = [
   "business_economy",
   "education",
   "arts_sports",
-];
+] as const satisfies ReadonlyArray<InquiryCategory>;
+
+const ALL_CATEGORIES: InquiryCategory[] = [...InquiryCategoryList];
 
 /** 10개 카테고리 모두 0으로 초기화한 맵 */
 function emptyWeightMap(): Record<InquiryCategory, number> {

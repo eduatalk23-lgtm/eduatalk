@@ -34,6 +34,7 @@ import {
   runInterviewGeneration,
   runRoadmapGeneration,
 } from "./pipeline-task-runners";
+import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // 선행 태스크 실패 시 자동 스킵 가드
@@ -86,7 +87,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("school_year", currentSchoolYear)
-    .eq("source", "ai");
+    .in("source", ["ai", "ai_projected"]);
 
   const competencySnapshots = ((scoreRows ?? []) as Array<{ competency_item: string; grade_value: string }>)
     .map((row) => {
@@ -126,7 +127,7 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
         .select("record_type, record_id, specificity, coherence, depth, grammar, scientific_validity, overall_score, issues, feedback")
         .eq("student_id", studentId)
         .eq("tenant_id", tenantId)
-        .eq("source", "ai"),
+        .in("source", ["ai", "ai_projected"]),
       ctx.supabase
         .from("student_internal_scores")
         .select("subject:subject_id(name), rank_grade")
@@ -172,18 +173,136 @@ async function generateAndCacheExecutiveSummary(ctx: PipelineContext): Promise<v
 
     // 5-4. 4축 조합
     if (universityMatch && flowCompletion) {
-      const diagnosis = buildFourAxisDiagnosis({
+      const fourAxisInput = {
         universityMatch,
         courseAdequacy,
         flowCompletion,
         studentGrade: studentGrade ? Math.round(studentGrade * 10) / 10 : null,
         targetMajor,
-      });
+      };
+      const diagnosis = buildFourAxisDiagnosis(fourAxisInput);
       setTaskResult(ctx.results, "_fourAxisDiagnosis", diagnosis);
+
+      // 5-5. 5축 조합 (Phase δ-3 G9 소비자) — best-effort
+      try {
+        const { buildFiveAxisDiagnosis } = await import("@/lib/domains/admission/prediction/profile-diagnosis");
+        const alignment = await resolveMainInquiryAlignment({
+          studentId: ctx.studentId,
+          tenantId: ctx.tenantId,
+          track: universityMatch.topMatch.track,
+        });
+        const fiveAxis = buildFiveAxisDiagnosis({
+          ...fourAxisInput,
+          mainInquiryAlignment: alignment,
+        });
+        setTaskResult(ctx.results, "_fiveAxisDiagnosis", fiveAxis);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logActionWarn("buildFiveAxisDiagnosis", `5축 산출 실패 — ${msg}`);
+      }
     }
-  } catch {
-    // 4축 산출 실패 무시
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logActionWarn("buildFourAxisDiagnosis", `4축 산출 실패 — ${msg}`);
   }
+}
+
+// ============================================
+// δ-3: 메인 탐구 정합성(5축) 해소
+// ============================================
+
+async function resolveMainInquiryAlignment(params: {
+  studentId: string;
+  tenantId: string;
+  track: string;
+}): Promise<
+  import("@/lib/domains/admission/prediction/main-inquiry-alignment").MainInquiryAlignmentResult | null
+> {
+  // 1) 활성 메인 탐구(design 우선, 없으면 analysis overall) 조회
+  const { listActiveMainExplorations } = await import(
+    "@/lib/domains/student-record/repository/main-exploration-repository"
+  );
+  const active = await listActiveMainExplorations(params.studentId, params.tenantId);
+  if (active.length === 0) return null;
+
+  const preferred =
+    active.find((m) => m.direction === "design" && m.scope === "overall") ??
+    active.find((m) => m.direction === "analysis" && m.scope === "overall") ??
+    active[0];
+
+  // 2) topMatch.track 이 UniversityTrack enum 에 속하는지 검증
+  const VALID_TRACKS: ReadonlyArray<string> = [
+    "medical",
+    "law",
+    "engineering",
+    "business",
+    "humanities",
+    "education",
+    "arts",
+    "social",
+  ];
+  if (!VALID_TRACKS.includes(params.track)) {
+    logActionWarn(
+      { domain: "record-analysis", action: "resolveMainInquiryAlignment" },
+      `지원하지 않는 track=${params.track}. 5축 skip.`,
+    );
+    return null;
+  }
+  const track = params.track as import("@/lib/domains/record-analysis/eval/university-profile-matcher").UniversityTrack;
+
+  // 3) categoryScores — 저장된 값 우선, 없으면 규칙 기반 classifier v0 폴백
+  const themeKeywords = Array.isArray(preferred.theme_keywords)
+    ? (preferred.theme_keywords as string[])
+    : [];
+
+  const { getMainExplorationCategoryScores } = await import(
+    "@/lib/domains/student-record/repository/main-exploration-repository"
+  );
+  const stored = await getMainExplorationCategoryScores(preferred.id);
+
+  let categoryScores: Record<string, number>;
+  if (stored) {
+    categoryScores = stored.scores;
+  } else {
+    const { classifyInquiryCategories } = await import(
+      "@/lib/domains/admission/prediction/inquiry-category-classifier"
+    );
+    categoryScores = classifyInquiryCategories({
+      themeKeywords,
+      careerField: preferred.career_field,
+    }).scores;
+  }
+
+  // 4) trackWeights DB 로드
+  const { getWeightsForTrack } = await import(
+    "@/lib/domains/admission/repository/main-inquiry-weights-repository"
+  );
+  const trackWeights = await getWeightsForTrack(track);
+
+  // 5) 정합성 계산
+  const { computeMainInquiryAlignment } = await import(
+    "@/lib/domains/admission/prediction/main-inquiry-alignment"
+  );
+  const { InquiryCategoryList } = await import(
+    "@/lib/domains/admission/repository/main-inquiry-weights-repository"
+  );
+  // 누락 카테고리는 0 으로 보정 (stored 가 부분적일 수 있음)
+  const normalizedScores = InquiryCategoryList.reduce(
+    (acc, cat) => {
+      acc[cat] = categoryScores[cat] ?? 0;
+      return acc;
+    },
+    {} as Record<typeof InquiryCategoryList[number], number>,
+  );
+  return computeMainInquiryAlignment({
+    studentTheme: {
+      themeKeywords,
+      careerField: preferred.career_field,
+    },
+    categoryScores: normalizedScores,
+    targetTrack: track,
+    trackWeights,
+  });
 }
 
 // ============================================

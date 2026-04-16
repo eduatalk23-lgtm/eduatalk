@@ -186,7 +186,15 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
     }
   }
 
+  // Phase δ-6: 메인 탐구 (5축 진단 / G11) — 학기별 missions 와 tier_plan 정합 기준
+  if (input.mainExplorationSection) {
+    prompt += `${input.mainExplorationSection}\n\n`;
+  }
+
   prompt += `위 정보를 종합하여 ${input.grade}학년부터 3학년까지의 학기별 활동 로드맵을 JSON으로 생성해주세요.`;
+  if (input.mainExplorationSection) {
+    prompt += ` 메인 탐구 tier_plan 이 제공된 경우, 학기별 missions 가 tier 진행(기초→발전→심화)을 따르도록 정렬하고 빈 tier 셀을 우선 채우는 미션을 학기 1개 이상 포함하세요.`;
+  }
   return prompt;
 }
 

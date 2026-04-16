@@ -162,6 +162,8 @@ export interface PipelineTaskResultMap {
   _executiveSummary: import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary;
   /** Synthesis Phase 6 완료 후 자동 생성되는 4축 합격 진단 프로필 */
   _fourAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis;
+  /** Phase δ-3: 5축 합격 진단(4축 + 메인 탐구 정합성). mainInquiryAlignment=null 가능. */
+  _fiveAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FiveAxisDiagnosis;
 }
 
 // ============================================

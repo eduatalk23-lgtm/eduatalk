@@ -272,6 +272,10 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     logActionError({ ...LOG_CTX, action: "pipeline.hyperedges" }, hyperErr, { pipelineId });
   }
 
+  // Phase δ-6: 활성 메인 탐구 섹션 (best-effort)
+  const { fetchActiveMainExplorationSection } = await import("./helpers");
+  const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -285,6 +289,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     guideContextSection: guideContextSection || undefined,
     hyperedgeSummarySection: hyperedgeSummarySection || undefined,
     qualityPatterns: ctx.qualityPatterns,
+    mainExplorationSection: mainExplorationSection || undefined,
   });
   if (!result.success) throw new Error(result.error);
 

@@ -502,6 +502,8 @@ export interface SuggestStrategiesInput {
   guideContextSection?: string;
   /** Phase 1 Layer 2: 통합 테마 (hyperedge) 요약. 수렴 서사/반사실 추론 근거. */
   hyperedgeSummarySection?: string;
+  /** Phase δ-6 (G11): 활성 메인 탐구 섹션. tier_plan 빈 셀 우선 채움 안내 포함. */
+  mainExplorationSection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */
@@ -653,6 +655,8 @@ export interface RoadmapGenerationInput {
   diagnosisWeaknesses?: string[];
   setekGuides?: Array<{ subjectName: string; direction: string; keywords: string[] }>;
   existingActivities?: Array<{ grade: number; area: string; content: string }>;
+  /** Phase δ-6 (G11): 활성 메인 탐구 섹션. 학기별 missions 정합 기준. */
+  mainExplorationSection?: string;
 }
 
 // ============================================

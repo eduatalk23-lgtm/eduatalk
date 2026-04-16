@@ -51,6 +51,8 @@ export async function generateInterviewQuestions(input: {
     interviewFormat?: string;
     interviewDetails?: string;
   }>;
+  /** Phase δ-6 (G11): 활성 메인 탐구 섹션 (record 의 tier 컨텍스트). buildMainExplorationSection() 결과. */
+  mainExplorationSection?: string;
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -103,6 +105,9 @@ export async function generateInterviewQuestions(input: {
     }
     if (input.existingQuestions?.length) {
       userPrompt += "\n\n## 이미 생성된 질문 (중복 금지)\n" + input.existingQuestions.slice(0, 15).map((q) => `- ${q}`).join("\n");
+    }
+    if (input.mainExplorationSection) {
+      userPrompt += `\n\n${input.mainExplorationSection}\n\n위 메인 탐구 tier_plan(기초/발전/심화) 을 기준으로 record 가 어느 tier 에 위치하는지 묻고, 다음 tier 로 전환하기 위한 후속 질문을 1개 이상 포함하라.`;
     }
 
     const result = await withRetry(
