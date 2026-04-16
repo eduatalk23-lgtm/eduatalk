@@ -97,6 +97,56 @@ async function postPhase(path: string, body: Record<string, unknown>) {
   }
 }
 
+async function seedMainExploration(supabase: ReturnType<typeof createSupabaseAdminClient>) {
+  if (!supabase) throw new Error("admin client unavailable");
+  const { data: existing } = await supabase
+    .from("student_main_explorations")
+    .select("id")
+    .eq("student_id", STUDENT_ID)
+    .eq("tenant_id", TENANT_ID)
+    .eq("is_active", true)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    console.log(`🌱 main_exploration 기존 active 있음 (${existing[0].id.slice(0, 8)}) — skip seed`);
+    return;
+  }
+  const { error } = await supabase.from("student_main_explorations").insert({
+    student_id: STUDENT_ID,
+    tenant_id: TENANT_ID,
+    school_year: new Date().getFullYear(),
+    grade: 2,
+    semester: 2,
+    scope: "overall",
+    direction: "design",
+    semantic_role: "hybrid_recursion",
+    source: "consultant",
+    pinned_by_consultant: true,
+    is_active: true,
+    theme_label: "빛과 물질의 상호작용 — 광물리·분광학 기반 천체 관측 탐구",
+    theme_keywords: ["광물리", "분광학", "천체관측"],
+    career_field: "NAT",
+    tier_plan: {
+      foundational: {
+        theme: "파동·빛의 기본 성질과 고전역학 기반",
+        key_questions: ["빛의 파동/입자 이중성을 실험으로 어떻게 드러내는가?"],
+        suggested_activities: ["물리학I 파동 단원 심화 독서", "이중슬릿 재현 모의 실험"],
+      },
+      development: {
+        theme: "분광학으로 원자·분자 구조 추론",
+        key_questions: ["분광선이 물질 조성의 지문이 되는 이유는?"],
+        suggested_activities: ["스펙트럼 관측 실험", "천체 스펙트럼 데이터 분석"],
+      },
+      advanced: {
+        theme: "관측 데이터 해석과 광시야 천문 프로젝트",
+        key_questions: ["광시야 조사에서 특이 천체를 어떻게 식별하는가?"],
+        suggested_activities: ["공개 천문대 데이터 재분석", "광시야 관측 보고서 작성"],
+      },
+    },
+  });
+  if (error) throw new Error(`main_exploration seed 실패: ${error.message}`);
+  console.log(`🌱 main_exploration seed 생성 (2학년 2학기, overall × design × hybrid_recursion)`);
+}
+
 async function cleanup(supabase: ReturnType<typeof createSupabaseAdminClient>) {
   if (!supabase) throw new Error("admin client unavailable");
   console.log(`🧹 클린업`);
@@ -245,6 +295,10 @@ async function main() {
   // ── 1. 클린업 ──
   await cleanup(supabase);
   console.log(`🧹 완료\n`);
+
+  // ── 1b. main_exploration seed (4축×3층 Blueprint B1 전제) ──
+  await seedMainExploration(supabase);
+
 
   // ── 2. Grade(analysis) G1 + G2 ──
   for (const grade of [1, 2] as const) {
