@@ -114,11 +114,12 @@ export async function findDiagnosisPair(
   return { ai, consultant };
 }
 
-/** 종합 진단 upsert (UNIQUE: tenant+student+year+source) + 이전 상태 스냅샷 */
+/** 종합 진단 upsert (UNIQUE: tenant+student+year+source+scope) + 이전 상태 스냅샷 */
 export async function upsertDiagnosis(
   input: DiagnosisInsert,
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
+  const scope = (input as { scope?: string }).scope ?? "final";
 
   // P2-4: 기존 진단이 있으면 스냅샷 생성 (fire-and-forget)
   const { data: existing } = await supabase
@@ -128,6 +129,7 @@ export async function upsertDiagnosis(
     .eq("student_id", input.student_id)
     .eq("school_year", input.school_year)
     .eq("source", input.source ?? "manual")
+    .eq("scope", scope)
     .maybeSingle();
 
   if (existing) {
@@ -146,8 +148,8 @@ export async function upsertDiagnosis(
 
   const { data, error } = await supabase
     .from("student_record_diagnosis")
-    .upsert(input, {
-      onConflict: "tenant_id,student_id,school_year,source",
+    .upsert({ ...input, scope }, {
+      onConflict: "tenant_id,student_id,school_year,source,scope",
     })
     .select("id")
     .single();

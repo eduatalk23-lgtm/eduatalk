@@ -25,7 +25,16 @@ export async function runGapTracking(
   const { studentId, tenantId, pipelineId } = ctx;
 
   // ── Blueprint 산출물 확인 ──────────────────────
-  const blueprintOutput = getTaskResult(ctx.results, "_blueprintPhase");
+  // 1순위: 현재 ctx.results (동일 파이프라인 내 _blueprintPhase) — legacy 호환
+  // 2순위: DB에서 최근 completed blueprint 파이프라인 로드 (2026-04-16 D 분리 후 정상 경로)
+  let blueprintOutput = getTaskResult(ctx.results, "_blueprintPhase");
+  if (!blueprintOutput) {
+    const { loadBlueprintForStudent } = await import("../../blueprint/loader");
+    const loaded = await loadBlueprintForStudent(studentId, tenantId);
+    if (loaded) {
+      blueprintOutput = loaded as typeof blueprintOutput;
+    }
+  }
   if (!blueprintOutput) {
     return "Blueprint 미생성 — Gap Tracking 건너뜀";
   }

@@ -8,7 +8,7 @@
 // ============================================
 
 import { logActionWarn } from "@/lib/logging/actionLogger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { BlueprintPhaseOutput } from "./types";
 
 const LOG_CTX = { domain: "record-analysis", action: "blueprint-loader" };
@@ -16,16 +16,23 @@ const LOG_CTX = { domain: "record-analysis", action: "blueprint-loader" };
 /**
  * 가장 최근 완료된 blueprint 파이프라인의 _blueprintPhase 산출물을 로드.
  * 찾지 못하면 null (로깅만 남기고 조용히 실패).
+ *
+ * Admin 클라이언트 사용 — 파이프라인 엔진(서버리스 route) 내부 호출 전용.
+ * createSupabaseServerClient는 cookies() 의존이라 tsx 스크립트/background worker에서 실패.
  */
 export async function loadBlueprintForStudent(
   studentId: string,
   tenantId: string,
 ): Promise<BlueprintPhaseOutput | null> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      logActionWarn(LOG_CTX, "admin 클라이언트 미설정 — blueprint 로드 불가", { studentId });
+      return null;
+    }
     const { data, error } = await supabase
       .from("student_record_analysis_pipelines")
-      .select("id, results, updated_at, status")
+      .select("id, task_results, updated_at, status")
       .eq("student_id", studentId)
       .eq("tenant_id", tenantId)
       .eq("pipeline_type", "blueprint")
@@ -40,9 +47,9 @@ export async function loadBlueprintForStudent(
       });
       return null;
     }
-    if (!data?.results) return null;
+    if (!data?.task_results) return null;
 
-    const results = data.results as Record<string, unknown>;
+    const results = data.task_results as Record<string, unknown>;
     const raw = results._blueprintPhase as unknown;
     if (!raw || typeof raw !== "object") return null;
 

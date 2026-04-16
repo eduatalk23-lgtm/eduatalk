@@ -15,7 +15,7 @@ import type {
   CachedHaengteuk,
 } from "./pipeline-types";
 import { resolveRecordData, resolveRecordDataForGrade, deriveGradeCategories } from "./pipeline-data-resolver";
-import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
+import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PAST_ANALYTICS_TASK_KEYS, BLUEPRINT_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -115,25 +115,31 @@ export async function updatePipelineState(
  * runTaskWithState와 오케스트레이터 resume 분기에서 공통으로 사용하여 단일 진실 소스로 통합.
  */
 export function computePipelineFinalStatus(
-  pipelineType: "grade" | "synthesis" | undefined,
+  pipelineType: "grade" | "synthesis" | "past_analytics" | "blueprint" | undefined,
   gradeMode: "analysis" | "design" | undefined,
   tasks: Record<string, PipelineTaskStatus>,
 ): "running" | "completed" | "failed" {
   if (pipelineType == null) return "running";
 
-  const requiredKeys: readonly string[] =
-    pipelineType === "synthesis"
-      ? SYNTHESIS_PIPELINE_TASK_KEYS
-      : gradeMode === "design"
-        ? GRADE_PIPELINE_TASK_KEYS.filter(
-            (k) => k !== "cross_subject_theme_extraction",
-          )
-        : GRADE_PIPELINE_TASK_KEYS.filter(
-            (k) =>
-              k !== "draft_generation" &&
-              k !== "draft_analysis" &&
-              k !== "cross_subject_theme_extraction",
-          );
+  let requiredKeys: readonly string[];
+  if (pipelineType === "synthesis") {
+    requiredKeys = SYNTHESIS_PIPELINE_TASK_KEYS;
+  } else if (pipelineType === "past_analytics") {
+    requiredKeys = PAST_ANALYTICS_TASK_KEYS;
+  } else if (pipelineType === "blueprint") {
+    requiredKeys = BLUEPRINT_TASK_KEYS;
+  } else if (gradeMode === "design") {
+    requiredKeys = GRADE_PIPELINE_TASK_KEYS.filter(
+      (k) => k !== "cross_subject_theme_extraction",
+    );
+  } else {
+    requiredKeys = GRADE_PIPELINE_TASK_KEYS.filter(
+      (k) =>
+        k !== "draft_generation" &&
+        k !== "draft_analysis" &&
+        k !== "cross_subject_theme_extraction",
+    );
+  }
 
   const states = requiredKeys.map((k) => tasks[k] ?? "pending");
   const anyActive = states.some((s) => s === "pending" || s === "running");
@@ -327,8 +333,11 @@ export async function loadPipelineContext(
   if (rawPipelineType === "legacy") {
     throw new Error("레거시 파이프라인은 지원 중단되었습니다. Grade/Synthesis 파이프라인을 사용하세요.");
   }
-  const pipelineType: "grade" | "synthesis" =
-    rawPipelineType === "grade" ? "grade" : "synthesis";
+  const pipelineType: "grade" | "synthesis" | "past_analytics" | "blueprint" =
+    rawPipelineType === "grade" ? "grade"
+    : rawPipelineType === "past_analytics" ? "past_analytics"
+    : rawPipelineType === "blueprint" ? "blueprint"
+    : "synthesis";
   const targetGrade: number | undefined =
     pipelineType === "grade" && row.grade != null ? (row.grade as number) : undefined;
 
@@ -338,6 +347,14 @@ export async function loadPipelineContext(
 
   if (pipelineType === "grade") {
     for (const key of GRADE_PIPELINE_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
+  } else if (pipelineType === "past_analytics") {
+    for (const key of PAST_ANALYTICS_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
+  } else if (pipelineType === "blueprint") {
+    for (const key of BLUEPRINT_TASK_KEYS) {
       tasks[key] = rawTasks[key] ?? "pending";
     }
   } else {
@@ -427,6 +444,21 @@ export async function loadPipelineContext(
     consultingGrades = gradeData?.hasAnyNeis ? [] : [targetGrade];
   } else {
     ({ neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords));
+
+    // blueprint/past_analytics 파이프라인: input_snapshot에 저장된 학년 힌트 복원.
+    // K=0 prospective(레코드 0건)는 resolvedRecords가 비어있어 consultingGrades가 []가 됨.
+    // runBlueprintPipeline/runPastAnalyticsPipeline이 INSERT 시 snapshot에 저장한 배열을 복원.
+    if (pipelineType === "blueprint") {
+      const snapConsulting = (snapshot?.consultingGrades as number[] | undefined) ?? undefined;
+      if (Array.isArray(snapConsulting) && snapConsulting.length > 0) {
+        consultingGrades = [...new Set([...consultingGrades, ...snapConsulting])].sort((a, b) => a - b);
+      }
+    } else if (pipelineType === "past_analytics") {
+      const snapNeis = (snapshot?.neisGrades as number[] | undefined) ?? undefined;
+      if (Array.isArray(snapNeis) && snapNeis.length > 0) {
+        neisGrades = [...new Set([...neisGrades, ...snapNeis])].sort((a, b) => a - b);
+      }
+    }
   }
 
   // Grade Pipeline 모드 (analysis/design)
