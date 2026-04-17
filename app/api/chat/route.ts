@@ -419,6 +419,9 @@ export async function POST(req: Request) {
         num_ctx: 8192,
         num_predict: 500,
         num_keep: 256,
+        // Gemma 4 thinking 비활성화 — 단순 질문에도 내부 reasoning 토큰 생성 방지
+        // E2B/E4B 는 think:false 완전 지원. 26B/31B 는 빈 <thought> 태그만 생성
+        think: false,
       },
     }),
     system: `${STATIC_SYSTEM_PREFIX}\n\n${dynamicSuffix}`,
