@@ -24,7 +24,9 @@ import { buildHandoffPromptSection } from "@/lib/domains/ai-chat/handoff/prompt"
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const NAV_TARGETS = [
+// Phase T 빈틈 #3: navigateTo role-aware 경로 매핑
+// proxy.ts (ROLE_ALLOWED_PATHS)와 일관성 유지 — 각 role이 실제 접근 가능한 경로만 노출
+const STUDENT_NAV_TARGETS = [
   "/dashboard",
   "/plan",
   "/scores",
@@ -32,6 +34,45 @@ const NAV_TARGETS = [
   "/guides",
   "/settings",
 ] as const;
+
+const ADMIN_NAV_TARGETS = [
+  "/admin/dashboard",
+  "/admin/students",
+  "/admin/guides",
+  "/admin/settings",
+] as const;
+
+const PARENT_NAV_TARGETS = [
+  "/parent/dashboard",
+  "/parent/record",
+  "/parent/scores",
+  "/parent/settings",
+] as const;
+
+// tool inputSchema enum — 모든 role 경로의 합집합. 실행 시 role 별 허용 검증.
+const ALL_NAV_TARGETS = [
+  ...STUDENT_NAV_TARGETS,
+  ...ADMIN_NAV_TARGETS,
+  ...PARENT_NAV_TARGETS,
+] as const;
+
+type NavRole = "student" | "admin" | "consultant" | "parent" | "superadmin";
+
+function getAllowedNavTargets(role: NavRole | string): readonly string[] {
+  switch (role) {
+    case "student":
+      return STUDENT_NAV_TARGETS;
+    case "admin":
+    case "consultant":
+      return ADMIN_NAV_TARGETS;
+    case "parent":
+      return PARENT_NAV_TARGETS;
+    case "superadmin":
+      return [...ADMIN_NAV_TARGETS, ...STUDENT_NAV_TARGETS];
+    default:
+      return [];
+  }
+}
 
 export type ScoreRow = {
   subjectGroup: string;
@@ -134,18 +175,36 @@ async function resolveScoresTarget(args: {
 const tools = {
   navigateTo: tool({
     description:
-      "사용자를 에듀엣톡 내부 페이지로 이동시킵니다. 사용자가 특정 화면을 보고 싶어하거나 이동 의사를 표현했을 때만 호출하세요. 단순 질문·설명·잡담에는 호출하지 마세요. 성적이나 구체 데이터를 '보여달라' 하면 getScores 등 데이터 조회 도구를 우선 사용하세요.",
+      "사용자를 에듀엣톡 내부 페이지로 이동시킵니다. 사용자가 특정 화면을 보고 싶어하거나 이동 의사를 표현했을 때만 호출하세요. 단순 질문·설명·잡담에는 호출하지 마세요. 성적이나 구체 데이터를 '보여달라' 하면 getScores 등 데이터 조회 도구를 우선 사용하세요. **반드시 현재 사용자 role 에 허용된 경로만 호출하세요** — 시스템 프롬프트의 [navigateTo 규칙] 참조.",
     inputSchema: z.object({
       path: z
-        .enum(NAV_TARGETS)
+        .enum(ALL_NAV_TARGETS)
         .describe(
-          "이동할 페이지 경로. /dashboard=대시보드, /plan=학습플랜, /scores=성적, /analysis=생기부분석, /guides=탐구가이드, /settings=설정",
+          "이동할 페이지 경로. role 별 허용 경로는 시스템 프롬프트 참조. student=/dashboard·/plan·/scores·/analysis·/guides·/settings, admin/consultant=/admin/*, parent=/parent/*.",
         ),
       reason: z
         .string()
         .describe("사용자에게 보여줄 짧은 이동 안내 문구"),
     }),
-    execute: async ({ path, reason }) => ({ ok: true, path, reason }),
+    execute: async ({ path, reason }) => {
+      const user = await getCurrentUser();
+      if (!user) {
+        return {
+          ok: false as const,
+          path,
+          reason: "로그인 세션이 만료되었습니다.",
+        };
+      }
+      const allowed = getAllowedNavTargets(user.role);
+      if (!allowed.includes(path)) {
+        return {
+          ok: false as const,
+          path,
+          reason: `${user.role} 역할은 ${path} 로 이동할 수 없어요. 현재 역할에 맞는 화면을 안내드릴게요.`,
+        };
+      }
+      return { ok: true as const, path, reason };
+    },
   }),
 
   getScores: tool({
@@ -321,7 +380,12 @@ ${userContext}${handoffSection ? "\n\n" + handoffSection : ""}
 - 단순 질문·상담·잡담 → 도구 호출 없이 텍스트로 답변
 
 [navigateTo 규칙]
-- 이동 가능한 페이지: /dashboard, /plan, /scores, /analysis, /guides, /settings
+- 반드시 현재 사용자 role 에 맞는 경로만 호출하세요. role 은 [현재 사용자] 섹션에 기재됨.
+  · student 경로: /dashboard, /plan, /scores, /analysis, /guides, /settings
+  · admin/consultant 경로: /admin/dashboard, /admin/students, /admin/guides, /admin/settings
+  · parent 경로: /parent/dashboard, /parent/record, /parent/scores, /parent/settings
+  · superadmin 은 admin + student 경로 모두 가능
+- 다른 role 경로를 호출하면 도구가 거부하고 사용자가 혼란을 겪습니다. 명확히 현재 role 경로로만 이동하세요.
 - 호출 후 한 문장으로 이동 안내를 덧붙이세요.
 
 [getScores 규칙]

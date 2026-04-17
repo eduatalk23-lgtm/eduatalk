@@ -33,15 +33,28 @@ import {
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
-type NavigateToOutput = { ok: boolean; path: string; reason: string };
+type NavigateToOutput =
+  | { ok: true; path: string; reason: string }
+  | { ok: false; path: string; reason: string };
 
 const PATH_LABELS: Record<string, string> = {
+  // student
   "/dashboard": "대시보드",
   "/plan": "학습 플랜",
   "/scores": "성적",
   "/analysis": "생기부 분석",
   "/guides": "탐구 가이드",
   "/settings": "설정",
+  // admin/consultant
+  "/admin/dashboard": "관리자 대시보드",
+  "/admin/students": "학생 목록",
+  "/admin/guides": "가이드 관리",
+  "/admin/settings": "관리자 설정",
+  // parent
+  "/parent/dashboard": "학부모 대시보드",
+  "/parent/record": "자녀 생기부",
+  "/parent/scores": "자녀 성적",
+  "/parent/settings": "학부모 설정",
 };
 
 const DEFAULT_SUGGESTION_CHIPS: Array<{ category: string; text: string }> = [
@@ -586,10 +599,13 @@ function MessageRow({
           }
 
           if (p.type === "tool-navigateTo" && "state" in p) {
-            const state = toolState(p.state);
+            const rawState = toolState(p.state);
             const output =
-              state === "success" ? (p.output as NavigateToOutput) : undefined;
-            const isReady = state === "success" && !!output?.path;
+              rawState === "success" ? (p.output as NavigateToOutput) : undefined;
+            const isDenied = output?.ok === false;
+            // role 거부는 success 상태지만 UX 상 error 로 표시
+            const state = isDenied ? "error" : rawState;
+            const isReady = rawState === "success" && output?.ok === true;
             const label = output?.path
               ? PATH_LABELS[output.path] ?? output.path
               : undefined;
@@ -600,7 +616,12 @@ function MessageRow({
                 name="navigateTo"
                 icon={<Navigation size={14} />}
                 state={state}
-                summary={output?.path ?? label ?? "페이지 준비 중"}
+                summary={
+                  isDenied
+                    ? "이 경로로는 이동할 수 없어요"
+                    : output?.path ?? label ?? "페이지 준비 중"
+                }
+                errorText={isDenied ? output.reason : undefined}
                 footer={
                   isReady && output?.path ? (
                     <button
@@ -616,7 +637,7 @@ function MessageRow({
                   ) : null
                 }
               >
-                {output?.reason ? (
+                {output?.ok === true && output.reason ? (
                   <p className="text-sm text-zinc-700">{output.reason}</p>
                 ) : null}
               </ToolCard>
