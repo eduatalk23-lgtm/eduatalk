@@ -395,6 +395,25 @@ export const GRADE_PHASE_TASKS: Record<number, _GradeKey[]> = {
   8: ["draft_analysis"],
 };
 
+// ============================================
+// Pipeline Task Manifest — re-export
+// 실체는 `./pipeline-task-manifest.ts`. 한 곳에서 import 가능하도록 여기서도 노출.
+// ============================================
+
+export {
+  PIPELINE_TASK_MANIFEST,
+  PIPELINE_INFRA_TABLES,
+  invertReadsResults,
+  findWritersOfTable,
+  findReadersOfTable,
+} from "./pipeline-task-manifest";
+export type {
+  ManifestTaskKey,
+  PipelineTaskManifest,
+  PipelineTaskTerminal,
+  PipelineTaskTerminalReason,
+} from "./pipeline-task-manifest";
+
 export const SYNTHESIS_PHASE_TASKS: Record<number, _SynthKey[]> = {
   1: ["storyline_generation"],
   // Phase 2는 narrative chunk sub-route에서 선행 처리 후 메인 route에서 나머지 4 task 처리.
