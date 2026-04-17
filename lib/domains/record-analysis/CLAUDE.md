@@ -91,6 +91,37 @@ Synthesis Pipeline (종합, 13태스크×6Phase — 트랙 D 2026-04-14 task_key
   S6: interview_generation + roadmap_generation
 ```
 
+### Tier Plan 흐름 (4축×3층 메인 탐구 seed → 프롬프트 주입)
+
+**원천**: `student_main_explorations.tier_plan` (JSONB) — 활성 메인 탐구의 3단 계획.
+```json
+{
+  "foundational": { "theme": "...", "key_questions": [...], "suggested_activities": [...] },
+  "development":  { "theme": "...", "key_questions": [...], "suggested_activities": [...] },
+  "advanced":     { "theme": "...", "key_questions": [...], "suggested_activities": [...] }
+}
+```
+
+**렌더러**: `llm/main-exploration-section.ts:renderMainExplorationSection()` — JSONB → 마크다운 섹션. tier별 주제·질문·활동을 LLM 프롬프트에 그대로 노출.
+
+**주입 경로**:
+
+| 단계 | 위치 | 주입 방식 | 목적 |
+|------|------|-----------|------|
+| **P4 setek_guide** | `prompts/setekGuide.ts` (gridContext) | `renderCellGuideGridContextSection(input.gridContext)` — Phase β G7 | 세특 방향 가이드가 학생 격자 cap + 메인 탐구 tier 정합 |
+| **B1 blueprint_generation** | `llm/actions/generateBlueprint.ts` + `prompts/blueprintPhase.ts` | tier_plan 직접 참조 → convergences/milestones 생성 시 tier 정렬 | 설계 청사진이 메인 탐구 3단 계획과 일치 |
+| **S3 ai_diagnosis** | `prompts/diagnosisPrompt.ts` | `mainExplorationSection` (renderer 결과) | tier 정합성 평가 (현 활동이 어느 tier에 위치하는지) |
+| **S5 ai_strategy** | `prompts/strategyRecommend.ts` | `mainExplorationSection` | tier_plan 빈 셀(추천 활동 부족 학기) 우선 채움 |
+| **S6 interview / roadmap** | `prompts/generateInterviewQuestions.ts`, `prompts/roadmapGeneration.ts` | `mainExplorationSection` | record의 tier 컨텍스트 / 학기별 missions와 tier 정합 |
+
+**P5/P6/P7/P8은 직접 참조 없음**:
+- P5(changche_guide)/P6(haengteuk_guide)는 P4 산출물(세특 가이드)을 참조 → tier가 간접 반영.
+- **P7(draft_generation)/P8(draft_analysis)는 P4~P6 가이드 결과를 입력으로 사용** → tier_plan이 가이드 안에 이미 녹아있는 형태로 흐름. P7/P8 프롬프트가 tier_plan을 직접 읽지 않음에 주의.
+
+**갱신 시 주의**:
+- main_exploration이 갱신되면 tier_plan 변경 → `mainExplorationSection`이 자동 반영되지만, **이미 생성된 P4 가이드/B1 blueprint는 stale**. 재실행 cascade 필요.
+- staleness 감지: `main_exploration.updated_at > blueprint.created_at` 체크 — 별도 staleness checker 참조.
+
 ### Layer 2 Hypergraph (Phase 1, 2026-04-14)
 
 **목적**: Layer 1 binary edge로 표현 불가능한 N-ary 수렴 서사축을 별도 엔티티로 영속화.
