@@ -51,7 +51,9 @@ export function ChatReturnBanner() {
     <div
       role="note"
       aria-label="AI 대화로 돌아가기"
-      className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-900 px-4 py-2 text-white md:px-6 dark:border-zinc-700"
+      // fixed + z-[100] 으로 페이지 자체 헤더/사이드바 위에 오도록 강제.
+      // sticky top-0 로는 일부 페이지(/plan, /scores 등)의 자체 헤더에 가려짐.
+      className="fixed inset-x-0 top-0 z-[100] flex items-center justify-between gap-3 border-b border-zinc-700 bg-zinc-900 px-4 py-2 text-white shadow-md md:px-6"
     >
       <div className="flex items-center gap-2 text-[12px]">
         <MessageSquareText size={13} className="text-zinc-300" />
@@ -60,7 +62,7 @@ export function ChatReturnBanner() {
       <div className="flex items-center gap-1.5">
         <Link
           href={`/ai-chat?id=${encodeURIComponent(fromChat)}`}
-          className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-white/20"
+          className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-white/25"
         >
           대화 계속 ▸
         </Link>
@@ -68,7 +70,7 @@ export function ChatReturnBanner() {
           type="button"
           onClick={handleDismiss}
           aria-label="배너 닫기"
-          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 hover:text-white"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-300 hover:bg-white/15 hover:text-white"
         >
           <X size={13} />
         </button>
