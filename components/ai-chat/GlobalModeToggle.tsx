@@ -126,14 +126,18 @@ export function GlobalModeToggle() {
       onClick={onToggle}
       aria-label={label}
       title={`${label} (${shortcut})`}
+      // 위치: 기존 ChatFAB(right-4 md:right-6, bottom-6, h-12 md:h-14) 바로 위에 수직 스택.
+      // 사이즈와 오프셋을 ChatFAB 와 동일하게 매칭하여 시각적 정렬.
       className={cn(
-        "fixed bottom-5 right-5 z-[90] inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400",
+        "fixed right-4 z-[46] inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 md:right-6 md:h-14 md:w-14",
+        "bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-24",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400",
         inChat
           ? "bg-white text-zinc-900 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-800"
           : "bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300",
       )}
     >
-      <Icon size={18} />
+      <Icon size={18} className="md:scale-110" />
     </button>
   );
 }
