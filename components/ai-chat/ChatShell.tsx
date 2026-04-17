@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
 import { ArtifactPanel } from "@/components/ai-chat/ArtifactPanel";
 import { Markdown } from "@/components/ai-chat/Markdown";
+import { ReasoningBlock } from "@/components/ai-chat/ReasoningBlock";
 import { ToolCard, type ToolCardState } from "@/components/ai-chat/ToolCard";
 import {
   ConversationSidebar,
@@ -296,6 +297,14 @@ function MessageRow({
                 />
               </div>
             );
+          }
+          if (p.type === "reasoning") {
+            const rState =
+              "state" in p && (p.state === "streaming" || p.state === "done")
+                ? p.state
+                : undefined;
+            const rText = "text" in p ? String(p.text ?? "") : "";
+            return <ReasoningBlock key={i} text={rText} state={rState} />;
           }
           if (p.type === "tool-getScores" && "state" in p) {
             const state = toolState(p.state);
