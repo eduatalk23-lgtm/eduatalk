@@ -113,6 +113,13 @@ export function ChatShell({
     id: conversationId,
     messages: initialMessages,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
+    // Vercel AI Chatbot 공식 패턴 적용: 응답 완료 시 서버 컴포넌트 재실행 →
+    // listConversations 재조회 → 사이드바 자동 갱신(제목·최근활동·신규 대화 반영).
+    // router.refresh 는 서버 컴포넌트만 재실행하고 useChat messages 등 클라이언트
+    // state 는 보존함.
+    onFinish: () => {
+      router.refresh();
+    },
   });
 
   const isBusy = status === "submitted" || status === "streaming";
