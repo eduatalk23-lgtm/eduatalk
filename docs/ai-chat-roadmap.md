@@ -47,7 +47,7 @@
 
 ---
 
-## Phase T (1-2주) — Transition Bridge 🆕 신설
+## Phase T (1-2주) — Transition Bridge ✅ v0 완료 (2026-04-17)
 
 **목표**: 기존 GUI 환경과 AI 내러티브 환경을 자연스럽게 오가는 **전환 UX** 구축.
 
@@ -55,18 +55,22 @@
 
 **전략 3층 매핑**: L2 복제(ChatGPT "Ask about this" 패턴) + L3 선도(교육 도메인 컨텍스트 승계).
 
-| # | 작업 | 난이도 | 시간 | 대응 유형 |
-|---|------|--------|------|-----------|
-| T-1 | 기존 GUI 페이지에 "AI와 대화" 버튼 + 컨텍스트 프리필 (/ai-chat 진입 시 현재 보던 데이터 요약을 첫 메시지로 자동 삽입) | Med | 3d | A |
-| T-2 | navigateTo 결과 개선 — 이동한 GUI 상단에 "이 대화에서 왔어요" 플로팅 배너 + "대화 계속" 버튼. ArtifactPanel에서 원본 GUI로 "원본 보기" 링크 | Low | 2d | B |
-| T-3 | 페이지 상단 "GUI ↔ 대화" 모드 토글 (선택). 같은 subjectStudentId/tenantId 맥락 공유 | Med | 2d | C |
-| T-4 | 전환 시 컨텍스트 승계 규약 정의 — URL 쿼리 (`?from=/scores&studentId=xxx`) + 서버 측 소스 검증 + 시스템 프롬프트 주입 | Med | 1d | 공통 인프라 |
+| # | 작업 | 난이도 | 시간 | 대응 유형 | 상태 | 커밋 |
+|---|------|--------|------|-----------|------|------|
+| T-1 | 기존 GUI 페이지에 "AI와 대화" 버튼 + 컨텍스트 프리필 | Med | 3d | A | ✅ | 9a9bfc03 |
+| T-2 | navigateTo 결과 개선 + Artifact "원본 보기" 링크 | Low | 2d | B | ✅ | 02668ce7 |
+| T-3 | 우측 슬라이드 패널 "이 화면에서 대화" (split 모드) | Med | 2d | C | ✅ (v0) | 42761ab1 |
+| T-4 | 전환 시 컨텍스트 승계 규약 (URL + 검증 + 주입) | Med | 1d | 공통 | ✅ | 0366de3c |
+| T-1 후속 | admin-record 리졸버 + 진입점 | Low | 반일 | A | ✅ | ac555eef |
+| 핸드오프 #2 | tenant RLS 확장 (admin/consultant 읽기) | Low | 반일 | 공통 | ✅ | ac555eef |
 
-**산출**: 두 환경 사이의 마찰이 0에 가까워짐. 학생·컨설턴트가 "필요한 데이터 → 자연어 질문" 흐름을 중단 없이 이어갈 수 있음.
+**산출**: 두 환경 사이의 마찰 0 근접. 학생·컨설턴트가 "필요한 데이터 → 자연어 질문" 흐름을 중단 없이 연결.
 
-**의존성**: `ai_conversations.subject_student_id` 스키마 이미 준비됨. tenant RLS 확장(#2 미완, 핸드오프 D 빈틈)이 T-1/T-3의 admin/consultant 시나리오 전제.
+**v0 미포함 (v1 승격)**:
+- T-3 모바일 bottom sheet
+- #3 admin `/scores` navigateTo 경로 매핑 (navigateTo tool role-aware 리팩터 필요)
 
-**산출 후 L2/L3 수치**: L2 80→90, L3 25→40.
+**산출 후 L2/L3 수치**: L2 80→90, L3 25→45.
 
 ---
 
@@ -176,3 +180,7 @@ Week 20-26 │ Phase E 완성        │ L3 선도 포지션
   - "GUI↔내러티브 전환 축"이 초안에서 누락됨을 식별 → **Phase T (Transition Bridge)** 신설
   - 전환 4유형(A/B/C/D) 명시. A/B/C는 Phase T, D는 Phase C-3로 배치
   - 배경: `feedback_ai-narrative-ui-strategy.md` "AI 내러티브 환경으로 전환 중" 원칙을 UX 축으로 구체화
+- **2026-04-17 (Phase T v0 완주)**:
+  - T-4(규약) → T-1(학생 진입) → T-2(복귀) → T-3(split) → T-1 후속(admin-record) + 핸드오프 #2 RLS 순차 완료
+  - 6 커밋 (`0366de3c`, `9a9bfc03`, `02668ce7`, `42761ab1`, `ac555eef`, `20260417600000~700000` 마이그레이션 2건)
+  - Phase T 축 실측 진입. gemma4:31b 모델 전환 실측 병행 (ollama 로컬)
