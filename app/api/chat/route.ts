@@ -12,8 +12,14 @@ import { getStudentById } from "@/lib/data/students";
 import { getInternalScoresByTerm } from "@/lib/data/scoreDetails";
 import { searchStudentsAction } from "@/lib/domains/student/actions/search";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { saveChatTurn } from "@/lib/domains/ai-chat/persistence";
+import {
+  getConversationOrigin,
+  saveChatTurn,
+} from "@/lib/domains/ai-chat/persistence";
 import type { AIConversationPersona } from "@/lib/domains/ai-chat/types";
+import { getHandoffSource } from "@/lib/domains/ai-chat/handoff/sources";
+import { validateAndResolveHandoff } from "@/lib/domains/ai-chat/handoff/validator";
+import { buildHandoffPromptSection } from "@/lib/domains/ai-chat/handoff/prompt";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -209,6 +215,42 @@ const tools = {
   }),
 };
 
+/**
+ * 대화의 origin JSONB 를 읽어 handoff 시스템 프롬프트 조각을 빌드.
+ * 실패·부재 시 빈 문자열 반환 (프롬프트에 빈 줄만 추가되지 않도록 호출자가 분기).
+ */
+async function buildHandoffSectionForConversation(
+  conversationId: string,
+  user: Awaited<ReturnType<typeof getCurrentUser>>,
+): Promise<string> {
+  if (!user) return "";
+  try {
+    const origin = await getConversationOrigin(conversationId);
+    if (!origin) return "";
+    const source = getHandoffSource(origin.source);
+    if (!source) return "";
+
+    const params = origin.params ?? {};
+    const handoff = await validateAndResolveHandoff(
+      {
+        from: origin.source,
+        studentId:
+          typeof params.studentId === "string" ? params.studentId : undefined,
+        grade: typeof params.grade === "number" ? params.grade : undefined,
+        semester:
+          typeof params.semester === "number" ? params.semester : undefined,
+        subject:
+          typeof params.subject === "string" ? params.subject : undefined,
+      },
+      user,
+    );
+    if (!handoff.ok) return "";
+    return buildHandoffPromptSection(handoff.source, handoff.resolved);
+  } catch {
+    return "";
+  }
+}
+
 async function buildUserContextPrompt(): Promise<string> {
   const user = await getCurrentUser();
   if (!user) {
@@ -263,12 +305,15 @@ export async function POST(req: Request) {
 
   const user = await getCurrentUser();
   const userContext = await buildUserContextPrompt();
+  const handoffSection = conversationId && user
+    ? await buildHandoffSectionForConversation(conversationId, user)
+    : "";
 
   const result = streamText({
     model: ollama(process.env.OLLAMA_MODEL ?? "gemma4:latest"),
     system: `당신은 에듀엣톡 AI 컨설턴트입니다. 학생의 교육 상담을 친근하고 명확하게 돕습니다. 모든 답변은 한국어로 합니다.
 
-${userContext}
+${userContext}${handoffSection ? "\n\n" + handoffSection : ""}
 
 [도구 선택 규칙]
 - 화면 이동 요청(예: "성적 화면 열어줘", "대시보드로 가줘") → navigateTo

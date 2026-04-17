@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -15,6 +16,7 @@ import {
   Moon,
   Sun,
   PanelLeft,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -40,23 +42,33 @@ const PATH_LABELS: Record<string, string> = {
   "/settings": "설정",
 };
 
-const SUGGESTION_CHIPS: Array<{ category: string; text: string }> = [
+const DEFAULT_SUGGESTION_CHIPS: Array<{ category: string; text: string }> = [
   { category: "성적", text: "내 성적 보여줘" },
   { category: "학습", text: "이번 주 학습 플랜 확인하고 싶어" },
   { category: "탐구", text: "탐구 가이드 추천해줘" },
   { category: "이동", text: "생기부 분석 화면 열어줘" },
 ];
 
+export type ChatBannerOrigin = {
+  source: string;
+  label: string;
+  originPath: string;
+};
+
 type Props = {
   conversationId: string;
   initialMessages: UIMessage[];
   conversations: ConversationListItem[];
+  bannerOrigin?: ChatBannerOrigin | null;
+  suggestionChips?: Array<{ category: string; text: string }>;
 };
 
 export function ChatShell({
   conversationId,
   initialMessages,
   conversations,
+  bannerOrigin,
+  suggestionChips,
 }: Props) {
   const router = useRouter();
   const [input, setInput] = useState("");
@@ -142,6 +154,13 @@ export function ChatShell({
           </div>
         </header>
 
+        {bannerOrigin && (
+          <HandoffBanner
+            label={bannerOrigin.label}
+            originPath={bannerOrigin.originPath}
+          />
+        )}
+
         <main
           ref={scrollRef}
           role="log"
@@ -151,7 +170,7 @@ export function ChatShell({
           className="flex flex-1 flex-col overflow-y-auto"
         >
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
-            {messages.length === 0 && (
+            {messages.length === 0 && !bannerOrigin && (
               <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
                 <div className="flex flex-col gap-1">
                   <p className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">
@@ -162,7 +181,7 @@ export function ChatShell({
                   </p>
                 </div>
                 <div className="grid w-full max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
-                  {SUGGESTION_CHIPS.map((chip) => (
+                  {DEFAULT_SUGGESTION_CHIPS.map((chip) => (
                     <button
                       key={chip.text}
                       type="button"
@@ -190,6 +209,31 @@ export function ChatShell({
                 onNavigate={(path) => router.push(path)}
               />
             ))}
+
+            {bannerOrigin &&
+              suggestionChips &&
+              suggestionChips.length > 0 &&
+              !messages.some((m) => m.role === "user") && (
+                <div
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+                  role="group"
+                  aria-label="맥락 기반 추천 질문"
+                >
+                  {suggestionChips.map((chip) => (
+                    <button
+                      key={chip.text}
+                      type="button"
+                      onClick={() => sendMessage({ text: chip.text })}
+                      className="flex flex-col gap-0.5 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
+                    >
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                        {chip.category}
+                      </span>
+                      <span className="font-medium">{chip.text}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
             <div
               role="status"
@@ -270,6 +314,35 @@ export function ChatShell({
       </div>
 
       <ArtifactPanel />
+    </div>
+  );
+}
+
+function HandoffBanner({
+  label,
+  originPath,
+}: {
+  label: string;
+  originPath: string;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-2 md:px-6 dark:border-zinc-800 dark:bg-zinc-900"
+      role="note"
+      aria-label="대화 맥락 배너"
+    >
+      <div className="flex items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-300">
+        <Sparkles size={13} className="text-zinc-500 dark:text-zinc-400" />
+        <span>
+          <span className="font-medium">{label}</span>에서 시작된 대화
+        </span>
+      </div>
+      <Link
+        href={originPath}
+        className="text-[11px] font-medium text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-300"
+      >
+        원본 보기 ▸
+      </Link>
     </div>
   );
 }

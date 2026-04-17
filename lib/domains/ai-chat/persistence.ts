@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { UIMessage } from "ai";
 import type {
+  AIConversationOrigin,
   AIConversationPersona,
   AIConversationRow,
   AIMessageRow,
@@ -140,4 +141,94 @@ export async function listConversations(
     pinnedAt: r.pinned_at,
     archivedAt: r.archived_at,
   }));
+}
+
+/**
+ * 단일 대화의 origin 조회 (ChatShell 배너 렌더용).
+ * RLS 로 owner 만 접근 가능.
+ */
+export async function getConversationOrigin(
+  conversationId: string,
+): Promise<AIConversationOrigin | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("ai_conversations")
+    .select("origin")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const origin = (data as unknown as { origin: AIConversationOrigin | null })
+    .origin;
+  return origin ?? null;
+}
+
+/**
+ * Phase T-4: handoff 진입 시 대화 + 선공 assistant 메시지를 한번에 영속화.
+ * - ai_conversations UPSERT (origin 포함, 신규 진입일 때만)
+ * - ai_messages UPSERT (선공 메시지 1개)
+ *
+ * 이미 대화가 존재하면 origin 은 유지 (1회 진입 시점이 authoritative).
+ */
+type SaveOpenerArgs = {
+  conversationId: string;
+  ownerUserId: string;
+  tenantId: string | null;
+  persona: AIConversationPersona;
+  subjectStudentId?: string | null;
+  title?: string | null;
+  origin: AIConversationOrigin;
+  assistantMessage: UIMessage;
+};
+
+export async function saveOpener(
+  args: SaveOpenerArgs,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  // 이미 origin 이 기록된 경우 재기록하지 않음
+  const { data: existing } = await supabase
+    .from("ai_conversations")
+    .select("id, origin")
+    .eq("id", args.conversationId)
+    .maybeSingle();
+
+  const existingOrigin = (existing as unknown as
+    | { origin: AIConversationOrigin | null }
+    | null)?.origin;
+
+  const nowIso = new Date().toISOString();
+  const upsertPayload: Record<string, unknown> = {
+    id: args.conversationId,
+    owner_user_id: args.ownerUserId,
+    tenant_id: args.tenantId,
+    persona: args.persona,
+    subject_student_id: args.subjectStudentId ?? null,
+    title: args.title ?? null,
+    last_activity_at: nowIso,
+  };
+  if (!existingOrigin) {
+    upsertPayload.origin = args.origin;
+  }
+
+  const { error: convErr } = await supabase
+    .from("ai_conversations")
+    .upsert(upsertPayload as never, { onConflict: "id" });
+  if (convErr) {
+    return { ok: false, error: `conversation upsert: ${convErr.message}` };
+  }
+
+  const messageRow = {
+    id: args.assistantMessage.id,
+    conversation_id: args.conversationId,
+    role: args.assistantMessage.role,
+    parts: args.assistantMessage.parts as unknown as Record<string, unknown>,
+  };
+  const { error: msgErr } = await supabase
+    .from("ai_messages")
+    .upsert(messageRow as never, { onConflict: "id" });
+  if (msgErr) {
+    return { ok: false, error: `opener upsert: ${msgErr.message}` };
+  }
+
+  return { ok: true };
 }

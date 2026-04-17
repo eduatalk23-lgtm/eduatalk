@@ -1,34 +1,72 @@
 # AI Chat (Chat-First Shell) 6개월 로드맵
 
 **작성**: 2026-04-17
-**상태**: L1 65% · L2 45% · L3 25%
-**전략**: L1/L2 표준 추종 + L3 도메인 선도
+**최근 개정**: 2026-04-17 (Phase T 축 신설)
+**상태**: L1 70% · L2 80% · L3 25% (Phase A 완주 후)
+**전략**: L1/L2 표준 추종 + L3 도메인 선도 + **GUI↔내러티브 전환 축**
 
 ---
 
-## 전략 3층
+## 전략 3층 + 전환 축
 
 | 층 | 전략 | 설명 |
 |----|------|------|
 | **L1** 인프라·표준 | 철저히 따라감 | AI SDK v6, MCP, UIMessage, RSC 등 |
 | **L2** 핵심 UX 패턴 | 빠르게 복제 | Chat shell, Artifact, Tool disclosure 등 |
 | **L3** 도메인 특화 | **선도한다** | 교육·컨설턴트·학부모·3자 대화 |
+| **전환 축 (Bridge)** | 합의된 축 | 기존 GUI ↔ AI 내러티브 환경을 자연스럽게 오가는 인터페이스 |
+
+> **전환 축**은 2026-04-17 세션에서 합의. 에듀엣톡은 "기존 GUI 환경"(대시보드/플랜/성적/분석 등)과 "AI 내러티브 환경"(/ai-chat)을 동시에 유지하며, 두 환경의 인터페이스 개념을 확장 중. Phase T가 그 축의 전용 단계이고, D유형(Artifact Canvas 편집)은 Phase C에서 이어받음.
 
 ---
 
-## Phase A (2주) — L2 즉시 임팩트
+## 전환 4유형 (Bridge 관점)
+
+| 유형 | 방향 | 본 로드맵 위치 |
+|------|------|----------------|
+| **A. GUI → 내러티브 진입점** | /scores 등에서 "AI와 대화" 버튼 + 컨텍스트 승계 | **Phase T-1** |
+| **B. 내러티브 → GUI 복귀 개선** | navigateTo 결과에 "대화 계속" 플로팅, Artifact에서 원본 GUI 점프 | **Phase T-2** |
+| **C. 양방향 토글** | 같은 페이지 "GUI 보기 ↔ 대화 보기" 모드 전환 | **Phase T-3** |
+| **D. 내러티브 안에 GUI 재현** | Artifact 패널이 편집 가능한 Canvas (성적 수정/플랜 편집) | **Phase C-3** (기존) |
+
+---
+
+## Phase A (2주) — L2 즉시 임팩트 ✅ 완료 (2026-04-17)
 
 **목표**: 채팅 품질 "일상 ChatGPT 수준"
 
-| # | 작업 | 난이도 | 시간 |
-|---|------|--------|------|
-| A-1 | 마크다운 + 수식 + 코드 렌더 (react-markdown + remark-gfm + KaTeX + Shiki) | Low | 반일 |
-| A-2 | Reasoning 접기/펼치기 ("Thought for Ns" chip) | Low | 2h |
-| A-3 | 사이드바 hover 액션 (rename / pin / archive / delete) | Low | 4h |
-| A-4 | 접근성 (aria-live, role=log) + 다크모드 토글 | Low | 4h |
-| A-5 | Adaptive pane (3→2→1) + 모바일 drawer | Med | 반일 |
+| # | 작업 | 난이도 | 시간 | 상태 |
+|---|------|--------|------|------|
+| A-1 | 마크다운 + 수식 + 코드 렌더 (react-markdown + remark-gfm + KaTeX + Shiki) | Low | 반일 | ✅ |
+| A-2 | Reasoning 접기/펼치기 ("Thought for Ns" chip) | Low | 2h | ✅ |
+| A-3 | 사이드바 hover 액션 (rename / pin / archive / delete) | Low | 4h | ✅ |
+| A-4 | 접근성 (aria-live, role=log) + 다크모드 토글 | Low | 4h | ✅ |
+| A-5 | Adaptive pane (3→2→1) + 모바일 drawer | Med | 반일 | ✅ |
 
-**산출**: ChatGPT 2024 수준 일상 품질 도달.
+**산출**: ChatGPT 2024 수준 일상 품질 도달. 커밋 3df3138d ~ 6178c02d.
+
+---
+
+## Phase T (1-2주) — Transition Bridge 🆕 신설
+
+**목표**: 기존 GUI 환경과 AI 내러티브 환경을 자연스럽게 오가는 **전환 UX** 구축.
+
+**배경**: Phase A 완료 시점 기준으로, 두 환경 간 교차점이 `navigateTo`(단방향 점프) + `getScores`(데이터 소환) 2개뿐. 사용자 실제 흐름(학생이 /scores에서 "이 성적 의미 물어보기" → 컨설턴트가 /admin/students/xxx에서 "이 학생 분석 대화")을 지원하려면 전용 축 필요.
+
+**전략 3층 매핑**: L2 복제(ChatGPT "Ask about this" 패턴) + L3 선도(교육 도메인 컨텍스트 승계).
+
+| # | 작업 | 난이도 | 시간 | 대응 유형 |
+|---|------|--------|------|-----------|
+| T-1 | 기존 GUI 페이지에 "AI와 대화" 버튼 + 컨텍스트 프리필 (/ai-chat 진입 시 현재 보던 데이터 요약을 첫 메시지로 자동 삽입) | Med | 3d | A |
+| T-2 | navigateTo 결과 개선 — 이동한 GUI 상단에 "이 대화에서 왔어요" 플로팅 배너 + "대화 계속" 버튼. ArtifactPanel에서 원본 GUI로 "원본 보기" 링크 | Low | 2d | B |
+| T-3 | 페이지 상단 "GUI ↔ 대화" 모드 토글 (선택). 같은 subjectStudentId/tenantId 맥락 공유 | Med | 2d | C |
+| T-4 | 전환 시 컨텍스트 승계 규약 정의 — URL 쿼리 (`?from=/scores&studentId=xxx`) + 서버 측 소스 검증 + 시스템 프롬프트 주입 | Med | 1d | 공통 인프라 |
+
+**산출**: 두 환경 사이의 마찰이 0에 가까워짐. 학생·컨설턴트가 "필요한 데이터 → 자연어 질문" 흐름을 중단 없이 이어갈 수 있음.
+
+**의존성**: `ai_conversations.subject_student_id` 스키마 이미 준비됨. tenant RLS 확장(#2 미완, 핸드오프 D 빈틈)이 T-1/T-3의 admin/consultant 시나리오 전제.
+
+**산출 후 L2/L3 수치**: L2 80→90, L3 25→40.
 
 ---
 
@@ -51,16 +89,16 @@
 
 ## Phase C (1개월) — MCP + 고급 Artifact
 
-**목표**: 외부 AI 생태계 플러그인 가능. Artifact 본격화.
+**목표**: 외부 AI 생태계 플러그인 가능. Artifact 본격화. **전환 유형 D** 완성 지점.
 
-| # | 작업 | 난이도 | 시간 |
-|---|------|--------|------|
-| C-1 | MCP 서버 래핑 (`@modelcontextprotocol/sdk`) + Streamable HTTP | High | 1w |
-| C-2 | Artifact 버전 관리 (`artifacts` 테이블 + 버전 탭) | High | 1w |
-| C-3 | Artifact Canvas 편집 (성적 수정 / 플랜 편집) | High | 1w |
-| C-4 | Citation + sources 패널 | Med | 3d |
+| # | 작업 | 난이도 | 시간 | 비고 |
+|---|------|--------|------|------|
+| C-1 | MCP 서버 래핑 (`@modelcontextprotocol/sdk`) + Streamable HTTP | High | 1w | |
+| C-2 | Artifact 버전 관리 (`artifacts` 테이블 + 버전 탭) | High | 1w | |
+| C-3 | Artifact Canvas 편집 (성적 수정 / 플랜 편집) | High | 1w | **전환 유형 D** — 내러티브 안에서 GUI 재현 |
+| C-4 | Citation + sources 패널 | Med | 3d | |
 
-**산출**: Claude Desktop·Cursor 등 외부 AI가 에듀엣톡 tool 호출. ChatGPT Canvas 수준 아티팩트.
+**산출**: Claude Desktop·Cursor 등 외부 AI가 에듀엣톡 tool 호출. ChatGPT Canvas 수준 아티팩트. Phase T에서 시작된 전환 축의 최종 완성(D).
 
 ---
 
@@ -102,27 +140,39 @@
 
 | # | 표준 | 채택 | 이유 |
 |---|------|------|------|
-| 1 | react-markdown + remark-gfm | ⏳ | 이미 설치, 활성화만 남음 |
-| 2 | KaTeX + remark-math + rehype-katex | ❌ | 수학 상담 필수 |
-| 3 | Shiki | ❌ | 코드 설명 시 하이라이트 |
-| 4 | @modelcontextprotocol/sdk | ❌ | 외부 AI 생태계 연결 |
-| 5 | cmdk | ❌ | Cmd+K 표준 |
-| 6 | @vercel/kv + resumable-stream | ❌ | 긴 응답 중단 복구 |
-| 7 | UIMessage metadata 활용 | ❌ | duration/model/reasoning |
-| 8 | Web Speech API | ❌ | 음성 입력 |
+| 1 | react-markdown + remark-gfm | ✅ | A-1에서 채택 (Markdown.tsx) |
+| 2 | KaTeX + remark-math + rehype-katex | ✅ | A-1에서 채택 |
+| 3 | Shiki | ✅ | A-1 동적 import + A-4 테마 스위칭 |
+| 4 | @modelcontextprotocol/sdk | ❌ | 외부 AI 생태계 연결 (Phase C) |
+| 5 | cmdk | ❌ | Cmd+K 표준 (Phase B-2) |
+| 6 | @vercel/kv + resumable-stream | ❌ | 긴 응답 중단 복구 (Phase D-5) |
+| 7 | UIMessage metadata 활용 | ❌ | duration/model/reasoning (Phase B-1) |
+| 8 | Web Speech API | ❌ | 음성 입력 (Phase E-6) |
 | 9 | View Transitions API | ❌ | 부드러운 패널 전환 |
-| 10 | framer-motion | ✅ 설치됨 | 스트리밍 애니메이션 |
+| 10 | framer-motion | ✅ | 설치됨 (미사용, 향후 스트리밍 애니메이션) |
 
 ---
 
-## 타임라인 요약
+## 타임라인 요약 (Phase T 삽입 반영)
 
 ```
-Week 1-2   │ Phase A        │ ChatGPT 수준 도달
-Week 3-5   │ Phase B        │ 2026 표준 완성
-Week 6-9   │ Phase C (+D)   │ MCP + Memory 진입
-Week 10-17 │ Phase D + E    │ Gen 4 + 도메인 차별화
-Week 18-26 │ Phase E 완성   │ L3 선도 포지션
+Week 1-2   │ Phase A ✅          │ ChatGPT 수준 도달 (2026-04-17 완료)
+Week 3-4   │ Phase T 🆕          │ GUI↔내러티브 전환 브리지 (A/B/C 유형)
+Week 5-7   │ Phase B             │ 2026 표준 완성 (Cmd+K, slash, HITL, 모바일)
+Week 8-11  │ Phase C (+D 유형)   │ MCP + Memory + Artifact Canvas 편집
+Week 12-19 │ Phase D + E         │ Gen 4 + 도메인 차별화
+Week 20-26 │ Phase E 완성        │ L3 선도 포지션
 ```
 
-**6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + 교육 L3 독점.
+**6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + **GUI↔내러티브 전환 축** + 교육 L3 독점.
+
+---
+
+## 개정 이력
+
+- **2026-04-17 (초안)**: Phase A~E 5단계 수립
+- **2026-04-17 (Phase A 완료 + Phase T 신설)**:
+  - Phase A 5단계 전부 완주 표시
+  - "GUI↔내러티브 전환 축"이 초안에서 누락됨을 식별 → **Phase T (Transition Bridge)** 신설
+  - 전환 4유형(A/B/C/D) 명시. A/B/C는 Phase T, D는 Phase C-3로 배치
+  - 배경: `feedback_ai-narrative-ui-strategy.md` "AI 내러티브 환경으로 전환 중" 원칙을 UX 축으로 구체화

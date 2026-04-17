@@ -7,6 +7,13 @@ export type AIConversationPersona =
   | "admin"
   | "superadmin";
 
+export type AIConversationOrigin = {
+  source: string;
+  originPath: string;
+  params: Record<string, string | number | undefined>;
+  enteredAt: string;
+};
+
 export type AIConversationRow = {
   id: string;
   owner_user_id: string;
@@ -19,6 +26,7 @@ export type AIConversationRow = {
   archived_at: string | null;
   retention_until: string | null;
   anonymized_at: string | null;
+  origin: AIConversationOrigin | null;
   created_at: string;
   updated_at: string;
 };
