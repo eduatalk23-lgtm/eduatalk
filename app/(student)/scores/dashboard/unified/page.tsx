@@ -18,6 +18,7 @@ import { StrategyCard } from "./_components/StrategyCard";
 import { Card } from "@/components/molecules/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+import { HandoffLauncher } from "@/components/ai-chat/HandoffLauncher";
 import Link from "next/link";
 import { getContainerClass } from "@/lib/constants/layout";
 
@@ -175,6 +176,7 @@ export default async function UnifiedScoreDashboardPage() {
         <PageHeader
           title="성적 대시보드"
           description="내신 및 모의고사 성적을 통합 분석하고 입시 전략을 제시합니다."
+          action={<HandoffLauncher from="scores" />}
         />
 
         {/* 대시보드 카드 섹션 */}

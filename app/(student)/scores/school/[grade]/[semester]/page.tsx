@@ -8,6 +8,7 @@ import type { InternalScore } from "@/lib/data/studentScores";
 import { getSubjectHierarchyOptimized } from "@/lib/data/subjects";
 import { resolveStudentCurriculumId } from "@/lib/domains/student/resolveStudentCurriculum";
 import { SchoolScoresView } from "./_components/SchoolScoresView";
+import { HandoffLauncher } from "@/components/ai-chat/HandoffLauncher";
 import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {
@@ -65,11 +66,18 @@ export default async function SchoolScoresPage({
   return (
     <section className={getContainerClass("DASHBOARD", "md")}>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-gray-900">내신 성적</h1>
-          <p className="text-sm text-gray-600">
-            내신 성적을 입력하고 관리하세요.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold text-gray-900">내신 성적</h1>
+            <p className="text-sm text-gray-600">
+              내신 성적을 입력하고 관리하세요.
+            </p>
+          </div>
+          <HandoffLauncher
+            from="scores"
+            grade={parseInt(grade)}
+            semester={parseInt(semester)}
+          />
         </div>
 
         {/* 탭 네비게이션 */}
