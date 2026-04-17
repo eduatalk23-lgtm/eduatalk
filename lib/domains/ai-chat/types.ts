@@ -1,0 +1,30 @@
+import type { UIMessage } from "ai";
+
+export type AIConversationPersona =
+  | "student"
+  | "parent"
+  | "consultant"
+  | "admin"
+  | "superadmin";
+
+export type AIConversationRow = {
+  id: string;
+  owner_user_id: string;
+  tenant_id: string | null;
+  persona: AIConversationPersona;
+  subject_student_id: string | null;
+  title: string | null;
+  last_activity_at: string;
+  retention_until: string | null;
+  anonymized_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AIMessageRow = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  parts: UIMessage["parts"];
+  created_at: string;
+};
