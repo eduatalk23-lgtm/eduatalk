@@ -32,6 +32,10 @@ export type ConversationListItem = {
 type Props = {
   conversations: ConversationListItem[];
   activeId: string;
+  /** 모바일 드로어 오픈 여부. md+ 에서는 무시되고 항상 표시. */
+  mobileOpen?: boolean;
+  /** 모바일 드로어 닫기 콜백 (백드롭 클릭 / 링크 클릭 시). */
+  onMobileClose?: () => void;
 };
 
 const PERSONA_LABELS: Record<string, string> = {
@@ -97,9 +101,23 @@ function formatRelative(iso: string, group: GroupKey): string {
   });
 }
 
-export function ConversationSidebar({ conversations, activeId }: Props) {
+export function ConversationSidebar({
+  conversations,
+  activeId,
+  mobileOpen = false,
+  onMobileClose,
+}: Props) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onMobileClose?.();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [mobileOpen, onMobileClose]);
 
   const grouped = new Map<GroupKey, ConversationListItem[]>();
   for (const c of conversations) {
@@ -112,8 +130,23 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
   }
 
   return (
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          onClick={onMobileClose}
+          aria-label="사이드바 닫기"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+        />
+      )}
     <aside
-      className="hidden h-dvh w-72 flex-col border-r border-zinc-200 bg-zinc-50 md:flex dark:border-zinc-800 dark:bg-zinc-950"
+      className={cn(
+        "z-50 h-dvh w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950",
+        "md:flex",
+        mobileOpen
+          ? "fixed inset-y-0 left-0 flex shadow-2xl md:static md:shadow-none"
+          : "hidden",
+      )}
       aria-label="대화 목록"
     >
       <header className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
@@ -155,6 +188,7 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
                         setRenamingId(c.id);
                       }}
                       onFinishRename={() => setRenamingId(null)}
+                      onNavigate={onMobileClose}
                     />
                   ))}
                 </ul>
@@ -167,12 +201,14 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
       <footer className="border-t border-zinc-200 p-3 dark:border-zinc-800">
         <Link
           href="/ai-chat"
+          onClick={onMobileClose}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           <Plus size={14} />새 대화 시작
         </Link>
       </footer>
     </aside>
+    </>
   );
 }
 
@@ -186,6 +222,7 @@ type RowProps = {
   onCloseMenu: () => void;
   onStartRename: () => void;
   onFinishRename: () => void;
+  onNavigate?: () => void;
 };
 
 function ConversationRow({
@@ -198,6 +235,7 @@ function ConversationRow({
   onCloseMenu,
   onStartRename,
   onFinishRename,
+  onNavigate,
 }: RowProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -250,6 +288,7 @@ function ConversationRow({
         <>
           <Link
             href={`/ai-chat?id=${c.id}`}
+            onClick={onNavigate}
             className={cn(
               "flex flex-col gap-1 border-l-2 px-4 py-2.5 pr-10 transition-colors",
               isActive

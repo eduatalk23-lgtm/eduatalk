@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Moon,
   Sun,
+  PanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -59,6 +60,7 @@ export function ChatShell({
 }: Props) {
   const router = useRouter();
   const [input, setInput] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
@@ -103,18 +105,30 @@ export function ChatShell({
       <ConversationSidebar
         conversations={conversations}
         activeId={conversationId}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
       />
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-              에듀엣톡 AI
-            </h1>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-              <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
-                {conversationId.slice(0, 8)}
-              </code>
-            </p>
+      <div className="flex flex-1 flex-col min-w-0">
+        <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 md:px-6 dark:border-zinc-800">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="대화 목록 열기"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <PanelLeft size={16} />
+            </button>
+            <div className="flex flex-col gap-0.5">
+              <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                에듀엣톡 AI
+              </h1>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
+                  {conversationId.slice(0, 8)}
+                </code>
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggleButton />
@@ -136,7 +150,7 @@ export function ChatShell({
           aria-label="대화 로그"
           className="flex flex-1 flex-col overflow-y-auto"
         >
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-8">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
                 <div className="flex flex-col gap-1">
@@ -206,7 +220,7 @@ export function ChatShell({
         </main>
 
         <form
-          className="border-t border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950"
+          className="border-t border-zinc-200 bg-white px-4 py-3 md:px-6 md:py-4 dark:border-zinc-800 dark:bg-zinc-950"
           onSubmit={(e) => {
             e.preventDefault();
             submit();

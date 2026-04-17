@@ -17,7 +17,7 @@ export function ArtifactPanel() {
 
   return (
     <aside
-      className="hidden h-dvh w-[480px] flex-col border-l border-zinc-200 bg-zinc-50 md:flex dark:border-zinc-800 dark:bg-zinc-950"
+      className="hidden h-dvh w-[360px] flex-col border-l border-zinc-200 bg-zinc-50 md:flex lg:w-[480px] dark:border-zinc-800 dark:bg-zinc-950"
       aria-label="아티팩트 패널"
     >
       {!artifact ? (
