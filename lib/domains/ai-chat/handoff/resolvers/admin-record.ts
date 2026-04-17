@@ -49,11 +49,17 @@ export async function resolveAdminRecordContext(
   const gradeLabel = studentGrade ? `${studentGrade}학년` : "";
   const schoolLabel = schoolName ? ` (${schoolName})` : "";
 
+  // NOTE: 학생 이름 라인을 "이 대화의 대상 학생" 으로 명시.
+  // getScores 등 도구 호출 시 AI 가 이 학생 이름을 자동으로 studentName 으로 사용하도록
+  // 시스템 프롬프트 규칙과 맞물림.
   const snippet = [
     `- 소스: 생기부 관리 화면 (/admin/students/${input.studentId}/record)`,
-    `- 대상: ${nameLabel}${schoolLabel}${gradeLabel ? ` · ${gradeLabel}` : ""}`,
-    `- 컨설턴트/관리자가 해당 학생의 생기부 항목을 검토하며 질문을 시작했습니다.`,
-    `- 구체 세특·활동 내용은 아직 도구로 노출되지 않았습니다. 일반적 개선 방향·전략 중심으로 답변하세요.`,
+    `- **이 대화의 대상 학생**: ${studentName ?? "(이름 미확보)"}${schoolLabel}${gradeLabel ? ` · ${gradeLabel}` : ""}`,
+    `- 컨설턴트/관리자가 이 학생의 생기부를 검토하며 질문을 시작했습니다.`,
+    studentName
+      ? `- 도구 호출 시 studentName 은 "${studentName}" 을 사용하고 사용자에게 재질문하지 마세요.`
+      : `- 학생 이름이 확보되지 않은 경우에만 사용자에게 질문하세요.`,
+    `- 구체 세특·활동 내용 도구는 아직 미노출. 일반 개선 방향·전략 중심으로 답변.`,
   ].join("\n");
 
   return {

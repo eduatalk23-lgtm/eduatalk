@@ -83,6 +83,9 @@ export async function resolveScoresContext(
 
   const snippet = [
     `- 소스: 성적 화면`,
+    studentName
+      ? `- **이 대화의 대상 학생**: ${studentName}. 도구 호출 시 studentName 은 "${studentName}" 사용, 재질문 금지.`
+      : `- 대상: 로그인한 본인 (학생 role).`,
     `- 조회 기준: ${filterLabel}. ${
       scoreCount > 0 ? `총 ${scoreCount}과목.` : "데이터 없음."
     }`,
