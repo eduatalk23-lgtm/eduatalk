@@ -245,6 +245,106 @@ export function usePipelineExecution({
     }
   };
 
+  // ─── Past Analytics Phase 실행 (개별 셀 클릭) ─────────────────────────────
+
+  const runPastAnalyticsPhase = async (phase: number) => {
+    if (fetchingRef.current) return;
+    setRunningCell(`a-${phase}`);
+    setRunningStartMs(Date.now());
+    fetchingRef.current = true;
+    pollingStartRef.current = Date.now();
+
+    try {
+      const cached = queryClient.getQueryData<GradeAwarePipelineStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+      let pid = cached?.pastAnalyticsPipeline?.pipelineId;
+      if (!pid) {
+        const { runPastAnalyticsPipeline } = await import(
+          "@/lib/domains/student-record/actions/pipeline-orchestrator"
+        );
+        const r = await runPastAnalyticsPipeline(studentId, tenantId);
+        if (!r.success) throw new Error(r.error ?? "Past Analytics 생성 실패");
+        if (!r.data) throw new Error("Past Analytics 응답 누락");
+        pid = r.data.pipelineId;
+        invalidate();
+      }
+
+      for (let retry = 0; retry <= 2; retry++) {
+        try {
+          const res = await fetch(`/api/admin/pipeline/past-analytics/${phase}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pipelineId: pid }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          break;
+        } catch {
+          if (retry >= 2) break;
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Past Analytics 실행 실패";
+      showError(`Past Analytics ${phase} 실패: ${msg}`);
+    } finally {
+      fetchingRef.current = false;
+      setRunningCell(null);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
+    }
+  };
+
+  // ─── Blueprint Phase 실행 (개별 셀 클릭) ──────────────────────────────────
+
+  const runBlueprintPhase = async () => {
+    if (fetchingRef.current) return;
+    setRunningCell("b-1");
+    setRunningStartMs(Date.now());
+    fetchingRef.current = true;
+    pollingStartRef.current = Date.now();
+
+    try {
+      const cached = queryClient.getQueryData<GradeAwarePipelineStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+      let pid = cached?.blueprintPipeline?.pipelineId;
+      if (!pid) {
+        const { runBlueprintPipeline } = await import(
+          "@/lib/domains/student-record/actions/pipeline-orchestrator"
+        );
+        const r = await runBlueprintPipeline(studentId, tenantId);
+        if (!r.success) throw new Error(r.error ?? "Blueprint 생성 실패");
+        if (!r.data) throw new Error("Blueprint 응답 누락");
+        pid = r.data.pipelineId;
+        invalidate();
+      }
+
+      for (let retry = 0; retry <= 2; retry++) {
+        try {
+          const res = await fetch("/api/admin/pipeline/blueprint", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pipelineId: pid }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          break;
+        } catch {
+          if (retry >= 2) break;
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Blueprint 실행 실패";
+      showError(`Blueprint 실행 실패: ${msg}`);
+    } finally {
+      fetchingRef.current = false;
+      setRunningCell(null);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
+    }
+  };
+
   // ─── 공통 헬퍼: 단일 grade 파이프라인의 Phase 1~8 순차 실행 ──────────────
 
   async function executeGradePhasesForPipeline(
@@ -751,6 +851,8 @@ export function usePipelineExecution({
     setIsCancelling,
     runGradePhase,
     runSynthesisPhase,
+    runPastAnalyticsPhase,
+    runBlueprintPhase,
     runFullSequence,
     runGradeSequence,
     stopFullRun,

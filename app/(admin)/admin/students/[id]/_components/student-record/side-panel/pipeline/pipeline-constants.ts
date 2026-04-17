@@ -6,6 +6,8 @@
 import type {
   GradePipelineTaskKey,
   SynthesisPipelineTaskKey,
+  PastAnalyticsTaskKey,
+  BlueprintTaskKey,
 } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 
 // ─── Phase 그룹 정의 ────────────────────────────────────────────────────────
@@ -45,6 +47,34 @@ export const GRADE_PHASE_GROUP_SECTIONS = [
     designOnly: true,
   },
 ] as const;
+
+// ─── Past Analytics (4축×3층 A층) ───────────────────────────────────────────
+export const PAST_ANALYTICS_PHASE_GROUPS: Array<{
+  label: string;
+  keys: PastAnalyticsTaskKey[];
+}> = [
+  { label: "과거 서사", keys: ["past_storyline_generation"] },
+  { label: "현상 진단", keys: ["past_diagnosis"] },
+  { label: "즉시 행동", keys: ["past_strategy"] },
+];
+
+// ─── Blueprint (4축×3층 B층) ────────────────────────────────────────────────
+export const BLUEPRINT_PHASE_GROUPS: Array<{
+  label: string;
+  keys: BlueprintTaskKey[];
+}> = [
+  { label: "수렴 설계", keys: ["blueprint_generation"] },
+];
+
+export const PAST_ANALYTICS_TASK_LABEL_MAP: Record<PastAnalyticsTaskKey, string> = {
+  past_storyline_generation: "A1 과거 서사",
+  past_diagnosis: "A2 현상 진단",
+  past_strategy: "A3 즉시 행동 권고",
+};
+
+export const BLUEPRINT_TASK_LABEL_MAP: Record<BlueprintTaskKey, string> = {
+  blueprint_generation: "B1 수렴 설계",
+};
 
 export const SYNTHESIS_PHASE_GROUPS: Array<{
   label: string;
@@ -108,6 +138,10 @@ export const PHASE_DESCRIPTIONS: Record<string, string> = {
   "행특 방향": "행동특성 서술 개선 방향을 제안합니다",
   "가안 생성": "방향 가이드 기반으로 AI 초안을 생성합니다 (설계 모드 전용)",
   "가안 분석": "생성된 가안의 역량을 재분석합니다 (설계 모드 전용)",
+  "과거 서사": "A1 — NEIS 기록만으로 학생의 과거 활동 서사(storyline)를 재구성합니다",
+  "현상 진단": "A2 — 과거 서사 기반으로 현재까지의 성과/약점을 진단합니다",
+  "즉시 행동": "A3 — 현상 진단을 토대로 지금 바로 실행 가능한 행동 권고를 생성합니다",
+  "수렴 설계": "B1 — 진로 목표에서 3년 단위 탐구 수렴 설계(convergences/milestones/성장 목표)를 생성합니다",
   "스토리라인": "3개년 활동을 관통하는 성장 스토리라인을 구성합니다",
   "연결+가이드": "레코드 간 연결 그래프를 계산하고 탐구 가이드를 매칭합니다",
   "진단+추천": "종합 진단 리포트를 생성하고 수강 과목을 추천합니다",
@@ -162,6 +196,25 @@ export function isGradePhaseReady(
   if (phase === 7) return t.haengteuk_guide === "completed";
   if (phase === 8) return t.draft_generation === "completed";
   return false;
+}
+
+export function isPastAnalyticsPhaseReady(
+  phase: number,
+  past: { tasks: Record<string, string> } | null,
+): boolean {
+  if (!past) return phase === 1;
+  const t = past.tasks;
+  if (phase === 1) return true;
+  if (phase === 2) return t.past_storyline_generation === "completed";
+  if (phase === 3) return t.past_diagnosis === "completed";
+  return false;
+}
+
+export function isBlueprintPhaseReady(
+  _blueprint: { tasks: Record<string, string> } | null,
+): boolean {
+  // B1은 내부 선행 없음. 실행 시점에는 파이프라인 상태만 판정.
+  return true;
 }
 
 export function isSynthesisPhaseReady(

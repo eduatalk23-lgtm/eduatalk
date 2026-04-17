@@ -36,9 +36,20 @@ import {
 import {
   GRADE_TASK_LABEL_MAP,
   SYNTH_TASK_LABEL_MAP,
+  PAST_ANALYTICS_TASK_LABEL_MAP,
+  BLUEPRINT_TASK_LABEL_MAP,
 } from "./pipeline/pipeline-constants";
+import {
+  PAST_ANALYTICS_TASK_KEYS,
+  BLUEPRINT_TASK_KEYS,
+} from "@/lib/domains/record-analysis/pipeline/pipeline-config";
+import type {
+  PastAnalyticsTaskKey,
+  BlueprintTaskKey,
+} from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 import { usePipelineExecution } from "./pipeline/usePipelineExecution";
 import { PipelineGradeGrid } from "./pipeline/PipelineGradeGrid";
+import { PipelinePastBlueprintGrid } from "./pipeline/PipelinePastBlueprintGrid";
 import {
   PipelineSynthesisGrid,
   PipelineLogPanel,
@@ -76,6 +87,8 @@ export function PipelinePanelApp({
     setIsCancelling,
     runGradePhase,
     runSynthesisPhase,
+    runPastAnalyticsPhase,
+    runBlueprintPhase,
     runFullSequence,
     runGradeSequence,
     stopFullRun,
@@ -215,6 +228,26 @@ export function PipelinePanelApp({
       }
     }
   }
+  if (pa && pa.status === "running") {
+    for (const key of PAST_ANALYTICS_TASK_KEYS) {
+      if (pa.tasks[key] === "running" && pa.previews[key]) {
+        runningTasks.push({
+          label: PAST_ANALYTICS_TASK_LABEL_MAP[key as PastAnalyticsTaskKey] ?? key,
+          preview: pa.previews[key],
+        });
+      }
+    }
+  }
+  if (bp && bp.status === "running") {
+    for (const key of BLUEPRINT_TASK_KEYS) {
+      if (bp.tasks[key] === "running" && bp.previews[key]) {
+        runningTasks.push({
+          label: BLUEPRINT_TASK_LABEL_MAP[key as BlueprintTaskKey] ?? key,
+          preview: bp.previews[key],
+        });
+      }
+    }
+  }
 
   const completedTasks: Array<{ label: string; preview: string; elapsedMs?: number }> = [];
   for (const g of [1, 2, 3]) {
@@ -239,6 +272,30 @@ export function PipelinePanelApp({
           label: SYNTH_TASK_LABEL_MAP[key as SynthesisPipelineTaskKey] ?? key,
           preview: sp.previews[key] ?? (status === "failed" ? "실패" : "완료"),
           elapsedMs: sp.elapsed?.[key],
+        });
+      }
+    }
+  }
+  if (pa) {
+    for (const key of PAST_ANALYTICS_TASK_KEYS) {
+      const status = pa.tasks[key];
+      if (status === "completed" || status === "failed") {
+        completedTasks.push({
+          label: PAST_ANALYTICS_TASK_LABEL_MAP[key as PastAnalyticsTaskKey] ?? key,
+          preview: pa.previews[key] ?? (status === "failed" ? "실패" : "완료"),
+          elapsedMs: pa.elapsed?.[key],
+        });
+      }
+    }
+  }
+  if (bp) {
+    for (const key of BLUEPRINT_TASK_KEYS) {
+      const status = bp.tasks[key];
+      if (status === "completed" || status === "failed") {
+        completedTasks.push({
+          label: BLUEPRINT_TASK_LABEL_MAP[key as BlueprintTaskKey] ?? key,
+          preview: bp.previews[key] ?? (status === "failed" ? "실패" : "완료"),
+          elapsedMs: bp.elapsed?.[key],
         });
       }
     }
@@ -411,6 +468,15 @@ export function PipelinePanelApp({
             onRunGradePhase={runGradePhase}
             onRunGradeSequence={runGradeSequence}
             isGradeRunDisabled={isAnyRunning || isCancelling}
+          />
+          <PipelinePastBlueprintGrid
+            pa={pa}
+            bp={bp}
+            expectedModes={expectedModes}
+            runningCell={runningCell}
+            runningStartMs={runningStartMs}
+            onRunPastPhase={runPastAnalyticsPhase}
+            onRunBlueprintPhase={runBlueprintPhase}
           />
           {/* 트랙 D (2026-04-14): Phase 2 재실행 — narrative chunk 분할 효과 측정용.
               synthesis 파이프라인이 존재하고 Phase 2 관련 태스크가 한 번이라도 돈 경우에만 노출. */}
