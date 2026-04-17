@@ -88,8 +88,11 @@ export async function loadConversationMessages(
 
   const { data, error } = await supabase
     .from("ai_messages")
-    .select("id, role, parts, created_at")
+    .select("id, role, parts, created_at, sequence_num")
     .eq("conversation_id", conversationId)
+    // sequence_num: DB 레벨 저장 순서 (BIGSERIAL, INSERT 시만 증가). 동일 timestamp 로 인한
+    // 순서 역전 방지. created_at 을 fallback 으로 이중 정렬.
+    .order("sequence_num", { ascending: true, nullsFirst: true })
     .order("created_at", { ascending: true });
 
   if (error || !data) return [];
