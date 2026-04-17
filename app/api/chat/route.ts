@@ -398,6 +398,21 @@ async function buildUserContextPrompt(): Promise<string> {
   return lines.join("\n");
 }
 
+/**
+ * Phase B-1 UIMessage metadata 스키마.
+ * 응답 완료 시 어시스턴트 메시지에 duration/model/toolCallCount 등 첨부.
+ */
+export type AIChatMessageMetadata = {
+  /** 응답 생성 소요 ms (서버 기준 startedAt→finishedAt) */
+  durationMs?: number;
+  /** 실제 사용된 모델 식별자 */
+  model?: string;
+  /** 해당 턴에 호출된 tool 수 */
+  toolCallCount?: number;
+  /** AI SDK 종료 사유 */
+  finishReason?: string;
+};
+
 export async function POST(req: Request) {
   const body = (await req.json()) as {
     messages: UIMessage[];
@@ -412,12 +427,16 @@ export async function POST(req: Request) {
     ? await buildHandoffSectionForConversation(conversationId, user)
     : "";
 
+  const modelName = process.env.OLLAMA_MODEL ?? "gemma4:latest";
+
   // 2026-04 Vercel AI SDK 공식 권고: static prefix + variable suffix
   // 앞부분(STATIC_SYSTEM_PREFIX)이 매 요청 동일 → Ollama KV cache prefix 재사용
   const dynamicSuffix = `${userContext}${handoffSection ? "\n\n" + handoffSection : ""}`;
 
+  const startedAt = Date.now();
+
   const result = streamText({
-    model: ollama(process.env.OLLAMA_MODEL ?? "gemma4:latest", {
+    model: ollama(modelName, {
       // Gemma 4 thinking 비활성화 — OllamaChatSettings top-level (options 아님)
       // E2B/E4B 완전 비활성화. 단순 질문에도 내부 reasoning 수백 토큰 생성하던 문제 해결.
       think: false,
@@ -435,6 +454,17 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
+    // Phase B-1: assistant 메시지에 메타데이터 첨부
+    messageMetadata: ({ part }): AIChatMessageMetadata | undefined => {
+      if (part.type === "finish") {
+        return {
+          durationMs: Date.now() - startedAt,
+          model: modelName,
+          finishReason: part.finishReason,
+        };
+      }
+      return undefined;
+    },
     onFinish: async ({ messages: finalMessages }) => {
       if (!conversationId || !user) return;
 

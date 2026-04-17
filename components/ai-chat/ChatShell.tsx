@@ -652,7 +652,41 @@ function MessageRow({
           }
           return null;
         })}
+
+        {!isUser && <MessageMetaBadge metadata={message.metadata} />}
       </div>
+    </div>
+  );
+}
+
+function MessageMetaBadge({ metadata }: { metadata: unknown }) {
+  if (!metadata || typeof metadata !== "object") return null;
+  const m = metadata as {
+    durationMs?: number;
+    model?: string;
+    toolCallCount?: number;
+  };
+
+  const parts: string[] = [];
+  if (typeof m.durationMs === "number") {
+    const sec = (m.durationMs / 1000).toFixed(1);
+    parts.push(`⏱ ${sec}s`);
+  }
+  if (m.model) {
+    parts.push(m.model.replace(/^ollama\//, ""));
+  }
+  if (typeof m.toolCallCount === "number" && m.toolCallCount > 0) {
+    parts.push(`🔧 ${m.toolCallCount}`);
+  }
+  if (parts.length === 0) return null;
+
+  return (
+    <div className="mt-1 flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500">
+      {parts.map((p, i) => (
+        <span key={i} className="inline-flex items-center">
+          {p}
+        </span>
+      ))}
     </div>
   );
 }
