@@ -40,3 +40,8 @@ export {
   type AuditActorRole,
   type AuditLogEntry,
 } from "./record";
+
+export {
+  createAuditedAdminClient,
+  type AdminAccessScope,
+} from "./admin-client";

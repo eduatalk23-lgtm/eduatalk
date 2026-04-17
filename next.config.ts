@@ -12,9 +12,33 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // SW 캐시 무효화: 브라우저/CDN이 sw.js를 캐싱하지 않도록 설정
+  // 보안 헤더 + SW 캐시 무효화
   async headers() {
+    // PbD Phase 1: 기능 영향 없는 보안 헤더 (CSP는 외부 도메인 검증 필요해 별도 단계로 분리)
+    const securityHeaders = [
+      // HTTPS 강제 (Vercel은 이미 HTTPS이므로 안전). 1년 + 서브도메인 + preload
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=31536000; includeSubDomains; preload",
+      },
+      // 클릭재킹 방지 (iframe 임베딩 차단)
+      { key: "X-Frame-Options", value: "DENY" },
+      // MIME 스니핑 방지
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      // Referrer 정보 최소화 (origin만)
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      // 불필요한 브라우저 권한 차단 (카메라/마이크/위치)
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+      },
+    ];
+
     return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders,
+      },
       {
         source: "/sw.js",
         headers: [
