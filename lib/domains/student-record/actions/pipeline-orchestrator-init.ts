@@ -264,7 +264,7 @@ export async function runSynthesisPipeline(
 export async function runGradeAwarePipeline(
   studentId: string,
   tenantId: string,
-  options?: { grades?: number[] },
+  options?: { grades?: number[]; insertAsPending?: boolean },
 ): Promise<ActionResponse<GradeAwarePipelineStartResult>> {
   try {
     const { userId } = await requireAdminOrConsultant();
@@ -335,13 +335,20 @@ export async function runGradeAwarePipeline(
       return createErrorResponse("파이프라인을 실행할 학년 데이터가 없습니다");
     }
 
-    // grade 파이프라인 행 일괄 생성 (첫 번째만 running, 나머지 pending)
+    // grade 파이프라인 행 일괄 생성.
+    //   기본: 첫 번째만 running, 나머지 pending (직접 호출 경로 — 클라이언트가 즉시 실행).
+    //   insertAsPending=true: 전부 pending, started_at=null (오케스트레이터 큐잉 경로 —
+    //     past/blueprint 실행 뒤에야 design grade가 시작되므로 INSERT 직후 running 마킹 시
+    //     5분 zombie cleanup에 오인 cancel 된다. 세션 04-16 I UI 순서 버그의 근본 원인).
     const created: Array<{ grade: number; pipelineId: string; status: string; mode: "analysis" | "design" }> = [];
+    const queueOnly = options?.insertAsPending === true;
 
     for (let i = 0; i < targetGrades.length; i++) {
       const grade = targetGrades[i];
       const isFirst = i === 0;
-      const status = isFirst ? "running" : "pending";
+      const status = queueOnly ? "pending" : isFirst ? "running" : "pending";
+      const startedAtValue =
+        queueOnly || !isFirst ? null : new Date().toISOString();
 
       const initTasks: Record<string, string> = {};
       for (const key of GRADE_PIPELINE_TASK_KEYS) {
@@ -418,11 +425,18 @@ export async function runGradeAwarePipeline(
             tasks: resumedTasks,
             completed_at: isTerminal ? new Date().toISOString() : null,
             error_details: null,
-            // started_at: resume 실행을 실제로 하는 isFirst만 now()로 갱신.
-            // terminal로 조기 마감되는 경우에도 started_at은 건드리지 않아 기존 타임라인 유지.
-            ...(isFirst && !isTerminal
-              ? { started_at: new Date().toISOString() }
-              : {}),
+            // started_at 정책:
+            //   terminal(early-finalize)   → 기존 타임라인 유지 (건드리지 않음)
+            //   queueOnly(오케스트레이터)  → null 리셋 (첫 phase 실행 시 runTaskWithState가 찍음)
+            //   직접 호출 + isFirst        → now() (즉시 실행됨)
+            //   직접 호출 + non-first      → 건드리지 않음
+            ...(isTerminal
+              ? {}
+              : queueOnly
+                ? { started_at: null }
+                : isFirst
+                  ? { started_at: new Date().toISOString() }
+                  : {}),
           })
           .eq("id", existingResumable.id);
 
@@ -450,7 +464,7 @@ export async function runGradeAwarePipeline(
           mode: gradeMode,
           tasks: initTasks,
           input_snapshot: student ?? {},
-          started_at: isFirst ? new Date().toISOString() : null,
+          started_at: startedAtValue,
         })
         .select("id")
         .single();
@@ -535,18 +549,21 @@ export async function runPastAnalyticsPipeline(
       initTasks[key] = "pending";
     }
 
+    // status="pending" + started_at=null: 오케스트레이터가 여러 파이프라인을 한 번에 INSERT하는
+    // 큐잉 경로에서 INSERT 즉시 "running" 마킹하면 analysis grade 실행 중(5~10분) zombie cleanup에
+    // 오인 cancel 된다. 첫 phase 실행 시점에 runTaskWithState가 status를 running으로 승격한다.
     const { data: pipeline, error: insertError } = await supabase
       .from("student_record_analysis_pipelines")
       .insert({
         student_id: studentId,
         tenant_id: tenantId,
         created_by: userId,
-        status: "running",
+        status: "pending",
         pipeline_type: "past_analytics",
         grade: null,
         tasks: initTasks,
         input_snapshot: { ...(student ?? {}), neisGrades },
-        started_at: new Date().toISOString(),
+        started_at: null,
       })
       .select("id")
       .single();
@@ -645,18 +662,21 @@ export async function runBlueprintPipeline(
       initTasks[key] = "pending";
     }
 
+    // status="pending" + started_at=null: past_analytics와 동일. 오케스트레이터 큐잉 경로 —
+    // grade(analysis)+past_analytics 완료 뒤에야 B1이 실행되므로 INSERT 즉시 running 마킹 시
+    // zombie cleanup으로 오인 cancel 된다.
     const { data: pipeline, error: insertError } = await supabase
       .from("student_record_analysis_pipelines")
       .insert({
         student_id: studentId,
         tenant_id: tenantId,
         created_by: userId,
-        status: "running",
+        status: "pending",
         pipeline_type: "blueprint",
         grade: null,
         tasks: initTasks,
         input_snapshot: { ...(student ?? {}), consultingGrades },
-        started_at: new Date().toISOString(),
+        started_at: null,
       })
       .select("id")
       .single();

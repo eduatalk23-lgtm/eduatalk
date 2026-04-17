@@ -199,6 +199,14 @@ export async function runTaskWithState(
     ctx.errors,
   );
 
+  // 큐잉 경로(runFullOrchestration)에서 INSERT는 started_at=null로 큐잉만 하므로,
+  // 실제 첫 태스크 실행 시점에 started_at을 찍는다. 이미 값이 있으면 no-op.
+  await (ctx.supabase as SupabaseAdminClient)
+    .from("student_record_analysis_pipelines")
+    .update({ started_at: new Date().toISOString() })
+    .eq("id", ctx.pipelineId)
+    .is("started_at", null);
+
   const startMs = Date.now();
 
   try {

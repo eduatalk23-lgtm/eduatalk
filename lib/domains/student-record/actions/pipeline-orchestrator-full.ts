@@ -128,9 +128,13 @@ export async function runFullOrchestration(
     const skipped: Array<"past_analytics" | "blueprint"> = [];
 
     // ── 3. NEIS 경로: Grade(analysis) + Past Analytics ─────
+    //   insertAsPending: 전체 오케스트레이션은 sequential이므로 INSERT는 전부 큐잉만 하고
+    //   실제 실행(→ running 마킹)은 클라이언트 runFullSequence의 각 phase HTTP 호출이 주도한다.
+    //   INSERT 즉시 running 마킹하면 INSERT~실행 사이 대기시간(5~10분)에 zombie cleanup이 오인 cancel.
     if (neisGrades.length > 0) {
       const gradeRes = await runGradeAwarePipeline(studentId, tenantId, {
         grades: neisGrades,
+        insertAsPending: true,
       });
       if (!gradeRes.success) return createErrorResponse(gradeRes.error);
       pipelineIds.gradeNeis = gradeRes.data.gradePipelines.map((p) => p.pipelineId);
@@ -150,6 +154,7 @@ export async function runFullOrchestration(
 
       const gradeRes = await runGradeAwarePipeline(studentId, tenantId, {
         grades: consultingGrades,
+        insertAsPending: true,
       });
       if (!gradeRes.success) return createErrorResponse(gradeRes.error);
       pipelineIds.gradeProspective = gradeRes.data.gradePipelines.map((p) => p.pipelineId);
