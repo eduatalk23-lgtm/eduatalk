@@ -196,6 +196,7 @@ function validateFileConsistency(
   const manifestTables = new Set<string>([
     ...manifest.writes,
     ...manifest.reads,
+    ...(manifest.readsFromPreviousRun ?? []),
   ]);
 
   // 여러 태스크가 같은 파일에 살 수 있으므로, 이 파일을 소유하는 모든 태스크의 합집합으로 판단.
@@ -205,6 +206,9 @@ function validateFileConsistency(
     const coManifest = PIPELINE_TASK_MANIFEST[co];
     coManifest.writes.forEach((t) => cohabitingTables.add(t));
     coManifest.reads.forEach((t) => cohabitingTables.add(t));
+    (coManifest.readsFromPreviousRun ?? []).forEach((t) =>
+      cohabitingTables.add(t),
+    );
   }
 
   // ① 코드 → manifest: 코드에 있는 .from("X") 가 cohabiting 합집합에 모두 있어야 함
@@ -324,6 +328,28 @@ function validateOrphanTables(): ValidationIssue[] {
         severity: "warn",
         message: `terminal.consumers 가 1 개 — 실제 소비 지점 2 개 이상 명시 권장.`,
       });
+    }
+
+    // PR 5: pendingCrossRunFeedback=true 면 writesForNextRun 선언 필수
+    if (manifest.terminal.pendingCrossRunFeedback) {
+      if (!manifest.writesForNextRun || manifest.writesForNextRun.length === 0) {
+        issues.push({
+          taskKey: key,
+          severity: "error",
+          message: `pendingCrossRunFeedback=true 이나 writesForNextRun 미선언 — 다음 실행 소비 태스크 지정 필요.`,
+        });
+      } else {
+        // writesForNextRun 의 각 태스크가 실재하는지
+        for (const downstream of manifest.writesForNextRun) {
+          if (!PIPELINE_TASK_MANIFEST[downstream]) {
+            issues.push({
+              taskKey: key,
+              severity: "error",
+              message: `writesForNextRun 에 존재하지 않는 태스크 \`${downstream}\` 선언.`,
+            });
+          }
+        }
+      }
     }
   }
   return issues;

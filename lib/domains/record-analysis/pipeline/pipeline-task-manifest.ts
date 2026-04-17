@@ -66,6 +66,23 @@ export interface PipelineTaskManifest {
    * CI가 orphan 탐지 시 terminal 미선언이면 실패시킨다.
    */
   terminal?: PipelineTaskTerminal;
+  /**
+   * PR 5 (2026-04-17): Cross-run feedback 경로.
+   * 이 태스크의 산출물이 **다음 실행** 어느 상류 태스크에 공급되는지 선언.
+   * terminal.pendingCrossRunFeedback=true 인 태스크는 반드시 비어있지 않아야 한다(CI 검증).
+   *
+   * 소비 측 태스크는 `ctx.previousRunOutputs.taskResults[<thisTaskKey>]` 또는
+   * `readsFromPreviousRun` 로 선언한 테이블을 쿼리해 읽는다.
+   */
+  writesForNextRun?: readonly ManifestTaskKey[];
+  /**
+   * PR 5: Cross-run 테이블 읽기 전용 선언.
+   * `reads` 는 "같은 실행 내 소비" 의미이므로 orphan 판정에 참여하지만,
+   * `readsFromPreviousRun` 은 "직전 실행의 잔존 데이터를 힌트로 읽음" 의미 — orphan 검사 대상 아님.
+   *
+   * 코드의 `.from("X")` 는 reads + readsFromPreviousRun 합집합에 있으면 통과.
+   */
+  readsFromPreviousRun?: readonly string[];
 }
 
 /**
@@ -257,6 +274,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       "student_course_plans",
     ],
     readsResults: [],
+    // PR 5 POC: 이전 실행 activity_summary 제목을 연속성 힌트로 읽는다.
+    readsFromPreviousRun: ["student_record_activity_summaries"],
   },
 
   edge_computation: {
@@ -360,6 +379,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5: 이전 실행 행특 링크 분포 → 다음 실행 guide_matching 중복 배정 회피/연속성 신호.
+    writesForNextRun: ["guide_matching"],
   },
 
   ai_diagnosis: {
@@ -395,6 +416,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5: 이전 실행 추천 과목 → 다음 실행 ai_diagnosis 의 "수강 궤적" 맥락 보강.
+    writesForNextRun: ["ai_diagnosis"],
   },
 
   gap_tracking: {
@@ -412,6 +435,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5: 이전 실행 bridge/격차 → 다음 실행 ai_strategy 가 "지난번에 미해결된 gap 우선 공략" 맥락 확보.
+    writesForNextRun: ["ai_strategy"],
   },
 
   bypass_analysis: {
@@ -447,6 +472,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5 POC: 이전 실행 활동 요약(제목/핵심 키워드) → 다음 실행 storyline_generation 연속성 힌트.
+    writesForNextRun: ["storyline_generation"],
   },
 
   ai_strategy: {
@@ -486,6 +513,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5: 이전 실행 면접 질문 → 다음 실행 activity_summary 가 "질문이 많이 나왔던 활동" 을 우선 요약.
+    writesForNextRun: ["activity_summary"],
   },
 
   roadmap_generation: {
@@ -510,6 +539,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5: 이전 실행 로드맵 item 들 → 다음 실행 storyline_generation 의 "과거 계획 대비 진척" 서사 힌트.
+    writesForNextRun: ["storyline_generation"],
   },
 
   // ── Past Analytics (3) ─────────────────────
@@ -550,6 +581,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       ],
       pendingCrossRunFeedback: true,
     },
+    // PR 5: 이전 실행 과거 전략 → 다음 실행 past_diagnosis 가 "전 번 권고 이행도" 맥락 반영.
+    writesForNextRun: ["past_diagnosis"],
   },
 
   // ── Blueprint (1) ─────────────────────────

@@ -422,6 +422,38 @@ export interface PipelineContext {
   gradeThemes?: import("../llm/types").GradeThemeExtractionResult;
   /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
   cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
+
+  /**
+   * PR 5 (2026-04-17): Cross-run feedback 인프라.
+   * 같은 `pipeline_type` 의 직전 completed 파이프라인 `task_results` 요약.
+   * `pendingCrossRunFeedback: true` 인 terminal 태스크(activity_summary / interview_generation /
+   * roadmap_generation / course_recommendation / haengteuk_linking / gap_tracking / past_strategy)
+   * 의 산출물이 다음 실행의 상류 태스크에 공급되는 경로를 담는다.
+   *
+   * - `undefined` = 로드 시도 전(인프라 미진입 파이프라인)
+   * - `{ runId: null, ... }` = 직전 실행 없음(최초 실행)
+   * - `{ runId: "...", ... }` = 직전 실행 산출물 로드 완료
+   *
+   * Manifest 의 `writesForNextRun` 에 선언된 downstream task 만 읽어야 한다(CI 검증 대상).
+   */
+  previousRunOutputs?: PreviousRunOutputs;
+}
+
+/**
+ * 직전 실행 산출물 스냅샷.
+ * `loadPreviousRunOutputs()` 가 동일 pipeline_type 의 가장 최근 completed 파이프라인 1 건을 로드.
+ * 원본 `task_results` 전체가 아니라, cross-run 소비 용도로 명세된 필드만 선별적으로 노출.
+ */
+export interface PreviousRunOutputs {
+  /** 직전 실행 파이프라인 ID. 최초 실행이면 null. */
+  runId: string | null;
+  /** 직전 실행 완료 시각 ISO string. */
+  completedAt: string | null;
+  /**
+   * task_results 전량 — manifest 의 `writesForNextRun` 에 선언된 downstream 태스크만 읽어야 한다.
+   * shape 은 각 태스크 자체의 result 타입과 동일(PipelineTaskResults).
+   */
+  taskResults: PipelineTaskResults;
 }
 
 /** Core 9필드 — 모든 Phase에서 공유하는 인프라 필드 */

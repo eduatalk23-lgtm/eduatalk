@@ -566,6 +566,17 @@ export async function loadPipelineContext(
     }
   }
 
+  // PR 5 (2026-04-17): 이전 실행 산출물 로드 — cross-run feedback 루프 원천.
+  // 최초 실행이면 taskResults 가 {} 로 채워짐(에러 아님). loader 내부에서 예외를 흡수하므로 throw 없음.
+  const { loadPreviousRunOutputs } = await import("./pipeline-previous-run");
+  const previousRunOutputs = await loadPreviousRunOutputs(
+    admin,
+    studentId,
+    tenantId,
+    pipelineType,
+    pipelineId,
+  );
+
   return {
     pipelineId,
     studentId,
@@ -590,6 +601,7 @@ export async function loadPipelineContext(
     qualityPatterns,
     analysisContext: persistedAnalysisContext,
     unifiedInput,
+    previousRunOutputs,
   };
 }
 

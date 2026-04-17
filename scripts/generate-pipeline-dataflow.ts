@@ -241,6 +241,65 @@ function renderTerminalDeclarations(): string {
   return lines.join("\n");
 }
 
+function renderCrossRunFeedback(): string {
+  const edges: Array<{
+    from: ManifestTaskKey;
+    to: ManifestTaskKey;
+    note: string;
+  }> = [];
+  for (const [key, manifest] of Object.entries(PIPELINE_TASK_MANIFEST) as [
+    ManifestTaskKey,
+    PipelineTaskManifest,
+  ][]) {
+    for (const downstream of manifest.writesForNextRun ?? []) {
+      edges.push({
+        from: key,
+        to: downstream,
+        note: manifest.terminal?.reason ?? "",
+      });
+    }
+  }
+
+  if (edges.length === 0) return "";
+
+  const lines: string[] = [
+    "## 4. Cross-run Feedback (PR 5)",
+    "",
+    "직전 실행의 terminal 산출물이 다음 실행의 상류 태스크에 공급되는 경로.",
+    "소비 측은 `ctx.previousRunOutputs.taskResults[<taskKey>]` 또는 manifest 의 `readsFromPreviousRun` 에 선언된 DB 테이블을 통해 읽는다.",
+    "",
+    "| 상류 (이번 실행) | ↦ | 하류 (다음 실행) | 사유 |",
+    "|---|---|---|---|",
+  ];
+
+  for (const edge of edges.sort((a, b) =>
+    a.from.localeCompare(b.from) || a.to.localeCompare(b.to),
+  )) {
+    lines.push(
+      `| \`${edge.from}\` | → | \`${edge.to}\` | ${edge.note} |`,
+    );
+  }
+
+  // readsFromPreviousRun 선언한 태스크 목록
+  const crossRunReaders = Object.entries(PIPELINE_TASK_MANIFEST).filter(
+    ([, m]) => (m.readsFromPreviousRun?.length ?? 0) > 0,
+  ) as [ManifestTaskKey, PipelineTaskManifest][];
+
+  if (crossRunReaders.length > 0) {
+    lines.push("");
+    lines.push("### 직전 실행 테이블 읽기 선언 (`readsFromPreviousRun`)");
+    lines.push("");
+    for (const [key, m] of crossRunReaders) {
+      lines.push(
+        `- \`${key}\`: ${m.readsFromPreviousRun!.map((t) => `\`${t}\``).join(", ")}`,
+      );
+    }
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}
+
 function renderOrphanWarnings(): string {
   const lines: string[] = [];
   const orphans: ManifestTaskKey[] = [];
@@ -269,7 +328,7 @@ function renderOrphanWarnings(): string {
 
   if (orphans.length === 0) return "";
 
-  lines.push("## 4. Orphan 경고");
+  lines.push("## 5. Orphan 경고");
   lines.push("");
   lines.push(
     "⚠️ 다음 태스크는 writes 가 있으나 파이프라인 내 소비자가 없고 terminal 도 선언되지 않았습니다:",
@@ -305,6 +364,7 @@ function render(): string {
     renderTaskToTaskGraph(),
     renderTableMatrix(),
     renderTerminalDeclarations(),
+    renderCrossRunFeedback(),
     renderOrphanWarnings(),
   ]
     .filter(Boolean)

@@ -104,6 +104,40 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     }
   }
 
+  // PR 5 POC (2026-04-17): Cross-run feedback — 직전 실행 activity_summary 가 있으면
+  // 연속성 인지 힌트를 프롬프트에 추가. activity_summaries 테이블의 제목을 직접 불러와
+  // "이전 분석에서 이미 포착한 축"을 스토리라인 감지가 재발견하지 않고 **심화/확장**하도록 유도.
+  const prevRun = ctx.previousRunOutputs;
+  if (prevRun?.runId) {
+    try {
+      const { data: prevSummaries } = await ctx.supabase
+        .from("student_record_activity_summaries")
+        .select("summary_title, school_year")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(8);
+      const items = (prevSummaries ?? [])
+        .map((r) => {
+          const title = (r.summary_title as string | null)?.trim();
+          const year = r.school_year as number | null;
+          if (!title) return null;
+          return year ? `- ${title} (${year})` : `- ${title}`;
+        })
+        .filter((v): v is string => v !== null);
+      if (items.length > 0) {
+        const section = [
+          `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 활동 요약 목록`,
+          "이 축들은 이미 포착된 것으로 간주하고, **신규 기록**에서 이를 어떻게 심화/확장했는지에 초점.",
+          ...items,
+        ].join("\n");
+        coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${section}` : section;
+      }
+    } catch {
+      // best-effort — 크로스런 힌트 실패는 분석 자체를 막지 않음.
+    }
+  }
+
   const { detectInquiryLinks } = await import("../../llm/actions/detectInquiryLinks");
   const result = await detectInquiryLinks(records, coursePlanExtra);
   if (!result.success) throw new Error(result.error);

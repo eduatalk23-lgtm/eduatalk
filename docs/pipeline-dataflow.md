@@ -106,3 +106,22 @@
 
 > **⏳ 임시 terminal**: PR 5 (`PipelineContext.previousRunOutputs` 인프라) 완성 후 해제 대상.
 > 2026-04-17 분기점 ① 결정: `ui_only` 는 영구 선언하지 않고 임시로만 표기.
+
+## 4. Cross-run Feedback (PR 5)
+
+직전 실행의 terminal 산출물이 다음 실행의 상류 태스크에 공급되는 경로.
+소비 측은 `ctx.previousRunOutputs.taskResults[<taskKey>]` 또는 manifest 의 `readsFromPreviousRun` 에 선언된 DB 테이블을 통해 읽는다.
+
+| 상류 (이번 실행) | ↦ | 하류 (다음 실행) | 사유 |
+|---|---|---|---|
+| `activity_summary` | → | `storyline_generation` | ui_only |
+| `course_recommendation` | → | `ai_diagnosis` | ui_only |
+| `gap_tracking` | → | `ai_strategy` | ui_only |
+| `haengteuk_linking` | → | `guide_matching` | ui_only |
+| `interview_generation` | → | `activity_summary` | ui_only |
+| `past_strategy` | → | `past_diagnosis` | ui_only |
+| `roadmap_generation` | → | `storyline_generation` | ui_only |
+
+### 직전 실행 테이블 읽기 선언 (`readsFromPreviousRun`)
+
+- `storyline_generation`: `student_record_activity_summaries`
