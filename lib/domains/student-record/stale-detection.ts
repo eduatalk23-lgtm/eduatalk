@@ -307,6 +307,75 @@ export async function onCurriculumRevisionChanged(
 }
 
 /**
+ * Blueprint 파이프라인이 활성 메인 탐구 변경 이후 재실행 없이 남아있는지 판정.
+ *
+ * - main_exploration.updated_at > 최신 completed blueprint.completed_at  → stale
+ * - main_exploration 없거나 blueprint 없으면 stale=false (재실행 권고 의미 없음)
+ *
+ * 4축×3층 B층 결과는 main_exploration의 tier_plan/theme/keywords에 강하게 의존하므로,
+ * seed 갱신 후 blueprint 재실행 없이 P7/P8/Synthesis가 돌면 산출물 불일치가 발생.
+ */
+export async function checkBlueprintStaleness(
+  studentId: string,
+  tenantId: string,
+): Promise<{
+  isStale: boolean;
+  mainExplorationUpdatedAt: string | null;
+  blueprintCompletedAt: string | null;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  const [mainRes, bpRes] = await Promise.all([
+    supabase
+      .from("student_main_explorations")
+      .select("updated_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("student_record_analysis_pipelines")
+      .select("completed_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("pipeline_type", "blueprint")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const mainUpdatedAt = (mainRes.data?.updated_at as string | undefined) ?? null;
+  const blueprintCompletedAt =
+    (bpRes.data?.completed_at as string | undefined) ?? null;
+
+  // 둘 중 하나라도 없으면 stale 판정 무의미
+  if (!mainUpdatedAt || !blueprintCompletedAt) {
+    return {
+      isStale: false,
+      mainExplorationUpdatedAt: mainUpdatedAt,
+      blueprintCompletedAt,
+    };
+  }
+
+  const isStale = new Date(mainUpdatedAt) > new Date(blueprintCompletedAt);
+  if (isStale) {
+    logActionWarn(LOG_CTX, "blueprint stale 감지 — main_exploration 갱신 후 재블루프린트 필요", {
+      studentId,
+      mainUpdatedAt,
+      blueprintCompletedAt,
+    });
+  }
+  return {
+    isStale,
+    mainExplorationUpdatedAt: mainUpdatedAt,
+    blueprintCompletedAt,
+  };
+}
+
+/**
  * 파이프라인의 content_hash와 현재 레코드 상태를 비교하여 stale 여부 반환
  */
 export async function checkPipelineStaleness(

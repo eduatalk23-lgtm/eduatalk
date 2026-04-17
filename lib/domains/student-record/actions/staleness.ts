@@ -2,7 +2,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPipelineStaleness } from "../stale-detection";
+import { checkPipelineStaleness, checkBlueprintStaleness } from "../stale-detection";
 
 /** 파이프라인 stale 여부 조회 (서버 액션) */
 export async function checkPipelineStalenessAction(
@@ -16,6 +16,36 @@ export async function checkPipelineStalenessAction(
     return { isStale: result.isStale };
   } catch {
     return { isStale: false };
+  }
+}
+
+/**
+ * Blueprint staleness 조회 — 활성 메인 탐구가 blueprint 완료 이후 갱신되었는지 판정.
+ * UI 배지/경고 표시용 server action.
+ */
+export async function checkBlueprintStalenessAction(
+  studentId: string,
+): Promise<{
+  isStale: boolean;
+  mainExplorationUpdatedAt: string | null;
+  blueprintCompletedAt: string | null;
+}> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    if (!tenantId) {
+      return {
+        isStale: false,
+        mainExplorationUpdatedAt: null,
+        blueprintCompletedAt: null,
+      };
+    }
+    return await checkBlueprintStaleness(studentId, tenantId);
+  } catch {
+    return {
+      isStale: false,
+      mainExplorationUpdatedAt: null,
+      blueprintCompletedAt: null,
+    };
   }
 }
 
