@@ -68,6 +68,22 @@ export interface ExplorationDesignContext {
    * P2: Layer 0 profile_card 요약 — 지속 강·약점, 관심사 일관성.
    */
   profileCardSummary?: string;
+
+  /**
+   * PR 4 (2026-04-17): Blueprint top-down 설계 청사진.
+   * `student_record_hyperedges.edge_context='blueprint'` 의 LLM 원본인 `_blueprintPhase.targetConvergences`
+   * 를 그대로 노출. AI 설계는 이 청사진의 **미구현 수렴축**을 우선 메꾸는 방향이어야 한다.
+   * 없으면 생략 (1학년 미보유·분석 모드 전용 학생).
+   */
+  blueprintConvergences?: Array<{
+    grade: number;
+    themeLabel: string;
+    themeKeywords: string[];
+    rationale: string;
+    tierAlignment: "foundational" | "development" | "advanced";
+  }>;
+  /** Blueprint 3년 관통 내러티브(있으면 1~2문장). */
+  blueprintArc?: string;
 }
 
 export function buildExplorationDesignSystemPrompt(): string {
@@ -145,6 +161,27 @@ export function buildExplorationDesignUserPrompt(
       lines.push(`- [${label}] ${dg.direction}`);
       if (dg.keywords.length > 0) lines.push(`  키워드: ${dg.keywords.join(", ")}`);
       if (dg.competencyFocus.length > 0) lines.push(`  역량 초점: ${dg.competencyFocus.join(", ")}`);
+    }
+  }
+
+  // PR 4 (2026-04-17): Blueprint 청사진 — 설계의 top-down 목표를 AI 에게 공개
+  if ((ctx.blueprintConvergences?.length ?? 0) > 0 || ctx.blueprintArc) {
+    lines.push("");
+    lines.push("## 설계 청사진 (Blueprint — top-down 목표)");
+    if (ctx.blueprintArc) lines.push(`- 3년 관통 내러티브: ${ctx.blueprintArc}`);
+    if (ctx.blueprintConvergences?.length) {
+      lines.push("- 목표 수렴축:");
+      for (const bc of ctx.blueprintConvergences.slice(0, 6)) {
+        const kw = bc.themeKeywords.slice(0, 4).join(", ");
+        lines.push(
+          `  · 고${bc.grade} [${bc.tierAlignment}] "${bc.themeLabel}"` +
+            (kw ? ` (${kw})` : "") +
+            ` — ${bc.rationale}`,
+        );
+      }
+      lines.push(
+        "- 설계는 위 수렴축 중 **아직 채워지지 않은 것**을 우선 완성시키는 방향이어야 합니다.",
+      );
     }
   }
 

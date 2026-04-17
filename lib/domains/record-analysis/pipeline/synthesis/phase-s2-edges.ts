@@ -456,6 +456,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       studentGrade,
       supabase,
       studentId,
+      tenantId,
       majorRecommendedSubjectIds,
     );
     ranked.push(...poolRanked);
@@ -627,6 +628,7 @@ async function applyContinuityRanking(
   studentGrade: number,
   supabase: PipelineContext["supabase"],
   studentId: string,
+  tenantIdForRanking: string,
   majorRecommendedSubjectIds?: Set<string>,
 ): Promise<RankedGuide[]> {
   if (guides.length === 0) return [];
@@ -634,14 +636,17 @@ async function applyContinuityRanking(
   const guideIds = guides.map((g) => g.id);
 
   // P3: 학생 hyperedge 테마 + narrative_arc 약한 단계 사전 조회
+  // PR 4 (2026-04-17): blueprint context 포함 — 상향식(analysis)과 하향식(blueprint) 수렴축을 모두
+  //   랭킹 보너스에 반영. blueprint 하이퍼엣지는 gap_tracking 과 draft_generation 에서만 소비되던 것을
+  //   guide_matching 수확 경로까지 확장.
   const [hyperedgeThemeRows, narrativeRowsP3] = await Promise.all([
     supabase
       .from("student_record_hyperedges")
       .select("theme_label")
       .eq("student_id", studentId)
-      .eq("edge_context", "analysis")
+      .in("edge_context", ["analysis", "blueprint"])
       .order("member_count", { ascending: false })
-      .limit(5)
+      .limit(8)
       .then((r) => r.data),
     supabase
       .from("student_record_narrative_arc")
@@ -692,6 +697,8 @@ async function applyContinuityRanking(
   // 1차: storylines.keywords.
   // 2차 fallback: storylines.title + grade_X_theme 토큰 추출 (keywords 비었을 때).
   // 3차 fallback: main_exploration.tier_plan 3단 theme (storylines 자체가 비었을 때).
+  // 4차 fallback (PR 4, 2026-04-17): blueprint.targetConvergences.themeLabel/themeKeywords.
+  //   메인 탐구 tier_plan 조차 없는 학생에게 top-down 설계 청사진을 매칭 신호로 사용.
   const { data: storylineRowsForBonus } = await supabase
     .from("student_record_storylines")
     .select("keywords, title, grade_1_theme, grade_2_theme, grade_3_theme")
@@ -734,6 +741,18 @@ async function applyContinuityRanking(
       addToken(tp.foundational?.theme);
       addToken(tp.development?.theme);
       addToken(tp.advanced?.theme);
+    }
+  }
+  if (storylineKeywords.size === 0) {
+    const { loadBlueprintForStudent } = await import(
+      "@/lib/domains/record-analysis/blueprint/loader"
+    );
+    const blueprint = await loadBlueprintForStudent(studentId, tenantIdForRanking);
+    if (blueprint) {
+      for (const conv of blueprint.targetConvergences ?? []) {
+        addToken(conv.themeLabel);
+        for (const kw of conv.themeKeywords ?? []) addToken(kw);
+      }
     }
   }
 
@@ -985,7 +1004,7 @@ import type { ExplorationDesignItem } from "@/lib/domains/guide/llm/types";
 async function runExplorationDesign(
   ctx: PipelineContext,
 ): Promise<{ designs: ExplorationDesignItem[]; overallStrategy: string }> {
-  const { supabase, studentId, snapshot, consultingGrades } = ctx;
+  const { supabase, studentId, tenantId, snapshot, consultingGrades } = ctx;
 
   // 1. 스토리라인 (DB 조회)
   const { data: storylineRows } = await supabase
@@ -1111,6 +1130,38 @@ async function runExplorationDesign(
     if (parts.length > 0) profileCardSummary = parts.join(" | ");
   }
 
+  // PR 4 (2026-04-17): Blueprint 설계 청사진 로드 — AI 에게 top-down 목표 공개
+  let blueprintConvergences:
+    | Array<{
+        grade: number;
+        themeLabel: string;
+        themeKeywords: string[];
+        rationale: string;
+        tierAlignment: "foundational" | "development" | "advanced";
+      }>
+    | undefined;
+  let blueprintArc: string | undefined;
+  try {
+    const { loadBlueprintForStudent } = await import(
+      "@/lib/domains/record-analysis/blueprint/loader"
+    );
+    const bp = await loadBlueprintForStudent(studentId, tenantId);
+    if (bp && Array.isArray(bp.targetConvergences) && bp.targetConvergences.length > 0) {
+      blueprintConvergences = bp.targetConvergences.slice(0, 6).map((c) => ({
+        grade: c.grade,
+        themeLabel: c.themeLabel,
+        themeKeywords: c.themeKeywords ?? [],
+        rationale: c.rationale,
+        tierAlignment: c.tierAlignment,
+      }));
+    }
+    if (bp?.storylineSkeleton?.narrativeArc) {
+      blueprintArc = bp.storylineSkeleton.narrativeArc;
+    }
+  } catch {
+    // best-effort — blueprint 없이 진행
+  }
+
   // 4. AI 호출
   const { generateObjectWithRateLimit } = await import("@/lib/domains/plan/llm/ai-sdk");
   const { geminiQuotaTracker } = await import("@/lib/domains/plan/llm/providers/gemini");
@@ -1143,6 +1194,10 @@ async function runExplorationDesign(
         ...(hyperedgeThemes.length > 0 ? { hyperedgeThemes } : {}),
         ...(narrativeStageDistribution ? { narrativeStageDistribution } : {}),
         ...(profileCardSummary ? { profileCardSummary } : {}),
+        ...(blueprintConvergences && blueprintConvergences.length > 0
+          ? { blueprintConvergences }
+          : {}),
+        ...(blueprintArc ? { blueprintArc } : {}),
       }),
     }],
     schema: zodSchema(explorationDesignSchema),
