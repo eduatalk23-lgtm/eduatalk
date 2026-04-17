@@ -17,6 +17,8 @@ import {
   Sun,
   PanelLeft,
   Sparkles,
+  Maximize2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -55,12 +57,24 @@ export type ChatBannerOrigin = {
   originPath: string;
 };
 
+export type ChatShellVariant = "full" | "split";
+
 type Props = {
   conversationId: string;
   initialMessages: UIMessage[];
   conversations: ConversationListItem[];
   bannerOrigin?: ChatBannerOrigin | null;
   suggestionChips?: Array<{ category: string; text: string }>;
+  /**
+   * Phase T-3: 레이아웃 variant.
+   * - "full" (기본): 사이드바 + 헤더 + Artifact 패널 전부. /ai-chat 페이지 전용.
+   * - "split": 우측 오버레이. 사이드바/Artifact 제거, 헤더 간소화, 닫기 버튼 제공.
+   */
+  variant?: ChatShellVariant;
+  /** split variant에서 패널 닫기 콜백 */
+  onClose?: () => void;
+  /** split variant에서 전체 화면으로 승격 */
+  onExpand?: () => void;
 };
 
 export function ChatShell({
@@ -69,7 +83,11 @@ export function ChatShell({
   conversations,
   bannerOrigin,
   suggestionChips,
+  variant = "full",
+  onClose,
+  onExpand,
 }: Props) {
+  const isSplit = variant === "split";
   const router = useRouter();
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -111,46 +129,92 @@ export function ChatShell({
 
   return (
     <div
-      className="flex h-dvh bg-white dark:bg-zinc-950"
+      className={cn(
+        "flex bg-white dark:bg-zinc-950",
+        isSplit ? "h-full" : "h-dvh",
+      )}
       aria-label="에듀엣톡 AI 대화"
     >
-      <ConversationSidebar
-        conversations={conversations}
-        activeId={conversationId}
-        mobileOpen={sidebarOpen}
-        onMobileClose={() => setSidebarOpen(false)}
-      />
+      {!isSplit && (
+        <ConversationSidebar
+          conversations={conversations}
+          activeId={conversationId}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
+        />
+      )}
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 md:px-6 dark:border-zinc-800">
+        <header
+          className={cn(
+            "flex items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800",
+            isSplit ? "px-3 py-2" : "px-4 py-3 md:px-6",
+          )}
+        >
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="대화 목록 열기"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              <PanelLeft size={16} />
-            </button>
+            {!isSplit && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="대화 목록 열기"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                <PanelLeft size={16} />
+              </button>
+            )}
             <div className="flex flex-col gap-0.5">
-              <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                에듀엣톡 AI
+              <h1
+                className={cn(
+                  "font-semibold text-zinc-900 dark:text-zinc-100",
+                  isSplit ? "text-sm" : "text-base",
+                )}
+              >
+                {isSplit ? "이 화면에서 대화" : "에듀엣톡 AI"}
               </h1>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
-                  {conversationId.slice(0, 8)}
-                </code>
-              </p>
+              {!isSplit && (
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
+                    {conversationId.slice(0, 8)}
+                  </code>
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggleButton />
-            <button
-              type="button"
-              onClick={() => router.push("/ai-chat")}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <Plus size={14} />새 대화
-            </button>
+            {isSplit ? (
+              <>
+                {onExpand && (
+                  <button
+                    type="button"
+                    onClick={onExpand}
+                    aria-label="전체 화면으로 이동"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  >
+                    <Maximize2 size={14} />
+                  </button>
+                )}
+                {onClose && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="패널 닫기"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <ThemeToggleButton />
+                <button
+                  type="button"
+                  onClick={() => router.push("/ai-chat")}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <Plus size={14} />새 대화
+                </button>
+              </>
+            )}
           </div>
         </header>
 
@@ -318,7 +382,7 @@ export function ChatShell({
         </form>
       </div>
 
-      <ArtifactPanel />
+      {!isSplit && <ArtifactPanel />}
     </div>
   );
 }

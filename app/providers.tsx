@@ -8,6 +8,7 @@ import { SubjectHierarchyProvider } from "@/lib/contexts/SubjectHierarchyContext
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { GlobalRefetchIndicator } from "@/components/ui/GlobalRefetchIndicator";
 import { ChatReturnBanner } from "@/components/ai-chat/ChatReturnBanner";
+import { SplitChatPanel } from "@/components/ai-chat/SplitChatPanel";
 import type { DehydratedState } from "@tanstack/react-query";
 import { ReactNode, Suspense } from "react";
 
@@ -29,6 +30,7 @@ export function Providers({ children, dehydratedState }: ProvidersProps) {
                   <ChatReturnBanner />
                 </Suspense>
                 {children}
+                <SplitChatPanel />
               </SubjectHierarchyProvider>
             </SidebarProvider>
           </ToastProvider>
