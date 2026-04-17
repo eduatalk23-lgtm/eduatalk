@@ -36,7 +36,7 @@ export type HandoffSource = {
   /** 허용 역할 */
   allowedRoles: readonly HandoffAllowedRole[];
   /** resolvers/ 폴더의 리졸버 키 */
-  contextResolver: "scores";
+  contextResolver: "scores" | "admin-record";
   /** 선공 메시지 내부 chips */
   seeds: readonly HandoffSeed[];
   /**
@@ -52,6 +52,13 @@ const SCORES_SEEDS: readonly HandoffSeed[] = [
   { category: "전략", text: "어느 과목에 집중해야 할까?" },
   { category: "비교", text: "지난 학기와 비교해줘" },
   { category: "진학", text: "이 성적으로 갈 수 있는 계열은?" },
+];
+
+const ADMIN_RECORD_SEEDS: readonly HandoffSeed[] = [
+  { category: "진단", text: "이 학생의 생기부 강점과 약점을 짚어줘" },
+  { category: "개선", text: "보완이 시급한 영역은?" },
+  { category: "전략", text: "2학년 2학기 집중 포인트 제안해줘" },
+  { category: "탐구", text: "이 학생에게 어울리는 탐구 주제 추천" },
 ];
 
 export const HANDOFF_SOURCES: Record<string, HandoffSource> = {
@@ -76,6 +83,17 @@ export const HANDOFF_SOURCES: Record<string, HandoffSource> = {
     seeds: SCORES_SEEDS,
     openerTemplate:
       "{name}{grade}{semester} 성적{count}을 검토 중이시네요. 어떤 분석이 필요하세요?",
+  },
+  "admin-record": {
+    key: "admin-record",
+    label: "생기부 관리 화면",
+    originPath: "/admin/students",
+    requiresStudentId: true,
+    allowedRoles: ["admin", "consultant"],
+    contextResolver: "admin-record",
+    seeds: ADMIN_RECORD_SEEDS,
+    openerTemplate:
+      "{name}{grade}생기부를 검토하고 계시네요. 어떤 점이 궁금하세요?",
   },
 };
 

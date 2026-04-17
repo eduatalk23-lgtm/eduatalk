@@ -15,6 +15,7 @@ import type { CurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHandoffSource, type HandoffSource } from "./sources";
 import { resolveScoresContext } from "./resolvers/scores";
+import { resolveAdminRecordContext } from "./resolvers/admin-record";
 
 export type HandoffInput = {
   from?: string;
@@ -94,6 +95,10 @@ export async function validateAndResolveHandoff(
   try {
     if (source.contextResolver === "scores") {
       const resolved = await resolveScoresContext(input, user);
+      return { ok: true, source, resolved };
+    }
+    if (source.contextResolver === "admin-record") {
+      const resolved = await resolveAdminRecordContext(input, user);
       return { ok: true, source, resolved };
     }
     return { ok: false, reason: "resolver-failed" };
