@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import { ScoresCard } from "./ScoresCard";
 import type { GetScoresOutput } from "@/app/api/chat/route";
@@ -45,14 +47,26 @@ export function ArtifactPanel() {
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={closeArtifact}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              aria-label="아티팩트 닫기"
-            >
-              닫기
-            </button>
+            <div className="flex items-center gap-1">
+              {artifact.originPath && (
+                <Link
+                  href={artifact.originPath}
+                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  aria-label="원본 GUI 화면으로 이동"
+                >
+                  <ExternalLink size={12} />
+                  원본 보기
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={closeArtifact}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                aria-label="아티팩트 닫기"
+              >
+                닫기
+              </button>
+            </div>
           </header>
           <div className="flex-1 overflow-y-auto p-4">
             {artifact.type === "scores" && (

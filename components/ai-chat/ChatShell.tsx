@@ -206,7 +206,12 @@ export function ChatShell({
                 message={m}
                 openedArtifactId={openedArtifactId}
                 onOpenArtifact={openArtifact}
-                onNavigate={(path) => router.push(path)}
+                onNavigate={(path) => {
+                  const separator = path.includes("?") ? "&" : "?";
+                  router.push(
+                    `${path}${separator}fromChat=${encodeURIComponent(conversationId)}`,
+                  );
+                }}
               />
             ))}
 
@@ -392,6 +397,7 @@ type MessageRowProps = {
     title: string;
     subtitle?: string;
     props: unknown;
+    originPath?: string;
   }) => void;
   onNavigate: (path: string) => void;
 };
@@ -495,6 +501,11 @@ function MessageRow({
                             .filter(Boolean)
                             .join(" · "),
                           props: output,
+                          // Phase T-2b: 학년/학기 필터가 모두 있으면 상세 뷰, 아니면 대시보드로
+                          originPath:
+                            output.filter.grade && output.filter.semester
+                              ? `/scores/school/${output.filter.grade}/${output.filter.semester}`
+                              : "/scores",
                         })
                       }
                       className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"

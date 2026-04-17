@@ -10,6 +10,11 @@ export type Artifact = {
   title: string;
   subtitle?: string;
   props?: unknown;
+  /**
+   * Phase T-2b: 이 아티팩트의 원본 GUI 경로.
+   * 지정 시 ArtifactPanel 헤더에 "원본 보기" 링크 렌더.
+   */
+  originPath?: string;
 };
 
 type ArtifactStore = {

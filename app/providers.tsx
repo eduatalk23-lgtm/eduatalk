@@ -7,8 +7,9 @@ import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { SubjectHierarchyProvider } from "@/lib/contexts/SubjectHierarchyContext";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { GlobalRefetchIndicator } from "@/components/ui/GlobalRefetchIndicator";
+import { ChatReturnBanner } from "@/components/ai-chat/ChatReturnBanner";
 import type { DehydratedState } from "@tanstack/react-query";
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -24,6 +25,9 @@ export function Providers({ children, dehydratedState }: ProvidersProps) {
           <ToastProvider>
             <SidebarProvider>
               <SubjectHierarchyProvider>
+                <Suspense fallback={null}>
+                  <ChatReturnBanner />
+                </Suspense>
                 {children}
               </SubjectHierarchyProvider>
             </SidebarProvider>
