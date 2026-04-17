@@ -19,7 +19,6 @@ import {
   Sparkles,
   Maximize2,
   X,
-  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -173,35 +172,14 @@ export function ChatShell({
         >
           <div className="flex items-center gap-2">
             {!isSplit && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="대화 목록 열기"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  <PanelLeft size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      typeof window !== "undefined" &&
-                      window.history.length > 1
-                    ) {
-                      router.back();
-                    } else {
-                      // 히스토리 없으면 / 로 이동 → proxy 가 role 기반 대시보드 리다이렉트
-                      router.push("/");
-                    }
-                  }}
-                  aria-label="이전 화면으로 돌아가기"
-                  title="이전 화면"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="대화 목록 열기"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                <PanelLeft size={16} />
+              </button>
             )}
             <div className="flex flex-col gap-0.5">
               <h1
