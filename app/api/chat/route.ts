@@ -24,6 +24,47 @@ import { buildHandoffPromptSection } from "@/lib/domains/ai-chat/handoff/prompt"
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+/**
+ * Phase T 서버 최적화 (2026-04 Vercel/Ollama 모범사례)
+ *
+ * 1. Prompt 재배치 — 정적 prefix 앞, 동적 suffix 뒤.
+ *    매 요청마다 동일한 규칙이 앞에 오도록 해 Ollama KV cache 재사용 극대화.
+ *    AI SDK v6 공식 권고: static instructions 앞, variable data 뒤.
+ *
+ * 2. providerOptions.options — num_ctx/num_predict/num_keep 튜닝
+ *    - num_ctx 8192: 기본 128K → 8K (KV cache 메모리 축소)
+ *    - num_predict 500: 응답 토큰 상한 (장문 낭비 방지)
+ *    - num_keep 256: 시스템 prefix KV cache 영구 고정
+ *
+ * 3. stepCountIs(2) — tool 호출 + 응답 1루프로 제한 (3 → 2)
+ *
+ * 4. 응답 간결 지침 (프롬프트 내부)
+ */
+const STATIC_SYSTEM_PREFIX = `당신은 에듀엣톡 AI 컨설턴트입니다. 한국어로 친근하고 간결하게 답변합니다. 답변 원칙은 2~3문장, 불필요한 수식어 배제.
+
+[도구 선택 규칙]
+- 화면 이동 요청 → navigateTo
+- 데이터 조회(성적·점수·내신 등) → getScores
+- 단순 질문·상담 → 도구 없이 텍스트
+
+[navigateTo 규칙]
+- 반드시 현재 사용자 role 에 맞는 경로만 호출. role 은 [현재 사용자] 참조.
+  · student: /dashboard, /plan, /scores, /analysis, /guides, /settings
+  · admin/consultant: /admin/dashboard, /admin/students, /admin/guides, /admin/settings
+  · parent: /parent/dashboard, /parent/record, /parent/scores, /parent/settings
+  · superadmin: admin + student 경로
+- 호출 후 한 문장으로 이동 안내.
+
+[getScores 규칙]
+- admin/consultant는 반드시 studentName. 없으면 도구 호출 대신 "어느 학생?" 먼저 질문.
+- 학년·학기 언급 시 grade/semester 필터 전달.
+- 결과 0건이면 입력 안내 + /scores 이동 제안.
+- 긴 숫자 나열 금지. 1~2문장 해석(평균·눈에 띄는 과목·변화)만.
+
+[대화 규칙]
+- student: 이름 부르며 친근하게.
+- admin/consultant: 전문가 톤으로 간결.`;
+
 // Phase T 빈틈 #3: navigateTo role-aware 경로 매핑
 // proxy.ts (ROLE_ALLOWED_PATHS)와 일관성 유지 — 각 role이 실제 접근 가능한 경로만 노출
 const STUDENT_NAV_TARGETS = [
@@ -368,40 +409,22 @@ export async function POST(req: Request) {
     ? await buildHandoffSectionForConversation(conversationId, user)
     : "";
 
+  // 2026-04 Vercel AI SDK 공식 권고: static prefix + variable suffix
+  // 앞부분(STATIC_SYSTEM_PREFIX)이 매 요청 동일 → Ollama KV cache prefix 재사용
+  const dynamicSuffix = `${userContext}${handoffSection ? "\n\n" + handoffSection : ""}`;
+
   const result = streamText({
-    model: ollama(process.env.OLLAMA_MODEL ?? "gemma4:latest"),
-    system: `당신은 에듀엣톡 AI 컨설턴트입니다. 학생의 교육 상담을 친근하고 명확하게 돕습니다. 모든 답변은 한국어로 합니다.
-
-${userContext}${handoffSection ? "\n\n" + handoffSection : ""}
-
-[도구 선택 규칙]
-- 화면 이동 요청(예: "성적 화면 열어줘", "대시보드로 가줘") → navigateTo
-- 실제 데이터 조회(예: "성적 보여줘", "수학 점수", "1학년 1학기 내신", "김세린 성적") → getScores
-- 단순 질문·상담·잡담 → 도구 호출 없이 텍스트로 답변
-
-[navigateTo 규칙]
-- 반드시 현재 사용자 role 에 맞는 경로만 호출하세요. role 은 [현재 사용자] 섹션에 기재됨.
-  · student 경로: /dashboard, /plan, /scores, /analysis, /guides, /settings
-  · admin/consultant 경로: /admin/dashboard, /admin/students, /admin/guides, /admin/settings
-  · parent 경로: /parent/dashboard, /parent/record, /parent/scores, /parent/settings
-  · superadmin 은 admin + student 경로 모두 가능
-- 다른 role 경로를 호출하면 도구가 거부하고 사용자가 혼란을 겪습니다. 명확히 현재 role 경로로만 이동하세요.
-- 호출 후 한 문장으로 이동 안내를 덧붙이세요.
-
-[getScores 규칙]
-- 현재 role이 admin/consultant이면 반드시 studentName을 포함해야 합니다.
-- 사용자가 학생 이름을 명시하지 않았는데 role이 admin/consultant라면, 도구를 호출하지 말고 먼저 "어느 학생의 성적을 볼까요?"라고 물어보세요.
-- 학생 이름은 사용자가 쓴 그대로(예: "김세린")를 전달하세요.
-- 사용자가 학년·학기를 말하면 grade/semester 필터로 전달하세요.
-- 결과가 0건이면 입력이 없다고 안내하고 /scores 화면 이동을 제안하세요.
-- tool 결과가 대화창에 표로 렌더링되므로, 긴 숫자 나열은 피하고 1-2문장으로 해석(평균, 눈에 띄는 과목, 변화)만 덧붙이세요.
-
-[대화 규칙]
-- role이 student면 이름을 부르며 친근하게.
-- admin/consultant면 전문가 톤으로 간결하게.`,
+    model: ollama(process.env.OLLAMA_MODEL ?? "gemma4:latest", {
+      options: {
+        num_ctx: 8192,
+        num_predict: 500,
+        num_keep: 256,
+      },
+    }),
+    system: `${STATIC_SYSTEM_PREFIX}\n\n${dynamicSuffix}`,
     messages: await convertToModelMessages(messages),
     tools,
-    stopWhen: stepCountIs(3),
+    stopWhen: stepCountIs(2),
   });
 
   return result.toUIMessageStreamResponse({
