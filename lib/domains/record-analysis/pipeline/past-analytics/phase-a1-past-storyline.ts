@@ -43,6 +43,9 @@ export async function runPastStorylineGeneration(
       logActionError(LOG_CTX, `Past Storyline 실패: ${result.error}`, { pipelineId });
       throw new Error(result.error);
     }
+    if (!result.data) {
+      throw new Error("Past Storyline 응답 data 누락");
+    }
 
     const { storylines, connections, savedCount } = result.data;
 

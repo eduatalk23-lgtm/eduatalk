@@ -43,6 +43,33 @@ export async function findCompetencyScores(
   return data ?? [];
 }
 
+/** 학생의 다수 학년도 역량 평가 일괄 조회 (Past Analytics용 — NEIS 다년도 집계) */
+export async function findCompetencyScoresBySchoolYears(
+  studentId: string,
+  schoolYears: number[],
+  tenantId: string,
+  source?: "ai" | "ai_projected" | "manual",
+): Promise<CompetencyScore[]> {
+  if (schoolYears.length === 0) return [];
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_competency_scores")
+    .select("*")
+    .eq("student_id", studentId)
+    .in("school_year", schoolYears)
+    .eq("tenant_id", tenantId);
+
+  if (source) query = query.eq("source", source);
+
+  const { data, error } = await query
+    .order("school_year")
+    .order("competency_area")
+    .order("competency_item");
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** 역량 평가 upsert (UNIQUE: tenant+student+year+scope+item+source) */
 export async function upsertCompetencyScore(
   input: CompetencyScoreInsert,

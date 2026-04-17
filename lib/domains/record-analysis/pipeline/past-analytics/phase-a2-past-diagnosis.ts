@@ -18,7 +18,7 @@ export async function runPastDiagnosis(
   ctx: PipelineContext,
 ): Promise<TaskRunnerOutput> {
   assertPastAnalyticsCtx(ctx);
-  const { pipelineId, studentId, tenantId, neisGrades } = ctx;
+  const { pipelineId, studentId, tenantId, neisGrades, studentGrade } = ctx;
 
   const neisYears = neisGrades ?? [];
   if (neisYears.length === 0) {
@@ -53,12 +53,16 @@ export async function runPastDiagnosis(
       studentId,
       tenantId,
       neisYears,
+      studentGrade,
       pastStorylineSection,
     );
 
     if (!result.success) {
       logActionError(LOG_CTX, `Past Diagnosis 실패: ${result.error}`, { pipelineId });
       throw new Error(result.error);
+    }
+    if (!result.data) {
+      throw new Error("Past Diagnosis 응답 data 누락");
     }
 
     const { overallGrade, directionStrength, weaknesses, strengths } = result.data;

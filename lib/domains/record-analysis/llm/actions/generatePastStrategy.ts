@@ -89,10 +89,15 @@ export async function generatePastStrategy(
     }));
 
     // ── 2. 부족 역량 추출 (B- 이하) ──
+    // Past Strategy는 NEIS 학년(= 과거) 역량만 대상으로 함. currentGrade 기준 enrollYear 역산 후
+    // neisGrades → school_years로 변환하여 일괄 조회.
     const currentSchoolYear = calculateSchoolYear();
-    const scores = await competencyRepo.findCompetencyScores(
+    const enrollYear = currentSchoolYear - currentGrade + 1;
+    const neisSchoolYears = neisGrades.map((g) => enrollYear + g - 1);
+
+    const scores = await competencyRepo.findCompetencyScoresBySchoolYears(
       studentId,
-      currentSchoolYear,
+      neisSchoolYears,
       tenantId,
     );
     const weakCompetencies = scores

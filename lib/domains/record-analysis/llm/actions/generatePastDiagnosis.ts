@@ -44,6 +44,7 @@ export async function generatePastDiagnosis(
   studentId: string,
   tenantId: string,
   neisGrades: number[],
+  studentGrade: number,
   pastStorylineSection?: string,
 ): Promise<ActionResponse<PastDiagnosisPersistResult>> {
   try {
@@ -56,18 +57,39 @@ export async function generatePastDiagnosis(
     const currentSchoolYear = calculateSchoolYear();
 
     // ── 1. NEIS 역량/태그 조회 ──
+    // school_year = (enrollYear + grade - 1). studentGrade 기준으로 enrollYear 역산.
+    // ex) studentGrade=3, currentSchoolYear=2026 → enrollYear=2024 → G1=2024, G2=2025.
+    const enrollYear = currentSchoolYear - studentGrade + 1;
+    const neisSchoolYears = neisGrades.map((g) => enrollYear + g - 1);
+
     const [scores, tags] = await Promise.all([
-      competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId),
+      competencyRepo.findCompetencyScoresBySchoolYears(studentId, neisSchoolYears, tenantId),
       competencyRepo.findActivityTags(studentId, tenantId, {
         excludeTagContext: "draft_analysis",
       }),
     ]);
 
-    // NEIS 학년 범위 태그만 필터링 — draft_analysis 배제는 이미 적용됨
+    // NEIS 학년 범위 태그만 필터링.
+    // activity_tags에는 grade 컬럼이 없고 (record_type, record_id)만 가짐.
+    // 세특/창체/행특 테이블에서 grade를 역조회해 record_id → grade 맵을 구성.
+    const supabase = await createSupabaseServerClient();
+    const recordIdToGrade = new Map<string, number>();
+    for (const tbl of ["student_record_seteks", "student_record_changche", "student_record_haengteuk"] as const) {
+      const { data } = await supabase
+        .from(tbl)
+        .select("id, grade")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
+      for (const r of data ?? []) {
+        if (r.id && r.grade != null) recordIdToGrade.set(r.id as string, r.grade as number);
+      }
+    }
+
     const neisScores: CompetencyScore[] = scores.filter((s) => s.source !== "ai_projected");
-    const neisTags: ActivityTag[] = tags.filter((t) =>
-      neisGrades.includes(t.grade as number),
-    );
+    const neisTags: ActivityTag[] = tags.filter((t) => {
+      const g = recordIdToGrade.get(t.record_id as string);
+      return g != null && neisGrades.includes(g);
+    });
 
     if (neisScores.length === 0 && neisTags.length === 0) {
       logActionDebug(LOG_CTX, "역량 데이터 없음 — Past Diagnosis 스킵", {
@@ -81,7 +103,6 @@ export async function generatePastDiagnosis(
     }
 
     // ── 2. 학생 정보 조회 ──
-    const supabase = await createSupabaseServerClient();
     const { data: snapshot } = await supabase
       .from("student_snapshots")
       .select("target_major, school_name")
@@ -123,8 +144,8 @@ export async function generatePastDiagnosis(
     // ── 4. 기존 scope='past' 진단 제거 ──
     await deleteDiagnosisByScope(studentId, tenantId, "past");
 
-    // ── 5. 영속화 — NEIS 범위 대표 학년도 1건으로 저장 ──
-    const representativeSchoolYear = currentSchoolYear;
+    // ── 5. 영속화 — NEIS 범위 대표 학년도(최신 NEIS 학년) 1건으로 저장 ──
+    const representativeSchoolYear = Math.max(...neisSchoolYears);
     const { toDbJson } = await import("@/lib/domains/student-record/types");
 
     const { error: insErr } = await supabase.from("student_record_diagnosis").insert({

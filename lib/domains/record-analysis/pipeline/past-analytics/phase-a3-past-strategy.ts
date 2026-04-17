@@ -55,6 +55,9 @@ export async function runPastStrategy(
       logActionError(LOG_CTX, `Past Strategy 실패: ${result.error}`, { pipelineId });
       throw new Error(result.error);
     }
+    if (!result.data) {
+      throw new Error("Past Strategy 응답 data 누락");
+    }
 
     const { suggestions, savedCount } = result.data;
 

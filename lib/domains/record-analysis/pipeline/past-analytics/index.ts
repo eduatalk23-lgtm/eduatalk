@@ -27,7 +27,7 @@ import { PAST_ANALYTICS_TASK_PREREQUISITES } from "../pipeline-config";
 import { runPastStorylineGeneration } from "./phase-a1-past-storyline";
 import { runPastDiagnosis } from "./phase-a2-past-diagnosis";
 import { runPastStrategy } from "./phase-a3-past-strategy";
-import { logActionWarn } from "@/lib/utils/serverActionLogger";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 
 function skipIfPastPrereqFailed(
   ctx: PipelineContext,
