@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { UIMessage } from "ai";
 import type {
   AIConversationOrigin,
@@ -19,12 +20,21 @@ type SaveConversationArgs = {
 /**
  * 대화 스레드 upsert + 메시지 저장.
  * onConflict('id') 로 idempotent. 메시지 id는 AI SDK 생성 stable id 재사용.
+ *
+ * ⚠️ RLS 우회 admin client 사용 이유:
+ * toUIMessageStreamResponse({onFinish}) 콜백은 응답 스트림이 완료된 뒤 실행되어
+ * Next.js request scope 가 종료됨 → cookies() 접근 불가 → Supabase 세션 anon →
+ * auth.uid() NULL → RLS 차단. owner_user_id 가 인자로 명시되어 정당성 유지됨.
+ * 대화 내 메시지 저장은 onFinish 에서만 호출되므로 항상 admin 경로 사용.
  */
 export async function saveChatTurn(
   args: SaveConversationArgs,
   messages: UIMessage[],
 ): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { ok: false, error: "admin client unavailable" };
+  }
 
   const nowIso = new Date().toISOString();
   const { error: convErr } = await supabase
