@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { UIMessage } from "ai";
@@ -59,8 +60,13 @@ export async function saveChatTurn(
 
   if (messages.length === 0) return { ok: true };
 
+  // 버그 방지: ai-sdk-ollama 일부 경로에서 assistant message id 가 "" 로
+  // 들어오는 경우 발견됨. onConflict id 로 upsert 시 id="" 가 모든 빈 id
+  // 메시지를 같은 row 로 덮어쓰면서 대화 간 순서·내용 오염 유발.
+  // fallback: id 누락 시 서버에서 UUID 부여. DB CHECK 제약(char_length(id)>0)이
+  // 이중 방어.
   const rows = messages.map((m) => ({
-    id: m.id,
+    id: m.id && m.id.length > 0 ? m.id : randomUUID(),
     conversation_id: args.conversationId,
     role: m.role,
     parts: m.parts as unknown as Record<string, unknown>,
