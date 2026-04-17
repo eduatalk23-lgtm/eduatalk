@@ -15,6 +15,8 @@ export type AIConversationRow = {
   subject_student_id: string | null;
   title: string | null;
   last_activity_at: string;
+  pinned_at: string | null;
+  archived_at: string | null;
   retention_until: string | null;
   anonymized_at: string | null;
   created_at: string;

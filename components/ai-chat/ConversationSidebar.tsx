@@ -1,14 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  Plus,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+  Pencil,
+  Archive,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  renameConversation,
+  togglePinConversation,
+  toggleArchiveConversation,
+  deleteConversation,
+} from "@/lib/domains/ai-chat/actions";
 
 export type ConversationListItem = {
   id: string;
   title: string | null;
   persona: string;
   lastActivityAt: string;
+  pinnedAt: string | null;
+  archivedAt: string | null;
 };
 
 type Props = {
@@ -24,17 +42,25 @@ const PERSONA_LABELS: Record<string, string> = {
   superadmin: "슈퍼관리자",
 };
 
-type GroupKey = "today" | "yesterday" | "week" | "month" | "older";
+type GroupKey = "pinned" | "today" | "yesterday" | "week" | "month" | "older";
 const GROUP_LABELS: Record<GroupKey, string> = {
+  pinned: "고정됨",
   today: "오늘",
   yesterday: "어제",
   week: "지난 7일",
   month: "이번 달",
   older: "이전",
 };
-const GROUP_ORDER: GroupKey[] = ["today", "yesterday", "week", "month", "older"];
+const GROUP_ORDER: GroupKey[] = [
+  "pinned",
+  "today",
+  "yesterday",
+  "week",
+  "month",
+  "older",
+];
 
-function classifyByDate(iso: string): GroupKey {
+function classifyByDate(iso: string): Exclude<GroupKey, "pinned"> {
   const now = new Date();
   const d = new Date(iso);
   const sameDay = d.toDateString() === now.toDateString();
@@ -44,7 +70,9 @@ function classifyByDate(iso: string): GroupKey {
   yesterday.setDate(now.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return "yesterday";
 
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor(
+    (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
+  );
   if (diffDays < 7) return "week";
   if (
     d.getFullYear() === now.getFullYear() &&
@@ -70,9 +98,14 @@ function formatRelative(iso: string, group: GroupKey): string {
 }
 
 export function ConversationSidebar({ conversations, activeId }: Props) {
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+
   const grouped = new Map<GroupKey, ConversationListItem[]>();
   for (const c of conversations) {
-    const key = classifyByDate(c.lastActivityAt);
+    const key: GroupKey = c.pinnedAt
+      ? "pinned"
+      : classifyByDate(c.lastActivityAt);
     const arr = grouped.get(key) ?? [];
     arr.push(c);
     grouped.set(key, arr);
@@ -83,7 +116,7 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
       <header className="border-b border-zinc-200 px-4 py-4">
         <h2 className="text-sm font-semibold text-zinc-900">대화 기록</h2>
         <p className="mt-0.5 text-[11px] text-zinc-500">
-          최근 50개 · 최근 활동순
+          최근 50개 · 고정 먼저
         </p>
       </header>
 
@@ -100,41 +133,25 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
                   {GROUP_LABELS[key]}
                 </h3>
                 <ul className="flex flex-col">
-                  {grouped.get(key)!.map((c) => {
-                    const isActive = c.id === activeId;
-                    const title =
-                      c.title && c.title.length > 0 ? c.title : "(제목 없음)";
-                    return (
-                      <li key={c.id}>
-                        <Link
-                          href={`/ai-chat?id=${c.id}`}
-                          className={cn(
-                            "flex flex-col gap-1 border-l-2 px-4 py-2.5 transition-colors",
-                            isActive
-                              ? "border-zinc-900 bg-white"
-                              : "border-transparent hover:bg-white",
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "line-clamp-2 text-[13px]",
-                              isActive
-                                ? "font-semibold text-zinc-900"
-                                : "text-zinc-700",
-                            )}
-                          >
-                            {title}
-                          </span>
-                          <span className="flex items-center gap-2 text-[10px] text-zinc-500">
-                            <span className="rounded bg-zinc-100 px-1.5 py-0.5">
-                              {PERSONA_LABELS[c.persona] ?? c.persona}
-                            </span>
-                            <span>{formatRelative(c.lastActivityAt, key)}</span>
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
+                  {grouped.get(key)!.map((c) => (
+                    <ConversationRow
+                      key={c.id}
+                      conversation={c}
+                      group={key}
+                      isActive={c.id === activeId}
+                      isRenaming={renamingId === c.id}
+                      isMenuOpen={menuOpenId === c.id}
+                      onRequestMenu={() =>
+                        setMenuOpenId((v) => (v === c.id ? null : c.id))
+                      }
+                      onCloseMenu={() => setMenuOpenId(null)}
+                      onStartRename={() => {
+                        setMenuOpenId(null);
+                        setRenamingId(c.id);
+                      }}
+                      onFinishRename={() => setRenamingId(null)}
+                    />
+                  ))}
                 </ul>
               </div>
             ))}
@@ -151,5 +168,283 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
         </Link>
       </footer>
     </aside>
+  );
+}
+
+type RowProps = {
+  conversation: ConversationListItem;
+  group: GroupKey;
+  isActive: boolean;
+  isRenaming: boolean;
+  isMenuOpen: boolean;
+  onRequestMenu: () => void;
+  onCloseMenu: () => void;
+  onStartRename: () => void;
+  onFinishRename: () => void;
+};
+
+function ConversationRow({
+  conversation: c,
+  group,
+  isActive,
+  isRenaming,
+  isMenuOpen,
+  onRequestMenu,
+  onCloseMenu,
+  onStartRename,
+  onFinishRename,
+}: RowProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const title = c.title && c.title.length > 0 ? c.title : "(제목 없음)";
+
+  const handlePin = () => {
+    startTransition(async () => {
+      await togglePinConversation(c.id, !c.pinnedAt);
+      onCloseMenu();
+      router.refresh();
+    });
+  };
+  const handleArchive = () => {
+    startTransition(async () => {
+      await toggleArchiveConversation(c.id, true);
+      onCloseMenu();
+      router.refresh();
+    });
+  };
+  const handleDelete = () => {
+    if (!confirm("이 대화를 삭제할까요? 되돌릴 수 없습니다.")) return;
+    startTransition(async () => {
+      await deleteConversation(c.id);
+      onCloseMenu();
+      if (isActive) router.push("/ai-chat");
+      else router.refresh();
+    });
+  };
+
+  return (
+    <li
+      className={cn(
+        "group relative",
+        isPending && "opacity-60",
+      )}
+    >
+      {isRenaming ? (
+        <RenameInput
+          initial={c.title ?? ""}
+          onSave={(next) => {
+            startTransition(async () => {
+              await renameConversation(c.id, next);
+              onFinishRename();
+              router.refresh();
+            });
+          }}
+          onCancel={onFinishRename}
+        />
+      ) : (
+        <>
+          <Link
+            href={`/ai-chat?id=${c.id}`}
+            className={cn(
+              "flex flex-col gap-1 border-l-2 px-4 py-2.5 pr-10 transition-colors",
+              isActive
+                ? "border-zinc-900 bg-white"
+                : "border-transparent hover:bg-white",
+            )}
+          >
+            <span
+              className={cn(
+                "line-clamp-2 text-[13px]",
+                isActive
+                  ? "font-semibold text-zinc-900"
+                  : "text-zinc-700",
+              )}
+            >
+              {c.pinnedAt && (
+                <Pin
+                  size={10}
+                  className="mr-1 inline text-zinc-500"
+                  aria-label="고정됨"
+                />
+              )}
+              {title}
+            </span>
+            <span className="flex items-center gap-2 text-[10px] text-zinc-500">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5">
+                {PERSONA_LABELS[c.persona] ?? c.persona}
+              </span>
+              <span>{formatRelative(c.lastActivityAt, group)}</span>
+            </span>
+          </Link>
+          <button
+            type="button"
+            onClick={onRequestMenu}
+            aria-label="대화 액션 메뉴"
+            aria-expanded={isMenuOpen}
+            className={cn(
+              "absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-opacity hover:bg-zinc-100 hover:text-zinc-800",
+              isMenuOpen
+                ? "opacity-100"
+                : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
+            )}
+          >
+            <MoreHorizontal size={14} />
+          </button>
+          {isMenuOpen && (
+            <ActionMenu
+              pinned={!!c.pinnedAt}
+              onClose={onCloseMenu}
+              onPin={handlePin}
+              onRename={onStartRename}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+            />
+          )}
+        </>
+      )}
+    </li>
+  );
+}
+
+function RenameInput({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: string;
+  onSave: (next: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-1 border-l-2 border-zinc-900 bg-white px-4 py-2.5">
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onSave(value);
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+        onBlur={() => {
+          if (value.trim() === initial.trim() || value.trim().length === 0) {
+            onCancel();
+          } else {
+            onSave(value);
+          }
+        }}
+        maxLength={120}
+        className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-[13px] text-zinc-900 focus:border-zinc-500 focus:outline-none"
+      />
+      <span className="text-[10px] text-zinc-400">
+        Enter 저장 · Esc 취소
+      </span>
+    </div>
+  );
+}
+
+function ActionMenu({
+  pinned,
+  onClose,
+  onPin,
+  onRename,
+  onArchive,
+  onDelete,
+}: {
+  pinned: boolean;
+  onClose: () => void;
+  onPin: () => void;
+  onRename: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) onClose();
+    };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", keyHandler);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      className="absolute right-2 top-9 z-10 flex w-40 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 text-[13px] text-zinc-800 shadow-lg"
+    >
+      <MenuItem
+        icon={pinned ? <PinOff size={13} /> : <Pin size={13} />}
+        label={pinned ? "고정 해제" : "상단 고정"}
+        onClick={onPin}
+      />
+      <MenuItem
+        icon={<Pencil size={13} />}
+        label="이름 변경"
+        onClick={onRename}
+      />
+      <MenuItem
+        icon={<Archive size={13} />}
+        label="아카이브"
+        onClick={onArchive}
+      />
+      <div className="my-1 border-t border-zinc-100" />
+      <MenuItem
+        icon={<Trash2 size={13} />}
+        label="삭제"
+        onClick={onDelete}
+        danger
+      />
+    </div>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
+        danger
+          ? "text-red-600 hover:bg-red-50"
+          : "text-zinc-800 hover:bg-zinc-50",
+      )}
+    >
+      <span className="text-zinc-500">{icon}</span>
+      <span>{label}</span>
+    </button>
   );
 }

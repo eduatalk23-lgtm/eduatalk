@@ -94,22 +94,39 @@ export async function loadConversationMessages(
 }
 
 /**
- * 현재 사용자의 대화 목록 (최근 활동순).
+ * 현재 사용자의 대화 목록.
+ * - 기본: 활성(archived_at IS NULL) 50개. 고정 먼저, 그다음 최근 활동순.
+ * - archived=true: 아카이브된 목록만 반환.
  */
-export async function listConversations(ownerUserId: string): Promise<
+export async function listConversations(
+  ownerUserId: string,
+  options?: { archived?: boolean },
+): Promise<
   Array<{
     id: string;
     title: string | null;
     persona: AIConversationPersona;
     lastActivityAt: string;
+    pinnedAt: string | null;
+    archivedAt: string | null;
   }>
 > {
   const supabase = await createSupabaseServerClient();
+  const archived = options?.archived ?? false;
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("ai_conversations")
-    .select("id, title, persona, last_activity_at")
-    .eq("owner_user_id", ownerUserId)
+    .select(
+      "id, title, persona, last_activity_at, pinned_at, archived_at",
+    )
+    .eq("owner_user_id", ownerUserId);
+
+  const filtered = archived
+    ? query.not("archived_at", "is", null)
+    : query.is("archived_at", null);
+
+  const { data, error } = await filtered
+    .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_activity_at", { ascending: false })
     .limit(50);
 
@@ -120,5 +137,7 @@ export async function listConversations(ownerUserId: string): Promise<
     title: r.title,
     persona: r.persona,
     lastActivityAt: r.last_activity_at,
+    pinnedAt: r.pinned_at,
+    archivedAt: r.archived_at,
   }));
 }
