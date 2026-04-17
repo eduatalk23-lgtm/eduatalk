@@ -24,6 +24,8 @@ export interface GuideAssignmentLike {
     id: string;
     title: string;
     guide_type?: string;
+    /** 셸(queued_generation) 여부 확인용 */
+    status?: string;
   };
 }
 
@@ -93,9 +95,26 @@ export function GuideAssignmentCard({
   const guideTypeLabel = guide?.guide_type
     ? (GUIDE_TYPE_LABELS[guide.guide_type as GuideType] ?? guide.guide_type)
     : null;
+  // 폴백 계층: title(비어있지 않음) → guide_type 라벨 → "(제목 없음)"
+  //   이전: `guide?.title ?? "가이드"` — 빈 제목/JOIN 누락 시 "가이드"만 표시되어
+  //   어떤 가이드인지 식별 불가 (사용자 피드백 2026-04-17).
+  const titleFallback = guideTypeLabel ?? "(제목 없음)";
+  const titleText = guide?.title && guide.title.trim().length > 0 ? guide.title : titleFallback;
   const isAi = !!assignment.ai_recommendation_reason;
   const sim = parseSimScore(assignment.student_notes);
   const tier = sim !== null ? simScoreTier(sim) : null;
+
+  // 기본 클릭 — 가이드 상세 새 탭으로 열기 (onClick prop이 없을 때만).
+  //   이전: onClick 미제공 시 카드 클릭이 noop → "가이드 열람 플로우 없음" 이슈.
+  //   queued_generation 상태 가이드는 본문 없음 → 배지로 안내, 상세 페이지는 접근 허용.
+  const guideIdForLink = guide?.id ?? assignment.guide_id ?? null;
+  const isQueued = guide?.status === "queued_generation";
+  const isAiFailed = guide?.status === "ai_failed";
+  const effectiveOnClick =
+    onClick ??
+    (guideIdForLink
+      ? () => window.open(`/admin/guides/${guideIdForLink}`, "_blank", "noopener")
+      : undefined);
 
   const simClass =
     tier === "strong"
@@ -108,15 +127,26 @@ export function GuideAssignmentCard({
     return (
       <button
         type="button"
-        onClick={onClick}
-        disabled={!onClick}
+        onClick={effectiveOnClick}
+        disabled={!effectiveOnClick}
+        title={effectiveOnClick ? "가이드 상세 열기" : undefined}
         className={cn(
           "flex w-full items-center gap-1.5 rounded border border-[var(--border-secondary)] bg-[var(--bg-secondary)] px-2 py-1 text-left",
-          onClick && "hover:bg-[var(--bg-tertiary)]",
+          effectiveOnClick && "hover:bg-[var(--bg-tertiary)]",
         )}
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass(assignment.status))} />
-        <span className="truncate text-xs text-[var(--text-primary)]">{guide?.title ?? "가이드"}</span>
+        <span className="truncate text-xs text-[var(--text-primary)]">{titleText}</span>
+        {isQueued && (
+          <span className="shrink-0 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" title="본문 생성 대기 중">
+            대기
+          </span>
+        )}
+        {isAiFailed && (
+          <span className="shrink-0 rounded bg-red-100 px-1 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300" title="본문 생성 실패 (수동 재시도 필요)">
+            실패
+          </span>
+        )}
         {guideTypeLabel && (
           <span className="ml-auto shrink-0 rounded bg-indigo-100 px-1 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
             {guideTypeLabel}
@@ -135,10 +165,11 @@ export function GuideAssignmentCard({
     <div
       className={cn(
         "flex flex-col gap-1.5 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-secondary)] p-2.5",
-        onClick && "cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/10",
+        effectiveOnClick && "cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/10",
       )}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
+      onClick={effectiveOnClick}
+      role={effectiveOnClick ? "button" : undefined}
+      title={effectiveOnClick && !onClick ? "가이드 상세 새 탭으로 열기" : undefined}
     >
       {/* 상단: 배지 열 */}
       <div className="flex flex-wrap items-center gap-1">
@@ -147,6 +178,22 @@ export function GuideAssignmentCard({
           <span className="inline-flex items-center gap-0.5 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
             <BookOpen className="h-2.5 w-2.5" />
             {guideTypeLabel}
+          </span>
+        )}
+        {isQueued && (
+          <span
+            className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            title="AI가 메타 설계만 완료한 상태. 본문은 생성 대기 중"
+          >
+            본문 대기
+          </span>
+        )}
+        {isAiFailed && (
+          <span
+            className="inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
+            title="본문 생성 실패 — 상세 페이지에서 수동 재시도"
+          >
+            본문 실패
           </span>
         )}
         {isAi ? (
@@ -176,7 +223,7 @@ export function GuideAssignmentCard({
         )}
       </div>
       {/* 제목 */}
-      <p className="line-clamp-2 text-xs text-[var(--text-primary)]">{guide?.title ?? "가이드"}</p>
+      <p className="line-clamp-2 text-xs text-[var(--text-primary)]">{titleText}</p>
     </div>
   );
 }

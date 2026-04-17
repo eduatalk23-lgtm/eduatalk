@@ -689,16 +689,51 @@ async function applyContinuityRanking(
   }
 
   // 스토리라인 키워드 수집 (관점별 필터링용)
+  // 1차: storylines.keywords.
+  // 2차 fallback: storylines.title + grade_X_theme 토큰 추출 (keywords 비었을 때).
+  // 3차 fallback: main_exploration.tier_plan 3단 theme (storylines 자체가 비었을 때).
   const { data: storylineRowsForBonus } = await supabase
     .from("student_record_storylines")
-    .select("keywords")
+    .select("keywords, title, grade_1_theme, grade_2_theme, grade_3_theme")
     .eq("student_id", studentId);
   const storylineKeywords = new Set<string>();
+  const addToken = (raw: string | null | undefined) => {
+    if (!raw) return;
+    for (const tok of raw.split(/[\s·,·/()[\]{}"'`~!@#$%^&*+=|<>?]+/)) {
+      const t = tok.trim().toLowerCase();
+      if (t.length >= 2) storylineKeywords.add(t);
+    }
+  };
   for (const row of storylineRowsForBonus ?? []) {
     const kws = (row.keywords as string[] | null) ?? [];
     for (const kw of kws) {
       const t = kw?.trim();
       if (t && t.length >= 2) storylineKeywords.add(t.toLowerCase());
+    }
+  }
+  if (storylineKeywords.size === 0 && (storylineRowsForBonus?.length ?? 0) > 0) {
+    for (const row of storylineRowsForBonus ?? []) {
+      addToken(row.title as string | null);
+      addToken(row.grade_1_theme as string | null);
+      addToken(row.grade_2_theme as string | null);
+      addToken(row.grade_3_theme as string | null);
+    }
+  }
+  if (storylineKeywords.size === 0) {
+    const { data: tierRows } = await supabase
+      .from("student_main_explorations")
+      .select("tier_plan")
+      .eq("student_id", studentId);
+    for (const row of tierRows ?? []) {
+      const tp = row.tier_plan as {
+        foundational?: { theme?: string };
+        development?: { theme?: string };
+        advanced?: { theme?: string };
+      } | null;
+      if (!tp) continue;
+      addToken(tp.foundational?.theme);
+      addToken(tp.development?.theme);
+      addToken(tp.advanced?.theme);
     }
   }
 
@@ -1191,15 +1226,26 @@ async function createDesignShell(
     ? Math.max(...(consultingGrades ?? []))
     : ctx.studentGrade;
 
+  // title 방어 — zod 스키마는 required지만, AI가 공백/짧은 값을 보낼 수 있어
+  // 키토픽/교과연계 기반 fallback 조립. UI의 "(제목 없음)" 폴백 노출을 막기 위함.
+  const trimmedTitle = design.title?.trim() ?? "";
+  const safeTitle = trimmedTitle.length >= 5
+    ? trimmedTitle
+    : (design.keyTopics?.[0] ?? design.subjectConnect ?? "탐구 설계")
+        + " 탐구";
+
   // P2 (2026-04-14): synthesis pipeline은 server-autonomous라 RLS 우회용 admin client 필요.
   //   기본 server client는 사용자 권한 → exploration_guides INSERT 시 RLS 정책 차단(42501).
   const { createGuideShell } = await import("@/lib/domains/guide/repository");
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminClient = createSupabaseAdminClient();
+  if (!adminClient) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정: synthesis pipeline 진행 불가");
+  }
   const guideId = await createGuideShell(
     {
       tenantId,
-      title: design.title,
+      title: safeTitle,
       guideType: design.guideType,
       difficultyLevel: design.difficultyLevel,
       sourceType: "ai_pipeline_design",
@@ -1241,7 +1287,7 @@ async function createDesignShell(
 
   return {
     id: guideId,
-    title: design.title,
+    title: safeTitle,
     guide_type: design.guideType,
     match_reason: "ai_designed",
     baseScore: 2,
@@ -1298,6 +1344,9 @@ async function insertAssignments(
   );
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminForAreaResolver = createSupabaseAdminClient();
+  if (!adminForAreaResolver) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정: area-resolver admin client 생성 불가");
+  }
   const studentSubjectPool = await collectStudentSubjectPool(studentId, {
     gradeFilter: consultingGradesSet.size > 0 ? consultingGradesSet : undefined,
   });
@@ -1497,7 +1546,7 @@ async function insertAssignments(
   );
 
   // Phase A: 학생 궤적 자동 기록 (fire-and-forget)
-  upsertTopicTrajectories(supabase, studentId, insertRows.map((r) => r.guide_id), studentGrade).catch(() => {});
+  upsertTopicTrajectories(supabase, tenantId, studentId, insertRows.map((r) => r.guide_id), studentGrade).catch(() => {});
 
   return { count: count ?? insertRows.length, skippedOrphan, skippedOrphanGuides, skippedSlotOverflow };
 }
@@ -1505,6 +1554,7 @@ async function insertAssignments(
 /** Phase A: 배정된 가이드들의 궤적을 일괄 UPSERT */
 async function upsertTopicTrajectories(
   supabase: PipelineContext["supabase"],
+  tenantId: string,
   studentId: string,
   guideIds: string[],
   grade: number,
@@ -1521,6 +1571,7 @@ async function upsertTopicTrajectories(
   const rows = (guides ?? [])
     .filter((g) => g.topic_cluster_id)
     .map((g) => ({
+      tenant_id: tenantId,
       student_id: studentId,
       topic_cluster_id: g.topic_cluster_id!,
       grade,

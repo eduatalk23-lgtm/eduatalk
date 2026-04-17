@@ -72,7 +72,7 @@ type SetekEditorProps = {
     target_subject_id?: string | null;
     target_activity_type?: string | null;
     school_year?: number;
-    exploration_guides?: { id: string; title: string; guide_type?: string };
+    exploration_guides?: { id: string; title: string; guide_type?: string; status?: string };
   }>;
   /** confirmed course plans (세특 미존재인 것만 전달) */
   plannedSubjects?: PlannedSubject[];

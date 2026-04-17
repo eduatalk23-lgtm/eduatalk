@@ -297,6 +297,62 @@ export function GuideEditorClient({ guideId, curriculumRevisions }: GuideEditorC
     return () => clearTimeout(timer);
   }, [isDirty, guideId, isNew, title, guideType, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections]);
 
+  // 메타/콘텐츠 조립 헬퍼 (DB 자동 저장 useEffect 보다 먼저 선언되어야 함 — block-scope)
+  const buildMetaAndContent = useCallback(() => {
+    const meta: GuideUpsertInput = {
+      guideType,
+      title: title.trim(),
+      status,
+      curriculumYear: curriculumYear || undefined,
+      subjectArea: subjectArea || undefined,
+      subjectSelect: subjectSelect || undefined,
+      unitMajor: unitMajor || undefined,
+      unitMinor: unitMinor || undefined,
+      bookTitle: bookTitle || undefined,
+      bookAuthor: bookAuthor || undefined,
+      bookPublisher: bookPublisher || undefined,
+      bookYear: bookYear || undefined,
+      contentFormat: "html",
+      difficultyLevel: difficultyLevel ?? undefined,
+      difficultyAuto,
+    };
+
+    const allContentSections: ContentSection[] = [];
+    if (motivation) allContentSections.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
+    for (const ts of theorySections) {
+      allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order, outline: ts.outline });
+    }
+    for (const es of extraSections) {
+      if (es.content || es.items?.length) allContentSections.push(es);
+    }
+    if (reflection) allContentSections.push({ key: "reflection", label: "탐구 고찰 및 제언", content: reflection, content_format: "html" });
+    if (impression) allContentSections.push({ key: "impression", label: "느낀점", content: impression, content_format: "html" });
+    if (summary) allContentSections.push({ key: "summary", label: "탐구 요약", content: summary, content_format: "html" });
+    if (followUp) allContentSections.push({ key: "follow_up", label: "후속 탐구", content: followUp, content_format: "html" });
+    if (bookDescription) allContentSections.push({ key: "book_description", label: "도서 소개", content: bookDescription, content_format: "html" });
+    if (setekExamples.length > 0) allContentSections.push({ key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: setekExamples });
+
+    const content: GuideContentInput = {
+      motivation: motivation || undefined,
+      theorySections: theorySections.length > 0 ? theorySections : undefined,
+      reflection: reflection || undefined,
+      impression: impression || undefined,
+      summary: summary || undefined,
+      followUp: followUp || undefined,
+      bookDescription: bookDescription || undefined,
+      setekExamples: setekExamples.length > 0 ? setekExamples : undefined,
+      contentSections: allContentSections.length > 0 ? allContentSections : undefined,
+    };
+
+    return { meta, content };
+  }, [
+    title, guideType, status, curriculumYear, subjectArea, subjectSelect, unitMajor, unitMinor,
+    bookTitle, bookAuthor, bookPublisher, bookYear,
+    motivation, theorySections, reflection, impression, summary, followUp,
+    bookDescription, setekExamples, extraSections,
+    difficultyLevel, difficultyAuto,
+  ]);
+
   // DB 자동 저장: isDirty 후 30초 debounce → DB 동기화 (새 버전 생성 없음)
   const dbAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -477,62 +533,6 @@ export function GuideEditorClient({ guideId, curriculumRevisions }: GuideEditorC
     },
     [isGeneratingAi],
   );
-
-  // 메타/콘텐츠 조립 헬퍼
-  const buildMetaAndContent = useCallback(() => {
-    const meta: GuideUpsertInput = {
-      guideType,
-      title: title.trim(),
-      status,
-      curriculumYear: curriculumYear || undefined,
-      subjectArea: subjectArea || undefined,
-      subjectSelect: subjectSelect || undefined,
-      unitMajor: unitMajor || undefined,
-      unitMinor: unitMinor || undefined,
-      bookTitle: bookTitle || undefined,
-      bookAuthor: bookAuthor || undefined,
-      bookPublisher: bookPublisher || undefined,
-      bookYear: bookYear || undefined,
-      contentFormat: "html",
-      difficultyLevel: difficultyLevel ?? undefined,
-      difficultyAuto,
-    };
-
-    const allContentSections: ContentSection[] = [];
-    if (motivation) allContentSections.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
-    for (const ts of theorySections) {
-      allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order, outline: ts.outline });
-    }
-    for (const es of extraSections) {
-      if (es.content || es.items?.length) allContentSections.push(es);
-    }
-    if (reflection) allContentSections.push({ key: "reflection", label: "탐구 고찰 및 제언", content: reflection, content_format: "html" });
-    if (impression) allContentSections.push({ key: "impression", label: "느낀점", content: impression, content_format: "html" });
-    if (summary) allContentSections.push({ key: "summary", label: "탐구 요약", content: summary, content_format: "html" });
-    if (followUp) allContentSections.push({ key: "follow_up", label: "후속 탐구", content: followUp, content_format: "html" });
-    if (bookDescription) allContentSections.push({ key: "book_description", label: "도서 소개", content: bookDescription, content_format: "html" });
-    if (setekExamples.length > 0) allContentSections.push({ key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: setekExamples });
-
-    const content: GuideContentInput = {
-      motivation: motivation || undefined,
-      theorySections: theorySections.length > 0 ? theorySections : undefined,
-      reflection: reflection || undefined,
-      impression: impression || undefined,
-      summary: summary || undefined,
-      followUp: followUp || undefined,
-      bookDescription: bookDescription || undefined,
-      setekExamples: setekExamples.length > 0 ? setekExamples : undefined,
-      contentSections: allContentSections.length > 0 ? allContentSections : undefined,
-    };
-
-    return { meta, content };
-  }, [
-    title, guideType, status, curriculumYear, subjectArea, subjectSelect, unitMajor, unitMinor,
-    bookTitle, bookAuthor, bookPublisher, bookYear,
-    motivation, theorySections, reflection, impression, summary, followUp,
-    bookDescription, setekExamples, extraSections,
-    difficultyLevel, difficultyAuto,
-  ]);
 
   // 저장 버튼 클릭: 새 가이드면 바로 생성, 기존 가이드면 커밋 다이얼로그 열기
   const handleSave = useCallback(async (): Promise<boolean> => {
@@ -757,8 +757,34 @@ export function GuideEditorClient({ guideId, curriculumRevisions }: GuideEditorC
   const isAiImproving = guide?.status === "ai_improving";
   const isAiReviewing = guide?.status === "ai_reviewing";
   const isAiFailed = guide?.status === "ai_failed";
+  const isQueuedGeneration = guide?.status === "queued_generation";
   const isAwaitingInput = guide?.status === "awaiting_input";
   const agentQuestion = isAwaitingInput ? guide?.agent_question : null;
+
+  const triggerGuideGeneration = async (mode: "retry" | "start") => {
+    if (!guideId || improving) return;
+    setImproving(true);
+    try {
+      const res = await fetch("/api/admin/pipeline/ai-guide-gen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guideId }),
+      });
+      if (res.ok) {
+        toast.showSuccess(mode === "retry" ? "재생성을 시작했습니다." : "본문 생성을 시작했습니다.");
+        queryClient.invalidateQueries({
+          queryKey: explorationGuideKeys.cmsDetail(guideId),
+        });
+      } else {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        toast.showError(body?.error ?? "본문 생성 요청에 실패했습니다.");
+      }
+    } catch {
+      toast.showError("본문 생성 요청 중 오류가 발생했습니다.");
+    } finally {
+      setImproving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -869,11 +895,37 @@ export function GuideEditorClient({ guideId, curriculumRevisions }: GuideEditorC
         </div>
       )}
       {isAiFailed && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-4">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-4">
           <div>
             <p className="text-sm font-medium text-red-900 dark:text-red-200">AI 생성 실패</p>
-            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">가이드 생성 중 오류가 발생했습니다. 다시 시도해 주세요.</p>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">가이드 생성 중 오류가 발생했습니다. 아래 버튼으로 재시도할 수 있습니다.</p>
           </div>
+          <button
+            type="button"
+            onClick={() => triggerGuideGeneration("retry")}
+            disabled={improving}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            {improving ? "재시도 중..." : "본문 재생성"}
+          </button>
+        </div>
+      )}
+      {isQueuedGeneration && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
+          <div>
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">본문 생성 대기 중</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+              AI가 설계만 마쳐놓은 셸 가이드입니다. 본문 생성을 지금 실행할 수 있습니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => triggerGuideGeneration("start")}
+            disabled={improving}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            {improving ? "실행 중..." : "본문 생성 실행"}
+          </button>
         </div>
       )}
 

@@ -871,9 +871,45 @@ export interface PendingAiGuideItem {
   student_name: string | null;
 }
 
-/** AI 파이프라인 설계 가이드 중 pending_approval 목록 조회 */
+export type AiGuideQueueStatus = "pending_approval" | "queued_generation" | "ai_failed";
+
+/** AI 파이프라인 가이드 큐 상태별 카운트 */
+export async function fetchAiGuideQueueCountsAction(): Promise<
+  ActionResponse<Record<AiGuideQueueStatus, number>>
+> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const statuses: AiGuideQueueStatus[] = ["pending_approval", "queued_generation", "ai_failed"];
+    const results = await Promise.all(
+      statuses.map((s) =>
+        supabase
+          .from("exploration_guides")
+          .select("id", { count: "exact", head: true })
+          .eq("status", s)
+          .eq("source_type", "ai_pipeline_design")
+          .eq("is_latest", true),
+      ),
+    );
+
+    const counts: Record<AiGuideQueueStatus, number> = {
+      pending_approval: results[0].count ?? 0,
+      queued_generation: results[1].count ?? 0,
+      ai_failed: results[2].count ?? 0,
+    };
+    return createSuccessResponse(counts);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchAiGuideQueueCounts" }, error, {});
+    return createErrorResponse("큐 카운트를 불러올 수 없습니다.");
+  }
+}
+
+/** AI 파이프라인 설계 가이드 큐 조회 (상태별 필터) */
 export async function fetchPendingAiGuidesAction(
   limit = 50,
+  status: AiGuideQueueStatus = "pending_approval",
 ): Promise<ActionResponse<PendingAiGuideItem[]>> {
   try {
     await requireAdminOrConsultant();
@@ -883,7 +919,7 @@ export async function fetchPendingAiGuidesAction(
     const { data: guides, error } = await supabase
       .from("exploration_guides")
       .select("id, title, guide_type, difficulty_level, created_at, ai_generation_meta")
-      .eq("status", "pending_approval")
+      .eq("status", status)
       .eq("source_type", "ai_pipeline_design")
       .eq("is_latest", true)
       .order("created_at", { ascending: false })

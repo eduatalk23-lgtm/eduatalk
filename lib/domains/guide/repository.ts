@@ -637,6 +637,7 @@ export async function findAssignmentsWithGuides(
   let query = supabase
     .from("exploration_guide_assignments")
     .select(
+      // guide.status = "queued_generation" 표시를 위해 exploration_guides.status 포함.
       "*, exploration_guides(id, title, guide_type, book_title, book_author, status)",
     )
     .eq("student_id", studentId)
