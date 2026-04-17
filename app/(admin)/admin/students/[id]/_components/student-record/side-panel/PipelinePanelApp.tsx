@@ -89,7 +89,10 @@ export function PipelinePanelApp({
       const dbHasRunning =
         Object.values(data?.gradePipelines ?? {}).some(
           (p) => p?.status === "running",
-        ) || data?.synthesisPipeline?.status === "running";
+        ) ||
+        data?.synthesisPipeline?.status === "running" ||
+        data?.pastAnalyticsPipeline?.status === "running" ||
+        data?.blueprintPipeline?.status === "running";
 
       if (
         !runningCell &&
@@ -127,24 +130,32 @@ export function PipelinePanelApp({
 
   const gp = gradeStatus?.gradePipelines ?? {};
   const sp = gradeStatus?.synthesisPipeline ?? null;
+  const pa = gradeStatus?.pastAnalyticsPipeline ?? null;
+  const bp = gradeStatus?.blueprintPipeline ?? null;
 
   // 중단 진행 상태 자동 해제: 폴링이 더 이상 running 상태가 아님을 확인하면 cancelling 해제
   useEffect(() => {
     if (!isCancelling) return;
     const stillRunning =
       Object.values(gp).some((p) => p?.status === "running") ||
-      sp?.status === "running";
+      sp?.status === "running" ||
+      pa?.status === "running" ||
+      bp?.status === "running";
     if (!stillRunning) setIsCancelling(false);
-  }, [gp, sp, isCancelling, setIsCancelling]);
+  }, [gp, sp, pa, bp, isCancelling, setIsCancelling]);
 
-  // 중단된 파이프라인이 있는지
+  // 중단된 파이프라인이 있는지 (4축×3층: past/blueprint도 포함)
   const hasCancelledPipeline =
     Object.values(gp).some((p) => p?.status === "cancelled") ||
-    sp?.status === "cancelled";
+    sp?.status === "cancelled" ||
+    pa?.status === "cancelled" ||
+    bp?.status === "cancelled";
   // DB에 실제로 running 상태인 파이프라인이 있는지 (페이지 reload 후에도 정확)
   const hasRunningInDb =
     Object.values(gp).some((p) => p?.status === "running") ||
-    sp?.status === "running";
+    sp?.status === "running" ||
+    pa?.status === "running" ||
+    bp?.status === "running";
   const expectedModes = gradeStatus?.expectedModes ?? {};
   const gradeNumbers = Object.keys(gp).map(Number).sort((a, b) => a - b);
   // 항상 1~3학년 모두 표시 (파이프라인 없는 학년도 표시)
@@ -278,7 +289,7 @@ export function PipelinePanelApp({
           {(isFullRunning || isCancelling) && (
             <button
               type="button"
-              onClick={() => stopFullRun(gp, sp)}
+              onClick={() => stopFullRun(gp, sp, pa, bp)}
               disabled={isCancelling}
               className={
                 isCancelling

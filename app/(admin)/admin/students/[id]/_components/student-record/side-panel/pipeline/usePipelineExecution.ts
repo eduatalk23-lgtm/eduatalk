@@ -693,6 +693,8 @@ export function usePipelineExecution({
   const stopFullRun = async (
     gp: GradeAwarePipelineStatus["gradePipelines"],
     sp: GradeAwarePipelineStatus["synthesisPipeline"],
+    pa?: GradeAwarePipelineStatus["pastAnalyticsPipeline"],
+    bp?: GradeAwarePipelineStatus["blueprintPipeline"],
   ) => {
     setIsCancelling(true);
     fullRunAbortRef.current = true;
@@ -701,14 +703,29 @@ export function usePipelineExecution({
     setRunningCell(null);
 
     const allPipelineIds: string[] = [];
+    const isInflight = (s: string | undefined) => s === "running" || s === "pending";
+
     for (const g of Object.keys(gp).map(Number)) {
       const pid = gp[g]?.pipelineId;
-      if (pid && (gp[g]?.status === "running" || gp[g]?.status === "pending")) {
+      if (pid && isInflight(gp[g]?.status)) {
         allPipelineIds.push(pid);
       }
     }
-    if (sp?.pipelineId && (sp.status === "running" || sp.status === "pending")) {
+    if (sp?.pipelineId && isInflight(sp.status)) {
       allPipelineIds.push(sp.pipelineId);
+    }
+    // 4축×3층 A/B층: orchestrator가 큐잉한 past_analytics/blueprint도 함께 cancel.
+    // 호출자가 인자로 넘기지 않으면 최신 캐시에서 직접 조회 (하위 호환).
+    const status = queryClient.getQueryData<GradeAwarePipelineStatus>(
+      gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+    );
+    const past = pa ?? status?.pastAnalyticsPipeline ?? null;
+    const blueprint = bp ?? status?.blueprintPipeline ?? null;
+    if (past?.pipelineId && isInflight(past.status)) {
+      allPipelineIds.push(past.pipelineId);
+    }
+    if (blueprint?.pipelineId && isInflight(blueprint.status)) {
+      allPipelineIds.push(blueprint.pipelineId);
     }
 
     try {

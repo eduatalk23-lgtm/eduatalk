@@ -90,14 +90,16 @@ export async function fetchGradeAwarePipelineStatus(
       .from("student_record_analysis_pipelines")
       .select("id, status, pipeline_type, grade, mode, tasks, task_previews, task_results, error_details")
       .eq("student_id", studentId)
-      .in("pipeline_type", ["grade", "synthesis"])
+      .in("pipeline_type", ["grade", "synthesis", "past_analytics", "blueprint"])
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(40);
 
     if (error) throw error;
 
     const gradePipelines: GradeAwarePipelineStatus["gradePipelines"] = {};
     let synthesisPipeline: GradeAwarePipelineStatus["synthesisPipeline"] = null;
+    let pastAnalyticsPipeline: GradeAwarePipelineStatus["pastAnalyticsPipeline"] = null;
+    let blueprintPipeline: GradeAwarePipelineStatus["blueprintPipeline"] = null;
 
     for (const row of rows ?? []) {
       const tasks = (row.tasks ?? {}) as Record<string, string>;
@@ -138,6 +140,24 @@ export async function fetchGradeAwarePipelineStatus(
         }
       } else if (row.pipeline_type === "synthesis" && !synthesisPipeline) {
         synthesisPipeline = {
+          pipelineId: row.id as string,
+          status: row.status as string,
+          tasks,
+          previews,
+          elapsed,
+          errors,
+        };
+      } else if (row.pipeline_type === "past_analytics" && !pastAnalyticsPipeline) {
+        pastAnalyticsPipeline = {
+          pipelineId: row.id as string,
+          status: row.status as string,
+          tasks,
+          previews,
+          elapsed,
+          errors,
+        };
+      } else if (row.pipeline_type === "blueprint" && !blueprintPipeline) {
+        blueprintPipeline = {
           pipelineId: row.id as string,
           status: row.status as string,
           tasks,
@@ -194,7 +214,13 @@ export async function fetchGradeAwarePipelineStatus(
       }
     }
 
-    return createSuccessResponse({ gradePipelines, synthesisPipeline, expectedModes });
+    return createSuccessResponse({
+      gradePipelines,
+      synthesisPipeline,
+      pastAnalyticsPipeline,
+      blueprintPipeline,
+      expectedModes,
+    });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchGradeAwarePipelineStatus" }, error, { studentId });
     return createErrorResponse("학년별 파이프라인 상태 조회 실패");
