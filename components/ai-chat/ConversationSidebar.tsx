@@ -112,24 +112,29 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
   }
 
   return (
-    <aside className="hidden h-dvh w-72 flex-col border-r border-zinc-200 bg-zinc-50 md:flex">
-      <header className="border-b border-zinc-200 px-4 py-4">
-        <h2 className="text-sm font-semibold text-zinc-900">대화 기록</h2>
-        <p className="mt-0.5 text-[11px] text-zinc-500">
+    <aside
+      className="hidden h-dvh w-72 flex-col border-r border-zinc-200 bg-zinc-50 md:flex dark:border-zinc-800 dark:bg-zinc-950"
+      aria-label="대화 목록"
+    >
+      <header className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          대화 기록
+        </h2>
+        <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
           최근 50개 · 고정 먼저
         </p>
       </header>
 
-      <nav className="flex-1 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto" aria-label="대화 목록 네비게이션">
         {conversations.length === 0 ? (
-          <p className="px-4 py-6 text-xs text-zinc-400">
+          <p className="px-4 py-6 text-xs text-zinc-400 dark:text-zinc-500">
             아직 대화 기록이 없습니다.
           </p>
         ) : (
           <div className="flex flex-col gap-1 py-2">
             {GROUP_ORDER.filter((k) => grouped.has(k)).map((key) => (
               <div key={key} className="flex flex-col">
-                <h3 className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                <h3 className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                   {GROUP_LABELS[key]}
                 </h3>
                 <ul className="flex flex-col">
@@ -159,10 +164,10 @@ export function ConversationSidebar({ conversations, activeId }: Props) {
         )}
       </nav>
 
-      <footer className="border-t border-zinc-200 p-3">
+      <footer className="border-t border-zinc-200 p-3 dark:border-zinc-800">
         <Link
           href="/ai-chat"
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-700"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           <Plus size={14} />새 대화 시작
         </Link>
@@ -248,29 +253,29 @@ function ConversationRow({
             className={cn(
               "flex flex-col gap-1 border-l-2 px-4 py-2.5 pr-10 transition-colors",
               isActive
-                ? "border-zinc-900 bg-white"
-                : "border-transparent hover:bg-white",
+                ? "border-zinc-900 bg-white dark:border-zinc-100 dark:bg-zinc-900"
+                : "border-transparent hover:bg-white dark:hover:bg-zinc-900",
             )}
           >
             <span
               className={cn(
                 "line-clamp-2 text-[13px]",
                 isActive
-                  ? "font-semibold text-zinc-900"
-                  : "text-zinc-700",
+                  ? "font-semibold text-zinc-900 dark:text-zinc-100"
+                  : "text-zinc-700 dark:text-zinc-300",
               )}
             >
               {c.pinnedAt && (
                 <Pin
                   size={10}
-                  className="mr-1 inline text-zinc-500"
+                  className="mr-1 inline text-zinc-500 dark:text-zinc-400"
                   aria-label="고정됨"
                 />
               )}
               {title}
             </span>
-            <span className="flex items-center gap-2 text-[10px] text-zinc-500">
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5">
+            <span className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
                 {PERSONA_LABELS[c.persona] ?? c.persona}
               </span>
               <span>{formatRelative(c.lastActivityAt, group)}</span>
@@ -282,7 +287,7 @@ function ConversationRow({
             aria-label="대화 액션 메뉴"
             aria-expanded={isMenuOpen}
             className={cn(
-              "absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-opacity hover:bg-zinc-100 hover:text-zinc-800",
+              "absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-opacity hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
               isMenuOpen
                 ? "opacity-100"
                 : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
@@ -324,7 +329,7 @@ function RenameInput({
   }, []);
 
   return (
-    <div className="flex flex-col gap-1 border-l-2 border-zinc-900 bg-white px-4 py-2.5">
+    <div className="flex flex-col gap-1 border-l-2 border-zinc-900 bg-white px-4 py-2.5 dark:border-zinc-100 dark:bg-zinc-900">
       <input
         ref={ref}
         value={value}
@@ -346,9 +351,10 @@ function RenameInput({
           }
         }}
         maxLength={120}
-        className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-[13px] text-zinc-900 focus:border-zinc-500 focus:outline-none"
+        aria-label="대화 이름"
+        className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-[13px] text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400"
       />
-      <span className="text-[10px] text-zinc-400">
+      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
         Enter 저장 · Esc 취소
       </span>
     </div>
@@ -392,7 +398,7 @@ function ActionMenu({
     <div
       ref={ref}
       role="menu"
-      className="absolute right-2 top-9 z-10 flex w-40 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 text-[13px] text-zinc-800 shadow-lg"
+      className="absolute right-2 top-9 z-10 flex w-40 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 text-[13px] text-zinc-800 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
     >
       <MenuItem
         icon={pinned ? <PinOff size={13} /> : <Pin size={13} />}
@@ -409,7 +415,7 @@ function ActionMenu({
         label="아카이브"
         onClick={onArchive}
       />
-      <div className="my-1 border-t border-zinc-100" />
+      <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
       <MenuItem
         icon={<Trash2 size={13} />}
         label="삭제"
@@ -439,11 +445,11 @@ function MenuItem({
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
         danger
-          ? "text-red-600 hover:bg-red-50"
-          : "text-zinc-800 hover:bg-zinc-50",
+          ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+          : "text-zinc-800 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800",
       )}
     >
-      <span className="text-zinc-500">{icon}</span>
+      <span className={cn(danger ? "text-red-500 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400")}>{icon}</span>
       <span>{label}</span>
     </button>
   );

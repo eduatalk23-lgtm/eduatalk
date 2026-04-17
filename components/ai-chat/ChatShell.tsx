@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
+import { useTheme } from "next-themes";
 import {
   ArrowUp,
   Square,
@@ -11,6 +12,8 @@ import {
   BarChart3,
   Navigation,
   ExternalLink,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -93,44 +96,54 @@ export function ChatShell({
   };
 
   return (
-    <div className="flex h-dvh bg-white">
+    <div
+      className="flex h-dvh bg-white dark:bg-zinc-950"
+      aria-label="에듀엣톡 AI 대화"
+    >
       <ConversationSidebar
         conversations={conversations}
         activeId={conversationId}
       />
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-6 py-3">
+        <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-base font-semibold text-zinc-900">
+            <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
               에듀엣톡 AI
             </h1>
-            <p className="text-[11px] text-zinc-500">
-              <code className="rounded bg-zinc-100 px-1 py-0.5">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
                 {conversationId.slice(0, 8)}
               </code>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => router.push("/ai-chat")}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            <Plus size={14} />새 대화
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggleButton />
+            <button
+              type="button"
+              onClick={() => router.push("/ai-chat")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <Plus size={14} />새 대화
+            </button>
+          </div>
         </header>
 
         <main
           ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions text"
+          aria-label="대화 로그"
           className="flex flex-1 flex-col overflow-y-auto"
         >
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-8">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
                 <div className="flex flex-col gap-1">
-                  <p className="text-xl font-semibold text-zinc-800">
+                  <p className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">
                     무엇을 도와드릴까요?
                   </p>
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
                     성적·학습·진로 관련 질문을 자연스럽게 해보세요.
                   </p>
                 </div>
@@ -142,9 +155,9 @@ export function ChatShell({
                       onClick={() => {
                         sendMessage({ text: chip.text });
                       }}
-                      className="flex flex-col gap-0.5 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                      className="flex flex-col gap-0.5 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
                     >
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         {chip.category}
                       </span>
                       <span className="font-medium">{chip.text}</span>
@@ -164,31 +177,43 @@ export function ChatShell({
               />
             ))}
 
-            {isBusy && (
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
-                <span className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400 [animation-delay:150ms]" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400 [animation-delay:300ms]" />
-                </span>
-                생각 중
-              </div>
-            )}
+            <div
+              role="status"
+              aria-live="polite"
+              className={cn(
+                "flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500",
+                !isBusy && "sr-only",
+              )}
+            >
+              {isBusy && (
+                <>
+                  <span className="flex gap-1" aria-hidden="true">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400 [animation-delay:150ms]" />
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400 [animation-delay:300ms]" />
+                  </span>
+                  생각 중
+                </>
+              )}
+            </div>
 
             {error && (
-              <p className="text-xs text-red-600">에러: {error.message}</p>
+              <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+                에러: {error.message}
+              </p>
             )}
           </div>
         </main>
 
         <form
-          className="border-t border-zinc-200 bg-white px-6 py-4"
+          className="border-t border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950"
           onSubmit={(e) => {
             e.preventDefault();
             submit();
           }}
+          aria-label="메시지 입력"
         >
-          <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2 focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-300">
+          <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2 focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-zinc-500 dark:focus-within:ring-zinc-600">
             <textarea
               ref={textareaRef}
               value={input}
@@ -201,13 +226,14 @@ export function ChatShell({
               }}
               placeholder="에듀엣톡에게 말해보세요. Shift+Enter로 줄바꿈"
               rows={1}
-              className="flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
+              aria-label="메시지"
+              className="flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500"
             />
             {isBusy ? (
               <button
                 type="button"
                 onClick={stop}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white hover:bg-zinc-700"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                 aria-label="생성 중지"
               >
                 <Square size={14} fill="currentColor" />
@@ -216,14 +242,14 @@ export function ChatShell({
               <button
                 type="submit"
                 disabled={!input.trim()}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white hover:bg-zinc-700 disabled:bg-zinc-200 disabled:text-zinc-400"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white hover:bg-zinc-700 disabled:bg-zinc-200 disabled:text-zinc-400 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600"
                 aria-label="보내기"
               >
                 <ArrowUp size={16} />
               </button>
             )}
           </div>
-          <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-zinc-400">
+          <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-zinc-400 dark:text-zinc-500">
             로컬 Gemma 4 · 응답은 참고용이며 중요한 결정 전 확인하세요.
           </p>
         </form>
@@ -231,6 +257,26 @@ export function ChatShell({
 
       <ArtifactPanel />
     </div>
+  );
+}
+
+function ThemeToggleButton() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return <div className="h-8 w-8" aria-hidden />;
+  }
+  const isDark = resolvedTheme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={isDark ? "라이트 모드로 전환" : "다크 모드로 전환"}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+    >
+      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
   );
 }
 
@@ -287,8 +333,8 @@ function MessageRow({
                 className={cn(
                   "break-words",
                   isUser
-                    ? "rounded-2xl bg-zinc-100 px-4 py-2.5 text-zinc-900"
-                    : "text-zinc-900",
+                    ? "rounded-2xl bg-zinc-100 px-4 py-2.5 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                    : "text-zinc-900 dark:text-zinc-100",
                 )}
               >
                 <Markdown

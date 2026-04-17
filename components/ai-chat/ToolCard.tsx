@@ -23,22 +23,23 @@ const STATE_CHIP: Record<
 > = {
   pending: {
     label: "대기",
-    className: "bg-zinc-100 text-zinc-600",
+    className: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
     icon: <Loader2 size={11} className="animate-spin" />,
   },
   running: {
     label: "실행 중",
-    className: "bg-blue-50 text-blue-700",
+    className: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
     icon: <Loader2 size={11} className="animate-spin" />,
   },
   success: {
     label: "완료",
-    className: "bg-emerald-50 text-emerald-700",
+    className:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
     icon: <Check size={11} strokeWidth={2.5} />,
   },
   error: {
     label: "오류",
-    className: "bg-rose-50 text-rose-700",
+    className: "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
     icon: <AlertCircle size={11} />,
   },
 };
@@ -64,27 +65,32 @@ export function ToolCard({
   const chip = STATE_CHIP[state];
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
       <button
         type="button"
         onClick={() => canToggle && setOpen((v) => !v)}
         disabled={!canToggle}
+        aria-expanded={canToggle ? open : undefined}
         className={cn(
           "flex items-center gap-2 border-b px-3 py-2 text-left",
           canToggle
-            ? "cursor-pointer hover:bg-zinc-50"
+            ? "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800"
             : "cursor-default",
-          open ? "border-zinc-200" : "border-transparent",
+          open
+            ? "border-zinc-200 dark:border-zinc-700"
+            : "border-transparent",
         )}
       >
         {canToggle &&
           (open ? (
-            <ChevronDown size={14} className="text-zinc-400" />
+            <ChevronDown size={14} className="text-zinc-400 dark:text-zinc-500" />
           ) : (
-            <ChevronRight size={14} className="text-zinc-400" />
+            <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500" />
           ))}
-        {icon && <span className="text-zinc-500">{icon}</span>}
-        <span className="font-mono text-[12px] font-medium text-zinc-700">
+        {icon && (
+          <span className="text-zinc-500 dark:text-zinc-400">{icon}</span>
+        )}
+        <span className="font-mono text-[12px] font-medium text-zinc-700 dark:text-zinc-300">
           {name}
         </span>
         <span
@@ -97,14 +103,14 @@ export function ToolCard({
           {chip.label}
         </span>
         {summary && (
-          <span className="ml-1 truncate text-xs text-zinc-500">
+          <span className="ml-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
             {summary}
           </span>
         )}
       </button>
 
       {state === "error" && errorText && (
-        <div className="border-b border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        <div className="border-b border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-900/20 dark:text-rose-300">
           {errorText}
         </div>
       )}
@@ -114,7 +120,7 @@ export function ToolCard({
       )}
 
       {footer && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 bg-zinc-50 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/40">
           {footer}
         </div>
       )}
