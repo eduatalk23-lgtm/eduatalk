@@ -804,7 +804,10 @@ function MessageRow({
             const state = isDenied ? "error" : rawState;
             const isReady = rawState === "success" && output?.ok === true;
             const label = output?.path
-              ? PATH_LABELS[output.path] ?? output.path
+              ? PATH_LABELS[output.path] ??
+                (/^\/admin\/students\/[0-9a-f-]+(\/|$)/i.test(output.path)
+                  ? "학생 상세"
+                  : output.path)
               : undefined;
 
             return (

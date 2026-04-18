@@ -22,7 +22,19 @@ async function main() {
       console.error("[mcp-smoke] FAIL: missing tools:", missing);
       process.exit(1);
     }
-    console.log("[mcp-smoke] OK — all 3 MCP tools exposed");
+    console.log("[mcp-smoke] OK — all 3 MCP tools exposed\n");
+
+    // F-2 회귀 진단: 각 tool 의 description + inputSchema 를 덤프.
+    for (const name of toolNames) {
+      const t = (handle.tools as Record<string, unknown>)[name] as {
+        description?: string;
+        inputSchema?: unknown;
+      };
+      console.log(`--- ${name} ---`);
+      console.log("description:", t.description);
+      console.log("inputSchema:", JSON.stringify(t.inputSchema, null, 2));
+      console.log("");
+    }
   } finally {
     await handle.close();
   }
