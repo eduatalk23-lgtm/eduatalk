@@ -120,6 +120,9 @@ async function ensureMainExploration(args: {
 }): Promise<boolean> {
   const supabase = await createSupabaseServerClient();
 
+  // Phase 3 가드: 활성 row 가 하나라도 있으면 일단 skip (idempotent).
+  //   추후 Phase 4 재부트스트랩 경로에서는 "origin='auto_bootstrap*' AND edited_by_consultant_at IS NULL"
+  //   인 row 만 교체 대상으로 판정. 현재 Phase 3 에서는 최초 생성 시 origin 태깅만 담당.
   const { data: existing } = await supabase
     .from("student_main_explorations")
     .select("id")
@@ -167,6 +170,9 @@ async function ensureMainExploration(args: {
       direction: "design",
       semanticRole: "hypothesis_root",
       source: "ai",
+      // Phase 3. Bootstrap 경로로 생성된 row 임을 명시 → 이후 Phase 4 재부트스트랩 시
+      // edited_by_consultant_at IS NULL 조건으로 덮어쓰기 허용 판정.
+      origin: "auto_bootstrap",
       themeLabel: seed.data.themeLabel,
       themeKeywords: seed.data.themeKeywords,
       careerField: tier1,

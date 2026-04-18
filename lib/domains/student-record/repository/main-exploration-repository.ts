@@ -36,6 +36,22 @@ export type MainExplorationSemanticRole =
   | "hybrid_recursion"
   | "consultant_pin";
 export type MainExplorationSource = "ai" | "consultant" | "hybrid";
+/**
+ * Phase 3 Auto-Bootstrap 이중 가드의 세부 경로.
+ *   - auto_bootstrap     : Phase 0~2 자동 셋업으로 생성된 초안
+ *   - auto_bootstrap_v2  : Phase 4 Synthesis 학습 후 재부트스트랩으로 갱신
+ *   - consultant_direct  : 컨설턴트가 UI 로 처음부터 작성
+ *   - migrated           : Phase 3 도입 이전부터 존재 (backfill)
+ *
+ * source 는 대분류(AI/Consultant), origin 은 세부 경로 + 재부트스트랩 가드용.
+ * `edited_by_consultant_at` 과 조합하여 `origin='auto_bootstrap*' AND edited_by_consultant_at IS NULL`
+ * 인 row 만 재부트스트랩이 덮어쓰기 가능.
+ */
+export type MainExplorationOrigin =
+  | "auto_bootstrap"
+  | "auto_bootstrap_v2"
+  | "consultant_direct"
+  | "migrated";
 export type MainExplorationTier = "foundational" | "development" | "advanced";
 
 /** 메인 탐구 "슬라이스" 키 — scope × track × direction. */
@@ -78,6 +94,8 @@ export interface MainExplorationInput {
   direction: MainExplorationDirection;
   semanticRole: MainExplorationSemanticRole;
   source: MainExplorationSource;
+  /** Phase 3. 생략 시 "consultant_direct" 기본. Bootstrap 경로는 "auto_bootstrap" 전달 필수. */
+  origin?: MainExplorationOrigin;
   pinnedByConsultant?: boolean;
   themeLabel: string;
   themeKeywords?: string[];
@@ -247,6 +265,8 @@ export async function createMainExploration(
     nextVersion = (versions[0]?.version ?? 0) + 1;
   }
 
+  // Phase 3. origin 컬럼은 마이그레이션 20260418200000 에서 추가. DB types 재생성 전까지는
+  // Insert 타입에 포함되지 않으므로 Record<string, unknown> 캐스팅으로 전달.
   const insertRow: MainExplorationInsert = {
     student_id: input.studentId,
     tenant_id: input.tenantId,
@@ -270,7 +290,8 @@ export async function createMainExploration(
     identity_alignment_score: input.identityAlignmentScore ?? null,
     exemplar_reference_ids: input.exemplarReferenceIds ?? [],
     model_name: input.modelName ?? null,
-  };
+    ...(input.origin ? { origin: input.origin } : {}),
+  } as MainExplorationInsert & { origin?: MainExplorationOrigin };
 
   const { data, error } = await supabase
     .from("student_main_explorations")
