@@ -36,6 +36,10 @@ const LOG_CTX = { domain: "record-analysis", action: "generateBlueprint" };
  */
 export async function generateBlueprintDesign(
   studentId: string,
+  options?: {
+    /** 직전 실행 수렴 테마 — cross-run 연속성 힌트 (phase-b1에서 주입) */
+    previousConvergences?: BlueprintPhaseInput["previousConvergences"];
+  },
 ): Promise<ActionResponse<BlueprintPhaseOutput>> {
   try {
     const { tenantId: rawTenantId } = await requireAdminOrConsultant();
@@ -174,6 +178,7 @@ export async function generateBlueprintDesign(
           })),
         }
         : undefined,
+      previousConvergences: options?.previousConvergences,
     };
 
     // ── 6. LLM 호출 ──────��─────────────────────────

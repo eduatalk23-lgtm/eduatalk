@@ -38,7 +38,13 @@ type Snapshot = {
     latestBlueprint: null | {
       id: string;
       completed_at: string | null;
-      targetConvergences: Array<{ grade?: number; themeLabel?: string; tierAlignment?: string }>;
+      targetConvergences: Array<{
+        grade?: number;
+        themeLabel?: string;
+        tierAlignment?: string;
+        themeKeywords?: string[];
+        sharedCompetencies?: string[];
+      }>;
       milestoneGrades: string[];
       growthTargetCount: number;
     };
@@ -195,11 +201,44 @@ async function main() {
   const aThemes = new Set(aConv.map((c) => normalize(c.themeLabel ?? "")));
   const bThemes = new Set(bConv.map((c) => normalize(c.themeLabel ?? "")));
   console.log(`   count: ${aConv.length} → ${bConv.length}`);
-  console.log(`   theme Jaccard: ${jaccard(aThemes, bThemes).toFixed(3)}`);
+  console.log(`   (참고) theme Jaccard(문자열 전체 집합): ${jaccard(aThemes, bThemes).toFixed(3)}`);
+
+  // [D-2] 주지표: themeKeywords + themeLabel 토큰 overlap
+  // "광시야 천문 프로젝트 수렴" ↔ "관측 데이터 해석과 광시야 천문 프로젝트" 같은 질적 연속성을
+  // 단어 단위로 탐지. stopword("수렴/탐구/프로젝트/심화/기초/활동/연구/핵심")는 분모/분자 제외.
+  const STOPWORDS = new Set([
+    "수렴", "탐구", "프로젝트", "심화", "기초", "활동", "연구", "핵심",
+    "과제", "실험", "분석", "이해", "응용",
+  ]);
+  function convTokens(conv: typeof aConv[number]): Set<string> {
+    const labelWords = normalize(conv.themeLabel ?? "")
+      .split(/[\s,·\-_/]+/)
+      .filter((w) => w.length >= 2 && !STOPWORDS.has(w));
+    const keywords = (conv.themeKeywords ?? []).map((k) => normalize(k))
+      .filter((w) => w.length >= 2 && !STOPWORDS.has(w));
+    return new Set([...labelWords, ...keywords]);
+  }
+  const aKeywordSet = new Set<string>();
+  const bKeywordSet = new Set<string>();
+  for (const c of aConv) for (const t of convTokens(c)) aKeywordSet.add(t);
+  for (const c of bConv) for (const t of convTokens(c)) bKeywordSet.add(t);
+  const shared = [...aKeywordSet].filter((x) => bKeywordSet.has(x));
+  const kwJaccard = jaccard(aKeywordSet, bKeywordSet);
+  console.log(`   ▶ [주지표] keyword Jaccard: ${kwJaccard.toFixed(3)}  (A=${aKeywordSet.size} · B=${bKeywordSet.size} · ∩=${shared.length})`);
+  console.log(`     기준 ≥ 0.3 → ${kwJaccard >= 0.3 ? "✅ 통과 (연속성 유지)" : "❌ 미달 (LLM 변동 또는 cross-run 미배선)"}`);
+  if (shared.length > 0) {
+    console.log(`     공통 키워드: ${shared.slice(0, 10).join(", ")}`);
+  }
   console.log(`   A:`);
-  for (const c of aConv.slice(0, 6)) console.log(`     · G${c.grade}/${c.tierAlignment} "${c.themeLabel}"`);
+  for (const c of aConv.slice(0, 6)) {
+    const kw = c.themeKeywords?.length ? ` | ${c.themeKeywords.slice(0, 4).join(",")}` : "";
+    console.log(`     · G${c.grade}/${c.tierAlignment} "${c.themeLabel}"${kw}`);
+  }
   console.log(`   B:`);
-  for (const c of bConv.slice(0, 6)) console.log(`     · G${c.grade}/${c.tierAlignment} "${c.themeLabel}"`);
+  for (const c of bConv.slice(0, 6)) {
+    const kw = c.themeKeywords?.length ? ` | ${c.themeKeywords.slice(0, 4).join(",")}` : "";
+    console.log(`     · G${c.grade}/${c.tierAlignment} "${c.themeLabel}"${kw}`);
+  }
 
   // [E] 그래프 계층
   console.log(`\n[E] 그래프 계층`);
@@ -218,8 +257,9 @@ async function main() {
   // 요약 라인
   const persistent = aTitles.size > 0 ? [...aTitles].filter((x) => bTitles.has(x)).length / aTitles.size : 0;
   console.log(`▶ 요약`);
-  console.log(`   storyline 지속성(title A∩B / A): ${(persistent * 100).toFixed(1)}%`);
-  console.log(`   blueprint convergence Jaccard:   ${jaccard(aThemes, bThemes).toFixed(3)}`);
+  console.log(`   storyline 지속성(title A∩B / A):  ${(persistent * 100).toFixed(1)}%`);
+  console.log(`   blueprint keyword Jaccard:       ${kwJaccard.toFixed(3)}  (공통 ${shared.length}개)`);
+  console.log(`   (참고) blueprint theme Jaccard:  ${jaccard(aThemes, bThemes).toFixed(3)}  (문자열 전체 집합 — 유사 테마도 불일치로 판정하는 한계 있음)`);
   console.log(`   (해석: 지속성 높음 = 연속성 유지 / 낮음 = 운 혹은 LLM 변동성, 둘 다 값을 갖는지 먼저 확인)\n`);
 }
 

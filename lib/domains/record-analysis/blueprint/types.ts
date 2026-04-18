@@ -111,6 +111,19 @@ export interface BlueprintPhaseInput {
       keywords: string[];
     }>;
   };
+
+  // ── CROSS-RUN: 직전 실행 수렴 (연속성 힌트) ─────
+  /**
+   * 직전 blueprint 실행의 수렴 테마 목록.
+   * 강한 이유(메인 탐구 변경·데이터 축적) 없이 테마를 교체하지 않도록 연속성 힌트로 주입.
+   * cross-run feedback — phase-b1이 ctx.previousRunOutputs.taskResults.blueprint_generation 에서 읽어 전달.
+   */
+  previousConvergences?: Array<{
+    grade: number;
+    themeLabel: string;
+    themeKeywords: string[];
+    sharedCompetencies: string[];
+  }>;
 }
 
 export interface BlueprintCoursePlan {

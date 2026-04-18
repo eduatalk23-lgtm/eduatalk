@@ -281,6 +281,22 @@ export function buildUserPrompt(input: BlueprintPhaseInput): string {
     }
   }
 
+  // ── CROSS-RUN: 직전 실행 수렴 (연속성 힌트) ─────
+  if (input.previousConvergences && input.previousConvergences.length > 0) {
+    lines.push("## 직전 설계 수렴 (CONTINUITY HINT)");
+    lines.push("");
+    lines.push("⚠ 아래는 직전 blueprint 실행의 수렴 테마입니다.");
+    lines.push("강한 이유(메인 탐구 변경·새로운 활동 축적·역량 변화 등)가 없다면 테마·키워드를 유지하세요.");
+    lines.push("표현을 살짝 다듬는 것은 허용하되, 의미 축이 바뀌면 안 됩니다.");
+    lines.push("");
+    for (const conv of input.previousConvergences) {
+      const keywords = conv.themeKeywords.length > 0 ? ` | 키워드: ${conv.themeKeywords.join(", ")}` : "";
+      const comps = conv.sharedCompetencies.length > 0 ? ` | 역량: ${conv.sharedCompetencies.join(", ")}` : "";
+      lines.push(`- ${conv.grade}학년 "${conv.themeLabel}"${keywords}${comps}`);
+    }
+    lines.push("");
+  }
+
   return lines.join("\n");
 }
 

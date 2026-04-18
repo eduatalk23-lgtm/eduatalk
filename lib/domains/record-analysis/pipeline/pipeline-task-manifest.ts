@@ -599,6 +599,8 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
     readsResults: [],
     // blueprint 하이퍼엣지(context='blueprint')는 gap_tracking + draft_generation 에서 소비.
     // PR 4 에서 setek_guide / cross_subject_theme_extraction 소비 경로 추가 예정.
+    // Cross-run self-loop: 직전 실행 convergences 를 연속성 힌트로 주입 — theme 완전 교체 방지.
+    writesForNextRun: ["blueprint_generation"],
   },
 };
 

@@ -77,13 +77,15 @@ npx tsx scripts/cross-run-diff.ts tmp/cross-run/injego--run1.json tmp/cross-run/
 | `[C]` title Jaccard | `< 0.1` | 연속성 없음 — LLM 변동 혹은 힌트 무시 |
 | `[C-2]` **주지표**: A summary keyword 문자열 → B storyline 재등장 | `≥ 15%` | 프롬프트 주입 효과 직접 확인 (명사구 단위) |
 | `[C-2]` (참고) bigram+word 토큰 hit | — | 문장 파편 시절 잔재 지표, 분모 왜곡 있음 |
-| `[D]` convergence theme Jaccard | `> 0.5` | Blueprint 안정성 (설계 축 일관) |
+| `[D]` **주지표**: blueprint keyword Jaccard (themeLabel 단어 + themeKeywords, stopword 제외) | `≥ 0.3` | Blueprint 연속성 (유사 테마 질적 탐지) |
+| `[D]` (참고) theme 문자열 집합 Jaccard | — | 완전 문자열 일치 기준 — 유사 테마도 불일치로 판정하는 한계 있음 |
 
 **해석 주의**:
 - 소표본 실측이므로 수치 자체보다 "0인가 아닌가"로 먼저 infrastructure 활성 여부 판정.
 - `previousRunOutputs.runId` 가 null이면 `[C-2]` 측정이 의미 없음 — Run 1 synthesis completed row가 남아있는지 먼저 확인.
 - `[C-2]` 등장 비율이 100%여도 LLM이 원래 그 주제를 뽑았을 수도 있음 → 반증은 "A summary keywords가 비어있을 때 B 결과" 비교가 필요 (이번 범위 아님).
 - **2026-04-18 재설계**: 이전 `≥ 50% / ≥ 30%` 기준은 summary keywords 가 문장 파편(`content.slice(0,40)`)이던 시절 설계. 현재 명사구(`section.keywords` 명시 추출)로 바뀌었고, bigram 분할이 무관 토큰까지 포함해 비율을 희석하므로 **주지표를 keyword 문자열 재등장률로 교체**.
+- **2026-04-18 `[D]` 재설계**: 기존 "theme 문자열 집합 Jaccard" 는 "광시야 천문 프로젝트 수렴" ↔ "관측 데이터 해석과 광시야 천문 프로젝트" 같은 질적 연속성을 완전 불일치(0.000)로 판정하는 한계. themeLabel 단어 토큰 + themeKeywords 합집합 기준으로 Jaccard 재계산 (stopword "수렴/탐구/프로젝트/심화/기초/활동/연구/핵심/과제/실험/분석/이해/응용" 제외) → 공통 키워드 탐지 가능. 동시에 `blueprint_generation` 에 cross-run self-loop 배선 추가 (manifest `writesForNextRun: ["blueprint_generation"]` + phase-b1 에서 직전 수렴 LLM 프롬프트 주입) — Run N+1 에서 실효 검증 필요.
 
 ## 남은 한계
 

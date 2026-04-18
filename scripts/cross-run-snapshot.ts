@@ -134,7 +134,13 @@ async function main() {
   const bpPhase = latestBp
     ? ((latestBp.task_results as Record<string, unknown> | null)?._blueprintPhase as
         | {
-            targetConvergences?: Array<{ grade?: number; themeLabel?: string; tierAlignment?: string }>;
+            targetConvergences?: Array<{
+              grade?: number;
+              themeLabel?: string;
+              tierAlignment?: string;
+              themeKeywords?: string[];
+              sharedCompetencies?: string[];
+            }>;
             milestones?: Record<string, unknown>;
             competencyGrowthTargets?: unknown[];
           }
@@ -177,6 +183,8 @@ async function main() {
               grade: c.grade,
               themeLabel: c.themeLabel,
               tierAlignment: c.tierAlignment,
+              themeKeywords: Array.isArray(c.themeKeywords) ? c.themeKeywords : [],
+              sharedCompetencies: Array.isArray(c.sharedCompetencies) ? c.sharedCompetencies : [],
             })),
             milestoneGrades: Object.keys(bpPhase?.milestones ?? {}),
             growthTargetCount: Array.isArray(bpPhase?.competencyGrowthTargets)

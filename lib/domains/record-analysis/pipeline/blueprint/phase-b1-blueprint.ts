@@ -11,6 +11,13 @@
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { PipelineContext, TaskRunnerOutput } from "../pipeline-types";
 import { setTaskResult } from "../pipeline-helpers";
+import { getPreviousTaskResult } from "../pipeline-previous-run";
+import type { BlueprintPhaseInput } from "../../blueprint/types";
+
+/** blueprint_generation 의 writesForNextRun 출력 — 다음 실행이 연속성 힌트로 읽음 */
+type BlueprintPreviousRunPayload = {
+  convergences: NonNullable<BlueprintPhaseInput["previousConvergences"]>;
+};
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
@@ -49,12 +56,21 @@ export async function runBlueprintGeneration(
     return "활성 메인 탐구 없음 — Blueprint 생성 불가 (메인 탐구 설정 필요)";
   }
 
+  // ── Cross-run 연속성 힌트 로드 ────────────────────
+  // 직전 실행의 blueprint_generation 이 writesForNextRun 으로 남긴 convergences 를 꺼내
+  // LLM 프롬프트에 주입. 강한 이유 없이 테마 교체 방지.
+  const prevPayload = getPreviousTaskResult<BlueprintPreviousRunPayload>(
+    ctx.previousRunOutputs,
+    "blueprint_generation",
+  );
+  const previousConvergences = prevPayload?.convergences;
+
   // ── LLM 호출 ──────────────────────────────────
   try {
     const { generateBlueprintDesign } = await import(
       "../../llm/actions/generateBlueprint"
     );
-    const result = await generateBlueprintDesign(studentId);
+    const result = await generateBlueprintDesign(studentId, { previousConvergences });
 
     if (!result.success) {
       logActionError(LOG_CTX, `Blueprint 생성 실패: ${result.error}`, { pipelineId });
@@ -68,7 +84,18 @@ export async function runBlueprintGeneration(
       pipelineId,
       convergenceCount: output.targetConvergences.length,
       milestoneGrades: Object.keys(output.milestones),
+      previousConvergenceCount: previousConvergences?.length ?? 0,
     });
+
+    // 다음 실행을 위한 cross-run payload — 현재 수렴 테마를 writesForNextRun 형식으로 저장.
+    const nextRunPayload: BlueprintPreviousRunPayload = {
+      convergences: output.targetConvergences.map((conv) => ({
+        grade: conv.grade,
+        themeLabel: conv.themeLabel,
+        themeKeywords: conv.themeKeywords,
+        sharedCompetencies: conv.sharedCompetencies,
+      })),
+    };
 
     return {
       preview: `Blueprint 설계 완료 (수렴 ${output.targetConvergences.length}개, 마일스톤 ${Object.keys(output.milestones).length}학년)`,
@@ -76,6 +103,8 @@ export async function runBlueprintGeneration(
         convergenceCount: output.targetConvergences.length,
         milestoneGrades: Object.keys(output.milestones).map(Number),
         growthTargetCount: output.competencyGrowthTargets.length,
+        priorConvergenceCount: previousConvergences?.length ?? 0,
+        ...nextRunPayload,
       },
     };
   } catch (err) {
