@@ -180,7 +180,7 @@
 | F-3 | Agent read tool 흡수 — record read 계열(`findDiagnosis`·`getPipelineStatus` 등 5~8개)을 같은 MCP 서버에 등록 | High | 4d | Agent write tool은 그대로 유지 |
 | F-4 | Tier Routing 분류기 v0 — Ollama gemma-small 0.5초 내 L2/L3 판정. 메시지 첫 줄 분석 후 "심화 분석이면 Agent 이동 제안" | Med | 3d | 신규 `lib/domains/ai-chat/routing/classifier.ts` |
 | F-5 | Tier budget SLO 게이트 — Shell 요청은 5초·3 tool 초과 시 Agent 이동 유도 배너 | Low | 1d | `stepCountIs(2)` 초과 시 UI 제안 |
-| F-6 | 외부 에이전트 연결 검증 — Claude Desktop/Cursor에서 MCP 서버 호출 1건 샘플 | Low | 1d | OAuth는 선택 |
+| F-6 | 외부 에이전트 연결 검증 — Claude Desktop/Cursor에서 MCP 서버 호출 1건 샘플 | Low | 1d | OAuth는 선택. **2026-04-18 A안(문서화)로 종결** — proxy 세션 쿠키 인증 제약 + virtual user context 필요로 1d 범위 초과. 외부 수요 발생 시 승격([mcp-external-client-deferred](../.claude/memory/mcp-external-client-deferred.md)) |
 
 **산출**: 외부 AI 생태계(Claude Desktop·Cursor)에서 에듀엣톡 tool 직접 호출 가능. Shell↔Agent 진입 마찰 해소. 선두 6 패턴 중 5개 완비.
 
