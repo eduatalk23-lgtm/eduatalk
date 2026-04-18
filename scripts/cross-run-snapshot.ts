@@ -29,6 +29,7 @@ import { createSupabaseAdminClient } from "../lib/supabase/admin";
 const STUDENTS = {
   kim: { id: "0e3e149d-4b9c-402d-ad5c-b3df04190889", tenant: "84b71a5d-5681-4da3-88d2-91e75ef89015", label: "김세린" },
   injego: { id: "35ee94b6-9484-4bee-8100-c761c1c56831", tenant: "84b71a5d-5681-4da3-88d2-91e75ef89015", label: "인제고 1학년" },
+  xrun: { id: "c0ffee01-5eed-4d00-9000-000000000001", tenant: "84b71a5d-5681-4da3-88d2-91e75ef89015", label: "xrun-seed-01" },
 } as const;
 
 type StudentKey = keyof typeof STUDENTS;
