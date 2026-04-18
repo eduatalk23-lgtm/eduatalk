@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       academic_sources: {
@@ -480,6 +505,110 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "agent_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_conversations: {
+        Row: {
+          anonymized_at: string | null
+          archived_at: string | null
+          created_at: string
+          id: string
+          last_activity_at: string
+          origin: Json | null
+          owner_user_id: string
+          persona: string
+          pinned_at: string | null
+          retention_until: string | null
+          subject_student_id: string | null
+          tags: string[]
+          tenant_id: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          anonymized_at?: string | null
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          last_activity_at?: string
+          origin?: Json | null
+          owner_user_id: string
+          persona?: string
+          pinned_at?: string | null
+          retention_until?: string | null
+          subject_student_id?: string | null
+          tags?: string[]
+          tenant_id?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anonymized_at?: string | null
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          last_activity_at?: string
+          origin?: Json | null
+          owner_user_id?: string
+          persona?: string
+          pinned_at?: string | null
+          retention_until?: string | null
+          subject_student_id?: string | null
+          tags?: string[]
+          tenant_id?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_subject_student_id_fkey"
+            columns: ["subject_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          parts: Json
+          role: string
+          sequence_num: number
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id: string
+          parts: Json
+          role: string
+          sequence_num?: number
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          parts?: Json
+          role?: string
+          sequence_num?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -11435,12 +11564,14 @@ export type Database = {
           category_scores: Json | null
           created_at: string
           direction: string
+          edited_by_consultant_at: string | null
           exemplar_reference_ids: string[]
           grade: number
           id: string
           identity_alignment_score: number | null
           is_active: boolean
           model_name: string | null
+          origin: string
           parent_version_id: string | null
           pinned_by_consultant: boolean
           pipeline_id: string | null
@@ -11463,12 +11594,14 @@ export type Database = {
           category_scores?: Json | null
           created_at?: string
           direction: string
+          edited_by_consultant_at?: string | null
           exemplar_reference_ids?: string[]
           grade: number
           id?: string
           identity_alignment_score?: number | null
           is_active?: boolean
           model_name?: string | null
+          origin?: string
           parent_version_id?: string | null
           pinned_by_consultant?: boolean
           pipeline_id?: string | null
@@ -11491,12 +11624,14 @@ export type Database = {
           category_scores?: Json | null
           created_at?: string
           direction?: string
+          edited_by_consultant_at?: string | null
           exemplar_reference_ids?: string[]
           grade?: number
           id?: string
           identity_alignment_score?: number | null
           is_active?: boolean
           model_name?: string | null
+          origin?: string
           parent_version_id?: string | null
           pinned_by_consultant?: boolean
           pipeline_id?: string | null
@@ -19100,6 +19235,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       adjustment_type_enum: ["range", "replace", "full"],
@@ -19114,3 +19252,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.90.0 (currently installed v2.65.5)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

@@ -265,8 +265,6 @@ export async function createMainExploration(
     nextVersion = (versions[0]?.version ?? 0) + 1;
   }
 
-  // Phase 3. origin 컬럼은 마이그레이션 20260418200000 에서 추가. DB types 재생성 전까지는
-  // Insert 타입에 포함되지 않으므로 Record<string, unknown> 캐스팅으로 전달.
   const insertRow: MainExplorationInsert = {
     student_id: input.studentId,
     tenant_id: input.tenantId,
@@ -291,7 +289,7 @@ export async function createMainExploration(
     exemplar_reference_ids: input.exemplarReferenceIds ?? [],
     model_name: input.modelName ?? null,
     ...(input.origin ? { origin: input.origin } : {}),
-  } as MainExplorationInsert & { origin?: MainExplorationOrigin };
+  };
 
   const { data, error } = await supabase
     .from("student_main_explorations")

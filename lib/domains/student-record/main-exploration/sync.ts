@@ -193,13 +193,12 @@ export async function updateMainExplorationTierPlan(
   const supabase = await resolveClient(client);
 
   const actor = options?.actor ?? "consultant";
-  const updatePayload: Record<string, unknown> = {
+  const nowIso = new Date().toISOString();
+  const updatePayload: Database["public"]["Tables"]["student_main_explorations"]["Update"] = {
     tier_plan: parsed as unknown as Json,
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
+    ...(actor === "consultant" ? { edited_by_consultant_at: nowIso } : {}),
   };
-  if (actor === "consultant") {
-    updatePayload.edited_by_consultant_at = new Date().toISOString();
-  }
 
   const { error } = await supabase
     .from("student_main_explorations")
@@ -227,12 +226,13 @@ export async function markMainExplorationAsConsultantEdited(
   client?: Client,
 ): Promise<void> {
   const supabase = await resolveClient(client);
+  const nowIso = new Date().toISOString();
   const { error } = await supabase
     .from("student_main_explorations")
     .update({
-      edited_by_consultant_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    } as Record<string, unknown>)
+      edited_by_consultant_at: nowIso,
+      updated_at: nowIso,
+    })
     .eq("id", id);
   if (error) throw error;
 }

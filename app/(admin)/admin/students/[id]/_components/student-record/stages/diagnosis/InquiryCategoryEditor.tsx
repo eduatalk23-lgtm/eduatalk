@@ -138,15 +138,15 @@ function MainExplorationOriginBadges({
       </div>
       <div className="flex flex-wrap gap-2">
         {isAutoOrigin && !wasEditedByConsultant && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+          <span className="inline-flex items-center gap-1 rounded-md bg-info-100 px-2 py-0.5 text-xs font-medium text-info-800 dark:bg-info-900/30 dark:text-info-300">
             AI 자동 생성 초안
           </span>
         )}
         {wasEditedByConsultant && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+          <span className="inline-flex items-center gap-1 rounded-md bg-warning-100 px-2 py-0.5 text-xs font-medium text-warning-800 dark:bg-warning-900/30 dark:text-warning-300">
             컨설턴트 수정됨
             {editedByConsultantAt && (
-              <span className="ml-1 font-normal text-amber-700 dark:text-amber-300">
+              <span className="font-normal text-warning-700 dark:text-warning-400">
                 · {new Date(editedByConsultantAt).toLocaleDateString("ko-KR")}
               </span>
             )}
