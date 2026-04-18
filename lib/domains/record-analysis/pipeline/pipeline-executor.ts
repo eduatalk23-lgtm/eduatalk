@@ -220,6 +220,7 @@ export async function runTaskWithState(
       (GRADE_PIPELINE_TASK_TIMEOUTS as Record<string, number>)[key] ??
       (PAST_ANALYTICS_TASK_TIMEOUTS as Record<string, number>)[key] ??
       (BLUEPRINT_TASK_TIMEOUTS as Record<string, number>)[key] ??
+      (BOOTSTRAP_TASK_TIMEOUTS as Record<string, number>)[key] ??
       PIPELINE_TASK_TIMEOUTS[key as PipelineTaskKey];
     const output = await withTaskTimeout(runner(), timeoutMs, key);
     const elapsedMs = Date.now() - startMs;
