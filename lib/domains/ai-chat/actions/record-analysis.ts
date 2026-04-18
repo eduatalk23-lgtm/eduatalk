@@ -12,16 +12,15 @@
  */
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { searchStudentsAction } from "@/lib/domains/student/actions/search";
 import { fetchGradeAwarePipelineStatus } from "@/lib/domains/student-record/actions/pipeline-orchestrator-status";
 import { findDiagnosisByScope } from "@/lib/domains/student-record/repository/diagnosis-repository";
+import {
+  resolveStudentTarget,
+  type StudentTargetCandidate,
+} from "@/lib/mcp/tools/_shared/resolveStudent";
 
-export type AnalyzeRecordCandidate = {
-  id: string;
-  name: string | null;
-  grade: number | null;
-  schoolName: string | null;
-};
+/** 후방 호환 alias. 신규 코드는 StudentTargetCandidate 사용. */
+export type AnalyzeRecordCandidate = StudentTargetCandidate;
 
 export type AnalyzeRecordStatus =
   | "no_analysis"
@@ -54,14 +53,18 @@ export type AnalyzeRecordOutput =
     }
   | { ok: false; reason: string; candidates?: AnalyzeRecordCandidate[] };
 
-type ResolvedTarget =
+/**
+ * analyzeRecord 는 **admin/consultant/superadmin 전용** — 학생 본인 조회 금지.
+ * 공통 resolveStudentTarget 은 student 도 허용하므로 role 게이트를 명시적으로 선행.
+ */
+async function resolveAnalyzeRecordTarget(
+  studentName: string,
+): Promise<
   | { ok: true; studentId: string; tenantId: string; studentName: string | null }
-  | { ok: false; reason: string; candidates?: AnalyzeRecordCandidate[] };
-
-async function resolveTarget(studentName: string): Promise<ResolvedTarget> {
+  | { ok: false; reason: string; candidates?: AnalyzeRecordCandidate[] }
+> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, reason: "로그인이 필요합니다." };
-
   if (
     user.role !== "admin" &&
     user.role !== "consultant" &&
@@ -72,48 +75,7 @@ async function resolveTarget(studentName: string): Promise<ResolvedTarget> {
       reason: "생기부 분석 요약은 관리자/컨설턴트만 이용할 수 있어요.",
     };
   }
-  if (!user.tenantId) {
-    return { ok: false, reason: "테넌트 정보가 없습니다." };
-  }
-
-  const trimmed = studentName.trim();
-  if (trimmed.length === 0) {
-    return {
-      ok: false,
-      reason: "어느 학생의 생기부 분석을 볼까요? 학생 이름을 알려주세요.",
-    };
-  }
-
-  const result = await searchStudentsAction(trimmed);
-  if (!result.success) {
-    return { ok: false, reason: result.error ?? "학생 검색에 실패했습니다." };
-  }
-  if (result.students.length === 0) {
-    return {
-      ok: false,
-      reason: `'${trimmed}'과 일치하는 학생을 찾지 못했습니다.`,
-    };
-  }
-  if (result.students.length > 1) {
-    return {
-      ok: false,
-      reason: `'${trimmed}'과 일치하는 학생이 ${result.students.length}명입니다. 학년·학교로 좁혀 다시 말해주세요.`,
-      candidates: result.students.slice(0, 10).map((s) => ({
-        id: s.id,
-        name: s.name,
-        grade: s.grade,
-        schoolName: s.school_name,
-      })),
-    };
-  }
-
-  const picked = result.students[0];
-  return {
-    ok: true,
-    studentId: picked.id,
-    tenantId: user.tenantId,
-    studentName: picked.name ?? null,
-  };
+  return resolveStudentTarget({ studentName });
 }
 
 function normalizeSynthesisStatus(
@@ -167,7 +129,7 @@ function pickLatestDiagnosis(
 export async function lookupRecordAnalysis(
   studentName: string,
 ): Promise<AnalyzeRecordOutput> {
-  const target = await resolveTarget(studentName);
+  const target = await resolveAnalyzeRecordTarget(studentName);
   if (!target.ok) {
     return {
       ok: false,
