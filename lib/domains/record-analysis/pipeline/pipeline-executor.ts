@@ -95,6 +95,34 @@ export async function updatePipelineState(
 }
 
 // ============================================
+// touchPipelineHeartbeat
+// ============================================
+
+/**
+ * 파이프라인 행을 최소 비용으로 UPDATE하여 `updated_at` heartbeat 만 갱신.
+ *
+ * 용도: 단일 청크 내부에서 LLM 호출 N회를 순차 실행할 때, 각 호출 사이에 heartbeat을
+ * 찍어 좀비 판정(`status='running' AND updated_at < now() - 5분`)을 우회한다.
+ *
+ * `trg_analysis_pipelines_updated_at` 트리거가 `NEW.updated_at = NOW()` 를 자동 적용하므로
+ * 클라이언트에서 updated_at 값을 넘길 필요는 없지만, 컬럼 값 변화를 명시적으로 넣어야
+ * UPDATE 문이 row-level 트리거를 확정 호출한다. CAS 가드는 `updatePipelineState` 와 동일.
+ */
+export async function touchPipelineHeartbeat(
+  supabase: SupabaseAdminClient,
+  pipelineId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("student_record_analysis_pipelines")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", pipelineId)
+    .neq("status", "cancelled");
+  if (error) {
+    logActionWarn(LOG_CTX, `heartbeat touch failed: ${error.message}`, { pipelineId });
+  }
+}
+
+// ============================================
 // computePipelineFinalStatus
 // ============================================
 

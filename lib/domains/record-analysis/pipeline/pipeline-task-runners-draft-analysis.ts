@@ -10,10 +10,11 @@
 // ============================================
 
 import { assertGradeCtx, type PipelineContext } from "./pipeline-types";
-import type { TaskRunnerOutput } from "./pipeline-executor";
+import { touchPipelineHeartbeat, type TaskRunnerOutput } from "./pipeline-executor";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { resolveEffectiveContent } from "./pipeline-data-resolver";
 import { fetchSubjectNames } from "./pipeline-task-runners-draft-generation";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LOG_CTX = { domain: "record-analysis", action: "draftAnalysis" };
@@ -458,6 +459,10 @@ export async function runDraftAnalysisChunkForGrade(
     const { text: content } = resolveEffectiveContent(rec);
     if (!content || content.length < 20) continue;
 
+    // 청크 내부 LLM 호출 사이 heartbeat — 순차 루프 총시간이 5분을 넘어도 좀비 판정되지 않도록.
+    // trigger `trg_analysis_pipelines_updated_at` 가 자동 갱신하므로 추가 컬럼 write 불필요.
+    await touchPipelineHeartbeat(supabase as SupabaseAdminClient, ctx.pipelineId);
+
     try {
       const result = await analyzeSetekWithHighlight({
         recordType: rec.recordType,
@@ -547,6 +552,11 @@ async function finalizeDraftAnalysisChunked(
   assertGradeCtx(ctx);
   const { studentId, tenantId, supabase } = ctx;
 
+  // finalize 진입 시 heartbeat — 이 경로는 LLM 호출은 없지만 upsertCompetencyScore 루프와
+  // fetchCrossRefData + replaceEdges 가 수 분 걸릴 수 있다. 중간에 pipelines 테이블 write 가
+  // 전혀 없으면 좀비 판정됨.
+  await touchPipelineHeartbeat(supabase as SupabaseAdminClient, ctx.pipelineId);
+
   const allCompetencyGrades = (ctx.results?.["draft_analysis_accumulated_grades"] as Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }>) ?? [];
 
   let competencyScoresSaved = 0;
@@ -603,6 +613,9 @@ async function finalizeDraftAnalysisChunked(
       ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
     }
   }
+
+  // competency_scores 루프 종료 직후 heartbeat — 다음 단계(cross-ref + edge 재계산)가 무거움.
+  await touchPipelineHeartbeat(supabase as SupabaseAdminClient, ctx.pipelineId);
 
   // projected 엣지 생성 (draft_analysis 태그 기반)
   let projectedEdgeCount = 0;

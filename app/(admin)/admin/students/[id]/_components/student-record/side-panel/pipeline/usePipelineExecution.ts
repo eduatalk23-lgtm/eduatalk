@@ -39,6 +39,10 @@ export function usePipelineExecution({
   const fullRunAbortRef = useRef(false);
   const fullRunCtrlRef = useRef<AbortController | null>(null);
   const fetchingRef = useRef(false);
+  // 클릭 쿨다운(1초) — 기존 ref 가드는 첫 fetch 가 에러로 빨리 실패할 때 해제되어
+  // 재클릭을 허용한다. 쿨다운은 "에러 후 즉시 재시도"까지 막아 rate limit 카운트
+  // 누수와 UI race 를 일원화 차단.
+  const lastFullRunClickRef = useRef<number>(0);
 
   const invalidate = () =>
     queryClient.invalidateQueries({
@@ -582,6 +586,11 @@ export function usePipelineExecution({
   // ─── 전체 시퀀스 실행 ─────────────────────────────────────────────────────
 
   const runFullSequence = async () => {
+    // 쿨다운(1초) — 더블클릭 + 에러 후 즉시 재시도 차단
+    const nowMs = Date.now();
+    if (nowMs - lastFullRunClickRef.current < 1000) return;
+    lastFullRunClickRef.current = nowMs;
+
     // 동기 ref 가드: 이미 실행 중이거나 개별 phase fetch 중이면 무시 (race 방지)
     if (fullRunCtrlRef.current || fetchingRef.current) return;
 

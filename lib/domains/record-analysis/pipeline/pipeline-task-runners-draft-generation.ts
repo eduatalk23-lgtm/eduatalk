@@ -10,7 +10,8 @@
 // ============================================
 
 import { assertGradeCtx, type PipelineContext } from "./pipeline-types";
-import type { TaskRunnerOutput } from "./pipeline-executor";
+import { touchPipelineHeartbeat, type TaskRunnerOutput } from "./pipeline-executor";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { generateTextWithRateLimit } from "../llm/ai-client";
 import * as guideRepo from "@/lib/domains/student-record/repository/guide-repository";
 import { withRetry } from "../llm/retry";
@@ -525,6 +526,10 @@ export async function runDraftGenerationChunkForGrade(
   const generatedLabels: string[] = [];
   for (const item of toProcess) {
     attempted++;
+    // 청크 내부 LLM 호출 사이 heartbeat — chunkSize×sequential×~60s 가 5분 zombie 창 초과 방지.
+    // processDraftItem 은 LLM + seteks/changche/haengteuk 테이블 write 만 수행하므로
+    // pipelines 테이블 trigger 가 발화하지 않는다. (P8 와 동형 패턴)
+    await touchPipelineHeartbeat(ctx.supabase as SupabaseAdminClient, ctx.pipelineId);
     const { saved, label } = await processDraftItem(ctx, item, levelDirective, targetSchoolYear);
     if (saved) generatedLabels.push(label);
   }

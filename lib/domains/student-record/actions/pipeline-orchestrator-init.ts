@@ -46,11 +46,11 @@ export async function runGradePipeline(
   grade: number,
 ): Promise<ActionResponse<{ pipelineId: string; grade: number }>> {
   try {
-    const { userId } = await requireAdminOrConsultant();
+    const { userId, role } = await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // 속도 제한 검사
-    const rateLimitError = await checkPipelineRateLimit(studentId, supabase);
+    // 속도 제한 검사 (role 전달 — admin/superadmin 면제, consultant 15/hour)
+    const rateLimitError = await checkPipelineRateLimit(studentId, supabase, role);
     if (rateLimitError) {
       return createErrorResponse(rateLimitError);
     }
@@ -268,11 +268,11 @@ export async function runGradeAwarePipeline(
   options?: { grades?: number[]; insertAsPending?: boolean },
 ): Promise<ActionResponse<GradeAwarePipelineStartResult>> {
   try {
-    const { userId } = await requireAdminOrConsultant();
+    const { userId, role } = await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // 속도 제한 검사 (전체 파이프라인 기준)
-    const rateLimitError = await checkPipelineRateLimit(studentId, supabase);
+    // 속도 제한 검사 (전체 파이프라인 기준, role 전달)
+    const rateLimitError = await checkPipelineRateLimit(studentId, supabase, role);
     if (rateLimitError) {
       return createErrorResponse(rateLimitError);
     }

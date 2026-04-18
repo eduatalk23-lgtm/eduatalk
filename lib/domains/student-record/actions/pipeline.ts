@@ -98,9 +98,24 @@ export async function fetchPipelineStatus(
 // 속도 제한 (학생당 1 running + 5/hour)
 // ============================================
 
+/**
+ * 역할별 시간당 파이프라인 실행 상한. 0 = 완전 면제.
+ *
+ * admin/superadmin: 개발·QA 디버깅 세션에서 동일 학생을 반복 실행하는 경우가 잦아 면제.
+ *   rate limit 은 LLM 비용 폭주 방지 수단인데, 이 역할들은 내부 운영이라 신뢰 가정.
+ * consultant: 정상 업무 기준 시간당 15회면 수동 재실행 여유 충분. 5 → 15 로 완화.
+ *   (기존 5는 "전체 실행" 더블클릭 2회만 해도 40% 소모되어 UX 차단 빈발.)
+ */
+const RATE_LIMIT_BY_ROLE: Record<"admin" | "superadmin" | "consultant", number> = {
+  admin: 0,
+  superadmin: 0,
+  consultant: 15,
+};
+
 export async function checkPipelineRateLimit(
   studentId: string,
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  role?: "admin" | "superadmin" | "consultant",
 ): Promise<string | null> {
   // 좀비 파이프라인 자동 정리:
   // 트랙 D (2026-04-14): 판정 기준을 `started_at` → `updated_at` 으로 변경.
@@ -127,6 +142,10 @@ export async function checkPipelineRateLimit(
     // 계속 진행 (fail-open)
   }
 
+  // 역할별 상한 결정. role 미지정(legacy caller) 시 consultant 기준으로 안전하게 동작.
+  const limit = role ? RATE_LIMIT_BY_ROLE[role] : RATE_LIMIT_BY_ROLE.consultant;
+  if (limit === 0) return null; // admin/superadmin 면제
+
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: recentPipelines, error } = await supabase
     .from("student_record_analysis_pipelines")
@@ -146,9 +165,8 @@ export async function checkPipelineRateLimit(
   // - 중복 태스크 실행은 runTaskWithState의 `task === "completed"` 가드로 보호됨
   // - runGradeAwarePipeline/runSynthesisPipeline이 기존 running/pending/cancelled를
   //   전부 resume 대상으로 처리하므로 "이미 실행 중 → 에러"는 UX를 막는 과보호였다.
-  // 시간당 5회 rate limit만 유지.
-  if (rows.length >= 5) {
-    return "1시간 내 최대 5회까지 파이프라인을 실행할 수 있습니다. 잠시 후 다시 시도해주세요.";
+  if (rows.length >= limit) {
+    return `1시간 내 최대 ${limit}회까지 파이프라인을 실행할 수 있습니다. 잠시 후 다시 시도해주세요.`;
   }
   return null;
 }
