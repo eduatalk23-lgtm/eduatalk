@@ -137,6 +137,42 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
       coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${section}` : section;
     }
 
+    // Storyline self-loop (2026-04-18 B): 직전 실행 S1 이 writesForNextRun 으로 남긴 titles 를
+    // "직전 스토리라인 목록" 으로 주입. Run 5 title 지속성 7.7% → 연속성 축 확보.
+    const prevStoryline = getPreviousRunResult<{
+      storylineCount: number;
+      titles: Array<{
+        title: string;
+        keywords: string[];
+        careerField?: string | null;
+        grade1Theme?: string | null;
+        grade2Theme?: string | null;
+        grade3Theme?: string | null;
+      }>;
+    }>(prevRun, "storyline_generation");
+    const prevTitles = (prevStoryline?.titles ?? [])
+      .map((t) => {
+        const title = t.title.trim();
+        if (!title) return null;
+        const kwPart = t.keywords.length > 0 ? ` · 키워드: ${t.keywords.slice(0, 5).join(", ")}` : "";
+        const careerPart = t.careerField ? ` · 진로: ${t.careerField}` : "";
+        const gradeThemes = [t.grade1Theme, t.grade2Theme, t.grade3Theme]
+          .filter((g): g is string => !!g && g.trim().length > 0);
+        const themePart = gradeThemes.length > 0 ? ` · 학년테마: ${gradeThemes.join(" → ")}` : "";
+        return `- ${title}${kwPart}${careerPart}${themePart}`;
+      })
+      .filter((v): v is string => v !== null);
+    if (prevTitles.length > 0) {
+      const section = [
+        "## 직전 실행 스토리라인 (연속성 힌트)",
+        "**규칙**: 아래 축 중 본 실행 기록과 여전히 일치하는 축은 제목을 유지(또는 한층 구체화)하고,",
+        "신규 기록이 이를 어떻게 **심화/확장**했는지 narrative 에 반영. 복붙 금지 — 새 키워드·새 사례가 없으면 제목을 유지하지 말 것.",
+        "강한 반증(진로 전환·주제 단절)이 있으면 새 제목으로 교체해도 됨.",
+        ...prevTitles,
+      ].join("\n");
+      coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${section}` : section;
+    }
+
     // 로드맵 진척 힌트 (manifest: roadmap_generation.writesForNextRun = ["storyline_generation"])
     const prevRoadmap = getPreviousRunResult<{
       mode: string;
@@ -187,6 +223,14 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
 
   // 스토리라인 삽입+링크를 RPC 트랜잭션으로 (부분 실패 시 고아 레코드 방지)
   let savedCount = 0;
+  const savedTitles: Array<{
+    title: string;
+    keywords: string[];
+    careerField: string | null;
+    grade1Theme: string | null;
+    grade2Theme: string | null;
+    grade3Theme: string | null;
+  }> = [];
   for (let i = 0; i < suggestedStorylines.length; i++) {
     const sl = suggestedStorylines[i];
     try {
@@ -228,6 +272,14 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
         linkEntries,
       );
       savedCount++;
+      savedTitles.push({
+        title: sl.title,
+        keywords: sl.keywords,
+        careerField: sl.careerField || null,
+        grade1Theme: sl.grade1Theme || null,
+        grade2Theme: sl.grade2Theme || null,
+        grade3Theme: sl.grade3Theme || null,
+      });
     } catch (err) {
       logActionError({ ...LOG_CTX, action: "pipeline.storyline" }, err, { title: sl.title });
     }
@@ -241,6 +293,15 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     const warnings = checkCoverageForTask(ctx.unifiedInput, "storyline_generation");
     if (warnings.length > 0) coverageWarnings = warnings;
   }
-  // 전체 LLM 응답은 DB(student_record_storylines)에 이미 저장됨 → ctx에는 카운트만 유지
-  return { preview, result: { storylineCount: savedCount, connectionCount: connections.length, coverageWarnings } };
+  // 전체 LLM 응답은 DB(student_record_storylines)에 이미 저장됨 → ctx에는 카운트만 유지.
+  // titles 는 cross-run self-loop(다음 실행 S1 의 "직전 스토리라인" 힌트) 전용 payload.
+  return {
+    preview,
+    result: {
+      storylineCount: savedCount,
+      connectionCount: connections.length,
+      coverageWarnings,
+      titles: savedTitles,
+    },
+  };
 }

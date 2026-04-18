@@ -276,6 +276,9 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
     readsResults: [],
     // PR 5 POC: 이전 실행 activity_summary 제목을 연속성 힌트로 읽는다.
     readsFromPreviousRun: ["student_record_activity_summaries"],
+    // Cross-run self-loop (2026-04-18 B): 직전 실행 스토리라인 title/keyword 를 연속성 힌트로
+    // 다음 실행 S1 자신에 주입 — title 축 완전 재표현 방지. [C] title 지속성 7.7% (run4→5) 개선 목표.
+    writesForNextRun: ["storyline_generation"],
   },
 
   edge_computation: {
