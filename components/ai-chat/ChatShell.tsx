@@ -531,6 +531,38 @@ function toolState(
   }
 }
 
+/**
+ * Phase F-2 후속: MCP 경유 tool 은 UIMessage parts 에서 `type: "dynamic-tool"` +
+ * `toolName` 필드 구조로 들어온다(정적 `tool-{name}` 과 구분). 양쪽을 동일하게
+ * 처리하기 위해 이 헬퍼로 판정한다.
+ */
+function matchesTool(p: unknown, name: string): boolean {
+  if (typeof p !== "object" || p === null) return false;
+  const part = p as { type?: unknown; toolName?: unknown };
+  return (
+    part.type === `tool-${name}` ||
+    (part.type === "dynamic-tool" && part.toolName === name)
+  );
+}
+
+/**
+ * MCP tool 결과는 `{content, structuredContent, isError}` CallToolResult 로
+ * 들어온다. 실제 도메인 output 은 `structuredContent`. 래핑 여부와 관계없이
+ * 도메인 객체를 꺼낸다.
+ */
+function extractToolOutput<T>(raw: unknown): T | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as { structuredContent?: unknown };
+  if (
+    "structuredContent" in r &&
+    r.structuredContent &&
+    typeof r.structuredContent === "object"
+  ) {
+    return r.structuredContent as T;
+  }
+  return raw as T;
+}
+
 function statusLabel(
   status: "no_analysis" | "running" | "partial" | "completed",
 ): string {
@@ -571,6 +603,15 @@ function MessageRow({
 }: MessageRowProps) {
   const isUser = message.role === "user";
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
+
+  // F-2 후속: AI SDK useChat 이 CSR 초기 state 계산 시 MCP tool parts 를
+  // 내부 재가공하여 SSR/CSR 트리가 엇갈리는 hydration mismatch 회귀가 발생함.
+  // tool 카드 렌더를 mount 이후로 지연시켜 서버·클라이언트 초기 트리를 동일하게
+  // 맞춘다(서버=텍스트만, 클라 초기=텍스트만 → mount 후 tool card 재렌더).
+  const [toolCardsMounted, setToolCardsMounted] = useState(false);
+  useEffect(() => {
+    setToolCardsMounted(true);
+  }, []);
 
   const respondArchive = async (
     toolCallId: string,
@@ -620,10 +661,12 @@ function MessageRow({
             const rText = "text" in p ? String(p.text ?? "") : "";
             return <ReasoningBlock key={i} text={rText} state={rState} />;
           }
-          if (p.type === "tool-getScores" && "state" in p) {
+          if (toolCardsMounted && matchesTool(p, "getScores") && "state" in p) {
             const state = toolState(p.state);
             const output =
-              state === "success" ? (p.output as GetScoresOutput) : undefined;
+              state === "success"
+                ? extractToolOutput<GetScoresOutput>(p.output)
+                : undefined;
             const artifactId = `scores:${p.toolCallId}`;
             const input = "input" in p ? (p.input as Record<string, unknown>) : undefined;
             const filterLabel = input
@@ -696,12 +739,12 @@ function MessageRow({
             );
           }
 
-          if (p.type === "tool-archiveConversation" && "state" in p) {
+          if (toolCardsMounted && matchesTool(p, "archiveConversation") && "state" in p) {
             const rawState = p.state;
             const input = "input" in p ? (p.input as { reason?: string }) : undefined;
             const output =
               rawState === "output-available"
-                ? (p.output as ArchiveConversationOutput)
+                ? extractToolOutput<ArchiveConversationOutput>(p.output)
                 : undefined;
 
             // input-available: 서버가 tool call 을 스트리밍 완료, 승인 대기.
@@ -749,13 +792,15 @@ function MessageRow({
             );
           }
 
-          if (p.type === "tool-analyzeRecord" && "state" in p) {
+          if (toolCardsMounted && matchesTool(p, "analyzeRecord") && "state" in p) {
             const state = toolState(p.state);
             const input = "input" in p
               ? (p.input as { studentName?: string })
               : undefined;
             const output =
-              state === "success" ? (p.output as AnalyzeRecordOutput) : undefined;
+              state === "success"
+                ? extractToolOutput<AnalyzeRecordOutput>(p.output)
+                : undefined;
 
             const summary = output
               ? output.ok
@@ -795,10 +840,12 @@ function MessageRow({
             );
           }
 
-          if (p.type === "tool-navigateTo" && "state" in p) {
+          if (toolCardsMounted && matchesTool(p, "navigateTo") && "state" in p) {
             const rawState = toolState(p.state);
             const output =
-              rawState === "success" ? (p.output as NavigateToOutput) : undefined;
+              rawState === "success"
+                ? extractToolOutput<NavigateToOutput>(p.output)
+                : undefined;
             const isDenied = output?.ok === false;
             // role 거부는 success 상태지만 UX 상 error 로 표시
             const state = isDenied ? "error" : rawState;

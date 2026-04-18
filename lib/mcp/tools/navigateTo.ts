@@ -100,8 +100,10 @@ export const navigateToInputShape = {
       "이동할 의도 경로. 공통(의도): /dashboard, /plan, /scores, /analysis, /guides, /settings. admin 전용: /admin/dashboard, /admin/students, /admin/guides, /admin/settings. parent 전용: /parent/*.",
     ),
   reason: z.string().describe("사용자에게 보여줄 짧은 이동 안내 문구"),
+  // null/undefined 모두 수용 (LLM 이 미지정 필드를 null 로 채워 보내는 경우 대응).
   studentName: z
     .string()
+    .nullable()
     .optional()
     .describe(
       "대상 학생 이름. admin/consultant 가 '김세린 성적 페이지', '@김세린 생기부' 같은 특정 학생 화면을 요청할 때 제공. 서버가 /admin/students/{id} 로 매핑.",
@@ -222,7 +224,8 @@ export async function navigateToExecute({
   const resolved = await resolveNavigationPath({
     role: user.role,
     requestedPath: path,
-    studentName,
+    // null → undefined 정규화.
+    studentName: studentName ?? undefined,
   });
 
   if (!resolved.ok) {

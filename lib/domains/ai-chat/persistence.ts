@@ -86,7 +86,68 @@ export async function saveChatTurn(
 
 /**
  * 특정 대화의 메시지 전체 조회. UI 재개용.
+ *
+ * F-2 후속: MCP 경유 tool 은 스트림 중 `type:"dynamic-tool"` + `toolName` 필드로
+ * 들어와 DB 에 그대로 저장된다. SSR 과 CSR 간 useChat 초기 hydration 결과가
+ * 엇갈려 mismatch 를 유발하므로, 재로드 시점에 **static 네이밍 `tool-${name}`**
+ * 으로 정규화해 단일 type 구조로 맞춘다. ChatShell `matchesTool` 은 스트림 중간
+ * 상태를 위해 여전히 양쪽 이름을 모두 허용.
  */
+/**
+ * MCP CallToolResult(`{content, structuredContent, isError}`) 에서 도메인 output 을 추출.
+ */
+function unwrapMcpOutput(output: unknown): unknown {
+  if (!output || typeof output !== "object") return output;
+  const o = output as { structuredContent?: unknown };
+  if (
+    "structuredContent" in o &&
+    o.structuredContent &&
+    typeof o.structuredContent === "object"
+  ) {
+    return o.structuredContent;
+  }
+  return output;
+}
+
+function normalizeMessagePart(part: unknown): unknown {
+  if (typeof part !== "object" || part === null) return part;
+  const p = part as {
+    type?: unknown;
+    toolName?: unknown;
+    output?: unknown;
+  } & Record<string, unknown>;
+
+  const hasDynamicTool =
+    p.type === "dynamic-tool" && typeof p.toolName === "string";
+  const isToolPart =
+    hasDynamicTool ||
+    (typeof p.type === "string" && p.type.startsWith("tool-"));
+
+  if (!isToolPart) return part;
+
+  const unwrappedOutput =
+    "output" in p && p.output !== undefined
+      ? unwrapMcpOutput(p.output)
+      : p.output;
+
+  if (hasDynamicTool) {
+    const { type: _type, toolName, output: _output, ...rest } = p;
+    void _type;
+    void _output;
+    return {
+      ...rest,
+      type: `tool-${toolName}`,
+      ...(unwrappedOutput !== undefined ? { output: unwrappedOutput } : {}),
+    };
+  }
+
+  // static tool part — output 만 평면화.
+  if (unwrappedOutput !== p.output) {
+    return { ...p, output: unwrappedOutput };
+  }
+  return part;
+}
+
 export async function loadConversationMessages(
   conversationId: string,
 ): Promise<UIMessage[]> {
@@ -103,14 +164,16 @@ export async function loadConversationMessages(
 
   if (error || !data) return [];
 
-  return (data as unknown as AIMessageRow[]).map(
-    (row) =>
-      ({
-        id: row.id,
-        role: row.role,
-        parts: row.parts,
-      }) as UIMessage,
-  );
+  return (data as unknown as AIMessageRow[]).map((row) => {
+    const parts = Array.isArray(row.parts)
+      ? (row.parts as unknown[]).map(normalizeMessagePart)
+      : row.parts;
+    return {
+      id: row.id,
+      role: row.role,
+      parts,
+    } as UIMessage;
+  });
 }
 
 /**
