@@ -89,9 +89,15 @@ Synthesis Pipeline (종합, 14태스크×7Phase — 트랙 D 2026-04-14 3종 승
   S4: bypass_analysis
   S5: activity_summary + ai_strategy         ← qualityPatterns + hyperedgeSummarySection 주입
   S6: interview_generation + roadmap_generation
-  S7: tier_plan_refinement                   ← Synthesis → main_exploration 피드백 루프 (Phase 4b Sprint 3, 2026-04-19)
+  S7: tier_plan_refinement                   ← Synthesis → main_exploration 피드백 루프 (Phase 4b Sprint 3+4, 2026-04-19)
         ↑ S3 진단 + S5 전략 + S6 로드맵 + qualityPatterns 을 근거로 active main_exploration.tier_plan 을 재평가.
-          jaccard ≥ 0.8 → no-op / < 0.8 → origin='auto_bootstrap_v2' 로 신규 row INSERT (parent_version_id 체인).
+          Sprint 3: extractTierPlanSuggestion 으로 제안 plan 생성 → jaccard 비교로 수렴 판정.
+          Sprint 4(2026-04-19): jaccard 의 surface rephrasing 오판(gpt-5.4 같은 프로덕션 모델에서 0.17 → 무한 cascade)
+            → judgeTierPlanConvergence(L4-D Flash judge) 로 교체. verdict 3-class:
+              · semantically_equivalent / minor_refinement → converged (no-op)
+              · substantial_change → refined → max chain depth 가드 통과 시 신규 row INSERT
+            jaccard 는 task_results 에 telemetry 로만 보존(judge 정확도 검증 도구).
+          max_chain_depth=2 로 자동 cascade 차단 (v3 생성 직전 skipped_max_version_chain).
           컨설턴트 수정본(edited_by_consultant_at != null) / 비-부트스트랩 origin 은 자동 skip.
           재부트스트랩 트리거는 Phase 4a staleness 배너가 사용자 클릭으로 주도 (서버-서버 체이닝 금지).
 ```
@@ -118,7 +124,7 @@ Synthesis Pipeline (종합, 14태스크×7Phase — 트랙 D 2026-04-14 3종 승
 | **S3 ai_diagnosis** | `prompts/diagnosisPrompt.ts` | `mainExplorationSection` (renderer 결과) | tier 정합성 평가 (현 활동이 어느 tier에 위치하는지) |
 | **S5 ai_strategy** | `prompts/strategyRecommend.ts` | `mainExplorationSection` | tier_plan 빈 셀(추천 활동 부족 학기) 우선 채움 |
 | **S6 interview / roadmap** | `prompts/generateInterviewQuestions.ts`, `prompts/roadmapGeneration.ts` | `mainExplorationSection` | record의 tier 컨텍스트 / 학기별 missions와 tier 정합 |
-| **S7 tier_plan_refinement** | `llm/prompts/tierPlanRefinement.ts` + `llm/actions/extractTierPlanSuggestion.ts` | 현 tier_plan + Synthesis 산출물(진단 약점·전략·로드맵·qualityPatterns) | Synthesis 결과를 근거로 tier_plan 을 **역방향 개정**. `compareTierPlans()` jaccard ≥ 0.8 = no-op, < 0.8 = origin='auto_bootstrap_v2' 신규 row INSERT |
+| **S7 tier_plan_refinement** | `llm/prompts/tierPlanRefinement.ts` + `llm/actions/extractTierPlanSuggestion.ts` + `llm/prompts/tierPlanConvergenceJudge.ts` + `llm/actions/judgeTierPlanConvergence.ts` | 현 tier_plan + Synthesis 산출물(진단 약점·전략·로드맵·qualityPatterns) | Synthesis 결과를 근거로 tier_plan 을 **역방향 개정**. Sprint 4: `judgeTierPlanConvergence`(Flash, L4-D 패턴) 로 컨설팅 가치 동등성 판정. verdict=substantial_change + chainDepth < 2 → origin='auto_bootstrap_v2' 신규 row INSERT. jaccard 는 telemetry 전용 |
 
 **P5/P6/P7/P8은 직접 참조 없음**:
 - P5(changche_guide)/P6(haengteuk_guide)는 P4 산출물(세특 가이드)을 참조 → tier가 간접 반영.
@@ -334,6 +340,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `generateChangcheDraft.ts` | `generateChangcheDraftAction()` | standard | 창체 AI 초안 (fire-and-forget) |
 | `generateHaengteukDraft.ts` | `generateHaengteukDraftAction()` | standard | 행특 AI 초안 (fire-and-forget) |
 | `extractTierPlanSuggestion.ts` | `extractTierPlanSuggestion()` | fast (Pro fallback) | Phase 4b Sprint 2 — S7 tier_plan 역방향 개정 제안 |
+| `judgeTierPlanConvergence.ts` | `judgeTierPlanConvergence()` | fast | Phase 4b Sprint 4 — S7 LLM-judge: 두 plan 컨설팅 가치 동등성 verdict 3-class |
 | `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |
 
 ### UI 4단계 탭 구조 (소비자 측 — app/(admin)/admin/students/[id])

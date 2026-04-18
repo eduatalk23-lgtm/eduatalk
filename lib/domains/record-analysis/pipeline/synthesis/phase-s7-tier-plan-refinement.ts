@@ -1,17 +1,17 @@
 // ============================================
-// S7 (Phase 4b Sprint 3): tier_plan refinement — Synthesis → main_exploration 피드백 루프
+// S7 (Phase 4b): tier_plan refinement — Synthesis → main_exploration 피드백 루프
 //
-// Synthesis 산출물(진단 약점·전략·로드맵·반복 품질 패턴)을 근거로 활성 main_exploration 의
-// tier_plan 을 재평가한다.
+// 흐름:
+//   1. 활성 main_exploration 로드 (origin/consultant/target_major 가드)
+//   2. Synthesis 산출물(진단·전략·로드맵·qualityPatterns) 수집
+//   3. extractTierPlanSuggestion: 현 plan + Synthesis 입력 → 제안 plan
+//   4. judgeTierPlanConvergence(L4-D 패턴, Flash): 두 plan 의 컨설팅 가치 동등성 LLM 판정
+//   5. converged → no-op / substantial_change → max chain guard → origin='auto_bootstrap_v2' INSERT
 //
-//   · action=converged            : jaccard ≥ threshold(0.8). 의미 있는 차이 없음 → no-op.
-//   · action=refined              : jaccard < threshold. origin='auto_bootstrap_v2' 로 신규 row INSERT.
-//   · action=skipped_*            : 컨설턴트 수정본/비-부트스트랩/target_major 미설정/LLM 실패 등.
+// 구식 jaccard 비교(Sprint 1+2)는 surface rephrasing 을 큰 변경으로 오판 → Sprint 4 에서 제거.
+// jaccard 는 task_results 에 telemetry 로만 보존(LLM-judge 정확도 검증 도구).
 //
-// 재부트스트랩 트리거는 **서버-서버 체이닝 금지** 원칙에 따라 Phase 4a staleness 배너가
-// `main_exploration.updated_at > blueprint.completed_at` 을 감지해 사용자 클릭으로 주도.
-//
-// 의존: ai_diagnosis(weaknesses) + ai_strategy(strategy_content) + roadmap_generation(plan_content)
+// max version chain depth = 2 (v3 차단). v2 도 부족하면 컨설턴트 수동 편집 영역.
 // ============================================
 
 import { logActionDebug, logActionError, logActionWarn } from "@/lib/logging/actionLogger";
@@ -20,6 +20,7 @@ import { assertSynthesisCtx } from "../pipeline-types";
 import {
   getActiveMainExploration,
   createMainExploration,
+  getMainExplorationChainDepth,
   type MainExplorationTierPlan,
 } from "@/lib/domains/student-record/repository/main-exploration-repository";
 import {
@@ -27,6 +28,7 @@ import {
   DEFAULT_TIER_PLAN_CONVERGENCE_THRESHOLD,
 } from "../../blueprint/tier-plan-similarity";
 import { extractTierPlanSuggestion } from "../../llm/actions/extractTierPlanSuggestion";
+import { judgeTierPlanConvergence } from "../../llm/actions/judgeTierPlanConvergence";
 import { MAJOR_TO_TIER1 } from "@/lib/constants/career-classification";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 
@@ -37,6 +39,9 @@ const MAX_ROADMAP_HIGHLIGHTS = 5;
 const MAX_DIAGNOSIS_WEAKNESSES = 5;
 const MAX_QUALITY_PATTERNS = 5;
 
+/** Phase 4b Sprint 4: 자동 cascade chain depth 상한 (v3 생성 직전 차단). */
+export const MAX_TIER_PLAN_CHAIN_DEPTH = 2;
+
 export async function runTierPlanRefinement(
   ctx: PipelineContext,
 ): Promise<TaskRunnerOutput> {
@@ -44,7 +49,7 @@ export async function runTierPlanRefinement(
   const { studentId, tenantId, supabase } = ctx;
   const startMs = Date.now();
 
-  // ── 1. 활성 main_exploration 로드 (scope=overall, direction=design) ──
+  // ── 1. 활성 main_exploration 로드 ──
   const active = await getActiveMainExploration(
     studentId,
     tenantId,
@@ -104,7 +109,7 @@ export async function runTierPlanRefinement(
   const tier1Code = MAJOR_TO_TIER1[targetMajor] ?? "";
   const currentGrade = ((student?.grade ?? 1) as 1 | 2 | 3);
 
-  // ── 5. Synthesis 산출물 요약 로드 (DB 직접 조회 — 이미 S3/S5/S6 가 영속화 완료) ──
+  // ── 5. Synthesis 산출물 요약 로드 ──
   const currentSchoolYear = calculateSchoolYear();
 
   const [diagRes, stratRes, roadmapRes] = await Promise.all([
@@ -163,7 +168,7 @@ export async function runTierPlanRefinement(
     .slice(0, MAX_QUALITY_PATTERNS)
     .map((p) => `${p.pattern} (${p.count}회, 과목: ${p.subjects.join(", ")})`);
 
-  // ── 6. LLM 호출 (Flash → Pro fallback) ──
+  // ── 6. Suggestion LLM (Flash → Pro fallback) ──
   const currentTierPlan = active.tier_plan as unknown as {
     foundational: { theme: string; key_questions: string[]; suggested_activities: string[] };
     development: { theme: string; key_questions: string[]; suggested_activities: string[] };
@@ -199,23 +204,35 @@ export async function runTierPlanRefinement(
     };
   }
 
-  // ── 7. jaccard 비교 ──
+  // ── 7. jaccard telemetry (판정엔 사용 안 함, LLM-judge 정확도 검증 도구) ──
   const similarity = compareTierPlans(
     active.tier_plan as unknown as MainExplorationTierPlan,
     suggestion.data.tierPlan,
     { threshold: DEFAULT_TIER_PLAN_CONVERGENCE_THRESHOLD },
   );
 
-  // ── 8. 수렴: no-op 종료 ──
-  if (similarity.converged) {
-    logActionDebug(LOG_CTX, "tier_plan 수렴 — 갱신 불필요", {
+  // ── 8. LLM-judge: 컨설팅 가치 동등성 판정 ──
+  const judge = await judgeTierPlanConvergence({
+    targetMajor,
+    targetMajor2,
+    currentGrade,
+    currentThemeLabel: active.theme_label,
+    proposedThemeLabel: suggestion.data.themeLabel,
+    currentTierPlan,
+    proposedTierPlan: suggestion.data.tierPlan,
+  });
+
+  if (!judge.success) {
+    // judge 실패 시 fail-closed: 개정 skip (추가 row 생성 위험 회피)
+    logActionWarn(LOG_CTX, "tier_plan judge LLM 실패 — fail-closed skip", {
       studentId,
-      jaccardOverall: similarity.overall,
+      error: judge.error,
     });
     return {
-      preview: `수렴 (jaccard ${similarity.overall.toFixed(3)} ≥ ${similarity.threshold}) — 갱신 불필요`,
+      preview: `judge 실패 — 개정 skip (fail-closed)`,
       result: {
-        action: "converged",
+        action: "skipped_judge_error",
+        error: judge.error,
         jaccardOverall: similarity.overall,
         jaccardByTier: similarity.byTier,
         threshold: similarity.threshold,
@@ -225,7 +242,57 @@ export async function runTierPlanRefinement(
     };
   }
 
-  // ── 9. 미수렴: origin=auto_bootstrap_v2 로 신규 row INSERT ──
+  const judgeBase = {
+    judgeVerdict: judge.data.verdict,
+    judgeReasoning: judge.data.reasoning,
+    judgeDeltaCategories: judge.data.deltaCategories,
+    ...(judge.modelName ? { judgeModelName: judge.modelName } : {}),
+    jaccardOverall: similarity.overall,
+    jaccardByTier: similarity.byTier,
+    threshold: similarity.threshold,
+    ...(suggestion.modelName ? { modelName: suggestion.modelName } : {}),
+  };
+
+  // ── 9. 수렴: no-op 종료 ──
+  if (judge.converged) {
+    logActionDebug(LOG_CTX, "tier_plan 수렴 — 갱신 불필요", {
+      studentId,
+      verdict: judge.data.verdict,
+      jaccardOverall: similarity.overall,
+    });
+    return {
+      preview: `수렴 (${judge.data.verdict}) — 갱신 불필요`,
+      result: {
+        action: "converged",
+        ...judgeBase,
+        elapsedMs: Date.now() - startMs,
+      },
+    };
+  }
+
+  // ── 10. max chain depth 가드 (v3 차단) ──
+  const chainDepth = await getMainExplorationChainDepth(active.id, supabase);
+  if (chainDepth >= MAX_TIER_PLAN_CHAIN_DEPTH) {
+    logActionWarn(LOG_CTX, "tier_plan chain depth 상한 도달 — 자동 개정 차단", {
+      studentId,
+      activeId: active.id,
+      chainDepth,
+      maxChainDepth: MAX_TIER_PLAN_CHAIN_DEPTH,
+      verdict: judge.data.verdict,
+    });
+    return {
+      preview: `chain depth ${chainDepth} ≥ ${MAX_TIER_PLAN_CHAIN_DEPTH} — 자동 개정 차단 (컨설턴트 수동 검토 영역)`,
+      result: {
+        action: "skipped_max_version_chain",
+        chainDepth,
+        maxChainDepth: MAX_TIER_PLAN_CHAIN_DEPTH,
+        ...judgeBase,
+        elapsedMs: Date.now() - startMs,
+      },
+    };
+  }
+
+  // ── 11. substantial_change: origin='auto_bootstrap_v2' 신규 row INSERT ──
   try {
     const created = await createMainExploration(
       {
@@ -256,20 +323,20 @@ export async function runTierPlanRefinement(
       prevVersionId: active.id,
       newVersionId: created.id,
       newVersion: created.version,
+      verdict: judge.data.verdict,
       jaccardOverall: similarity.overall,
     });
 
     return {
-      preview: `개정 (jaccard ${similarity.overall.toFixed(3)} < ${similarity.threshold}) → v${created.version}`,
+      preview: `개정 (${judge.data.verdict}) → v${created.version}`,
       result: {
         action: "refined",
-        jaccardOverall: similarity.overall,
-        jaccardByTier: similarity.byTier,
-        threshold: similarity.threshold,
         prevVersionId: active.id,
         newVersionId: created.id,
         newVersion: created.version,
-        ...(suggestion.modelName ? { modelName: suggestion.modelName } : {}),
+        chainDepth: chainDepth + 1,
+        maxChainDepth: MAX_TIER_PLAN_CHAIN_DEPTH,
+        ...judgeBase,
         elapsedMs: Date.now() - startMs,
       },
     };
@@ -280,7 +347,7 @@ export async function runTierPlanRefinement(
       result: {
         action: "skipped_insert_error",
         error: err instanceof Error ? err.message : String(err),
-        jaccardOverall: similarity.overall,
+        ...judgeBase,
         elapsedMs: Date.now() - startMs,
       },
     };

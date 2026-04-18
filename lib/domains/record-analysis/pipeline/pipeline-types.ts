@@ -254,13 +254,28 @@ export interface PipelineTaskResultMap {
       | "skipped_non_bootstrap_origin"
       | "skipped_no_target_major"
       | "skipped_llm_error"
+      | "skipped_judge_error"
+      | "skipped_max_version_chain"
       | "skipped_insert_error";
+    /** Phase 4b Sprint 4: LLM-judge verdict (3-class). action=converged|refined 일 때만 채워짐. */
+    judgeVerdict?: "semantically_equivalent" | "minor_refinement" | "substantial_change";
+    judgeReasoning?: string;
+    judgeDeltaCategories?: Array<
+      "rephrasing_only" | "specificity_added" | "new_keyword" | "scope_expansion" | "tier_realignment"
+    >;
+    /** judge LLM 모델 ID (suggestion LLM 과 별개). */
+    judgeModelName?: string;
+    /** Sprint 4: max chain depth 가드 도달 시 기록. */
+    chainDepth?: number;
+    maxChainDepth?: number;
+    /** jaccard 측정치는 telemetry 전용 — 판정엔 사용하지 않음. judge 정확도 검증 도구. */
     jaccardOverall?: number;
     jaccardByTier?: { foundational: number; development: number; advanced: number };
     threshold?: number;
     prevVersionId?: string;
     newVersionId?: string;
     newVersion?: number;
+    /** suggestion LLM 모델 ID (extractTierPlanSuggestion). */
     modelName?: string;
     error?: string;
     elapsedMs?: number;

@@ -205,6 +205,41 @@ export async function getMainExplorationById(
   return (data as MainExploration | null) ?? null;
 }
 
+/**
+ * Phase 4b Sprint 4 (2026-04-19): parent_version_id 체인 깊이 카운트.
+ *
+ * 자동 cascade(`auto_bootstrap` → `auto_bootstrap_v2`) 무한 누적을 막기 위한 안전판.
+ * S7 가 활성 main_exploration 의 chain depth ≥ MAX 시 신규 row 생성을 거부할 때 사용.
+ *
+ * 깊이 = 자기 자신 포함 ancestor 수.
+ *   - parent_version_id == null → depth=1 (root)
+ *   - parent → root → null     → depth=2
+ *   - 등등
+ *
+ * 무한 루프 보호: 50 단계까지만 거슬러 올라가고 그 이상은 50 으로 clamp.
+ */
+export async function getMainExplorationChainDepth(
+  id: string,
+  client?: Client,
+): Promise<number> {
+  const supabase = await resolveClient(client);
+  const SAFETY_CAP = 50;
+  let currentId: string | null = id;
+  let depth = 0;
+  while (currentId && depth < SAFETY_CAP) {
+    const { data, error } = await supabase
+      .from("student_main_explorations")
+      .select("parent_version_id")
+      .eq("id", currentId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) break;
+    depth++;
+    currentId = (data.parent_version_id as string | null) ?? null;
+  }
+  return depth;
+}
+
 // ============================================
 // 3. 쓰기 — 생성 / 활성화 / 핀
 // ============================================
