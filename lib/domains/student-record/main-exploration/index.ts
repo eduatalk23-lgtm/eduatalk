@@ -13,6 +13,7 @@ export {
   deriveTierPlanFromLinks,
   syncLinksFromTierPlan,
   updateMainExplorationTierPlan,
+  markMainExplorationAsConsultantEdited,
 } from "./sync";
 export type { TierPlan, TierPlanEntry } from "./sync";
 

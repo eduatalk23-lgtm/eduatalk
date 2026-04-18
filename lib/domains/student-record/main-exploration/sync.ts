@@ -177,23 +177,33 @@ export async function syncLinksFromTierPlan(
 /**
  * 메인 탐구의 tier_plan 을 교체하고 links 자동 동기화.
  *   syncLinks=false 면 tier_plan 만 업데이트 (links 는 기존 유지 — 드문 케이스).
+ *
+ * Phase 3 (2026-04-18): `actor` 인자 추가. `'consultant'` 면 `edited_by_consultant_at=NOW()`
+ *   자동 set → 이후 Phase 4 재부트스트랩이 "AI 초안이지만 컨설턴트가 손댄 row" 를 덮어쓰지 않도록.
+ *   `'pipeline'` 은 Phase 4 v2 재시드 같은 자동 경로. 기본값은 `'consultant'` (UI 편집이 대다수).
  */
 export async function updateMainExplorationTierPlan(
   id: string,
   tenantId: string,
   tierPlan: TierPlan,
-  options?: { syncLinks?: boolean },
+  options?: { syncLinks?: boolean; actor?: "consultant" | "pipeline" },
   client?: Client,
 ): Promise<{ linkCount: number }> {
   const parsed = tierPlanSchema.parse(tierPlan);
   const supabase = await resolveClient(client);
 
+  const actor = options?.actor ?? "consultant";
+  const updatePayload: Record<string, unknown> = {
+    tier_plan: parsed as unknown as Json,
+    updated_at: new Date().toISOString(),
+  };
+  if (actor === "consultant") {
+    updatePayload.edited_by_consultant_at = new Date().toISOString();
+  }
+
   const { error } = await supabase
     .from("student_main_explorations")
-    .update({
-      tier_plan: parsed as unknown as Json,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", id);
   if (error) throw error;
 
@@ -202,4 +212,27 @@ export async function updateMainExplorationTierPlan(
     linkCount = await syncLinksFromTierPlan(id, tenantId, parsed, supabase);
   }
   return { linkCount };
+}
+
+/**
+ * Phase 3: 컨설턴트가 메인 탐구 본체(themeLabel/keywords/tier_plan 등)를 수정했음을 명시.
+ *
+ * `edited_by_consultant_at = NOW()` 만 단독으로 set. tier_plan 외 필드를 UPDATE 하는 다른
+ * 경로(예: 신규 UI 편집 액션)에서 수정 이력만 남기고 싶을 때 호출.
+ * Phase 4 재부트스트랩 가드: `origin='auto_bootstrap*' AND edited_by_consultant_at IS NULL`
+ * 인 row 만 자동 교체 → 이 마크가 찍힌 row 는 보호됨.
+ */
+export async function markMainExplorationAsConsultantEdited(
+  id: string,
+  client?: Client,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("student_main_explorations")
+    .update({
+      edited_by_consultant_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as Record<string, unknown>)
+    .eq("id", id);
+  if (error) throw error;
 }

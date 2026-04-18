@@ -18,7 +18,10 @@ import { createMainExploration } from "@/lib/domains/student-record/repository/m
 import { generateAndSaveRecommendations } from "@/lib/domains/student-record/course-plan/service";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { generateMainExplorationSeed } from "../../llm/actions/generateMainExplorationSeed";
+import { withExtendedRetry } from "../../llm/withExtendedRetry";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { BootstrapError } from "./ensure-bootstrap";
+import { buildRecordSummaryForSeed } from "./build-record-summary";
 
 const LOG_CTX = { domain: "record-analysis", action: "bootstrap.phase-b0" };
 
@@ -138,12 +141,35 @@ export async function runMainExplorationSeed(
     );
   }
 
-  const seed = await generateMainExplorationSeed({
-    targetMajor,
-    targetMajor2,
-    tier1Code: tier1,
-    currentGrade: grade,
-  });
+  // Phase 3. k≥1 학생(이전 학년 synthesis/analysis 완료) 이면 기존 탐구 요약을 LLM 에 주입.
+  //   학생 개별화된 메인 탐구 초안을 얻기 위함. k=0 이면 null 반환 → summary 없이 기존 경로.
+  const recordSummary = await buildRecordSummaryForSeed(studentId, tenantId, supabase);
+  if (recordSummary) {
+    logActionDebug(LOG_CTX, "k≥1 감지 — NEIS 요약 주입", {
+      studentId,
+      keywordCount: recordSummary.keywords.length,
+      subjectCount: recordSummary.subjectAreas.length,
+    });
+  }
+
+  // Phase 3: 장시간 rate limit 회복 허용 (누적 ~21분, heartbeat 30초 간격).
+  //   Gemini Free Tier 분/일 할당량 고갈 시 짧은 withRetry (10s) 로는 복구 불가.
+  //   Bootstrap 은 파이프라인 시작점 → 여기서 실패하면 하위 cascade 전부 차단되므로
+  //   긴 대기를 감수하고 회복을 기다리는 선택이 사용자 UX 에 우위.
+  const seed = await withExtendedRetry(
+    () => generateMainExplorationSeed({
+      targetMajor,
+      targetMajor2,
+      tier1Code: tier1,
+      currentGrade: grade,
+      ...(recordSummary ? { recordSummary } : {}),
+    }),
+    {
+      pipelineId: ctx.pipelineId,
+      supabase: ctx.supabase as SupabaseAdminClient,
+      label: "bootstrap.main_exploration_seed",
+    },
+  );
 
   if (!seed.success) {
     throw new BootstrapError(
@@ -167,6 +193,10 @@ export async function runMainExplorationSeed(
       direction: "design",
       semanticRole: "hypothesis_root",
       source: "ai",
+      // Phase 3. Bootstrap 경로임을 명시 — 추후 Phase 4 재부트스트랩이
+      //   origin='auto_bootstrap*' AND edited_by_consultant_at IS NULL 인 row 만
+      //   덮어쓰기 대상으로 판정. 컨설턴트 수정본 보호.
+      origin: "auto_bootstrap",
       themeLabel: seed.data.themeLabel,
       themeKeywords: seed.data.themeKeywords,
       careerField: tier1,
