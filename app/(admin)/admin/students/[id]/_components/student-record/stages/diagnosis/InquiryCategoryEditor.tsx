@@ -23,13 +23,25 @@ interface ActiveMainExplorationResponse {
     themeLabel: string;
     themeKeywords: string[] | null;
     careerField: string | null;
+    /** Phase 3. AI 세부 경로 (auto_bootstrap / auto_bootstrap_v2 / consultant_direct / migrated) */
+    origin?: string | null;
+    /** Phase 3. AI 초안 row 를 컨설턴트가 수정한 시점 (ISO). null 이면 미수정. */
+    editedByConsultantAt?: string | null;
   };
   error?: { code: string; message: string };
 }
 
+interface ActiveMainExplorationInfo {
+  id: string;
+  direction: string;
+  themeLabel: string;
+  origin: string | null;
+  editedByConsultantAt: string | null;
+}
+
 async function fetchActiveMainExploration(
   studentId: string,
-): Promise<{ id: string; direction: string } | null> {
+): Promise<ActiveMainExplorationInfo | null> {
   const res = await fetch(
     `/api/admin/students/${studentId}/active-main-exploration?direction=design`,
   );
@@ -38,7 +50,13 @@ async function fetchActiveMainExploration(
     if (res.status === 404) return null;
     throw new Error(json.error?.message ?? "활성 메인 탐구 조회 실패");
   }
-  return { id: json.data.id, direction: json.data.direction };
+  return {
+    id: json.data.id,
+    direction: json.data.direction,
+    themeLabel: json.data.themeLabel,
+    origin: json.data.origin ?? null,
+    editedByConsultantAt: json.data.editedByConsultantAt ?? null,
+  };
 }
 
 /**
@@ -72,7 +90,71 @@ export function InquiryCategoryEditorSection({
     );
   }
 
-  return <InquiryCategoryEditor mainExplorationId={data.id} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <MainExplorationOriginBadges
+        themeLabel={data.themeLabel}
+        origin={data.origin}
+        editedByConsultantAt={data.editedByConsultantAt}
+      />
+      <InquiryCategoryEditor mainExplorationId={data.id} />
+    </div>
+  );
+}
+
+/**
+ * Phase 3. 활성 메인 탐구의 origin + 수정 여부를 컨설턴트에게 시각화.
+ *   - origin='auto_bootstrap*' AND editedByConsultantAt==null → "AI 자동 생성 초안" 뱃지
+ *   - editedByConsultantAt!=null → "컨설턴트 수정됨" 뱃지 추가 표시
+ *   - origin='consultant_direct' → 뱃지 생략 (기본 상태)
+ *   - origin='migrated' → 뱃지 생략 (Phase 3 이전 row, 중립 취급)
+ */
+function MainExplorationOriginBadges({
+  themeLabel,
+  origin,
+  editedByConsultantAt,
+}: {
+  themeLabel: string;
+  origin: string | null;
+  editedByConsultantAt: string | null;
+}) {
+  const isAutoOrigin = origin === "auto_bootstrap" || origin === "auto_bootstrap_v2";
+  const wasEditedByConsultant = !!editedByConsultantAt;
+
+  if (!isAutoOrigin && !wasEditedByConsultant) {
+    // 뱃지 표시할 상태가 아님 — themeLabel 만 간단히 노출
+    return (
+      <div className="text-sm text-[var(--text-tertiary)]">
+        <span className="font-medium text-[var(--text-secondary)]">활성 메인 탐구:</span>{" "}
+        {themeLabel}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3">
+      <div className="text-sm text-[var(--text-secondary)]">
+        <span className="font-medium">활성 메인 탐구:</span> {themeLabel}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {isAutoOrigin && !wasEditedByConsultant && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+            AI 자동 생성 초안
+          </span>
+        )}
+        {wasEditedByConsultant && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+            컨설턴트 수정됨
+            {editedByConsultantAt && (
+              <span className="ml-1 font-normal text-amber-700 dark:text-amber-300">
+                · {new Date(editedByConsultantAt).toLocaleDateString("ko-KR")}
+              </span>
+            )}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

@@ -37,6 +37,14 @@ export async function GET(
 
     if (!picked) return apiNotFound("scope=overall 활성 메인 탐구가 없습니다.");
 
+    // Phase 3 (2026-04-18): origin + edited_by_consultant_at 노출.
+    //   UI 뱃지("AI 자동 생성 초안" / "컨설턴트 수정됨") 렌더용.
+    //   Supabase types 재생성 전이라 동적 캐스팅으로 접근.
+    const pickedRaw = picked as typeof picked & {
+      origin?: string | null;
+      edited_by_consultant_at?: string | null;
+    };
+
     return apiSuccess({
       id: picked.id,
       scope: picked.scope,
@@ -45,6 +53,8 @@ export async function GET(
       themeKeywords: picked.theme_keywords,
       careerField: picked.career_field,
       version: picked.version,
+      origin: pickedRaw.origin ?? null,
+      editedByConsultantAt: pickedRaw.edited_by_consultant_at ?? null,
     });
   } catch (err) {
     return handleApiError(err);
