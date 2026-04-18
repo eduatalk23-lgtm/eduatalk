@@ -89,7 +89,12 @@ npx tsx scripts/cross-run-diff.ts tmp/cross-run/injego--run1.json tmp/cross-run/
 
 1. LLM 프롬프트 실제 내용(주입 섹션 포함 여부)은 현재 로그에 남지 않음. 필요 시 `phase-s1-storyline.ts` 에 `console.debug("[storyline] coursePlanExtra=\n" + coursePlanExtra)` 임시 추가.
 2. `task_results` 대부분이 `{ elapsedMs }` 수준 — 세션 04-17 F 후속 #2(풍부화)가 선행되어야 더 깊은 측정 가능.
-3. 인제고(k=0) 1회차에서 `activity_summaries` 가 생성되지 않는 Phase면 2회차에서도 `[C-2]` 의미 없음 — 1회차 완료 후 `activity_summaries.count ≥ 1` 확인 필수.
+3. **인제고(k=0 prospective) [C-2] 부적합 확정 (2026-04-18)**:
+   - `scripts/injego-session-c-fullrun.ts` 는 Blueprint + Grade(design)만 실행, synthesis 별도 (`injego-session-c-synthesis.ts`).
+   - Run 1/2 완료 후에도 `synthesisCompletedCount=0`, `storylines.count=0` → `[C-2]` 주지표(storyline_generation 소비 경로)가 근본적으로 측정 불가.
+   - `activity_summaries` 6건은 blueprint 산출물로, cross-run 소비자인 S1 storyline과 무관.
+   - 결론: k=0 학생의 cross-run 효과는 S1이 아닌 **blueprint 경로**(convergence 축 승계)에서 측정해야 하며 별도 지표 필요 (→ 권장 순서 #2 과제).
+   - 김세린(k=2 analysis)만 `[C-2]` 유효. Run 3→4 에서 19.5% 달성으로 기준선 확보 완료.
 
 ## 롤백
 
