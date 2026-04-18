@@ -39,6 +39,21 @@ import {
   getStudentRecordsExecute,
   getStudentRecordsInputShape,
 } from "@/lib/mcp/tools/getStudentRecords";
+import {
+  getStudentDiagnosisDescription,
+  getStudentDiagnosisExecute,
+  getStudentDiagnosisInputShape,
+} from "@/lib/mcp/tools/getStudentDiagnosis";
+import {
+  getStudentStorylinesDescription,
+  getStudentStorylinesExecute,
+  getStudentStorylinesInputShape,
+} from "@/lib/mcp/tools/getStudentStorylines";
+import {
+  getStudentOverviewDescription,
+  getStudentOverviewExecute,
+  getStudentOverviewInputShape,
+} from "@/lib/mcp/tools/getStudentOverview";
 
 export const MCP_SERVER_INFO = {
   name: "eduatalk-mcp",
@@ -140,6 +155,69 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const result = await getStudentRecordsExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "getStudentDiagnosis",
+    {
+      description: getStudentDiagnosisDescription,
+      inputSchema: getStudentDiagnosisInputShape,
+    },
+    async (args) => {
+      const result = await getStudentDiagnosisExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "getStudentStorylines",
+    {
+      description: getStudentStorylinesDescription,
+      inputSchema: getStudentStorylinesInputShape,
+    },
+    async (args) => {
+      const result = await getStudentStorylinesExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "getStudentOverview",
+    {
+      description: getStudentOverviewDescription,
+      inputSchema: getStudentOverviewInputShape,
+    },
+    async (args) => {
+      const result = await getStudentOverviewExecute(args);
       return {
         content: [
           {

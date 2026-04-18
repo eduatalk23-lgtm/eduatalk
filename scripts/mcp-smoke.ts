@@ -22,6 +22,9 @@ async function main() {
       "analyzeRecord",
       "getPipelineStatus",
       "getStudentRecords",
+      "getStudentDiagnosis",
+      "getStudentStorylines",
+      "getStudentOverview",
     ];
     const missing = expected.filter((t) => !toolNames.includes(t));
     if (missing.length > 0) {
