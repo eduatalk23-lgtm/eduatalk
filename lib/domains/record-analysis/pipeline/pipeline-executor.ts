@@ -9,6 +9,7 @@ import type {
   GradePipelineTaskKey,
   PastAnalyticsTaskKey,
   BlueprintTaskKey,
+  BootstrapTaskKey,
   PipelineTaskStatus,
   PipelineTaskResults,
   TaskRunnerOutput,
@@ -17,7 +18,7 @@ import type {
   CachedHaengteuk,
 } from "./pipeline-types";
 import { resolveRecordData, resolveRecordDataForGrade, deriveGradeCategories } from "./pipeline-data-resolver";
-import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PAST_ANALYTICS_TASK_KEYS, BLUEPRINT_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, PAST_ANALYTICS_TASK_TIMEOUTS, BLUEPRINT_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
+import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PAST_ANALYTICS_TASK_KEYS, BLUEPRINT_TASK_KEYS, BOOTSTRAP_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, PAST_ANALYTICS_TASK_TIMEOUTS, BLUEPRINT_TASK_TIMEOUTS, BOOTSTRAP_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -38,7 +39,7 @@ const LOG_CTX = { domain: "record-analysis", action: "pipeline-executor" };
 export function withTaskTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  taskKey: PipelineTaskKey | GradePipelineTaskKey | PastAnalyticsTaskKey | BlueprintTaskKey,
+  taskKey: PipelineTaskKey | GradePipelineTaskKey | PastAnalyticsTaskKey | BlueprintTaskKey | BootstrapTaskKey,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -117,7 +118,7 @@ export async function updatePipelineState(
  * runTaskWithState와 오케스트레이터 resume 분기에서 공통으로 사용하여 단일 진실 소스로 통합.
  */
 export function computePipelineFinalStatus(
-  pipelineType: "grade" | "synthesis" | "past_analytics" | "blueprint" | undefined,
+  pipelineType: "grade" | "synthesis" | "past_analytics" | "blueprint" | "bootstrap" | undefined,
   gradeMode: "analysis" | "design" | undefined,
   tasks: Record<string, PipelineTaskStatus>,
 ): "running" | "completed" | "failed" {
@@ -130,6 +131,8 @@ export function computePipelineFinalStatus(
     requiredKeys = PAST_ANALYTICS_TASK_KEYS;
   } else if (pipelineType === "blueprint") {
     requiredKeys = BLUEPRINT_TASK_KEYS;
+  } else if (pipelineType === "bootstrap") {
+    requiredKeys = BOOTSTRAP_TASK_KEYS;
   } else if (gradeMode === "design") {
     requiredKeys = GRADE_PIPELINE_TASK_KEYS.filter(
       (k) => k !== "cross_subject_theme_extraction",
@@ -174,7 +177,7 @@ export async function checkCancelled(ctx: PipelineContext): Promise<boolean> {
 
 export async function runTaskWithState(
   ctx: PipelineContext,
-  key: PipelineTaskKey | GradePipelineTaskKey | PastAnalyticsTaskKey | BlueprintTaskKey,
+  key: PipelineTaskKey | GradePipelineTaskKey | PastAnalyticsTaskKey | BlueprintTaskKey | BootstrapTaskKey,
   runner: () => Promise<TaskRunnerOutput>,
 ): Promise<void> {
   if (ctx.tasks[key] === "completed") {
@@ -347,10 +350,11 @@ export async function loadPipelineContext(
   if (rawPipelineType === "legacy") {
     throw new Error("레거시 파이프라인은 지원 중단되었습니다. Grade/Synthesis 파이프라인을 사용하세요.");
   }
-  const pipelineType: "grade" | "synthesis" | "past_analytics" | "blueprint" =
+  const pipelineType: "grade" | "synthesis" | "past_analytics" | "blueprint" | "bootstrap" =
     rawPipelineType === "grade" ? "grade"
     : rawPipelineType === "past_analytics" ? "past_analytics"
     : rawPipelineType === "blueprint" ? "blueprint"
+    : rawPipelineType === "bootstrap" ? "bootstrap"
     : "synthesis";
   const targetGrade: number | undefined =
     pipelineType === "grade" && row.grade != null ? (row.grade as number) : undefined;
@@ -369,6 +373,10 @@ export async function loadPipelineContext(
     }
   } else if (pipelineType === "blueprint") {
     for (const key of BLUEPRINT_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
+  } else if (pipelineType === "bootstrap") {
+    for (const key of BOOTSTRAP_TASK_KEYS) {
       tasks[key] = rawTasks[key] ?? "pending";
     }
   } else {

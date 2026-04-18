@@ -39,17 +39,15 @@ import {
   runGradeAwarePipeline,
   runPastAnalyticsPipeline,
   runBlueprintPipeline,
+  runBootstrapPipeline,
 } from "./pipeline-orchestrator-init";
-import {
-  ensureBootstrap,
-  BootstrapError,
-} from "@/lib/domains/record-analysis/pipeline/bootstrap";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator-full" };
 
 export interface FullOrchestrationResult {
   /** 생성된 각 파이프라인 ID (있는 것만 포함). synthesis는 클라이언트가 별도 생성. */
   pipelineIds: {
+    bootstrap?: string;
     gradeNeis?: string[];
     pastAnalytics?: string;
     blueprint?: string;
@@ -83,18 +81,21 @@ export async function runFullOrchestration(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // ── 1. Phase 0 Auto-Bootstrap: 선결 조건 자동 보강 ────
-    // target_major 검증 + main_exploration/course_plan 누락 자동 생성.
-    // 실패 시 파이프라인 진입 차단 (BootstrapError → createErrorResponse).
-    try {
-      const bootstrap = await ensureBootstrap(studentId, tenantId);
-      logActionDebug(LOG_CTX, "bootstrap 완료", { studentId, ...bootstrap });
-    } catch (err) {
-      if (err instanceof BootstrapError) {
-        logActionError(LOG_CTX, err, { studentId, step: `bootstrap:${err.step}` });
-        return createErrorResponse(`자동 셋업 실패(${err.step}): ${err.message}`);
-      }
-      throw err;
+    // ── 1. Phase 0 Auto-Bootstrap: 선결 조건 자동 보강 (Phase 2 승격) ────
+    // pipelineType="bootstrap" 행 INSERT + 큐잉. 실제 phase 실행은 클라이언트가 HTTP route로 주도.
+    // INSERT 실패(동시 실행 중 등)는 오케스트레이션을 차단하지 않는다 — 이미 존재하면 무시.
+    const bootstrapRes = await runBootstrapPipeline(studentId, tenantId);
+    if (bootstrapRes.success) {
+      logActionDebug(LOG_CTX, "bootstrap 파이프라인 큐잉 완료", {
+        studentId,
+        pipelineId: bootstrapRes.data.pipelineId,
+      });
+    } else {
+      // "이미 실행 중" 등은 비치명적 — 기존 파이프라인이 완료되어 있으면 정상
+      logActionDebug(LOG_CTX, "bootstrap 파이프라인 큐잉 스킵(기존 존재 가능)", {
+        studentId,
+        reason: bootstrapRes.error,
+      });
     }
 
     // ── 2. 학년 카테고리 결정 ──────────────────────────
@@ -124,6 +125,9 @@ export async function runFullOrchestration(
     const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
 
     const pipelineIds: FullOrchestrationResult["pipelineIds"] = {};
+    if (bootstrapRes.success) {
+      pipelineIds.bootstrap = bootstrapRes.data.pipelineId;
+    }
     const skipped: Array<"past_analytics" | "blueprint"> = [];
 
     // ── 3. NEIS 경로: Grade(analysis) + Past Analytics ─────

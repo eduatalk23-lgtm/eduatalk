@@ -38,18 +38,22 @@ import {
   SYNTH_TASK_LABEL_MAP,
   PAST_ANALYTICS_TASK_LABEL_MAP,
   BLUEPRINT_TASK_LABEL_MAP,
+  BOOTSTRAP_TASK_LABEL_MAP,
 } from "./pipeline/pipeline-constants";
 import {
   PAST_ANALYTICS_TASK_KEYS,
   BLUEPRINT_TASK_KEYS,
+  BOOTSTRAP_TASK_KEYS,
 } from "@/lib/domains/record-analysis/pipeline/pipeline-config";
 import type {
   PastAnalyticsTaskKey,
   BlueprintTaskKey,
+  BootstrapTaskKey,
 } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 import { usePipelineExecution } from "./pipeline/usePipelineExecution";
 import { PipelineGradeGrid } from "./pipeline/PipelineGradeGrid";
 import { PipelinePastBlueprintGrid } from "./pipeline/PipelinePastBlueprintGrid";
+import { PipelineBootstrapGrid } from "./pipeline/PipelineBootstrapGrid";
 import {
   PipelineSynthesisGrid,
   PipelineLogPanel,
@@ -89,6 +93,7 @@ export function PipelinePanelApp({
     runSynthesisPhase,
     runPastAnalyticsPhase,
     runBlueprintPhase,
+    runBootstrapPhase,
     runFullSequence,
     runGradeSequence,
     stopFullRun,
@@ -105,7 +110,8 @@ export function PipelinePanelApp({
         ) ||
         data?.synthesisPipeline?.status === "running" ||
         data?.pastAnalyticsPipeline?.status === "running" ||
-        data?.blueprintPipeline?.status === "running";
+        data?.blueprintPipeline?.status === "running" ||
+        data?.bootstrapPipeline?.status === "running";
 
       if (
         !runningCell &&
@@ -145,6 +151,7 @@ export function PipelinePanelApp({
   const sp = gradeStatus?.synthesisPipeline ?? null;
   const pa = gradeStatus?.pastAnalyticsPipeline ?? null;
   const bp = gradeStatus?.blueprintPipeline ?? null;
+  const boot = gradeStatus?.bootstrapPipeline ?? null;
 
   // 중단 진행 상태 자동 해제: 폴링이 더 이상 running 상태가 아님을 확인하면 cancelling 해제
   useEffect(() => {
@@ -153,22 +160,25 @@ export function PipelinePanelApp({
       Object.values(gp).some((p) => p?.status === "running") ||
       sp?.status === "running" ||
       pa?.status === "running" ||
-      bp?.status === "running";
+      bp?.status === "running" ||
+      boot?.status === "running";
     if (!stillRunning) setIsCancelling(false);
-  }, [gp, sp, pa, bp, isCancelling, setIsCancelling]);
+  }, [gp, sp, pa, bp, boot, isCancelling, setIsCancelling]);
 
-  // 중단된 파이프라인이 있는지 (4축×3층: past/blueprint도 포함)
+  // 중단된 파이프라인이 있는지 (4축×3층: past/blueprint + bootstrap 포함)
   const hasCancelledPipeline =
     Object.values(gp).some((p) => p?.status === "cancelled") ||
     sp?.status === "cancelled" ||
     pa?.status === "cancelled" ||
-    bp?.status === "cancelled";
+    bp?.status === "cancelled" ||
+    boot?.status === "cancelled";
   // DB에 실제로 running 상태인 파이프라인이 있는지 (페이지 reload 후에도 정확)
   const hasRunningInDb =
     Object.values(gp).some((p) => p?.status === "running") ||
     sp?.status === "running" ||
     pa?.status === "running" ||
-    bp?.status === "running";
+    bp?.status === "running" ||
+    boot?.status === "running";
   const expectedModes = gradeStatus?.expectedModes ?? {};
   const gradeNumbers = Object.keys(gp).map(Number).sort((a, b) => a - b);
   // 항상 1~3학년 모두 표시 (파이프라인 없는 학년도 표시)
@@ -248,6 +258,16 @@ export function PipelinePanelApp({
       }
     }
   }
+  if (boot && boot.status === "running") {
+    for (const key of BOOTSTRAP_TASK_KEYS) {
+      if (boot.tasks[key] === "running" && boot.previews[key]) {
+        runningTasks.push({
+          label: BOOTSTRAP_TASK_LABEL_MAP[key as BootstrapTaskKey] ?? key,
+          preview: boot.previews[key],
+        });
+      }
+    }
+  }
 
   const completedTasks: Array<{ label: string; preview: string; elapsedMs?: number }> = [];
   for (const g of [1, 2, 3]) {
@@ -300,6 +320,18 @@ export function PipelinePanelApp({
       }
     }
   }
+  if (boot) {
+    for (const key of BOOTSTRAP_TASK_KEYS) {
+      const status = boot.tasks[key];
+      if (status === "completed" || status === "failed") {
+        completedTasks.push({
+          label: BOOTSTRAP_TASK_LABEL_MAP[key as BootstrapTaskKey] ?? key,
+          preview: boot.previews[key] ?? (status === "failed" ? "실패" : "완료"),
+          elapsedMs: boot.elapsed?.[key],
+        });
+      }
+    }
+  }
 
   // ─── 진로 미설정 빈 상태 ───────────────────────────────────────────────────
   if (!hasTargetMajor) {
@@ -346,7 +378,7 @@ export function PipelinePanelApp({
           {(isFullRunning || isCancelling) && (
             <button
               type="button"
-              onClick={() => stopFullRun(gp, sp, pa, bp)}
+              onClick={() => stopFullRun(gp, sp, pa, bp, boot)}
               disabled={isCancelling}
               className={
                 isCancelling
@@ -459,6 +491,12 @@ export function PipelinePanelApp({
       <div className="flex-1 flex min-h-0">
         {/* ── 좌: 조종석 그리드 ────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 border-r border-[var(--border-secondary)]">
+          <PipelineBootstrapGrid
+            boot={boot}
+            runningCell={runningCell}
+            runningStartMs={runningStartMs}
+            onRunBootstrapPhase={runBootstrapPhase}
+          />
           <PipelineGradeGrid
             displayGrades={displayGrades}
             gp={gp}

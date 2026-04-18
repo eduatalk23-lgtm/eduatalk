@@ -8,6 +8,7 @@ import type {
   SynthesisPipelineTaskKey,
   PastAnalyticsTaskKey,
   BlueprintTaskKey,
+  BootstrapTaskKey,
 } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
 
 // ─── Phase 그룹 정의 ────────────────────────────────────────────────────────
@@ -65,6 +66,22 @@ export const BLUEPRINT_PHASE_GROUPS: Array<{
 }> = [
   { label: "수렴 설계", keys: ["blueprint_generation"] },
 ];
+
+// ─── Bootstrap (Auto-Bootstrap Phase 0) ─────────────────────────────────────
+export const BOOTSTRAP_PHASE_GROUPS: Array<{
+  label: string;
+  keys: BootstrapTaskKey[];
+}> = [
+  { label: "진로 검증", keys: ["target_major_validation"] },
+  { label: "메인 탐구", keys: ["main_exploration_seed"] },
+  { label: "수강 계획", keys: ["course_plan_recommend"] },
+];
+
+export const BOOTSTRAP_TASK_LABEL_MAP: Record<BootstrapTaskKey, string> = {
+  target_major_validation: "BT0 진로 계열 검증",
+  main_exploration_seed: "BT1 메인 탐구 설정",
+  course_plan_recommend: "BT2 수강 계획 추천",
+};
 
 export const PAST_ANALYTICS_TASK_LABEL_MAP: Record<PastAnalyticsTaskKey, string> = {
   past_storyline_generation: "A1 과거 서사",
@@ -215,6 +232,18 @@ export function isBlueprintPhaseReady(
 ): boolean {
   // B1은 내부 선행 없음. 실행 시점에는 파이프라인 상태만 판정.
   return true;
+}
+
+export function isBootstrapPhaseReady(
+  phase: number,
+  boot: { tasks: Record<string, string> } | null,
+): boolean {
+  if (!boot) return phase === 1;
+  const t = boot.tasks;
+  if (phase === 1) return true;
+  if (phase === 2) return t.target_major_validation === "completed";
+  if (phase === 3) return t.main_exploration_seed === "completed";
+  return false;
 }
 
 export function isSynthesisPhaseReady(

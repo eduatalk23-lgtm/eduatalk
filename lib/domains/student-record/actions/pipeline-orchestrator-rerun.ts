@@ -17,6 +17,7 @@ import type {
   PipelineTaskResults,
   GradePipelineTaskKey,
   SynthesisPipelineTaskKey,
+  BootstrapTaskKey,
 } from "@/lib/domains/record-analysis/pipeline";
 import {
   SYNTHESIS_PIPELINE_TASK_KEYS,
@@ -24,6 +25,7 @@ import {
   GRADE_TASK_DEPENDENTS,
   PAST_ANALYTICS_TASK_KEYS,
   BLUEPRINT_TASK_KEYS,
+  BOOTSTRAP_TASK_KEYS,
   PIPELINE_RERUN_CASCADE,
   derivePipelineCascadeKey,
   type PipelineCascadeKey,

@@ -87,12 +87,24 @@ export const BLUEPRINT_TASK_KEYS = [
   "blueprint_generation",       // B1: target_convergences + milestones + competency_growth_targets
 ] as const;
 
+// ============================================
+// Bootstrap 파이프라인 태스크 (Phase 0 자동 셋업, 2026-04-18)
+// target_major 진입 시 선결 조건 자동 보강. 모든 파이프라인보다 먼저 실행.
+// ============================================
+
+export const BOOTSTRAP_TASK_KEYS = [
+  "target_major_validation",  // BT0: target_major 표준 키 검증
+  "main_exploration_seed",    // BT1: 활성 main_exploration 없으면 LLM seed 생성
+  "course_plan_recommend",    // BT2: course_plan 0건이면 추천 자동 생성
+] as const;
+
 // Local type aliases — avoids importing from pipeline-types.ts (which imports us)
 type _GradeKey = (typeof GRADE_PIPELINE_TASK_KEYS)[number];
 type _SynthKey = (typeof SYNTHESIS_PIPELINE_TASK_KEYS)[number];
 type _LegacyKey = (typeof PIPELINE_TASK_KEYS)[number];
 type _PastAnalyticsKey = (typeof PAST_ANALYTICS_TASK_KEYS)[number];
 type _BlueprintKey = (typeof BLUEPRINT_TASK_KEYS)[number];
+type _BootstrapKey = (typeof BOOTSTRAP_TASK_KEYS)[number];
 
 // ============================================
 // 의존성 역산 유틸
@@ -227,6 +239,27 @@ export const BLUEPRINT_TASK_LABELS: Record<_BlueprintKey, string> = {
   blueprint_generation: "수렴 설계",
 };
 
+// ============================================
+// Bootstrap 레이블·타임아웃·Phase 매핑
+// ============================================
+
+export const BOOTSTRAP_TASK_LABELS: Record<_BootstrapKey, string> = {
+  target_major_validation: "진로 계열 검증",
+  main_exploration_seed: "메인 탐구 설정",
+  course_plan_recommend: "수강 계획 추천",
+};
+
+export const BOOTSTRAP_TASK_TIMEOUTS: Record<_BootstrapKey, number> = {
+  target_major_validation: 5_000,   // 동기 검증 — 즉각 응답
+  main_exploration_seed: 60_000,    // Flash LLM seed (~10s) + Pro fallback
+  course_plan_recommend: 30_000,    // 규칙 기반 추천 생성
+};
+
+/** Bootstrap 파이프라인은 단일 Phase 1 에 3 태스크 순차 실행 */
+export const BOOTSTRAP_PHASE_TASKS: Record<number, _BootstrapKey[]> = {
+  1: ["target_major_validation", "main_exploration_seed", "course_plan_recommend"],
+};
+
 export const BLUEPRINT_TASK_TIMEOUTS: Record<_BlueprintKey, number> = {
   blueprint_generation: 180_000,  // 기존 synthesis와 동일, 여유 포함
 };
@@ -348,6 +381,7 @@ export const PIPELINE_TASK_DEPENDENTS: Partial<Record<_LegacyKey, _LegacyKey[]>>
  *   - grade_design:   grade 파이프라인 중 mode='design' (Prospective 학년)
  */
 export type PipelineCascadeKey =
+  | "bootstrap"
   | "grade_analysis"
   | "past_analytics"
   | "blueprint"
@@ -355,6 +389,8 @@ export type PipelineCascadeKey =
   | "synthesis";
 
 export const PIPELINE_RERUN_CASCADE: Record<PipelineCascadeKey, PipelineCascadeKey[]> = {
+  /** bootstrap 재실행 시 모든 하위 파이프라인 cascade (최상위 진입점) */
+  bootstrap: ["past_analytics", "blueprint", "grade_design", "grade_analysis", "synthesis"],
   grade_analysis: ["past_analytics", "blueprint", "grade_design", "synthesis"],
   past_analytics: ["blueprint", "synthesis"],
   blueprint: ["grade_design", "synthesis"],
@@ -367,6 +403,9 @@ export function derivePipelineCascadeKey(
   pipelineType: string,
   mode: "analysis" | "design" | null | undefined,
 ): PipelineCascadeKey | null {
+  if (pipelineType === "bootstrap") {
+    return "bootstrap";
+  }
   if (pipelineType === "grade") {
     return mode === "design" ? "grade_design" : "grade_analysis";
   }

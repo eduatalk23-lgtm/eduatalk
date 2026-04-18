@@ -16,7 +16,7 @@ import { validateTargetMajor, MAJOR_TO_TIER1 } from "@/lib/constants/career-clas
 import { createMainExploration } from "@/lib/domains/student-record/repository/main-exploration-repository";
 import { generateAndSaveRecommendations } from "@/lib/domains/student-record/course-plan/service";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import { generateMainExplorationSeed } from "../llm/actions/generateMainExplorationSeed";
+import { generateMainExplorationSeed } from "../../llm/actions/generateMainExplorationSeed";
 
 const LOG_CTX = { domain: "record-analysis", action: "bootstrap" };
 

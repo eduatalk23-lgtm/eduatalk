@@ -41,6 +41,8 @@ export interface GradeAwarePipelineStatus {
   pastAnalyticsPipeline: SinglePipelineStatus | null;
   /** 4축×3층 B층 — 설계 대상 학년이 있을 때만 생성 (k<3) */
   blueprintPipeline: SinglePipelineStatus | null;
+  /** Auto-Bootstrap Phase 0 — target_major 진입 자동 셋업 (main_exploration + course_plan) */
+  bootstrapPipeline: SinglePipelineStatus | null;
   /** 파이프라인 실행 전에도 NEIS 유무 기반으로 예상 mode를 표시 (1~3학년) */
   expectedModes: Record<number, "analysis" | "design">;
 }

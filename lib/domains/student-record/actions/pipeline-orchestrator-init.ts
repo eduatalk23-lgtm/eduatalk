@@ -23,6 +23,7 @@ import {
   SYNTHESIS_PIPELINE_TASK_KEYS,
   PAST_ANALYTICS_TASK_KEYS,
   BLUEPRINT_TASK_KEYS,
+  BOOTSTRAP_TASK_KEYS,
   computePipelineFinalStatus,
 } from "@/lib/domains/record-analysis/pipeline";
 import { resolveRecordData, deriveGradeCategories } from "@/lib/domains/record-analysis/pipeline";
@@ -579,6 +580,68 @@ export async function runPastAnalyticsPipeline(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "runPastAnalyticsPipeline" }, error, { studentId });
     return createErrorResponse("Past Analytics 파이프라인 시작 실패");
+  }
+}
+
+// ============================================
+// 7-8. runBootstrapPipeline (Phase 0 자동 셋업, 2026-04-18)
+// ============================================
+
+/**
+ * Bootstrap 파이프라인 행 생성 (pipelineType="bootstrap").
+ * target_major 진입 시 선결 조건 자동 보강: BT0/BT1/BT2 (3 태스크).
+ * 실제 phase 실행은 API route(`/api/admin/pipeline/bootstrap/phase-1`)에서 수행.
+ *
+ * 동시성 보호: idx_unique_running_bootstrap_pipeline 위반(23505) 시 "이미 실행 중" 에러.
+ */
+export async function runBootstrapPipeline(
+  studentId: string,
+  tenantId: string,
+): Promise<ActionResponse<{ pipelineId: string }>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+
+    const initTasks: Record<string, string> = {};
+    for (const key of BOOTSTRAP_TASK_KEYS) {
+      initTasks[key] = "pending";
+    }
+
+    // status="pending" + started_at=null: 오케스트레이터 큐잉 경로 —
+    // runTaskWithState가 첫 phase 실행 시 status를 running으로 승격한다.
+    const { data: pipeline, error: insertError } = await supabase
+      .from("student_record_analysis_pipelines")
+      .insert({
+        student_id: studentId,
+        tenant_id: tenantId,
+        created_by: userId,
+        status: "pending",
+        pipeline_type: "bootstrap",
+        grade: null,
+        tasks: initTasks,
+        input_snapshot: student ?? {},
+        started_at: null,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !pipeline) {
+      if (insertError?.code === "23505") {
+        return createErrorResponse("이미 실행 중인 Bootstrap 파이프라인이 있습니다.");
+      }
+      throw insertError ?? new Error("bootstrap 파이프라인 생성 실패");
+    }
+
+    return createSuccessResponse({ pipelineId: pipeline.id });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runBootstrapPipeline" }, error, { studentId });
+    return createErrorResponse("Bootstrap 파이프라인 시작 실패");
   }
 }
 

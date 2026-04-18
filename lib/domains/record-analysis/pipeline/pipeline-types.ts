@@ -20,6 +20,7 @@ import {
   SYNTHESIS_PIPELINE_TASK_KEYS,
   PAST_ANALYTICS_TASK_KEYS,
   BLUEPRINT_TASK_KEYS,
+  BOOTSTRAP_TASK_KEYS,
 } from "./pipeline-config";
 
 export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "timeout";
@@ -29,10 +30,11 @@ export type GradePipelineTaskKey = (typeof GRADE_PIPELINE_TASK_KEYS)[number];
 export type SynthesisPipelineTaskKey = (typeof SYNTHESIS_PIPELINE_TASK_KEYS)[number];
 export type PastAnalyticsTaskKey = (typeof PAST_ANALYTICS_TASK_KEYS)[number];
 export type BlueprintTaskKey = (typeof BLUEPRINT_TASK_KEYS)[number];
+export type BootstrapTaskKey = (typeof BOOTSTRAP_TASK_KEYS)[number];
 export type PipelineTaskKey = (typeof PIPELINE_TASK_KEYS)[number];
 
-/** 파이프라인 유형 (2026-04-16 D): 5종. legacy는 단일 파이프라인 하위 호환. */
-export type PipelineType = "grade" | "synthesis" | "past_analytics" | "blueprint" | "legacy";
+/** 파이프라인 유형 (2026-04-18): 6종. legacy는 단일 파이프라인 하위 호환. bootstrap = Phase 0 자동 셋업. */
+export type PipelineType = "grade" | "synthesis" | "past_analytics" | "blueprint" | "bootstrap" | "legacy";
 
 export interface PipelineStatus {
   id: string;
@@ -604,6 +606,28 @@ export function assertSynthesisCtx(ctx: PipelineContext): asserts ctx is Synthes
   if (!ctx.unifiedInput) throw new Error("assertSynthesisCtx: unifiedInput not populated (call buildUnifiedGradeInput first)");
 }
 
+/**
+ * Bootstrap 파이프라인 실행 컨텍스트.
+ * Phase 0 자동 셋업 (target_major 검증 → main_exploration seed → course_plan 추천).
+ */
+export interface BootstrapPipelineContext extends PipelineContext {
+  pipelineType: "bootstrap";
+  /** 검증된 target_major 키 (BT0 완료 후 세팅) */
+  targetMajor?: string;
+  /** 학생 학년 (1/2/3) */
+  studentGradeValue?: 1 | 2 | 3;
+}
+
+export function assertBootstrapCtx(
+  ctx: PipelineContext,
+): asserts ctx is BootstrapPipelineContext {
+  if (ctx.pipelineType !== "bootstrap") {
+    throw new Error(
+      `assertBootstrapCtx: expected bootstrap pipeline, got ${ctx.pipelineType}`,
+    );
+  }
+}
+
 // ============================================
 // 데이터 커버리지 경고 (Synthesis 태스크 출력에 포함)
 // ============================================
@@ -695,6 +719,7 @@ export {
   SYNTHESIS_PIPELINE_TASK_KEYS,
   PAST_ANALYTICS_TASK_KEYS,
   BLUEPRINT_TASK_KEYS,
+  BOOTSTRAP_TASK_KEYS,
   GRADE_TASK_DEPENDENTS,
   GRADE_TASK_PREREQUISITES,
   SYNTHESIS_TASK_DEPENDENTS,
@@ -709,6 +734,9 @@ export {
   BLUEPRINT_TASK_LABELS,
   BLUEPRINT_TASK_TIMEOUTS,
   BLUEPRINT_PHASE_TASKS,
+  BOOTSTRAP_TASK_LABELS,
+  BOOTSTRAP_TASK_TIMEOUTS,
+  BOOTSTRAP_PHASE_TASKS,
   PIPELINE_TASK_LABELS,
   PIPELINE_TASK_TIMEOUTS,
   PIPELINE_TASK_DEPENDENTS,

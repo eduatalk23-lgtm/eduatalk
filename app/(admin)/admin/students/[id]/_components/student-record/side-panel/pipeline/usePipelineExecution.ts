@@ -295,6 +295,57 @@ export function usePipelineExecution({
     }
   };
 
+  // ─── Bootstrap Phase 실행 (개별 셀 클릭) ──────────────────────────────────
+  // 3 task (BT0/BT1/BT2) 가 단일 phase-1 route 로 순차 실행됨.
+
+  const runBootstrapPhase = async () => {
+    if (fetchingRef.current) return;
+    setRunningCell("boot-1");
+    setRunningStartMs(Date.now());
+    fetchingRef.current = true;
+    pollingStartRef.current = Date.now();
+
+    try {
+      const cached = queryClient.getQueryData<GradeAwarePipelineStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+      let pid = cached?.bootstrapPipeline?.pipelineId;
+      if (!pid) {
+        const { runBootstrapPipeline } = await import(
+          "@/lib/domains/student-record/actions/pipeline-orchestrator-init"
+        );
+        const r = await runBootstrapPipeline(studentId, tenantId);
+        if (!r.success) throw new Error(r.error ?? "Bootstrap 생성 실패");
+        if (!r.data) throw new Error("Bootstrap 응답 누락");
+        pid = r.data.pipelineId;
+        invalidate();
+      }
+
+      for (let retry = 0; retry <= 2; retry++) {
+        try {
+          const res = await fetch("/api/admin/pipeline/bootstrap/phase-1", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pipelineId: pid }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          break;
+        } catch {
+          if (retry >= 2) break;
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Bootstrap 실행 실패";
+      showError(`Bootstrap 실행 실패: ${msg}`);
+    } finally {
+      fetchingRef.current = false;
+      setRunningCell(null);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
+    }
+  };
+
   // ─── Blueprint Phase 실행 (개별 셀 클릭) ──────────────────────────────────
 
   const runBlueprintPhase = async () => {
@@ -464,6 +515,38 @@ export function usePipelineExecution({
     return "completed";
   }
 
+  // ─── 내부 헬퍼: Bootstrap Phase 0 실행 ──────────────────────────────────
+
+  async function executeBootstrapPhaseForFullRun(
+    pipelineId: string,
+    signal: AbortSignal,
+    isAborted: () => boolean,
+  ): Promise<"completed" | "aborted"> {
+    setRunningCell("boot-1");
+    setRunningStartMs(Date.now());
+    for (let retry = 0; retry <= 2; retry++) {
+      if (isAborted()) return "aborted";
+      try {
+        await fetchPhase(
+          "/api/admin/pipeline/bootstrap/phase-1",
+          { pipelineId },
+          signal,
+        );
+        invalidate();
+        return "completed";
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return "aborted";
+        if (retry >= 2) break;
+        try {
+          await abortableSleep(3000, signal);
+        } catch {
+          return "aborted";
+        }
+      }
+    }
+    return "completed";
+  }
+
   // ─── 내부 헬퍼: Blueprint B1 실행 ────────────────────────────────────────
 
   async function executeBlueprintPhase(
@@ -522,6 +605,7 @@ export function usePipelineExecution({
         ctrl.signal,
       )) as {
         pipelineIds?: {
+          bootstrap?: string;
           gradeNeis?: string[];
           pastAnalytics?: string;
           blueprint?: string;
@@ -530,7 +614,7 @@ export function usePipelineExecution({
         route?: {
           neisGrades: number[];
           consultingGrades: number[];
-          skipped: Array<"past_analytics" | "blueprint">;
+          skipped: Array<"past_analytics" | "blueprint" | "bootstrap">;
         };
         error?: string;
       };
@@ -545,6 +629,17 @@ export function usePipelineExecution({
       const cachedStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
         gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
       );
+
+      // ── 1.5. Bootstrap Phase 0 (신규 학생 자동 셋업) ──
+      //   target_major 진입 자동 셋업. 기존 학생은 pipelineIds.bootstrap 이 없을 수 있음.
+      if (full.pipelineIds.bootstrap) {
+        const result = await executeBootstrapPhaseForFullRun(
+          full.pipelineIds.bootstrap,
+          ctrl.signal,
+          isAborted,
+        );
+        if (result === "aborted") return;
+      }
 
       // ── 2. Grade(analysis) 학년별 실행 ──
       for (const grade of full.route.neisGrades) {
@@ -795,6 +890,7 @@ export function usePipelineExecution({
     sp: GradeAwarePipelineStatus["synthesisPipeline"],
     pa?: GradeAwarePipelineStatus["pastAnalyticsPipeline"],
     bp?: GradeAwarePipelineStatus["blueprintPipeline"],
+    boot?: GradeAwarePipelineStatus["bootstrapPipeline"],
   ) => {
     setIsCancelling(true);
     fullRunAbortRef.current = true;
@@ -821,11 +917,15 @@ export function usePipelineExecution({
     );
     const past = pa ?? status?.pastAnalyticsPipeline ?? null;
     const blueprint = bp ?? status?.blueprintPipeline ?? null;
+    const bootstrap = boot ?? status?.bootstrapPipeline ?? null;
     if (past?.pipelineId && isInflight(past.status)) {
       allPipelineIds.push(past.pipelineId);
     }
     if (blueprint?.pipelineId && isInflight(blueprint.status)) {
       allPipelineIds.push(blueprint.pipelineId);
+    }
+    if (bootstrap?.pipelineId && isInflight(bootstrap.status)) {
+      allPipelineIds.push(bootstrap.pipelineId);
     }
 
     try {
@@ -853,6 +953,7 @@ export function usePipelineExecution({
     runSynthesisPhase,
     runPastAnalyticsPhase,
     runBlueprintPhase,
+    runBootstrapPhase,
     runFullSequence,
     runGradeSequence,
     stopFullRun,

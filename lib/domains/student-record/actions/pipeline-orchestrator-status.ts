@@ -90,7 +90,7 @@ export async function fetchGradeAwarePipelineStatus(
       .from("student_record_analysis_pipelines")
       .select("id, status, pipeline_type, grade, mode, tasks, task_previews, task_results, error_details")
       .eq("student_id", studentId)
-      .in("pipeline_type", ["grade", "synthesis", "past_analytics", "blueprint"])
+      .in("pipeline_type", ["grade", "synthesis", "past_analytics", "blueprint", "bootstrap"])
       .order("created_at", { ascending: false })
       .limit(40);
 
@@ -100,6 +100,7 @@ export async function fetchGradeAwarePipelineStatus(
     let synthesisPipeline: GradeAwarePipelineStatus["synthesisPipeline"] = null;
     let pastAnalyticsPipeline: GradeAwarePipelineStatus["pastAnalyticsPipeline"] = null;
     let blueprintPipeline: GradeAwarePipelineStatus["blueprintPipeline"] = null;
+    let bootstrapPipeline: GradeAwarePipelineStatus["bootstrapPipeline"] = null;
 
     for (const row of rows ?? []) {
       const tasks = (row.tasks ?? {}) as Record<string, string>;
@@ -165,6 +166,15 @@ export async function fetchGradeAwarePipelineStatus(
           elapsed,
           errors,
         };
+      } else if (row.pipeline_type === "bootstrap" && !bootstrapPipeline) {
+        bootstrapPipeline = {
+          pipelineId: row.id as string,
+          status: row.status as string,
+          tasks,
+          previews,
+          elapsed,
+          errors,
+        };
       }
     }
 
@@ -219,6 +229,7 @@ export async function fetchGradeAwarePipelineStatus(
       synthesisPipeline,
       pastAnalyticsPipeline,
       blueprintPipeline,
+      bootstrapPipeline,
       expectedModes,
     });
   } catch (error) {
