@@ -11,6 +11,7 @@ import { SplashDismisser } from "@/components/pwa/SplashDismisser";
 import { DeferredWidgets } from "@/components/layout/DeferredWidgets";
 import NextTopLoader from "nextjs-toploader";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -223,12 +224,14 @@ export default async function RootLayout({
       <head>
         {/* 스플래시 로고 preload — HTML 파싱 즉시 다운로드 시작 */}
         <link rel="preload" href="/splash/eduatalk.png" as="image" />
-        {/* 다크모드 FOUC 방지 — hydration 전 즉시 .dark 클래스 적용 */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement;var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))d.classList.add("dark")}catch(e){}})()`,
-          }}
-        />
+        {/*
+          다크모드 FOUC 방지 — hydration 전 즉시 .dark 클래스 적용.
+          React 16+ 가 <script dangerouslySetInnerHTML> 에 경고를 띄우므로 next/script 의
+          beforeInteractive 로 교체. 런타임은 동일(HTML 파싱 직후 실행).
+        */}
+        <Script id="theme-fouc" strategy="beforeInteractive">
+          {`(function(){try{var d=document.documentElement;var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))d.classList.add("dark")}catch(e){}})()`}
+        </Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${notoSerif.variable} antialiased`}
