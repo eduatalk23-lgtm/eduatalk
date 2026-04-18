@@ -9,6 +9,10 @@
  *   npx tsx scripts/test-s7-model-ab.ts fast
  *   npx tsx scripts/test-s7-model-ab.ts advanced
  *   LLM_MODEL_OVERRIDE=gpt-5.4 npx tsx scripts/test-s7-model-ab.ts advanced
+ *
+ * 다른 학생 측정 (Sprint 4 일반화):
+ *   S7_STUDENT_ID=<uuid> S7_MAIN_ID=<uuid> npx tsx scripts/test-s7-model-ab.ts fast
+ *   (env 3종 — S7_STUDENT_ID / S7_MAIN_ID / S7_TENANT_ID — 없으면 xrun 기본값 사용)
  */
 
 import { config } from "dotenv";
@@ -21,9 +25,9 @@ if (!["fast", "standard", "advanced"].includes(ARG_TIER)) {
 }
 process.env.LLM_TIER_OVERRIDE = ARG_TIER;
 
-const STUDENT_ID = "c0ffee01-5eed-4d00-9000-000000000001";
-const TENANT_ID = "84b71a5d-5681-4da3-88d2-91e75ef89015";
-const V1_MAIN_ID = "156ad6d3-76e9-4571-88f2-2a8e5110aa9e";
+const STUDENT_ID = process.env.S7_STUDENT_ID ?? "c0ffee01-5eed-4d00-9000-000000000001";
+const TENANT_ID = process.env.S7_TENANT_ID ?? "84b71a5d-5681-4da3-88d2-91e75ef89015";
+const V1_MAIN_ID = process.env.S7_MAIN_ID ?? "156ad6d3-76e9-4571-88f2-2a8e5110aa9e";
 
 async function main() {
   const { createSupabaseAdminClient } = await import("../lib/supabase/admin");
