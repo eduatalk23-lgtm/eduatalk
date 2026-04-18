@@ -39,10 +39,8 @@ import { useArtifactStore } from "@/lib/stores/artifactStore";
 import { toggleArchiveConversation } from "@/lib/domains/ai-chat/actions";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import type { NavigateToOutput } from "@/lib/mcp/tools/navigateTo";
-import type {
-  ArchiveConversationOutput,
-  GetScoresOutput,
-} from "@/app/api/chat/route";
+import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { ArchiveConversationOutput } from "@/app/api/chat/route";
 
 const PATH_LABELS: Record<string, string> = {
   // student

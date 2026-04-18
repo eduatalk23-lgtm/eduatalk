@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import type { GetScoresOutput } from "@/app/api/chat/route";
+import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 
 type Props = {
   output: GetScoresOutput;

@@ -6,7 +6,7 @@ import { ExternalLink, X } from "lucide-react";
 import { useArtifactStore, type Artifact } from "@/lib/stores/artifactStore";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "./ScoresCard";
-import type { GetScoresOutput } from "@/app/api/chat/route";
+import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 
 const TYPE_LABELS: Record<string, string> = {
   scores: "내신 성적",
