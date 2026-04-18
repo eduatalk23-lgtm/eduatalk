@@ -78,7 +78,8 @@ npx tsx scripts/cross-run-diff.ts tmp/cross-run/injego--run1.json tmp/cross-run/
 | `[C-2]` **주지표**: A 신호 keyword(노이즈 필터 적용) → B storyline 재등장 | `≥ 15%` | 프롬프트 주입 효과 직접 확인. 일반 교과명("수학/화학/영어")·활동 프레임("탐구/실험")은 분모/분자 제외 |
 | `[C-2]` (참고) 필터 전 전체 hit | — | 과목명 중복만으로도 올라가므로 연속성 착시 유발 |
 | `[C-2]` (참고) bigram+word 토큰 hit | — | 문장 파편 시절 잔재 지표, 분모 왜곡 있음 |
-| `[D]` **주지표**: blueprint keyword Jaccard (themeLabel 단어 + themeKeywords, stopword 제외) | `≥ 0.3` | Blueprint 연속성 (유사 테마 질적 탐지) |
+| `[D]` **주지표-1**: blueprint keyword recall (A∩B / A, stopword 제외) | `≥ 0.4` | Blueprint A 축 유지율. expansion(B 신규 추가) 에 불이익 없음 |
+| `[D]` **주지표-2**: blueprint keyword Jaccard | `≥ 0.3` | 양방향 중복 비율. B expansion 시 하락 — recall 지표 우선 |
 | `[D]` (참고) theme 문자열 집합 Jaccard | — | 완전 문자열 일치 기준 — 유사 테마도 불일치로 판정하는 한계 있음 |
 
 **해석 주의**:

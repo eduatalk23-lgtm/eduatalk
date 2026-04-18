@@ -260,8 +260,13 @@ async function main() {
   for (const c of bConv) for (const t of convTokens(c)) bKeywordSet.add(t);
   const shared = [...aKeywordSet].filter((x) => bKeywordSet.has(x));
   const kwJaccard = jaccard(aKeywordSet, bKeywordSet);
-  console.log(`   ▶ [주지표] keyword Jaccard: ${kwJaccard.toFixed(3)}  (A=${aKeywordSet.size} · B=${bKeywordSet.size} · ∩=${shared.length})`);
-  console.log(`     기준 ≥ 0.3 → ${kwJaccard >= 0.3 ? "✅ 통과 (연속성 유지)" : "❌ 미달 (LLM 변동 또는 cross-run 미배선)"}`);
+  // Recall(A → B 유지율): A keyword 중 B 에 남아있는 비율. expansion(B 신규 추가) 에 불이익 없음.
+  //   Jaccard 대비 강점: "B 가 A 를 유지하면서 새 수렴을 추가" 한 케이스를 정확히 탐지.
+  const recallAinB = aKeywordSet.size > 0 ? shared.length / aKeywordSet.size : 0;
+  console.log(`   ▶ [주지표-1] keyword recall(A∩B/A): ${recallAinB.toFixed(3)}  (A=${aKeywordSet.size} · ∩=${shared.length})`);
+  console.log(`     기준 ≥ 0.4 → ${recallAinB >= 0.4 ? "✅ 통과 (A 축이 B 에 유지됨)" : "❌ 미달 (A 축이 B 에서 소실)"}`);
+  console.log(`   ▶ [주지표-2] keyword Jaccard: ${kwJaccard.toFixed(3)}  (A=${aKeywordSet.size} · B=${bKeywordSet.size} · ∩=${shared.length})`);
+  console.log(`     기준 ≥ 0.3 → ${kwJaccard >= 0.3 ? "✅ 통과 (연속성 유지)" : "⚠ Jaccard 미달 — B expansion 여부 확인 (recall 지표 우선)"}`);
   if (shared.length > 0) {
     console.log(`     공통 키워드: ${shared.slice(0, 10).join(", ")}`);
   }
@@ -294,9 +299,10 @@ async function main() {
   const persistent = aTitles.size > 0 ? [...aTitles].filter((x) => bTitles.has(x)).length / aTitles.size : 0;
   console.log(`▶ 요약`);
   console.log(`   storyline 지속성(title A∩B / A):  ${(persistent * 100).toFixed(1)}%`);
-  console.log(`   blueprint keyword Jaccard:       ${kwJaccard.toFixed(3)}  (공통 ${shared.length}개)`);
+  console.log(`   blueprint keyword recall(A∩B/A): ${recallAinB.toFixed(3)}  (공통 ${shared.length}/${aKeywordSet.size})`);
+  console.log(`   (참고) blueprint keyword Jaccard: ${kwJaccard.toFixed(3)}  (B expansion 시 하락)`);
   console.log(`   (참고) blueprint theme Jaccard:  ${jaccard(aThemes, bThemes).toFixed(3)}  (문자열 전체 집합 — 유사 테마도 불일치로 판정하는 한계 있음)`);
-  console.log(`   (해석: 지속성 높음 = 연속성 유지 / 낮음 = 운 혹은 LLM 변동성, 둘 다 값을 갖는지 먼저 확인)\n`);
+  console.log(`   (해석: recall 은 A 축 유지 / Jaccard 는 양방향 중복. expansion 허용 비교는 recall 을 우선)\n`);
 }
 
 main().catch((e) => {
