@@ -40,6 +40,10 @@ import {
   runPastAnalyticsPipeline,
   runBlueprintPipeline,
 } from "./pipeline-orchestrator-init";
+import {
+  ensureBootstrap,
+  BootstrapError,
+} from "@/lib/domains/record-analysis/pipeline/bootstrap";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator-full" };
 
@@ -79,23 +83,18 @@ export async function runFullOrchestration(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // ── 1. L0 전제: 활성 메인 탐구 확인 ────────────────────
-    // 스키마는 is_active: boolean — 'status' 컬럼 없음 (20260415400000 마이그레이션).
-    const { data: activeMain, error: activeMainErr } = await supabase
-      .from("student_main_explorations")
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .limit(1);
-    if (activeMainErr) {
-      logActionError(LOG_CTX, activeMainErr, { studentId, step: "checkActiveMain" });
-      return createErrorResponse("활성 메인 탐구 조회 실패");
-    }
-    if (!activeMain || activeMain.length === 0) {
-      return createErrorResponse(
-        "활성 메인 탐구가 설정되어 있지 않습니다. 먼저 메인 탐구를 설정해주세요.",
-      );
+    // ── 1. Phase 0 Auto-Bootstrap: 선결 조건 자동 보강 ────
+    // target_major 검증 + main_exploration/course_plan 누락 자동 생성.
+    // 실패 시 파이프라인 진입 차단 (BootstrapError → createErrorResponse).
+    try {
+      const bootstrap = await ensureBootstrap(studentId, tenantId);
+      logActionDebug(LOG_CTX, "bootstrap 완료", { studentId, ...bootstrap });
+    } catch (err) {
+      if (err instanceof BootstrapError) {
+        logActionError(LOG_CTX, err, { studentId, step: `bootstrap:${err.step}` });
+        return createErrorResponse(`자동 셋업 실패(${err.step}): ${err.message}`);
+      }
+      throw err;
     }
 
     // ── 2. 학년 카테고리 결정 ──────────────────────────

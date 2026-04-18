@@ -44,6 +44,27 @@ export const TIER1_TO_MAJORS: Record<CareerTier1Code, readonly string[]> = {
 /** 전체 22개 Tier 2 키 목록 */
 export const ALL_MAJOR_KEYS: string[] = Object.values(TIER1_TO_MAJORS).flat();
 
+/**
+ * target_major 값이 표준 Tier 2 키 중 하나인지 검증.
+ * UI 는 select 로 22개만 노출하지만 seed/마이그레이션/직접 SQL 경로는 방어 없음.
+ * 비표준 값이면 파이프라인 중 `getMajorRecommendedCourses` 가 null fallback 으로 떨어지고
+ * 2/3학년 추천이 조용히 0건이 되어 Blueprint/Grade 가 빈 산출물로 "성공" 마킹됨.
+ */
+export function validateTargetMajor(
+  value: string | null | undefined,
+): { ok: true } | { ok: false; reason: string } {
+  if (!value || value.trim().length === 0) {
+    return { ok: false, reason: "target_major 가 비어 있습니다. 진로 설정이 필요합니다." };
+  }
+  if (!ALL_MAJOR_KEYS.includes(value)) {
+    return {
+      ok: false,
+      reason: `target_major='${value}' 는 표준 Tier 2 키에 없습니다. 허용값: ${ALL_MAJOR_KEYS.join(", ")}`,
+    };
+  }
+  return { ok: true };
+}
+
 // ------------------------------------
 // 3. Tier 2 → Tier 1 역매핑
 // ------------------------------------
