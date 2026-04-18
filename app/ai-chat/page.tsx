@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
-import { ChatShell } from "@/components/ai-chat/ChatShell";
+import { ChatShell, type ChatShellRole } from "@/components/ai-chat/ChatShell";
 import {
   getConversationOrigin,
   listConversations,
@@ -110,6 +110,7 @@ export default async function ChatPage({
       conversations={conversations}
       bannerOrigin={bannerOrigin}
       suggestionChips={suggestionChips.length > 0 ? suggestionChips : undefined}
+      role={(user?.role as ChatShellRole | undefined) ?? "student"}
     />
   );
 }

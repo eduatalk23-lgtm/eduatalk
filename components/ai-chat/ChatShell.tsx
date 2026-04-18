@@ -30,6 +30,7 @@ import {
   ConversationSidebar,
   type ConversationListItem,
 } from "@/components/ai-chat/ConversationSidebar";
+import { CommandPalette } from "@/components/ai-chat/CommandPalette";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
@@ -72,12 +73,21 @@ export type ChatBannerOrigin = {
 
 export type ChatShellVariant = "full" | "split";
 
+export type ChatShellRole =
+  | "student"
+  | "parent"
+  | "consultant"
+  | "admin"
+  | "superadmin";
+
 type Props = {
   conversationId: string;
   initialMessages: UIMessage[];
   conversations: ConversationListItem[];
   bannerOrigin?: ChatBannerOrigin | null;
   suggestionChips?: Array<{ category: string; text: string }>;
+  /** Phase B-2: Cmd+K 팔레트 role-aware 네비게이션용. 기본 student. */
+  role?: ChatShellRole;
   /**
    * Phase T-3: 레이아웃 variant.
    * - "full" (기본): 사이드바 + 헤더 + Artifact 패널 전부. /ai-chat 페이지 전용.
@@ -96,6 +106,7 @@ export function ChatShell({
   conversations,
   bannerOrigin,
   suggestionChips,
+  role = "student",
   variant = "full",
   onClose,
   onExpand,
@@ -104,6 +115,7 @@ export function ChatShell({
   const router = useRouter();
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
@@ -123,6 +135,20 @@ export function ChatShell({
   });
 
   const isBusy = status === "submitted" || status === "streaming";
+
+  // Phase B-2: ⌘K / Ctrl+K 로 팔레트 열기. split 모드에서는 상위 페이지 단축키와
+  // 충돌 가능성 있어 full variant 에서만 활성화.
+  useEffect(() => {
+    if (isSplit) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isSplit]);
 
   // textarea auto-grow
   useEffect(() => {
@@ -226,6 +252,15 @@ export function ChatShell({
             ) : (
               <>
                 <ThemeToggleButton />
+                <button
+                  type="button"
+                  onClick={() => setPaletteOpen(true)}
+                  aria-label="명령 팔레트 열기"
+                  title="명령 팔레트 (⌘K)"
+                  className="hidden items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 sm:inline-flex dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                >
+                  <kbd className="font-sans">⌘K</kbd>
+                </button>
                 <button
                   type="button"
                   onClick={() => router.push("/ai-chat")}
@@ -403,6 +438,16 @@ export function ChatShell({
       </div>
 
       {!isSplit && <ArtifactPanel />}
+
+      {!isSplit && (
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          role={role}
+          activeConversationId={conversationId}
+          conversations={conversations}
+        />
+      )}
     </div>
   );
 }
