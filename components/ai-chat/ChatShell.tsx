@@ -193,24 +193,38 @@ export function ChatShell({
     if (!text && !hasFiles) return;
 
     if (hasFiles) {
-      // AI SDK v6 는 FileList | FileUIPart[] 를 받음. FileList 는 readonly 객체라
-      // DataTransfer.items 로 합성해야 함. 간단히 FileUIPart[] 로 변환해서 전달.
+      // AI SDK v6 는 FileList | FileUIPart[] 를 받음. FileUIPart[] 로 변환해서 전달.
+      // 비동기 변환 중 실패 시 input/attachments 를 복원해 사용자가 알 수 있게 함.
+      const pendingFiles = attachments;
+      const pendingText = text;
+      setInput("");
+      setAttachments([]);
+      setAttachmentError(null);
       Promise.all(
-        attachments.map(async (f) => ({
+        pendingFiles.map(async (f) => ({
           type: "file" as const,
           mediaType: f.type,
           filename: f.name,
           url: await fileToDataUrl(f),
         })),
-      ).then((parts) => {
-        sendMessage({ text: text || "", files: parts });
-      });
+      )
+        .then((parts) => {
+          sendMessage({ text: pendingText || "", files: parts });
+        })
+        .catch((err) => {
+          setInput(pendingText);
+          setAttachments(pendingFiles);
+          setAttachmentError(
+            err instanceof Error
+              ? `첨부 변환 실패: ${err.message}`
+              : "첨부 변환 실패",
+          );
+        });
     } else {
       sendMessage({ text });
+      setInput("");
+      setAttachmentError(null);
     }
-    setInput("");
-    setAttachments([]);
-    setAttachmentError(null);
   };
 
   const addFiles = (incoming: File[]) => {
@@ -237,7 +251,7 @@ export function ChatShell({
   const slashCommands = slashActive
     ? filterSlashCommands(getSlashCommandsForRole(role), slashQuery)
     : [];
-  const slashMenuOpen = slashActive && slashCommands.length >= 0;
+  const slashMenuOpen = slashActive;
 
   // 입력이 바뀔 때 index 를 0 으로 재설정해서 필터 결과가 줄어들어도 범위 이탈 방지.
   useEffect(() => {
