@@ -7,30 +7,43 @@
 
 ---
 
-## 두 AI 시스템 관계 (2026-04-18 합의)
+## 두 AI 시스템 관계 — **2026-04-19 재편 합의**
 
-에듀엣톡은 AI 레벨을 **3축**으로 분리한 2개 시스템을 운영한다.
+**이전 입장(04-18)**: 분리된 2 시스템 (`/ai-chat` vs `/admin/agent`) 각자 UI + 영속화.
+**현 입장(04-19)**: 업계 선두 6 서비스 조사(Claude Code subagents·Claude.ai·ChatGPT 통합 router·Cursor 2.0·LangGraph supervisor·MS Copilot Studio) 결과 **단일 Shell + Agent-as-Tool 오케스트레이션**이 업계 표준. 에듀엣톡은 이를 **Phase G 스프린트(S-0~S-3)**로 수렴한다. 상세 근거는 [research 보고서](#리서치-근거-6-서두-서비스-수렴-결론).
 
-| 축 | Chat Shell (`/ai-chat`) | Domain Agent (`/admin/agent`) |
-|---|---|---|
-| 도메인 깊이 | 얕음 (조회·요약·이동) | 깊음 (분석 실행·초안 생성) |
-| 사용자 범위 | 전 role | admin/consultant 전용 |
-| 지연·비용 | 저지연·저비용 (Ollama 로컬) | 고지연·고비용 (Gemini) |
-| Tool 수 | 4~10개 이내 | 49+ |
-| 영속화 | `ai_conversations`+`ai_messages` | `agent_sessions`+`agent_step_traces` |
-| 본 로드맵 대상 | ✅ | [domain-agent-architecture.md](domain-agent-architecture.md) |
+### 재편 후 아키텍처 (목표 상태)
 
-**원칙 (feedback_dual-system-shell-vs-agent.md):**
-- Shell ↔ Agent 기능 중복 이식 금지
-- Shell은 얕은 브리지 tool만 (analyzeRecord 패턴)
-- Agent는 도메인 실행에 집중. Shell UX(mention/tag/archive) 금지
-- 브리지 방향: Shell→Agent는 navigate/handoff. Agent→Shell은 요약 export (향후)
+```
+┌─ /ai-chat (Chat Shell = 메인 오케스트레이터) ────────────────────┐
+│                                                                   │
+│  사용자 요청 → Tier Routing(F-4) → 직속 tool / 서브에이전트 호출   │
+│                                                                   │
+│  Shell 직속 8 tool (navigation · meta · data · overview)          │
+│  ├── record-sub (24 tool) ── 생기부 분석·기록·전략·리포트          │
+│  ├── plan-sub (5 tool) ─── 수강 계획·적합도·수능최저             │
+│  └── admission-sub (22 tool) ─ 입시 배치·면접·교차지원·메모리     │
+│                                                                   │
+│  /admin/agent → debug/trace 전용 워크벤치로 격하 (S-2)            │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-판단 기준 (4-step):
-1. 학생/학부모도 쓰는가? → Yes → Shell
-2. 3초 내 답? → Yes → Shell
-3. LLM 1회로 끝? → Yes → Shell
-4. 하나라도 No → Agent
+### 설계 원칙 (업계 선두 수렴 결론)
+
+1. **단일 대화창** — 페이지 이동 없이 같은 UI에서 경량 질문부터 심층 작업까지. Cursor 2.0이 명시적으로 merge한 방향.
+2. **Agent-as-Tool 투명 위임** — 서브에이전트를 tool 인터페이스로 래핑. Claude Code `Task` tool 패턴.
+3. **컨텍스트 격리 + 요약 반환** — 서브는 별도 컨텍스트 윈도우에서 실행 후 요약만 메인에 반환. 메인 컨텍스트 오염 방지.
+4. **자동 라우팅 + 수동 탈출구** — 기본은 자동 분류(F-4), admin 은 "직접 서브 선택" 수동 옵션도 유지. GPT-5 롤백 교훈.
+5. **Tool-level 권한 게이트** — UI 분리가 아닌 tool 화이트리스트. role / plan 별 접근 제어.
+
+### 판단 기준 (**04-19 갱신**)
+
+이전 4-step 판단(Shell vs Agent 이분)을 폐기. 대체:
+
+1. 학생·학부모도 노출 가능한가? → Shell 직속 tool 또는 서브에이전트 read-only 권한
+2. 파이프라인 실행·배치 등 long-running? → 서브에이전트 내부 trigger tool
+3. 도메인 깊이: 생기부=record-sub · 수강=plan-sub · 입시=admission-sub
+4. Shell 메인 LLM(Ollama)에 부적합한 대용량 컨텍스트? → 서브에이전트(Gemini) 위임
 
 ---
 
@@ -190,23 +203,52 @@
 
 ## Phase G (1~2개월) — 업계 정렬 II: Agent-as-Tool + Auto-improve Loop
 
-**목표**: 마지막 미도입 패턴(**Agent-as-Tool**·**Auto-improve loop**) 확보. 선두 6 패턴 완전 정렬.
+**목표**: 마지막 미도입 패턴(**Agent-as-Tool**·**Auto-improve loop**) 확보 + **단일 Shell 통합 UI 완성**.
 
-**배경**: Domain Agent의 49 tool flat 구조는 프롬프트·컨텍스트가 비대. 선두(Claude Code·LangGraph·CrewAI)는 **계층적 위임** — 큰 에이전트가 작은 에이전트를 tool처럼 호출. 동시에 실사용 trace를 golden set으로 자동 편입하는 **AI factory 개선 루프**가 표준.
+**배경 (2026-04-19 재편)**: 선두 6 서비스(Claude Code·Claude.ai·ChatGPT·Cursor·LangGraph·MS Copilot) 전부 단일 UI + Agent-as-Tool 수렴. 사용자 요구로 Phase G를 **D/E 이전으로 상향**. Domain Agent 49 tool flat 구조 → 3 서브에이전트(실측 56 tool) 계층화 + `/admin/agent` 격하. 동시에 실사용 trace를 golden set으로 자동 편입하는 **AI factory 개선 루프**도 이 Phase에서.
+
+### Sprint 구조 (04-19 신설)
+
+**핵심 전환 4 스프린트**:
+
+| Sprint | 내용 | 기간 | 의존 |
+|--------|------|------|------|
+| **S-0** 설계·합의 | 56 tool 인벤토리 ✅ · 3 서브에이전트 경계안 ✅ · 호출 규약 문서 ✅ · 로드맵 재편 ✅ | 1~2d | — |
+| **S-1** record-sub 구현 | 24 tool 묶음. Shell MCP 에 `analyzeRecordDeep`·`designBlueprint` 등 상위 tool 로 등록. 컨텍스트 격리 + 요약 반환 | 3~4d | S-0 |
+| **S-2** UI 통합 | Shell 에 서브에이전트 진행 표시(Claude Code Task tool 스타일 타임라인). admin-only tool role 가드. `/admin/agent` 를 debug/trace 전용으로 격하 | 2d | S-1 |
+| **S-3** plan-sub + admission-sub + 폴리싱 | 나머지 27 tool 두 서브에 분산 이관. agent_sessions 와 Shell 대화 연동. 실측 회귀 수정 | 3~4d | S-2 |
+
+**후속 G 항목** (Auto-improve 루프):
 
 | # | 작업 | 난이도 | 시간 | 비고 |
 |---|------|--------|------|------|
-| G-1 | Agent 서브에이전트 분리 설계 — `record-sub` / `plan-sub` / `admission-sub` 3개. 각 10~15 tool | High | 1w | 기존 49 tool 재분류 |
-| G-2 | Agent-as-Tool 전환 — 메인 orchestrator가 서브에이전트를 `tool()` 로 호출 (Claude Code 패턴) | High | 1w | 프롬프트 크기 40%↓ 목표 |
 | G-3 | Observability 표준화 — `agent_step_traces` → OTEL span 매핑 (옵션: Langfuse 연동) | Med | 3d | 선두는 Langfuse/LangSmith 상용 |
-| G-4 | Trace → Golden set 자동 편입 파이프라인 — 주간 cron으로 실사용 trace 샘플링 → eval 후보 제안 | Med | 3d | F3 CI 워크플로우 확장 |
+| G-4 | Trace → Golden set 자동 편입 파이프라인 — 주간 cron 실사용 trace 샘플링 → eval 후보 제안 | Med | 3d | F3 CI 워크플로우 확장 |
 | G-5 | Auto-regression 리포트 — 주간 PR 코멘트: 신규 golden 추가분 대비 현재 통과율 | Low | 2d | |
-| G-6 | Multi-tenant agent isolation — tenant별 agent 인스턴스 분리 (Harvey/Glean 패턴) | High | 1w | 장기 스케일 대비. 현재 row-level만 |
-| G-7 | Shell→Agent 세션 export — 특정 대화를 agent 세션으로 전환 (역방향 handoff) | Med | 4d | 브리지 쌍방향 완성 |
+| G-6 | Multi-tenant agent isolation — tenant별 agent 인스턴스 분리 (Harvey/Glean 패턴) | High | 1w | 장기 스케일 대비 |
 
-**산출**: 선두 6 패턴 전부 완비. "AI factory 자동 개선 루프" 가동. 컨설턴트가 쓰면 쓸수록 에이전트가 좋아지는 바이브온 2.0 진입.
+**산출**: Shell vs Agent UI 분리 해소(Cursor 2.0 merge 동등). 선두 6 패턴 전부 완비. "AI factory 자동 개선 루프" 가동.
 
-**의존성**: Phase F 완료 후. 바이브온 루프 Phase 2(완료)의 자연스러운 확장.
+**의존성**: Phase F 완료 후. Phase C/D/E는 G 완료 이후로 재배치.
+
+---
+
+## 리서치 근거 (6 선두 서비스 수렴 결론)
+
+2026-04-19 조사 결과. 전부 공식 문서·블로그·2025 변경 로그 기반.
+
+| 서비스 | 통합 방식 | 맥락 승계 | 권한/라우팅 | 주 증거 |
+|--------|-----------|-----------|-------------|---------|
+| **Claude Code** | 단일 CLI. Task tool/자연어/`/agents` 자동·수동 위임 | 부모→자식 단방향. 서브는 새 컨텍스트 + **요약만 반환** | YAML front-matter로 tool 화이트리스트·모델 선택 | code.claude.com/docs/en/sub-agents |
+| **Claude.ai** | 단일 대화창. Projects·Artifacts·Research·Skills 투명 호출 | Project 200K 공유 · Skills 자동 로드 | Plan-level 토글 + tool-level | claude.com/blog/research |
+| **ChatGPT GPT-5** | 자동 model router(2025-08). main/mini/thinking/thinking-pro 자동 전환 | 단일 대화·Projects 공유 | **자동 기본, Plus/Pro 수동 옵션 복귀**(백래시 후) | openai.com/index/introducing-gpt-5 |
+| **Cursor 2.0** | chat+composer **명시적 merge**. 에이전트 중심 UI | worktree 8병렬 실행. 모델 간 계획 인계 | 모드별 tool 제한(ask/agent/plan) | cursor.com/blog/2-0 |
+| **LangGraph** | 프레임워크. **Agent-as-Tool 3층**: API tool → sub-agent → supervisor | Supervisor 자연어 request + worker 자연어 응답 | Supervisor가 description 기반 선택 | docs.langchain.com/oss/python/langchain/multi-agent/subagents-personal-assistant |
+| **MS Copilot** | Teams·M365·SharePoint 같은 UI에서 에이전트 호출. A2A 프로토콜 | A2A로 full conversation context hand-off | Maker controls로 tenant·역할별 활성화 | microsoft.com/en-us/microsoft-copilot/blog/copilot-studio/multi-agent-orchestration... |
+
+**공통 5 원칙**: 단일 대화창 / Agent-as-Tool 투명 위임 / 컨텍스트 격리 + 요약 반환 / 자동 라우팅 + 수동 탈출구 / Tool-level 권한 게이트.
+
+**에듀엣톡 괴리 추정**: 약 70% (UI 분리 축에 집중). 백엔드 파이프라인은 이미 업계 수준이라 재사용.
 
 ---
 
@@ -240,19 +282,22 @@
 
 ---
 
-## 타임라인 요약 (Phase F/G 반영)
+## 타임라인 요약 (**04-19 재편**)
 
 ```
 Week 1-2   │ Phase A ✅          │ ChatGPT 수준 도달 (2026-04-17 완료)
-Week 3-4   │ Phase T ✅          │ GUI↔내러티브 전환 브리지 (2026-04-17 v0 완주)
-Week 5-7   │ Phase B ✅          │ 2026 표준 완성 (2026-04-18 B-2~B-6 완주 + B-4 HITL)
-Week 8-11  │ Phase F 🆕          │ MCP + Tier Routing (업계 정렬 I) ← 다음
-Week 12-15 │ Phase C (+D 유형)   │ Artifact Canvas 편집 (MCP는 F로 이관)
-Week 16-20 │ Phase G 🆕          │ Agent-as-Tool + Auto-improve (업계 정렬 II)
-Week 21-26 │ Phase D + E         │ Memory + L3 도메인 차별화
+Week 3-4   │ Phase T ✅          │ GUI↔내러티브 전환 브리지 (v0 + v1 #2/#3)
+Week 5-7   │ Phase B ✅          │ 2026 표준 완성
+Week 8-9   │ Phase F ✅          │ MCP 중심화 + Tier Routing v0 (04-18~19)
+Week 10-11 │ Phase G 스프린트 🔥 │ Agent-as-Tool 통합 UI (S-0~S-3, 2주 집중)
+Week 12-14 │ Phase G 후속        │ Observability/OTEL + Auto-improve 루프
+Week 15-18 │ Phase C (+D 유형)   │ Artifact Canvas 편집
+Week 19-26 │ Phase D + E         │ Memory(Gen 4) + L3 도메인 차별화
 ```
 
-**6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + **GUI↔내러티브 전환 축** + **선두 6 패턴 완전 정렬** + 교육 L3 독점.
+**6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + **GUI↔내러티브 전환 축** + **단일 Shell + Agent-as-Tool 통합 UI** + 교육 L3 독점.
+
+**04-19 변경점**: Phase G를 D/E 이전으로 상향(업계 수렴 UI 반영). Phase C(Artifact Canvas)는 G 완료 후 자연 통합.
 
 ---
 
@@ -274,3 +319,11 @@ Week 21-26 │ Phase D + E         │ Memory + L3 도메인 차별화
   - 업계 선두 6 패턴 조사 → 에듀엣톡 현 위치 4/6 완비 확인 → 미도입 2축(MCP·Tier Routing) **Phase F**, 격차 2축(Agent-as-Tool·Auto-improve) **Phase G** 신설
   - Phase C-1(MCP)은 F-1~F-3 로 이관·세분화. Phase C는 Artifact Canvas에 집중
   - 관련 메모리: `feedback_dual-system-shell-vs-agent.md`, `reference_ai-industry-patterns-2026.md`
+- **2026-04-18~19 (Phase F 완주 + Phase T v1 #2/#3 + Agent-as-Tool 재편 합의)**:
+  - Phase F 전 단계 종결: F-1a/F-1b(MCP 서버 + 8 tool 승격), F-2(Chat Shell InMemoryTransport 경로), F-3(Agent read 5종 흡수), F-3e(resolve 통합), F-4 v0(분류기 라이브러리 9/9 정확도), F-5(SLO 배너), F-6 A안(문서화 보류)
+  - Phase T v1 #2(getScores Artifact auto-push) + #3(navigateTo role-aware 매핑) 완료
+  - 실측 중 **Shell vs Agent UI 분리가 사용성 저하의 근본 원인** 발견. 선두 6 서비스 재조사(Claude Code subagents · Claude.ai · ChatGPT GPT-5 router · Cursor 2.0 · LangGraph supervisor · MS Copilot Studio) 결과 단일 Shell + Agent-as-Tool 이 업계 표준 확증 (괴리 ~70%)
+  - **Phase G를 D/E 이전으로 상향**. S-0~S-3 스프린트 4단 신설: 서브에이전트 경계 설계(S-0 ✅) → record-sub(S-1) → UI 통합(S-2) → plan-sub/admission-sub(S-3)
+  - S-0-a 실측: 49 tool 가정 → **56 tool** 전수 확인. 3 서브에이전트(record-sub 24 / plan-sub 5 / admission-sub 22) + Shell 직속 8 경계안 확정
+  - 04-18 "판단 기준 4-step(Shell vs Agent 이분)" 폐기. 새 판단 기준은 노출 role·long-running·도메인 축·컨텍스트 크기 4축
+  - 관련 메모리: `mcp-elicitation-deferred.md`, `mcp-external-client-deferred.md`
