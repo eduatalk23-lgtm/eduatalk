@@ -269,6 +269,74 @@ async function cascadeDownstreamPipelines(params: {
 }
 
 // ============================================
+// 7-5b. rerunBlueprintFromStalenessAction (Phase 4a, 2026-04-19)
+// ============================================
+
+/**
+ * Blueprint Staleness Cascade — main_exploration 변경 시 Blueprint+downstream 일괄 reset.
+ *
+ * 적용 조건: `checkBlueprintStaleness()` 가 isStale=true 반환한 학생.
+ * 동작: blueprint pipeline + PIPELINE_RERUN_CASCADE.blueprint(grade_design + synthesis) 모두 pending 리셋.
+ *   실제 재실행은 클라이언트가 patch 후 패널 "전체 실행" 버튼/runFullSequence 로 주도 (서버-서버 체이닝 금지).
+ *
+ * Phase 4a 의 핵심: stale 감지 책임을 운영자 직감 → 시스템 자동으로 이관.
+ */
+export async function rerunBlueprintFromStalenessAction(
+  studentId: string,
+): Promise<ActionResponse<{ resetPipelines: string[] }>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    if (!tenantId) return createErrorResponse("권한이 없습니다");
+    const supabase = await createSupabaseServerClient();
+
+    const reset: string[] = [];
+
+    // 1. Blueprint pipeline 자체 reset (검색 시 tenant_id 까지 필터링)
+    const { data: bp } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, status")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("pipeline_type", "blueprint")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!bp) {
+      return createErrorResponse("Blueprint 파이프라인이 없습니다");
+    }
+    if (bp.status === "running") {
+      return createErrorResponse("실행 중인 파이프라인은 재실행할 수 없습니다");
+    }
+
+    const bpTasks: Record<string, PipelineTaskStatus> = {};
+    for (const k of BLUEPRINT_TASK_KEYS) bpTasks[k] = "pending";
+    await supabase
+      .from("student_record_analysis_pipelines")
+      .update({ status: "pending", tasks: bpTasks, completed_at: null })
+      .eq("id", bp.id as string);
+    reset.push("blueprint");
+
+    // 2. PIPELINE_RERUN_CASCADE.blueprint = ['grade_design', 'synthesis'] 자동 적용
+    await cascadeDownstreamPipelines({
+      supabase,
+      studentId,
+      sourceKey: "blueprint",
+    });
+    reset.push(...PIPELINE_RERUN_CASCADE.blueprint);
+
+    return createSuccessResponse({ resetPipelines: reset });
+  } catch (error) {
+    logActionError(
+      { ...LOG_CTX, action: "rerunBlueprintFromStalenessAction" },
+      error,
+      { studentId },
+    );
+    return createErrorResponse("Blueprint cascade 재실행 실패");
+  }
+}
+
+// ============================================
 // 7-6. rerunSynthesisPipelineTasks (트랙 D, 2026-04-14)
 // ============================================
 

@@ -20,7 +20,11 @@ import type {
   GradePipelineTaskKey,
   SynthesisPipelineTaskKey,
 } from "@/lib/domains/record-analysis/pipeline/pipeline-types";
-import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
+import {
+  checkPipelineStalenessAction,
+  checkBlueprintStalenessAction,
+} from "@/lib/domains/student-record/actions/staleness";
+import { rerunBlueprintFromStalenessAction } from "@/lib/domains/student-record/actions/pipeline-orchestrator-rerun";
 import { useSidePanel } from "@/components/side-panel";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -144,6 +148,32 @@ export function PipelinePanelApp({
     staleTime: 30_000,
   });
   const isPipelineStale = stalenessData?.isStale ?? false;
+
+  // Phase 4a (2026-04-19): Blueprint Staleness Cascade.
+  //   main_exploration 변경 후 blueprint 가 stale 인지 별도 체크.
+  //   blueprint 완료 상태에서만 의미 있으므로 가드.
+  const blueprintCompletedForStale =
+    gradeStatus?.blueprintPipeline?.status === "completed";
+  const { data: blueprintStaleness } = useQuery({
+    queryKey: [...studentRecordKeys.gradeAwarePipeline(studentId), "blueprint-staleness"],
+    queryFn: () => checkBlueprintStalenessAction(studentId),
+    enabled: blueprintCompletedForStale,
+    staleTime: 30_000,
+  });
+  const isBlueprintStale = blueprintStaleness?.isStale ?? false;
+
+  const handleRerunBlueprintCascade = async () => {
+    const result = await rerunBlueprintFromStalenessAction(studentId);
+    if (!result.success) {
+      showError(result.error ?? "Blueprint 재실행 실패");
+      return;
+    }
+    showSuccess("Blueprint 부터 재실행을 시작합니다");
+    await queryClient.invalidateQueries({
+      queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
+    });
+    runFullSequence();
+  };
 
   // ─── 파생 상태 ────────────────────────────────────────────────────────────
 
@@ -444,6 +474,27 @@ export function PipelinePanelApp({
           </span>
         </div>
       </div>
+
+      {/* ─── Blueprint Staleness 배너 (Phase 4a, 2026-04-19) ─────────────── */}
+      {isBlueprintStale && !isPipelineStale && (
+        <div className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-800/50 dark:bg-amber-950/30">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="text-sm text-amber-700 dark:text-amber-300 truncate">
+              메인 탐구가 수정되었습니다. Blueprint 부터 재분석이 필요합니다.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRerunBlueprintCascade}
+            disabled={isAnyRunning}
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Blueprint 재실행
+          </button>
+        </div>
+      )}
 
       {/* ─── Stale 배너 ─────────────────────────────────────────────────── */}
       {isPipelineStale && (
