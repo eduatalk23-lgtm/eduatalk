@@ -16,6 +16,7 @@ import {
   Moon,
   Sun,
   PanelLeft,
+  Paperclip,
   Sparkles,
   Maximize2,
   X,
@@ -38,6 +39,12 @@ import {
   getSlashCommandsForRole,
 } from "@/components/ai-chat/SlashMenu";
 import { InlineConfirm } from "@/components/ai-chat/InlineConfirm";
+import { ComposerAttachments } from "@/components/ai-chat/ComposerAttachments";
+import {
+  ACCEPT_ATTRIBUTE,
+  rejectionMessage,
+  validateAttachments,
+} from "@/lib/domains/ai-chat/attachments";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
@@ -125,6 +132,10 @@ export function ChatShell({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [pendingAction, setPendingAction] = useState<SlashCommand | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
@@ -177,9 +188,46 @@ export function ChatShell({
 
   const submit = () => {
     const text = input.trim();
-    if (!text || isBusy) return;
-    sendMessage({ text });
+    const hasFiles = attachments.length > 0;
+    if (isBusy) return;
+    if (!text && !hasFiles) return;
+
+    if (hasFiles) {
+      // AI SDK v6 는 FileList | FileUIPart[] 를 받음. FileList 는 readonly 객체라
+      // DataTransfer.items 로 합성해야 함. 간단히 FileUIPart[] 로 변환해서 전달.
+      Promise.all(
+        attachments.map(async (f) => ({
+          type: "file" as const,
+          mediaType: f.type,
+          filename: f.name,
+          url: await fileToDataUrl(f),
+        })),
+      ).then((parts) => {
+        sendMessage({ text: text || "", files: parts });
+      });
+    } else {
+      sendMessage({ text });
+    }
     setInput("");
+    setAttachments([]);
+    setAttachmentError(null);
+  };
+
+  const addFiles = (incoming: File[]) => {
+    const { accepted, rejected } = validateAttachments(attachments, incoming);
+    if (accepted.length > 0) {
+      setAttachments((prev) => [...prev, ...accepted]);
+    }
+    if (rejected.length > 0) {
+      setAttachmentError(rejectionMessage(rejected[0].reason));
+    } else if (accepted.length > 0) {
+      setAttachmentError(null);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+    setAttachmentError(null);
   };
 
   // Phase B-3: Slash 커맨드 메뉴 계산. input 이 '/' 로 시작하고 공백 없으면 활성.
@@ -443,13 +491,41 @@ export function ChatShell({
         </main>
 
         <form
-          className="border-t border-zinc-200 bg-white px-4 py-3 md:px-6 md:py-4 dark:border-zinc-800 dark:bg-zinc-950"
+          className={cn(
+            "relative border-t border-zinc-200 bg-white px-4 py-3 md:px-6 md:py-4 dark:border-zinc-800 dark:bg-zinc-950",
+            isDragging &&
+              "ring-2 ring-inset ring-zinc-900 dark:ring-zinc-100",
+          )}
           onSubmit={(e) => {
             e.preventDefault();
             submit();
           }}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("Files")) {
+              e.preventDefault();
+              setIsDragging(true);
+            }
+          }}
+          onDragLeave={(e) => {
+            // form 외부로 완전히 벗어날 때만 해제
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsDragging(false);
+            }
+          }}
+          onDrop={(e) => {
+            if (e.dataTransfer.files.length > 0) {
+              e.preventDefault();
+              addFiles(Array.from(e.dataTransfer.files));
+            }
+            setIsDragging(false);
+          }}
           aria-label="메시지 입력"
         >
+          {isDragging && (
+            <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-2xl bg-zinc-50/90 text-sm font-medium text-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-200">
+              이미지 파일을 여기에 드롭
+            </div>
+          )}
           {slashMenuOpen && (
             <div className="mx-auto w-full max-w-3xl pb-2">
               <SlashMenu
@@ -460,11 +536,49 @@ export function ChatShell({
               />
             </div>
           )}
+          <ComposerAttachments files={attachments} onRemove={removeAttachment} />
+          {attachmentError && (
+            <p
+              role="alert"
+              className="mx-auto max-w-3xl pb-1 text-[11px] text-red-600 dark:text-red-400"
+            >
+              {attachmentError}
+            </p>
+          )}
           <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2 focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-zinc-500 dark:focus-within:ring-zinc-600">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_ATTRIBUTE}
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  addFiles(Array.from(e.target.files));
+                  e.target.value = "";
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="이미지 첨부"
+              title="이미지 첨부 (최대 5개, 각 10MB)"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              <Paperclip size={16} />
+            </button>
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onPaste={(e) => {
+                const items = e.clipboardData?.files;
+                if (items && items.length > 0) {
+                  e.preventDefault();
+                  addFiles(Array.from(items));
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (slashMenuOpen && slashCommands.length > 0) {
@@ -515,7 +629,7 @@ export function ChatShell({
             ) : (
               <button
                 type="submit"
-                disabled={!input.trim()}
+                disabled={!input.trim() && attachments.length === 0}
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white hover:bg-zinc-700 disabled:bg-zinc-200 disabled:text-zinc-400 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600"
                 aria-label="보내기"
               >
@@ -592,6 +706,15 @@ function ThemeToggleButton() {
       {isDark ? <Sun size={16} /> : <Moon size={16} />}
     </button>
   );
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function toolState(
