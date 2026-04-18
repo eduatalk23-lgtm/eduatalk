@@ -56,6 +56,7 @@ function makeSupabaseMock() {
     update: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     neq: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
   };
   return mock;
@@ -507,16 +508,13 @@ describe("runTaskWithState()", () => {
     const ctx = makeCtx({}, sb);
     ctx.tasks["haengteuk_guide"] = "pending";
 
-    let updateCallCount = 0;
-    sb.update.mockImplementation(() => {
-      updateCallCount++;
-      return sb;
-    });
-
     await runTaskWithState(ctx, "haengteuk_guide", async () => "완료");
 
-    // running 세팅 시 1회 + 완료 후 1회 = 2회
-    expect(updateCallCount).toBe(2);
+    // started_at heartbeat 초기화 UPDATE는 제외하고, status 필드가 있는 UPDATE만 카운트
+    const statusUpdates = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    expect(statusUpdates.length).toBe(2);
   });
 
   it("실패 시에도 updatePipelineState가 2번 호출된다 (running → failed)", async () => {
@@ -524,17 +522,14 @@ describe("runTaskWithState()", () => {
     const ctx = makeCtx({}, sb);
     ctx.tasks["guide_matching"] = "pending";
 
-    let updateCallCount = 0;
-    sb.update.mockImplementation(() => {
-      updateCallCount++;
-      return sb;
-    });
-
     await runTaskWithState(ctx, "guide_matching", async () => {
       throw new Error("가이드 매칭 실패");
     });
 
-    expect(updateCallCount).toBe(2);
+    const statusUpdates = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    expect(statusUpdates.length).toBe(2);
   });
 
   it("GradePipelineTaskKey도 처리된다 (competency_setek)", async () => {
@@ -556,7 +551,11 @@ describe("runTaskWithState()", () => {
     await runTaskWithState(ctx, "competency_setek", async () => "완료");
 
     // 두 번째 update 호출(finalize)의 status 인자
-    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    // started_at heartbeat 초기화 UPDATE 제외 후 finalize UPDATE 선택
+    const statusCalls = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    const finalUpdateArg = statusCalls[statusCalls.length - 1][0] as Record<string, unknown>;
     expect(finalUpdateArg.status).toBe("running");
     expect(finalUpdateArg).not.toHaveProperty("completed_at");
   });
@@ -576,7 +575,11 @@ describe("runTaskWithState()", () => {
 
     await runTaskWithState(ctx, "haengteuk_guide", async () => "행특 가이드 완료");
 
-    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    // started_at heartbeat 초기화 UPDATE 제외 후 finalize UPDATE 선택
+    const statusCalls = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    const finalUpdateArg = statusCalls[statusCalls.length - 1][0] as Record<string, unknown>;
     expect(finalUpdateArg.status).toBe("completed");
     expect(finalUpdateArg).toHaveProperty("completed_at");
     expect(typeof finalUpdateArg.completed_at).toBe("string");
@@ -592,7 +595,11 @@ describe("runTaskWithState()", () => {
 
     await runTaskWithState(ctx, "draft_analysis", async () => "가안 분석 완료");
 
-    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    // started_at heartbeat 초기화 UPDATE 제외 후 finalize UPDATE 선택
+    const statusCalls = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    const finalUpdateArg = statusCalls[statusCalls.length - 1][0] as Record<string, unknown>;
     expect(finalUpdateArg.status).toBe("completed");
     expect(finalUpdateArg).toHaveProperty("completed_at");
   });
@@ -613,7 +620,11 @@ describe("runTaskWithState()", () => {
 
     await runTaskWithState(ctx, "haengteuk_guide", async () => "완료");
 
-    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    // started_at heartbeat 초기화 UPDATE 제외 후 finalize UPDATE 선택
+    const statusCalls = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    const finalUpdateArg = statusCalls[statusCalls.length - 1][0] as Record<string, unknown>;
     expect(finalUpdateArg.status).toBe("completed");
   });
 
@@ -632,7 +643,11 @@ describe("runTaskWithState()", () => {
       throw new Error("LLM 실패");
     });
 
-    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    // started_at heartbeat 초기화 UPDATE 제외 후 finalize UPDATE 선택
+    const statusCalls = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    const finalUpdateArg = statusCalls[statusCalls.length - 1][0] as Record<string, unknown>;
     expect(finalUpdateArg.status).toBe("failed");
     expect(finalUpdateArg).toHaveProperty("completed_at");
   });
@@ -647,7 +662,11 @@ describe("runTaskWithState()", () => {
 
     await runTaskWithState(ctx, "roadmap_generation", async () => "로드맵 완료");
 
-    const finalUpdateArg = sb.update.mock.calls[1][0] as Record<string, unknown>;
+    // started_at heartbeat 초기화 UPDATE 제외 후 finalize UPDATE 선택
+    const statusCalls = sb.update.mock.calls.filter(
+      (c) => typeof c[0] === "object" && c[0] !== null && "status" in (c[0] as Record<string, unknown>),
+    );
+    const finalUpdateArg = statusCalls[statusCalls.length - 1][0] as Record<string, unknown>;
     expect(finalUpdateArg.status).toBe("completed");
   });
 });

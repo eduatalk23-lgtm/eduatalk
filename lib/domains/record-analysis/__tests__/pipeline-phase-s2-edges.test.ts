@@ -167,6 +167,15 @@ function makeCtx(
   };
 }
 
+/** runner 반환값에서 preview 문자열 추출 — string 또는 {preview, result} 모두 지원 */
+function previewOf(result: unknown): string {
+  if (typeof result === "string") return result;
+  if (result && typeof result === "object" && "preview" in result) {
+    return String((result as { preview: unknown }).preview);
+  }
+  return String(result);
+}
+
 // ─── runEdgeComputation 테스트 ────────────────────────────────────────────
 
 describe("runEdgeComputation", () => {
@@ -355,15 +364,14 @@ describe("runGuideMatching", () => {
     return { id, title: `가이드-${id}`, match_reason: matchReason };
   }
 
-  it("가이드가 0건이면 '0건 가이드 배정' 문자열 반환", async () => {
+  it("가이드가 0건이면 '0건 가이드 배정' preview 반환", async () => {
     mockAutoRecommend.mockResolvedValue({ success: true, data: [] });
 
     const ctx = makeCtx({ neisGrades: [1] });
     const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
-    expect(typeof result).toBe("string");
-    expect(result as string).toMatch(/0건 가이드 배정/);
+    expect(previewOf(result)).toMatch(/0건 가이드 배정/);
   });
 
   it("이미 배정된 가이드는 재배정하지 않는다", async () => {
@@ -384,7 +392,7 @@ describe("runGuideMatching", () => {
     const result = await runGuideMatching(ctx);
 
     // 신규 배정 없음 — 0건
-    expect(result as string).toMatch(/0건 가이드 배정/);
+    expect(previewOf(result)).toMatch(/0건 가이드 배정/);
   });
 
   // TODO(wave-5.1f-drift): Wave 5.1f에서 orphan-skip(과목 풀 불일치) + activity_type 3회
@@ -538,7 +546,7 @@ describe("runGuideMatching", () => {
     const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
     const result = await runGuideMatching(ctx);
 
-    expect(result as string).toMatch(/0건 가이드 배정/);
+    expect(previewOf(result)).toMatch(/0건 가이드 배정/);
   });
 
   // TODO(wave-5.1f-drift): consultingGrades 미설정 시 plannedNames=[]로 skip됨. 시나리오 재구성 필요.

@@ -438,7 +438,10 @@ describe("S5 activity_summary — runActivitySummary", () => {
     const result = await runActivitySummary(ctx as never, []);
 
     expect(genMock).toHaveBeenCalledOnce();
-    expect(result).toBe("활동 요약서 생성 완료");
+    expect(result).toMatchObject({
+      preview: expect.stringContaining("활동 요약서 생성 완료"),
+      result: { summaryCount: expect.any(Number) },
+    });
   });
 
   it("진단 강점/약점이 있으면 extraSections에 진단 섹션이 포함된다", async () => {
@@ -797,7 +800,13 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
       }
     `);
 
-    expect(result).toBe("2건 면접 질문 생성");
+    expect(result).toMatchObject({
+      preview: "2건 면접 질문 생성",
+      result: {
+        totalCount: 2,
+        byType: { activity_depth: 1, critical: 1 },
+      },
+    });
   });
 
   it("진단 약점이 있으면 diagnosticWeaknesses 필드가 채워진다", async () => {
@@ -894,6 +903,18 @@ describe("S6 roadmap_generation — runRoadmapGeneration", () => {
         "preview": "2건 AI 로드맵 (analysis)",
         "result": {
           "itemCount": 2,
+          "items": [
+            {
+              "area": "setek",
+              "grade": 1,
+              "semester": 1,
+            },
+            {
+              "area": "general",
+              "grade": 2,
+              "semester": null,
+            },
+          ],
           "mode": "analysis",
         },
       }
