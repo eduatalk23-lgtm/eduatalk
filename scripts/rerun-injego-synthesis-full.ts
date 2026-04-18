@@ -29,6 +29,7 @@ import {
   executeSynthesisPhase4,
   executeSynthesisPhase5,
   executeSynthesisPhase6,
+  executeSynthesisPhase7,
 } from "../lib/domains/record-analysis/pipeline/pipeline-synthesis-phases";
 import { SYNTHESIS_PIPELINE_TASK_KEYS } from "../lib/domains/record-analysis/pipeline/pipeline-config";
 
@@ -157,6 +158,12 @@ async function main() {
     await runPhase(6, async () => {
       const ctx = await loadPipelineContext(pipelineId);
       await executeSynthesisPhase6(ctx);
+    });
+
+    // Phase 7 (2026-04-19): tier_plan_refinement + 최종 상태 판정.
+    await runPhase(7, async () => {
+      const ctx = await loadPipelineContext(pipelineId);
+      await executeSynthesisPhase7(ctx);
     });
 
     const totalElapsed = ((Date.now() - phaseStart) / 1000).toFixed(1);

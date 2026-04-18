@@ -727,7 +727,7 @@ export function usePipelineExecution({
       );
       const synthTasks = freshStatus?.synthesisPipeline?.tasks ?? {};
 
-      for (let phase = 1; phase <= 6; phase++) {
+      for (let phase = 1; phase <= 7; phase++) {
         if (isAborted()) return;
 
         const synthPhaseKeys = SYNTHESIS_PHASE_GROUPS[phase - 1]?.keys ?? [];

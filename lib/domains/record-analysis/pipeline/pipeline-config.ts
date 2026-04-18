@@ -26,6 +26,7 @@ export const PIPELINE_TASK_KEYS = [
   "ai_strategy",             // 12th: 진단 약점+부족역량 → 보완전략 자동 제안
   "interview_generation",    // 13th: 기록+진단 → 면접 예상 질문 생성
   "roadmap_generation",      // 14th: 진단+스토리라인+세특/창체/행특방향 → 학기별 로드맵
+  "tier_plan_refinement",    // 15th: Synthesis → main_exploration 피드백 루프 (Phase 4b Sprint 3)
 ] as const;
 
 // ============================================
@@ -65,6 +66,7 @@ export const SYNTHESIS_PIPELINE_TASK_KEYS = [
   "ai_strategy",
   "interview_generation",
   "roadmap_generation",
+  "tier_plan_refinement",     // S7 (Phase 4b Sprint 3): Synthesis → main_exploration 피드백 루프
 ] as const;
 
 // ============================================
@@ -177,9 +179,12 @@ export const SYNTHESIS_TASK_DEPENDENTS: Partial<Record<_SynthKey, _SynthKey[]>> 
   // hyperedge_computation은 ai_strategy 프롬프트에 테마 요약을 주입하지만, 없어도 graceful degradation이라
   // strategy의 prereq로 걸지는 않는다. (D8 설계 — best-effort → task 승격 후에도 soft 의존 유지)
   guide_matching: ["haengteuk_linking", "activity_summary", "roadmap_generation"],
-  ai_diagnosis: ["gap_tracking", "ai_strategy", "interview_generation", "roadmap_generation"],
+  ai_diagnosis: ["gap_tracking", "ai_strategy", "interview_generation", "roadmap_generation", "tier_plan_refinement"],
   // Gap Tracker: blueprint + diagnosis 이후 실행. bridge 결과를 전략에 주입.
   gap_tracking: ["ai_strategy", "roadmap_generation"],
+  // Phase 4b Sprint 3: tier_plan_refinement 는 S3 진단/S5 전략/S6 로드맵을 모두 입력으로 받음.
+  ai_strategy: ["tier_plan_refinement"],
+  roadmap_generation: ["tier_plan_refinement"],
 };
 
 /**
@@ -320,6 +325,7 @@ export const PIPELINE_TASK_LABELS: Record<_LegacyKey, string> = {
   ai_strategy: "보완전략 제안",
   interview_generation: "면접 질문 생성",
   roadmap_generation: "로드맵 생성",
+  tier_plan_refinement: "메인 탐구 개정",
 };
 
 /** 태스크별 타임아웃 (ms). 초과 시 failed 전환. */
@@ -346,6 +352,8 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   ai_strategy: 120_000,
   interview_generation: 120_000,
   roadmap_generation: 120_000,
+  // Phase 4b Sprint 3: Flash → Pro fallback + jaccard 비교 + INSERT. 보통 Flash 성공 ~10-15s.
+  tier_plan_refinement: 180_000,
 };
 
 // ============================================
@@ -468,4 +476,8 @@ export const SYNTHESIS_PHASE_TASKS: Record<number, _SynthKey[]> = {
   4: ["bypass_analysis"],
   5: ["activity_summary", "ai_strategy"],
   6: ["interview_generation", "roadmap_generation"],
+  // Phase 4b Sprint 3: Synthesis 산출물을 근거로 main_exploration.tier_plan 을 재평가.
+  // 수렴(jaccard >= 0.8) 이면 no-op, 미수렴이면 신규 main_exploration row INSERT.
+  // 컨설턴트 수정본(edited_by_consultant_at != null) 및 non-bootstrap origin 은 자동 skip.
+  7: ["tier_plan_refinement"],
 };

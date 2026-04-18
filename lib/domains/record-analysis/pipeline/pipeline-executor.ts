@@ -698,6 +698,8 @@ export function getNextSynthesisPhase(tasks: Record<string, string>): number {
   if (tasks.bypass_analysis !== "completed") return 4;
   if (tasks.activity_summary !== "completed" || tasks.ai_strategy !== "completed") return 5;
   if (tasks.interview_generation !== "completed" || tasks.roadmap_generation !== "completed") return 6;
+  // Phase 4b Sprint 3 (2026-04-19): tier_plan_refinement 를 Phase 7 로 추가.
+  if (tasks.tier_plan_refinement !== "completed") return 7;
   return 0;
 }
 

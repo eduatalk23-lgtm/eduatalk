@@ -34,6 +34,7 @@ import {
   runAiStrategy,
   runInterviewGeneration,
   runRoadmapGeneration,
+  runTierPlanRefinement,
 } from "./pipeline-task-runners";
 import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
@@ -604,7 +605,9 @@ export async function executeSynthesisPhase5(
 }
 
 // ============================================
-// Synthesis Phase 6: 면접 + 로드맵 → 최종 상태
+// Synthesis Phase 6: 면접 + 로드맵
+// (Phase 4b Sprint 3, 2026-04-19): 최종 상태 판정은 Phase 7 로 이관.
+// Phase 7 의 tier_plan_refinement 결과까지 반영해야 완전한 파이프라인 종료가 되기 때문.
 // ============================================
 
 export async function executeSynthesisPhase6(
@@ -630,7 +633,40 @@ export async function executeSynthesisPhase6(
     await Promise.allSettled(tasks);
   }
 
-  // Synthesis pipeline 최종 상태 판정
+  // Phase 6 단독 종료 — 최종 상태 판정은 Phase 7 가 담당한다.
+  await updatePipelineState(
+    ctx.supabase as SupabaseAdminClient,
+    ctx.pipelineId,
+    "running",
+    ctx.tasks,
+    ctx.previews,
+    ctx.results ?? {},
+    ctx.errors ?? {},
+  );
+}
+
+// ============================================
+// Synthesis Phase 7: tier_plan_refinement → 최종 상태
+// (Phase 4b Sprint 3, 2026-04-19)
+//
+// Synthesis 산출물을 근거로 활성 main_exploration.tier_plan 을 재평가.
+// 수렴(jaccard ≥ 0.8) 시 no-op, 미수렴 시 origin=auto_bootstrap_v2 로 신규 row INSERT.
+// 재부트스트랩 트리거는 Phase 4a staleness 배너가 사용자 클릭으로 주도 (서버-서버 체이닝 금지).
+// ============================================
+
+export async function executeSynthesisPhase7(
+  ctx: PipelineContext,
+): Promise<void> {
+  if (await checkCancelled(ctx)) return;
+
+  const refinementSkipped = skipIfSynthPrereqFailed(ctx, "tier_plan_refinement");
+  if (!refinementSkipped) {
+    await runTaskWithState(ctx, "tier_plan_refinement", () =>
+      runTierPlanRefinement(ctx),
+    );
+  }
+
+  // Synthesis pipeline 최종 상태 판정 (S1-S7 전체 기준)
   const allCompleted = SYNTHESIS_PIPELINE_TASK_KEYS.every(
     (k) => ctx.tasks[k] === "completed",
   );

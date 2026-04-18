@@ -236,6 +236,35 @@ export interface PipelineTaskResultMap {
     }>;
     elapsedMs?: number;
   };
+  /**
+   * S7 (Phase 4b Sprint 3): Synthesis → main_exploration 피드백 루프.
+   *  Synthesis 산출물(진단 약점/전략/로드맵/품질 패턴)을 근거로 현 tier_plan 을 재평가.
+   *  - action=converged: jaccard >= threshold. no-op (수렴 체인 종료).
+   *  - action=refined: jaccard < threshold. origin=auto_bootstrap_v2 로 신규 row INSERT.
+   *  - action=skipped_*: 컨설턴트 수정본/비-부트스트랩/LLM 실패 등 자동 skip 사유.
+   *  재부트스트랩 트리거는 기존 Phase 4a staleness 배너가 main_exploration.updated_at 변경을 감지해
+   *  사용자 클릭으로 주도 (서버-서버 체이닝 금지).
+   */
+  tier_plan_refinement: {
+    action:
+      | "converged"
+      | "refined"
+      | "skipped_no_active"
+      | "skipped_guarded_by_consultant"
+      | "skipped_non_bootstrap_origin"
+      | "skipped_no_target_major"
+      | "skipped_llm_error"
+      | "skipped_insert_error";
+    jaccardOverall?: number;
+    jaccardByTier?: { foundational: number; development: number; advanced: number };
+    threshold?: number;
+    prevVersionId?: string;
+    newVersionId?: string;
+    newVersion?: number;
+    modelName?: string;
+    error?: string;
+    elapsedMs?: number;
+  };
 
   // ── Blueprint-Axis (B1: Blueprint pipeline, S3.5: Gap Tracker) ──
   /** B1 (blueprint pipeline): 진로→3년 수렴 설계 */

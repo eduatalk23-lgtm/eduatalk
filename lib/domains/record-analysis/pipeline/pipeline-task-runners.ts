@@ -35,6 +35,7 @@ export {
   runBypassAnalysis,
   runInterviewGeneration,
   runRoadmapGeneration,
+  runTierPlanRefinement,
 } from "./synthesis";
 
 // Blueprint Pipeline (B1, 2026-04-16 D)

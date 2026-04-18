@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
 import { guardCancelled } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
-import { executeSynthesisPhase6 } from "@/lib/domains/record-analysis/pipeline/pipeline-synthesis-phases";
+import { executeSynthesisPhase7 } from "@/lib/domains/record-analysis/pipeline/pipeline-synthesis-phases";
 
 export const maxDuration = 300;
 
-const LOG_CTX = { domain: "student-record", action: "pipeline.synthesis.phase-6" };
+const LOG_CTX = { domain: "student-record", action: "pipeline.synthesis.phase-7" };
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,15 +19,15 @@ export async function POST(request: NextRequest) {
     const ctx = await loadPipelineContext(pipelineId);
     const cancelResp = await guardCancelled(ctx);
     if (cancelResp) return cancelResp;
-    const validationError = validatePhasePrerequisites(ctx, 6, "synthesis");
+    const validationError = validatePhasePrerequisites(ctx, 7, "synthesis");
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 409 });
     }
-    await executeSynthesisPhase6(ctx);
+    await executeSynthesisPhase7(ctx);
 
-    return NextResponse.json({ phase: 6, type: "synthesis", completed: true });
+    return NextResponse.json({ phase: 7, type: "synthesis", completed: true, final: true });
   } catch (error) {
     logActionError(LOG_CTX, error);
-    return NextResponse.json({ error: "Synthesis Phase 6 실패" }, { status: 500 });
+    return NextResponse.json({ error: "Synthesis Phase 7 실패" }, { status: 500 });
   }
 }

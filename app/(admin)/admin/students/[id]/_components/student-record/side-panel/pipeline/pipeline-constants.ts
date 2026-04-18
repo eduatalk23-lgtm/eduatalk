@@ -114,6 +114,8 @@ export const SYNTHESIS_PHASE_GROUPS: Array<{
   { label: "우회학과", keys: ["bypass_analysis"] },
   { label: "요약+전략", keys: ["activity_summary", "ai_strategy"] },
   { label: "면접+로드맵", keys: ["interview_generation", "roadmap_generation"] },
+  // Phase 4b Sprint 3: Synthesis → main_exploration 피드백 루프 (jaccard 수렴 가드).
+  { label: "메인 탐구 개정", keys: ["tier_plan_refinement"] },
 ];
 
 export const GRADE_TASK_LABEL_MAP: Record<GradePipelineTaskKey, string> = {
@@ -260,6 +262,14 @@ export function isSynthesisPhaseReady(
   if (phase === 4) return t.ai_diagnosis === "completed" && t.course_recommendation === "completed";
   if (phase === 5) return t.bypass_analysis === "completed";
   if (phase === 6) return t.activity_summary === "completed" && t.ai_strategy === "completed";
+  // Phase 4b Sprint 3: S7 tier_plan_refinement — S3/S5/S6 모두 완료 필요.
+  if (phase === 7) {
+    return (
+      t.ai_diagnosis === "completed" &&
+      t.ai_strategy === "completed" &&
+      t.roadmap_generation === "completed"
+    );
+  }
   return false;
 }
 

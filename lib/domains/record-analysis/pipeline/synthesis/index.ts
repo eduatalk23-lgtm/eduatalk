@@ -29,3 +29,6 @@ export { runActivitySummary, runAiStrategy } from "./phase-s5-strategy";
 
 // S6
 export { runInterviewGeneration, runRoadmapGeneration } from "./phase-s6-interview";
+
+// S7 (Phase 4b Sprint 3): Synthesis → main_exploration 피드백 루프
+export { runTierPlanRefinement } from "./phase-s7-tier-plan-refinement";

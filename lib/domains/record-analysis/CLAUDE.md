@@ -80,7 +80,7 @@ Grade Pipeline (학년별, 9태스크×8Phase)
   P7: draft_generation               ← 설계 모드 전용, 레벨링 주입(L2) + 방향 가이드 기반 AI 가안
   P8: draft_analysis                 ← 가안 역량 분석 (tag=draft_analysis, scores=ai_projected, edges=projected)
 
-Synthesis Pipeline (종합, 13태스크×6Phase — 트랙 D 2026-04-14 task_key 3종 승격)
+Synthesis Pipeline (종합, 14태스크×7Phase — 트랙 D 2026-04-14 3종 승격 + Phase 4b Sprint 3 S7 신설)
   S1: storyline_generation
   S2: narrative_arc_extraction (chunked sub-route) → edge_computation + hyperedge_computation + guide_matching + haengteuk_linking
         ↑ 트랙 D: 기존 best-effort 3종(hyperedge/narrative/haengteuk_link)을 정식 task_key로 승격.
@@ -89,6 +89,11 @@ Synthesis Pipeline (종합, 13태스크×6Phase — 트랙 D 2026-04-14 task_key
   S4: bypass_analysis
   S5: activity_summary + ai_strategy         ← qualityPatterns + hyperedgeSummarySection 주입
   S6: interview_generation + roadmap_generation
+  S7: tier_plan_refinement                   ← Synthesis → main_exploration 피드백 루프 (Phase 4b Sprint 3, 2026-04-19)
+        ↑ S3 진단 + S5 전략 + S6 로드맵 + qualityPatterns 을 근거로 active main_exploration.tier_plan 을 재평가.
+          jaccard ≥ 0.8 → no-op / < 0.8 → origin='auto_bootstrap_v2' 로 신규 row INSERT (parent_version_id 체인).
+          컨설턴트 수정본(edited_by_consultant_at != null) / 비-부트스트랩 origin 은 자동 skip.
+          재부트스트랩 트리거는 Phase 4a staleness 배너가 사용자 클릭으로 주도 (서버-서버 체이닝 금지).
 ```
 
 ### Tier Plan 흐름 (4축×3층 메인 탐구 seed → 프롬프트 주입)
@@ -113,6 +118,7 @@ Synthesis Pipeline (종합, 13태스크×6Phase — 트랙 D 2026-04-14 task_key
 | **S3 ai_diagnosis** | `prompts/diagnosisPrompt.ts` | `mainExplorationSection` (renderer 결과) | tier 정합성 평가 (현 활동이 어느 tier에 위치하는지) |
 | **S5 ai_strategy** | `prompts/strategyRecommend.ts` | `mainExplorationSection` | tier_plan 빈 셀(추천 활동 부족 학기) 우선 채움 |
 | **S6 interview / roadmap** | `prompts/generateInterviewQuestions.ts`, `prompts/roadmapGeneration.ts` | `mainExplorationSection` | record의 tier 컨텍스트 / 학기별 missions와 tier 정합 |
+| **S7 tier_plan_refinement** | `llm/prompts/tierPlanRefinement.ts` + `llm/actions/extractTierPlanSuggestion.ts` | 현 tier_plan + Synthesis 산출물(진단 약점·전략·로드맵·qualityPatterns) | Synthesis 결과를 근거로 tier_plan 을 **역방향 개정**. `compareTierPlans()` jaccard ≥ 0.8 = no-op, < 0.8 = origin='auto_bootstrap_v2' 신규 row INSERT |
 
 **P5/P6/P7/P8은 직접 참조 없음**:
 - P5(changche_guide)/P6(haengteuk_guide)는 P4 산출물(세특 가이드)을 참조 → tier가 간접 반영.
@@ -327,6 +333,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `extractNarrativeArc.ts` | `extractNarrativeArc()` | fast (Pro fallback) | Layer 3 8단계 서사 태깅 (Phase 2) |
 | `generateChangcheDraft.ts` | `generateChangcheDraftAction()` | standard | 창체 AI 초안 (fire-and-forget) |
 | `generateHaengteukDraft.ts` | `generateHaengteukDraftAction()` | standard | 행특 AI 초안 (fire-and-forget) |
+| `extractTierPlanSuggestion.ts` | `extractTierPlanSuggestion()` | fast (Pro fallback) | Phase 4b Sprint 2 — S7 tier_plan 역방향 개정 제안 |
 | `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |
 
 ### UI 4단계 탭 구조 (소비자 측 — app/(admin)/admin/students/[id])
