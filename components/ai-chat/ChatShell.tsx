@@ -31,6 +31,12 @@ import {
   type ConversationListItem,
 } from "@/components/ai-chat/ConversationSidebar";
 import { CommandPalette } from "@/components/ai-chat/CommandPalette";
+import {
+  SlashMenu,
+  type SlashCommand,
+  filterSlashCommands,
+  getSlashCommandsForRole,
+} from "@/components/ai-chat/SlashMenu";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
@@ -116,6 +122,7 @@ export function ChatShell({
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
@@ -171,6 +178,30 @@ export function ChatShell({
     if (!text || isBusy) return;
     sendMessage({ text });
     setInput("");
+  };
+
+  // Phase B-3: Slash 커맨드 메뉴 계산. input 이 '/' 로 시작하고 공백 없으면 활성.
+  const slashActive =
+    input.startsWith("/") && !input.includes(" ") && !input.includes("\n");
+  const slashQuery = slashActive ? input.slice(1) : "";
+  const slashCommands = slashActive
+    ? filterSlashCommands(getSlashCommandsForRole(role), slashQuery)
+    : [];
+  const slashMenuOpen = slashActive && slashCommands.length >= 0;
+
+  // 입력이 바뀔 때 index 를 0 으로 재설정해서 필터 결과가 줄어들어도 범위 이탈 방지.
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [slashQuery]);
+
+  const selectSlashCommand = (cmd: SlashCommand) => {
+    if (cmd.action.type === "prompt") {
+      sendMessage({ text: cmd.action.text });
+      setInput("");
+    } else if (cmd.action.type === "navigate") {
+      router.push(cmd.action.path);
+      setInput("");
+    }
   };
 
   return (
@@ -395,13 +426,50 @@ export function ChatShell({
           }}
           aria-label="메시지 입력"
         >
+          {slashMenuOpen && (
+            <div className="mx-auto w-full max-w-3xl pb-2">
+              <SlashMenu
+                commands={slashCommands}
+                activeIndex={slashIndex}
+                onHover={setSlashIndex}
+                onSelect={selectSlashCommand}
+              />
+            </div>
+          )}
           <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2 focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-zinc-500 dark:focus-within:ring-zinc-600">
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                if (e.nativeEvent.isComposing) return;
+                if (slashMenuOpen && slashCommands.length > 0) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSlashIndex((i) => (i + 1) % slashCommands.length);
+                    return;
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSlashIndex(
+                      (i) =>
+                        (i - 1 + slashCommands.length) % slashCommands.length,
+                    );
+                    return;
+                  }
+                  if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    const cmd = slashCommands[slashIndex];
+                    if (cmd) selectSlashCommand(cmd);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setInput("");
+                    return;
+                  }
+                }
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   submit();
                 }
@@ -432,7 +500,8 @@ export function ChatShell({
             )}
           </div>
           <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-zinc-400 dark:text-zinc-500">
-            로컬 Gemma 4 · 응답은 참고용이며 중요한 결정 전 확인하세요.
+            로컬 Gemma 4 · <kbd className="font-sans">/</kbd> 로 빠른 커맨드 ·
+            응답은 참고용이며 중요한 결정 전 확인하세요.
           </p>
         </form>
       </div>
