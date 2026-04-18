@@ -16,13 +16,21 @@ async function main() {
       console.error("[mcp-smoke] FAIL: no tools returned");
       process.exit(1);
     }
-    const expected = ["navigateTo", "getScores", "analyzeRecord"];
+    const expected = [
+      "navigateTo",
+      "getScores",
+      "analyzeRecord",
+      "getPipelineStatus",
+      "getStudentRecords",
+    ];
     const missing = expected.filter((t) => !toolNames.includes(t));
     if (missing.length > 0) {
       console.error("[mcp-smoke] FAIL: missing tools:", missing);
       process.exit(1);
     }
-    console.log("[mcp-smoke] OK — all 3 MCP tools exposed\n");
+    console.log(
+      `[mcp-smoke] OK — all ${expected.length} MCP tools exposed\n`,
+    );
 
     // F-2 회귀 진단: 각 tool 의 description + inputSchema 를 덤프.
     for (const name of toolNames) {

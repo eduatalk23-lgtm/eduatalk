@@ -29,6 +29,16 @@ import {
   analyzeRecordExecute,
   analyzeRecordInputShape,
 } from "@/lib/mcp/tools/analyzeRecord";
+import {
+  getPipelineStatusDescription,
+  getPipelineStatusExecute,
+  getPipelineStatusInputShape,
+} from "@/lib/mcp/tools/getPipelineStatus";
+import {
+  getStudentRecordsDescription,
+  getStudentRecordsExecute,
+  getStudentRecordsInputShape,
+} from "@/lib/mcp/tools/getStudentRecords";
 
 export const MCP_SERVER_INFO = {
   name: "eduatalk-mcp",
@@ -88,6 +98,48 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const result = await analyzeRecordExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "getPipelineStatus",
+    {
+      description: getPipelineStatusDescription,
+      inputSchema: getPipelineStatusInputShape,
+    },
+    async (args) => {
+      const result = await getPipelineStatusExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "getStudentRecords",
+    {
+      description: getStudentRecordsDescription,
+      inputSchema: getStudentRecordsInputShape,
+    },
+    async (args) => {
+      const result = await getStudentRecordsExecute(args);
       return {
         content: [
           {
