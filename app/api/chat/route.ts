@@ -14,21 +14,7 @@ import {
   getConversationOrigin,
   saveChatTurn,
 } from "@/lib/domains/ai-chat/persistence";
-import {
-  ALL_NAV_TARGETS,
-  navigateToDescription,
-  navigateToExecute,
-} from "@/lib/mcp/tools/navigateTo";
-import {
-  getScoresDescription,
-  getScoresExecute,
-  getScoresInputShape,
-} from "@/lib/mcp/tools/getScores";
-import {
-  analyzeRecordDescription,
-  analyzeRecordExecute,
-  analyzeRecordInputShape,
-} from "@/lib/mcp/tools/analyzeRecord";
+import { createChatMcpHandle } from "@/lib/mcp/client";
 import type { AIConversationPersona } from "@/lib/domains/ai-chat/types";
 import { getHandoffSource } from "@/lib/domains/ai-chat/handoff/sources";
 import { validateAndResolveHandoff } from "@/lib/domains/ai-chat/handoff/validator";
@@ -109,55 +95,25 @@ export type ArchiveConversationOutput =
   | { ok: true; conversationId: string }
   | { ok: false; reason: string };
 
-const tools = {
-  navigateTo: tool({
-    description: navigateToDescription,
-    inputSchema: z.object({
-      path: z
-        .enum(ALL_NAV_TARGETS)
-        .describe(
-          "이동할 페이지 경로. role 별 허용 경로는 시스템 프롬프트 참조. student=/dashboard·/plan·/scores·/analysis·/guides·/settings, admin/consultant=/admin/*, parent=/parent/*.",
-        ),
-      reason: z.string().describe("사용자에게 보여줄 짧은 이동 안내 문구"),
+/**
+ * Phase F-2: Chat Shell 은 MCP 클라이언트(InMemoryTransport) 를 통해
+ * navigateTo·getScores·analyzeRecord 3 종 tool 을 수령.
+ * archiveConversation 은 HITL(addToolResult) 패턴이라 현 MCP v0 에서는
+ * 그대로 inline 유지 (`buildArchiveConversationTool`).
+ */
+function buildArchiveConversationTool() {
+  return {
+    archiveConversation: tool({
+      description:
+        "현재 대화를 '보관(archive)' 처리합니다. 사용자가 이 대화 자체를 정리/보관/아카이브 요청할 때만 호출하세요. 다른 데이터(학생·플랜·성적) 삭제에는 사용 금지. 호출 후 사용자 승인을 거쳐 실제 보관이 이뤄집니다.",
+      inputSchema: z.object({
+        reason: z
+          .string()
+          .describe("사용자가 보관을 요청한 이유를 1문장으로 요약"),
+      }),
     }),
-    execute: navigateToExecute,
-  }),
-
-  /**
-   * Phase E-1: 학생 생기부 분석 상태·요약 조회 (read-only).
-   * 분석 재실행은 포함하지 않음 — detailPath 로 admin 페이지 이동 유도.
-   */
-  analyzeRecord: tool({
-    description: analyzeRecordDescription,
-    inputSchema: z.object(analyzeRecordInputShape),
-    execute: analyzeRecordExecute,
-  }),
-
-  /**
-   * Phase B-4 후속: HITL 도구. `execute` 를 의도적으로 생략해 AI SDK v6 가
-   * input-available 상태에서 스트림을 대기하게 하고, 클라이언트가
-   * InlineConfirm 승인 후 `addToolResult` 로 결과를 주입한다. 승인 거부 시
-   * 클라이언트가 ok:false 결과를 주입해 어시스턴트가 취소 안내를 생성한다.
-   *
-   * HITL elicitation 이 MCP stateful session + 클라이언트 지원 전제이므로
-   * F-1b 에서는 Chat Shell 전용으로 유지 (MCP 서버 미등록).
-   */
-  archiveConversation: tool({
-    description:
-      "현재 대화를 '보관(archive)' 처리합니다. 사용자가 이 대화 자체를 정리/보관/아카이브 요청할 때만 호출하세요. 다른 데이터(학생·플랜·성적) 삭제에는 사용 금지. 호출 후 사용자 승인을 거쳐 실제 보관이 이뤄집니다.",
-    inputSchema: z.object({
-      reason: z
-        .string()
-        .describe("사용자가 보관을 요청한 이유를 1문장으로 요약"),
-    }),
-  }),
-
-  getScores: tool({
-    description: getScoresDescription,
-    inputSchema: z.object(getScoresInputShape),
-    execute: getScoresExecute,
-  }),
-};
+  };
+}
 
 /**
  * 대화의 origin JSONB 를 읽어 handoff 시스템 프롬프트 조각을 빌드.
@@ -276,6 +232,14 @@ export async function POST(req: Request) {
 
   const startedAt = Date.now();
 
+  // F-2: 요청별 MCP 서버↔클라이언트 쌍(InMemoryTransport)을 띄워 tool 정의 수령.
+  // navigateTo·getScores·analyzeRecord 는 MCP 경유, archiveConversation 은 HITL inline.
+  const mcp = await createChatMcpHandle();
+  const tools = {
+    ...mcp.tools,
+    ...buildArchiveConversationTool(),
+  };
+
   const result = streamText({
     model: ollama(modelName, {
       // Gemma 4 thinking 비활성화 — OllamaChatSettings top-level (options 아님)
@@ -307,6 +271,9 @@ export async function POST(req: Request) {
       return undefined;
     },
     onFinish: async ({ messages: finalMessages }) => {
+      // F-2: 스트림 종료 시 MCP handle 해제 (누수 방지). saveChatTurn 실패와 무관하게 close.
+      await mcp.close();
+
       if (!conversationId || !user) return;
 
       // 첫 사용자 메시지로 타이틀 생성 (간단 truncate)
