@@ -373,6 +373,7 @@ export function ChatShell({
                   );
                 }}
                 onArchiveApproval={handleArchiveApproval}
+                role={role}
               />
             ))}
 
@@ -597,6 +598,8 @@ type MessageRowProps = {
   }) => void;
   onNavigate: (path: string) => void;
   onArchiveApproval: (toolCallId: string, confirmed: boolean) => Promise<void>;
+  /** F-5: Tier budget SLO 게이트에서 role 별 에스컬레이션 동작 분기용. */
+  role?: ChatShellRole;
 };
 
 function MessageRow({
@@ -605,6 +608,7 @@ function MessageRow({
   onOpenArtifact,
   onNavigate,
   onArchiveApproval,
+  role,
 }: MessageRowProps) {
   const isUser = message.role === "user";
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
@@ -1255,8 +1259,91 @@ function MessageRow({
           return null;
         })}
 
+        {!isUser && (
+          <EscalationBanner
+            message={message}
+            role={role}
+            onNavigate={onNavigate}
+          />
+        )}
         {!isUser && <MessageMetaBadge metadata={message.metadata} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * F-5: Tier budget SLO 게이트.
+ *
+ * Chat Shell 은 Low-latency L2 영역. 응답이 5 초 초과 / tool 3회 이상 /
+ * stepCountIs 도달(finishReason === "length") 중 하나라도 해당하면 "심화 분석은
+ * Agent 모드로 이어가세요" 배너 표시.
+ *
+ * admin/consultant/superadmin: "Agent 모드 열기" 버튼 — /admin/agent 이동.
+ * student/parent: 안내 문구만 (Agent 접근 권한 없음).
+ */
+const F5_SLO_DURATION_MS = 5_000;
+const F5_SLO_TOOL_COUNT = 3;
+
+function EscalationBanner({
+  message,
+  role,
+  onNavigate,
+}: {
+  message: UIMessage;
+  role?: ChatShellRole;
+  onNavigate: (path: string) => void;
+}) {
+  const meta = (message.metadata ?? {}) as {
+    durationMs?: number;
+    finishReason?: string;
+  };
+  const toolCallCount = message.parts.filter((p) => {
+    const t = (p as { type?: unknown }).type;
+    return (
+      typeof t === "string" && (t.startsWith("tool-") || t === "dynamic-tool")
+    );
+  }).length;
+
+  const slowResponse =
+    typeof meta.durationMs === "number" && meta.durationMs > F5_SLO_DURATION_MS;
+  const manyTools = toolCallCount >= F5_SLO_TOOL_COUNT;
+  const stepCapped = meta.finishReason === "length";
+
+  if (!slowResponse && !manyTools && !stepCapped) return null;
+
+  const reasons: string[] = [];
+  if (slowResponse)
+    reasons.push(`응답 ${(meta.durationMs! / 1000).toFixed(1)}s`);
+  if (manyTools) reasons.push(`도구 ${toolCallCount}회`);
+  if (stepCapped) reasons.push("단계 상한 도달");
+
+  const canEscalate =
+    role === "admin" || role === "consultant" || role === "superadmin";
+
+  return (
+    <div
+      role="note"
+      aria-label="심화 분석 안내"
+      className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200"
+    >
+      <span className="font-medium">심화 분석 권장</span>
+      <span className="text-amber-700 dark:text-amber-300">
+        {reasons.join(" · ")}
+      </span>
+      {canEscalate ? (
+        <button
+          type="button"
+          onClick={() => onNavigate("/admin/agent")}
+          className="ml-auto inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-amber-700"
+        >
+          Agent 모드 열기
+        </button>
+      ) : (
+        <span className="ml-auto text-[11px] text-amber-700/80 dark:text-amber-300/80">
+          자세한 분석은 컨설턴트에게 문의하세요
+        </span>
+      )}
     </div>
   );
 }
