@@ -326,10 +326,16 @@ export async function runGradeAwarePipeline(
       (a, b) => a - b,
     );
 
-    // options.grades로 필터링 (지정된 경우)
+    // Phase 3 Auto-Bootstrap (2026-04-19): options.grades 명시 시 호출자 의도 존중.
+    //   상위 오케스트레이터(`pipeline-orchestrator-full.ts`)가 student.grade 전파로 확장한
+    //   [학생 현재 학년..3] 리스트를 전달해도, 예전 로직은 `allGradesWithData` 로 재필터링하여
+    //   레코드·수강계획 없는 미래 학년이 드롭 → 설계 파이프라인 공백이 됐다.
+    //   options.grades 지정 경로는 범위(1~3) 검증만 수행하고 그대로 통과시킨다.
     const targetGrades =
       options?.grades && options.grades.length > 0
-        ? allGradesWithData.filter((g) => options.grades!.includes(g))
+        ? [...new Set(options.grades)]
+            .filter((g) => g >= 1 && g <= 3)
+            .sort((a, b) => a - b)
         : allGradesWithData;
 
     if (targetGrades.length === 0) {
