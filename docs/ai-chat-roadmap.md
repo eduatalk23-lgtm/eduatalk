@@ -1,9 +1,36 @@
 # AI Chat (Chat-First Shell) 6개월 로드맵
 
 **작성**: 2026-04-17
-**최근 개정**: 2026-04-17 (Phase T 축 신설)
+**최근 개정**: 2026-04-18 (Phase F/G 업계 정렬 섹션 신설)
 **상태**: L1 70% · L2 80% · L3 25% (Phase A 완주 후)
-**전략**: L1/L2 표준 추종 + L3 도메인 선도 + **GUI↔내러티브 전환 축**
+**전략**: L1/L2 표준 추종 + L3 도메인 선도 + **GUI↔내러티브 전환 축** + **업계 선두 정렬**
+
+---
+
+## 두 AI 시스템 관계 (2026-04-18 합의)
+
+에듀엣톡은 AI 레벨을 **3축**으로 분리한 2개 시스템을 운영한다.
+
+| 축 | Chat Shell (`/ai-chat`) | Domain Agent (`/admin/agent`) |
+|---|---|---|
+| 도메인 깊이 | 얕음 (조회·요약·이동) | 깊음 (분석 실행·초안 생성) |
+| 사용자 범위 | 전 role | admin/consultant 전용 |
+| 지연·비용 | 저지연·저비용 (Ollama 로컬) | 고지연·고비용 (Gemini) |
+| Tool 수 | 4~10개 이내 | 49+ |
+| 영속화 | `ai_conversations`+`ai_messages` | `agent_sessions`+`agent_step_traces` |
+| 본 로드맵 대상 | ✅ | [domain-agent-architecture.md](domain-agent-architecture.md) |
+
+**원칙 (feedback_dual-system-shell-vs-agent.md):**
+- Shell ↔ Agent 기능 중복 이식 금지
+- Shell은 얕은 브리지 tool만 (analyzeRecord 패턴)
+- Agent는 도메인 실행에 집중. Shell UX(mention/tag/archive) 금지
+- 브리지 방향: Shell→Agent는 navigate/handoff. Agent→Shell은 요약 export (향후)
+
+판단 기준 (4-step):
+1. 학생/학부모도 쓰는가? → Yes → Shell
+2. 3초 내 답? → Yes → Shell
+3. LLM 1회로 끝? → Yes → Shell
+4. 하나라도 No → Agent
 
 ---
 
@@ -140,6 +167,62 @@
 
 ---
 
+## Phase F (3~4주) — 업계 정렬 I: Tier Routing + MCP 집중화
+
+**목표**: 2025~2026 AI-first 기업이 수렴한 6 패턴 중 미도입 2개(**MCP 중심화**·**Tier routing**) 확보. [reference_ai-industry-patterns-2026.md](../.claude/memory/reference_ai-industry-patterns-2026.md)
+
+**배경**: Shell·Agent 두 시스템이 각각 독립 tool 세트로 운영 중. 선두(Anthropic·Cursor·Microsoft)는 **tool을 앱에서 분리한 MCP 서버** + **작은 LM이 요청 tier 자동 분류**. 에듀엣톡은 이미 L2/L3 분리가 됐으므로 이 두 축 도입 ROI 최대.
+
+| # | 작업 | 난이도 | 시간 | 비고 |
+|---|------|--------|------|------|
+| F-1 | MCP 서버 v0 — Shell 4 tool(navigateTo/getScores/analyzeRecord/archiveConversation) 래핑 | High | 3d | `@modelcontextprotocol/sdk/server/mcp.js` + Streamable HTTP 엔드포인트 `/api/mcp` |
+| F-2 | AI SDK `streamText` MCP 클라이언트 연결 — 기존 `tools` 객체를 `await fetchMcpTools(...)` 로 대체 | Med | 2d | 실측 동일 동작 확인 |
+| F-3 | Agent read tool 흡수 — record read 계열(`findDiagnosis`·`getPipelineStatus` 등 5~8개)을 같은 MCP 서버에 등록 | High | 4d | Agent write tool은 그대로 유지 |
+| F-4 | Tier Routing 분류기 v0 — Ollama gemma-small 0.5초 내 L2/L3 판정. 메시지 첫 줄 분석 후 "심화 분석이면 Agent 이동 제안" | Med | 3d | 신규 `lib/domains/ai-chat/routing/classifier.ts` |
+| F-5 | Tier budget SLO 게이트 — Shell 요청은 5초·3 tool 초과 시 Agent 이동 유도 배너 | Low | 1d | `stepCountIs(2)` 초과 시 UI 제안 |
+| F-6 | 외부 에이전트 연결 검증 — Claude Desktop/Cursor에서 MCP 서버 호출 1건 샘플 | Low | 1d | OAuth는 선택 |
+
+**산출**: 외부 AI 생태계(Claude Desktop·Cursor)에서 에듀엣톡 tool 직접 호출 가능. Shell↔Agent 진입 마찰 해소. 선두 6 패턴 중 5개 완비.
+
+**의존성**: Phase B·T 완료 후. Phase C-1 은 F-1/F-2 로 대체.
+
+---
+
+## Phase G (1~2개월) — 업계 정렬 II: Agent-as-Tool + Auto-improve Loop
+
+**목표**: 마지막 미도입 패턴(**Agent-as-Tool**·**Auto-improve loop**) 확보. 선두 6 패턴 완전 정렬.
+
+**배경**: Domain Agent의 49 tool flat 구조는 프롬프트·컨텍스트가 비대. 선두(Claude Code·LangGraph·CrewAI)는 **계층적 위임** — 큰 에이전트가 작은 에이전트를 tool처럼 호출. 동시에 실사용 trace를 golden set으로 자동 편입하는 **AI factory 개선 루프**가 표준.
+
+| # | 작업 | 난이도 | 시간 | 비고 |
+|---|------|--------|------|------|
+| G-1 | Agent 서브에이전트 분리 설계 — `record-sub` / `plan-sub` / `admission-sub` 3개. 각 10~15 tool | High | 1w | 기존 49 tool 재분류 |
+| G-2 | Agent-as-Tool 전환 — 메인 orchestrator가 서브에이전트를 `tool()` 로 호출 (Claude Code 패턴) | High | 1w | 프롬프트 크기 40%↓ 목표 |
+| G-3 | Observability 표준화 — `agent_step_traces` → OTEL span 매핑 (옵션: Langfuse 연동) | Med | 3d | 선두는 Langfuse/LangSmith 상용 |
+| G-4 | Trace → Golden set 자동 편입 파이프라인 — 주간 cron으로 실사용 trace 샘플링 → eval 후보 제안 | Med | 3d | F3 CI 워크플로우 확장 |
+| G-5 | Auto-regression 리포트 — 주간 PR 코멘트: 신규 golden 추가분 대비 현재 통과율 | Low | 2d | |
+| G-6 | Multi-tenant agent isolation — tenant별 agent 인스턴스 분리 (Harvey/Glean 패턴) | High | 1w | 장기 스케일 대비. 현재 row-level만 |
+| G-7 | Shell→Agent 세션 export — 특정 대화를 agent 세션으로 전환 (역방향 handoff) | Med | 4d | 브리지 쌍방향 완성 |
+
+**산출**: 선두 6 패턴 전부 완비. "AI factory 자동 개선 루프" 가동. 컨설턴트가 쓰면 쓸수록 에이전트가 좋아지는 바이브온 2.0 진입.
+
+**의존성**: Phase F 완료 후. 바이브온 루프 Phase 2(완료)의 자연스러운 확장.
+
+---
+
+## 선두 6 패턴 정렬 체크리스트
+
+| 패턴 | 에듀엣톡 현황 | 해당 Phase |
+|---|---|---|
+| Tiered Cascade | L2+L3 ✅ / L1 🟡 / L4 🟡 | F-4/F-5 |
+| Domain Ontology | ✅ (`student-record`+`record-analysis`) | 완비 |
+| MCP 중심화 | ❌ | **F-1~F-3** |
+| Evaluation-Driven | ✅ (golden-dataset+F3 CI) | 완비 |
+| Observability/Trace | ✅ (`agent_step_traces` 자체) | G-3 표준화 |
+| Agent-as-Tool | ❌ | **G-1~G-2** |
+
+---
+
 ## L1 표준 채택 체크리스트
 
 | # | 표준 | 채택 | 이유 |
@@ -157,18 +240,19 @@
 
 ---
 
-## 타임라인 요약 (Phase T 삽입 반영)
+## 타임라인 요약 (Phase F/G 반영)
 
 ```
 Week 1-2   │ Phase A ✅          │ ChatGPT 수준 도달 (2026-04-17 완료)
-Week 3-4   │ Phase T 🆕          │ GUI↔내러티브 전환 브리지 (A/B/C 유형)
-Week 5-7   │ Phase B             │ 2026 표준 완성 (Cmd+K, slash, HITL, 모바일)
-Week 8-11  │ Phase C (+D 유형)   │ MCP + Memory + Artifact Canvas 편집
-Week 12-19 │ Phase D + E         │ Gen 4 + 도메인 차별화
-Week 20-26 │ Phase E 완성        │ L3 선도 포지션
+Week 3-4   │ Phase T ✅          │ GUI↔내러티브 전환 브리지 (2026-04-17 v0 완주)
+Week 5-7   │ Phase B ✅          │ 2026 표준 완성 (2026-04-18 B-2~B-6 완주 + B-4 HITL)
+Week 8-11  │ Phase F 🆕          │ MCP + Tier Routing (업계 정렬 I) ← 다음
+Week 12-15 │ Phase C (+D 유형)   │ Artifact Canvas 편집 (MCP는 F로 이관)
+Week 16-20 │ Phase G 🆕          │ Agent-as-Tool + Auto-improve (업계 정렬 II)
+Week 21-26 │ Phase D + E         │ Memory + L3 도메인 차별화
 ```
 
-**6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + **GUI↔내러티브 전환 축** + 교육 L3 독점.
+**6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + **GUI↔내러티브 전환 축** + **선두 6 패턴 완전 정렬** + 교육 L3 독점.
 
 ---
 
@@ -184,3 +268,9 @@ Week 20-26 │ Phase E 완성        │ L3 선도 포지션
   - T-4(규약) → T-1(학생 진입) → T-2(복귀) → T-3(split) → T-1 후속(admin-record) + 핸드오프 #2 RLS 순차 완료
   - 6 커밋 (`0366de3c`, `9a9bfc03`, `02668ce7`, `42761ab1`, `ac555eef`, `20260417600000~700000` 마이그레이션 2건)
   - Phase T 축 실측 진입. gemma4:31b 모델 전환 실측 병행 (ollama 로컬)
+- **2026-04-18 (Phase B 완주 + 이월 + ChatComposer 리팩터 + B-4 HITL + E-1 v0 + Phase F/G 신설)**:
+  - Phase B-2~B-6 5단계 + B-3 이월(@mention/#tag) + Composer 리팩터 + B-4 HITL 서버 tool 승인 배선(archiveConversation) + E-1 analyzeRecord tool v0(read-only) 순차 완료
+  - 두 시스템(Shell vs Agent) 아키텍처 비교·합의 → 서두에 3축 레벨 구분 + 4-step 판단 기준 명시
+  - 업계 선두 6 패턴 조사 → 에듀엣톡 현 위치 4/6 완비 확인 → 미도입 2축(MCP·Tier Routing) **Phase F**, 격차 2축(Agent-as-Tool·Auto-improve) **Phase G** 신설
+  - Phase C-1(MCP)은 F-1~F-3 로 이관·세분화. Phase C는 Artifact Canvas에 집중
+  - 관련 메모리: `feedback_dual-system-shell-vs-agent.md`, `reference_ai-industry-patterns-2026.md`
