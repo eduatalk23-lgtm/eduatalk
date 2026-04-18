@@ -19,6 +19,11 @@ import {
   X,
   Archive,
   FileSearch,
+  Activity,
+  BookOpen,
+  Award,
+  GitBranch,
+  User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -890,6 +895,363 @@ function MessageRow({
               </ToolCard>
             );
           }
+
+          // Phase F-3: 신규 read tool 5종의 경량 ToolCard.
+          // 전용 카드(ScoresCard/RecordAnalysisCard) 승격 전 1차 버전 — name + 1줄 summary.
+          if (toolCardsMounted && matchesTool(p, "getPipelineStatus") && "state" in p) {
+            const state = toolState(p.state);
+            const output =
+              state === "success"
+                ? extractToolOutput<{
+                    ok: boolean;
+                    studentName?: string | null;
+                    status?: string | null;
+                    tasks?: Record<string, string> | null;
+                    notStarted?: boolean;
+                    reason?: string;
+                  }>(p.output)
+                : undefined;
+            const tasks = output?.tasks ?? null;
+            const completed = tasks
+              ? Object.values(tasks).filter((t) => t === "completed").length
+              : 0;
+            const total = tasks ? Object.keys(tasks).length : 0;
+            const summary = !output
+              ? "조회 중"
+              : output.ok === false
+                ? (output.reason ?? "조회 실패")
+                : output.notStarted
+                  ? "파이프라인 미실행"
+                  : `${output.status ?? "상태 없음"} · ${completed}/${total} 완료`;
+            return (
+              <ToolCard
+                key={i}
+                name="파이프라인 상태"
+                icon={<Activity size={14} />}
+                state={state}
+                summary={summary}
+                errorText={
+                  output?.ok === false ? output.reason : undefined
+                }
+              >
+                {output && output.ok && tasks && total > 0 ? (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-zinc-600 dark:text-zinc-300">
+                    {Object.entries(tasks).map(([key, s]) => (
+                      <div key={key} className="flex items-center justify-between gap-2">
+                        <span className="truncate font-mono text-[11px]">{key}</span>
+                        <span
+                          className={cn(
+                            "rounded px-1.5 py-0.5 text-[10px]",
+                            s === "completed"
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                              : s === "running"
+                                ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                : s === "failed"
+                                  ? "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+                                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+                          )}
+                        >
+                          {s}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
+          if (toolCardsMounted && matchesTool(p, "getStudentRecords") && "state" in p) {
+            const state = toolState(p.state);
+            const output =
+              state === "success"
+                ? extractToolOutput<{
+                    ok: boolean;
+                    studentName?: string | null;
+                    summary?: {
+                      seteks: Array<{ subjectId: string | null; grade: number; semester: number; content: string }>;
+                      personalSeteks: Array<{ title: string | null; grade: number; content: string }>;
+                      changche: Array<{ activityType: string | null; grade: number; content: string }>;
+                      haengteuk: { content: string } | null;
+                      readings: Array<{ bookTitle: string | null; author: string | null; subjectArea: string | null; notes: string }>;
+                      isEmpty: boolean;
+                      schoolYear: number;
+                    };
+                    reason?: string;
+                  }>(p.output)
+                : undefined;
+            const s = output?.summary;
+            const summaryText = !output
+              ? "조회 중"
+              : output.ok === false
+                ? (output.reason ?? "조회 실패")
+                : s?.isEmpty
+                  ? `${s.schoolYear} 기록 없음`
+                  : `세특 ${s?.seteks.length ?? 0} · 창체 ${s?.changche.length ?? 0} · 독서 ${s?.readings.length ?? 0}${s?.haengteuk ? " · 행특" : ""}`;
+            return (
+              <ToolCard
+                key={i}
+                name="생기부 기록"
+                icon={<BookOpen size={14} />}
+                state={state}
+                summary={summaryText}
+                errorText={
+                  output?.ok === false ? output.reason : undefined
+                }
+              >
+                {s && !s.isEmpty ? (
+                  <div className="flex flex-col gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
+                    {s.seteks.length > 0 && (
+                      <div>
+                        <span className="font-medium">세특 {s.seteks.length}건</span>
+                        <span className="ml-2 text-zinc-500">
+                          {s.seteks.slice(0, 3).map((x) => `${x.grade}-${x.semester}`).join(", ")}
+                          {s.seteks.length > 3 ? " …" : ""}
+                        </span>
+                      </div>
+                    )}
+                    {s.changche.length > 0 && (
+                      <div>
+                        <span className="font-medium">창체 {s.changche.length}건</span>
+                        <span className="ml-2 text-zinc-500">
+                          {[...new Set(s.changche.map((x) => x.activityType).filter(Boolean))].slice(0, 4).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {s.readings.length > 0 && (
+                      <div>
+                        <span className="font-medium">독서 {s.readings.length}건</span>
+                        <span className="ml-2 text-zinc-500">
+                          {s.readings.slice(0, 2).map((r) => r.bookTitle).filter(Boolean).join(", ")}
+                          {s.readings.length > 2 ? " …" : ""}
+                        </span>
+                      </div>
+                    )}
+                    {s.haengteuk && (
+                      <div className="font-medium">행동특성 기록 있음</div>
+                    )}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
+          if (toolCardsMounted && matchesTool(p, "getStudentDiagnosis") && "state" in p) {
+            const state = toolState(p.state);
+            const output =
+              state === "success"
+                ? extractToolOutput<{
+                    ok: boolean;
+                    studentName?: string | null;
+                    aiDiagnosis?: {
+                      overallGrade?: string | null;
+                      strengths?: string[] | null;
+                      weaknesses?: string[] | null;
+                    } | null;
+                    consultantDiagnosis?: {
+                      overallGrade?: string | null;
+                      strengths?: string[] | null;
+                      weaknesses?: string[] | null;
+                    } | null;
+                    positiveTags?: unknown[];
+                    negativeTags?: unknown[];
+                    strategies?: Array<{ targetArea: string | null; content: string; status: string | null }>;
+                    reason?: string;
+                  }>(p.output)
+                : undefined;
+            const diag = output?.consultantDiagnosis ?? output?.aiDiagnosis ?? null;
+            const overallGrade = diag?.overallGrade ?? null;
+            const summary = !output
+              ? "조회 중"
+              : output.ok === false
+                ? (output.reason ?? "조회 실패")
+                : `종합 ${overallGrade ?? "—"} · 강점 ${output.positiveTags?.length ?? 0} · 약점 ${output.negativeTags?.length ?? 0}`;
+            return (
+              <ToolCard
+                key={i}
+                name="역량 진단"
+                icon={<Award size={14} />}
+                state={state}
+                summary={summary}
+                errorText={
+                  output?.ok === false ? output.reason : undefined
+                }
+              >
+                {output && output.ok && diag ? (
+                  <div className="flex flex-col gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                    {diag.strengths && diag.strengths.length > 0 && (
+                      <div>
+                        <div className="mb-1 font-medium text-emerald-700 dark:text-emerald-300">강점</div>
+                        <ul className="list-disc space-y-0.5 pl-5">
+                          {diag.strengths.slice(0, 3).map((t, idx) => (
+                            <li key={idx}>{t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {diag.weaknesses && diag.weaknesses.length > 0 && (
+                      <div>
+                        <div className="mb-1 font-medium text-rose-700 dark:text-rose-300">보완점</div>
+                        <ul className="list-disc space-y-0.5 pl-5">
+                          {diag.weaknesses.slice(0, 3).map((t, idx) => (
+                            <li key={idx}>{t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
+          if (toolCardsMounted && matchesTool(p, "getStudentStorylines") && "state" in p) {
+            const state = toolState(p.state);
+            const output =
+              state === "success"
+                ? extractToolOutput<{
+                    ok: boolean;
+                    studentName?: string | null;
+                    storylines?: Array<{
+                      id: string;
+                      title: string | null;
+                      careerField: string | null;
+                      keywords: string[] | null;
+                    }>;
+                    roadmapItems?: unknown[];
+                    reason?: string;
+                  }>(p.output)
+                : undefined;
+            const summary = !output
+              ? "조회 중"
+              : output.ok === false
+                ? (output.reason ?? "조회 실패")
+                : `스토리라인 ${output.storylines?.length ?? 0} · 로드맵 ${output.roadmapItems?.length ?? 0}`;
+            return (
+              <ToolCard
+                key={i}
+                name="탐구 스토리라인"
+                icon={<GitBranch size={14} />}
+                state={state}
+                summary={summary}
+                errorText={
+                  output?.ok === false ? output.reason : undefined
+                }
+              >
+                {output && output.ok && output.storylines && output.storylines.length > 0 ? (
+                  <ul className="flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-300">
+                    {output.storylines.slice(0, 5).map((sl) => (
+                      <li key={sl.id} className="flex flex-col">
+                        <span className="font-medium">{sl.title ?? "(제목 없음)"}</span>
+                        {sl.careerField && (
+                          <span className="text-[11px] text-zinc-500">
+                            {sl.careerField}
+                            {sl.keywords && sl.keywords.length > 0
+                              ? ` · ${sl.keywords.slice(0, 4).join(", ")}`
+                              : ""}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
+          if (toolCardsMounted && matchesTool(p, "getStudentOverview") && "state" in p) {
+            const state = toolState(p.state);
+            const output =
+              state === "success"
+                ? extractToolOutput<{
+                    ok: boolean;
+                    overview?: {
+                      name?: string | null;
+                      grade?: number | null;
+                      className?: string | null;
+                      schoolName?: string | null;
+                      targetMajor?: string | null;
+                      recordSummary?: {
+                        setekCount: number;
+                        changcheCount: number;
+                        readingCount: number;
+                        hasHaengteuk: boolean;
+                      };
+                      diagnosis?: {
+                        overallGrade: string | null;
+                        strengths: string[];
+                        weaknesses: string[];
+                      };
+                      storylines?: Array<{
+                        title: string | null;
+                        careerField: string | null;
+                      }>;
+                    };
+                    reason?: string;
+                  }>(p.output)
+                : undefined;
+            const o = output?.overview;
+            const summary = !output
+              ? "조회 중"
+              : output.ok === false
+                ? (output.reason ?? "조회 실패")
+                : [
+                    o?.name ?? "학생",
+                    o?.grade ? `${o.grade}학년` : null,
+                    o?.schoolName,
+                    o?.targetMajor,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+            return (
+              <ToolCard
+                key={i}
+                name="학생 프로필"
+                icon={<UserIcon size={14} />}
+                state={state}
+                summary={summary}
+                errorText={
+                  output?.ok === false ? output.reason : undefined
+                }
+              >
+                {o ? (
+                  <div className="flex flex-col gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                    {o.recordSummary && (
+                      <div>
+                        <span className="font-medium">기록:</span>{" "}
+                        세특 {o.recordSummary.setekCount} · 창체 {o.recordSummary.changcheCount} · 독서 {o.recordSummary.readingCount}
+                        {o.recordSummary.hasHaengteuk ? " · 행특" : ""}
+                      </div>
+                    )}
+                    {o.diagnosis && (
+                      <div>
+                        <span className="font-medium">진단:</span>{" "}
+                        종합 {o.diagnosis.overallGrade ?? "—"}
+                        {o.diagnosis.strengths.length > 0 && (
+                          <span className="ml-1 text-emerald-700 dark:text-emerald-300">
+                            · 강점 {o.diagnosis.strengths.length}
+                          </span>
+                        )}
+                        {o.diagnosis.weaknesses.length > 0 && (
+                          <span className="ml-1 text-rose-700 dark:text-rose-300">
+                            · 약점 {o.diagnosis.weaknesses.length}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {o.storylines && o.storylines.length > 0 && (
+                      <div>
+                        <span className="font-medium">스토리라인:</span>{" "}
+                        {o.storylines.slice(0, 3).map((sl) => sl.title).filter(Boolean).join(" · ")}
+                        {o.storylines.length > 3 ? " …" : ""}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
           return null;
         })}
 
