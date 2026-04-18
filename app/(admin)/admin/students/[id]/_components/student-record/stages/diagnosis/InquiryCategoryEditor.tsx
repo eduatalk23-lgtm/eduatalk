@@ -9,10 +9,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
+import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 
 interface InquiryCategoryEditorProps {
   /** student_main_explorations.id */
   mainExplorationId: string;
+  /** Phase 4a-B: 저장 후 blueprint-staleness query 무효화용 */
+  studentId: string;
 }
 
 interface ActiveMainExplorationResponse {
@@ -97,7 +100,7 @@ export function InquiryCategoryEditorSection({
         origin={data.origin}
         editedByConsultantAt={data.editedByConsultantAt}
       />
-      <InquiryCategoryEditor mainExplorationId={data.id} />
+      <InquiryCategoryEditor mainExplorationId={data.id} studentId={studentId} />
     </div>
   );
 }
@@ -233,7 +236,7 @@ async function saveScores(
   }
 }
 
-export function InquiryCategoryEditor({ mainExplorationId }: InquiryCategoryEditorProps) {
+export function InquiryCategoryEditor({ mainExplorationId, studentId }: InquiryCategoryEditorProps) {
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useToast();
   const queryKey = ["inquiry-categories", mainExplorationId];
@@ -267,6 +270,12 @@ export function InquiryCategoryEditor({ mainExplorationId }: InquiryCategoryEdit
     onSuccess: () => {
       showSuccess("카테고리 점수 저장 완료");
       queryClient.invalidateQueries({ queryKey });
+      // Phase 4a-B (2026-04-19): 카테고리 점수 갱신 → main_exploration.updated_at 갱신 →
+      //   blueprint pipeline 이 stale 일 가능성. PipelinePanelApp 의 blueprint-staleness
+      //   query 가 즉시 refetch 되어 사용자가 페이지에 머물러 있어도 배너가 노출되도록 한다.
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
+      });
     },
     onError: (err) => {
       showError(err instanceof Error ? err.message : "저장 실패");
