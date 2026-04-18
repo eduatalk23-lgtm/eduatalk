@@ -129,6 +129,7 @@ export async function listConversations(
     lastActivityAt: string;
     pinnedAt: string | null;
     archivedAt: string | null;
+    tags: string[];
   }>
 > {
   const supabase = await createSupabaseServerClient();
@@ -137,7 +138,7 @@ export async function listConversations(
   const query = supabase
     .from("ai_conversations")
     .select(
-      "id, title, persona, last_activity_at, pinned_at, archived_at",
+      "id, title, persona, last_activity_at, pinned_at, archived_at, tags",
     )
     .eq("owner_user_id", ownerUserId);
 
@@ -159,6 +160,9 @@ export async function listConversations(
     lastActivityAt: r.last_activity_at,
     pinnedAt: r.pinned_at,
     archivedAt: r.archived_at,
+    tags: Array.isArray((r as unknown as { tags?: string[] }).tags)
+      ? ((r as unknown as { tags: string[] }).tags ?? [])
+      : [],
   }));
 }
 

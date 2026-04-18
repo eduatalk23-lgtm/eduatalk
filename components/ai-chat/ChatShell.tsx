@@ -50,6 +50,8 @@ import {
   lookupMentionCandidates,
   type MentionCandidate,
 } from "@/lib/domains/ai-chat/actions/mentions";
+import { addTagsToConversation } from "@/lib/domains/ai-chat/actions/tags";
+import { extractTagsFromText } from "@/lib/domains/ai-chat/tag-utils";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
@@ -203,6 +205,14 @@ export function ChatShell({
     const hasFiles = attachments.length > 0;
     if (isBusy) return;
     if (!text && !hasFiles) return;
+
+    // Phase B-3 이월: 본문의 '#태그' 자동 수확 → DB union (fire-and-forget)
+    const tags = extractTagsFromText(text);
+    if (tags.length > 0) {
+      void addTagsToConversation(conversationId, tags).then((res) => {
+        if (res.ok) router.refresh();
+      });
+    }
 
     if (hasFiles) {
       // AI SDK v6 는 FileList | FileUIPart[] 를 받음. FileUIPart[] 로 변환해서 전달.

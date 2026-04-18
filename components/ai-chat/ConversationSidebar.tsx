@@ -11,6 +11,7 @@ import {
   Pencil,
   Archive,
   Trash2,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -27,6 +28,7 @@ export type ConversationListItem = {
   lastActivityAt: string;
   pinnedAt: string | null;
   archivedAt: string | null;
+  tags: string[];
 };
 
 type Props = {
@@ -109,6 +111,7 @@ export function ConversationSidebar({
 }: Props) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -119,8 +122,27 @@ export function ConversationSidebar({
     return () => document.removeEventListener("keydown", handler);
   }, [mobileOpen, onMobileClose]);
 
+  // 전체 대화에서 나타난 태그 집계 (빈도 내림차순, 최대 20개)
+  const allTags = (() => {
+    const counts = new Map<string, number>();
+    for (const c of conversations) {
+      for (const t of c.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([tag, count]) => ({ tag, count }));
+  })();
+
+  // 선택된 태그가 있으면 AND 필터: 모두 포함해야 통과
+  const filtered = activeTags.length === 0
+    ? conversations
+    : conversations.filter((c) =>
+        activeTags.every((t) => (c.tags ?? []).includes(t)),
+      );
+
   const grouped = new Map<GroupKey, ConversationListItem[]>();
-  for (const c of conversations) {
+  for (const c of filtered) {
     const key: GroupKey = c.pinnedAt
       ? "pinned"
       : classifyByDate(c.lastActivityAt);
@@ -128,6 +150,12 @@ export function ConversationSidebar({
     arr.push(c);
     grouped.set(key, arr);
   }
+
+  const toggleTag = (tag: string) => {
+    setActiveTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
 
   return (
     <>
@@ -157,6 +185,36 @@ export function ConversationSidebar({
           최근 50개 · 고정 먼저
         </p>
       </header>
+
+      {allTags.length > 0 && (
+        <div
+          className="flex flex-wrap gap-1 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800"
+          role="group"
+          aria-label="태그 필터"
+        >
+          {allTags.map(({ tag, count }) => {
+            const isActive = activeTags.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                aria-pressed={isActive}
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                  isActive
+                    ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
+                )}
+              >
+                <Hash size={10} />
+                <span>{tag}</span>
+                <span className="ml-0.5 text-[10px] opacity-60">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto" aria-label="대화 목록 네비게이션">
         {conversations.length === 0 ? (
@@ -313,11 +371,19 @@ function ConversationRow({
               )}
               {title}
             </span>
-            <span className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
+            <span className="flex flex-wrap items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
               <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800 dark:text-zinc-300">
                 {PERSONA_LABELS[c.persona] ?? c.persona}
               </span>
               <span>{formatRelative(c.lastActivityAt, group)}</span>
+              {(c.tags ?? []).slice(0, 3).map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full bg-zinc-50 px-1.5 py-0.5 text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-700"
+                >
+                  #{t}
+                </span>
+              ))}
             </span>
           </Link>
           <button

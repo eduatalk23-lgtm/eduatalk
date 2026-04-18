@@ -27,6 +27,7 @@ export type AIConversationRow = {
   retention_until: string | null;
   anonymized_at: string | null;
   origin: AIConversationOrigin | null;
+  tags: string[];
   created_at: string;
   updated_at: string;
 };
