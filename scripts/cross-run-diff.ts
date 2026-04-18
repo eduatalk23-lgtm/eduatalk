@@ -91,6 +91,32 @@ function containsAny(haystack: string, needles: string[]): boolean {
   return needles.some((n) => n.length >= 2 && h.includes(normalize(n)));
 }
 
+// ============================================
+// 노이즈 필터 — 일반 교과명 / 공용 동사 / 활동 프레임
+// ============================================
+// 과목명·"탐구"·"활동" 같은 토큰은 A→B 재등장이 **콘텐츠 연속성 신호가 아님** (LLM이 활동
+// 요약 → 스토리라인 재구성 과정에서 자연스럽게 중복). 2026-04-18 실측: run3→4 hit 예시
+// 5개 중 4개가 과목명 — 19.5% 주지표가 실제 연속성보다 과평가되는 원인.
+const NOISE_KEYWORDS = new Set<string>([
+  // 기본 교과
+  "국어", "영어", "수학", "과학", "사회", "체육", "음악", "미술", "역사", "도덕", "정보", "기술",
+  // 세부 교과 (로마자 넘버링 포함 원형)
+  "물리", "물리학", "화학", "생물", "생명과학", "지구과학", "지학", "한국사", "세계사", "경제",
+  "지리", "윤리", "통합사회", "통합과학", "국사", "문학", "독서", "작문", "문법",
+  // 활동/프레임
+  "탐구", "활동", "실험", "연구", "프로젝트", "발표", "토론", "조사", "관찰", "보고서",
+  "수업", "심화", "기초", "응용", "분석", "과제",
+]);
+
+function isNoise(keyword: string): boolean {
+  const n = normalize(keyword);
+  // 완전 일치 — "수학I" 같은 파생어는 유지 (프로젝트 실질 단서)
+  if (NOISE_KEYWORDS.has(n)) return true;
+  // 1글자 단독도 노이즈로 간주
+  if (n.length < 2) return true;
+  return false;
+}
+
 async function main() {
   const [, , p1, p2] = process.argv;
   if (!p1 || !p2) {
@@ -185,12 +211,22 @@ async function main() {
     const hitTokens = [...aTokenSet].filter((t) => t.length >= 2 && bHayNormalized.includes(t));
     const tokenHitRatio = aTokenSet.size > 0 ? hitTokens.length / aTokenSet.size : 0;
 
-    console.log(`   A summary keywords (명사구 토큰): ${aSummaryKeywords.length}건`);
-    console.log(`   ▶ [주지표] B storyline 에 A keyword 문자열 재등장: ${hitKeywords.length}/${aSummaryKeywords.length} (${(keywordHitRatio * 100).toFixed(1)}%)`);
-    console.log(`     기준 ≥ 15.0% → ${keywordHitRatio >= 0.15 ? "✅ 통과" : "❌ 미달"}`);
-    if (hitKeywords.length > 0) {
-      console.log(`     예: ${hitKeywords.slice(0, 5).map((k) => `"${k.slice(0, 30)}"`).join(", ")}`);
+    // 노이즈 필터 (일반 교과명·활동 프레임 제외) — 실질 연속성 신호만 추림
+    const aSignalKeywords = aSummaryKeywords.filter((k) => !isNoise(k));
+    const hitSignalKeywords = hitKeywords.filter((k) => !isNoise(k));
+    const noiseHitKeywords = hitKeywords.filter((k) => isNoise(k));
+    const signalHitRatio = aSignalKeywords.length > 0 ? hitSignalKeywords.length / aSignalKeywords.length : 0;
+
+    console.log(`   A summary keywords (명사구 토큰): ${aSummaryKeywords.length}건 (신호 ${aSignalKeywords.length} · 노이즈 ${aSummaryKeywords.length - aSignalKeywords.length})`);
+    console.log(`   ▶ [주지표·노이즈 필터] B storyline 에 A 신호 keyword 재등장: ${hitSignalKeywords.length}/${aSignalKeywords.length} (${(signalHitRatio * 100).toFixed(1)}%)`);
+    console.log(`     기준 ≥ 15.0% → ${signalHitRatio >= 0.15 ? "✅ 통과" : "❌ 미달"}`);
+    if (hitSignalKeywords.length > 0) {
+      console.log(`     신호 예: ${hitSignalKeywords.slice(0, 5).map((k) => `"${k.slice(0, 30)}"`).join(", ")}`);
     }
+    if (noiseHitKeywords.length > 0) {
+      console.log(`     (제외된 노이즈 hit ${noiseHitKeywords.length}건): ${[...new Set(noiseHitKeywords)].slice(0, 6).map((k) => `"${k}"`).join(", ")}`);
+    }
+    console.log(`   (참고) 필터 전 전체 hit: ${hitKeywords.length}/${aSummaryKeywords.length} (${(keywordHitRatio * 100).toFixed(1)}%)`);
     console.log(`   (참고) bigram+word 토큰 hit: ${hitTokens.length}/${aTokenSet.size} (${(tokenHitRatio * 100).toFixed(1)}%)`);
   }
 
