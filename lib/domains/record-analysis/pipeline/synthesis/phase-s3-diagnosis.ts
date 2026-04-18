@@ -220,6 +220,8 @@ export async function runAiDiagnosis(
 
   // Cross-run: 직전 실행 course_recommendation → "수강 궤적" 맥락 주입.
   // manifest: course_recommendation.writesForNextRun = ["ai_diagnosis"].
+  let priorCourseRecCount = 0;
+  let priorCourseSectionChars = 0;
   const prevRun = ctx.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
@@ -234,6 +236,7 @@ export async function runAiDiagnosis(
     }>(prevRun, "course_recommendation");
     const recs = prevCourse?.recommendations ?? [];
     if (recs.length > 0) {
+      priorCourseRecCount = recs.length;
       const byGrade = new Map<number, string[]>();
       for (const r of recs) {
         const key = r.grade;
@@ -250,6 +253,7 @@ export async function runAiDiagnosis(
         "이전 실행에서 권장한 수강 계획. 현재 확정/변경 여부와 대조하여 학생 의사결정의 일관성을 평가.",
         ...lines,
       ].join("\n");
+      priorCourseSectionChars = section.length;
       diagQualityPatternSection = diagQualityPatternSection
         ? `${diagQualityPatternSection}\n\n${section}`
         : section;
@@ -345,6 +349,9 @@ export async function runAiDiagnosis(
       improvementCount: Array.isArray(result.data.improvements) ? (result.data.improvements as unknown[]).length : 0,
       inferredEdgesInserted,
       coverageWarnings,
+      // Cross-run 소비 자기보고 (cross-run-consumer-diff [H] 측정용)
+      priorCourseRecCount,
+      priorCourseSectionChars,
       // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
       ...(savedTsAnalysis ? { _timeSeriesAnalysis: savedTsAnalysis } : {}),
       // S6: qualityPatterns를 DB에 영속화하여 Phase 재시작 시 S5에서 복원 가능

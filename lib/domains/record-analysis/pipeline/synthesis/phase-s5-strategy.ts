@@ -107,6 +107,8 @@ export async function runActivitySummary(
   // Cross-run: 직전 실행 interview_generation.topQuestions → "질문이 많이 나왔던 활동" 우선 요약.
   // manifest: interview_generation.writesForNextRun = ["activity_summary"].
   let priorInterviewSection: string | undefined;
+  let priorInterviewCount = 0;
+  let priorInterviewSectionChars = 0;
   const prevRun = ctx.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
@@ -122,12 +124,14 @@ export async function runActivitySummary(
     }>(prevRun, "interview_generation");
     const qs = prevInterview?.topQuestions ?? [];
     if (qs.length > 0) {
+      priorInterviewCount = qs.length;
       const lines = qs.map((q) => `- [${q.questionType}/${q.difficulty}] ${q.question}`);
       priorInterviewSection = [
         `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 면접 빈출 맥락`,
         "아래 질문이 쏠렸던 활동 축을 요약 서술에서 특히 **구체성/성장 서사**로 강화.",
         ...lines,
       ].join("\n");
+      priorInterviewSectionChars = priorInterviewSection.length;
     }
   }
 
@@ -183,6 +187,9 @@ export async function runActivitySummary(
     result: {
       summaryCount: summaries.length,
       summaries,
+      // Cross-run 소비 자기보고 (cross-run-consumer-diff [I] 측정용)
+      priorInterviewCount,
+      priorInterviewSectionChars,
     },
   };
 }
@@ -373,6 +380,8 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   // Cross-run: 직전 실행 gap_tracking.topBridges → "미해결 gap 우선 공략" 맥락.
   // manifest: gap_tracking.writesForNextRun = ["ai_strategy"].
   let priorGapSection: string | undefined;
+  let priorGapBridgeCount = 0;
+  let priorGapSectionChars = 0;
   const prevRun = ctx.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
@@ -387,6 +396,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     }>(prevRun, "gap_tracking");
     const bridges = prevGap?.topBridges ?? [];
     if (bridges.length > 0) {
+      priorGapBridgeCount = bridges.length;
       const lines = bridges.map((b) => {
         const grade = b.targetGrade ? `${b.targetGrade}학년` : "학년 미정";
         const comps = b.sharedCompetencies.slice(0, 3).join(", ");
@@ -397,6 +407,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
         "아래 bridge 제안 중 아직 해결되지 않은 항목을 우선 공략 대상으로 반영.",
         ...lines,
       ].join("\n");
+      priorGapSectionChars = priorGapSection.length;
     }
   }
 
@@ -455,6 +466,9 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     preview: `${saved}건 보완전략 제안됨`,
     result: {
       savedCount: saved,
+      // Cross-run 소비 자기보고 (cross-run-consumer-diff [J] 측정용)
+      priorGapBridgeCount,
+      priorGapSectionChars,
       // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
       ...(savedMatchAnalysis ? { _universityMatch: savedMatchAnalysis } : {}),
     },
