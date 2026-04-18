@@ -622,6 +622,65 @@ function MessageRow({
     setToolCardsMounted(true);
   }, []);
 
+  // Phase T v1 #2: getScores 성공 시 우측 Artifact 패널에 자동 오픈.
+  // sessionStorage 로 toolCallId dedupe — 첫 도착 시 1회만, 페이지 리로드
+  // 후에는 auto-open skip (사용자가 의도적으로 다시 보러 오지 않은 상태이므로).
+  useEffect(() => {
+    if (isUser) return;
+    for (const part of message.parts) {
+      if (!matchesTool(part, "getScores")) continue;
+      const p = part as {
+        state?: string;
+        output?: unknown;
+        input?: { grade?: number; semester?: number };
+        toolCallId?: string;
+      };
+      if (p.state !== "output-available") continue;
+      const toolCallId = p.toolCallId;
+      if (!toolCallId) continue;
+
+      if (typeof window !== "undefined") {
+        const STORAGE_KEY = "ai-chat-auto-pushed-artifacts";
+        let seen: string[] = [];
+        try {
+          seen = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "[]");
+        } catch {
+          seen = [];
+        }
+        if (seen.includes(toolCallId)) continue;
+        const next = [...seen, toolCallId].slice(-50);
+        try {
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // storage 접근 실패 시에도 auto-open 은 진행 (이번 세션에 한정).
+        }
+      }
+
+      const output = extractToolOutput<GetScoresOutput>(p.output);
+      if (!output?.ok || output.count === 0) continue;
+
+      onOpenArtifact({
+        id: `scores:${toolCallId}`,
+        type: "scores",
+        title: `${output.studentName ?? "학생"} 내신 성적`,
+        subtitle: [
+          output.filter.grade ? `${output.filter.grade}학년` : null,
+          output.filter.semester ? `${output.filter.semester}학기` : null,
+          `${output.count}과목`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        props: output,
+        originPath:
+          output.filter.grade && output.filter.semester
+            ? `/scores/school/${output.filter.grade}/${output.filter.semester}`
+            : "/scores",
+      });
+      break; // 한 메시지당 최대 1개 artifact 만 push
+    }
+    // message.parts 전체가 아닌 길이 기준으로 의존성 한정 — parts 내용 변동 시에도 동작
+  }, [isUser, message.parts, onOpenArtifact]);
+
   const respondArchive = async (
     toolCallId: string,
     confirmed: boolean,
