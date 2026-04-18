@@ -122,7 +122,43 @@ export async function runFullOrchestration(
       (cRes.data ?? []) as CachedChangche[],
       (hRes.data ?? []) as CachedHaengteuk[],
     );
-    const { neisGrades, consultingGrades } = deriveGradeCategories(resolvedRecords);
+    const { neisGrades, consultingGrades: recordedConsulting } =
+      deriveGradeCategories(resolvedRecords);
+
+    // Auto-Bootstrap 귀결: 레코드가 없는 미래/회고 학년도 설계 대상에 포함.
+    // deriveGradeCategories 는 DB 레코드 있는 학년만 순회하므로, 2학년 prospective
+    // 학생처럼 1학년만 레코드가 있으면 consultingGrades=[1] 로만 산출되어
+    // 2·3 학년 파이프라인이 만들어지지 않는다. 학생 학년 + 수강계획 학년을 합쳐
+    // 1~3 중 NEIS 아닌 학년을 전부 design 대상으로 편성.
+    const { data: studentRow } = await supabase
+      .from("students")
+      .select("grade")
+      .eq("id", studentId)
+      .single();
+    const { data: coursePlanGrades } = await supabase
+      .from("student_course_plans")
+      .select("grade")
+      .eq("student_id", studentId)
+      .in("plan_status", ["confirmed", "recommended"]);
+
+    const planGrades = new Set(
+      ((coursePlanGrades ?? []) as { grade: number }[]).map((r) => r.grade),
+    );
+    const candidateGrades = new Set<number>([
+      ...Object.keys(resolvedRecords).map(Number),
+      ...planGrades,
+    ]);
+    const studentGrade = (studentRow?.grade as number | null) ?? null;
+    if (studentGrade != null && studentGrade >= 1 && studentGrade <= 3) {
+      // 현재 학년 이후(포함) 전부 설계 대상. 2학년이면 [2,3], 1학년이면 [1,2,3].
+      for (let g = studentGrade; g <= 3; g++) candidateGrades.add(g);
+    }
+    const consultingGrades = [...candidateGrades]
+      .filter((g) => g >= 1 && g <= 3 && !neisGrades.includes(g))
+      .sort((a, b) => a - b);
+
+    // recordedConsulting 은 참조만(계산에 이미 반영됨)
+    void recordedConsulting;
 
     const pipelineIds: FullOrchestrationResult["pipelineIds"] = {};
     if (bootstrapRes.success) {

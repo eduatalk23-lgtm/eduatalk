@@ -51,7 +51,8 @@ export function InquiryLinkSuggestions({ records, storylines, studentId, tenantI
   // 캐시된 결과를 초기값으로 복원
   const initialState = useMemo(() => {
     if (!cachedResult) return null;
-    const { connections: cached, suggestedStorylines: cachedSl } = cachedResult;
+    const cached = cachedResult.connections ?? [];
+    const cachedSl = cachedResult.suggestedStorylines ?? [];
     if (cached.length === 0 && cachedSl.length === 0) return null;
 
     const summaries: RecordSummary[] = records

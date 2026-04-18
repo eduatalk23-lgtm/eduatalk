@@ -692,27 +692,10 @@ export async function runBlueprintPipeline(
       );
     }
 
-    // L0 전제: 활성 메인 탐구 존재 확인
-    // 스키마는 is_active: boolean — 'status' 컬럼 없음 (20260415400000 마이그레이션).
-    const { data: activeMain, error: activeMainErr } = await supabase
-      .from("student_main_explorations")
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .limit(1);
-    if (activeMainErr) {
-      logActionError({ ...LOG_CTX, action: "runBlueprintPipeline" }, activeMainErr, {
-        studentId,
-        step: "checkActiveMain",
-      });
-      return createErrorResponse("활성 메인 탐구 조회 실패");
-    }
-    if (!activeMain || activeMain.length === 0) {
-      return createErrorResponse(
-        "활성 메인 탐구가 설정되어 있지 않습니다. 메인 탐구를 먼저 설정해주세요.",
-      );
-    }
+    // L0 전제 체크는 Phase 실행 시점(phase-b1-blueprint.ts)에만 수행.
+    // INSERT 시점에 체크하면 Bootstrap(BT1 main_exploration_seed)이 아직 실행 전이라
+    // 활성 메인 탐구가 없어서 풀런이 차단됨 — Auto-Bootstrap 철학과 모순.
+    // Phase 실행 시점에는 이미 graceful degrade(task="completed" + "활성 메인 탐구 없음" preview)로 처리됨.
 
     const { data: student } = await supabase
       .from("students")
