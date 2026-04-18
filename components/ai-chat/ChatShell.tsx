@@ -40,11 +40,16 @@ import {
 } from "@/components/ai-chat/SlashMenu";
 import { InlineConfirm } from "@/components/ai-chat/InlineConfirm";
 import { ComposerAttachments } from "@/components/ai-chat/ComposerAttachments";
+import { MentionMenu } from "@/components/ai-chat/MentionMenu";
 import {
   ACCEPT_ATTRIBUTE,
   rejectionMessage,
   validateAttachments,
 } from "@/lib/domains/ai-chat/attachments";
+import {
+  lookupMentionCandidates,
+  type MentionCandidate,
+} from "@/lib/domains/ai-chat/actions/mentions";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
@@ -136,6 +141,13 @@ export function ChatShell({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mentionCandidates, setMentionCandidates] = useState<MentionCandidate[]>(
+    [],
+  );
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionLoading, setMentionLoading] = useState(false);
+  // false 이면 역할 자격 미충족으로 확정 → 이후 fetch 스킵
+  const [mentionAllowed, setMentionAllowed] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
@@ -257,6 +269,48 @@ export function ChatShell({
   useEffect(() => {
     setSlashIndex(0);
   }, [slashQuery]);
+
+  // Phase B-3 이월: @mention 트리거 감지 (마지막 @ 이후 공백 없으면 활성)
+  const lastAtIndex = input.lastIndexOf("@");
+  const mentionActive =
+    mentionAllowed &&
+    lastAtIndex !== -1 &&
+    /^@[^\s]{0,20}$/.test(input.slice(lastAtIndex)) &&
+    !slashActive;
+  const mentionQuery = mentionActive ? input.slice(lastAtIndex + 1) : "";
+
+  useEffect(() => {
+    if (!mentionActive) {
+      setMentionCandidates([]);
+      setMentionIndex(0);
+      return;
+    }
+    setMentionLoading(true);
+    const handle = setTimeout(async () => {
+      const res = await lookupMentionCandidates(mentionQuery);
+      if (res.ok) {
+        setMentionCandidates(res.candidates);
+        setMentionIndex(0);
+      } else if (res.reason === "forbidden") {
+        setMentionAllowed(false);
+        setMentionCandidates([]);
+      } else {
+        setMentionCandidates([]);
+      }
+      setMentionLoading(false);
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [mentionActive, mentionQuery]);
+
+  const mentionMenuOpen = mentionActive;
+
+  const selectMention = (c: MentionCandidate) => {
+    if (lastAtIndex === -1) return;
+    const before = input.slice(0, lastAtIndex);
+    setInput(`${before}@${c.name} `);
+    setMentionCandidates([]);
+    // textarea 커서는 value 변경 이후 자동으로 끝으로 이동 (auto-grow effect 트리거)
+  };
 
   const executeSlashCommand = (cmd: SlashCommand) => {
     if (cmd.action.type === "prompt") {
@@ -550,6 +604,17 @@ export function ChatShell({
               />
             </div>
           )}
+          {mentionMenuOpen && !slashMenuOpen && (
+            <div className="mx-auto w-full max-w-3xl pb-2">
+              <MentionMenu
+                candidates={mentionCandidates}
+                activeIndex={mentionIndex}
+                loading={mentionLoading}
+                onHover={setMentionIndex}
+                onSelect={selectMention}
+              />
+            </div>
+          )}
           <ComposerAttachments files={attachments} onRemove={removeAttachment} />
           {attachmentError && (
             <p
@@ -618,6 +683,33 @@ export function ChatShell({
                   if (e.key === "Escape") {
                     e.preventDefault();
                     setInput("");
+                    return;
+                  }
+                }
+                if (mentionMenuOpen && mentionCandidates.length > 0) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setMentionIndex((i) => (i + 1) % mentionCandidates.length);
+                    return;
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setMentionIndex(
+                      (i) =>
+                        (i - 1 + mentionCandidates.length) %
+                        mentionCandidates.length,
+                    );
+                    return;
+                  }
+                  if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    const c = mentionCandidates[mentionIndex];
+                    if (c) selectMention(c);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setMentionCandidates([]);
                     return;
                   }
                 }
