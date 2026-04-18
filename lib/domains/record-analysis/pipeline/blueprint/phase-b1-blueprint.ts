@@ -11,7 +11,7 @@
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { PipelineContext, TaskRunnerOutput } from "../pipeline-types";
 import { setTaskResult } from "../pipeline-helpers";
-import { getPreviousTaskResult } from "../pipeline-previous-run";
+import { getPreviousRunResult } from "../pipeline-previous-run";
 import type { BlueprintPhaseInput } from "../../blueprint/types";
 
 /** blueprint_generation 의 writesForNextRun 출력 — 다음 실행이 연속성 힌트로 읽음 */
@@ -59,7 +59,7 @@ export async function runBlueprintGeneration(
   // ── Cross-run 연속성 힌트 로드 ────────────────────
   // 직전 실행의 blueprint_generation 이 writesForNextRun 으로 남긴 convergences 를 꺼내
   // LLM 프롬프트에 주입. 강한 이유 없이 테마 교체 방지.
-  const prevPayload = getPreviousTaskResult<BlueprintPreviousRunPayload>(
+  const prevPayload = getPreviousRunResult<BlueprintPreviousRunPayload>(
     ctx.previousRunOutputs,
     "blueprint_generation",
   );

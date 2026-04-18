@@ -37,6 +37,7 @@ import {
   filterSlashCommands,
   getSlashCommandsForRole,
 } from "@/components/ai-chat/SlashMenu";
+import { InlineConfirm } from "@/components/ai-chat/InlineConfirm";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import type { GetScoresOutput } from "@/app/api/chat/route";
 
@@ -123,6 +124,7 @@ export function ChatShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [pendingAction, setPendingAction] = useState<SlashCommand | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
@@ -194,14 +196,25 @@ export function ChatShell({
     setSlashIndex(0);
   }, [slashQuery]);
 
-  const selectSlashCommand = (cmd: SlashCommand) => {
+  const executeSlashCommand = (cmd: SlashCommand) => {
     if (cmd.action.type === "prompt") {
       sendMessage({ text: cmd.action.text });
-      setInput("");
     } else if (cmd.action.type === "navigate") {
       router.push(cmd.action.path);
-      setInput("");
     }
+    setInput("");
+    setPendingAction(null);
+  };
+
+  const selectSlashCommand = (cmd: SlashCommand) => {
+    // /clear 는 현재 대화가 비어있지 않으면 InlineConfirm 으로 승인 받기.
+    // 다른 slash 커맨드도 destructive 의도이면 여기서 gate 추가 가능.
+    if (cmd.name === "clear" && messages.length > 0) {
+      setPendingAction(cmd);
+      setInput("");
+      return;
+    }
+    executeSlashCommand(cmd);
   };
 
   return (
@@ -414,6 +427,17 @@ export function ChatShell({
               <p role="alert" className="text-xs text-red-600 dark:text-red-400">
                 에러: {error.message}
               </p>
+            )}
+
+            {pendingAction && pendingAction.name === "clear" && (
+              <InlineConfirm
+                title="새 대화를 시작할까요?"
+                description="현재 대화는 기록에 남지만 새 화면으로 이동합니다."
+                confirmLabel="새 대화 시작"
+                tone="neutral"
+                onConfirm={() => executeSlashCommand(pendingAction)}
+                onCancel={() => setPendingAction(null)}
+              />
             )}
           </div>
         </main>
