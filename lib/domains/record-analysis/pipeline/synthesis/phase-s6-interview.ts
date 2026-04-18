@@ -302,7 +302,31 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     throw new Error(`면접 질문 저장 실패: ${insertErr.message}`);
   }
 
-  return `${questions.length}건 면접 질문 생성`;
+  // Cross-run: 다음 실행 activity_summary 가 "질문이 많이 나왔던 활동 우선" 맥락 확보.
+  const byType: Record<string, number> = {};
+  for (const q of questions) byType[q.questionType] = (byType[q.questionType] ?? 0) + 1;
+  // hard 우선, 이어서 medium, easy — 변별력 있는 질문부터.
+  const difficultyRank: Record<string, number> = { hard: 0, medium: 1, easy: 2 };
+  const topQuestions = [...questions]
+    .sort(
+      (a, b) => (difficultyRank[a.difficulty] ?? 3) - (difficultyRank[b.difficulty] ?? 3),
+    )
+    .slice(0, 10)
+    .map((q) => ({
+      question: q.question,
+      questionType: q.questionType,
+      difficulty: q.difficulty,
+      sourceType: mainType,
+    }));
+
+  return {
+    preview: `${questions.length}건 면접 질문 생성`,
+    result: {
+      totalCount: questions.length,
+      byType,
+      topQuestions,
+    },
+  };
 }
 
 // ============================================
@@ -320,10 +344,19 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
 
   const llmResult = await generateAiRoadmap(studentId, llmMode);
   if (llmResult.success && llmResult.data) {
+    // Cross-run: 다음 실행 storyline_generation 이 "과거 계획 대비 진척" 서사 힌트로 활용.
+    const items = llmResult.data.items.map((it) => ({
+      grade: it.grade,
+      semester: it.semester,
+      area: it.area,
+    }));
     return {
       preview: `${llmResult.data.items.length}건 AI 로드맵 (${llmMode})`,
-      // 전체 LLM 응답은 DB(student_record_roadmap_items)에 이미 저장됨 → ctx에는 카운트만 유지
-      result: { mode: llmMode, itemCount: llmResult.data.items.length },
+      result: {
+        mode: llmMode,
+        itemCount: llmResult.data.items.length,
+        items,
+      },
     };
   }
 
@@ -389,5 +422,18 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
       repository.insertRoadmapItem({ tenant_id: tenantId, student_id: studentId, school_year: currentSchoolYear, grade: item.grade, semester: item.semester, area: item.area, plan_content: item.plan_content, plan_keywords: item.plan_keywords, storyline_id: item.storyline_id, sort_order: baseSortOrder + i }).then(() => { savedCount++; }),
     ),
   );
-  return `${savedCount}건 로드맵 생성 (fallback)`;
+  // Cross-run: fallback 경로도 동일한 계약 — semester null 은 0 으로 정규화하여 노출.
+  const fallbackItems = roadmapItems.map((it) => ({
+    grade: it.grade,
+    semester: it.semester ?? 0,
+    area: it.area,
+  }));
+  return {
+    preview: `${savedCount}건 로드맵 생성 (fallback)`,
+    result: {
+      mode: "fallback",
+      itemCount: savedCount,
+      items: fallbackItems,
+    },
+  };
 }

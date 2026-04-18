@@ -61,12 +61,19 @@ export async function runPastStrategy(
 
     const { suggestions, savedCount } = result.data;
 
+    // Cross-run: 다음 실행 past_diagnosis 가 "이행도" 맥락 반영. 제안 상위 N개 유지.
+    const topSuggestions = suggestions.slice(0, 10).map((s) => ({
+      priority: s.priority,
+      area: s.area,
+      action: s.action,
+    }));
+
     return {
       preview: `Past Strategy ${savedCount}건 영속화 (제안 ${suggestions.length}건, ${studentGrade}학년 ${currentSemester}학기 기준)`,
       result: {
         savedCount,
         suggestionCount: suggestions.length,
-        priorities: suggestions.map((s) => s.priority),
+        suggestions: topSuggestions,
       },
     };
   } catch (err) {

@@ -104,37 +104,64 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     }
   }
 
-  // PR 5 POC (2026-04-17): Cross-run feedback — 직전 실행 activity_summary 가 있으면
-  // 연속성 인지 힌트를 프롬프트에 추가. activity_summaries 테이블의 제목을 직접 불러와
-  // "이전 분석에서 이미 포착한 축"을 스토리라인 감지가 재발견하지 않고 **심화/확장**하도록 유도.
+  // Cross-run feedback (Path A, 2026-04-17 풍부화 이후): 직전 실행의 activity_summary task_result 에서
+  // 저장된 summaries 목록을 직접 읽어 "이미 포착한 축" 힌트로 주입. DB 재조회 없음.
+  // roadmap_generation.items 가 있으면 "과거 계획 대비 진척" 서사 힌트도 함께 주입.
   const prevRun = ctx.previousRunOutputs;
   if (prevRun?.runId) {
-    try {
-      const { data: prevSummaries } = await ctx.supabase
-        .from("student_record_activity_summaries")
-        .select("summary_title, school_year")
-        .eq("student_id", studentId)
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .limit(8);
-      const items = (prevSummaries ?? [])
-        .map((r) => {
-          const title = (r.summary_title as string | null)?.trim();
-          const year = r.school_year as number | null;
-          if (!title) return null;
-          return year ? `- ${title} (${year})` : `- ${title}`;
-        })
-        .filter((v): v is string => v !== null);
-      if (items.length > 0) {
-        const section = [
-          `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 활동 요약 목록`,
-          "이 축들은 이미 포착된 것으로 간주하고, **신규 기록**에서 이를 어떻게 심화/확장했는지에 초점.",
-          ...items,
-        ].join("\n");
-        coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${section}` : section;
+    const { getPreviousRunResult } = await import("../pipeline-previous-run");
+    const prevSummary = getPreviousRunResult<{
+      summaryCount: number;
+      summaries: Array<{
+        schoolYear: number;
+        targetGrades: number[];
+        title: string;
+        keywords?: string[];
+      }>;
+    }>(prevRun, "activity_summary");
+    const items = (prevSummary?.summaries ?? [])
+      .map((s) => {
+        const title = s.title.trim();
+        if (!title) return null;
+        const yearPart = s.schoolYear ? ` (${s.schoolYear})` : "";
+        const kwPart = s.keywords && s.keywords.length > 0 ? ` · 키워드: ${s.keywords.join(", ")}` : "";
+        return `- ${title}${yearPart}${kwPart}`;
+      })
+      .filter((v): v is string => v !== null);
+    if (items.length > 0) {
+      const section = [
+        `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 활동 요약 목록`,
+        "이 축들은 이미 포착된 것으로 간주하고, **신규 기록**에서 이를 어떻게 심화/확장했는지에 초점.",
+        ...items,
+      ].join("\n");
+      coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${section}` : section;
+    }
+
+    // 로드맵 진척 힌트 (manifest: roadmap_generation.writesForNextRun = ["storyline_generation"])
+    const prevRoadmap = getPreviousRunResult<{
+      mode: string;
+      itemCount: number;
+      items: Array<{ grade: number; semester: number; area: string }>;
+    }>(prevRun, "roadmap_generation");
+    const roadmapItems = prevRoadmap?.items ?? [];
+    if (roadmapItems.length > 0) {
+      const byGrade = new Map<number, string[]>();
+      for (const it of roadmapItems) {
+        const key = it.grade;
+        const entry = `${it.semester}학기 ${it.area}`;
+        const arr = byGrade.get(key) ?? [];
+        arr.push(entry);
+        byGrade.set(key, arr);
       }
-    } catch {
-      // best-effort — 크로스런 힌트 실패는 분석 자체를 막지 않음.
+      const lines = [...byGrade.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([g, areas]) => `- ${g}학년: ${areas.join(", ")}`);
+      const section = [
+        "## 직전 실행 로드맵 (과거 계획)",
+        "신규 기록이 이 계획을 어떻게 이행/확장했는지 서사로 반영.",
+        ...lines,
+      ].join("\n");
+      coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${section}` : section;
     }
   }
 

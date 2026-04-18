@@ -46,6 +46,31 @@ export async function runPastDiagnosis(
       pastStorylineSection = lines.join("\n");
     }
 
+    // Cross-run: 직전 실행 past_strategy.suggestions → "전 번 권고 이행도" 맥락.
+    // manifest: past_strategy.writesForNextRun = ["past_diagnosis"].
+    // buildPastDiagnosisUserPrompt 가 단일 섹션만 받으므로 pastStorylineSection 에 헤더로 구분해 병합.
+    const prevRun = ctx.previousRunOutputs;
+    if (prevRun?.runId) {
+      const { getPreviousRunResult } = await import("../pipeline-previous-run");
+      const prevPast = getPreviousRunResult<{
+        savedCount: number;
+        suggestionCount: number;
+        suggestions: Array<{ priority: string; area: string; action: string }>;
+      }>(prevRun, "past_strategy");
+      const sugs = prevPast?.suggestions ?? [];
+      if (sugs.length > 0) {
+        const lines = sugs.map((s) => `- [${s.priority}] ${s.area}: ${s.action}`);
+        const priorSection = [
+          `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 권고 — 이행도 평가 대상`,
+          "아래 권고를 현재 기록(신규 세특/창체/행특)에서 이행했는지 진단에 반영.",
+          ...lines,
+        ].join("\n");
+        pastStorylineSection = pastStorylineSection
+          ? `${pastStorylineSection}\n\n${priorSection}`
+          : priorSection;
+      }
+    }
+
     const { generatePastDiagnosis } = await import(
       "../../llm/actions/generatePastDiagnosis"
     );

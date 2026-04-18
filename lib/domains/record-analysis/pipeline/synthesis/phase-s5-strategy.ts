@@ -104,10 +104,87 @@ export async function runActivitySummary(
     }
   }
 
-  const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection, summaryCoursePlanSection].filter(Boolean).join("\n") || undefined;
+  // Cross-run: 직전 실행 interview_generation.topQuestions → "질문이 많이 나왔던 활동" 우선 요약.
+  // manifest: interview_generation.writesForNextRun = ["activity_summary"].
+  let priorInterviewSection: string | undefined;
+  const prevRun = ctx.previousRunOutputs;
+  if (prevRun?.runId) {
+    const { getPreviousRunResult } = await import("../pipeline-previous-run");
+    const prevInterview = getPreviousRunResult<{
+      totalCount: number;
+      byType: Record<string, number>;
+      topQuestions: Array<{
+        question: string;
+        questionType: string;
+        difficulty: string;
+        sourceType: string;
+      }>;
+    }>(prevRun, "interview_generation");
+    const qs = prevInterview?.topQuestions ?? [];
+    if (qs.length > 0) {
+      const lines = qs.map((q) => `- [${q.questionType}/${q.difficulty}] ${q.question}`);
+      priorInterviewSection = [
+        `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 면접 빈출 맥락`,
+        "아래 질문이 쏠렸던 활동 축을 요약 서술에서 특히 **구체성/성장 서사**로 강화.",
+        ...lines,
+      ].join("\n");
+    }
+  }
+
+  const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection, summaryCoursePlanSection, priorInterviewSection].filter(Boolean).join("\n") || undefined;
   const result = await generateActivitySummary(studentId, grades, extraSections);
   if (!result.success) throw new Error(result.error);
-  return "활동 요약서 생성 완료";
+
+  // Cross-run: 방금 저장된 + 최근 저장된 activity_summaries 를 task_results 에 스냅샷.
+  // 다음 실행 storyline_generation 이 `ctx.previousRunOutputs.taskResults.activity_summary.summaries`
+  // 로 즉시 읽을 수 있게 top 8건 유지.
+  const { data: recentRows } = await ctx.supabase
+    .from("student_record_activity_summaries")
+    .select("school_year, target_grades, summary_title, summary_sections")
+    .eq("student_id", studentId)
+    .eq("tenant_id", ctx.tenantId)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  const summaries = (recentRows ?? []).map((r) => {
+    // summary_sections 에서 **실질 주제 토큰** 만 추출.
+    // 섹션 배열 구조: [{sectionType, title, content, relatedSubjects?, keywords?}]
+    // 우선순위: (1) section.keywords (LLM이 명시 추출) > (2) relatedSubjects (교과명).
+    // content 발췌는 사용하지 않음 — 문장 파편이 되어 LLM 재활용 불가.
+    const collected: string[] = [];
+    const s = r.summary_sections as unknown;
+    if (Array.isArray(s)) {
+      for (const row of s) {
+        if (!row || typeof row !== "object") continue;
+        const rec = row as Record<string, unknown>;
+        if (Array.isArray(rec.keywords)) {
+          for (const kw of rec.keywords) {
+            if (typeof kw === "string" && kw.length > 0 && kw.length <= 20) collected.push(kw);
+          }
+        }
+        if (Array.isArray(rec.relatedSubjects)) {
+          for (const sub of rec.relatedSubjects) {
+            if (typeof sub === "string" && sub.length > 0) collected.push(sub);
+          }
+        }
+      }
+    }
+    const unique = Array.from(new Set(collected)).slice(0, 16);
+    return {
+      schoolYear: r.school_year as number,
+      targetGrades: (r.target_grades as number[] | null) ?? [],
+      title: (r.summary_title as string | null) ?? "",
+      keywords: unique.length > 0 ? unique : undefined,
+    };
+  });
+
+  return {
+    preview: `활동 요약서 생성 완료 (스냅샷 ${summaries.length}건)`,
+    result: {
+      summaryCount: summaries.length,
+      summaries,
+    },
+  };
 }
 
 // ============================================
@@ -292,8 +369,39 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   // Blueprint-Axis: blueprint 설계 기준 + gap bridge 우선순위 (best-effort)
   const blueprintSection = buildBlueprintContextSection(ctx);
   const gapSection = buildGapTrackerContextSection(ctx);
-  // hyperedge 요약에 blueprint/gap 컨텍스트 병합
-  const combinedHyperedgeSection = [hyperedgeSummarySection, blueprintSection, gapSection]
+
+  // Cross-run: 직전 실행 gap_tracking.topBridges → "미해결 gap 우선 공략" 맥락.
+  // manifest: gap_tracking.writesForNextRun = ["ai_strategy"].
+  let priorGapSection: string | undefined;
+  const prevRun = ctx.previousRunOutputs;
+  if (prevRun?.runId) {
+    const { getPreviousRunResult } = await import("../pipeline-previous-run");
+    const prevGap = getPreviousRunResult<{
+      bridgeCount: number;
+      topBridges: Array<{
+        themeLabel: string;
+        urgency: string;
+        targetGrade: number | null;
+        sharedCompetencies: string[];
+      }>;
+    }>(prevRun, "gap_tracking");
+    const bridges = prevGap?.topBridges ?? [];
+    if (bridges.length > 0) {
+      const lines = bridges.map((b) => {
+        const grade = b.targetGrade ? `${b.targetGrade}학년` : "학년 미정";
+        const comps = b.sharedCompetencies.slice(0, 3).join(", ");
+        return `- [${b.urgency}] ${grade} "${b.themeLabel}" (역량: ${comps || "없음"})`;
+      });
+      priorGapSection = [
+        `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 미해결 격차`,
+        "아래 bridge 제안 중 아직 해결되지 않은 항목을 우선 공략 대상으로 반영.",
+        ...lines,
+      ].join("\n");
+    }
+  }
+
+  // hyperedge 요약에 blueprint/gap 컨텍스트 + 직전 실행 미해결 격차 병합
+  const combinedHyperedgeSection = [hyperedgeSummarySection, blueprintSection, gapSection, priorGapSection]
     .filter(Boolean)
     .join("\n\n") || undefined;
 

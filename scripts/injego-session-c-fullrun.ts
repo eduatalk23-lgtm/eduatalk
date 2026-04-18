@@ -24,6 +24,8 @@ import {
 const STUDENT_ID = "35ee94b6-9484-4bee-8100-c761c1c56831";
 const TENANT_ID = "84b71a5d-5681-4da3-88d2-91e75ef89015";
 
+const SKIP_CLEANUP = process.argv.includes("--no-cleanup");
+
 const BASE_URL = process.env.DEV_URL ?? "http://localhost:3000";
 const CHUNK_SIZE = 4;
 const CHUNK_LOOP_CAP = 30;
@@ -276,7 +278,11 @@ async function main() {
   console.log(`created_by=${CREATED_BY.slice(0, 8)} · student=${refStudent.school_name} G${refStudent.grade} · target=${refStudent.target_major}\n`);
 
   // ── 1. 클린업 ──
-  await cleanup(supabase);
+  if (SKIP_CLEANUP) {
+    console.log(`🧹 --no-cleanup 플래그: 클린업 스킵 (이전 실행 기록 보존 — cross-run 검증용)\n`);
+  } else {
+    await cleanup(supabase);
+  }
 
   // ── 2. Blueprint ──
   console.log(`▶ Blueprint Phase`);

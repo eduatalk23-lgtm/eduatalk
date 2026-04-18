@@ -134,8 +134,18 @@ export interface PipelineTaskResultMap {
     skippedShortContent: number;
     elapsedMs?: number;
   };
-  /** S2-c: 행특 ↔ 탐구 가이드 링크 (승격: 트랙 D, string preview만 반환 → elapsedMs만) */
-  haengteuk_linking: { elapsedMs?: number };
+  /** S2-c: 행특 ↔ 탐구 가이드 링크.
+   *  cross-run: 다음 실행 `guide_matching` 이 `assignmentLinkCounts` 를 읽어
+   *  이미 링크된 assignment 에 연속성 부스트 / 과포화 회피를 적용.
+   */
+  haengteuk_linking: {
+    linksGenerated: number;
+    haengteukProcessed: number;
+    skippedCount: number;
+    /** evaluation_item → assignmentId 매트릭스 요약. 값이 클수록 해당 assignment 에 많은 평가항목이 결합됨. */
+    assignmentLinkCounts: Array<{ assignmentId: string; linkCount: number }>;
+    elapsedMs?: number;
+  };
   /** S3-a: AI 종합 진단 */
   ai_diagnosis: {
     overallGrade: string;
@@ -145,38 +155,127 @@ export interface PipelineTaskResultMap {
     _timeSeriesAnalysis?: import("@/lib/domains/record-analysis/eval/timeseries-analyzer").TimeSeriesAnalysis;
     elapsedMs?: number;
   };
-  /** S3-b: 수강 추천 (string preview만 반환) */
-  course_recommendation: { elapsedMs?: number };
-  /** S2-b: 가이드 매칭 (string preview만 반환) */
-  guide_matching: { elapsedMs?: number };
+  /** S3-b: 수강 추천.
+   *  cross-run: 다음 실행 `ai_diagnosis` 가 `recommendations` 로 "이전 권장 수강 궤적" 을
+   *  진단 맥락에 주입 (학생 수강 의사결정 일관성 평가).
+   */
+  course_recommendation: {
+    totalCount: number;
+    /** 상위 N 권장 과목. 프롬프트 "수강 궤적" 섹션으로 직결. */
+    recommendations: Array<{
+      grade: number;
+      semester: number | null;
+      subjectName: string;
+      priority: string | null;
+    }>;
+    elapsedMs?: number;
+  };
+  /** S2-b: 가이드 매칭.
+   *  cross-run (관찰치): `priorHighLinkAssignmentIds` 는 직전 실행 `haengteuk_linking` 에서
+   *  링크가 많았던 assignment. ranking 활성 반영은 후속 슬라이스 — 현 슬라이스는 읽기+노출만.
+   */
+  guide_matching: {
+    assignedCount?: number;
+    candidateCount?: number;
+    /** 직전 실행 haengteuk_linking.assignmentLinkCounts 중 linkCount >= 2 인 assignment ID (관찰 전용). */
+    priorHighLinkAssignmentIds?: string[];
+    elapsedMs?: number;
+  };
   /** S4: 우회학과 분석 (string preview만 반환) */
   bypass_analysis: { elapsedMs?: number };
-  /** S5-a: 활동 요약서 (string preview만 반환) */
-  activity_summary: { elapsedMs?: number };
+  /** S5-a: 활동 요약서.
+   *  cross-run: 다음 실행 `storyline_generation` 이 `summaries` 로 "이미 포착된 활동 축" 을 인지해
+   *  재발견 대신 심화/확장 서사를 유도. S3 단계에서 현 POC 의 DB 재조회를 이 필드로 교체.
+   */
+  activity_summary: {
+    summaryCount: number;
+    /** 학년/연도별 요약 메타. 프롬프트 "직전 실행 활동 요약 목록" 섹션으로 직결. */
+    summaries: Array<{
+      schoolYear: number;
+      targetGrades: number[];
+      title: string;
+      keywords?: string[];
+    }>;
+    elapsedMs?: number;
+  };
   /** S5-b: 보완전략 자동 제안 */
   ai_strategy: {
     savedCount: number;
     _universityMatch?: import("@/lib/domains/record-analysis/eval/university-profile-matcher").UniversityMatchAnalysis;
     elapsedMs?: number;
   };
-  /** S6-a: 면접 예상 질문 (string preview만 반환) */
-  interview_generation: { elapsedMs?: number };
-  /** S6-b: 학기별 로드맵 */
-  roadmap_generation: { mode: string; itemCount: number; elapsedMs?: number };
+  /** S6-a: 면접 예상 질문.
+   *  cross-run: 다음 실행 `activity_summary` 가 `topQuestions` 로 "질문이 많이 나왔던 활동" 을
+   *  우선 요약하여 면접 대비 축을 강화.
+   */
+  interview_generation: {
+    totalCount: number;
+    byType: Record<string, number>;
+    /** 상위 10건만 유지 (payload 경량). 프롬프트 "면접 빈출 맥락" 섹션으로 직결. */
+    topQuestions: Array<{
+      question: string;
+      questionType: string;
+      difficulty: string;
+      sourceType: string;
+    }>;
+    elapsedMs?: number;
+  };
+  /** S6-b: 학기별 로드맵.
+   *  cross-run: 다음 실행 `storyline_generation` 이 `items` 로 "과거 계획 대비 진척" 서사 힌트.
+   */
+  roadmap_generation: {
+    mode: string;
+    itemCount: number;
+    /** 학년/학기/영역 요약. 프롬프트 "로드맵 진척" 섹션으로 직결. */
+    items: Array<{
+      grade: number;
+      semester: number;
+      area: string;
+    }>;
+    elapsedMs?: number;
+  };
 
   // ── Blueprint-Axis (B1: Blueprint pipeline, S3.5: Gap Tracker) ──
   /** B1 (blueprint pipeline): 진로→3년 수렴 설계 */
   blueprint_generation: { convergenceCount: number; milestoneGrades: number[]; growthTargetCount: number; elapsedMs?: number };
-  /** S3.5: Gap Tracker — blueprint vs analysis 정합성 */
-  gap_tracking: { coverage: number; coherenceScore: number; bridgeCount: number; driftCount: number; feasibleGapCount: number; elapsedMs?: number };
+  /** S3.5: Gap Tracker — blueprint vs analysis 정합성.
+   *  cross-run: 다음 실행 `ai_strategy` 가 `topBridges` 로 "지난번 bridge 미해결" 우선 공략 맥락 확보.
+   */
+  gap_tracking: {
+    coverage: number;
+    coherenceScore: number;
+    bridgeCount: number;
+    driftCount: number;
+    feasibleGapCount: number;
+    /** 상위 bridge 요약. 프롬프트 "미해결 gap" 섹션으로 직결. */
+    topBridges: Array<{
+      themeLabel: string;
+      urgency: string;
+      targetGrade: number | null;
+      sharedCompetencies: string[];
+    }>;
+    elapsedMs?: number;
+  };
 
   // ── Past Analytics Pipeline (4축×3층 A층, 2026-04-16 D) ──
   /** A1: NEIS 기반 과거 서사 (scope='past' 스토리라인 영속화) */
   past_storyline_generation: { storylineCount: number; connectionCount: number; elapsedMs?: number };
   /** A2: 현상 진단 (scope='past' 진단 영속화) */
   past_diagnosis: { overallGrade: string; weaknessCount: number; schoolYears: number[]; elapsedMs?: number };
-  /** A3: 즉시 행동 권고 (scope='past' 전략 영속화) */
-  past_strategy: { savedCount: number; elapsedMs?: number };
+  /** A3: 즉시 행동 권고 (scope='past' 전략 영속화).
+   *  cross-run: 다음 실행 `past_diagnosis` 가 `suggestions` 로 "전 번 권고 이행도" 맥락 반영.
+   */
+  past_strategy: {
+    savedCount: number;
+    suggestionCount: number;
+    /** 이전 실행 권고 요약. 프롬프트 "지난 권고 이행" 섹션으로 직결. */
+    suggestions: Array<{
+      priority: string;
+      area: string;
+      action: string;
+    }>;
+    elapsedMs?: number;
+  };
 
   // ── Internal (Executive Summary + 4축 진단 + Blueprint) ──
   /** Synthesis Phase 6 완료 후 자동 생성되는 Executive Summary */

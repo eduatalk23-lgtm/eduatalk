@@ -218,6 +218,44 @@ export async function runAiDiagnosis(
       : blueprintSection;
   }
 
+  // Cross-run: 직전 실행 course_recommendation → "수강 궤적" 맥락 주입.
+  // manifest: course_recommendation.writesForNextRun = ["ai_diagnosis"].
+  const prevRun = ctx.previousRunOutputs;
+  if (prevRun?.runId) {
+    const { getPreviousRunResult } = await import("../pipeline-previous-run");
+    const prevCourse = getPreviousRunResult<{
+      totalCount: number;
+      recommendations: Array<{
+        grade: number;
+        semester: number | null;
+        subjectName: string;
+        priority: string | null;
+      }>;
+    }>(prevRun, "course_recommendation");
+    const recs = prevCourse?.recommendations ?? [];
+    if (recs.length > 0) {
+      const byGrade = new Map<number, string[]>();
+      for (const r of recs) {
+        const key = r.grade;
+        const sem = r.semester != null ? `${r.semester}학기 ` : "";
+        const arr = byGrade.get(key) ?? [];
+        arr.push(`${sem}${r.subjectName}`);
+        byGrade.set(key, arr);
+      }
+      const lines = [...byGrade.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([g, subs]) => `- ${g}학년: ${subs.join(", ")}`);
+      const section = [
+        `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 수강 궤적`,
+        "이전 실행에서 권장한 수강 계획. 현재 확정/변경 여부와 대조하여 학생 의사결정의 일관성을 평가.",
+        ...lines,
+      ].join("\n");
+      diagQualityPatternSection = diagQualityPatternSection
+        ? `${diagQualityPatternSection}\n\n${section}`
+        : section;
+    }
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -399,6 +437,24 @@ export async function runCourseRecommendation(ctx: PipelineContext): Promise<Tas
   const { generateRecommendationsAction } = await import("@/lib/domains/student-record/actions/coursePlan");
   const result = await generateRecommendationsAction(studentId, tenantId);
   if (!result.success) throw new Error(result.error);
-  const count = Array.isArray(result.data) ? result.data.length : 0;
-  return `${count}개 과목 추천됨`;
+  const plans = Array.isArray(result.data) ? result.data : [];
+  // Cross-run 소비자(ai_diagnosis)가 "수강 궤적" 섹션에 바로 주입할 수 있도록
+  // 학년/학기 오름차순 정렬 후 최대 30건 유지.
+  const sorted = [...plans].sort((a, b) => {
+    if (a.grade !== b.grade) return a.grade - b.grade;
+    return (a.semester ?? 0) - (b.semester ?? 0);
+  });
+  const recommendations = sorted.slice(0, 30).map((p) => ({
+    grade: p.grade,
+    semester: p.semester ?? null,
+    subjectName: p.subject?.name ?? "과목 미정",
+    priority: p.plan_status ?? null,
+  }));
+  return {
+    preview: `${plans.length}개 과목 추천됨`,
+    result: {
+      totalCount: plans.length,
+      recommendations,
+    },
+  };
 }

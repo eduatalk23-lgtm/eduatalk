@@ -173,6 +173,24 @@ export async function runGapTracking(
     driftCount: gapOutput.metrics.driftCount,
   });
 
+  // Cross-run: 다음 실행 ai_strategy 가 "미해결 gap" 맥락 확보.
+  // urgency high → medium → low 순 정렬 후 상위 8건만 유지.
+  const urgencyRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const topBridges = [...gapOutput.bridgeProposals]
+    .sort(
+      (a, b) => (urgencyRank[a.urgency] ?? 3) - (urgencyRank[b.urgency] ?? 3),
+    )
+    .slice(0, 8)
+    .map((b) => ({
+      themeLabel: b.themeLabel,
+      urgency: b.urgency,
+      targetGrade: b.targetGrade ?? null,
+      sharedCompetencies:
+        b.competencyGaps.length > 0
+          ? b.competencyGaps.map((g) => g.item)
+          : b.blueprintSharedCompetencies,
+    }));
+
   return {
     preview: `정합성 분석 완료 (커버리지 ${(gapOutput.metrics.coverage * 100).toFixed(0)}%, 정합성 ${(gapOutput.metrics.coherenceScore * 100).toFixed(0)}%, bridge ${gapOutput.bridgeProposals.length}건)`,
     result: {
@@ -181,6 +199,7 @@ export async function runGapTracking(
       bridgeCount: gapOutput.bridgeProposals.length,
       driftCount: gapOutput.metrics.driftCount,
       feasibleGapCount: gapOutput.metrics.feasibleGapCount,
+      topBridges,
     },
   };
 }

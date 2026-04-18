@@ -519,7 +519,36 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     });
   }
 
-  return `${assigned}건 가이드 배정 (${candidateCount}건 후보${continuityHint}${orphanHint}${slotCapHint}${totalCapHint})${aiHint}`;
+  // Cross-run 관찰치: 직전 실행 haengteuk_linking.assignmentLinkCounts 중 linkCount >= 2 인 ID 수집.
+  // 현 슬라이스에서는 ranking 반영 없음(guide 도메인 수술 회피) — 읽기 + task_result 노출만.
+  // 후속 슬라이스에서 autoRecommendGuidesAction 에 boost/demote 신호로 연결할 수 있도록 보존.
+  let priorHighLinkAssignmentIds: string[] | undefined;
+  const prevRun = ctx.previousRunOutputs;
+  if (prevRun?.runId) {
+    const { getPreviousRunResult } = await import("../pipeline-previous-run");
+    const prevLinking = getPreviousRunResult<{
+      linksGenerated: number;
+      assignmentLinkCounts: Array<{ assignmentId: string; linkCount: number }>;
+    }>(prevRun, "haengteuk_linking");
+    const hits = (prevLinking?.assignmentLinkCounts ?? []).filter((c) => c.linkCount >= 2);
+    if (hits.length > 0) {
+      priorHighLinkAssignmentIds = hits.map((c) => c.assignmentId);
+      logActionDebug(
+        LOG_CTX,
+        `runGuideMatching cross-run signal: ${hits.length}건 assignment 직전 실행에서 행특 링크 ≥2`,
+        { studentId, sampleIds: priorHighLinkAssignmentIds.slice(0, 3) },
+      );
+    }
+  }
+
+  return {
+    preview: `${assigned}건 가이드 배정 (${candidateCount}건 후보${continuityHint}${orphanHint}${slotCapHint}${totalCapHint})${aiHint}`,
+    result: {
+      assignedCount: assigned,
+      candidateCount,
+      ...(priorHighLinkAssignmentIds ? { priorHighLinkAssignmentIds } : {}),
+    },
+  };
 }
 
 // ============================================

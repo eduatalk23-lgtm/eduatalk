@@ -1,0 +1,103 @@
+# Cross-run 실측 검증 runbook
+
+세션 핸드오프 04-17 F 후속 #3 "실측 검증" 수행 절차.
+`previousRunOutputs` (cross-run feedback) 인프라의 실제 활성과 효과 측정이 목적.
+
+## 측정 대상
+
+- **현재 구현된 cross-run 소비자**: 1건 (POC)
+  - `storyline_generation` ← 직전 실행 `activity_summaries.summary_title` 프롬프트 주입
+- **나머지 6건**은 manifest에 `writesForNextRun` 선언만 되어 있고 소비자 측 runner는 미구현 (세션 04-17 F 후속 #1)
+
+## 전제
+
+- `pnpm dev` 실행 중 (`http://localhost:3000`)
+- `.env.local` 에 `SUPABASE_SERVICE_ROLE_KEY` 설정
+- 두 학생 모두 `tenant_id = 84b71a5d-5681-4da3-88d2-91e75ef89015`
+
+| 학생 | key | ID | 모드 |
+|---|---|---|---|
+| 김세린 | `kim` | `0e3e149d-4b9c-402d-ad5c-b3df04190889` | analysis (k=2) |
+| 인제고 1학년 | `injego` | `35ee94b6-9484-4bee-8100-c761c1c56831` | prospective (k=0) |
+
+## 실행 순서 (학생별 개별 실행)
+
+### 1. Run 1 (기준 실행 — 클린업 포함)
+
+```bash
+# 김세린
+npx tsx scripts/kim-serin-session-c-fullrun.ts
+
+# 또는 인제고
+npx tsx scripts/injego-session-c-fullrun.ts
+```
+
+→ 완주 후 로그에 "✅ ... 풀런 완료 (총 N초)" 확인.
+
+### 2. Run 1 스냅샷 캡처
+
+```bash
+npx tsx scripts/cross-run-snapshot.ts --student=kim    --label=run1
+npx tsx scripts/cross-run-snapshot.ts --student=injego --label=run1
+```
+
+→ `tmp/cross-run/<student>--run1.json` 생성.
+
+### 3. Run 2 (cross-run 활성 — 클린업 스킵 필수)
+
+```bash
+npx tsx scripts/kim-serin-session-c-fullrun.ts --no-cleanup
+npx tsx scripts/injego-session-c-fullrun.ts    --no-cleanup
+```
+
+**중요**: `--no-cleanup` 없이 실행하면 `student_record_analysis_pipelines` 가 전량 삭제되어
+`loadPreviousRunOutputs()` 가 null을 반환 → cross-run 비활성 상태로 전락.
+
+### 4. Run 2 스냅샷 캡처
+
+```bash
+npx tsx scripts/cross-run-snapshot.ts --student=kim    --label=run2
+npx tsx scripts/cross-run-snapshot.ts --student=injego --label=run2
+```
+
+### 5. Diff 분석
+
+```bash
+npx tsx scripts/cross-run-diff.ts tmp/cross-run/kim--run1.json tmp/cross-run/kim--run2.json
+npx tsx scripts/cross-run-diff.ts tmp/cross-run/injego--run1.json tmp/cross-run/injego--run2.json
+```
+
+## 판정 기준 (초안)
+
+| 신호 | 기준 | 의미 |
+|---|---|---|
+| `[B]` latestSynthesis 교체 | id 바뀜 + Δ>0 | Run 2 synthesis 정상 완주 |
+| `[B]` task_results keys | 양쪽 모두 storyline_generation 포함 | POC 소비 경로 실행됨 |
+| `[C]` title Jaccard | `> 0.3` | 주제 축 유지 (연속성 신호) |
+| `[C]` title Jaccard | `< 0.1` | 연속성 없음 — LLM 변동 혹은 힌트 무시 |
+| `[C-2]` **주지표**: A summary keyword 문자열 → B storyline 재등장 | `≥ 15%` | 프롬프트 주입 효과 직접 확인 (명사구 단위) |
+| `[C-2]` (참고) bigram+word 토큰 hit | — | 문장 파편 시절 잔재 지표, 분모 왜곡 있음 |
+| `[D]` convergence theme Jaccard | `> 0.5` | Blueprint 안정성 (설계 축 일관) |
+
+**해석 주의**:
+- 소표본 실측이므로 수치 자체보다 "0인가 아닌가"로 먼저 infrastructure 활성 여부 판정.
+- `previousRunOutputs.runId` 가 null이면 `[C-2]` 측정이 의미 없음 — Run 1 synthesis completed row가 남아있는지 먼저 확인.
+- `[C-2]` 등장 비율이 100%여도 LLM이 원래 그 주제를 뽑았을 수도 있음 → 반증은 "A summary keywords가 비어있을 때 B 결과" 비교가 필요 (이번 범위 아님).
+- **2026-04-18 재설계**: 이전 `≥ 50% / ≥ 30%` 기준은 summary keywords 가 문장 파편(`content.slice(0,40)`)이던 시절 설계. 현재 명사구(`section.keywords` 명시 추출)로 바뀌었고, bigram 분할이 무관 토큰까지 포함해 비율을 희석하므로 **주지표를 keyword 문자열 재등장률로 교체**.
+
+## 남은 한계
+
+1. LLM 프롬프트 실제 내용(주입 섹션 포함 여부)은 현재 로그에 남지 않음. 필요 시 `phase-s1-storyline.ts` 에 `console.debug("[storyline] coursePlanExtra=\n" + coursePlanExtra)` 임시 추가.
+2. `task_results` 대부분이 `{ elapsedMs }` 수준 — 세션 04-17 F 후속 #2(풍부화)가 선행되어야 더 깊은 측정 가능.
+3. 인제고(k=0) 1회차에서 `activity_summaries` 가 생성되지 않는 Phase면 2회차에서도 `[C-2]` 의미 없음 — 1회차 완료 후 `activity_summaries.count ≥ 1` 확인 필수.
+
+## 롤백
+
+측정 종료 후 두 학생 상태 초기화:
+
+```bash
+npx tsx scripts/kim-serin-cleanup-only.ts
+npx tsx scripts/injego-cleanup-only.ts
+```
+
+`tmp/cross-run/` 은 gitignored — 필요 시 수동 삭제.

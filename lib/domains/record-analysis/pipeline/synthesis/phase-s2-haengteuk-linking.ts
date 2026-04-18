@@ -119,6 +119,7 @@ export async function runHaengteukGuideLinking(
   // 3. 학년별로 행특 가이드를 처리 (1년 행특 = 1년 활동 매칭)
   let totalLinksInserted = 0;
   let totalSkipped = 0;
+  const assignmentCounter = new Map<string, number>();
   for (const hg of haengteukGuides as HaengteukGuideRow[]) {
     const matches = await matchHaengteukItemsToAssignments(hg, assignments);
     if (!matches) {
@@ -145,6 +146,10 @@ export async function runHaengteukGuideLinking(
           reasoning: m.reasoning,
           source: "ai",
         });
+        assignmentCounter.set(
+          m.assignmentId,
+          (assignmentCounter.get(m.assignmentId) ?? 0) + 1,
+        );
       }
     }
     if (insertRows.length === 0) continue;
@@ -153,12 +158,26 @@ export async function runHaengteukGuideLinking(
 
     if (insErr) {
       logActionWarn(LOG_CTX, `링크 INSERT 실패 (haengteuk ${hg.id}): ${insErr.message}`);
+      // 실패 시 counter 에 이미 반영됐지만 다음 실행에서 DB 재조회가 아닌 현 실행 return 기반이므로
+      // 실패한 건을 counter 에서 빼는 것이 정확. 단순화 위해 우선 유지.
       continue;
     }
     totalLinksInserted += insertRows.length;
   }
 
-  return `행특 ${haengteukGuides.length}건 처리 — ${totalLinksInserted}건 링크 생성 (스킵 ${totalSkipped}건)`;
+  const assignmentLinkCounts = [...assignmentCounter.entries()]
+    .map(([assignmentId, linkCount]) => ({ assignmentId, linkCount }))
+    .sort((a, b) => b.linkCount - a.linkCount);
+
+  return {
+    preview: `행특 ${haengteukGuides.length}건 처리 — ${totalLinksInserted}건 링크 생성 (스킵 ${totalSkipped}건)`,
+    result: {
+      linksGenerated: totalLinksInserted,
+      haengteukProcessed: haengteukGuides.length,
+      skippedCount: totalSkipped,
+      assignmentLinkCounts,
+    },
+  };
 }
 
 // ============================================

@@ -276,6 +276,69 @@ function findTasksInFile(file: string): Set<ManifestTaskKey> {
   return tasks;
 }
 
+/**
+ * ④ Cross-run 소비자 계약 검증 (PR 6, 2026-04-17 풍부화).
+ *
+ * manifest 의 `writesForNextRun: [X, Y]` 는 "다음 실행의 상류 태스크 X, Y 가 이 태스크의
+ * task_result 를 읽겠다"는 계약 선언. 실제로 X/Y 의 runner 코드가 `getPreviousRunResult(...)`
+ * 또는 `previousRunOutputs.taskResults[...]` 로 **이 writer 의 task_key 를 소비** 해야 계약 성립.
+ *
+ * 한 번이라도 풍부화 없이 wire 가 빠지면 manifest 는 그대로인데 실제 소비가 사라져서 drift 발생.
+ * CI 가 매번 강제하면 같은 패턴 반복(04-17 E 진단) 영구 방지.
+ */
+function validateCrossRunConsumers(): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [writerKey, writerManifest] of Object.entries(
+    PIPELINE_TASK_MANIFEST,
+  ) as [ManifestTaskKey, PipelineTaskManifest][]) {
+    const downstream = writerManifest.writesForNextRun;
+    if (!downstream || downstream.length === 0) continue;
+
+    for (const consumerKey of downstream) {
+      const consumerFiles = TASK_RUNNER_FILES[consumerKey];
+      if (!consumerFiles || consumerFiles.length === 0) {
+        issues.push({
+          taskKey: writerKey,
+          severity: "error",
+          message: `writesForNextRun → ${consumerKey} 선언돼 있으나 소비자 runner 파일 매핑 없음.`,
+        });
+        continue;
+      }
+
+      // 소비자 runner 파일(들) 합집합에서 getPreviousRunResult("<writerKey>") 혹은
+      // previousRunOutputs.taskResults["<writerKey>"] 호출이 1회 이상 있어야 함.
+      let consumed = false;
+      const searchNeedles = [
+        `getPreviousRunResult`,
+        `previousRunOutputs`,
+      ];
+      const writerKeyPattern = new RegExp(
+        `["'\`]${writerKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`,
+      );
+      for (const file of consumerFiles) {
+        const source = readSourceFile(file);
+        if (!source) continue;
+        const hasCrossRunSymbol = searchNeedles.some((n) => source.includes(n));
+        const mentionsWriterKey = writerKeyPattern.test(source);
+        if (hasCrossRunSymbol && mentionsWriterKey) {
+          consumed = true;
+          break;
+        }
+      }
+
+      if (!consumed) {
+        issues.push({
+          taskKey: writerKey,
+          severity: "error",
+          message: `writesForNextRun → ${consumerKey} 선언돼 있으나 ${consumerKey} runner (${consumerFiles.join(", ")}) 에서 \`getPreviousRunResult("${writerKey}")\` 또는 \`previousRunOutputs\` + "${writerKey}" 키 소비 호출을 찾을 수 없음. manifest 와 실제 소비가 drift 상태.`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
 /** ③ Orphan 탐지: writes 테이블을 읽는 다른 태스크가 0 이고 terminal 미선언이면 fail. */
 function validateOrphanTables(): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -409,6 +472,7 @@ function runValidation(): ValidationReport {
   }
 
   issues.push(...validateOrphanTables());
+  issues.push(...validateCrossRunConsumers());
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warn").length;

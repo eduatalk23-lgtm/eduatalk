@@ -178,6 +178,11 @@ export interface ActivitySummarySection {
   title: string;
   content: string;
   relatedSubjects?: string[];
+  /**
+   * 섹션 주제어 3~6개. 명사/명사구 토큰 형태(문장 파편 금지).
+   * cross-run feedback에서 직전 실행이 포착한 축을 다음 실행에 힌트로 주입할 때 사용.
+   */
+  keywords?: string[];
 }
 
 // ── 가이드 타입 ──
