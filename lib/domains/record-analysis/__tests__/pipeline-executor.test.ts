@@ -1315,6 +1315,10 @@ describe("validatePhasePrerequisites()", () => {
           competency_setek: "completed",
           competency_changche: "completed",
           competency_haengteuk: "completed",
+          // Phase 4 pre-task 3건 (cross_subject + volunteer + awards) 도 status 필요
+          cross_subject_theme_extraction: "completed",
+          competency_volunteer: "completed",
+          competency_awards: "completed",
           setek_guide: "completed",
           slot_generation: "completed",
           changche_guide: "failed",

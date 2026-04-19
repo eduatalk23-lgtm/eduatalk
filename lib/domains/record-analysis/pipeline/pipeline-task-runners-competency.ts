@@ -871,3 +871,148 @@ export async function runCompetencyVolunteerForGrade(
   };
 }
 
+// ============================================
+// α1-4-b. 학년별 수상 역량 태깅 (Phase 4 pre-task)
+//   - 학년 묶음 1회 LLM 호출 (청크 미지원)
+//   - 저장 범위: activity_tags (record_type='award') 전용
+//     · competency_scores / content_quality 는 건드리지 않음 (봉사와 동일 예외)
+//     · α1-4-a collectAwardState 가 activity_tags + ctx.results 에서 AwardState 집계
+//   - analysis_cache 미사용 (수상 정보는 짧고 standard tier 단발 호출로 충분)
+// ============================================
+
+export async function runCompetencyAwardsForGrade(
+  ctx: PipelineContext,
+): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
+  const { supabase, studentId, tenantId, targetGrade, snapshot } = ctx;
+
+  const { fetchAwardsByGrade } = await import(
+    "@/lib/domains/student-record/repository/awards-repository"
+  );
+  const { analyzeAwardsBatch } = await import(
+    "@/lib/domains/record-analysis/llm/actions/analyzeAwardsBatch"
+  );
+
+  const awards = await fetchAwardsByGrade(
+    supabase,
+    studentId,
+    tenantId,
+    targetGrade,
+  );
+
+  // 빈 수상 기록: LLM 호출 없이 completed 마킹
+  if (awards.length === 0) {
+    // 이전 실행의 award activity_tags 정리 (예: 사용자가 award row 를 모두 삭제한 케이스)
+    await supabase
+      .from("student_record_activity_tags")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("record_type", "award")
+      .eq("tag_context", "analysis")
+      .eq("source", "ai");
+
+    return {
+      preview: `${targetGrade}학년 수상 기록 없음`,
+      result: {
+        awardCount: 0,
+        tagCount: 0,
+        themeCount: 0,
+        skippedReason: "no_award_records",
+      },
+    };
+  }
+
+  const targetMajor = (snapshot?.target_major as string | undefined) ?? undefined;
+  const input: import("../llm/types").AwardsAnalysisInput = {
+    grade: targetGrade,
+    awards: awards.map((a) => ({
+      id: a.id,
+      awardName: a.award_name ?? "",
+      awardLevel: a.award_level ?? null,
+      awardingBody: a.awarding_body ?? null,
+      participants: a.participants ?? null,
+      awardDate: a.award_date ?? null,
+    })),
+    targetMajor,
+    profileCard: ctx.profileCard || undefined,
+  };
+
+  const startMs = Date.now();
+  const analysisResult = await analyzeAwardsBatch(input);
+
+  if (!analysisResult.success) {
+    throw new Error(
+      `수상 역량 분석 실패 (${targetGrade}학년): ${analysisResult.error}`,
+    );
+  }
+
+  const data = analysisResult.data;
+
+  // activity_tags 저장 — RPC 경유 (같은 학생의 award 레코드 ID 전체를 기준으로 기존 태그 원자적 교체)
+  const awardIds = awards.map((a) => a.id);
+  const rpcTags = data.competencyTags.map((tag) => ({
+    record_type: "award",
+    record_id: tag.awardId,
+    competency_item: tag.competencyItem,
+    evaluation: tag.evaluation,
+    evidence_summary: `[AI] ${tag.reasoning}`,
+    tag_context: "analysis" as TagContext,
+  }));
+
+  try {
+    await competencyRepo.refreshCompetencyTagsAtomic(
+      studentId,
+      tenantId,
+      awardIds,
+      rpcTags,
+    );
+  } catch (err) {
+    logActionError(
+      { ...LOG_CTX, action: `pipeline.competency_awards.grade${targetGrade}` },
+      err,
+      { studentId, targetGrade, tagCount: rpcTags.length },
+    );
+    throw err;
+  }
+
+  // ctx.results 영속화 — α1-4-a collectAwardState 가 leadership/career evidence 를 소비
+  ctx.results ??= {};
+  ctx.results["competency_awards"] = {
+    ...(typeof ctx.results["competency_awards"] === "object" &&
+    ctx.results["competency_awards"] != null
+      ? (ctx.results["competency_awards"] as Record<string, unknown>)
+      : {}),
+    awardCount: awards.length,
+    tagCount: data.competencyTags.length,
+    themeCount: data.recurringThemes.length,
+    recurringThemes: data.recurringThemes,
+    leadershipEvidence: data.leadershipEvidence,
+    careerRelevance: data.careerRelevance,
+    elapsedMs: Date.now() - startMs,
+    ...(analysisResult.usage
+      ? {
+          tokenUsage: {
+            inputTokens: analysisResult.usage.inputTokens,
+            outputTokens: analysisResult.usage.outputTokens,
+            totalTokens:
+              analysisResult.usage.inputTokens + analysisResult.usage.outputTokens,
+          },
+        }
+      : {}),
+  };
+
+  const themePreview =
+    data.recurringThemes.length > 0
+      ? ` · ${data.recurringThemes.slice(0, 3).join(", ")}`
+      : "";
+
+  return {
+    preview: `${targetGrade}학년 수상 ${awards.length}건 · 태그 ${data.competencyTags.length}건${themePreview}`.slice(
+      0,
+      80,
+    ),
+    result: ctx.results["competency_awards"],
+  };
+}
+

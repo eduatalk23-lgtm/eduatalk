@@ -144,7 +144,7 @@ describe("Grade Phase 오케스트레이션", () => {
   });
 
   describe("Phase 4: 선행 실패 cascade", () => {
-    it("P1 실패 시 setek_guide + slot_generation 모두 자동 실패", async () => {
+    it("P1 실패 시 setek_guide + slot_generation 모두 자동 실패 (volunteer/awards 는 독립 실행)", async () => {
       const ctx = makeCtx({
         tasks: {
           competency_setek: "failed",
@@ -158,10 +158,13 @@ describe("Grade Phase 오케스트레이션", () => {
       expect(ctx.tasks["slot_generation"]).toBe("failed");
       expect(ctx.errors["setek_guide"]).toContain("competency_setek");
       expect(ctx.errors["slot_generation"]).toContain("competency_setek");
-      expect(runTaskWithState).not.toHaveBeenCalled();
+      // competency_volunteer / competency_awards 는 선행 없음 — P1 실패와 무관하게 실행됨.
+      expect(runTaskWithState).toHaveBeenCalledTimes(2);
+      expect(ctx.tasks["competency_volunteer"]).toBe("completed");
+      expect(ctx.tasks["competency_awards"]).toBe("completed");
     });
 
-    it("P1-P3 모두 completed이면 정상 실행 (P3.5 cross-subject + P4 guide+slot)", async () => {
+    it("P1-P3 모두 completed이면 정상 실행 (P3.5 cross-subject + volunteer + awards + P4 guide+slot)", async () => {
       const ctx = makeCtx({
         tasks: {
           competency_setek: "completed",
@@ -171,9 +174,12 @@ describe("Grade Phase 오케스트레이션", () => {
       });
       await executeGradePhase4(ctx);
 
-      // P3.5 cross_subject_theme_extraction (직렬) + setek_guide + slot_generation (병렬)
-      expect(runTaskWithState).toHaveBeenCalledTimes(3);
+      // P3.5 cross_subject_theme_extraction + competency_volunteer + competency_awards (직렬)
+      //  + setek_guide + slot_generation (병렬) = 총 5건.
+      expect(runTaskWithState).toHaveBeenCalledTimes(5);
       expect(ctx.tasks["cross_subject_theme_extraction"]).toBe("completed");
+      expect(ctx.tasks["competency_volunteer"]).toBe("completed");
+      expect(ctx.tasks["competency_awards"]).toBe("completed");
       expect(ctx.tasks["setek_guide"]).toBe("completed");
       expect(ctx.tasks["slot_generation"]).toBe("completed");
     });
@@ -406,8 +412,10 @@ describe("Grade Phase 오케스트레이션", () => {
       // P8: draft_analysis 실패 (draft_generation 실패)
       expect(ctx.tasks["draft_analysis"]).toBe("failed");
 
-      // runner는 한 번도 호출되지 않아야 함
-      expect(runTaskWithState).not.toHaveBeenCalled();
+      // 가이드/드래프트 runner 는 호출되지 않음 — volunteer/awards pre-task 는 독립 실행.
+      expect(runTaskWithState).toHaveBeenCalledTimes(2);
+      expect(ctx.tasks["competency_volunteer"]).toBe("completed");
+      expect(ctx.tasks["competency_awards"]).toBe("completed");
     });
   });
 });

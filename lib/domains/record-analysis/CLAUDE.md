@@ -88,6 +88,15 @@ Grade Pipeline (학년별, 12태스크×9Phase)
             α1-3 (2026-04-19): `buildStudentState` 가 activity_tags(volunteer) + volunteer 테이블
               + ctx.results["competency_volunteer"] 에서 `aux.volunteer` VolunteerState 집계.
               ctx.results 부재 시 caringEvidence 는 activity_tags.evidence_summary 폴백.
+        · competency_awards (α1-4-b, 2026-04-19)
+          ↑ student_record_awards 학년 row → community_leadership / career_exploration / academic_inquiry 태깅.
+            학년 묶음 1회 standard tier LLM 호출. 수상은 description 없이 이름/수준/수여기관/참여자만 — 봉사보다도 짧음.
+            저장: activity_tags(record_type='award', tag_context='analysis') 전용 (봉사와 동일 예외).
+            ctx.results["competency_awards"] 에 recurringThemes/leadershipEvidence/careerRelevance 영속화.
+            α1-4-a `collectAwardState` 가 awards 테이블 + activity_tags + ctx.results 에서 AwardState 집계 —
+              items[].relatedCompetencies 는 태그에서 유도, leadership/careerRelevance 는 ctx 우선 + tags.evidence_summary 폴백.
+            빈 수상 → LLM 호출 0, 이전 award 태그 정리 후 completed.
+            선행 없음(P1-P3 와 독립), 실패해도 가이드 계속 (graceful).
   P4: setek_guide + slot_generation  ← analysisContext 주입 (issues/feedback/약점)
   P5: changche_guide                 ← analysisContext 주입 (community 우선)
   P6: haengteuk_guide                ← analysisContext 주입 (community만)
@@ -275,8 +284,9 @@ CREATE TRIGGER trg_analysis_pipelines_updated_at BEFORE UPDATE ...
 | `student_record_changche` | 창체 원본/NEIS | 입력 |
 | `student_record_haengteuk` | 행특 원본/NEIS | 입력 |
 | `student_record_analysis_cache` | LLM 응답 전체 JSON + content_hash | 증분 캐시 |
-| `student_record_activity_tags` | 역량 태그 (reasoning+highlight). record_type ∈ {setek, personal_setek, changche, haengteuk, **volunteer**(α1-2)} | P1-3 + α1-2 출력, UI 표시 |
+| `student_record_activity_tags` | 역량 태그 (reasoning+highlight). record_type ∈ {setek, personal_setek, changche, haengteuk, **volunteer**(α1-2), **award**(α1-4-b)} | P1-3 + α1-2 + α1-4-b 출력, UI 표시 |
 | `student_record_volunteer` | 봉사활동 원본/NEIS | α1-2 입력 |
+| `student_record_awards` | 수상 원본/NEIS | α1-4-b 입력 |
 | `student_record_competency_scores` | 등급 + rubric_scores JSONB | P1-3 출력, 가이드/진단 참조 |
 | `student_record_content_quality` | 5축 점수 + issues + feedback + **retry_count** (P9 재생성 가드) | P1-3 + P8 출력, 가이드 주입, UI 표시 |
 | `student_record_diagnosis` | 종합진단 (강점/약점) | S3 출력 |
@@ -320,6 +330,13 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
   - analysis_cache 미사용 — record_type='volunteer' 의 cache 키 설계 시 집계 단위 모호 → 재실행마다 LLM 호출 허용 (standard tier 저비용).
   - recurringThemes/caringEvidence 는 `ctx.results["competency_volunteer"]` 에 보관 (파이프라인 수명 내). α1-3 buildStudentState 가 DB activity_tags + ctx.results 에서 VolunteerState 집계.
   - deleteAnalysisResultsByGrade 는 volunteer row id 를 수집해 activity_tags 동시 삭제.
+
+**α1-4-b 수상 예외 (2026-04-19)**: `competency_awards` 는 봉사와 동일 패턴 — **①activity_tags 전용**.
+  - competency_scores 미기록 — P3 집계(community_leadership/career_exploration 행)와 UNIQUE 충돌 회피.
+  - content_quality 미기록 — 수상은 description 자체가 없음(이름/수준/수여기관/참여자만). 5축 평가 부적합.
+  - analysis_cache 미사용 — standard tier 단발 호출(~15-30s), 재실행 허용.
+  - recurringThemes/leadershipEvidence/careerRelevance 는 `ctx.results["competency_awards"]` 에 보관. α1-4-a collectAwardState 가 awards + activity_tags + ctx.results 에서 AwardState 집계.
+  - deleteAnalysisResultsByGrade 는 award row id 를 수집해 activity_tags 동시 삭제 (α1-2 vRes 옆에 aRes 추가).
 
 ### 삭제 정책 (D4)
 
@@ -371,6 +388,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `judgeTierPlanConvergence.ts` | `judgeTierPlanConvergence()` | fast | Phase 4b Sprint 4 — S7 LLM-judge: 두 plan 컨설팅 가치 동등성 verdict 3-class |
 | `prompts/draft-refinement-prompts.ts` | `buildSetekRefinementUserPrompt()` 외 2종 | — | Phase 5 Sprint 1 — P9 재생성 user prompt 빌더 (P7 SETEK/CHANGCHE/HAENGTEUK system prompt 재사용 + 이전 draft/5축 score/issues/feedback 주입). standard tier generateTextWithRateLimit 호출 |
 | `analyzeVolunteerBatch.ts` | `analyzeVolunteerBatch()` | standard | **α1-2 (2026-04-19)** — 봉사 학년 묶음 1회 분석. community_caring/leadership 태깅 + recurringThemes/caringEvidence 추출. totalHours 는 LLM 값 무시하고 입력에서 재계산. |
+| `analyzeAwardsBatch.ts` | `analyzeAwardsBatch()` | standard | **α1-4-b (2026-04-19)** — 수상 학년 묶음 1회 분석. community_leadership/career_exploration/academic_inquiry 태깅 + recurringThemes/leadershipEvidence/careerRelevance 추출. description 없이 이름/수준/수여기관/참여자로 추론. |
 | `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |
 
 ### UI 4단계 탭 구조 (소비자 측 — app/(admin)/admin/students/[id])

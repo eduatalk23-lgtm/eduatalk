@@ -37,6 +37,7 @@ import {
   runDraftRefinementChunkForGrade,
   runCrossSubjectThemeExtractionForGrade,
   runCompetencyVolunteerForGrade,
+  runCompetencyAwardsForGrade,
 } from "./pipeline-task-runners";
 
 // ============================================
@@ -293,6 +294,18 @@ export async function executeGradePhase4(
     if (await checkCancelled(ctx)) return;
   }
 
+  // ── α1-4-b: 수상 역량 태깅 (pre-task) ──
+  // - 선행 없음(P1-P3와 독립). 학년 수상 rows → leadership/career/inquiry 태깅 + recurringThemes.
+  // - 실패해도 후속 가이드 계속 진행 (graceful). activity_tags(record_type='award')만 기록.
+  // - α1-4-a collectAwardState 가 activity_tags + awards 테이블 + ctx.results 에서 집계.
+  const skipAwards = skipIfPrereqFailed(ctx, "competency_awards");
+  if (!skipAwards && ctx.tasks["competency_awards"] !== "completed") {
+    await runTaskWithState(ctx, "competency_awards", () =>
+      runCompetencyAwardsForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+
   const skipGuide = skipIfPrereqFailed(ctx, "setek_guide");
   const skipSlot = skipIfPrereqFailed(ctx, "slot_generation");
 
@@ -367,8 +380,11 @@ export async function executeGradePhase6(
   if (ctx.gradeMode === "analysis") {
     const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
       if (k === "draft_generation" || k === "draft_analysis" || k === "draft_refinement") return true;
-      // cross_subject_theme_extraction은 옵션 enhancement — 실패해도 분석 모드 완료 판정에 영향 없음
+      // cross_subject_theme_extraction / competency_volunteer / competency_awards 는
+      // 옵션 enhancement (P3.5 pre-task, graceful degradation) — 완료 판정에 영향 없음.
       if (k === "cross_subject_theme_extraction") return true;
+      if (k === "competency_volunteer") return true;
+      if (k === "competency_awards") return true;
       return ctx.tasks[k] === "completed";
     });
     await updatePipelineState(
@@ -635,7 +651,10 @@ export async function executeGradePhase9(
 
 async function finalizeDesignModeStatus(ctx: PipelineContext): Promise<void> {
   const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
+    // P3.5 pre-task (옵션 enhancement) — graceful degradation 대상은 완료 판정에서 제외.
     if (k === "cross_subject_theme_extraction") return true;
+    if (k === "competency_volunteer") return true;
+    if (k === "competency_awards") return true;
     return ctx.tasks[k] === "completed";
   });
 

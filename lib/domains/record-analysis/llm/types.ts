@@ -439,6 +439,65 @@ export interface VolunteerAnalysisResult {
 }
 
 // ============================================
+// α1-4-b: 수상(Awards) 역량 태깅 타입
+// ============================================
+
+/** 수상 1건 요약 (프롬프트 입력용 — DB description 없음, 이름/수준/수여기관 중심) */
+export interface AwardActivitySummary {
+  /** student_record_awards.id */
+  id: string;
+  /** 상 이름 (필수) */
+  awardName: string;
+  /** 교내/교외/전국/국제 등 (null 가능) */
+  awardLevel: string | null;
+  /** 수여 기관 (null 가능) */
+  awardingBody: string | null;
+  /** 단체/개인 구분 또는 참여자 정보 (null 가능) */
+  participants: string | null;
+  /** 수상일 (null 가능, ISO string) */
+  awardDate: string | null;
+}
+
+/** 수상 역량 분석 입력 */
+export interface AwardsAnalysisInput {
+  /** 분석 대상 학년 */
+  grade: number;
+  /** 해당 학년의 수상 목록 (빈 배열은 호출자가 short-circuit) */
+  awards: AwardActivitySummary[];
+  /** 목표 전공 (진로 일관성 문맥 강화) */
+  targetMajor?: string;
+  /** Layer 0 프로필 카드 (이전 학년 문맥) */
+  profileCard?: string;
+}
+
+/**
+ * 수상 역량 분석 출력.
+ * community_leadership / career_exploration / academic_inquiry 3축에 초점.
+ * 대입 미반영이지만 컨설팅 근거/서사로 활용.
+ */
+export interface AwardsAnalysisResult {
+  /** 반복 주제 (상 이름에서 추출한 2~5개 키워드) */
+  recurringThemes: string[];
+  /** 리더십 근거 요약 (community_leadership, 최대 2문장; 없으면 빈 배열) */
+  leadershipEvidence: string[];
+  /** 진로 연관 근거 요약 (career_exploration, 최대 2문장; 없으면 빈 배열) */
+  careerRelevance: string[];
+  /** activity_tags 저장에 사용할 역량 태그 목록 */
+  competencyTags: Array<{
+    /** 수상 row id (activity_tags.record_id) */
+    awardId: string;
+    /** 역량 코드 */
+    competencyItem: import("@/lib/domains/student-record/types").CompetencyItemCode;
+    /** 평가 방향 */
+    evaluation: "positive" | "negative" | "needs_review";
+    /** 근거 (1줄) */
+    reasoning: string;
+  }>;
+  /** LLM elapsed time (ms) */
+  elapsedMs: number;
+}
+
+// ============================================
 // Stage 1 (측정 루프 닫기): 오프라인 A/B 러너 메트릭
 // ============================================
 

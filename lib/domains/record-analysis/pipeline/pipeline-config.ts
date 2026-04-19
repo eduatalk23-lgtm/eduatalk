@@ -39,6 +39,7 @@ export const GRADE_PIPELINE_TASK_KEYS = [
   "competency_haengteuk",
   "cross_subject_theme_extraction",
   "competency_volunteer",          // α1-2: 봉사 역량 태깅 + 반복 주제 추출 (P3.5 pre-task)
+  "competency_awards",             // α1-4-b: 수상 역량 태깅 + 반복 주제 추출 (P3.5 pre-task)
   "setek_guide",
   "slot_generation",
   "changche_guide",
@@ -150,6 +151,7 @@ export const GRADE_TASK_DEPENDENTS: Partial<Record<_GradeKey, _GradeKey[]>> = {
   // cross_subject_theme_extraction은 가이드의 강한 prereq가 아님 — 실패해도 가이드는 themes 없이 진행 (graceful degradation).
   // 따라서 setek_guide/changche_guide/haengteuk_guide의 prereq에는 추가하지 않는다.
   // competency_volunteer: 선행 없음([]) — P1~P3와 독립. 실패해도 가이드는 계속 진행 (graceful).
+  // competency_awards: 선행 없음([]) — P1~P3와 독립. 실패해도 가이드는 계속 진행 (graceful).
   setek_guide: ["changche_guide", "haengteuk_guide", "draft_generation"],
   changche_guide: ["haengteuk_guide", "draft_generation"],
   haengteuk_guide: ["draft_generation", "draft_analysis", "draft_refinement"],
@@ -287,6 +289,7 @@ export const GRADE_PIPELINE_TASK_LABELS: Record<_GradeKey, string> = {
   competency_haengteuk: "행특 역량 분석",
   cross_subject_theme_extraction: "과목 교차 테마",
   competency_volunteer: "봉사 역량 태깅",  // α1-2
+  competency_awards: "수상 역량 태깅",  // α1-4-b
   setek_guide: "세특 방향",
   slot_generation: "슬롯 생성",
   changche_guide: "창체 방향",
@@ -303,6 +306,7 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   competency_haengteuk: 120_000,
   cross_subject_theme_extraction: 120_000,
   competency_volunteer: 90_000,  // α1-2: 학년 묶음 1회 LLM 호출 (~20-40s). 봉사 description 짧음.
+  competency_awards: 90_000,     // α1-4-b: 학년 묶음 1회 LLM 호출 (~15-30s). 수상 정보는 봉사보다도 짧음.
   setek_guide: 120_000,
   slot_generation: 30_000,
   changche_guide: 120_000,
@@ -443,8 +447,8 @@ export const GRADE_PHASE_TASKS: Record<number, _GradeKey[]> = {
   1: ["competency_setek"],
   2: ["competency_changche"],
   3: ["competency_haengteuk"],
-  // Phase 4 pre-task: cross_subject_theme_extraction + competency_volunteer (직렬 순차)
-  4: ["cross_subject_theme_extraction", "competency_volunteer", "setek_guide", "slot_generation"],
+  // Phase 4 pre-task: cross_subject_theme_extraction + competency_volunteer + competency_awards (직렬 순차)
+  4: ["cross_subject_theme_extraction", "competency_volunteer", "competency_awards", "setek_guide", "slot_generation"],
   5: ["changche_guide"],
   6: ["haengteuk_guide"],
   7: ["draft_generation"],

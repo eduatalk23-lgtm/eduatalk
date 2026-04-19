@@ -64,6 +64,7 @@ export {
   runCompetencyHaengteukForGrade,
   runCompetencyHaengteukChunkForGrade,
   runCompetencyVolunteerForGrade,
+  runCompetencyAwardsForGrade,
 } from "./pipeline-task-runners-competency";
 
 // Draft Pipeline (P7-P9)

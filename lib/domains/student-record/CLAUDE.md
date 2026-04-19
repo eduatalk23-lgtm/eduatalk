@@ -110,8 +110,9 @@ Autonomous 학종 Coach 의 Perception/Reward/GAP/Proposal 공용 입력.
   - `HakjongScore.confidence` 도 area별 객체 (total = min 3 area).
 - **Daily cron (α1-3-d)**: `scripts/build-student-state-snapshot.ts` + `.github/workflows/student-state-snapshot.yml` (03:30 KST daily). trigger_source='nightly_cron'.
 - **Client 전파 규칙**: `buildStudentState` 가 주입한 client 는 하위 repository 전파 필수. `findCompetencyScoresBySchoolYears`/`findActivityTags`/`findHyperedges`/`findNarrativeArcsByStudent` 모두 `client?` 옵션 파라미터 지원. admin client 주입 경로(cron CLI)에서 `cookies()` 미컨텍스트 실패 방지.
-- **보조 영역 상태**: α1-3 까지 `aux.volunteer` 만 집계 → α1-4-a 에서 `aux.awards` 추가 (items + leadership/career evidence). `awards/volunteer` runner 는 별도 record-analysis 트랙. `attendance/reading` 은 α1-5 에서 채움.
+- **보조 영역 상태**: α1-3 까지 `aux.volunteer` 만 집계 → α1-4-a 에서 `aux.awards` 추가 (items + leadership/career evidence) → α1-4-b 에서 awards runner 로 태그·근거 채움. `attendance/reading` 은 α1-5 에서 채움.
 - **α1-4-a Awards**: `repository/awards-repository.ts` (fetchAwardsByGrade/UpTo/hashInput) + `collectAwardState`. items[].relatedCompetencies 는 activity_tags 로부터 유도. evidence 는 tags 폴백 또는 `pipelineResults.competency_awards` 주입.
+- **α1-4-b Awards runner (2026-04-19)**: `record-analysis` 도메인의 `competency_awards` 태스크(P4 pre-task, 선행 없음). `analyzeAwardsBatch` 학년 묶음 1회 standard tier LLM 호출로 `activity_tags(record_type='award', tag_context='analysis')` 에 leadership/career_exploration/academic_inquiry 태깅. `ctx.results["competency_awards"]` 에 recurringThemes/leadershipEvidence/careerRelevance 영속 → collectAwardState 가 직접 소비.
 - **hakjongScore**: α2 Reward 엔진까지 `null`. 빌더는 area별 computable 플래그만 계산.
 
 ## Tests

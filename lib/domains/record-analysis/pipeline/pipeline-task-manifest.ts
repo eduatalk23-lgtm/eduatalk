@@ -96,7 +96,7 @@ export const PIPELINE_INFRA_TABLES: readonly string[] = [
 
 // ============================================
 // PIPELINE_TASK_MANIFEST
-// 28 태스크 = Grade 10 + Synthesis 14 + Past 3 + Blueprint 1.
+// 29 태스크 = Grade 12 + Synthesis 14 + Past 3 + Blueprint 1 (α1-4-b awards 추가).
 // ============================================
 
 export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifest> = {
@@ -168,6 +168,22 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       reason: "external_tool",
       consumers: [
         "α1-3 buildStudentState → VolunteerState",
+        "admin UI (StudentState 카드, α1-6 예정)",
+      ],
+    },
+  },
+
+  // α1-4-b: 수상 역량 태깅 (P4 pre-task, P1-P3 와 독립)
+  competency_awards: {
+    writes: ["student_record_activity_tags"],
+    reads: ["student_record_awards"],
+    readsResults: [],
+    // ctx.results["competency_awards"] (recurringThemes/leadershipEvidence/careerRelevance) 는
+    // α1-4-a collectAwardState 가 소비 — 파이프라인 내 하류 태스크 소비자는 없으므로 terminal.
+    terminal: {
+      reason: "external_tool",
+      consumers: [
+        "α1-4-a collectAwardState → AwardState",
         "admin UI (StudentState 카드, α1-6 예정)",
       ],
     },
