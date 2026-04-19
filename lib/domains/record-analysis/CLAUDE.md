@@ -6,7 +6,7 @@
 ## Architecture
 ```
 record-analysis/
-├── pipeline/              # 3-Tier 파이프라인 (Grade 9태스크×8Phase + Synthesis 10태스크×6Phase)
+├── pipeline/              # 3-Tier 파이프라인 (Grade 12태스크×9Phase + Synthesis 14태스크×7Phase)
 │   ├── pipeline-config.ts        # client-safe 설정
 │   ├── pipeline-types.ts         # client-safe 타입
 │   ├── pipeline-executor.ts      # Phase별 실행 엔진
@@ -69,11 +69,22 @@ imported_content(NEIS 최종) > confirmed_content(확정본) > content(가안) >
 ### 3-Tier 파이프라인 구조
 
 ```
-Grade Pipeline (학년별, 10태스크×9Phase)
+Grade Pipeline (학년별, 12태스크×9Phase)
   P0 (암시적): ctx.profileCard 1회 빌드 (Layer 0, 2/3학년만)
   P1: competency_setek        ← ctx.profileCard 주입 → ctx.analysisContext에 축적
   P2: competency_changche     ← ctx.profileCard 주입 → ctx.analysisContext에 축적
   P3: competency_haengteuk    ← ctx.profileCard 주입 → ctx.analysisContext에 축적 + 집계
+  P3.5 (Phase 4 pre-task 그룹, 직렬 순차):
+        · cross_subject_theme_extraction — 학년 전체 레코드 → 과목 교차 테마 (S3 소비)
+        · competency_volunteer (α1-2, 2026-04-19)
+          ↑ student_record_volunteer 학년 row → community_caring 역량 태깅 + recurringThemes.
+            학년 묶음 1회 standard tier LLM 호출 (청크 미지원, description 짧음).
+            저장: activity_tags(record_type='volunteer', tag_context='analysis') 전용.
+            competency_scores/content_quality 는 건드리지 않음 (P3 집계와 UNIQUE 충돌 회피).
+            ctx.results["competency_volunteer"] 에 recurringThemes/caringEvidence/leadershipEvidence 영속화.
+            α1-3 buildStudentState 가 activity_tags + ctx.results 에서 VolunteerState 집계.
+            빈 봉사 → LLM 호출 0, 이전 volunteer 태그 정리 후 completed.
+            선행 없음(P1-P3 와 독립), 실패해도 가이드 계속 (graceful).
   P4: setek_guide + slot_generation  ← analysisContext 주입 (issues/feedback/약점)
   P5: changche_guide                 ← analysisContext 주입 (community 우선)
   P6: haengteuk_guide                ← analysisContext 주입 (community만)
@@ -261,7 +272,8 @@ CREATE TRIGGER trg_analysis_pipelines_updated_at BEFORE UPDATE ...
 | `student_record_changche` | 창체 원본/NEIS | 입력 |
 | `student_record_haengteuk` | 행특 원본/NEIS | 입력 |
 | `student_record_analysis_cache` | LLM 응답 전체 JSON + content_hash | 증분 캐시 |
-| `student_record_activity_tags` | 역량 태그 (reasoning+highlight) | P1-3 출력, UI 표시 |
+| `student_record_activity_tags` | 역량 태그 (reasoning+highlight). record_type ∈ {setek, personal_setek, changche, haengteuk, **volunteer**(α1-2)} | P1-3 + α1-2 출력, UI 표시 |
+| `student_record_volunteer` | 봉사활동 원본/NEIS | α1-2 입력 |
 | `student_record_competency_scores` | 등급 + rubric_scores JSONB | P1-3 출력, 가이드/진단 참조 |
 | `student_record_content_quality` | 5축 점수 + issues + feedback + **retry_count** (P9 재생성 가드) | P1-3 + P8 출력, 가이드 주입, UI 표시 |
 | `student_record_diagnosis` | 종합진단 (강점/약점) | S3 출력 |
@@ -298,6 +310,13 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 
 **무결성 보장**: ①→②③ 파싱은 단일 트랜잭션(`runCompetencyForRecords`)에서 실행.
 재실행 시 ①②③ 동시 삭제 후 재생성하므로 불일치 불가.
+
+**α1-2 봉사 예외 (2026-04-19)**: `competency_volunteer` 는 3중 저장이 아닌 **①activity_tags 전용**.
+  - competency_scores 미기록 — P3 집계의 community_caring 행과 UNIQUE (tenant,student,year,scope,item,source) 충돌 회피.
+  - content_quality 미기록 — 봉사 description 수십자 수준이라 5축 평가 부적합.
+  - analysis_cache 미사용 — record_type='volunteer' 의 cache 키 설계 시 집계 단위 모호 → 재실행마다 LLM 호출 허용 (standard tier 저비용).
+  - recurringThemes/caringEvidence 는 `ctx.results["competency_volunteer"]` 에 보관 (파이프라인 수명 내). α1-3 buildStudentState 가 DB activity_tags + ctx.results 에서 VolunteerState 집계.
+  - deleteAnalysisResultsByGrade 는 volunteer row id 를 수집해 activity_tags 동시 삭제.
 
 ### 삭제 정책 (D4)
 
@@ -348,6 +367,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `extractTierPlanSuggestion.ts` | `extractTierPlanSuggestion()` | fast (Pro fallback) | Phase 4b Sprint 2 — S7 tier_plan 역방향 개정 제안 |
 | `judgeTierPlanConvergence.ts` | `judgeTierPlanConvergence()` | fast | Phase 4b Sprint 4 — S7 LLM-judge: 두 plan 컨설팅 가치 동등성 verdict 3-class |
 | `prompts/draft-refinement-prompts.ts` | `buildSetekRefinementUserPrompt()` 외 2종 | — | Phase 5 Sprint 1 — P9 재생성 user prompt 빌더 (P7 SETEK/CHANGCHE/HAENGTEUK system prompt 재사용 + 이전 draft/5축 score/issues/feedback 주입). standard tier generateTextWithRateLimit 호출 |
+| `analyzeVolunteerBatch.ts` | `analyzeVolunteerBatch()` | standard | **α1-2 (2026-04-19)** — 봉사 학년 묶음 1회 분석. community_caring/leadership 태깅 + recurringThemes/caringEvidence 추출. totalHours 는 LLM 값 무시하고 입력에서 재계산. |
 | `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |
 
 ### UI 4단계 탭 구조 (소비자 측 — app/(admin)/admin/students/[id])
