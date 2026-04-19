@@ -66,6 +66,10 @@ import { getActiveMainExploration } from "../repository/main-exploration-reposit
 import { fetchVolunteerUpTo } from "../repository/volunteer-repository";
 import { fetchAwardsUpTo } from "../repository/awards-repository";
 import {
+  fetchAttendanceUpTo,
+  fetchDisciplinaryUpTo,
+} from "../repository/attendance-repository";
+import {
   listTrajectory,
   type PersistedStudentStateSnapshot,
 } from "../repository/student-state-repository";
@@ -516,10 +520,116 @@ async function collectAwardState(
   };
 }
 
-function emptyAttendanceState(): AttendanceState | null {
-  // α1-5 까지 미집계. 데이터 없음을 null 로 표현.
-  return null;
+/**
+ * α1-5: 출결(Attendance) + 징계(Disciplinary) 보조 영역 집계.
+ *
+ * - student_record_attendance 학년별 row 를 합산 → absence/late/early_leave 일수.
+ * - "무단 사유" 는 unauthorized 컬럼 합 (absence + lateness + early_leave + class_absence).
+ * - integrityScore (0~100, 규칙 기반):
+ *     base 100
+ *     − 2 × unauthorized absence days
+ *     − 1 × (unauthorized lateness + unauthorized early_leave) events
+ *     − 10 × disciplinary count
+ *   하한 0. attendance row + 징계 모두 없으면 null (데이터 없음).
+ * - flags: 무단결석 / 징계 / 과다결석(총 결석 > 수업일수 5%) 경고 문자열.
+ * - attendance/징계 모두 없으면 null 반환 (집계 의미 없음).
+ */
+async function collectAttendanceState(
+  client: Client,
+  studentId: string,
+  tenantId: string,
+  asOf: StudentStateAsOf,
+): Promise<AttendanceState | null> {
+  const [attendanceRows, disciplinaryRows] = await Promise.all([
+    fetchAttendanceUpTo(client, studentId, tenantId, asOf.schoolYear),
+    fetchDisciplinaryUpTo(client, studentId, tenantId, asOf.schoolYear),
+  ]);
+
+  if (attendanceRows.length === 0 && disciplinaryRows.length === 0) {
+    return null;
+  }
+
+  const sum = (key: keyof RowNumericFields): number =>
+    attendanceRows.reduce((acc, r) => acc + (Number(r[key] ?? 0) || 0), 0);
+
+  const absenceDays =
+    sum("absence_sick") + sum("absence_unauthorized") + sum("absence_other");
+  const lateDays =
+    sum("lateness_sick") + sum("lateness_unauthorized") + sum("lateness_other");
+  const earlyLeaveDays =
+    sum("early_leave_sick") +
+    sum("early_leave_unauthorized") +
+    sum("early_leave_other");
+
+  const unauthorizedAbsence = sum("absence_unauthorized");
+  const unauthorizedLate = sum("lateness_unauthorized");
+  const unauthorizedEarlyLeave = sum("early_leave_unauthorized");
+  const unauthorizedClassAbsence = sum("class_absence_unauthorized");
+  const unauthorizedEvents =
+    unauthorizedAbsence +
+    unauthorizedLate +
+    unauthorizedEarlyLeave +
+    unauthorizedClassAbsence;
+
+  const disciplinaryCount = disciplinaryRows.length;
+
+  // integrityScore (규칙 기반 0~100)
+  const penalty =
+    unauthorizedAbsence * 2 +
+    (unauthorizedLate + unauthorizedEarlyLeave) * 1 +
+    disciplinaryCount * 10;
+  const integrityScore = Math.max(0, Math.min(100, 100 - penalty));
+
+  // flags (경고 사항)
+  const flags: string[] = [];
+  if (unauthorizedAbsence > 0) {
+    flags.push(`무단결석 ${unauthorizedAbsence}일`);
+  }
+  if (unauthorizedLate + unauthorizedEarlyLeave > 0) {
+    flags.push(
+      `무단 지각·조퇴 ${unauthorizedLate + unauthorizedEarlyLeave}건`,
+    );
+  }
+  if (disciplinaryCount > 0) {
+    flags.push(`징계 ${disciplinaryCount}건`);
+  }
+
+  // 과다결석: 수업일수 대비 5% 초과 (row.school_days 가 있는 경우만)
+  const totalSchoolDays = attendanceRows.reduce(
+    (acc, r) => acc + (Number(r.school_days ?? 0) || 0),
+    0,
+  );
+  if (totalSchoolDays > 0 && absenceDays > totalSchoolDays * 0.05) {
+    flags.push(`과다결석 ${absenceDays}/${totalSchoolDays}일`);
+  }
+
+  return {
+    absenceDays,
+    lateDays,
+    earlyLeaveDays,
+    unauthorizedEvents,
+    integrityScore: attendanceRows.length === 0 && disciplinaryCount === 0 ? null : integrityScore,
+    flags,
+  };
 }
+
+/** collectAttendanceState 집계용 — attendance row 의 숫자 컬럼만 추려 타입 명시. */
+type RowNumericFields = Pick<
+  import("../types").RecordAttendance,
+  | "absence_sick"
+  | "absence_unauthorized"
+  | "absence_other"
+  | "lateness_sick"
+  | "lateness_unauthorized"
+  | "lateness_other"
+  | "early_leave_sick"
+  | "early_leave_unauthorized"
+  | "early_leave_other"
+  | "class_absence_sick"
+  | "class_absence_unauthorized"
+  | "class_absence_other"
+  | "school_days"
+>;
 
 async function collectReadingState(
   client: Client,
@@ -732,31 +842,39 @@ export async function buildStudentState(
   const client = await resolveClient(options?.client);
   const resolvedAsOf = await resolveAsOf(client, studentId, tenantId, asOf);
 
-  const [profileCard, competencies, hyperedges, narrativeArc, volunteer, awards, reading, blueprint] =
-    await Promise.all([
-      collectProfileCard(client, studentId, tenantId, resolvedAsOf),
-      collectCompetencyLayer(client, studentId, tenantId, resolvedAsOf),
-      collectHyperedges(client, studentId, tenantId),
-      collectNarrativeArc(client, studentId, tenantId),
-      collectVolunteerState(
-        client,
-        studentId,
-        tenantId,
-        resolvedAsOf,
-        options?.pipelineResults ?? null,
-      ),
-      collectAwardState(
-        client,
-        studentId,
-        tenantId,
-        resolvedAsOf,
-        options?.pipelineResults ?? null,
-      ),
-      collectReadingState(client, studentId, tenantId, resolvedAsOf),
-      collectBlueprint(client, studentId, tenantId),
-    ]);
-
-  const attendance = emptyAttendanceState(); // α1-5 까지 스텁
+  const [
+    profileCard,
+    competencies,
+    hyperedges,
+    narrativeArc,
+    volunteer,
+    awards,
+    attendance,
+    reading,
+    blueprint,
+  ] = await Promise.all([
+    collectProfileCard(client, studentId, tenantId, resolvedAsOf),
+    collectCompetencyLayer(client, studentId, tenantId, resolvedAsOf),
+    collectHyperedges(client, studentId, tenantId),
+    collectNarrativeArc(client, studentId, tenantId),
+    collectVolunteerState(
+      client,
+      studentId,
+      tenantId,
+      resolvedAsOf,
+      options?.pipelineResults ?? null,
+    ),
+    collectAwardState(
+      client,
+      studentId,
+      tenantId,
+      resolvedAsOf,
+      options?.pipelineResults ?? null,
+    ),
+    collectAttendanceState(client, studentId, tenantId, resolvedAsOf),
+    collectReadingState(client, studentId, tenantId, resolvedAsOf),
+    collectBlueprint(client, studentId, tenantId),
+  ]);
 
   const trajectory = options?.includeTrajectory
     ? await collectTrajectory(

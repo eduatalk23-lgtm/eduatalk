@@ -64,6 +64,13 @@ vi.mock("../repository/awards-repository", () => ({
   fetchAwardsUpTo: (...args: unknown[]) => mockFetchAwardsUpTo(...args),
 }));
 
+const mockFetchAttendanceUpTo = vi.fn();
+const mockFetchDisciplinaryUpTo = vi.fn();
+vi.mock("../repository/attendance-repository", () => ({
+  fetchAttendanceUpTo: (...args: unknown[]) => mockFetchAttendanceUpTo(...args),
+  fetchDisciplinaryUpTo: (...args: unknown[]) => mockFetchDisciplinaryUpTo(...args),
+}));
+
 const mockListTrajectory = vi.fn().mockResolvedValue([]);
 vi.mock("../repository/student-state-repository", () => ({
   listTrajectory: (...args: unknown[]) => mockListTrajectory(...args),
@@ -114,6 +121,8 @@ beforeEach(() => {
   mockGetActiveMainExploration.mockResolvedValue(null);
   mockFetchVolunteerUpTo.mockResolvedValue([]);
   mockFetchAwardsUpTo.mockResolvedValue([]);
+  mockFetchAttendanceUpTo.mockResolvedValue([]);
+  mockFetchDisciplinaryUpTo.mockResolvedValue([]);
   mockListTrajectory.mockResolvedValue([]);
 });
 
@@ -345,6 +354,134 @@ describe("buildStudentState — α1-4 AwardState", () => {
     expect(state.aux.awards!.leadershipEvidence).toEqual(["팀장 경험"]);
     // items 비어있으면 auxAwardsPresent=false (metadata 기준)
     expect(state.metadata.auxAwardsPresent).toBe(false);
+  });
+});
+
+// ============================================
+// 4.5. α1-5: 출결(Attendance) — 무결점 / 무단결석 / 징계
+// ============================================
+
+describe("buildStudentState — α1-5 AttendanceState", () => {
+  it("무결점 출결: integrityScore=100 + flags 빈 배열", async () => {
+    mockFetchAttendanceUpTo.mockResolvedValue([
+      {
+        id: "att-1",
+        grade: 1,
+        school_year: 2024,
+        school_days: 190,
+        absence_sick: 2,
+        absence_unauthorized: 0,
+        absence_other: 0,
+        lateness_sick: 0,
+        lateness_unauthorized: 0,
+        lateness_other: 0,
+        early_leave_sick: 0,
+        early_leave_unauthorized: 0,
+        early_leave_other: 0,
+        class_absence_sick: 0,
+        class_absence_unauthorized: 0,
+        class_absence_other: 0,
+      },
+    ]);
+    mockFetchDisciplinaryUpTo.mockResolvedValue([]);
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.aux.attendance).not.toBeNull();
+    expect(state.aux.attendance!.absenceDays).toBe(2);
+    expect(state.aux.attendance!.unauthorizedEvents).toBe(0);
+    expect(state.aux.attendance!.integrityScore).toBe(100);
+    expect(state.aux.attendance!.flags).toEqual([]);
+    expect(state.metadata.auxAttendancePresent).toBe(true);
+  });
+
+  it("무단결석 3일 + 무단지각 2건 → integrityScore=100-6-2=92 + flags 2건", async () => {
+    mockFetchAttendanceUpTo.mockResolvedValue([
+      {
+        id: "att-1",
+        grade: 2,
+        school_year: 2025,
+        school_days: 190,
+        absence_sick: 1,
+        absence_unauthorized: 3,
+        absence_other: 0,
+        lateness_sick: 0,
+        lateness_unauthorized: 2,
+        lateness_other: 0,
+        early_leave_sick: 0,
+        early_leave_unauthorized: 0,
+        early_leave_other: 0,
+        class_absence_sick: 0,
+        class_absence_unauthorized: 0,
+        class_absence_other: 0,
+      },
+    ]);
+    mockFetchDisciplinaryUpTo.mockResolvedValue([]);
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.aux.attendance!.absenceDays).toBe(4);
+    expect(state.aux.attendance!.lateDays).toBe(2);
+    expect(state.aux.attendance!.unauthorizedEvents).toBe(5); // 3 + 2
+    expect(state.aux.attendance!.integrityScore).toBe(92); // 100 - 3*2 - 2*1
+    expect(state.aux.attendance!.flags).toEqual([
+      "무단결석 3일",
+      "무단 지각·조퇴 2건",
+    ]);
+  });
+
+  it("징계 2건 + 과다결석 → integrityScore=80 + flags 2건", async () => {
+    mockFetchAttendanceUpTo.mockResolvedValue([
+      {
+        id: "att-1",
+        grade: 1,
+        school_year: 2024,
+        school_days: 190,
+        absence_sick: 12, // 12/190 = 6.3% > 5% → 과다결석
+        absence_unauthorized: 0,
+        absence_other: 0,
+        lateness_sick: 0,
+        lateness_unauthorized: 0,
+        lateness_other: 0,
+        early_leave_sick: 0,
+        early_leave_unauthorized: 0,
+        early_leave_other: 0,
+        class_absence_sick: 0,
+        class_absence_unauthorized: 0,
+        class_absence_other: 0,
+      },
+    ]);
+    mockFetchDisciplinaryUpTo.mockResolvedValue([
+      { id: "d-1", action_type: "교내봉사", decision_date: "2024-09-01" },
+      { id: "d-2", action_type: "사회봉사", decision_date: "2025-03-10" },
+    ]);
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.aux.attendance!.absenceDays).toBe(12);
+    expect(state.aux.attendance!.unauthorizedEvents).toBe(0);
+    // 무단 사유 0 → 감점 없음. 징계 2건 → -20.
+    expect(state.aux.attendance!.integrityScore).toBe(80);
+    expect(state.aux.attendance!.flags).toContain("징계 2건");
+    expect(state.aux.attendance!.flags).toContain("과다결석 12/190일");
   });
 });
 
