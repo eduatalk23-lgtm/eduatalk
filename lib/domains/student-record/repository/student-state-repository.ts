@@ -14,6 +14,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import type { StudentState, StudentStateAsOf } from "../types/student-state";
 
+// ============================================
+// α1-3-b: metric events trigger source
+// ============================================
+export type MetricEventTriggerSource =
+  | "pipeline_completion"
+  | "nightly_cron"
+  | "perception_trigger"
+  | "manual"
+  | "test";
+
 type Client = SupabaseClient<Database>;
 
 async function resolveClient(client?: Client): Promise<Client> {
@@ -166,13 +176,23 @@ export async function listTrajectory(
 // ============================================
 
 /**
- * snapshot upsert.
+ * snapshot upsert + metric event append.
+ *
  * UNIQUE (tenant_id, student_id, school_year, target_grade, target_semester) 단위로
- * 기존 행이 있으면 덮어쓴다 — 한 시점당 최신 1건만 보존.
+ * 기존 snapshot 이 있으면 덮어쓴다 (시점당 최신 1건).
+ *
+ * α1-3-b: snapshot UPSERT 직후 student_state_metric_events 에 append.
+ *   - snapshot 은 latest-view, metric_events 는 시계열 로그 (append-only).
+ *   - metric insert 실패는 non-fatal — snapshot 자체는 이미 저장됨 (eventual consistency).
+ *     그러나 정상 경로에서는 양쪽 다 성공해야 한다.
  */
 export async function upsertSnapshot(
   state: StudentState,
-  options?: { builderVersion?: string },
+  options?: {
+    builderVersion?: string;
+    /** α1-3-b: metric event trigger source. 기본 manual. */
+    triggerSource?: MetricEventTriggerSource;
+  },
   client?: Client,
 ): Promise<PersistedStudentStateSnapshot> {
   const supabase = await resolveClient(client);
@@ -212,5 +232,57 @@ export async function upsertSnapshot(
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error("student_state_snapshot upsert 결과가 비어있습니다.");
+
+  await appendMetricEvent(supabase, state, data.id, options?.triggerSource ?? "manual");
+
   return data;
+}
+
+// ============================================
+// α1-3-b: metric events append
+// ============================================
+
+interface MetricEventTableChain {
+  insert(row: Record<string, unknown>): Promise<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
+}
+
+function metricEventTable(client: Client): MetricEventTableChain {
+  return client.from("student_state_metric_events" as never) as unknown as MetricEventTableChain;
+}
+
+async function appendMetricEvent(
+  client: Client,
+  state: StudentState,
+  snapshotId: string,
+  triggerSource: MetricEventTriggerSource,
+): Promise<void> {
+  const row = {
+    tenant_id: state.tenantId,
+    student_id: state.studentId,
+    snapshot_id: snapshotId,
+    school_year: state.asOf.schoolYear,
+    target_grade: state.asOf.grade,
+    target_semester: state.asOf.semester,
+    hakjong_total: state.hakjongScore?.total ?? null,
+    hakjong_academic: state.hakjongScore?.academic ?? null,
+    hakjong_career: state.hakjongScore?.career ?? null,
+    hakjong_community: state.hakjongScore?.community ?? null,
+    completeness_ratio: state.metadata.completenessRatio,
+    area_completeness_academic: state.metadata.areaCompleteness.academic,
+    area_completeness_career: state.metadata.areaCompleteness.career,
+    area_completeness_community: state.metadata.areaCompleteness.community,
+    trigger_source: triggerSource,
+    captured_at: state.asOf.builtAt,
+  };
+
+  const { error } = await metricEventTable(client).insert(row);
+  if (error) {
+    // non-fatal — snapshot 은 저장 완료. 로깅 후 resume.
+    // (서버리스에서 logger import 지양 — 호출자가 실패 감지 원하면 try/catch)
+    // eslint-disable-next-line no-console
+    console.warn(`[student-state] metric_event insert failed: ${error.message}`);
+  }
 }
