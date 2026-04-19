@@ -99,10 +99,17 @@ Autonomous 학종 Coach 의 Perception/Reward/GAP/Proposal 공용 입력.
   - 누락 필드는 `null`/빈 배열로 허용하고 `metadata.completenessRatio` 로 전달.
 - **영속화**: `repository/student-state-repository.ts` (UNIQUE `tenant+student+schoolYear+grade+semester`).
   - `findLatestSnapshot` / `findSnapshotAt` / `listTrajectory` / `upsertSnapshot`.
-- **DB**: `student_state_snapshots` (migration `20260419180000_student_state_snapshots.sql`).
-  - snapshot 전체는 `snapshot_data` JSONB, 핵심 지표(hakjong_total, completeness_ratio, layer flag) 는 별도 컬럼으로 승격.
+- **DB** (3 마이그레이션):
+  - `20260419180000_student_state_snapshots.sql` — snapshot 테이블 + RLS.
+  - `20260419190000_student_state_metric_events.sql` (α1-3-b) — append-only 지표 로그. UPDATE/DELETE 트리거 차단. trigger_source: `pipeline_completion / nightly_cron / perception_trigger / manual / test`.
+  - `20260419200000_student_state_snapshots_generated_columns.sql` (α1-3-c) — 승격 컬럼을 `GENERATED ALWAYS AS ... STORED` 로 전환. 9 boolean → `layer_flags` bitmap. JSONB 단일 진실 확립.
+- **Metadata (α1-3-a)**:
+  - `areaCompleteness: { academic, career, community }` — community 는 Layer 1 4축 70% + aux 3종 30% 가중.
+  - `hakjongScoreComputable: { academic, career, community, total }` — 각 area Layer 1 축 ≥ 2 non-null 기준.
+  - `HakjongScore.confidence` 도 area별 객체 (total = min 3 area).
+- **Daily cron (α1-3-d)**: `scripts/build-student-state-snapshot.ts` + `.github/workflows/student-state-snapshot.yml` (03:30 KST daily). trigger_source='nightly_cron'.
 - **보조 영역 상태**: α1-3 시점 `aux.volunteer` 만 집계. `awards/attendance/reading` 은 α1-4~α1-5 에서 채움.
-- **hakjongScore**: α2 Reward 엔진까지 `null`. 빌더는 computable 플래그만 계산.
+- **hakjongScore**: α2 Reward 엔진까지 `null`. 빌더는 area별 computable 플래그만 계산.
 
 ## Tests
 ```bash
