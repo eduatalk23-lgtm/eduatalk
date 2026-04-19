@@ -97,10 +97,12 @@ export async function rerunGradePipelineTasks(
       .eq("id", pipelineId);
 
     // competency 계열 태스크 재실행 시 analysis_cache + 파생 데이터 무효화
+    // (α1-2: competency_volunteer 포함 — activity_tags 정리 대상)
     const GRADE_COMPETENCY_TASKS: GradePipelineTaskKey[] = [
       "competency_setek",
       "competency_changche",
       "competency_haengteuk",
+      "competency_volunteer",
     ];
     const hasCompetencyReset = GRADE_COMPETENCY_TASKS.some((k) => toReset.has(k));
     if (hasCompetencyReset) {

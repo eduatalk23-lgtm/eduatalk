@@ -157,6 +157,22 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
     ],
   },
 
+  // α1-2: 봉사 역량 태깅 (P4 pre-task, P1-P3 와 독립)
+  competency_volunteer: {
+    writes: ["student_record_activity_tags"],
+    reads: ["student_record_volunteer"],
+    readsResults: [],
+    // ctx.results["competency_volunteer"] (recurringThemes/caringEvidence) 는
+    // α1-3 buildStudentState 가 소비 — 파이프라인 내 하류 태스크 소비자는 없으므로 terminal.
+    terminal: {
+      reason: "external_tool",
+      consumers: [
+        "α1-3 buildStudentState → VolunteerState",
+        "admin UI (StudentState 카드, α1-6 예정)",
+      ],
+    },
+  },
+
   setek_guide: {
     writes: ["student_record_setek_guides"],
     reads: [

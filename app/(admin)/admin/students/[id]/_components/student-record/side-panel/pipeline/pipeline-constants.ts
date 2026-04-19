@@ -122,12 +122,15 @@ export const GRADE_TASK_LABEL_MAP: Record<GradePipelineTaskKey, string> = {
   competency_setek: "세특 역량",
   competency_changche: "창체 역량",
   competency_haengteuk: "행특 역량",
+  cross_subject_theme_extraction: "과목 교차 테마",
+  competency_volunteer: "봉사 역량",
   setek_guide: "세특 방향",
   slot_generation: "슬롯 생성",
   changche_guide: "창체 방향",
   haengteuk_guide: "행특 방향",
   draft_generation: "가안 생성",
   draft_analysis: "가안 분석",
+  draft_refinement: "가안 개선",
 };
 
 export const SYNTH_TASK_LABEL_MAP: Record<SynthesisPipelineTaskKey, string> = {

@@ -36,6 +36,7 @@ import {
   runDraftRefinementForGrade,
   runDraftRefinementChunkForGrade,
   runCrossSubjectThemeExtractionForGrade,
+  runCompetencyVolunteerForGrade,
 } from "./pipeline-task-runners";
 
 // ============================================
@@ -276,6 +277,18 @@ export async function executeGradePhase4(
   if (!skipTheme && ctx.tasks["cross_subject_theme_extraction"] !== "completed") {
     await runTaskWithState(ctx, "cross_subject_theme_extraction", () =>
       runCrossSubjectThemeExtractionForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+
+  // ── α1-2: 봉사 역량 태깅 (pre-task) ──
+  // - 선행 없음(P1-P3와 독립). 학년 봉사 rows → community_caring 태깅 + recurringThemes.
+  // - 실패해도 후속 가이드 계속 진행 (graceful). activity_tags(record_type='volunteer')만 기록.
+  // - α1-3 VolunteerState 빌더가 activity_tags + volunteer 테이블에서 집계.
+  const skipVolunteer = skipIfPrereqFailed(ctx, "competency_volunteer");
+  if (!skipVolunteer && ctx.tasks["competency_volunteer"] !== "completed") {
+    await runTaskWithState(ctx, "competency_volunteer", () =>
+      runCompetencyVolunteerForGrade(ctx),
     );
     if (await checkCancelled(ctx)) return;
   }

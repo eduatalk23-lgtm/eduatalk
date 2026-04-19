@@ -229,28 +229,28 @@ async function runCompetencyForRecords(
 
     if (data.contentQuality) {
       const cq = data.contentQuality;
+      const qualityRow = {
+        tenant_id: tenantId,
+        student_id: studentId,
+        record_type: recType,
+        record_id: recordId,
+        school_year: targetSchoolYear,
+        specificity: cq.specificity,
+        coherence: cq.coherence,
+        depth: cq.depth,
+        grammar: cq.grammar,
+        scientific_validity: cq.scientificValidity ?? null,
+        overall_score: cq.overallScore,
+        issues: cq.issues,
+        feedback: cq.feedback,
+        source: "ai",
+        issue_tag_ids: insertedTagIds.length > 0 ? insertedTagIds : null,
+      };
       const { error: qualityErr } = await supabase
         .from("student_record_content_quality")
-        .upsert(
-          {
-            tenant_id: tenantId,
-            student_id: studentId,
-            record_type: recType,
-            record_id: recordId,
-            school_year: targetSchoolYear,
-            specificity: cq.specificity,
-            coherence: cq.coherence,
-            depth: cq.depth,
-            grammar: cq.grammar,
-            scientific_validity: cq.scientificValidity ?? null,
-            overall_score: cq.overallScore,
-            issues: cq.issues,
-            feedback: cq.feedback,
-            source: "ai",
-            issue_tag_ids: insertedTagIds.length > 0 ? insertedTagIds : null,
-          } as Record<string, unknown>,
-          { onConflict: "tenant_id,student_id,record_id,source" },
-        );
+        .upsert(qualityRow as never, {
+          onConflict: "tenant_id,student_id,record_id,source",
+        });
       if (qualityErr) {
         logActionWarn(LOG_CTX, `contentQuality upsert failed: ${recordId} — ${qualityErr.message}`, { recordId, recType });
       }
@@ -724,4 +724,150 @@ export async function runCompetencyHaengteukChunkForGrade(
   return runCompetencyChunkForType(ctx, "haengteuk", chunkSize);
 }
 
+// ============================================
+// α1-2. 학년별 봉사 역량 태깅 (Phase 4 pre-task)
+//   - 학년 묶음 1회 LLM 호출 (청크 미지원)
+//   - 저장 범위: activity_tags (record_type='volunteer') 전용
+//     · competency_scores / content_quality 는 건드리지 않음 (P3 집계와 UNIQUE 충돌 회피)
+//     · α1-3 VolunteerState 빌더가 activity_tags + volunteer 테이블에서 집계
+//   - analysis_cache 미사용 (봉사는 standard tier 단발 호출이라 재실행 비용 낮음)
+// ============================================
+
+export async function runCompetencyVolunteerForGrade(
+  ctx: PipelineContext,
+): Promise<TaskRunnerOutput> {
+  assertGradeCtx(ctx);
+  const { supabase, studentId, tenantId, targetGrade, snapshot } = ctx;
+
+  const { fetchVolunteerByGrade } = await import(
+    "@/lib/domains/student-record/repository/volunteer-repository"
+  );
+  const { analyzeVolunteerBatch } = await import(
+    "@/lib/domains/record-analysis/llm/actions/analyzeVolunteerBatch"
+  );
+
+  const volunteers = await fetchVolunteerByGrade(
+    supabase,
+    studentId,
+    tenantId,
+    targetGrade,
+  );
+
+  // 빈 봉사 기록: LLM 호출 없이 completed 마킹
+  if (volunteers.length === 0) {
+    // 이전 실행의 volunteer activity_tags 가 남아있을 수 있으니 정리
+    // (예: 사용자가 봉사 row 를 모두 삭제한 케이스)
+    await supabase
+      .from("student_record_activity_tags")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("record_type", "volunteer")
+      .eq("tag_context", "analysis")
+      .eq("source", "ai");
+
+    return {
+      preview: `${targetGrade}학년 봉사 기록 없음`,
+      result: {
+        activityCount: 0,
+        totalHours: 0,
+        tagCount: 0,
+        themeCount: 0,
+        skippedReason: "no_volunteer_records",
+      },
+    };
+  }
+
+  // LLM 입력 구성
+  const targetMajor = (snapshot?.target_major as string | undefined) ?? undefined;
+  const input: import("../llm/types").VolunteerAnalysisInput = {
+    grade: targetGrade,
+    activities: volunteers.map((v) => ({
+      id: v.id,
+      hours: Number(v.hours ?? 0),
+      description: v.description ?? null,
+      activityDate: v.activity_date ?? null,
+    })),
+    targetMajor,
+    profileCard: ctx.profileCard || undefined,
+  };
+
+  const startMs = Date.now();
+  const analysisResult = await analyzeVolunteerBatch(input);
+
+  if (!analysisResult.success) {
+    throw new Error(
+      `봉사 역량 분석 실패 (${targetGrade}학년): ${analysisResult.error}`,
+    );
+  }
+
+  const data = analysisResult.data;
+
+  // activity_tags 저장 — RPC 경유 (같은 학생의 volunteer 레코드 ID 전체를 기준으로 기존 태그 원자적 교체)
+  const volunteerIds = volunteers.map((v) => v.id);
+  const rpcTags = data.competencyTags.map((tag) => ({
+    record_type: "volunteer",
+    record_id: tag.volunteerId,
+    competency_item: tag.competencyItem,
+    evaluation: tag.evaluation,
+    evidence_summary: `[AI] ${tag.reasoning}`,
+    tag_context: "analysis" as TagContext,
+  }));
+
+  try {
+    await competencyRepo.refreshCompetencyTagsAtomic(
+      studentId,
+      tenantId,
+      volunteerIds,
+      rpcTags,
+    );
+  } catch (err) {
+    logActionError(
+      { ...LOG_CTX, action: `pipeline.competency_volunteer.grade${targetGrade}` },
+      err,
+      { studentId, targetGrade, tagCount: rpcTags.length },
+    );
+    throw err;
+  }
+
+  // ctx.results 영속화 — α1-3 VolunteerState 빌더가 재조회 시 활용 (ephemeral)
+  ctx.results ??= {};
+  ctx.results["competency_volunteer"] = {
+    ...(typeof ctx.results["competency_volunteer"] === "object" &&
+    ctx.results["competency_volunteer"] != null
+      ? (ctx.results["competency_volunteer"] as Record<string, unknown>)
+      : {}),
+    activityCount: volunteers.length,
+    totalHours: data.totalHours,
+    tagCount: data.competencyTags.length,
+    themeCount: data.recurringThemes.length,
+    recurringThemes: data.recurringThemes,
+    caringEvidence: data.caringEvidence,
+    leadershipEvidence: data.leadershipEvidence,
+    elapsedMs: Date.now() - startMs,
+    ...(analysisResult.usage
+      ? {
+          tokenUsage: {
+            inputTokens: analysisResult.usage.inputTokens,
+            outputTokens: analysisResult.usage.outputTokens,
+            totalTokens:
+              analysisResult.usage.inputTokens + analysisResult.usage.outputTokens,
+          },
+        }
+      : {}),
+  };
+
+  const themePreview =
+    data.recurringThemes.length > 0
+      ? ` · ${data.recurringThemes.slice(0, 3).join(", ")}`
+      : "";
+
+  return {
+    preview: `${targetGrade}학년 봉사 ${volunteers.length}건 · ${data.totalHours}시간${themePreview}`.slice(
+      0,
+      80,
+    ),
+    result: ctx.results["competency_volunteer"],
+  };
+}
 

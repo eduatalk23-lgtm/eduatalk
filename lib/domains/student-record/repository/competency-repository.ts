@@ -465,13 +465,15 @@ export async function deleteAnalysisResultsByGrade(
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
-  // 해당 학년의 record ID 일괄 조회
-  const [sRes, cRes, hRes] = await Promise.all([
+  // 해당 학년의 record ID 일괄 조회 (α1-2: volunteer 포함)
+  const [sRes, cRes, hRes, vRes] = await Promise.all([
     supabase.from("student_record_seteks")
       .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade).is("deleted_at", null),
     supabase.from("student_record_changche")
       .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
     supabase.from("student_record_haengteuk")
+      .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
+    supabase.from("student_record_volunteer")
       .select("id").eq("student_id", studentId).eq("tenant_id", tenantId).eq("grade", grade),
   ]);
 
@@ -479,6 +481,7 @@ export async function deleteAnalysisResultsByGrade(
     ...(sRes.data ?? []).map((r) => r.id as string),
     ...(cRes.data ?? []).map((r) => r.id as string),
     ...(hRes.data ?? []).map((r) => r.id as string),
+    ...(vRes.data ?? []).map((r) => r.id as string),
   ];
 
   // competency_scores: school_year(연도) 기반 직접 삭제 (ai + ai_projected)

@@ -55,7 +55,7 @@ export {
 // Slot Pipeline — Grade 변형 (G5)
 export { runSlotGenerationForGrade } from "./pipeline-task-runners-slot";
 
-// Competency Pipeline — Grade 변형 (P1-P3 ForGrade)
+// Competency Pipeline — Grade 변형 (P1-P3 ForGrade + α1-2 봉사)
 export {
   runCompetencySetekForGrade,
   runCompetencySetekChunkForGrade,
@@ -63,6 +63,7 @@ export {
   runCompetencyChangcheChunkForGrade,
   runCompetencyHaengteukForGrade,
   runCompetencyHaengteukChunkForGrade,
+  runCompetencyVolunteerForGrade,
 } from "./pipeline-task-runners-competency";
 
 // Draft Pipeline (P7-P9)
