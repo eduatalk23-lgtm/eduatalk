@@ -99,16 +99,19 @@ Autonomous 학종 Coach 의 Perception/Reward/GAP/Proposal 공용 입력.
   - 누락 필드는 `null`/빈 배열로 허용하고 `metadata.completenessRatio` 로 전달.
 - **영속화**: `repository/student-state-repository.ts` (UNIQUE `tenant+student+schoolYear+grade+semester`).
   - `findLatestSnapshot` / `findSnapshotAt` / `listTrajectory` / `upsertSnapshot`.
-- **DB** (3 마이그레이션):
+- **DB** (4 마이그레이션):
   - `20260419180000_student_state_snapshots.sql` — snapshot 테이블 + RLS.
   - `20260419190000_student_state_metric_events.sql` (α1-3-b) — append-only 지표 로그. UPDATE/DELETE 트리거 차단. trigger_source: `pipeline_completion / nightly_cron / perception_trigger / manual / test`.
   - `20260419200000_student_state_snapshots_generated_columns.sql` (α1-3-c) — 승격 컬럼을 `GENERATED ALWAYS AS ... STORED` 로 전환. 9 boolean → `layer_flags` bitmap. JSONB 단일 진실 확립.
+  - `20260419210000_award_record_type.sql` (α1-4-a) — `activity_tags`/`content_quality` record_type CHECK 에 `'award'` 추가 + `student_record_awards` DELETE cleanup 트리거.
 - **Metadata (α1-3-a)**:
   - `areaCompleteness: { academic, career, community }` — community 는 Layer 1 4축 70% + aux 3종 30% 가중.
   - `hakjongScoreComputable: { academic, career, community, total }` — 각 area Layer 1 축 ≥ 2 non-null 기준.
   - `HakjongScore.confidence` 도 area별 객체 (total = min 3 area).
 - **Daily cron (α1-3-d)**: `scripts/build-student-state-snapshot.ts` + `.github/workflows/student-state-snapshot.yml` (03:30 KST daily). trigger_source='nightly_cron'.
-- **보조 영역 상태**: α1-3 시점 `aux.volunteer` 만 집계. `awards/attendance/reading` 은 α1-4~α1-5 에서 채움.
+- **Client 전파 규칙**: `buildStudentState` 가 주입한 client 는 하위 repository 전파 필수. `findCompetencyScoresBySchoolYears`/`findActivityTags`/`findHyperedges`/`findNarrativeArcsByStudent` 모두 `client?` 옵션 파라미터 지원. admin client 주입 경로(cron CLI)에서 `cookies()` 미컨텍스트 실패 방지.
+- **보조 영역 상태**: α1-3 까지 `aux.volunteer` 만 집계 → α1-4-a 에서 `aux.awards` 추가 (items + leadership/career evidence). `awards/volunteer` runner 는 별도 record-analysis 트랙. `attendance/reading` 은 α1-5 에서 채움.
+- **α1-4-a Awards**: `repository/awards-repository.ts` (fetchAwardsByGrade/UpTo/hashInput) + `collectAwardState`. items[].relatedCompetencies 는 activity_tags 로부터 유도. evidence 는 tags 폴백 또는 `pipelineResults.competency_awards` 주입.
 - **hakjongScore**: α2 Reward 엔진까지 `null`. 빌더는 area별 computable 플래그만 계산.
 
 ## Tests
