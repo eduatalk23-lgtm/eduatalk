@@ -24,6 +24,7 @@ student-record/
 ├── leveling/             # L0~L6 설계 모드 레벨링 (engine.ts, types.ts, resolve-tier.ts)
 ├── evaluation-criteria/  # 루브릭/포맷터/flow-completion (record-analysis/llm 에서도 사용)
 ├── cohort/               # 코호트 분석
+├── state/                # α1-3 StudentState 빌더 (build-student-state.ts — World Model)
 ├── repository/           # 12개 repository (record/competency/diagnosis/edge/hyperedge/storyline/...)
 ├── actions/              # CRUD/오케스트레이터 액션 (24파일)
 └── report/               # 리포트 빌드/공유
@@ -87,6 +88,21 @@ AI 분석 파이프라인 (Grade 9태스크×8Phase + Synthesis 10태스크×6Ph
 → **`lib/domains/record-analysis/CLAUDE.md`** 참조.
 
 이 파일(student-record/CLAUDE.md)에는 CRUD/서비스/도메인 모델·검증·평가 프레임워크만 다룬다.
+
+## StudentState World Model (α1-1~α1-3)
+
+Autonomous 학종 Coach 의 Perception/Reward/GAP/Proposal 공용 입력.
+
+- **타입**: `types/student-state.ts` (Layer 0~4 + aux.volunteer/awards/attendance/reading + hakjongScore + blueprint + metadata).
+- **빌더**: `state/build-student-state.ts` — `buildStudentState(studentId, tenantId, asOf?, options?)`.
+  - 읽기 전용. DB 우선. `options.pipelineResults` 주입 시 파이프라인 중간 상태로 VolunteerState 보강.
+  - 누락 필드는 `null`/빈 배열로 허용하고 `metadata.completenessRatio` 로 전달.
+- **영속화**: `repository/student-state-repository.ts` (UNIQUE `tenant+student+schoolYear+grade+semester`).
+  - `findLatestSnapshot` / `findSnapshotAt` / `listTrajectory` / `upsertSnapshot`.
+- **DB**: `student_state_snapshots` (migration `20260419180000_student_state_snapshots.sql`).
+  - snapshot 전체는 `snapshot_data` JSONB, 핵심 지표(hakjong_total, completeness_ratio, layer flag) 는 별도 컬럼으로 승격.
+- **보조 영역 상태**: α1-3 시점 `aux.volunteer` 만 집계. `awards/attendance/reading` 은 α1-4~α1-5 에서 채움.
+- **hakjongScore**: α2 Reward 엔진까지 `null`. 빌더는 computable 플래그만 계산.
 
 ## Tests
 ```bash

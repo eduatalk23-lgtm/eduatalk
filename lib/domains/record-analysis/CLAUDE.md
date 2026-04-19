@@ -85,6 +85,9 @@ Grade Pipeline (학년별, 12태스크×9Phase)
             α1-3 buildStudentState 가 activity_tags + ctx.results 에서 VolunteerState 집계.
             빈 봉사 → LLM 호출 0, 이전 volunteer 태그 정리 후 completed.
             선행 없음(P1-P3 와 독립), 실패해도 가이드 계속 (graceful).
+            α1-3 (2026-04-19): `buildStudentState` 가 activity_tags(volunteer) + volunteer 테이블
+              + ctx.results["competency_volunteer"] 에서 `aux.volunteer` VolunteerState 집계.
+              ctx.results 부재 시 caringEvidence 는 activity_tags.evidence_summary 폴백.
   P4: setek_guide + slot_generation  ← analysisContext 주입 (issues/feedback/약점)
   P5: changche_guide                 ← analysisContext 주입 (community 우선)
   P6: haengteuk_guide                ← analysisContext 주입 (community만)

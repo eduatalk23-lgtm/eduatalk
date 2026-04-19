@@ -35,6 +35,28 @@ export async function fetchVolunteerByGrade(
 }
 
 /**
+ * α1-3: asOf 시점까지의 봉사 목록 (VolunteerState 집계용).
+ * `upToSchoolYear` 이하 학년도에 속한 row 만 반환. activity_date 오름차순.
+ */
+export async function fetchVolunteerUpTo(
+  supabase: AnyServerSupabase,
+  studentId: string,
+  tenantId: string,
+  upToSchoolYear: number,
+): Promise<RecordVolunteer[]> {
+  const { data, error } = await supabase
+    .from("student_record_volunteer")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .lte("school_year", upToSchoolYear)
+    .order("activity_date", { ascending: true, nullsFirst: false });
+
+  if (error) throw error;
+  return (data ?? []) as RecordVolunteer[];
+}
+
+/**
  * 학년 내 봉사 row의 안정적 content_hash 재료 문자열 생성.
  * 순서가 다르면 다른 해시가 나오므로 activity_date/id 기준으로 정렬 후 직렬화.
  */
