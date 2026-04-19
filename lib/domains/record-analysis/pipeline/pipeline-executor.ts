@@ -134,7 +134,7 @@ export async function touchPipelineHeartbeat(
  * - 모든 required가 terminal(completed/failed)이지만 일부라도 failed면 "failed"
  *
  * required 태스크 집합:
- * - grade + analysis mode: GRADE_PIPELINE_TASK_KEYS − {draft_generation, draft_analysis, cross_subject_theme_extraction}
+ * - grade + analysis mode: GRADE_PIPELINE_TASK_KEYS − {draft_generation, draft_analysis, draft_refinement, cross_subject_theme_extraction}
  * - grade + design mode:   GRADE_PIPELINE_TASK_KEYS − {cross_subject_theme_extraction}
  * - synthesis:             SYNTHESIS_PIPELINE_TASK_KEYS (전체 10개)
  *
@@ -170,6 +170,7 @@ export function computePipelineFinalStatus(
       (k) =>
         k !== "draft_generation" &&
         k !== "draft_analysis" &&
+        k !== "draft_refinement" &&
         k !== "cross_subject_theme_extraction",
     );
   }
@@ -668,6 +669,8 @@ export function getNextGradePhase(tasks: Record<string, string>): number {
   if (tasks.haengteuk_guide !== "completed") return 6;
   if (tasks.draft_generation !== "completed") return 7;
   if (tasks.draft_analysis !== "completed") return 8;
+  // Phase 5 Sprint 1: P9 draft_refinement (설계 모드 전용)
+  if (tasks.draft_refinement !== "completed") return 9;
   return 0; // 모두 완료
 }
 

@@ -10,7 +10,7 @@ record-analysis/
 │   ├── pipeline-config.ts        # client-safe 설정
 │   ├── pipeline-types.ts         # client-safe 타입
 │   ├── pipeline-executor.ts      # Phase별 실행 엔진
-│   ├── pipeline-grade-phases.ts  # P1-P8 Phase 정의
+│   ├── pipeline-grade-phases.ts  # P1-P9 Phase 정의
 │   ├── pipeline-data-resolver.ts # 콘텐츠 해소 4-layer
 │   ├── pipeline-unified-input.ts # 통합 입력 빌더
 │   ├── pipeline-task-runners*.ts # 태스크별 실행 로직 (7파일)
@@ -69,7 +69,7 @@ imported_content(NEIS 최종) > confirmed_content(확정본) > content(가안) >
 ### 3-Tier 파이프라인 구조
 
 ```
-Grade Pipeline (학년별, 9태스크×8Phase)
+Grade Pipeline (학년별, 10태스크×9Phase)
   P0 (암시적): ctx.profileCard 1회 빌드 (Layer 0, 2/3학년만)
   P1: competency_setek        ← ctx.profileCard 주입 → ctx.analysisContext에 축적
   P2: competency_changche     ← ctx.profileCard 주입 → ctx.analysisContext에 축적
@@ -79,6 +79,11 @@ Grade Pipeline (학년별, 9태스크×8Phase)
   P6: haengteuk_guide                ← analysisContext 주입 (community만)
   P7: draft_generation               ← 설계 모드 전용, 레벨링 주입(L2) + 방향 가이드 기반 AI 가안
   P8: draft_analysis                 ← 가안 역량 분석 (tag=draft_analysis, scores=ai_projected, edges=projected)
+  P9: draft_refinement               ← **Phase 5 Sprint 1 (2026-04-19)**. IMPROVE 논문 component-at-a-time iteration.
+        ↑ P8 에서 overall_score<70 판정된 레코드를 이전 draft + 5축 score + issues + feedback 을 프롬프트에 주입해 1회 재생성.
+          재분석 score 가 원본보다 높으면 content_quality 승격, 낮으면 rollback (ai_draft_content + content_quality + activity_tags + competency_scores 4종 원복).
+          max_retry=1 (content_quality.retry_count 영속). Feature flag `ENABLE_DRAFT_REFINEMENT` default off.
+          분석 모드 학년은 skip (가안 없음). 청크 실행 (chunkSize=4).
 
 Synthesis Pipeline (종합, 14태스크×7Phase — 트랙 D 2026-04-14 3종 승격 + Phase 4b Sprint 3 S7 신설)
   S1: storyline_generation
@@ -185,6 +190,7 @@ changche_guide    ← [competency_setek, competency_changche, setek_guide]
 haengteuk_guide   ← [전 competency + setek_guide + changche_guide]
 draft_generation  ← [setek_guide, changche_guide, haengteuk_guide]
 draft_analysis    ← [haengteuk_guide, draft_generation]
+draft_refinement  ← [haengteuk_guide, draft_generation, draft_analysis]
 ```
 
 스킵된 태스크: `status="failed"`, `error="선행 태스크 실패로 건너뜀: ..."`. 재실행 cascade로 복구.
@@ -257,7 +263,7 @@ CREATE TRIGGER trg_analysis_pipelines_updated_at BEFORE UPDATE ...
 | `student_record_analysis_cache` | LLM 응답 전체 JSON + content_hash | 증분 캐시 |
 | `student_record_activity_tags` | 역량 태그 (reasoning+highlight) | P1-3 출력, UI 표시 |
 | `student_record_competency_scores` | 등급 + rubric_scores JSONB | P1-3 출력, 가이드/진단 참조 |
-| `student_record_content_quality` | 5축 점수 + issues + feedback | P1-3 출력, 가이드 주입, UI 표시 |
+| `student_record_content_quality` | 5축 점수 + issues + feedback + **retry_count** (P9 재생성 가드) | P1-3 + P8 출력, 가이드 주입, UI 표시 |
 | `student_record_diagnosis` | 종합진단 (강점/약점) | S3 출력 |
 | `student_record_setek_guides` | 세특 방향 가이드 | P4 출력 |
 | `student_record_changche_guides` | 창체 방향 가이드 | P5 출력 |
@@ -341,6 +347,7 @@ P1-P3 역량 분석 결과는 3계층으로 저장. **의도적 설계이며 통
 | `generateHaengteukDraft.ts` | `generateHaengteukDraftAction()` | standard | 행특 AI 초안 (fire-and-forget) |
 | `extractTierPlanSuggestion.ts` | `extractTierPlanSuggestion()` | fast (Pro fallback) | Phase 4b Sprint 2 — S7 tier_plan 역방향 개정 제안 |
 | `judgeTierPlanConvergence.ts` | `judgeTierPlanConvergence()` | fast | Phase 4b Sprint 4 — S7 LLM-judge: 두 plan 컨설팅 가치 동등성 verdict 3-class |
+| `prompts/draft-refinement-prompts.ts` | `buildSetekRefinementUserPrompt()` 외 2종 | — | Phase 5 Sprint 1 — P9 재생성 user prompt 빌더 (P7 SETEK/CHANGCHE/HAENGTEUK system prompt 재사용 + 이전 draft/5축 score/issues/feedback 주입). standard tier generateTextWithRateLimit 호출 |
 | `guide-modules.ts` | analyze/generate 래퍼 | - | 파이프라인 오케스트레이터 진입점 |
 
 ### UI 4단계 탭 구조 (소비자 측 — app/(admin)/admin/students/[id])

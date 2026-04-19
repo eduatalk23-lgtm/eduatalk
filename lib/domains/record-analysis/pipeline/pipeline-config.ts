@@ -44,6 +44,7 @@ export const GRADE_PIPELINE_TASK_KEYS = [
   "haengteuk_guide",
   "draft_generation",
   "draft_analysis",
+  "draft_refinement",   // P9: IMPROVE 논문 component-at-a-time iteration (Phase 5 Sprint 1)
 ] as const;
 
 // ============================================
@@ -149,8 +150,9 @@ export const GRADE_TASK_DEPENDENTS: Partial<Record<_GradeKey, _GradeKey[]>> = {
   // 따라서 setek_guide/changche_guide/haengteuk_guide의 prereq에는 추가하지 않는다.
   setek_guide: ["changche_guide", "haengteuk_guide", "draft_generation"],
   changche_guide: ["haengteuk_guide", "draft_generation"],
-  haengteuk_guide: ["draft_generation", "draft_analysis"],
-  draft_generation: ["draft_analysis"],
+  haengteuk_guide: ["draft_generation", "draft_analysis", "draft_refinement"],
+  draft_generation: ["draft_analysis", "draft_refinement"],
+  draft_analysis: ["draft_refinement"],
 };
 
 // ============================================
@@ -288,6 +290,7 @@ export const GRADE_PIPELINE_TASK_LABELS: Record<_GradeKey, string> = {
   haengteuk_guide: "행특 방향",
   draft_generation: "가안 생성",
   draft_analysis: "가안 분석",
+  draft_refinement: "가안 개선",  // P9
 };
 
 /** Grade Pipeline 태스크별 타임아웃 (ms) */
@@ -302,6 +305,7 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   haengteuk_guide: 120_000,
   draft_generation: 240_000,  // 세특+창체+행특 가안 순차 생성
   draft_analysis: 280_000,   // 가안 역량 분석 (세특이 가장 오래)
+  draft_refinement: 280_000, // P9: score<70 레코드 재생성+재분석 (청크, chunkSize=4)
 };
 
 export const PIPELINE_TASK_LABELS: Record<_LegacyKey, string> = {
@@ -440,6 +444,7 @@ export const GRADE_PHASE_TASKS: Record<number, _GradeKey[]> = {
   6: ["haengteuk_guide"],
   7: ["draft_generation"],
   8: ["draft_analysis"],
+  9: ["draft_refinement"],   // Phase 5 Sprint 1: IMPROVE 논문 iteration
 };
 
 // ============================================

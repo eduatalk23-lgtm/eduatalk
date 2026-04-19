@@ -21,3 +21,8 @@ export {
   runDraftAnalysisForGrade,
   runDraftAnalysisChunkForGrade,
 } from "./pipeline-task-runners-draft-analysis";
+
+export {
+  runDraftRefinementForGrade,
+  runDraftRefinementChunkForGrade,
+} from "./pipeline-task-runners-draft-refinement";

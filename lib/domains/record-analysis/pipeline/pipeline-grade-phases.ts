@@ -33,6 +33,8 @@ import {
   runDraftGenerationChunkForGrade,
   runDraftAnalysisForGrade,
   runDraftAnalysisChunkForGrade,
+  runDraftRefinementForGrade,
+  runDraftRefinementChunkForGrade,
   runCrossSubjectThemeExtractionForGrade,
 } from "./pipeline-task-runners";
 
@@ -346,12 +348,12 @@ export async function executeGradePhase6(
   }
 
   // Analysis 모드는 Phase 6이 최종 Phase — 완료/실패 상태 판정.
-  // (설계 모드는 Phase 8에서 판정하므로 여기서는 건너뜀)
-  // draft_generation / draft_analysis 는 설계 모드 전용이므로
+  // (설계 모드는 Phase 9에서 판정하므로 여기서는 건너뜀)
+  // draft_generation / draft_analysis / draft_refinement 는 설계 모드 전용이므로
   // analysis 모드 완료 판정에서 제외한다.
   if (ctx.gradeMode === "analysis") {
     const allCompleted = GRADE_PIPELINE_TASK_KEYS.every((k) => {
-      if (k === "draft_generation" || k === "draft_analysis") return true;
+      if (k === "draft_generation" || k === "draft_analysis" || k === "draft_refinement") return true;
       // cross_subject_theme_extraction은 옵션 enhancement — 실패해도 분석 모드 완료 판정에 영향 없음
       if (k === "cross_subject_theme_extraction") return true;
       return ctx.tasks[k] === "completed";
@@ -458,7 +460,7 @@ export async function executeGradePhase7(
 }
 
 // ============================================
-// Grade Phase 8: 가안 분석 (설계 모드 전용) → 최종 상태
+// Grade Phase 8: 가안 분석 (설계 모드 전용)
 // ============================================
 
 export async function executeGradePhase8(
@@ -472,13 +474,15 @@ export async function executeGradePhase8(
   // 청크 모드
   if (chunkOpts?.chunkSize != null) {
     if (skipIfPrereqFailed(ctx, "draft_analysis")) {
-      // 선행 실패로 스킵 — 최종 상태만 판정하고 종료
-      await finalizeDesignModeStatus(ctx);
+      // 선행 실패로 스킵 — P9 가 최종이므로 여기서는 상태만 업데이트
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId, "running",
+        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
+      );
       return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
     }
 
-    // 태스크 상태 관리 직접 (runTaskWithState 는 단일 호출 가정)
-    // 첫 청크 진입 시 running 으로 전환, 마지막 청크에서 completed 로 마감
     const existingStatus = ctx.tasks["draft_analysis"];
     if (existingStatus !== "running") {
       ctx.tasks["draft_analysis"] = "running";
@@ -489,7 +493,6 @@ export async function executeGradePhase8(
 
       if (result.preview) ctx.previews["draft_analysis"] = result.preview;
 
-      // 진행 상황을 DB 에 영속화 (heartbeat + results 누적)
       await updatePipelineState(
         ctx.supabase as SupabaseAdminClient,
         ctx.pipelineId,
@@ -503,7 +506,11 @@ export async function executeGradePhase8(
 
       if (!result.hasMore) {
         ctx.tasks["draft_analysis"] = "completed";
-        await finalizeDesignModeStatus(ctx);
+        await updatePipelineState(
+          ctx.supabase as SupabaseAdminClient,
+          ctx.pipelineId, "running",
+          ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
+        );
       }
 
       return {
@@ -516,7 +523,11 @@ export async function executeGradePhase8(
       ctx.tasks["draft_analysis"] = "failed";
       ctx.errors = ctx.errors ?? {};
       ctx.errors["draft_analysis"] = err instanceof Error ? err.message : String(err);
-      await finalizeDesignModeStatus(ctx);
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId, "running",
+        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors, false,
+      );
       throw err;
     }
   }
@@ -525,6 +536,84 @@ export async function executeGradePhase8(
   if (!skipIfPrereqFailed(ctx, "draft_analysis")) {
     await runTaskWithState(ctx, "draft_analysis", () =>
       runDraftAnalysisForGrade(ctx),
+    );
+  }
+  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+}
+
+// ============================================
+// Grade Phase 9: 가안 개선 (설계 모드 전용, Phase 5 Sprint 1) → 최종 상태
+// ============================================
+
+export async function executeGradePhase9(
+  ctx: PipelineContext,
+  chunkOpts?: { chunkSize?: number },
+): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
+  // 청크 모드
+  if (chunkOpts?.chunkSize != null) {
+    if (skipIfPrereqFailed(ctx, "draft_refinement")) {
+      // 선행 실패로 스킵 — 최종 상태 판정 후 종료
+      await finalizeDesignModeStatus(ctx);
+      return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+    }
+
+    const existingStatus = ctx.tasks["draft_refinement"];
+    if (existingStatus !== "running") {
+      ctx.tasks["draft_refinement"] = "running";
+    }
+
+    try {
+      const result = await runDraftRefinementChunkForGrade(ctx, chunkOpts.chunkSize);
+
+      if (result.preview) ctx.previews["draft_refinement"] = result.preview;
+
+      if (result.result) {
+        ctx.results ??= {};
+        ctx.results["draft_refinement"] = {
+          ...(ctx.results["draft_refinement"] as Record<string, unknown> ?? {}),
+          ...result.result,
+        };
+      }
+
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId,
+        "running",
+        ctx.tasks,
+        ctx.previews,
+        ctx.results ?? {},
+        ctx.errors ?? {},
+        false,
+      );
+
+      if (!result.hasMore) {
+        ctx.tasks["draft_refinement"] = "completed";
+        await finalizeDesignModeStatus(ctx);
+      }
+
+      return {
+        completed: !result.hasMore,
+        hasMore: result.hasMore,
+        chunkProcessed: result.chunkProcessed,
+        totalUncached: result.totalUncached,
+      };
+    } catch (err) {
+      ctx.tasks["draft_refinement"] = "failed";
+      ctx.errors = ctx.errors ?? {};
+      ctx.errors["draft_refinement"] = err instanceof Error ? err.message : String(err);
+      await finalizeDesignModeStatus(ctx);
+      throw err;
+    }
+  }
+
+  // 단일 호출 (기존 동작 유지 — 호환성)
+  if (!skipIfPrereqFailed(ctx, "draft_refinement")) {
+    await runTaskWithState(ctx, "draft_refinement", () =>
+      runDraftRefinementForGrade(ctx),
     );
   }
   await finalizeDesignModeStatus(ctx);

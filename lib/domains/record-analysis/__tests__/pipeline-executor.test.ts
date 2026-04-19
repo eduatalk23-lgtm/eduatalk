@@ -1070,6 +1070,7 @@ describe("getNextGradePhase()", () => {
         haengteuk_guide: "completed",
         draft_generation: "completed",
         draft_analysis: "completed",
+        draft_refinement: "completed",
       }),
     ).toBe(0);
   });
@@ -1223,14 +1224,19 @@ describe("getNextSynthesisPhase()", () => {
       getNextSynthesisPhase({
         storyline_generation: "completed",
         edge_computation: "completed",
+        hyperedge_computation: "completed",
+        narrative_arc_extraction: "completed",
         guide_matching: "completed",
+        haengteuk_linking: "completed",
         ai_diagnosis: "completed",
         course_recommendation: "completed",
+        gap_tracking: "completed",
         bypass_analysis: "completed",
         activity_summary: "completed",
         ai_strategy: "completed",
         interview_generation: "completed",
         roadmap_generation: "completed",
+        tier_plan_refinement: "completed",
       }),
     ).toBe(0);
   });

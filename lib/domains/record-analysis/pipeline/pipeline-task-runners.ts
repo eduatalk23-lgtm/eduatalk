@@ -65,12 +65,14 @@ export {
   runCompetencyHaengteukChunkForGrade,
 } from "./pipeline-task-runners-competency";
 
-// Draft Pipeline (P7-P8)
+// Draft Pipeline (P7-P9)
 export {
   runDraftGenerationForGrade,
   runDraftGenerationChunkForGrade,
   runDraftAnalysisForGrade,
   runDraftAnalysisChunkForGrade,
+  runDraftRefinementForGrade,
+  runDraftRefinementChunkForGrade,
 } from "./pipeline-task-runners-draft";
 
 // H1 / L3-A: Cross-subject Theme Extraction (Grade Pipeline P3.5)

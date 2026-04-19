@@ -99,6 +99,19 @@ export interface PipelineTaskResultMap {
   draft_generation: { elapsedMs?: number };
   /** P8: 설계 모드 가안 분석 (string preview만 반환) */
   draft_analysis: { elapsedMs?: number };
+  /**
+   * P9: 가안 재생성 (Phase 5 Sprint 1). disabled 시 skipped=true + 전체 null.
+   * Feature flag `ENABLE_DRAFT_REFINEMENT` (default off).
+   */
+  draft_refinement: {
+    enabled: boolean;
+    processed: number;      // 트리거 대상 레코드 수
+    refined: number;        // 재생성 성공 (score 상승)
+    rolledBack: number;     // rollback (score 하락)
+    skipped: number;        // retry_count>=1 또는 LLM 에러
+    avgScoreDelta: number;  // 성공한 refined 의 평균 score 상승분
+    elapsedMs?: number;
+  };
 
   // ── Synthesis Pipeline ───────────────────────
   /** S1: 스토리라인 감지 */

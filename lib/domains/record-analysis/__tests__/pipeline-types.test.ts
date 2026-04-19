@@ -7,8 +7,8 @@ import {
 } from "../pipeline/pipeline-types";
 
 describe("PIPELINE_TASK_KEYS", () => {
-  it("20개 태스크가 정의되어 있어야 한다 (legacy: hyperedge/narrative_arc/haengteuk_linking/blueprint/gap_tracking 포함)", () => {
-    expect(PIPELINE_TASK_KEYS).toHaveLength(20);
+  it("21개 태스크가 정의되어 있어야 한다 (legacy: hyperedge/narrative_arc/haengteuk_linking/blueprint/gap_tracking + tier_plan_refinement 포함)", () => {
+    expect(PIPELINE_TASK_KEYS).toHaveLength(21);
   });
 
   it("Phase 1 순서: competency → storyline → edge", () => {
