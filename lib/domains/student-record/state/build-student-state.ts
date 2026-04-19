@@ -216,8 +216,8 @@ async function collectCompetencyLayer(
   if (years.length === 0) return null;
 
   const [aiScores, projectedScores] = await Promise.all([
-    findCompetencyScoresBySchoolYears(studentId, years, tenantId, "ai"),
-    findCompetencyScoresBySchoolYears(studentId, years, tenantId, "ai_projected"),
+    findCompetencyScoresBySchoolYears(studentId, years, tenantId, "ai", client),
+    findCompetencyScoresBySchoolYears(studentId, years, tenantId, "ai_projected", client),
   ]);
 
   // yearly scope 만 (학년 단위). 최신 학년도 값을 axis 로 선택 (없으면 null).
@@ -320,12 +320,16 @@ async function collectContentQualityAxis(
 }
 
 async function collectHyperedges(
+  client: Client,
   studentId: string,
   tenantId: string,
 ): Promise<HyperedgeSnapshot[]> {
-  const rows = await findHyperedges(studentId, tenantId, {
-    contexts: ["analysis"],
-  });
+  const rows = await findHyperedges(
+    studentId,
+    tenantId,
+    { contexts: ["analysis"] },
+    client,
+  );
   return rows.map((h) => ({
     id: h.id,
     themeSlug: h.theme_slug,
@@ -337,10 +341,16 @@ async function collectHyperedges(
 }
 
 async function collectNarrativeArc(
+  client: Client,
   studentId: string,
   tenantId: string,
 ): Promise<NarrativeArcSegment[]> {
-  const rows = await findNarrativeArcsByStudent(studentId, tenantId, { source: "ai" });
+  const rows = await findNarrativeArcsByStudent(
+    studentId,
+    tenantId,
+    { source: "ai" },
+    client,
+  );
   return rows.map((r) => {
     const phasesPresent: NarrativeArcPhase[] = [];
     if (r.curiosity_present) phasesPresent.push("curiosity");
@@ -371,10 +381,12 @@ async function collectVolunteerState(
 ): Promise<VolunteerState | null> {
   const [volunteers, tags] = await Promise.all([
     fetchVolunteerUpTo(client, studentId, tenantId, asOf.schoolYear),
-    findActivityTags(studentId, tenantId, {
-      recordType: "volunteer",
-      tagContext: "analysis",
-    }),
+    findActivityTags(
+      studentId,
+      tenantId,
+      { recordType: "volunteer", tagContext: "analysis" },
+      client,
+    ),
   ]);
 
   if (volunteers.length === 0 && tags.length === 0) {
@@ -646,8 +658,8 @@ export async function buildStudentState(
     await Promise.all([
       collectProfileCard(client, studentId, tenantId, resolvedAsOf),
       collectCompetencyLayer(client, studentId, tenantId, resolvedAsOf),
-      collectHyperedges(studentId, tenantId),
-      collectNarrativeArc(studentId, tenantId),
+      collectHyperedges(client, studentId, tenantId),
+      collectNarrativeArc(client, studentId, tenantId),
       collectVolunteerState(
         client,
         studentId,

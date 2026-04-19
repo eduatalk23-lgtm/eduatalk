@@ -7,7 +7,15 @@
 // ============================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import type { EdgeContext } from "./edge-repository";
+
+type Client = SupabaseClient<Database>;
+async function resolveClient(client?: Client): Promise<Client> {
+  if (client) return client;
+  return (await createSupabaseServerClient()) as unknown as Client;
+}
 
 // ============================================
 // 1. 타입
@@ -74,8 +82,9 @@ export async function findHyperedges(
     types?: HyperedgeType[];
     includeStale?: boolean;
   },
+  client?: Client,
 ): Promise<PersistedHyperedge[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await resolveClient(client);
   let query = supabase
     .from("student_record_hyperedges")
     .select("*")

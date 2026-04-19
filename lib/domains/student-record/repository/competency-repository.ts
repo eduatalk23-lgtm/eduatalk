@@ -5,6 +5,8 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionWarn } from "@/lib/logging/actionLogger";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import type {
   CompetencyScore,
   CompetencyScoreInsert,
@@ -13,6 +15,12 @@ import type {
   ActivityTagInsert,
   TagContext,
 } from "../types";
+
+type Client = SupabaseClient<Database>;
+async function resolveClient(client?: Client): Promise<Client> {
+  if (client) return client;
+  return (await createSupabaseServerClient()) as unknown as Client;
+}
 
 // ============================================
 // competency_scores
@@ -49,9 +57,10 @@ export async function findCompetencyScoresBySchoolYears(
   schoolYears: number[],
   tenantId: string,
   source?: "ai" | "ai_projected" | "manual",
+  client?: Client,
 ): Promise<CompetencyScore[]> {
   if (schoolYears.length === 0) return [];
-  const supabase = await createSupabaseServerClient();
+  const supabase = await resolveClient(client);
   let query = supabase
     .from("student_record_competency_scores")
     .select("*")
@@ -122,8 +131,9 @@ export async function findActivityTags(
   studentId: string,
   tenantId: string,
   options?: { recordType?: string; recordId?: string; excludeTagContext?: TagContext; tagContext?: TagContext },
+  client?: Client,
 ): Promise<ActivityTag[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await resolveClient(client);
   let query = supabase
     .from("student_record_activity_tags")
     .select("*")

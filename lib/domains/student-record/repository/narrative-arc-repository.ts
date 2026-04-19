@@ -126,8 +126,9 @@ export async function findNarrativeArcsByStudent(
   studentId: string,
   tenantId: string,
   options?: { source?: NarrativeArcSource; schoolYear?: number },
+  client?: SupabaseClient<Database>,
 ): Promise<PersistedNarrativeArc[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? (await createSupabaseServerClient());
   let query = supabase
     .from("student_record_narrative_arc")
     .select("*")
