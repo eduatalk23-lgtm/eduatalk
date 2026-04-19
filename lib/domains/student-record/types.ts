@@ -61,3 +61,26 @@ export type {
   ProgressCounts, StudentRecordOverview,
   StudentRecordActionResult,
 } from "./types/service-types";
+
+// StudentState — Autonomous Agent World Model (Phase α1-1, 2026-04-19)
+export type {
+  StudentState,
+  StudentStateAsOf,
+  StudentStateMetadata,
+  StudentStateDiff,
+  ProfileCardSnapshot,
+  CompetencyLayerState,
+  CompetencyAxisState,
+  ContentQualityAxisState,
+  HyperedgeSnapshot,
+  NarrativeArcSegment,
+  NarrativeArcPhase,
+  TrajectoryPoint,
+  VolunteerState,
+  AwardState,
+  AttendanceState,
+  ReadingState,
+  HakjongScore,
+  BlueprintAnchor,
+  StorylineRef,
+} from "./types/student-state";
