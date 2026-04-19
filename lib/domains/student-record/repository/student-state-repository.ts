@@ -42,18 +42,17 @@ export interface PersistedStudentStateSnapshot {
   school_year: number;
   target_grade: number;
   target_semester: 1 | 2;
+  // α1-3-c: GENERATED ALWAYS AS ... STORED — 읽기만 가능, payload 에 포함 금지
   as_of_label: string;
   hakjong_total: number | null;
   completeness_ratio: number;
-  layer0_present: boolean;
-  layer1_present: boolean;
-  layer2_present: boolean;
-  layer3_present: boolean;
-  aux_volunteer_present: boolean;
-  aux_awards_present: boolean;
-  aux_attendance_present: boolean;
-  aux_reading_present: boolean;
-  blueprint_present: boolean;
+  /**
+   * 9 비트 bitmap (α1-3-c):
+   *   bit 0 layer0   bit 1 layer1   bit 2 layer2   bit 3 layer3
+   *   bit 4 auxVolunteer  bit 5 auxAwards  bit 6 auxAttendance  bit 7 auxReading
+   *   bit 8 blueprint
+   */
+  layer_flags: number;
   hakjong_computable: boolean;
   has_stale_layer: boolean;
   snapshot_data: Json;
@@ -62,6 +61,19 @@ export interface PersistedStudentStateSnapshot {
   created_at: string;
   updated_at: string;
 }
+
+/** layer_flags bitmap 비트 정의 — 소비자 코드가 이 상수로 decode. */
+export const SNAPSHOT_LAYER_FLAGS = {
+  LAYER0:         1,
+  LAYER1:         1 << 1,
+  LAYER2:         1 << 2,
+  LAYER3:         1 << 3,
+  AUX_VOLUNTEER:  1 << 4,
+  AUX_AWARDS:     1 << 5,
+  AUX_ATTENDANCE: 1 << 6,
+  AUX_READING:    1 << 7,
+  BLUEPRINT:      1 << 8,
+} as const;
 
 interface SnapshotFromChain {
   select(cols: string): SnapshotFromChain;
@@ -197,26 +209,15 @@ export async function upsertSnapshot(
 ): Promise<PersistedStudentStateSnapshot> {
   const supabase = await resolveClient(client);
 
+  // α1-3-c: 승격 컬럼(as_of_label/hakjong_total/completeness_ratio/layer_flags/
+  // hakjong_computable/has_stale_layer)은 GENERATED ALWAYS AS ... STORED 로
+  // snapshot_data 에서 자동 투영. payload 에서 명시적으로 제외 — 쓰면 에러.
   const payload = {
     tenant_id: state.tenantId,
     student_id: state.studentId,
     school_year: state.asOf.schoolYear,
     target_grade: state.asOf.grade,
     target_semester: state.asOf.semester,
-    as_of_label: state.asOf.label,
-    hakjong_total: state.hakjongScore?.total ?? null,
-    completeness_ratio: state.metadata.completenessRatio,
-    layer0_present: state.metadata.layer0Present,
-    layer1_present: state.metadata.layer1Present,
-    layer2_present: state.metadata.layer2Present,
-    layer3_present: state.metadata.layer3Present,
-    aux_volunteer_present: state.metadata.auxVolunteerPresent,
-    aux_awards_present: state.metadata.auxAwardsPresent,
-    aux_attendance_present: state.metadata.auxAttendancePresent,
-    aux_reading_present: state.metadata.auxReadingPresent,
-    blueprint_present: state.metadata.blueprintPresent,
-    hakjong_computable: state.metadata.hakjongScoreComputable.total,
-    has_stale_layer: state.metadata.staleness.hasStaleLayer,
     snapshot_data: state as unknown as Json,
     builder_version: options?.builderVersion ?? "v1",
     built_at: state.asOf.builtAt,
