@@ -136,7 +136,17 @@ describe("buildStudentState — 빈 학생", () => {
     expect(state.blueprint).toBeNull();
     expect(state.hakjongScore).toBeNull();
     expect(state.metadata.completenessRatio).toBe(0);
-    expect(state.metadata.hakjongScoreComputable).toBe(false);
+    expect(state.metadata.hakjongScoreComputable).toEqual({
+      academic: false,
+      career: false,
+      community: false,
+      total: false,
+    });
+    expect(state.metadata.areaCompleteness).toEqual({
+      academic: 0,
+      career: 0,
+      community: 0,
+    });
   });
 });
 
@@ -223,21 +233,14 @@ describe("buildStudentState — ctx 없을 때 activity_tags 폴백", () => {
 // 4. hakjongScoreComputable — Layer1 + volunteer
 // ============================================
 
-describe("buildStudentState — metadata.hakjongScoreComputable", () => {
-  it("competency_scores(ai) 존재 + volunteer 존재 → true", async () => {
+describe("buildStudentState — metadata.hakjongScoreComputable (area별 분해)", () => {
+  it("academic 3축 중 2축만 grade 있으면 academic=true, 나머지 영역은 false", async () => {
     mockFindCompetencyScoresBySchoolYears.mockImplementation(
       async (_sid: string, _years: number[], _tid: string, source: string) => {
         if (source !== "ai") return [];
         return [
-          {
-            competency_item: "academic_achievement",
-            competency_area: "academic",
-            grade_value: "B+",
-            scope: "yearly",
-            school_year: 2025,
-            narrative: null,
-            source_record_ids: null,
-          },
+          { competency_item: "academic_achievement", competency_area: "academic", grade_value: "B+", scope: "yearly", school_year: 2025, narrative: null, source_record_ids: null },
+          { competency_item: "academic_attitude",    competency_area: "academic", grade_value: "A-", scope: "yearly", school_year: 2025, narrative: null, source_record_ids: null },
         ];
       },
     );
@@ -247,19 +250,55 @@ describe("buildStudentState — metadata.hakjongScoreComputable", () => {
 
     const client = makeClient() as unknown as SupabaseClient<Database>;
     const state = await buildStudentState(
-      "student-1",
-      "tenant-1",
+      "student-1", "tenant-1",
       { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
       { client },
     );
 
-    expect(state.competencies).not.toBeNull();
-    const axis = state.competencies!.axes.find(
-      (a) => a.code === "academic_achievement",
+    expect(state.metadata.hakjongScoreComputable).toEqual({
+      academic: true,
+      career: false,
+      community: false,
+      total: false,
+    });
+    expect(state.metadata.areaCompleteness.academic).toBeGreaterThan(0);
+    expect(state.metadata.areaCompleteness.career).toBe(0);
+    // community 는 Layer1 4축 0 + aux volunteer 1건 → 0.7*0 + 0.3*(1/3) = 0.1
+    expect(state.metadata.areaCompleteness.community).toBeCloseTo(0.1, 2);
+  });
+
+  it("3 영역 각 2축 이상 + aux 전부 존재 → total=true", async () => {
+    mockFindCompetencyScoresBySchoolYears.mockImplementation(
+      async (_sid: string, _years: number[], _tid: string, source: string) => {
+        if (source !== "ai") return [];
+        const row = (item: string, area: string) => ({
+          competency_item: item, competency_area: area, grade_value: "B", scope: "yearly",
+          school_year: 2025, narrative: null, source_record_ids: null,
+        });
+        return [
+          row("academic_achievement", "academic"),
+          row("academic_attitude", "academic"),
+          row("career_course_effort", "career"),
+          row("career_exploration", "career"),
+          row("community_caring", "community"),
+          row("community_leadership", "community"),
+        ];
+      },
     );
-    expect(axis?.grade).toBe("B+");
-    expect(state.metadata.layer1Present).toBe(true);
-    expect(state.metadata.auxVolunteerPresent).toBe(true);
-    expect(state.metadata.hakjongScoreComputable).toBe(true);
+    mockFetchVolunteerUpTo.mockResolvedValue([
+      { id: "v-1", hours: 5, activity_date: "2025-04-01", school_year: 2025 },
+    ]);
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1", "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.metadata.hakjongScoreComputable.academic).toBe(true);
+    expect(state.metadata.hakjongScoreComputable.career).toBe(true);
+    expect(state.metadata.hakjongScoreComputable.community).toBe(true);
+    expect(state.metadata.hakjongScoreComputable.total).toBe(true);
   });
 });

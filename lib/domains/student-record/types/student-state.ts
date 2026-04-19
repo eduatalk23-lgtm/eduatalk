@@ -200,7 +200,16 @@ export interface HakjongScore {
   readonly total: number | null;               // 학업×0.3 + 진로×0.4 + 공동체×0.3
   readonly computedAt: string;
   readonly version: "v1_rule" | "v2_exemplar";
-  readonly confidence: number;                 // 0~1, 데이터 완결성 기반 신뢰도
+  /**
+   * area 별 데이터 완결성 기반 신뢰도.
+   * total = min(academic, career, community) — 가장 약한 영역이 전체 신뢰도 제약.
+   */
+  readonly confidence: {
+    readonly academic: number;                 // 0~1
+    readonly career: number;
+    readonly community: number;
+    readonly total: number;
+  };
 }
 
 // ─── Blueprint Anchor (청사진 참조) ──────────────────────────────────────
@@ -239,7 +248,30 @@ export interface StudentStateMetadata {
   readonly auxAwardsPresent: boolean;
   readonly auxAttendancePresent: boolean;
   readonly auxReadingPresent: boolean;
-  readonly hakjongScoreComputable: boolean;
+  /**
+   * area 별 Layer 1 축 채움률(0~1). community 는 aux 기여 30% 가중.
+   *   academic = academic_* 3축 non-null / 3
+   *   career   = career_* 3축 non-null / 3
+   *   community = 0.7 × (community_* 4축 non-null / 4) + 0.3 × (aux 3종 present / 3)
+   */
+  readonly areaCompleteness: {
+    readonly academic: number;                 // 0~1
+    readonly career: number;
+    readonly community: number;
+  };
+  /**
+   * area 별 Reward 산출 가능 여부.
+   *   academic : academic 축 ≥ 2 개 non-null
+   *   career   : career 축 ≥ 2 개 non-null
+   *   community: community 축 ≥ 2 개 non-null (aux 는 권장이지만 필수 아님)
+   *   total    : 위 3 개 모두 true
+   */
+  readonly hakjongScoreComputable: {
+    readonly academic: boolean;
+    readonly career: boolean;
+    readonly community: boolean;
+    readonly total: boolean;
+  };
   readonly blueprintPresent: boolean;
   readonly staleness: {
     readonly hasStaleLayer: boolean;

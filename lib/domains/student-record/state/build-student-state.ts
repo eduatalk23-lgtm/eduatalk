@@ -520,6 +520,20 @@ async function collectTrajectory(
 // Metadata
 // ============================================
 
+// Area 당 Reward computable 최소 축 수 — α2 Reward 엔진 착수 시 재조정 가능.
+const MIN_AXES_FOR_COMPUTABLE = 2;
+
+/** 10 축을 area 별로 분류. */
+function axesByArea(axes: readonly CompetencyAxisState[]) {
+  const groups = { academic: [] as CompetencyAxisState[], career: [] as CompetencyAxisState[], community: [] as CompetencyAxisState[] };
+  for (const a of axes) groups[a.area].push(a);
+  return groups;
+}
+
+function nonNullCount(axes: readonly CompetencyAxisState[]): number {
+  return axes.reduce((n, a) => (a.grade !== null ? n + 1 : n), 0);
+}
+
 function buildMetadata(params: {
   profileCard: ProfileCardSnapshot | null;
   competencies: CompetencyLayerState | null;
@@ -556,17 +570,36 @@ function buildMetadata(params: {
   ];
   const completenessRatio = signals.filter(Boolean).length / signals.length;
 
-  // hakjongScore 산출 가능 조건: Layer 1(역량) + 최소 2 보조영역(volunteer/awards/attendance) 중 하나
-  const hakjongComputable =
-    layer1 && (volunteerP || awardsP || attendanceP);
+  // Area 별 Layer 1 축 채움률
+  const groups = params.competencies
+    ? axesByArea(params.competencies.axes)
+    : { academic: [], career: [], community: [] };
+  const academicFill = groups.academic.length === 0 ? 0 : nonNullCount(groups.academic) / groups.academic.length;
+  const careerFill = groups.career.length === 0 ? 0 : nonNullCount(groups.career) / groups.career.length;
+  const communityL1Fill = groups.community.length === 0 ? 0 : nonNullCount(groups.community) / groups.community.length;
+  // community 는 Layer 1 70% + aux 30% — 나눔/리더십/성실 3 보조축 존재비
+  const communityAuxFill = ([volunteerP, awardsP, attendanceP].filter(Boolean).length) / 3;
+  const communityFill = 0.7 * communityL1Fill + 0.3 * communityAuxFill;
 
-  // Stale 판정: blueprint.updatedAt 이 최근 snapshot 보다 오래되었는지는 상위에서 판단.
-  // α1-3 범위에서는 layer 불일치 감지만(예: layer1 존재 + profileCard 없음).
+  const areaCompleteness = {
+    academic: Math.round(academicFill * 1000) / 1000,
+    career: Math.round(careerFill * 1000) / 1000,
+    community: Math.round(communityFill * 1000) / 1000,
+  };
+
+  // Area 별 Reward 산출 가능 여부 (Layer 1 축 ≥ MIN_AXES_FOR_COMPUTABLE)
+  const academicComputable = nonNullCount(groups.academic) >= MIN_AXES_FOR_COMPUTABLE;
+  const careerComputable = nonNullCount(groups.career) >= MIN_AXES_FOR_COMPUTABLE;
+  const communityComputable = nonNullCount(groups.community) >= MIN_AXES_FOR_COMPUTABLE;
+  const hakjongScoreComputable = {
+    academic: academicComputable,
+    career: careerComputable,
+    community: communityComputable,
+    total: academicComputable && careerComputable && communityComputable,
+  };
+
   const staleReasons: string[] = [];
-  if (layer1 && !layer0 && params.competencies && params.competencies.axes.some((a) => a.source === "ai")) {
-    // 2학년 이상인데 profile card 가 비면 stale 후보
-    // (asOf.grade 는 상위에서 검증)
-  }
+  // α1-3 범위: layer1 존재 + profile card 부재 (2학년 이상) → stale 후보. asOf.grade 는 상위에서 검증.
 
   return {
     snapshotId: null,
@@ -579,7 +612,8 @@ function buildMetadata(params: {
     auxAwardsPresent: awardsP,
     auxAttendancePresent: attendanceP,
     auxReadingPresent: readingP,
-    hakjongScoreComputable: hakjongComputable,
+    areaCompleteness,
+    hakjongScoreComputable,
     blueprintPresent: blueprintP,
     staleness: {
       hasStaleLayer: staleReasons.length > 0,

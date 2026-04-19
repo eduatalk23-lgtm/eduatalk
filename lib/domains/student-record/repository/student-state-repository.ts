@@ -195,7 +195,7 @@ export async function upsertSnapshot(
     aux_attendance_present: state.metadata.auxAttendancePresent,
     aux_reading_present: state.metadata.auxReadingPresent,
     blueprint_present: state.metadata.blueprintPresent,
-    hakjong_computable: state.metadata.hakjongScoreComputable,
+    hakjong_computable: state.metadata.hakjongScoreComputable.total,
     has_stale_layer: state.metadata.staleness.hasStaleLayer,
     snapshot_data: state as unknown as Json,
     builder_version: options?.builderVersion ?? "v1",
