@@ -371,6 +371,6 @@ export async function generateProspectiveSetekGuide(
 
   return {
     success: true,
-    data: { ...parsed, summaryId: inserted[0].id },
+    data: { ...parsed, summaryId: inserted[0].id, requestedSubjectCount: plans.length },
   };
 }

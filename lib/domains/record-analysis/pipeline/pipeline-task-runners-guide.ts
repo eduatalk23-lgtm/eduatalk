@@ -408,8 +408,18 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
       gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx,
     );
     if (!result.success) throw new Error(result.error);
-    const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
-    return guides ? `${targetGrade}학년 세특 방향 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;
+    const guides = result.data?.guides ?? [];
+    // 완결성 가드 (P7 draft_generation 90% 패턴 재사용).
+    // LLM 이 요청된 수강계획 과목의 90% 미만만 가이드를 생성하면 부분 실행으로 판단해 실패 처리.
+    // 이전: silently 부분 생성 → 다운스트림 P7/P8/P9 가 누락 과목을 skip 하여 근본 원인 추적 곤란.
+    const requested = result.data?.requestedSubjectCount ?? 0;
+    if (requested > 0 && guides.length / requested < 0.9) {
+      const pct = ((guides.length / requested) * 100).toFixed(0);
+      throw new Error(
+        `setek_guide 부분 생성: ${guides.length}/${requested}과목 (${pct}% < 90%)`,
+      );
+    }
+    return `${targetGrade}학년 세특 방향 ${guides.length}과목`;
   }
 
   return `${targetGrade}학년 세특 방향 건너뜀`;

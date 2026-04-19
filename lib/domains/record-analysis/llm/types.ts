@@ -613,6 +613,8 @@ export interface SetekGuideResult {
   title: string;
   guides: import("@/lib/domains/student-record/types").SetekGuideItem[];
   overallDirection: string;
+  /** prospective 모드에서 LLM 에 노출된 수강계획 과목 수. 완결성 가드용 (runner 에서 guides.length / requestedSubjectCount 비교). NEIS 모드는 미사용. */
+  requestedSubjectCount?: number;
 }
 
 // ============================================
