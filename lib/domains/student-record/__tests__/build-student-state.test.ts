@@ -59,6 +59,11 @@ vi.mock("../repository/volunteer-repository", () => ({
   fetchVolunteerUpTo: (...args: unknown[]) => mockFetchVolunteerUpTo(...args),
 }));
 
+const mockFetchAwardsUpTo = vi.fn();
+vi.mock("../repository/awards-repository", () => ({
+  fetchAwardsUpTo: (...args: unknown[]) => mockFetchAwardsUpTo(...args),
+}));
+
 const mockListTrajectory = vi.fn().mockResolvedValue([]);
 vi.mock("../repository/student-state-repository", () => ({
   listTrajectory: (...args: unknown[]) => mockListTrajectory(...args),
@@ -102,11 +107,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockFindProfileCard.mockResolvedValue(null);
   mockFindCompetencyScoresBySchoolYears.mockResolvedValue([]);
+  // recordType 옵션 기반 분기 — 각 테스트는 필요 시 mockImplementation 으로 override
   mockFindActivityTags.mockResolvedValue([]);
   mockFindHyperedges.mockResolvedValue([]);
   mockFindNarrativeArcsByStudent.mockResolvedValue([]);
   mockGetActiveMainExploration.mockResolvedValue(null);
   mockFetchVolunteerUpTo.mockResolvedValue([]);
+  mockFetchAwardsUpTo.mockResolvedValue([]);
   mockListTrajectory.mockResolvedValue([]);
 });
 
@@ -130,7 +137,7 @@ describe("buildStudentState — 빈 학생", () => {
     expect(state.hyperedges).toEqual([]);
     expect(state.narrativeArc).toEqual([]);
     expect(state.aux.volunteer).toBeNull();
-    expect(state.aux.awards?.items).toEqual([]);
+    expect(state.aux.awards).toBeNull();
     expect(state.aux.attendance).toBeNull();
     expect(state.aux.reading).toBeNull();
     expect(state.blueprint).toBeNull();
@@ -230,7 +237,119 @@ describe("buildStudentState — ctx 없을 때 activity_tags 폴백", () => {
 });
 
 // ============================================
-// 4. hakjongScoreComputable — Layer1 + volunteer
+// 4. α1-4: 수상(Awards) — items + evidence
+// ============================================
+
+describe("buildStudentState — α1-4 AwardState", () => {
+  it("awards 테이블 + activity_tags(record_type='award') → items.relatedCompetencies + leadership/career evidence 빌드", async () => {
+    mockFetchAwardsUpTo.mockResolvedValue([
+      {
+        id: "a-1",
+        award_name: "교내 과학탐구대회 최우수상",
+        award_level: "교내",
+        award_date: "2025-05-12",
+        school_year: 2025,
+      },
+      {
+        id: "a-2",
+        award_name: "전국 창의력올림피아드 은상",
+        award_level: "전국",
+        award_date: "2025-10-01",
+        school_year: 2025,
+      },
+    ]);
+    // 두 번째 호출(award 쿼리)에서만 태그 반환 — recordType 옵션으로 분기
+    mockFindActivityTags.mockImplementation(
+      async (_sid: string, _tid: string, opts?: { recordType?: string }) => {
+        if (opts?.recordType !== "award") return [];
+        return [
+          {
+            record_id: "a-1",
+            record_type: "award",
+            competency_item: "community_leadership",
+            evidence_summary: "[AI] 팀을 이끌어 실험 주도",
+            tag_context: "analysis",
+          },
+          {
+            record_id: "a-1",
+            record_type: "award",
+            competency_item: "academic_inquiry",
+            evidence_summary: "[AI] 가설 설정 후 검증",
+            tag_context: "analysis",
+          },
+          {
+            record_id: "a-2",
+            record_type: "award",
+            competency_item: "career_exploration",
+            evidence_summary: "[AI] 희망 전공 관련 심화 주제",
+            tag_context: "analysis",
+          },
+        ];
+      },
+    );
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.aux.awards).not.toBeNull();
+    expect(state.aux.awards!.items).toHaveLength(2);
+    expect(state.aux.awards!.items[0]).toMatchObject({
+      recordId: "a-1",
+      name: "교내 과학탐구대회 최우수상",
+      level: "교내",
+    });
+    expect(new Set(state.aux.awards!.items[0].relatedCompetencies)).toEqual(
+      new Set(["community_leadership", "academic_inquiry"]),
+    );
+    expect(state.aux.awards!.items[1].relatedCompetencies).toEqual([
+      "career_exploration",
+    ]);
+    // evidence 는 '[AI] ' 프리픽스 제거 후 주입
+    expect(state.aux.awards!.leadershipEvidence).toEqual(["팀을 이끌어 실험 주도"]);
+    expect(state.aux.awards!.careerRelevance).toEqual(["희망 전공 관련 심화 주제"]);
+    expect(state.metadata.auxAwardsPresent).toBe(true);
+  });
+
+  it("awards 는 없고 태그만 있으면 items=[] + evidence 만 채워 AwardState 반환 (null 아님)", async () => {
+    mockFetchAwardsUpTo.mockResolvedValue([]);
+    mockFindActivityTags.mockImplementation(
+      async (_sid: string, _tid: string, opts?: { recordType?: string }) => {
+        if (opts?.recordType !== "award") return [];
+        return [
+          {
+            record_id: "a-orphan",
+            record_type: "award",
+            competency_item: "community_leadership",
+            evidence_summary: "[AI] 팀장 경험",
+            tag_context: "analysis",
+          },
+        ];
+      },
+    );
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.aux.awards).not.toBeNull();
+    expect(state.aux.awards!.items).toEqual([]);
+    expect(state.aux.awards!.leadershipEvidence).toEqual(["팀장 경험"]);
+    // items 비어있으면 auxAwardsPresent=false (metadata 기준)
+    expect(state.metadata.auxAwardsPresent).toBe(false);
+  });
+});
+
+// ============================================
+// 5. hakjongScoreComputable — Layer1 + volunteer
 // ============================================
 
 describe("buildStudentState — metadata.hakjongScoreComputable (area별 분해)", () => {

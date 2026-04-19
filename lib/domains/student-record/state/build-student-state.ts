@@ -64,6 +64,7 @@ import { findHyperedges } from "../repository/hyperedge-repository";
 import { findNarrativeArcsByStudent } from "../repository/narrative-arc-repository";
 import { getActiveMainExploration } from "../repository/main-exploration-repository";
 import { fetchVolunteerUpTo } from "../repository/volunteer-repository";
+import { fetchAwardsUpTo } from "../repository/awards-repository";
 import {
   listTrajectory,
   type PersistedStudentStateSnapshot,
@@ -434,8 +435,85 @@ async function collectVolunteerState(
   };
 }
 
-function emptyAwardState(): AwardState {
-  return { items: [], leadershipEvidence: [], careerRelevance: [] };
+/**
+ * α1-4: 수상(Awards) 보조 영역 집계.
+ *
+ * - awards 테이블 + activity_tags(record_type='award', tag_context='analysis') 조인.
+ * - items[].relatedCompetencies: 태그에서 수상당 연결된 competency_item 집합.
+ * - leadershipEvidence / careerRelevance: 특정 역량(태그 키) 의 evidence_summary 상위 N 건.
+ * - 파이프라인 컨텍스트(pipelineResults["competency_awards"]) 주입 시 경로/근거 보강 — 차후 runner 와 연결.
+ * - awards 도 태그도 없으면 null 반환 (집계 의미 없음).
+ */
+async function collectAwardState(
+  client: Client,
+  studentId: string,
+  tenantId: string,
+  asOf: StudentStateAsOf,
+  pipelineResults?: Record<string, unknown> | null,
+): Promise<AwardState | null> {
+  const [awards, tags] = await Promise.all([
+    fetchAwardsUpTo(client, studentId, tenantId, asOf.schoolYear),
+    findActivityTags(
+      studentId,
+      tenantId,
+      { recordType: "award", tagContext: "analysis" },
+      client,
+    ),
+  ]);
+
+  if (awards.length === 0 && tags.length === 0) {
+    return null;
+  }
+
+  // record_id → tags 인덱싱
+  const tagsByRecord = new Map<string, typeof tags>();
+  for (const t of tags) {
+    if (!t.record_id) continue;
+    const bucket = tagsByRecord.get(t.record_id) ?? [];
+    bucket.push(t);
+    tagsByRecord.set(t.record_id, bucket);
+  }
+
+  const items = awards.map((a) => {
+    const related = (tagsByRecord.get(a.id) ?? []).map(
+      (t) => t.competency_item as CompetencyItemCode,
+    );
+    // 중복 제거 (동일 award 에 여러 tag_context/source 가 있을 수 있음)
+    const uniq = Array.from(new Set(related));
+    return {
+      recordId: a.id,
+      name: a.award_name ?? "",
+      level: a.award_level ?? "",
+      relatedCompetencies: uniq,
+    };
+  });
+
+  // pipeline 컨텍스트 우선 — α1-4 runner 가 남긴 leadershipEvidence/careerRelevance
+  const ctxAward = pipelineResults?.competency_awards;
+  const leadershipFromCtx =
+    ctxAward && typeof ctxAward === "object" && "leadershipEvidence" in ctxAward
+      ? ((ctxAward as { leadershipEvidence?: string[] }).leadershipEvidence ?? [])
+      : [];
+  const careerFromCtx =
+    ctxAward && typeof ctxAward === "object" && "careerRelevance" in ctxAward
+      ? ((ctxAward as { careerRelevance?: string[] }).careerRelevance ?? [])
+      : [];
+
+  // ctx 부재 시 activity_tags 에서 evidence_summary 상위 3 건 추출
+  const pickEvidence = (item: CompetencyItemCode): string[] =>
+    tags
+      .filter((t) => t.competency_item === item)
+      .map((t) => (t.evidence_summary ?? "").replace(/^\[AI\]\s*/, "").trim())
+      .filter((s) => s.length > 0)
+      .slice(0, 3);
+
+  return {
+    items,
+    leadershipEvidence:
+      leadershipFromCtx.length > 0 ? leadershipFromCtx : pickEvidence("community_leadership"),
+    careerRelevance:
+      careerFromCtx.length > 0 ? careerFromCtx : pickEvidence("career_exploration"),
+  };
 }
 
 function emptyAttendanceState(): AttendanceState | null {
@@ -654,7 +732,7 @@ export async function buildStudentState(
   const client = await resolveClient(options?.client);
   const resolvedAsOf = await resolveAsOf(client, studentId, tenantId, asOf);
 
-  const [profileCard, competencies, hyperedges, narrativeArc, volunteer, reading, blueprint] =
+  const [profileCard, competencies, hyperedges, narrativeArc, volunteer, awards, reading, blueprint] =
     await Promise.all([
       collectProfileCard(client, studentId, tenantId, resolvedAsOf),
       collectCompetencyLayer(client, studentId, tenantId, resolvedAsOf),
@@ -667,11 +745,17 @@ export async function buildStudentState(
         resolvedAsOf,
         options?.pipelineResults ?? null,
       ),
+      collectAwardState(
+        client,
+        studentId,
+        tenantId,
+        resolvedAsOf,
+        options?.pipelineResults ?? null,
+      ),
       collectReadingState(client, studentId, tenantId, resolvedAsOf),
       collectBlueprint(client, studentId, tenantId),
     ]);
 
-  const awards = emptyAwardState(); // α1-4 까지 스텁
   const attendance = emptyAttendanceState(); // α1-5 까지 스텁
 
   const trajectory = options?.includeTrajectory
