@@ -1,12 +1,9 @@
 // ============================================
 // Student State Repository — α1-3 World Model 영속화
-// student_state_snapshots CRUD
+// student_state_snapshots CRUD + student_state_metric_events append
 //
 // buildStudentState() 결과의 시점 스냅샷을 읽고 쓴다.
 // (학생, 학년도, 학년, 학기) 1건 UPSERT — 버전 이력은 별도 테이블로 분리하지 않음.
-//
-// database.types.ts 미반영 — 마이그레이션(20260419180000)이 적용되기 전까지
-// 제네릭 from() 대신 `as never` 캐스트로 우회. 타입 재생성 후 점진적 제거.
 // ============================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -30,6 +27,9 @@ async function resolveClient(client?: Client): Promise<Client> {
   if (client) return client;
   return (await createSupabaseServerClient()) as unknown as Client;
 }
+
+type SnapshotRow = Database["public"]["Tables"]["student_state_snapshots"]["Row"];
+type MetricEventInsert = Database["public"]["Tables"]["student_state_metric_events"]["Insert"];
 
 // ============================================
 // 1. 타입
@@ -75,37 +75,11 @@ export const SNAPSHOT_LAYER_FLAGS = {
   BLUEPRINT:      1 << 8,
 } as const;
 
-interface SnapshotFromChain {
-  select(cols: string): SnapshotFromChain;
-  eq(col: string, val: unknown): SnapshotFromChain;
-  order(
-    col: string,
-    opts?: { ascending?: boolean; nullsFirst?: boolean },
-  ): SnapshotFromChain;
-  limit(n: number): SnapshotFromChain;
-  maybeSingle(): Promise<{
-    data: PersistedStudentStateSnapshot | null;
-    error: { message: string } | null;
-  }>;
-  single(): Promise<{
-    data: PersistedStudentStateSnapshot | null;
-    error: { message: string } | null;
-  }>;
-  then<T>(
-    cb: (v: {
-      data: PersistedStudentStateSnapshot[] | null;
-      error: { message: string } | null;
-    }) => T,
-  ): Promise<T>;
-  upsert(
-    row: Record<string, unknown>,
-    opts: { onConflict: string },
-  ): SnapshotFromChain;
-}
-
-function snapshotTable(client: Client): SnapshotFromChain {
-  // database.types.ts 미반영(migration 20260419180000) → as never 캐스트 우회
-  return client.from("student_state_snapshots" as never) as unknown as SnapshotFromChain;
+function toPersisted(row: SnapshotRow): PersistedStudentStateSnapshot {
+  return {
+    ...row,
+    target_semester: row.target_semester as 1 | 2,
+  };
 }
 
 // ============================================
@@ -122,7 +96,8 @@ export async function findLatestSnapshot(
   client?: Client,
 ): Promise<PersistedStudentStateSnapshot | null> {
   const supabase = await resolveClient(client);
-  const { data, error } = await snapshotTable(supabase)
+  const { data, error } = await supabase
+    .from("student_state_snapshots")
     .select("*")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
@@ -131,7 +106,7 @@ export async function findLatestSnapshot(
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data ?? null;
+  return data ? toPersisted(data) : null;
 }
 
 /**
@@ -145,7 +120,8 @@ export async function findSnapshotAt(
   client?: Client,
 ): Promise<PersistedStudentStateSnapshot | null> {
   const supabase = await resolveClient(client);
-  const { data, error } = await snapshotTable(supabase)
+  const { data, error } = await supabase
+    .from("student_state_snapshots")
     .select("*")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
@@ -155,7 +131,7 @@ export async function findSnapshotAt(
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data ?? null;
+  return data ? toPersisted(data) : null;
 }
 
 /**
@@ -169,7 +145,8 @@ export async function listTrajectory(
   client?: Client,
 ): Promise<PersistedStudentStateSnapshot[]> {
   const supabase = await resolveClient(client);
-  let chain = snapshotTable(supabase)
+  let chain = supabase
+    .from("student_state_snapshots")
     .select("*")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
@@ -178,9 +155,9 @@ export async function listTrajectory(
     .order("target_semester", { ascending: true });
   if (options?.limit) chain = chain.limit(options.limit);
 
-  const { data, error } = await chain.then((v) => v);
+  const { data, error } = await chain;
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).map(toPersisted);
 }
 
 // ============================================
@@ -224,7 +201,8 @@ export async function upsertSnapshot(
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await snapshotTable(supabase)
+  const { data, error } = await supabase
+    .from("student_state_snapshots")
     .upsert(payload, {
       onConflict: "tenant_id,student_id,school_year,target_grade,target_semester",
     })
@@ -236,23 +214,12 @@ export async function upsertSnapshot(
 
   await appendMetricEvent(supabase, state, data.id, options?.triggerSource ?? "manual");
 
-  return data;
+  return toPersisted(data);
 }
 
 // ============================================
 // α1-3-b: metric events append
 // ============================================
-
-interface MetricEventTableChain {
-  insert(row: Record<string, unknown>): Promise<{
-    data: unknown;
-    error: { message: string } | null;
-  }>;
-}
-
-function metricEventTable(client: Client): MetricEventTableChain {
-  return client.from("student_state_metric_events" as never) as unknown as MetricEventTableChain;
-}
 
 async function appendMetricEvent(
   client: Client,
@@ -260,7 +227,7 @@ async function appendMetricEvent(
   snapshotId: string,
   triggerSource: MetricEventTriggerSource,
 ): Promise<void> {
-  const row = {
+  const row: MetricEventInsert = {
     tenant_id: state.tenantId,
     student_id: state.studentId,
     snapshot_id: snapshotId,
@@ -279,7 +246,7 @@ async function appendMetricEvent(
     captured_at: state.asOf.builtAt,
   };
 
-  const { error } = await metricEventTable(client).insert(row);
+  const { error } = await client.from("student_state_metric_events").insert(row);
   if (error) {
     // non-fatal — snapshot 은 저장 완료. 호출자가 실패 감지 원하면 try/catch.
     console.warn(`[student-state] metric_event insert failed: ${error.message}`);

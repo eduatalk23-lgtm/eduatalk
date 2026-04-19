@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       academic_sources: {
@@ -13292,6 +13267,7 @@ export type Database = {
           overall_score: number
           record_id: string
           record_type: string
+          retry_count: number
           school_year: number
           scientific_validity: number | null
           source: string
@@ -13312,6 +13288,7 @@ export type Database = {
           overall_score: number
           record_id: string
           record_type: string
+          retry_count?: number
           school_year: number
           scientific_validity?: number | null
           source?: string
@@ -13332,6 +13309,7 @@ export type Database = {
           overall_score?: number
           record_id?: string
           record_type?: string
+          retry_count?: number
           school_year?: number
           scientific_validity?: number | null
           source?: string
@@ -15585,6 +15563,166 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_state_metric_events: {
+        Row: {
+          area_completeness_academic: number | null
+          area_completeness_career: number | null
+          area_completeness_community: number | null
+          captured_at: string
+          completeness_ratio: number
+          created_at: string
+          hakjong_academic: number | null
+          hakjong_career: number | null
+          hakjong_community: number | null
+          hakjong_total: number | null
+          id: string
+          school_year: number
+          snapshot_id: string | null
+          student_id: string
+          target_grade: number
+          target_semester: number
+          tenant_id: string
+          trigger_source: string
+        }
+        Insert: {
+          area_completeness_academic?: number | null
+          area_completeness_career?: number | null
+          area_completeness_community?: number | null
+          captured_at?: string
+          completeness_ratio?: number
+          created_at?: string
+          hakjong_academic?: number | null
+          hakjong_career?: number | null
+          hakjong_community?: number | null
+          hakjong_total?: number | null
+          id?: string
+          school_year: number
+          snapshot_id?: string | null
+          student_id: string
+          target_grade: number
+          target_semester: number
+          tenant_id: string
+          trigger_source: string
+        }
+        Update: {
+          area_completeness_academic?: number | null
+          area_completeness_career?: number | null
+          area_completeness_community?: number | null
+          captured_at?: string
+          completeness_ratio?: number
+          created_at?: string
+          hakjong_academic?: number | null
+          hakjong_career?: number | null
+          hakjong_community?: number | null
+          hakjong_total?: number | null
+          id?: string
+          school_year?: number
+          snapshot_id?: string | null
+          student_id?: string
+          target_grade?: number
+          target_semester?: number
+          tenant_id?: string
+          trigger_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_state_metric_events_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "student_state_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_state_metric_events_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_state_metric_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_state_snapshots: {
+        Row: {
+          as_of_label: string
+          builder_version: string
+          built_at: string
+          completeness_ratio: number
+          created_at: string
+          hakjong_computable: boolean
+          hakjong_total: number | null
+          has_stale_layer: boolean
+          id: string
+          layer_flags: number
+          school_year: number
+          snapshot_data: Json
+          student_id: string
+          target_grade: number
+          target_semester: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          as_of_label?: string
+          builder_version?: string
+          built_at?: string
+          completeness_ratio?: number
+          created_at?: string
+          hakjong_computable?: boolean
+          hakjong_total?: number | null
+          has_stale_layer?: boolean
+          id?: string
+          layer_flags?: number
+          school_year: number
+          snapshot_data: Json
+          student_id: string
+          target_grade: number
+          target_semester: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          as_of_label?: string
+          builder_version?: string
+          built_at?: string
+          completeness_ratio?: number
+          created_at?: string
+          hakjong_computable?: boolean
+          hakjong_total?: number | null
+          has_stale_layer?: boolean
+          id?: string
+          layer_flags?: number
+          school_year?: number
+          snapshot_data?: Json
+          student_id?: string
+          target_grade?: number
+          target_semester?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_state_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_state_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -19235,9 +19373,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       adjustment_type_enum: ["range", "replace", "full"],
