@@ -382,6 +382,63 @@ export interface PipelineStepUsage {
 }
 
 // ============================================
+// α1-2: Volunteer Competency Analysis (봉사활동 역량 태깅)
+// ============================================
+
+/** 봉사활동 단건 요약 (LLM 프롬프트 주입용 경량 구조) */
+export interface VolunteerActivitySummary {
+  /** 봉사 row id */
+  id: string;
+  /** 시간 수 */
+  hours: number;
+  /** 활동 설명 (null 가능) */
+  description: string | null;
+  /** 활동 날짜 (null 가능, ISO string) */
+  activityDate: string | null;
+}
+
+/** 봉사 역량 분석 입력 */
+export interface VolunteerAnalysisInput {
+  /** 분석 대상 학년 */
+  grade: number;
+  /** 해당 학년의 봉사 목록 (빈 배열 허용 — 시간 합계만 반환) */
+  activities: VolunteerActivitySummary[];
+  /** 목표 전공 (공동체역량 문맥 강화 시 활용) */
+  targetMajor?: string;
+  /** Layer 0 프로필 카드 (있으면 이전 학년 문맥 보완) */
+  profileCard?: string;
+}
+
+/**
+ * 봉사 역량 분석 출력.
+ * community_caring / community_leadership 두 역량에 초점을 맞추되,
+ * LLM이 다른 역량(예: career_exploration)에 적합하다고 판단하면 포함할 수 있다.
+ */
+export interface VolunteerAnalysisResult {
+  /** 총 봉사 시간 (입력 hours 합계 — LLM 계산 아님) */
+  totalHours: number;
+  /** 반복 주제 (description 텍스트에서 추출한 2~5개 키워드) */
+  recurringThemes: string[];
+  /** 공동체 돌봄 근거 요약 (community_caring 역량, 최대 3문장) */
+  caringEvidence: string[];
+  /** 리더십 근거 요약 (community_leadership 역량, 최대 2문장; 없으면 빈 배열) */
+  leadershipEvidence: string[];
+  /** activity_tags 저장에 사용할 역량 태그 목록 */
+  competencyTags: Array<{
+    /** 봉사 row id (activity_tags.record_id) */
+    volunteerId: string;
+    /** 역량 코드 */
+    competencyItem: import("@/lib/domains/student-record/types").CompetencyItemCode;
+    /** 평가 방향 */
+    evaluation: "positive" | "negative" | "needs_review";
+    /** 근거 (1줄) */
+    reasoning: string;
+  }>;
+  /** LLM elapsed time (ms) */
+  elapsedMs: number;
+}
+
+// ============================================
 // Stage 1 (측정 루프 닫기): 오프라인 A/B 러너 메트릭
 // ============================================
 
