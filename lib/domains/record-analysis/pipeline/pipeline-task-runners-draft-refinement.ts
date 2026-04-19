@@ -101,6 +101,28 @@ async function fetchCurrentDraft(
   return (data as { ai_draft_content?: string | null } | null)?.ai_draft_content ?? null;
 }
 
+// ─── early-skip 마킹 (retry_count=1 업데이트만 수행) ───────────────────────
+//
+// 목적: no-draft / snapshot 실패 / LLM null / DB update 실패 등 재분석 이전에
+//       발생한 skip 경로에서도 retry_count=1 로 마킹하여 다음 청크 재조회 loop 차단.
+//       score·issues·feedback 은 그대로 유지 (원본 그대로 재사용).
+
+async function markRecordAsRetried(
+  supabase: PipelineContext["supabase"],
+  studentId: string,
+  tenantId: string,
+  recordId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("student_record_content_quality")
+    .update({ retry_count: 1 })
+    .eq("tenant_id", tenantId)
+    .eq("student_id", studentId)
+    .eq("record_id", recordId)
+    .eq("source", "ai_projected");
+  if (error) logActionError(LOG_CTX, error, { recordId, phase: "mark_skip_retried" });
+}
+
 // ─── 스냅샷 수집 ──────────────────────────────────────────────────────────
 
 async function collectSnapshot(
@@ -440,6 +462,7 @@ export async function runDraftRefinementChunkForGrade(
     const previousDraft = await fetchCurrentDraft(supabase, quality.record_type, quality.record_id);
     if (!previousDraft?.trim()) {
       logActionDebug(LOG_CTX, `skip — no draft: ${quality.record_id}`);
+      await markRecordAsRetried(supabase, studentId, tenantId, quality.record_id);
       acc.skipped++;
       continue;
     }
@@ -450,6 +473,7 @@ export async function runDraftRefinementChunkForGrade(
       snap = await collectSnapshot(supabase, studentId, tenantId, targetSchoolYear, quality, previousDraft);
     } catch (err) {
       logActionError(LOG_CTX, err, { recordId: quality.record_id, phase: "snapshot" });
+      await markRecordAsRetried(supabase, studentId, tenantId, quality.record_id);
       acc.skipped++;
       continue;
     }
@@ -493,6 +517,7 @@ export async function runDraftRefinementChunkForGrade(
 
     if (!newDraft) {
       logActionDebug(LOG_CTX, `LLM 에러 또는 빈 응답 — skip: ${quality.record_id}`);
+      await markRecordAsRetried(supabase, studentId, tenantId, quality.record_id);
       acc.skipped++;
       continue;
     }
@@ -509,6 +534,7 @@ export async function runDraftRefinementChunkForGrade(
 
     if (updateErr) {
       logActionError(LOG_CTX, updateErr, { recordId: quality.record_id, phase: "draft_update" });
+      await markRecordAsRetried(supabase, studentId, tenantId, quality.record_id);
       acc.skipped++;
       continue;
     }
