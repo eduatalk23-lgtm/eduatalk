@@ -1,0 +1,118 @@
+name: Student State Snapshot
+
+# α1-3-d: daily StudentState snapshot 일괄 빌드.
+# Vercel Hobby daily cron 제약 준수 — 하루 1회 03:30 KST (UTC 18:30).
+# 준실시간 snapshot 은 α4 Perception Trigger 가 별도 경로로 처리.
+
+on:
+  schedule:
+    # 매일 03:30 KST = UTC 18:30
+    - cron: '30 18 * * *'
+
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '대상 범위'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - tenant
+          - student
+      tenant_id:
+        description: 'tenant UUID (target=tenant 시)'
+        required: false
+        type: string
+      student_id:
+        description: 'student UUID (target=student 시)'
+        required: false
+        type: string
+      dry_run:
+        description: '드라이런 (DB 저장 안 함)'
+        required: false
+        default: false
+        type: boolean
+      concurrency:
+        description: '동시 처리 학생 수'
+        required: false
+        default: '3'
+        type: string
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+jobs:
+  snapshot:
+    name: Build StudentState Snapshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run snapshot build (Scheduled)
+        if: github.event_name == 'schedule'
+        run: |
+          echo "🚀 daily snapshot — all students"
+          npx tsx scripts/build-student-state-snapshot.ts --all --concurrency=3
+        env:
+          NODE_ENV: production
+
+      - name: Run snapshot build (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          TENANT="${{ github.event.inputs.tenant_id }}"
+          STUDENT="${{ github.event.inputs.student_id }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+          CONCURRENCY="${{ github.event.inputs.concurrency }}"
+
+          CMD="npx tsx scripts/build-student-state-snapshot.ts --concurrency=$CONCURRENCY"
+
+          case "$TARGET" in
+            all)
+              CMD="$CMD --all"
+              ;;
+            tenant)
+              if [ -z "$TENANT" ]; then
+                echo "::error::target=tenant 이면 tenant_id 필수"
+                exit 1
+              fi
+              CMD="$CMD --tenant=$TENANT"
+              ;;
+            student)
+              if [ -z "$STUDENT" ]; then
+                echo "::error::target=student 이면 student_id 필수"
+                exit 1
+              fi
+              CMD="$CMD --student=$STUDENT"
+              ;;
+          esac
+
+          if [ "$DRY_RUN" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "실행: $CMD"
+          eval "$CMD"
+        env:
+          NODE_ENV: production

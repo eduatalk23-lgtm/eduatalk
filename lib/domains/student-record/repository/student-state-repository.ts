@@ -281,9 +281,7 @@ async function appendMetricEvent(
 
   const { error } = await metricEventTable(client).insert(row);
   if (error) {
-    // non-fatal — snapshot 은 저장 완료. 로깅 후 resume.
-    // (서버리스에서 logger import 지양 — 호출자가 실패 감지 원하면 try/catch)
-    // eslint-disable-next-line no-console
+    // non-fatal — snapshot 은 저장 완료. 호출자가 실패 감지 원하면 try/catch.
     console.warn(`[student-state] metric_event insert failed: ${error.message}`);
   }
 }
