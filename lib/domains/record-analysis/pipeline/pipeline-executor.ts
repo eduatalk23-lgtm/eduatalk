@@ -333,6 +333,24 @@ export async function runTaskWithState(
           { pipelineId: ctx.pipelineId, studentId: ctx.studentId },
         );
       });
+
+      // α4 Perception Scheduler (2026-04-20 C): snapshot 갱신 직후 diff + trigger 판정.
+      //   snapshot 갱신이 실패했어도 직전 snapshot 과 비교할 수는 있으므로 독립 실행.
+      //   best-effort — 실패해도 파이프라인에 영향 없음.
+      await import("@/lib/domains/student-record/actions/perception-scheduler")
+        .then(({ runPerceptionTrigger }) =>
+          runPerceptionTrigger(ctx.studentId, ctx.tenantId, {
+            source: "pipeline_completion",
+            client: ctx.supabase as SupabaseAdminClient,
+          }),
+        )
+        .catch((err) => {
+          logActionWarn(
+            LOG_CTX,
+            `Perception Trigger 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+            { pipelineId: ctx.pipelineId, studentId: ctx.studentId },
+          );
+        });
     }
   }
 }

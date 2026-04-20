@@ -101,6 +101,34 @@ export async function findLatestSnapshot(
 }
 
 /**
+ * 학생의 가장 최근 N개 snapshot. built_at DESC.
+ *
+ * Perception Scheduler (α4) 가 `[latest, prev]` 두 snapshot 을 받아
+ * `computeStudentStateDiff` → `computePerceptionTrigger` 로 넘기는 주 진입점.
+ *
+ * N < 2 이면 null 반환은 없음 — 빈 배열만 반환. 호출자가 길이 검사 후 "no_prior_snapshot" 등 처리.
+ */
+export async function findTopNSnapshots(
+  studentId: string,
+  tenantId: string,
+  n: number,
+  client?: Client,
+): Promise<PersistedStudentStateSnapshot[]> {
+  if (n <= 0) return [];
+  const supabase = await resolveClient(client);
+  const { data, error } = await supabase
+    .from("student_state_snapshots")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .order("built_at", { ascending: false })
+    .limit(n);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toPersisted);
+}
+
+/**
  * 특정 시점(학년도+학년+학기)의 snapshot.
  * UNIQUE 보장 → 있으면 1건, 없으면 null.
  */
