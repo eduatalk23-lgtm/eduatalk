@@ -15,18 +15,50 @@ export type Artifact = {
    * 지정 시 ArtifactPanel 헤더에 "원본 보기" 링크 렌더.
    */
   originPath?: string;
+  /**
+   * Phase C-2: DB-backed artifact 식별. 클라이언트 ephemeral 객체(tool 즉시 열림)
+   * 인 경우 null. 버전 탭·히스토리 조회는 persistedId 가 있어야 가능.
+   */
+  persistedId?: string | null;
+  /**
+   * Phase C-2: 현재 표시 중인 버전 번호. 서버 hydration 이 끝나면 채워짐.
+   */
+  versionNo?: number | null;
+};
+
+/** Phase C-2: 버전 히스토리 1 행 (API 응답과 동일 필드 + snake→camel 매핑 후). */
+export type ArtifactVersionSummary = {
+  id: string;
+  versionNo: number;
+  createdAt: string;
+  editedByUserId: string | null;
+  /** props 는 전체 포함 — 탭 클릭 시 즉시 전환용. */
+  props: unknown;
 };
 
 type ArtifactStore = {
   artifact: Artifact | null;
+  /** 현재 artifact 의 버전 목록 (DESC). 버전 탭 렌더용. */
+  versions: ArtifactVersionSummary[];
   openArtifact: (artifact: Artifact) => void;
   closeArtifact: () => void;
   isOpen: (id: string) => boolean;
+  /** 서버 hydration 이후 버전 목록·현재 버전 업데이트. */
+  setVersions: (versions: ArtifactVersionSummary[]) => void;
+  /** UI 에서 버전 선택 시 props 교체. */
+  switchVersion: (versionNo: number, props: unknown) => void;
 };
 
 export const useArtifactStore = create<ArtifactStore>((set, get) => ({
   artifact: null,
-  openArtifact: (artifact) => set({ artifact }),
-  closeArtifact: () => set({ artifact: null }),
+  versions: [],
+  openArtifact: (artifact) => set({ artifact, versions: [] }),
+  closeArtifact: () => set({ artifact: null, versions: [] }),
   isOpen: (id) => get().artifact?.id === id,
+  setVersions: (versions) => set({ versions }),
+  switchVersion: (versionNo, props) => {
+    const current = get().artifact;
+    if (!current) return;
+    set({ artifact: { ...current, props, versionNo } });
+  },
 }));

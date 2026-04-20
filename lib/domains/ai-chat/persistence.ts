@@ -8,6 +8,8 @@ import type {
   AIConversationRow,
   AIMessageRow,
 } from "./types";
+import { upsertArtifactWithVersion } from "./artifact-repository";
+import { extractArtifactCandidates } from "./artifact-tool-mapper";
 
 type SaveConversationArgs = {
   conversationId: string;
@@ -79,6 +81,44 @@ export async function saveChatTurn(
 
   if (msgErr) {
     return { ok: false, error: `message upsert: ${msgErr.message}` };
+  }
+
+  // Phase C-2: 응답 메시지의 tool 결과 → artifact upsert (best-effort).
+  // 실패해도 대화 저장은 성공으로 간주. tenant 미지정 대화(legacy)는 skip.
+  if (args.tenantId) {
+    for (const m of messages) {
+      if (m.role !== "assistant") continue;
+      const persistedId =
+        m.id && m.id.length > 0
+          ? m.id
+          : rows.find((r) => r.role === "assistant")?.id ?? null;
+      const candidates = extractArtifactCandidates(m.parts);
+      for (const candidate of candidates) {
+        try {
+          await upsertArtifactWithVersion(
+            {
+              tenantId: args.tenantId,
+              conversationId: args.conversationId,
+              ownerUserId: args.ownerUserId,
+              type: candidate.type,
+              title: candidate.title,
+              subtitle: candidate.subtitle,
+              originPath: candidate.originPath,
+              subjectKey: candidate.subjectKey,
+              props: candidate.props,
+              createdByMessageId: persistedId,
+            },
+            supabase,
+          );
+        } catch (err) {
+          // 개별 artifact 실패는 무음 — 메시지 저장은 이미 성공.
+          console.warn(
+            "[ai-chat] artifact upsert 실패:",
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+    }
   }
 
   return { ok: true };

@@ -4,8 +4,10 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { ExternalLink, X } from "lucide-react";
 import { useArtifactStore, type Artifact } from "@/lib/stores/artifactStore";
+import { useArtifactHistory } from "@/lib/hooks/useArtifactHistory";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "./ScoresCard";
+import { ArtifactVersionTabs } from "./ArtifactVersionTabs";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -23,6 +25,8 @@ const TYPE_LABELS: Record<string, string> = {
  */
 export function ArtifactPanel() {
   const { artifact, closeArtifact } = useArtifactStore();
+  // Phase C-2: persistedId 가 주어지면 버전 히스토리 lazy fetch.
+  useArtifactHistory();
 
   // 모바일 sheet 가 열려 있을 때 바디 스크롤 잠금
   useEffect(() => {
@@ -161,6 +165,7 @@ function ArtifactBody({
           </button>
         </div>
       </header>
+      <ArtifactVersionTabs />
       <div className="flex-1 overflow-y-auto p-4">
         {artifact.type === "scores" && (
           <ScoresCard output={artifact.props as GetScoresOutput} />

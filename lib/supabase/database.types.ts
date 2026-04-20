@@ -484,6 +484,114 @@ export type Database = {
           },
         ]
       }
+      ai_artifact_versions: {
+        Row: {
+          artifact_id: string
+          created_at: string
+          created_by_message_id: string | null
+          edited_by_user_id: string | null
+          id: string
+          props: Json
+          props_hash: string
+          version_no: number
+        }
+        Insert: {
+          artifact_id: string
+          created_at?: string
+          created_by_message_id?: string | null
+          edited_by_user_id?: string | null
+          id?: string
+          props: Json
+          props_hash: string
+          version_no: number
+        }
+        Update: {
+          artifact_id?: string
+          created_at?: string
+          created_by_message_id?: string | null
+          edited_by_user_id?: string | null
+          id?: string
+          props?: Json
+          props_hash?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_artifact_versions_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "ai_artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_artifact_versions_created_by_message_id_fkey"
+            columns: ["created_by_message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_artifacts: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          latest_version: number
+          origin_path: string | null
+          owner_user_id: string
+          subject_key: string | null
+          subtitle: string | null
+          tenant_id: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          latest_version?: number
+          origin_path?: string | null
+          owner_user_id: string
+          subject_key?: string | null
+          subtitle?: string | null
+          tenant_id: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          latest_version?: number
+          origin_path?: string | null
+          owner_user_id?: string
+          subject_key?: string | null
+          subtitle?: string | null
+          tenant_id?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_artifacts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_artifacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_consent_grants: {
         Row: {
           consent_notes: string | null
@@ -668,6 +776,91 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_subagent_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          input: string
+          model_id: string | null
+          session_id: string | null
+          started_at: string | null
+          status: string
+          step_count: number | null
+          student_id: string | null
+          subagent_name: string
+          summary: Json | null
+          tenant_id: string | null
+          total_input_tokens: number | null
+          total_output_tokens: number | null
+          usd_cost: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input: string
+          model_id?: string | null
+          session_id?: string | null
+          started_at?: string | null
+          status?: string
+          step_count?: number | null
+          student_id?: string | null
+          subagent_name: string
+          summary?: Json | null
+          tenant_id?: string | null
+          total_input_tokens?: number | null
+          total_output_tokens?: number | null
+          usd_cost?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: string
+          model_id?: string | null
+          session_id?: string | null
+          started_at?: string | null
+          status?: string
+          step_count?: number | null
+          student_id?: string | null
+          subagent_name?: string
+          summary?: Json | null
+          tenant_id?: string | null
+          total_input_tokens?: number | null
+          total_output_tokens?: number | null
+          usd_cost?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_subagent_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "agent_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_subagent_runs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_subagent_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -6320,6 +6513,7 @@ export type Database = {
           analyzed_by: string | null
           answer_text: string
           audio_url: string | null
+          authenticity_score: number | null
           chain_id: string
           coach_comment: string | null
           consistency_score: number | null
@@ -6327,7 +6521,6 @@ export type Database = {
           created_at: string
           gap_findings: Json
           id: string
-          authenticity_score: number | null
           submitted_at: string
           updated_at: string
         }
@@ -6337,6 +6530,7 @@ export type Database = {
           analyzed_by?: string | null
           answer_text: string
           audio_url?: string | null
+          authenticity_score?: number | null
           chain_id: string
           coach_comment?: string | null
           consistency_score?: number | null
@@ -6344,7 +6538,6 @@ export type Database = {
           created_at?: string
           gap_findings?: Json
           id?: string
-          authenticity_score?: number | null
           submitted_at?: string
           updated_at?: string
         }
@@ -6354,6 +6547,7 @@ export type Database = {
           analyzed_by?: string | null
           answer_text?: string
           audio_url?: string | null
+          authenticity_score?: number | null
           chain_id?: string
           coach_comment?: string | null
           consistency_score?: number | null
@@ -6361,7 +6555,6 @@ export type Database = {
           created_at?: string
           gap_findings?: Json
           id?: string
-          authenticity_score?: number | null
           submitted_at?: string
           updated_at?: string
         }
@@ -9536,111 +9729,6 @@ export type Database = {
           },
         ]
       }
-      publishers: {
-        Row: {
-          created_at: string | null
-          display_order: number
-          id: string
-          is_active: boolean
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          display_order?: number
-          id?: string
-          is_active?: boolean
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          display_order?: number
-          id?: string
-          is_active?: boolean
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      proposal_jobs: {
-        Row: {
-          completed_at: string | null
-          cost_usd: number | null
-          created_at: string
-          engine: string
-          error: string | null
-          gap_priority: string | null
-          id: string
-          metadata: Json
-          model: string | null
-          perception_reasons: string[]
-          perception_source: string
-          severity: string
-          state_as_of: Json
-          status: string
-          student_id: string
-          tenant_id: string
-          triggered_at: string
-          updated_at: string
-        }
-        Insert: {
-          completed_at?: string | null
-          cost_usd?: number | null
-          created_at?: string
-          engine: string
-          error?: string | null
-          gap_priority?: string | null
-          id?: string
-          metadata?: Json
-          model?: string | null
-          perception_reasons?: string[]
-          perception_source: string
-          severity: string
-          state_as_of: Json
-          status: string
-          student_id: string
-          tenant_id: string
-          triggered_at?: string
-          updated_at?: string
-        }
-        Update: {
-          completed_at?: string | null
-          cost_usd?: number | null
-          created_at?: string
-          engine?: string
-          error?: string | null
-          gap_priority?: string | null
-          id?: string
-          metadata?: Json
-          model?: string | null
-          perception_reasons?: string[]
-          perception_source?: string
-          severity?: string
-          state_as_of?: Json
-          status?: string
-          student_id?: string
-          tenant_id?: string
-          triggered_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "proposal_jobs_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proposal_jobs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       proposal_items: {
         Row: {
           created_at: string
@@ -9724,6 +9812,111 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      proposal_jobs: {
+        Row: {
+          completed_at: string | null
+          cost_usd: number | null
+          created_at: string
+          engine: string
+          error: string | null
+          gap_priority: string | null
+          id: string
+          metadata: Json
+          model: string | null
+          perception_reasons: string[]
+          perception_source: string
+          severity: string
+          state_as_of: Json
+          status: string
+          student_id: string
+          tenant_id: string
+          triggered_at: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          engine: string
+          error?: string | null
+          gap_priority?: string | null
+          id?: string
+          metadata?: Json
+          model?: string | null
+          perception_reasons?: string[]
+          perception_source: string
+          severity: string
+          state_as_of: Json
+          status: string
+          student_id: string
+          tenant_id: string
+          triggered_at?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          engine?: string
+          error?: string | null
+          gap_priority?: string | null
+          id?: string
+          metadata?: Json
+          model?: string | null
+          perception_reasons?: string[]
+          perception_source?: string
+          severity?: string
+          state_as_of?: Json
+          status?: string
+          student_id?: string
+          tenant_id?: string
+          triggered_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_jobs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publishers: {
+        Row: {
+          created_at: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       push_dlq: {
         Row: {
@@ -10680,6 +10873,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sms_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_ai_access: {
+        Row: {
+          access_level: string
+          created_at: string
+          granted_at: string | null
+          granted_by: string | null
+          last_revoked_at: string | null
+          notes: string | null
+          revoke_reason: string | null
+          student_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_level?: string
+          created_at?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          last_revoked_at?: string | null
+          notes?: string | null
+          revoke_reason?: string | null
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_level?: string
+          created_at?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          last_revoked_at?: string | null
+          notes?: string | null
+          revoke_reason?: string | null
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_ai_access_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_ai_access_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -12787,60 +13034,6 @@ export type Database = {
           status?: string | null
         }
         Relationships: []
-      }
-      student_ai_access: {
-        Row: {
-          access_level: string
-          created_at: string
-          granted_at: string | null
-          granted_by: string | null
-          last_revoked_at: string | null
-          notes: string | null
-          revoke_reason: string | null
-          student_id: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          access_level?: string
-          created_at?: string
-          granted_at?: string | null
-          granted_by?: string | null
-          last_revoked_at?: string | null
-          notes?: string | null
-          revoke_reason?: string | null
-          student_id: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          access_level?: string
-          created_at?: string
-          granted_at?: string | null
-          granted_by?: string | null
-          last_revoked_at?: string | null
-          notes?: string | null
-          revoke_reason?: string | null
-          student_id?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_ai_access_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: true
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_ai_access_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       student_record_activity_summaries: {
         Row: {
@@ -19864,3 +20057,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.90.0 (currently installed v2.65.5)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

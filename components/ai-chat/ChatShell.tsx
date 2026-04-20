@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
+import { useConversationArtifactHydration } from "@/lib/hooks/useConversationArtifactHydration";
 import { RecordAnalysisCard } from "@/components/ai-chat/RecordAnalysisCard";
 import { ArtifactPanel } from "@/components/ai-chat/ArtifactPanel";
 import { Markdown } from "@/components/ai-chat/Markdown";
@@ -134,6 +135,7 @@ export function ChatShell({
   const scrollRef = useRef<HTMLDivElement>(null);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
   const openedArtifactId = useArtifactStore((s) => s.artifact?.id ?? null);
+  const hydrateArtifacts = useConversationArtifactHydration(conversationId);
 
   const { messages, sendMessage, status, error, stop, addToolResult } =
     useChat({
@@ -146,6 +148,8 @@ export function ChatShell({
       // state 는 보존함.
       onFinish: () => {
         router.refresh();
+        // Phase C-2: DB 에 저장된 artifact 의 persistedId 를 현재 열린 카드에 주입.
+        void hydrateArtifacts();
       },
     });
 
