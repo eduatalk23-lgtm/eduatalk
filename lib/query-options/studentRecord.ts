@@ -45,6 +45,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "profileCards", studentId] as const,
   studentStateLatest: (studentId: string) =>
     [...studentRecordKeys.all, "studentStateLatest", studentId] as const,
+  perceptionTrigger: (studentId: string) =>
+    [...studentRecordKeys.all, "perceptionTrigger", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -190,6 +192,22 @@ export function studentStateQueryOptions(studentId: string, tenantId: string) {
         "@/lib/domains/student-record/actions/diagnosis-helpers"
       );
       return fetchLatestStudentStateSnapshot(studentId, tenantId);
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** α4 (2026-04-20 C): snapshot 2개 비교 기반 Perception Trigger 판정 결과. */
+export function perceptionTriggerQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.perceptionTrigger(studentId),
+    queryFn: async () => {
+      const { fetchPerceptionTriggerResult } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchPerceptionTriggerResult(studentId, tenantId);
     },
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,

@@ -14,7 +14,11 @@
 // ============================================
 
 import { useQuery } from "@tanstack/react-query";
-import { studentStateQueryOptions } from "@/lib/query-options/studentRecord";
+import {
+  studentStateQueryOptions,
+  perceptionTriggerQueryOptions,
+} from "@/lib/query-options/studentRecord";
+import type { PerceptionBadgeDTO } from "@/lib/domains/student-record/actions/diagnosis-helpers";
 import {
   SNAPSHOT_LAYER_FLAGS,
   type StudentState,
@@ -53,6 +57,9 @@ const LAYER_FLAG_LABELS: ReadonlyArray<{
 export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
   const { data: snapshot, isLoading } = useQuery(
     studentStateQueryOptions(studentId, tenantId),
+  );
+  const { data: perception } = useQuery(
+    perceptionTriggerQueryOptions(studentId, tenantId),
   );
 
   if (isLoading) {
@@ -103,6 +110,7 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
               v2Pre={state.hakjongScoreV2Pre}
             />
           )}
+          {perception && <PerceptionBadge dto={perception} />}
           <CompletenessBadge pct={completenessPct} />
         </div>
       </header>
@@ -276,6 +284,41 @@ function HakjongAreaCell({
         </p>
       )}
     </div>
+  );
+}
+
+// α4 (2026-04-20 C): snapshot 2개 비교 기반 Perception Trigger 결과.
+//   evaluated=false (snapshot < 2) → 렌더 안 함.
+//   triggered=false → 조용한 회색 "변화 없음".
+//   triggered=true → severity 색상 + title 에 reasons 나열.
+function PerceptionBadge({ dto }: { dto: PerceptionBadgeDTO }) {
+  if (!dto.evaluated) return null;
+  if (!dto.triggered) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/20 dark:text-gray-400"
+        title="이전 snapshot 대비 유의미한 변화 없음"
+      >
+        Perception —
+      </span>
+    );
+  }
+  const tone =
+    dto.severity === "high" ? "red" : dto.severity === "medium" ? "amber" : "blue";
+  const bgByTone = {
+    red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+    amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+    blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+  }[tone];
+  const severityLabel =
+    dto.severity === "high" ? "HIGH" : dto.severity === "medium" ? "MED" : "LOW";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${bgByTone}`}
+      title={dto.reasons.length > 0 ? dto.reasons.join("\n") : "자율 Agent 재평가 권장"}
+    >
+      Perception {severityLabel}
+    </span>
   );
 }
 

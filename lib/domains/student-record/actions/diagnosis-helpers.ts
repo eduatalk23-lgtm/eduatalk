@@ -94,6 +94,46 @@ export async function fetchLatestStudentStateSnapshot(
   }
 }
 
+/**
+ * α4 Perception Badge DTO — snapshot 2개 비교로 trigger 판정 결과를 UI 용으로 축약.
+ * "use server" 제약: type re-export 금지 → 이 파일에서 직접 정의 (inline DTO).
+ */
+export type PerceptionBadgeDTO = {
+  evaluated: boolean;
+  triggered: boolean;
+  severity: "none" | "low" | "medium" | "high";
+  reasons: string[];
+};
+
+/**
+ * α4 Perception Trigger 판정 결과 (UI 뱃지 용).
+ *
+ * snapshot 2개 미만 → evaluated=false (UI 에서 숨김).
+ * snapshot 조회/판정 실패 → 조용히 evaluated=false (로그만).
+ */
+export async function fetchPerceptionTriggerResult(
+  studentId: string,
+  tenantId: string,
+): Promise<PerceptionBadgeDTO> {
+  try {
+    await requireAdminOrConsultant();
+    const { runPerceptionTrigger } = await import("./perception-scheduler");
+    const result = await runPerceptionTrigger(studentId, tenantId, { source: "manual" });
+    if (result.status === "evaluated") {
+      return {
+        evaluated: true,
+        triggered: result.triggered,
+        severity: result.severity,
+        reasons: [...result.reasons],
+      };
+    }
+    return { evaluated: false, triggered: false, severity: "none", reasons: [] };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPerceptionTriggerResult" }, error, { studentId });
+    return { evaluated: false, triggered: false, severity: "none", reasons: [] };
+  }
+}
+
 /** 학생의 면접 예상 질문 조회 */
 export async function fetchInterviewQuestions(
   studentId: string,
