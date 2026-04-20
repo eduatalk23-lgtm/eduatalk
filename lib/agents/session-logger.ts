@@ -1,9 +1,11 @@
 // ============================================
 // 에이전트 세션 로거 — fire-and-forget
 // agent_sessions + agent_step_traces 일괄 INSERT
+// Phase G-3: DB 저장 후 OTel exporter 로 fan-out (env 게이트, no-op by default)
 // ============================================
 
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
+import { exportAgentSession } from "@/lib/observability/otel";
 
 const LOG_CTX = { domain: "agent", action: "session-log" };
 const MAX_RETRIES = 2;
@@ -57,8 +59,24 @@ function truncateText(text: string | undefined, maxSize: number): string | null 
 /**
  * 세션 + 스텝 트레이스 일괄 저장 (fire-and-forget).
  * Supabase REST API 직접 호출 — 타입 생성 불필요.
+ *
+ * DB 저장이 완료된 후, enabled OTel exporter 로 fan-out (exporter 하나도 enabled
+ * 아니면 no-op). Vercel 서버리스에서 void 로 띄우면 함수 종료 시 유실되므로
+ * 반드시 await (feedback_void-supabase-forbidden.md).
  */
 export async function logAgentSession(params: AgentSessionParams): Promise<void> {
+  const startedAtMs = Date.now() - (params.durationMs ?? 0);
+
+  // DB 쓰기 성공/실패 여부와 무관하게 OTel exporter 는 항상 실행되도록 try/finally.
+  try {
+    await writeAgentSessionToDb(params);
+  } finally {
+    // exporter 내부는 이미 try/catch 로 실패를 흡수. env 미설정이면 no-op.
+    await exportAgentSession(params, startedAtMs);
+  }
+}
+
+async function writeAgentSessionToDb(params: AgentSessionParams): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
