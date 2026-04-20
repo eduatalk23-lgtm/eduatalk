@@ -103,3 +103,29 @@ export interface BlueprintGapInput {
   readonly currentGrade: 1 | 2 | 3;
   readonly currentSemester: 1 | 2;
 }
+
+// ─── α3-3 (2026-04-20): 다중 시나리오 브랜치 ──────────────────
+//
+// 단일 blueprint target 대신 3 시나리오(baseline/stable/aggressive) 동시 계산.
+// baseline = 현 anchor.competencyGrowthTargets 그대로,
+// stable   = 각 target 등급 -1 (보수적, 하한 C),
+// aggressive = 각 target 등급 +1 (공격적, 상한 A+).
+// 융합형(fusion) 은 LLM 기반 진로×공동체 균형 규칙 필요 → β 이월.
+
+/** 시나리오 종류. v1 은 3 종. β 에서 'fusion' 추가. */
+export type ScenarioType = "baseline" | "stable" | "aggressive";
+
+/**
+ * 다중 시나리오 GAP 계산 결과.
+ * baseline 은 항상 존재. stable/aggressive 는 baseline 이 비어있으면 null.
+ * dominantScenario 는 max areaGap 기준 최대 gap 시나리오.
+ */
+export interface MultiScenarioBlueprintGap {
+  readonly computedAt: string;
+  readonly version: "v1_rule_multi";
+  readonly baseline: BlueprintGap;
+  readonly stable: BlueprintGap | null;
+  readonly aggressive: BlueprintGap | null;
+  /** 3 시나리오 중 maxAreaGap 가장 큰 것. baseline targets 비어있으면 null. */
+  readonly dominantScenario: ScenarioType | null;
+}
