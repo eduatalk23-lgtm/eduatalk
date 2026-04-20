@@ -18,10 +18,12 @@ import Button from "@/components/atoms/Button";
 import {
   proposalJobDetailQueryOptions,
   perceptionTriggerQueryOptions,
+  recentProposalJobsQueryOptions,
 } from "@/lib/query-options/studentRecord";
 import {
   updateProposalItemDecisionAction,
   type ProposalJobDetailDTO,
+  type RecentProposalJobDTO,
 } from "@/lib/domains/student-record/actions/diagnosis-helpers";
 
 interface Props {
@@ -82,6 +84,10 @@ export function ProposalJobDrawer({
     ...perceptionTriggerQueryOptions(studentId, tenantId),
     enabled: open,
   });
+  const { data: recentJobs } = useQuery({
+    ...recentProposalJobsQueryOptions(studentId, tenantId, 5),
+    enabled: open,
+  });
 
   const title =
     job && job.items.length > 0
@@ -126,6 +132,16 @@ export function ProposalJobDrawer({
               <DeltaSummary delta={perception.delta} />
             )}
 
+            {/* Phase 2: Blueprint tier_plan 요약 */}
+            {job.stateSummary?.blueprint && (
+              <BlueprintSection blueprint={job.stateSummary.blueprint} />
+            )}
+
+            {/* Phase 2: BlueprintGap 상위 3축 */}
+            {job.stateSummary?.blueprintGap && (
+              <BlueprintGapSection gap={job.stateSummary.blueprintGap} />
+            )}
+
             {job.perceptionReasons.length > 0 && (
               <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
                 <h4 className="mb-1 font-semibold text-[var(--text-secondary)]">
@@ -153,6 +169,11 @@ export function ProposalJobDrawer({
                 />
               ))}
             </ol>
+
+            {/* Phase 2: 같은 학생 과거 Job 목록 (현 job 제외, 아코디언) */}
+            {recentJobs && recentJobs.length > 1 && (
+              <PastJobsSection jobs={recentJobs} currentJobId={job.jobId} />
+            )}
           </div>
         )}
       </DialogContent>
@@ -311,10 +332,18 @@ function ProposalItemCard({
       )}
 
       {item.evidenceRefs.length > 0 && (
-        <Field label="근거 ref">
-          <code className="block text-xs text-[var(--text-tertiary)]">
-            {item.evidenceRefs.join(", ")}
-          </code>
+        <Field label="근거">
+          <div className="flex flex-wrap gap-1">
+            {item.evidenceRefs.map((ref, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                title={ref}
+              >
+                {translateEvidenceRef(ref)}
+              </span>
+            ))}
+          </div>
         </Field>
       )}
 
@@ -588,6 +617,257 @@ function DeltaSummary({
       </div>
     </section>
   );
+}
+
+// ─── Phase 2: Blueprint tier_plan 요약 ───────────────────────
+
+function BlueprintSection({
+  blueprint,
+}: {
+  blueprint: NonNullable<
+    NonNullable<ProposalJobDetailDTO>["stateSummary"]
+  >["blueprint"];
+}) {
+  if (!blueprint) return null;
+  const { tierThemes, targetUniversityLevel, origin } = blueprint;
+  const hasAny =
+    tierThemes.foundational ||
+    tierThemes.development ||
+    tierThemes.advanced ||
+    targetUniversityLevel;
+  if (!hasAny) return null;
+
+  return (
+    <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
+      <header className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="font-semibold text-[var(--text-secondary)]">
+          Blueprint — 3단 탐구 계획
+        </h4>
+        <div className="flex gap-1 text-[10px] text-[var(--text-tertiary)]">
+          {origin && (
+            <span className="rounded bg-[var(--bg-secondary)] px-1.5 py-0.5">
+              {origin}
+            </span>
+          )}
+          {targetUniversityLevel && (
+            <span className="rounded bg-[var(--bg-secondary)] px-1.5 py-0.5">
+              {targetUniversityLevel}
+            </span>
+          )}
+        </div>
+      </header>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <TierCell label="기초" theme={tierThemes.foundational} />
+        <TierCell label="심화" theme={tierThemes.development} />
+        <TierCell label="고급" theme={tierThemes.advanced} />
+      </div>
+    </section>
+  );
+}
+
+function TierCell({
+  label,
+  theme,
+}: {
+  label: string;
+  theme: string | null;
+}) {
+  return (
+    <div className="rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-2">
+      <div className="mb-0.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
+        {label}
+      </div>
+      <div className="text-[11px] text-[var(--text-primary)]">
+        {theme ?? (
+          <span className="italic text-[var(--text-tertiary)]">미설정</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 2: BlueprintGap 상위 축 ────────────────────────────
+
+function BlueprintGapSection({
+  gap,
+}: {
+  gap: NonNullable<
+    NonNullable<ProposalJobDetailDTO>["stateSummary"]
+  >["blueprintGap"];
+}) {
+  if (!gap) return null;
+  const priorityColor =
+    gap.priority === "high"
+      ? "text-red-600 dark:text-red-400"
+      : gap.priority === "medium"
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-[var(--text-secondary)]";
+  const PATTERN_KO: Record<
+    "insufficient" | "excess" | "mismatch" | "latent",
+    string
+  > = {
+    insufficient: "부족",
+    excess: "과잉",
+    mismatch: "불일치",
+    latent: "잠재",
+  };
+
+  return (
+    <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
+      <header className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="font-semibold text-[var(--text-secondary)]">
+          청사진 GAP{" "}
+          <span className={priorityColor}>priority={gap.priority}</span>
+        </h4>
+        <span className="text-[var(--text-tertiary)]">
+          잔여 {gap.remainingSemesters}학기
+        </span>
+      </header>
+      <p className="mb-2 text-[var(--text-primary)]">{gap.summary}</p>
+      {gap.topAxisGaps.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {gap.topAxisGaps.map((a, i) => (
+            <li
+              key={i}
+              className="flex flex-wrap items-baseline gap-x-2 rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1"
+            >
+              <span className="font-medium text-[var(--text-primary)]">
+                {CODE_KO[a.code] ?? a.code}
+              </span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">
+                [{PATTERN_KO[a.pattern]}]
+              </span>
+              <span className="text-[var(--text-secondary)]">
+                {a.currentGrade ?? "—"} → {a.targetGrade ?? "—"}
+              </span>
+              <span className="text-[var(--text-tertiary)]">
+                (diff {a.gapSize})
+              </span>
+              <span className="w-full text-[10px] text-[var(--text-tertiary)]">
+                {a.rationale}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ─── Phase 2: 같은 학생 과거 Job 목록 ───────────────────────
+
+function PastJobsSection({
+  jobs,
+  currentJobId,
+}: {
+  jobs: RecentProposalJobDTO[];
+  currentJobId: string;
+}) {
+  const past = jobs.filter((j) => j.jobId !== currentJobId);
+  if (past.length === 0) return null;
+
+  return (
+    <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
+      <details>
+        <summary className="cursor-pointer font-semibold text-[var(--text-secondary)]">
+          과거 제안 이력 ({past.length}건)
+        </summary>
+        <ul className="mt-2 flex flex-col gap-1">
+          {past.map((j) => {
+            const decidedTotal = j.acceptedCount + j.rejectedCount;
+            const pending = j.itemCount - decidedTotal;
+            return (
+              <li
+                key={j.jobId}
+                className="rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1.5"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
+                  <span className="text-[var(--text-tertiary)]">
+                    {formatDate(j.triggeredAt)}
+                  </span>
+                  <span className="rounded bg-[var(--bg-primary)] px-1 py-0.5 text-[10px]">
+                    {j.engine}
+                  </span>
+                  {j.model && (
+                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                      {j.model}
+                    </span>
+                  )}
+                  <span className="text-[var(--text-primary)]">
+                    {j.itemCount}건
+                  </span>
+                  {j.acceptedCount > 0 && (
+                    <span className="text-green-600 dark:text-green-400">
+                      수락 {j.acceptedCount}
+                    </span>
+                  )}
+                  {j.rejectedCount > 0 && (
+                    <span className="text-red-600 dark:text-red-400">
+                      거절 {j.rejectedCount}
+                    </span>
+                  )}
+                  {pending > 0 && (
+                    <span className="text-[var(--text-tertiary)]">
+                      미결 {pending}
+                    </span>
+                  )}
+                </div>
+                {j.topItemNames.length > 0 && (
+                  <div className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+                    {j.topItemNames.join(" / ")}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </details>
+    </section>
+  );
+}
+
+// ─── Phase 2: evidence_refs 한글 번역 ─────────────────────────
+
+const SIGNAL_KO: Record<string, string> = {
+  stale_blueprint: "청사진 갱신 필요",
+  hakjong_delta: "학종 점수 변화",
+  competency_change: "역량 변화",
+  new_records: "신규 기록",
+  volunteer_hours: "봉사 시간",
+  awards: "수상",
+  integrity: "출결",
+};
+
+const GAP_PATTERN_KO: Record<string, string> = {
+  insufficient: "부족",
+  excess: "과잉",
+  mismatch: "불일치",
+  latent: "잠재",
+};
+
+function translateEvidenceRef(ref: string): string {
+  // signal:<kind>
+  if (ref.startsWith("signal:")) {
+    const kind = ref.slice("signal:".length);
+    return SIGNAL_KO[kind] ?? ref;
+  }
+  // gap:<axis>:<pattern>  (rule-proposal 가 생성)
+  if (ref.startsWith("gap:")) {
+    const parts = ref.slice("gap:".length).split(":");
+    if (parts.length >= 2) {
+      const [code, pattern] = parts;
+      const axisKo = CODE_KO[code] ?? code;
+      const patternKo = GAP_PATTERN_KO[pattern] ?? pattern;
+      return `${axisKo} ${patternKo}`;
+    }
+  }
+  // axis:<code>
+  if (ref.startsWith("axis:")) {
+    const code = ref.slice("axis:".length);
+    return CODE_KO[code] ?? code;
+  }
+  // record_id 같은 32+자 UUID 는 그대로
+  return ref;
 }
 
 // ─── 헬퍼 ─────────────────────────────────────────────────────

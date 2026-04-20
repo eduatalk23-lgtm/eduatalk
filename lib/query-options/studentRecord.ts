@@ -51,6 +51,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "latestProposalJob", studentId] as const,
   proposalJobDetail: (jobId: string) =>
     [...studentRecordKeys.all, "proposalJobDetail", jobId] as const,
+  recentProposalJobs: (studentId: string) =>
+    [...studentRecordKeys.all, "recentProposalJobs", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -228,6 +230,26 @@ export function latestProposalJobQueryOptions(studentId: string, tenantId: strin
         "@/lib/domains/student-record/actions/diagnosis-helpers"
       );
       return fetchLatestProposalJob(studentId, tenantId);
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** α4 Phase 2 (2026-04-20): 학생 최근 Proposal Job 목록 (Drawer 아코디언). */
+export function recentProposalJobsQueryOptions(
+  studentId: string,
+  tenantId: string,
+  limit = 5,
+) {
+  return queryOptions({
+    queryKey: studentRecordKeys.recentProposalJobs(studentId),
+    queryFn: async () => {
+      const { fetchRecentProposalJobs } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchRecentProposalJobs(studentId, tenantId, limit);
     },
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,

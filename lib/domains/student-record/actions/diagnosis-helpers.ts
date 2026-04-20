@@ -277,6 +277,30 @@ export type ProposalJobDetailDTO = {
     /** code → grade ("A+"|"A-"|"B+"|"B"|"B-"|"C"|null). item.targetAxes 조회용. */
     competencyAxes: Record<string, string | null>;
     completenessRatio: number;
+    /** Phase 2: 현 blueprint tier_plan 요약 (3 tier themes + target). */
+    blueprint: {
+      origin: string | null;
+      targetUniversityLevel: string | null;
+      tierThemes: {
+        foundational: string | null;
+        development: string | null;
+        advanced: string | null;
+      };
+    } | null;
+    /** Phase 2: BlueprintGap 상위 axisGap 3건 + priority/summary. */
+    blueprintGap: {
+      priority: "high" | "medium" | "low";
+      summary: string;
+      remainingSemesters: number;
+      topAxisGaps: Array<{
+        code: string;
+        pattern: "insufficient" | "excess" | "mismatch" | "latent";
+        currentGrade: string | null;
+        targetGrade: string | null;
+        gapSize: number;
+        rationale: string;
+      }>;
+    } | null;
   } | null;
   items: Array<{
     id: string;
@@ -378,16 +402,78 @@ export async function fetchProposalJobDetail(
         competencies?: {
           axes: Array<{ code: string; grade: string | null }>;
         } | null;
+        blueprint?: {
+          origin?: string | null;
+          targetUniversityLevel?: string | null;
+          tierPlan?: {
+            foundational?: { theme?: string } | unknown;
+            development?: { theme?: string } | unknown;
+            advanced?: { theme?: string } | unknown;
+          } | null;
+        } | null;
+        blueprintGap?: {
+          priority: "high" | "medium" | "low";
+          summary: string;
+          remainingSemesters: number;
+          axisGaps: Array<{
+            code: string;
+            pattern: "insufficient" | "excess" | "mismatch" | "latent";
+            currentGrade: string | null;
+            targetGrade: string | null;
+            gapSize: number;
+            rationale: string;
+          }>;
+        } | null;
       } | null;
+
       const axes: Record<string, string | null> = {};
       for (const a of snap?.competencies?.axes ?? []) {
         axes[a.code] = a.grade ?? null;
       }
+
+      // Phase 2: blueprint tier themes 추출
+      const pickTheme = (tier: unknown): string | null => {
+        if (!tier || typeof tier !== "object") return null;
+        const t = tier as { theme?: unknown };
+        return typeof t.theme === "string" ? t.theme : null;
+      };
+      const bp = snap?.blueprint ?? null;
+      const blueprint: NonNullable<
+        ProposalJobDetailDTO["stateSummary"]
+      >["blueprint"] = bp
+        ? {
+            origin: bp.origin ?? null,
+            targetUniversityLevel: bp.targetUniversityLevel ?? null,
+            tierThemes: {
+              foundational: pickTheme(bp.tierPlan?.foundational),
+              development: pickTheme(bp.tierPlan?.development),
+              advanced: pickTheme(bp.tierPlan?.advanced),
+            },
+          }
+        : null;
+
+      // Phase 2: blueprintGap 상위 3건
+      const bg = snap?.blueprintGap ?? null;
+      const blueprintGap: NonNullable<
+        ProposalJobDetailDTO["stateSummary"]
+      >["blueprintGap"] = bg
+        ? {
+            priority: bg.priority,
+            summary: bg.summary,
+            remainingSemesters: bg.remainingSemesters,
+            topAxisGaps: [...bg.axisGaps]
+              .sort((a, b) => Math.abs(b.gapSize) - Math.abs(a.gapSize))
+              .slice(0, 3),
+          }
+        : null;
+
       stateSummary = {
         asOfLabel: snapshotRes.data.as_of_label,
         hakjongScore: snap?.hakjongScore ?? null,
         competencyAxes: axes,
         completenessRatio: snapshotRes.data.completeness_ratio,
+        blueprint,
+        blueprintGap,
       };
     }
 
@@ -455,6 +541,100 @@ export async function fetchProposalJobDetail(
       { jobId },
     );
     return null;
+  }
+}
+
+/**
+ * α4 Phase 2 (2026-04-20): 학생 최근 Proposal Job 목록 (Drawer 과거 아코디언 용).
+ * 같은 학생에 같은 제안이 반복 올라오는지 컨설턴트 확인 용.
+ */
+export type RecentProposalJobDTO = {
+  jobId: string;
+  engine: "rule_v1" | "llm_v1";
+  severity: "none" | "low" | "medium" | "high";
+  triggeredAt: string;
+  model: string | null;
+  costUsd: number | null;
+  itemCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  topItemNames: string[];
+};
+
+export async function fetchRecentProposalJobs(
+  studentId: string,
+  tenantId: string,
+  limit = 5,
+): Promise<RecentProposalJobDTO[]> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: jobs, error } = await supabase
+      .from("proposal_jobs")
+      .select("id, engine, severity, triggered_at, model, cost_usd")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("status", "completed")
+      .order("triggered_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    if (!jobs || jobs.length === 0) return [];
+
+    const ids = jobs.map((j) => j.id);
+    const { data: items, error: itemErr } = await supabase
+      .from("proposal_items")
+      .select("job_id, name, rank, student_decision")
+      .in("job_id", ids)
+      .order("rank", { ascending: true });
+    if (itemErr) throw itemErr;
+
+    const byJob = new Map<
+      string,
+      { names: string[]; accepted: number; rejected: number; count: number }
+    >();
+    for (const it of items ?? []) {
+      const v = byJob.get(it.job_id) ?? {
+        names: [],
+        accepted: 0,
+        rejected: 0,
+        count: 0,
+      };
+      v.count++;
+      if (it.student_decision === "accepted" || it.student_decision === "executed")
+        v.accepted++;
+      if (it.student_decision === "rejected") v.rejected++;
+      if (v.names.length < 3) v.names.push(it.name);
+      byJob.set(it.job_id, v);
+    }
+
+    return jobs.map((j) => {
+      const agg = byJob.get(j.id) ?? {
+        names: [],
+        accepted: 0,
+        rejected: 0,
+        count: 0,
+      };
+      return {
+        jobId: j.id,
+        engine: j.engine as "rule_v1" | "llm_v1",
+        severity: j.severity as "none" | "low" | "medium" | "high",
+        triggeredAt: j.triggered_at,
+        model: j.model,
+        costUsd: j.cost_usd,
+        itemCount: agg.count,
+        acceptedCount: agg.accepted,
+        rejectedCount: agg.rejected,
+        topItemNames: agg.names,
+      };
+    });
+  } catch (error) {
+    logActionError(
+      { ...LOG_CTX, action: "fetchRecentProposalJobs" },
+      error,
+      { studentId },
+    );
+    return [];
   }
 }
 
