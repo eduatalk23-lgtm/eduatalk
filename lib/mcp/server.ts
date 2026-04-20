@@ -59,6 +59,16 @@ import {
   analyzeRecordDeepExecute,
   analyzeRecordDeepInputShape,
 } from "@/lib/mcp/tools/analyzeRecordDeep";
+import {
+  designStudentPlanDescription,
+  designStudentPlanExecute,
+  designStudentPlanInputShape,
+} from "@/lib/mcp/tools/designStudentPlan";
+import {
+  analyzeAdmissionDescription,
+  analyzeAdmissionExecute,
+  analyzeAdmissionInputShape,
+} from "@/lib/mcp/tools/analyzeAdmission";
 
 export const MCP_SERVER_INFO = {
   name: "eduatalk-mcp",
@@ -244,6 +254,48 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const result = await analyzeRecordDeepExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "designStudentPlan",
+    {
+      description: designStudentPlanDescription,
+      inputSchema: designStudentPlanInputShape,
+    },
+    async (args) => {
+      const result = await designStudentPlanExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "analyzeAdmission",
+    {
+      description: analyzeAdmissionDescription,
+      inputSchema: analyzeAdmissionInputShape,
+    },
+    async (args) => {
+      const result = await analyzeAdmissionExecute(args);
       return {
         content: [
           {

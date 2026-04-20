@@ -438,18 +438,24 @@ describe("POST /api/admin/pipeline/synthesis/phase-6", () => {
     expect(json.error).toBe("pipelineId 필수");
   });
 
-  it("executeSynthesisPhase6 성공 → 200 + phase:6, type:'synthesis', final:true", async () => {
+  it("executeSynthesisPhase6 성공 → 200 + phase:6, type:'synthesis', completed:true", async () => {
+    // phase-7 이 실제 final 이므로 phase-6 응답엔 final 없음.
     mockLoadPipelineContext.mockResolvedValue(makeMockCtx());
     mockExecuteSynthesisPhase6.mockResolvedValue(undefined);
 
     const res = await callRoute({ pipelineId: "synth-pipeline-abc" });
 
     expect(res.status).toBe(200);
-    const json = await res.json() as { phase: number; type: string; completed: boolean; final: boolean };
+    const json = (await res.json()) as {
+      phase: number;
+      type: string;
+      completed: boolean;
+      final?: boolean;
+    };
     expect(json.phase).toBe(6);
     expect(json.type).toBe("synthesis");
     expect(json.completed).toBe(true);
-    expect(json.final).toBe(true);
+    expect(json.final).toBeUndefined();
   });
 
   it("executeSynthesisPhase6 throw → 500 + 올바른 에러 메시지", async () => {

@@ -25,6 +25,8 @@ import {
   GitBranch,
   User as UserIcon,
   Brain,
+  CalendarClock,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -47,6 +49,8 @@ import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-a
 import type { NavigateToOutput } from "@/lib/mcp/tools/navigateTo";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 import type { AnalyzeRecordDeepOutput } from "@/lib/mcp/tools/analyzeRecordDeep";
+import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
+import type { AnalyzeAdmissionOutput } from "@/lib/mcp/tools/analyzeAdmission";
 import type { ArchiveConversationOutput } from "@/app/api/chat/route";
 
 const PATH_LABELS: Record<string, string> = {
@@ -1440,6 +1444,345 @@ function MessageRow({
             );
           }
 
+          // Phase G S-3-a: 수강 계획 설계 서브에이전트(designStudentPlan) 진행·요약 카드.
+          if (
+            toolCardsMounted &&
+            matchesTool(p, "designStudentPlan") &&
+            "state" in p
+          ) {
+            const state = toolState(p.state);
+            const input =
+              "input" in p
+                ? (p.input as { studentName?: string; request?: string })
+                : undefined;
+            const output =
+              state === "success"
+                ? extractToolOutput<DesignStudentPlanOutput>(p.output)
+                : undefined;
+
+            const progressLabel =
+              state === "running"
+                ? "수강 계획 분석 중 (최대 40초)"
+                : "계획 요청 준비 중";
+            const requestSnippet = input?.request
+              ? input.request.length > 40
+                ? `${input.request.slice(0, 40)}…`
+                : input.request
+              : null;
+
+            const summary = !output
+              ? [input?.studentName, progressLabel, requestSnippet]
+                  .filter(Boolean)
+                  .join(" · ")
+              : output.ok === false
+                ? (output.reason ?? "수강 계획 설계 실패")
+                : `${output.studentName ?? input?.studentName ?? "학생"} · ${output.stepCount}단계 · ${(
+                    output.durationMs / 1000
+                  ).toFixed(1)}초`;
+
+            const ok = output?.ok === true ? output : null;
+
+            return (
+              <ToolCard
+                key={i}
+                name="수강 계획 설계"
+                icon={<CalendarClock size={14} />}
+                state={output?.ok === false ? "error" : state}
+                summary={summary}
+                errorText={output?.ok === false ? output.reason : undefined}
+              >
+                {ok ? (
+                  <div className="flex flex-col gap-3 text-sm text-zinc-700 dark:text-zinc-200">
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/60">
+                      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        결론
+                      </div>
+                      <div className="mt-0.5 font-medium">
+                        {ok.summary.headline}
+                      </div>
+                      {typeof ok.summary.adequacyScore === "number" && (
+                        <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          교과이수적합도 {ok.summary.adequacyScore}점
+                        </div>
+                      )}
+                    </div>
+                    {ok.summary.keyFindings.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          주요 발견
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.keyFindings.map((f, idx) => (
+                            <li
+                              key={`${i}-pkf-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">•</span>
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.conflicts.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-rose-500 dark:text-rose-400">
+                          충돌
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.conflicts.map((c, idx) => (
+                            <li
+                              key={`${i}-pc-${idx}`}
+                              className="flex gap-2 text-rose-700 dark:text-rose-300"
+                            >
+                              <span>⚠</span>
+                              <span>{c}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.recommendedCourses.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          추천 과목
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {ok.summary.recommendedCourses.map((c, idx) => (
+                            <span
+                              key={`${i}-prc-${idx}`}
+                              className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {ok.summary.recommendedActions.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          추천 액션
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.recommendedActions.map((a, idx) => (
+                            <li
+                              key={`${i}-pra-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">→</span>
+                              <span>{a}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.artifactIds.length > 0 && (
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        관련 아티팩트: {ok.summary.artifactIds.join(", ")}
+                      </div>
+                    )}
+                    {ok.summary.followUpQuestions &&
+                      ok.summary.followUpQuestions.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            후속 질문 후보
+                          </div>
+                          <ul className="mt-1 flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-300">
+                            {ok.summary.followUpQuestions.map((q, idx) => (
+                              <li
+                                key={`${i}-pfq-${idx}`}
+                                className="flex gap-2"
+                              >
+                                <span className="text-zinc-400">?</span>
+                                <span>{q}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
+          // Phase G S-3-b: 입시 배치·면접·교차지원 서브에이전트(analyzeAdmission) 진행·요약 카드.
+          if (
+            toolCardsMounted &&
+            matchesTool(p, "analyzeAdmission") &&
+            "state" in p
+          ) {
+            const state = toolState(p.state);
+            const input =
+              "input" in p
+                ? (p.input as { studentName?: string; request?: string })
+                : undefined;
+            const output =
+              state === "success"
+                ? extractToolOutput<AnalyzeAdmissionOutput>(p.output)
+                : undefined;
+
+            const progressLabel =
+              state === "running"
+                ? "입시 분석 중 (최대 55초)"
+                : "입시 분석 준비 중";
+            const requestSnippet = input?.request
+              ? input.request.length > 40
+                ? `${input.request.slice(0, 40)}…`
+                : input.request
+              : null;
+
+            const summary = !output
+              ? [input?.studentName, progressLabel, requestSnippet]
+                  .filter(Boolean)
+                  .join(" · ")
+              : output.ok === false
+                ? (output.reason ?? "입시 분석 실패")
+                : `${output.studentName ?? input?.studentName ?? "학생"} · ${output.stepCount}단계 · ${(
+                    output.durationMs / 1000
+                  ).toFixed(1)}초`;
+
+            const ok = output?.ok === true ? output : null;
+
+            return (
+              <ToolCard
+                key={i}
+                name="입시 분석"
+                icon={<Target size={14} />}
+                state={output?.ok === false ? "error" : state}
+                summary={summary}
+                errorText={output?.ok === false ? output.reason : undefined}
+              >
+                {ok ? (
+                  <div className="flex flex-col gap-3 text-sm text-zinc-700 dark:text-zinc-200">
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/60">
+                      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        결론
+                      </div>
+                      <div className="mt-0.5 font-medium">
+                        {ok.summary.headline}
+                      </div>
+                    </div>
+                    {ok.summary.recommendedUniversities.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          추천 대학·학과
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {ok.summary.recommendedUniversities.map((u, idx) => (
+                            <span
+                              key={`${i}-aru-${idx}`}
+                              className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                            >
+                              {u}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {ok.summary.keyFindings.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          주요 발견
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.keyFindings.map((f, idx) => (
+                            <li
+                              key={`${i}-akf-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">•</span>
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.strategyNotes.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          전략 메모
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.strategyNotes.map((s, idx) => (
+                            <li
+                              key={`${i}-asn-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">◆</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.warnings.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-amber-500 dark:text-amber-400">
+                          주의
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.warnings.map((w, idx) => (
+                            <li
+                              key={`${i}-aw-${idx}`}
+                              className="flex gap-2 text-amber-700 dark:text-amber-300"
+                            >
+                              <span>⚠</span>
+                              <span>{w}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.recommendedActions.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          추천 액션
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.recommendedActions.map((a, idx) => (
+                            <li
+                              key={`${i}-ara-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">→</span>
+                              <span>{a}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.artifactIds.length > 0 && (
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        관련 아티팩트: {ok.summary.artifactIds.join(", ")}
+                      </div>
+                    )}
+                    {ok.summary.followUpQuestions &&
+                      ok.summary.followUpQuestions.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            후속 질문 후보
+                          </div>
+                          <ul className="mt-1 flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-300">
+                            {ok.summary.followUpQuestions.map((q, idx) => (
+                              <li
+                                key={`${i}-afq-${idx}`}
+                                className="flex gap-2"
+                              >
+                                <span className="text-zinc-400">?</span>
+                                <span>{q}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
           return null;
         })}
 
@@ -1460,10 +1803,14 @@ function MessageRow({
  * F-5: Tier budget SLO 게이트.
  *
  * Chat Shell 은 Low-latency L2 영역. 응답이 5 초 초과 / tool 3회 이상 /
- * stepCountIs 도달(finishReason === "length") 중 하나라도 해당하면 "심화 분석은
- * Agent 모드로 이어가세요" 배너 표시.
+ * stepCountIs 도달(finishReason === "length") 중 하나라도 해당하면 복합 요청으로
+ * 간주하고 배너 표시.
  *
- * admin/consultant/superadmin: "Agent 모드 열기" 버튼 — /admin/agent 이동.
+ * Phase G S-3-c: 심층 분석·수강 계획·입시 분석은 모두 Shell 내부 서브에이전트
+ * (analyzeRecordDeep / designStudentPlan / analyzeAdmission) 로 처리되므로
+ * Agent 모드 전환은 **trace 확인** 용도로 좁혀졌다.
+ *
+ * admin/consultant/superadmin: "Trace 뷰 열기" 버튼 — /admin/agent 이동.
  * student/parent: 안내 문구만 (Agent 접근 권한 없음).
  */
 const F5_SLO_DURATION_MS = 5_000;
@@ -1508,10 +1855,10 @@ function EscalationBanner({
   return (
     <div
       role="note"
-      aria-label="심화 분석 안내"
+      aria-label="복합 요청 안내"
       className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200"
     >
-      <span className="font-medium">심화 분석 권장</span>
+      <span className="font-medium">복합 요청 감지</span>
       <span className="text-amber-700 dark:text-amber-300">
         {reasons.join(" · ")}
       </span>
@@ -1521,7 +1868,7 @@ function EscalationBanner({
           onClick={() => onNavigate("/admin/agent")}
           className="ml-auto inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-amber-700"
         >
-          Agent 모드 열기
+          Trace 뷰 열기
         </button>
       ) : (
         <span className="ml-auto text-[11px] text-amber-700/80 dark:text-amber-300/80">

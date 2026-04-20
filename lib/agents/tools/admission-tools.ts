@@ -736,5 +736,68 @@ export function createAdmissionTools(ctx: AgentContext) {
         }
       },
     }),
+
+    /**
+     * 수능최저학력기준 시뮬레이션 (Phase G S-3-b: record-tools 에서 이관)
+     */
+    simulateMinScoreRequirement: tool({
+      description:
+        "수능최저 충족 여부 시뮬레이션. 부족 시 개선 과목 제안.",
+      inputSchema: z.object({
+        grades: z
+          .record(z.number())
+          .describe("현재 등급. 예: { '국어': 2, '수학': 3, '영어': 1, '탐구1': 3, '탐구2': 4, '한국사': 2 }"),
+        criteriaType: z
+          .enum(["grade_sum", "single_grade", "none"])
+          .describe("최저 유형"),
+        subjects: z
+          .array(z.string())
+          .optional()
+          .describe("반영 과목 목록 (grade_sum용). 예: ['국어', '수학', '영어', '탐구1']"),
+        count: z
+          .number()
+          .optional()
+          .describe("반영 과목 수 (subjects 중 상위 N개 선택)"),
+        maxSum: z
+          .number()
+          .optional()
+          .describe("등급합 기준. 예: 7 (4개 합 7 이내)"),
+      }),
+      execute: async ({ grades, criteriaType, subjects, count, maxSum }) => {
+        logActionDebug(LOG_CTX, `simulateMinScoreRequirement: type=${criteriaType}`);
+        try {
+          const { simulateMinScore } = await import(
+            "@/lib/domains/student-record/min-score-simulator"
+          );
+
+          const criteria = {
+            type: criteriaType,
+            subjects: subjects ?? [],
+            count: count ?? subjects?.length ?? 4,
+            maxSum: maxSum ?? 99,
+            additional: [] as Array<{ subject: string; maxGrade?: number }>,
+          };
+
+          const result = simulateMinScore(criteria, grades);
+
+          return {
+            success: true,
+            data: {
+              isMet: result.isMet,
+              gradeSum: result.gradeSum,
+              gap: result.gap,
+              bottleneckSubjects: result.bottleneckSubjects,
+              whatIf: result.whatIf,
+              recommendation: result.isMet
+                ? "수능최저학력기준을 충족합니다."
+                : `${result.gap}점 부족합니다. ${result.bottleneckSubjects.join(", ")} 과목 개선이 가장 효과적입니다.`,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return toolError("수능최저 시뮬레이션 실패.", { retryable: true, actionHint: "입력 등급을 확인하고 다시 시도하세요." });
+        }
+      },
+    }),
   };
 }

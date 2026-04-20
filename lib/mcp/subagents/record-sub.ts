@@ -15,9 +15,10 @@
  *  - report-tools.ts 3개 (generateReport/fetchSavedReports/getStudentOverview)
  *  - strategy-tools.ts 2개 (suggestStrategies/getWarnings)
  *  - guide-tools.ts 1개 (getStudentAssignments)
- *  - memory-tools.ts 2개 (recallSimilarCases/recallPastCorrections)
+ *  - memory-tools.ts 2개 (recallSimilarCases/recallPastCorrections) — Phase G S-3-b:
+ *    destructure 로 제한. getPredictionAccuracy/getUniversityOutcomes 는 admission-sub 전용.
  *  - meta-tools.ts 1개 (think)
- *  총 28 tool (plan-sub/admission-sub 로 이관한 5건 제외)
+ *  총 27 tool (plan-sub 3건 + admission-sub 3건 = 6건 이관 제외)
  */
 
 import { z } from "zod";
@@ -112,9 +113,14 @@ function buildRecordSubTools(ctx: AgentContext): Record<string, Tool> {
   // guide-tools 4개 중 record-sub 에는 getStudentAssignments 만 포함
   const { getStudentAssignments } = guide;
 
+  // memory-tools 4개 중 recall 2개만 record-sub 에 포함.
+  // getPredictionAccuracy/getUniversityOutcomes 는 admission-sub 전용.
+  const { recallSimilarCases, recallPastCorrections } = createMemoryTools(ctx);
+
   return {
     ...createMetaTools(),
-    ...createMemoryTools(ctx),
+    recallSimilarCases,
+    recallPastCorrections,
     ...createDataTools(ctx),
     ...createRecordTools(ctx),
     ...createReportTools(ctx),

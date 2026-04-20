@@ -33,8 +33,8 @@ export default async function AdminAgentPage() {
         >
           /ai-chat
         </a>
-        에서 동일한 도구(심층 분석 포함)를 이용하세요. 이 화면은 step trace·도구
-        입력/출력을 확인하기 위한 운영용 뷰입니다.
+        에서 동일한 도구(심층 분석·수강 계획·입시 분석 포함)를 이용하세요. 이 화면은
+        step trace·도구 입력/출력을 확인하기 위한 운영용 뷰입니다.
       </div>
       <div className="flex-1 overflow-hidden">
         <AgentPageClient students={students} />

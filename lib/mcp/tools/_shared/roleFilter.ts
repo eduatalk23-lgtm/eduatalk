@@ -5,8 +5,8 @@
  * Layer 2 가드는 runSubagent 내부의 allowedRoles 검증이 수행하지만, LLM 이
  * 프롬프트 인젝션으로 tool name 을 추측해 호출을 시도하는 경로를 원천 차단.
  *
- * 현재 admin 전용 tool: analyzeRecordDeep (record-sub).
- * 향후 S-3 에서 designStudentPlan·analyzeAdmission 추가 예정.
+ * 현재 admin 전용 tool: analyzeRecordDeep (record-sub), designStudentPlan (plan-sub),
+ * analyzeAdmission (admission-sub).
  */
 
 export type McpUserRole =
@@ -20,8 +20,8 @@ export type McpUserRole =
 
 export const ADMIN_ONLY_TOOL_NAMES = new Set<string>([
   "analyzeRecordDeep",
-  // "designStudentPlan", // S-3
-  // "analyzeAdmission",  // S-3
+  "designStudentPlan",
+  "analyzeAdmission",
 ]);
 
 export function isAdminLikeRole(role: McpUserRole): boolean {
