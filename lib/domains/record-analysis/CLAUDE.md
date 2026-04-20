@@ -152,15 +152,25 @@ Synthesis Pipeline (종합, 14태스크×7Phase — 트랙 D 2026-04-14 3종 승
 | **S3 ai_diagnosis** | `prompts/diagnosisPrompt.ts` | `mainExplorationSection` (renderer 결과) | tier 정합성 평가 (현 활동이 어느 tier에 위치하는지) |
 | **S5 ai_strategy** | `prompts/strategyRecommend.ts` | `mainExplorationSection` | tier_plan 빈 셀(추천 활동 부족 학기) 우선 채움 |
 | **S6 interview / roadmap** | `prompts/generateInterviewQuestions.ts`, `prompts/roadmapGeneration.ts` | `mainExplorationSection` | record의 tier 컨텍스트 / 학기별 missions와 tier 정합 |
-| **S7 tier_plan_refinement** | `llm/prompts/tierPlanRefinement.ts` + `llm/actions/extractTierPlanSuggestion.ts` + `llm/prompts/tierPlanConvergenceJudge.ts` + `llm/actions/judgeTierPlanConvergence.ts` | 현 tier_plan + Synthesis 산출물(진단 약점·전략·로드맵·qualityPatterns) | Synthesis 결과를 근거로 tier_plan 을 **역방향 개정**. Sprint 4: `judgeTierPlanConvergence`(Flash, L4-D 패턴) 로 컨설팅 가치 동등성 판정. verdict=substantial_change + chainDepth < 2 → origin='auto_bootstrap_v2' 신규 row INSERT. jaccard 는 telemetry 전용 |
+| **S7 tier_plan_refinement** | `llm/prompts/tierPlanRefinement.ts` + `llm/actions/extractTierPlanSuggestion.ts` + `llm/prompts/tierPlanConvergenceJudge.ts` + `llm/actions/judgeTierPlanConvergence.ts` | 현 tier_plan + Synthesis 산출물(진단 약점·전략·로드맵·qualityPatterns) + α3-4 blueprintGap + α3-3-2 multiScenarioGap | Synthesis 결과를 근거로 tier_plan 을 **역방향 개정**. Sprint 4: `judgeTierPlanConvergence`(Flash, L4-D 패턴) 로 컨설팅 가치 동등성 판정. verdict=substantial_change + chainDepth < 2 → origin='auto_bootstrap_v2' 신규 row INSERT. jaccard 는 telemetry 전용 |
 
-**P5/P6/P7/P8은 직접 참조 없음**:
-- P5(changche_guide)/P6(haengteuk_guide)는 P4 산출물(세특 가이드)을 참조 → tier가 간접 반영.
-- **P7(draft_generation)/P8(draft_analysis)는 P4~P6 가이드 결과를 입력으로 사용** → tier_plan이 가이드 안에 이미 녹아있는 형태로 흐름. P7/P8 프롬프트가 tier_plan을 직접 읽지 않음에 주의.
+**P5/P6/P7/P8 의 tier_plan 간접 흐름** (minor-gaps #3, 2026-04-20 문서화):
+
+P5~P8 프롬프트는 tier_plan 을 **직접 읽지 않음**. 대신 두 경로로 간접 수신:
+
+1. **P4 가이드 채널**: `setekGuide.gridContext` 가 `renderCellGuideGridContextSection()` 로 tier_plan 을 가이드 본문에 녹임 → P5/P6 가 P4 산출물(setek_guide) 을 그대로 인용 → P7(draft_generation) 이 P4~P6 가이드 결과를 user prompt 에 주입 → P8(draft_analysis) 는 P7 가안을 대상으로 분석.
+2. **P7 레벨링 채널**: `computeLevelingForStudent({studentId, tenantId, grade})` → `ctx.leveling.levelDirective` → `withLevelDirective(systemPrompt, levelDirective)` (pipeline-task-runners-draft-generation.ts:77) 로 P7 draft system prompt 말미에 `## 난이도 기준\n{levelDirective}` 붙음.
+   - 레벨링 cap 은 학교권×내신 2축(`lib/domains/student-record/leveling/engine.ts`) 에서 하드코딩, 이후 main_exploration 의 target_university_level 과 일치해야 함 → tier_plan 과 동일한 메인 탐구 seed 에서 파생.
+   - 보조 경로: `generateSetekDraft.ts:91` 의 `getGradeDiffLevel(grade9)` 는 **레코드별 내신 등급**(rankGrade) → 탐구 난이도 문자열 매핑으로 user prompt 에 1줄 추가 (`"- 내신: {grade} → 탐구 난이도: {level} 수준으로 작성"`). ctx.leveling 의 학생 단위 cap 과 별개로 레코드별 보강.
+
+**P7/P8 프롬프트는 tier_plan JSON 원본에 접근하지 않음** — tier_plan 해석은 전적으로 P4 가이드 생성 단계에 위임되며, P7 은 가이드 결과 + 레벨링 cap 만 소비.
 
 **갱신 시 주의**:
-- main_exploration이 갱신되면 tier_plan 변경 → `mainExplorationSection`이 자동 반영되지만, **이미 생성된 P4 가이드/B1 blueprint는 stale**. 재실행 cascade 필요.
-- staleness 감지: `main_exploration.updated_at > blueprint.created_at` 체크 — 별도 staleness checker 참조.
+- main_exploration 이 갱신되면 tier_plan 변경 → `mainExplorationSection` 이 자동 반영되지만, **이미 생성된 P4 가이드/B1 blueprint 는 stale**. 재실행 cascade 필요.
+- staleness 감지 경로 2종 (동일 판정 공식, client 전략만 다름):
+  · **server client** 경로: `lib/domains/student-record/stale-detection.ts::checkBlueprintStaleness` → `checkBlueprintStalenessAction` server action → UI 배지.
+  · **admin client** 경로 (2026-04-20): `lib/domains/record-analysis/blueprint/loader.ts::loadBlueprintWithStaleness` → `{blueprint, staleness:{isStale, reason, ...}}` 반환. 파이프라인 엔진·cron CLI 진입 시 warning 로그 자동 발생.
+- 두 경로 모두 `main_exploration.updated_at > blueprint.completed_at` 을 stale 로 판정.
 
 ### Layer 2 Hypergraph (Phase 1, 2026-04-14)
 
