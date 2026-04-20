@@ -256,6 +256,17 @@ export type ProposalJobDetailDTO = {
   model: string | null;
   costUsd: number | null;
   gapPriority: "high" | "medium" | "low" | null;
+  /** Phase 3: 실행 메타데이터 (proposal_jobs.metadata JSONB 파싱). */
+  executionMetadata: {
+    requestedEngine: "rule_v1" | "llm_v1" | null;
+    engineError: string | null;
+    llmTier: "fast" | "standard" | "advanced" | null;
+    llmUsage: { inputTokens: number; outputTokens: number } | null;
+    remainingSemesters: number | null;
+    triggerSignals: number | null;
+    diffHakjongDelta: number | null;
+    diffCompetencyChanges: number | null;
+  };
   /** 학생 identity — Drawer 헤더에서 "누구" 즉시 인식. */
   studentInfo: {
     name: string;
@@ -518,6 +529,46 @@ export async function fetchProposalJobDetail(
       };
     });
 
+    // Phase 3: metadata JSONB 파싱 (proposal-scheduler 가 기록)
+    const md = (job.metadata ?? {}) as Record<string, unknown>;
+    const pickNumber = (k: string): number | null =>
+      typeof md[k] === "number" ? (md[k] as number) : null;
+    const llmUsageRaw = md.llmUsage as
+      | { inputTokens?: unknown; outputTokens?: unknown }
+      | null
+      | undefined;
+    const llmUsage =
+      llmUsageRaw &&
+      typeof llmUsageRaw.inputTokens === "number" &&
+      typeof llmUsageRaw.outputTokens === "number"
+        ? {
+            inputTokens: llmUsageRaw.inputTokens as number,
+            outputTokens: llmUsageRaw.outputTokens as number,
+          }
+        : null;
+
+    const executionMetadata: ProposalJobDetailDTO["executionMetadata"] = {
+      requestedEngine:
+        md.requestedEngine === "rule_v1" || md.requestedEngine === "llm_v1"
+          ? (md.requestedEngine as "rule_v1" | "llm_v1")
+          : null,
+      engineError:
+        typeof md.engineError === "string"
+          ? (md.engineError as string)
+          : null,
+      llmTier:
+        md.llmTier === "fast" ||
+        md.llmTier === "standard" ||
+        md.llmTier === "advanced"
+          ? (md.llmTier as "fast" | "standard" | "advanced")
+          : null,
+      llmUsage,
+      remainingSemesters: pickNumber("remainingSemesters"),
+      triggerSignals: pickNumber("triggerSignals"),
+      diffHakjongDelta: pickNumber("diffHakjongDelta"),
+      diffCompetencyChanges: pickNumber("diffCompetencyChanges"),
+    };
+
     return {
       jobId: job.id,
       engine: job.engine as "rule_v1" | "llm_v1",
@@ -530,6 +581,7 @@ export async function fetchProposalJobDetail(
       costUsd: job.cost_usd,
       gapPriority:
         (job.gap_priority as "high" | "medium" | "low" | null) ?? null,
+      executionMetadata,
       studentInfo,
       stateSummary,
       items,

@@ -174,6 +174,14 @@ export function ProposalJobDrawer({
             {recentJobs && recentJobs.length > 1 && (
               <PastJobsSection jobs={recentJobs} currentJobId={job.jobId} />
             )}
+
+            {/* Phase 3: LLM 실행 메타데이터 아코디언 */}
+            <ExecutionMetadataSection
+              engine={job.engine}
+              model={job.model}
+              costUsd={job.costUsd}
+              meta={job.executionMetadata}
+            />
           </div>
         )}
       </DialogContent>
@@ -823,6 +831,123 @@ function PastJobsSection({
         </ul>
       </details>
     </section>
+  );
+}
+
+// ─── Phase 3: LLM 실행 메타데이터 ─────────────────────────────
+
+function ExecutionMetadataSection({
+  engine,
+  model,
+  costUsd,
+  meta,
+}: {
+  engine: "rule_v1" | "llm_v1";
+  model: string | null;
+  costUsd: number | null;
+  meta: NonNullable<ProposalJobDetailDTO>["executionMetadata"];
+}) {
+  const hasFallback =
+    meta.requestedEngine === "llm_v1" && engine === "rule_v1";
+  return (
+    <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
+      <details>
+        <summary className="cursor-pointer font-semibold text-[var(--text-secondary)]">
+          실행 정보{" "}
+          {hasFallback && (
+            <span className="text-amber-600 dark:text-amber-400">
+              (LLM 실패 → rule_v1 fallback)
+            </span>
+          )}
+        </summary>
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
+          <MetaCell label="실행 엔진" value={engine} />
+          <MetaCell
+            label="요청 엔진"
+            value={meta.requestedEngine ?? "—"}
+            muted={meta.requestedEngine === engine}
+          />
+          <MetaCell label="모델" value={model ?? "—"} />
+          <MetaCell label="Tier" value={meta.llmTier ?? "—"} />
+          <MetaCell
+            label="비용"
+            value={
+              costUsd === null
+                ? "—"
+                : costUsd === 0
+                  ? "$0"
+                  : `$${costUsd.toFixed(4)}`
+            }
+          />
+          <MetaCell
+            label="입력 토큰"
+            value={
+              meta.llmUsage
+                ? meta.llmUsage.inputTokens.toLocaleString()
+                : "—"
+            }
+          />
+          <MetaCell
+            label="출력 토큰"
+            value={
+              meta.llmUsage
+                ? meta.llmUsage.outputTokens.toLocaleString()
+                : "—"
+            }
+          />
+          <MetaCell
+            label="잔여 학기"
+            value={meta.remainingSemesters?.toString() ?? "—"}
+          />
+          <MetaCell
+            label="Perception signals"
+            value={meta.triggerSignals?.toString() ?? "—"}
+          />
+          <MetaCell
+            label="Hakjong delta"
+            value={
+              meta.diffHakjongDelta !== null
+                ? `${meta.diffHakjongDelta > 0 ? "+" : ""}${meta.diffHakjongDelta}`
+                : "—"
+            }
+          />
+          <MetaCell
+            label="역량 변화 축 수"
+            value={meta.diffCompetencyChanges?.toString() ?? "—"}
+          />
+        </dl>
+        {meta.engineError && (
+          <div className="mt-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <span className="font-semibold">엔진 에러:</span> {meta.engineError}
+          </div>
+        )}
+      </details>
+    </section>
+  );
+}
+
+function MetaCell({
+  label,
+  value,
+  muted,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline gap-1">
+      <dt className="text-[10px] text-[var(--text-tertiary)]">{label}</dt>
+      <dd
+        className={
+          muted
+            ? "text-[11px] text-[var(--text-tertiary)]"
+            : "text-[11px] font-medium text-[var(--text-primary)]"
+        }
+      >
+        {value}
+      </dd>
+    </div>
   );
 }
 
