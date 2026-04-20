@@ -24,6 +24,7 @@ import {
   Award,
   GitBranch,
   User as UserIcon,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -45,6 +46,7 @@ import { toggleArchiveConversation } from "@/lib/domains/ai-chat/actions";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import type { NavigateToOutput } from "@/lib/mcp/tools/navigateTo";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { AnalyzeRecordDeepOutput } from "@/lib/mcp/tools/analyzeRecordDeep";
 import type { ArchiveConversationOutput } from "@/app/api/chat/route";
 
 const PATH_LABELS: Record<string, string> = {
@@ -1309,6 +1311,129 @@ function MessageRow({
                         {o.storylines.length > 3 ? " …" : ""}
                       </div>
                     )}
+                  </div>
+                ) : null}
+              </ToolCard>
+            );
+          }
+
+          // Phase G S-2-b: 심층 분석 서브에이전트(analyzeRecordDeep) 진행·요약 카드.
+          if (
+            toolCardsMounted &&
+            matchesTool(p, "analyzeRecordDeep") &&
+            "state" in p
+          ) {
+            const state = toolState(p.state);
+            const input =
+              "input" in p
+                ? (p.input as { studentName?: string; request?: string })
+                : undefined;
+            const output =
+              state === "success"
+                ? extractToolOutput<AnalyzeRecordDeepOutput>(p.output)
+                : undefined;
+
+            const progressLabel =
+              state === "running"
+                ? "심층 분석 중 (최대 45초)"
+                : "분석 요청 준비 중";
+            const requestSnippet = input?.request
+              ? input.request.length > 40
+                ? `${input.request.slice(0, 40)}…`
+                : input.request
+              : null;
+
+            const summary = !output
+              ? [input?.studentName, progressLabel, requestSnippet]
+                  .filter(Boolean)
+                  .join(" · ")
+              : output.ok === false
+                ? (output.reason ?? "분석 실패")
+                : `${output.studentName ?? input?.studentName ?? "학생"} · ${output.stepCount}단계 · ${(
+                    output.durationMs / 1000
+                  ).toFixed(1)}초`;
+
+            const ok = output?.ok === true ? output : null;
+
+            return (
+              <ToolCard
+                key={i}
+                name="심층 분석"
+                icon={<Brain size={14} />}
+                state={output?.ok === false ? "error" : state}
+                summary={summary}
+                errorText={output?.ok === false ? output.reason : undefined}
+              >
+                {ok ? (
+                  <div className="flex flex-col gap-3 text-sm text-zinc-700 dark:text-zinc-200">
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/60">
+                      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        결론
+                      </div>
+                      <div className="mt-0.5 font-medium">
+                        {ok.summary.headline}
+                      </div>
+                    </div>
+                    {ok.summary.keyFindings.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          주요 발견
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.keyFindings.map((f, idx) => (
+                            <li
+                              key={`${i}-kf-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">•</span>
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.recommendedActions.length > 0 && (
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          추천 액션
+                        </div>
+                        <ul className="mt-1 flex flex-col gap-1 text-sm">
+                          {ok.summary.recommendedActions.map((a, idx) => (
+                            <li
+                              key={`${i}-ra-${idx}`}
+                              className="flex gap-2"
+                            >
+                              <span className="text-zinc-400">→</span>
+                              <span>{a}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {ok.summary.artifactIds.length > 0 && (
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        관련 아티팩트: {ok.summary.artifactIds.join(", ")}
+                      </div>
+                    )}
+                    {ok.summary.followUpQuestions &&
+                      ok.summary.followUpQuestions.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            후속 질문 후보
+                          </div>
+                          <ul className="mt-1 flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-300">
+                            {ok.summary.followUpQuestions.map((q, idx) => (
+                              <li
+                                key={`${i}-fq-${idx}`}
+                                className="flex gap-2"
+                              >
+                                <span className="text-zinc-400">?</span>
+                                <span>{q}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                   </div>
                 ) : null}
               </ToolCard>

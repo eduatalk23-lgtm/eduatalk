@@ -1,0 +1,45 @@
+/**
+ * Phase G S-2: MCP tool role 기반 필터.
+ *
+ * Layer 1 가드 — Shell LLM 에 노출되는 tool 목록 자체에서 특정 tool 을 제거.
+ * Layer 2 가드는 runSubagent 내부의 allowedRoles 검증이 수행하지만, LLM 이
+ * 프롬프트 인젝션으로 tool name 을 추측해 호출을 시도하는 경로를 원천 차단.
+ *
+ * 현재 admin 전용 tool: analyzeRecordDeep (record-sub).
+ * 향후 S-3 에서 designStudentPlan·analyzeAdmission 추가 예정.
+ */
+
+export type McpUserRole =
+  | "student"
+  | "admin"
+  | "consultant"
+  | "superadmin"
+  | "parent"
+  | null
+  | undefined;
+
+export const ADMIN_ONLY_TOOL_NAMES = new Set<string>([
+  "analyzeRecordDeep",
+  // "designStudentPlan", // S-3
+  // "analyzeAdmission",  // S-3
+]);
+
+export function isAdminLikeRole(role: McpUserRole): boolean {
+  return role === "admin" || role === "consultant" || role === "superadmin";
+}
+
+/**
+ * 주어진 tool 딕셔너리에서 role 에 노출 불가한 tool 키를 제거한다.
+ * admin-like role 은 전체 통과. student/parent/null 은 admin-only tool 제거.
+ */
+export function filterToolsForRole<T>(
+  tools: Record<string, T>,
+  role: McpUserRole,
+): Record<string, T> {
+  if (isAdminLikeRole(role)) return tools;
+  const filtered: Record<string, T> = {};
+  for (const [key, value] of Object.entries(tools)) {
+    if (!ADMIN_ONLY_TOOL_NAMES.has(key)) filtered[key] = value;
+  }
+  return filtered;
+}

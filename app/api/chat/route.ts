@@ -15,6 +15,7 @@ import {
   saveChatTurn,
 } from "@/lib/domains/ai-chat/persistence";
 import { createChatMcpHandle } from "@/lib/mcp/client";
+import { filterToolsForRole } from "@/lib/mcp/tools/_shared/roleFilter";
 import type { AIConversationPersona } from "@/lib/domains/ai-chat/types";
 import { getHandoffSource } from "@/lib/domains/ai-chat/handoff/sources";
 import { validateAndResolveHandoff } from "@/lib/domains/ai-chat/handoff/validator";
@@ -264,9 +265,12 @@ export async function POST(req: Request) {
 
   // F-2: 요청별 MCP 서버↔클라이언트 쌍(InMemoryTransport)을 띄워 tool 정의 수령.
   // navigateTo·getScores·analyzeRecord 는 MCP 경유, archiveConversation 은 HITL inline.
+  // G S-2: Layer 1 가드 — admin/consultant/superadmin 이 아닌 role 에는
+  // analyzeRecordDeep 등 admin-only tool 을 LLM 노출 목록 자체에서 제거.
   const mcp = await createChatMcpHandle();
+  const gatedMcpTools = filterToolsForRole(mcp.tools, user?.role);
   const tools = {
-    ...mcp.tools,
+    ...gatedMcpTools,
     ...buildArchiveConversationTool(),
   };
 
