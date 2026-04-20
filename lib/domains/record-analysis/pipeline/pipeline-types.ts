@@ -515,8 +515,14 @@ export interface PipelineContext {
   supabase: import("@supabase/supabase-js").SupabaseClient<import("@/lib/supabase/database.types").Database>;
   /** 파이프라인 유형 (2026-04-16 D): grade / synthesis / past_analytics / blueprint / legacy. */
   pipelineType: PipelineType;
-  /** 태스크 상태 (매 태스크 완료 시 DB 저장) */
+  /** 태스크 상태 (매 태스크 완료 시 DB 저장). loadPipelineContext 에서 모든 key 를 "pending" default. */
   tasks: Record<string, PipelineTaskStatus>;
+  /**
+   * Phase C-2 Sprint 3 (2026-04-20): DB 원본 tasks (default 없음).
+   * Legacy pipeline 판정용 — key 부재 여부로 신설 task 도입 이전 생성 여부 식별.
+   * validatePhasePrerequisites 가 missing vs pending 구분 시 사용.
+   */
+  rawTasks: Record<string, PipelineTaskStatus>;
   previews: Record<string, string>;
   results: PipelineTaskResults;
   errors: Record<string, string>;

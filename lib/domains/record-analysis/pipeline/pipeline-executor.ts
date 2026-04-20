@@ -495,7 +495,9 @@ export async function loadPipelineContext(
   const targetGrade: number | undefined =
     pipelineType === "grade" && row.grade != null ? (row.grade as number) : undefined;
 
-  // 태스크 상태 복원 (pipeline_type에 따라 사용할 키 셋 결정)
+  // 태스크 상태 복원 (pipeline_type에 따라 사용할 키 셋 결정).
+  // rawTasks: DB 원본 (default 없음) — legacy pipeline 판정용.
+  // tasks: 모든 알려진 key 를 "pending" default 한 정규화 버전 (기존 downstream 계약).
   const rawTasks = (row.tasks ?? {}) as Record<string, PipelineTaskStatus>;
   const tasks: Record<string, PipelineTaskStatus> = {};
 
@@ -729,6 +731,7 @@ export async function loadPipelineContext(
     studentGrade,
     snapshot,
     tasks,
+    rawTasks,
     previews,
     results,
     errors,
@@ -822,6 +825,9 @@ export function getNextSynthesisPhase(tasks: Record<string, string>): number {
  * 이전 Phase의 모든 태스크가 completed 또는 failed여야 통과.
  * - completed: 정상 완료
  * - failed: skipIfPrereqFailed에 의해 처리됨 (허용)
+ * - undefined (key 부재): task 정의가 이 파이프라인 생성 시점엔 없었음 (legacy).
+ *   신설 task(예: competency_volunteer 2026-04-19)가 기존 파이프라인 tasks map 에
+ *   존재하지 않는 케이스. N/A 로 간주해 통과. (graceful skip 철학과 일관)
  * - pending/running: 이전 Phase 미완료 → 거부
  *
  * @returns null이면 통과, 문자열이면 에러 메시지 (409 응답용)
@@ -840,6 +846,9 @@ export function validatePhasePrerequisites(
     if (!tasks) continue;
 
     const incomplete = tasks.filter((taskKey) => {
+      // Legacy pipeline 판정: DB 원본(rawTasks) 에 key 부재 = 신설 task 도입 이전 생성.
+      // N/A 로 간주해 통과. (graceful skip 철학과 일관)
+      if (ctx.rawTasks && !(taskKey in ctx.rawTasks)) return false;
       const status = ctx.tasks[taskKey];
       return status !== "completed" && status !== "failed";
     });

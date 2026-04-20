@@ -75,6 +75,8 @@ function makeCtx(
     studentGrade: 2,
     snapshot: null,
     tasks: {},
+    // 기본 rawTasks = 전체 task 존재 가정(= tasks 와 동일) — legacy 테스트에서만 명시 override.
+    rawTasks: overrides.tasks ?? {},
     previews: {},
     results: {},
     errors: {},
@@ -1307,6 +1309,27 @@ describe("validatePhasePrerequisites()", () => {
       });
       const result = validatePhasePrerequisites(ctx, 4, "grade");
       expect(result).toContain("Phase 1 미완료");
+    });
+
+    it("Legacy pipeline: task key 부재는 N/A 로 통과한다 (신설 task 이전 생성)", () => {
+      // 2026-04-19 신설된 competency_volunteer/awards 가 tasks map 에 없음.
+      // 기존 P1-P3 만 완료 상태 — 신설 task 는 key 자체 부재.
+      const ctx = makeCtx({
+        tasks: {
+          competency_setek: "completed",
+          competency_changche: "completed",
+          competency_haengteuk: "completed",
+          cross_subject_theme_extraction: "completed",
+          // competency_volunteer / competency_awards 키 부재 (legacy)
+          setek_guide: "completed",
+          slot_generation: "completed",
+          changche_guide: "completed",
+          haengteuk_guide: "completed",
+          draft_generation: "completed",
+          draft_analysis: "completed",
+        },
+      });
+      expect(validatePhasePrerequisites(ctx, 9, "grade")).toBeNull();
     });
 
     it("Phase 8: P1-P7 모두 완료/실패이면 통과한다", () => {
