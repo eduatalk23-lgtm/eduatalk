@@ -20,6 +20,12 @@ import {
   type StudentState,
   type HakjongScore,
 } from "@/lib/domains/student-record/types/student-state";
+import type {
+  BlueprintGap,
+  AreaGap,
+  AxisGap,
+  GapPattern,
+} from "@/lib/domains/student-record/types/blueprint-gap";
 
 interface Props {
   studentId: string;
@@ -94,6 +100,8 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
       </header>
 
       {state?.hakjongScore && <HakjongAreaRow score={state.hakjongScore} />}
+
+      {state?.blueprintGap && <BlueprintGapSection gap={state.blueprintGap} />}
 
       <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <LayerFlagsRow flags={snapshot.layer_flags} />
@@ -361,6 +369,140 @@ function AuxCell({
         </p>
       )}
     </div>
+  );
+}
+
+// ─── α3-5 (2026-04-20): BlueprintGap 섹션 ──────────────────
+
+function BlueprintGapSection({ gap }: { gap: BlueprintGap }) {
+  return (
+    <section className="mt-3 flex flex-col gap-2 rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] p-2">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
+            청사진 GAP
+          </h4>
+          <GapPriorityBadge priority={gap.priority} />
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            잔여 {gap.remainingSemesters}학기 · v1 규칙
+          </span>
+        </div>
+      </header>
+
+      <p className="text-xs text-[var(--text-primary)]">{gap.summary}</p>
+
+      <div className="grid grid-cols-3 gap-2">
+        <GapAreaCell label="학업" area={gap.areaGaps.academic} />
+        <GapAreaCell label="진로" area={gap.areaGaps.career} />
+        <GapAreaCell label="공동체" area={gap.areaGaps.community} />
+      </div>
+
+      {gap.axisGaps.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {gap.axisGaps.slice(0, 4).map((g) => (
+            <AxisGapChip key={g.code} gap={g} />
+          ))}
+          {gap.axisGaps.length > 4 && (
+            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              +{gap.axisGaps.length - 4}
+            </span>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function GapPriorityBadge({ priority }: { priority: BlueprintGap["priority"] }) {
+  const tone = {
+    high: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+    medium: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+    low: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-700",
+  }[priority];
+  const label = { high: "HIGH", medium: "MED", low: "LOW" }[priority];
+  return (
+    <span
+      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold ${tone}`}
+      title={`GAP 우선순위: ${priority}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function GapAreaCell({ label, area }: { label: string; area: AreaGap }) {
+  const hasGap = area.gapSize !== null;
+  const tone =
+    !hasGap
+      ? "muted"
+      : area.gapSize! >= 15
+        ? "red"
+        : area.gapSize! >= 8
+          ? "amber"
+          : area.gapSize! > 0
+            ? "blue"
+            : "emerald";
+  const toneClass = {
+    red: "border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-900/10",
+    amber: "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-900/10",
+    blue: "border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-900/10",
+    emerald: "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-900/10",
+    muted: "border-[var(--border-primary)] bg-[var(--bg-secondary)]",
+  }[tone];
+
+  return (
+    <div className={`rounded border px-2 py-1 ${toneClass}`}>
+      <p className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+        {label}
+      </p>
+      <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+        {hasGap ? (area.gapSize! > 0 ? `+${area.gapSize}` : `${area.gapSize}`) : "—"}
+        <span className="ml-1 text-[10px] font-normal text-[var(--text-tertiary)]">
+          {area.currentScore !== null && area.targetScore !== null
+            ? `${Math.round(area.currentScore)} → ${Math.round(area.targetScore)}`
+            : "target 없음"}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+const GAP_PATTERN_LABEL: Record<GapPattern, string> = {
+  insufficient: "부족",
+  excess: "과잉",
+  mismatch: "불일치",
+  latent: "잠재",
+};
+
+const GAP_CODE_LABEL: Record<AxisGap["code"], string> = {
+  academic_achievement: "학업성취도",
+  academic_attitude: "학업태도",
+  academic_inquiry: "탐구력",
+  career_course_effort: "진로교과 이수노력",
+  career_course_achievement: "진로교과 성취도",
+  career_exploration: "진로탐색",
+  community_collaboration: "협업/소통",
+  community_caring: "나눔/배려",
+  community_integrity: "성실/규칙준수",
+  community_leadership: "리더십",
+};
+
+function AxisGapChip({ gap }: { gap: AxisGap }) {
+  const tone = {
+    insufficient: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+    excess: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800",
+    mismatch: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+    latent: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+  }[gap.pattern];
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] ${tone}`}
+      title={gap.rationale}
+    >
+      <span className="font-semibold">{GAP_PATTERN_LABEL[gap.pattern]}</span>
+      <span>{GAP_CODE_LABEL[gap.code]}</span>
+    </span>
   );
 }
 
