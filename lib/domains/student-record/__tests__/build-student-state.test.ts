@@ -76,6 +76,11 @@ vi.mock("../repository/student-state-repository", () => ({
   listTrajectory: (...args: unknown[]) => mockListTrajectory(...args),
 }));
 
+const mockLoadBlueprintForStudent = vi.fn();
+vi.mock("@/lib/domains/record-analysis/blueprint/loader", () => ({
+  loadBlueprintForStudent: (...args: unknown[]) => mockLoadBlueprintForStudent(...args),
+}));
+
 // ---- supabase client mock ----
 
 function makeChain(
@@ -124,6 +129,7 @@ beforeEach(() => {
   mockFetchAttendanceUpTo.mockResolvedValue([]);
   mockFetchDisciplinaryUpTo.mockResolvedValue([]);
   mockListTrajectory.mockResolvedValue([]);
+  mockLoadBlueprintForStudent.mockResolvedValue(null);
 });
 
 // ============================================
@@ -150,6 +156,8 @@ describe("buildStudentState — 빈 학생", () => {
     expect(state.aux.attendance).toBeNull();
     expect(state.aux.reading).toBeNull();
     expect(state.blueprint).toBeNull();
+    // α3-2: blueprint 없으면 blueprintGap 도 null.
+    expect(state.blueprintGap).toBeNull();
     // α2: hakjongScore 는 항상 객체. 데이터 없으면 모든 필드 null.
     expect(state.hakjongScore).not.toBeNull();
     expect(state.hakjongScore!.total).toBeNull();
@@ -561,5 +569,85 @@ describe("buildStudentState — metadata.hakjongScoreComputable (area별 분해)
     expect(state.metadata.hakjongScoreComputable.career).toBe(true);
     expect(state.metadata.hakjongScoreComputable.community).toBe(true);
     expect(state.metadata.hakjongScoreComputable.total).toBe(true);
+  });
+});
+
+// ============================================
+// α3-2. Blueprint + competencyGrowthTargets → blueprintGap 주입
+// ============================================
+
+describe("buildStudentState — α3-2 blueprintGap 주입", () => {
+  it("blueprint active + targets 2건 → state.blueprintGap 생성 + anchor.targets 영속", async () => {
+    mockGetActiveMainExploration.mockResolvedValue({
+      id: "me-1",
+      version: 1,
+      origin: "auto_bootstrap_v1",
+      tier_plan: { foundational: {}, development: {}, advanced: {} },
+      career_field: "의학·약학",
+      updated_at: "2026-04-01T00:00:00Z",
+    });
+    mockLoadBlueprintForStudent.mockResolvedValue({
+      targetConvergences: [],
+      storylineSkeleton: { overarchingTheme: "", yearThemes: {}, narrativeArc: "" },
+      competencyGrowthTargets: [
+        { competencyItem: "academic_inquiry", targetGrade: "A+", yearTarget: 3, pathway: "" },
+        { competencyItem: "community_leadership", targetGrade: "A-", yearTarget: 3, pathway: "" },
+        // 유효하지 않은 값 — filter 로 제외되는지 검증
+        { competencyItem: "invalid_code", targetGrade: "A+", yearTarget: 3, pathway: "" },
+        { competencyItem: "career_exploration", targetGrade: "Z", yearTarget: 3, pathway: "" },
+        { competencyItem: "career_exploration", targetGrade: "A+", yearTarget: 99, pathway: "" },
+      ],
+      milestones: {},
+    });
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.blueprint).not.toBeNull();
+    // 유효 2건만 통과
+    expect(state.blueprint!.competencyGrowthTargets).toHaveLength(2);
+    expect(state.blueprint!.competencyGrowthTargets[0]).toMatchObject({
+      code: "academic_inquiry",
+      targetGrade: "A+",
+      yearTarget: 3,
+    });
+
+    // blueprintGap 계산됨 (targets 존재 + blueprint 존재)
+    expect(state.blueprintGap).not.toBeNull();
+    expect(state.blueprintGap!.version).toBe("v1_rule");
+    // current axes 없으므로 latent (잔여=2) 패턴 생성
+    // remaining = (3-2)*2 + 0 = 2 ≥ LATENT_THRESHOLD 2 → latent
+    expect(state.blueprintGap!.remainingSemesters).toBe(2);
+    expect(state.blueprintGap!.axisGaps).toHaveLength(2);
+    expect(state.blueprintGap!.axisGaps.every((g) => g.pattern === "latent")).toBe(true);
+  });
+
+  it("blueprint active + targets 빈 배열 → blueprintGap=null (GAP 계산 skip)", async () => {
+    mockGetActiveMainExploration.mockResolvedValue({
+      id: "me-2",
+      version: 1,
+      origin: "consultant_direct",
+      tier_plan: null,
+      career_field: null,
+      updated_at: "2026-04-01T00:00:00Z",
+    });
+    mockLoadBlueprintForStudent.mockResolvedValue(null);
+
+    const client = makeClient() as unknown as SupabaseClient<Database>;
+    const state = await buildStudentState(
+      "student-1",
+      "tenant-1",
+      { schoolYear: 2026, grade: 2, semester: 2, label: "t", builtAt: "2026-01-01T00:00:00Z" },
+      { client },
+    );
+
+    expect(state.blueprint).not.toBeNull();
+    expect(state.blueprint!.competencyGrowthTargets).toEqual([]);
+    expect(state.blueprintGap).toBeNull();
   });
 });

@@ -70,6 +70,9 @@ import {
   fetchDisciplinaryUpTo,
 } from "../repository/attendance-repository";
 import { computeHakjongScore } from "../reward/compute-hakjong-score";
+import { computeBlueprintGap } from "../gap/compute-blueprint-gap";
+import type { CompetencyGradeTarget } from "../types/blueprint-gap";
+import { loadBlueprintForStudent } from "@/lib/domains/record-analysis/blueprint/loader";
 import {
   listTrajectory,
   type PersistedStudentStateSnapshot,
@@ -679,6 +682,11 @@ async function collectBlueprint(
   const tierPlan = active.tier_plan as
     | { foundational?: unknown; development?: unknown; advanced?: unknown }
     | null;
+
+  // α3-2: blueprint 파이프라인 task_results._blueprintPhase.competencyGrowthTargets 로드.
+  // blueprint_generation 미실행·실패·구조 불일치 시 빈 배열 (GAP 엔진은 'low' priority 로 기본 처리).
+  const growthTargets = await loadCompetencyGrowthTargets(client, studentId, tenantId);
+
   return {
     mainExplorationId: active.id,
     version: active.version,
@@ -693,7 +701,52 @@ async function collectBlueprint(
     targetMajor: active.career_field ?? null,
     targetUniversityLevel: null,
     updatedAt: active.updated_at,
+    competencyGrowthTargets: growthTargets,
   };
+}
+
+// ─── α3-2: CompetencyGrowthTarget (record-analysis) → CompetencyGradeTarget ──
+//
+// record-analysis 쪽 타입은 string 필드 (LLM 출력 보호), student-record 쪽 GAP
+// 엔진은 좁은 union. 유효 변환만 포함, 유효성 실패는 skip.
+
+const VALID_GRADES: ReadonlyArray<CompetencyGrade> = ["A+", "A-", "B+", "B", "B-", "C"];
+const VALID_CODES: ReadonlyArray<CompetencyItemCode> = [
+  "academic_achievement",
+  "academic_attitude",
+  "academic_inquiry",
+  "career_course_effort",
+  "career_course_achievement",
+  "career_exploration",
+  "community_collaboration",
+  "community_caring",
+  "community_integrity",
+  "community_leadership",
+];
+
+async function loadCompetencyGrowthTargets(
+  client: Client,
+  studentId: string,
+  tenantId: string,
+): Promise<CompetencyGradeTarget[]> {
+  const bp = await loadBlueprintForStudent(studentId, tenantId, client);
+  if (!bp?.competencyGrowthTargets?.length) return [];
+
+  const targets: CompetencyGradeTarget[] = [];
+  for (const t of bp.competencyGrowthTargets) {
+    const code = t.competencyItem;
+    const target = t.targetGrade;
+    const year = t.yearTarget;
+    if (!VALID_CODES.includes(code as CompetencyItemCode)) continue;
+    if (!VALID_GRADES.includes(target as CompetencyGrade)) continue;
+    if (year !== 1 && year !== 2 && year !== 3) continue;
+    targets.push({
+      code: code as CompetencyItemCode,
+      targetGrade: target as CompetencyGrade,
+      yearTarget: year,
+    });
+  }
+  return targets;
 }
 
 async function collectTrajectory(
@@ -909,10 +962,28 @@ export async function buildStudentState(
     trajectory,
     aux: { volunteer, awards, attendance, reading },
     hakjongScore: null,
+    blueprintGap: null,
     blueprint,
     metadata,
   };
 
   // α2 v1: Reward 계산 (규칙 기반). 순수 함수라 partial → hakjongScore 도출 후 교체.
-  return { ...partial, hakjongScore: computeHakjongScore(partial) };
+  const withReward: StudentState = {
+    ...partial,
+    hakjongScore: computeHakjongScore(partial),
+  };
+
+  // α3-2: GAP 계산. blueprint null 이거나 targets 빈 경우 — 엔진이 내부적으로
+  // axisGaps=[] + priority='low' 반환 (null 아님). blueprint 자체가 없으면 skip.
+  const blueprintGap =
+    blueprint && blueprint.competencyGrowthTargets.length > 0
+      ? computeBlueprintGap({
+          state: withReward,
+          targets: blueprint.competencyGrowthTargets,
+          currentGrade: resolvedAsOf.grade,
+          currentSemester: resolvedAsOf.semester,
+        })
+      : null;
+
+  return { ...withReward, blueprintGap };
 }

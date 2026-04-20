@@ -95,6 +95,7 @@ function makeState(overrides: {
       reading: null,
     },
     hakjongScore: null,
+    blueprintGap: null,
     blueprint: null,
     metadata: makeMetadata(),
   };

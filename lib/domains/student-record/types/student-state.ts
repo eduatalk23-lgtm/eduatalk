@@ -217,6 +217,10 @@ export interface HakjongScore {
 /**
  * 현재 활성 main_exploration 의 tier_plan. GAP 엔진이 이것과 실제 state 비교.
  * null 이면 blueprint 미수립 상태 (초기 학생).
+ *
+ * α3-2 (2026-04-20): competencyGrowthTargets 추가.
+ *   최신 blueprint 파이프라인 task_results._blueprintPhase.competencyGrowthTargets 를
+ *   좁은 union type 으로 변환 후 첨부. blueprint_generation 미실행·실패 시 빈 배열.
  */
 export interface BlueprintAnchor {
   readonly mainExplorationId: string;
@@ -230,6 +234,8 @@ export interface BlueprintAnchor {
   readonly targetMajor: string | null;
   readonly targetUniversityLevel: string | null;   // 서울대/연고대/인서울상위/중위 등
   readonly updatedAt: string;
+  /** α3 GAP 엔진 입력용 역량 목표. blueprint 미실행 시 빈 배열. */
+  readonly competencyGrowthTargets: readonly import("./blueprint-gap").CompetencyGradeTarget[];
 }
 
 // ─── 메타데이터 ──────────────────────────────────────────────────────────
@@ -317,6 +323,9 @@ export interface StudentState {
 
   // 학종 목적 함수
   readonly hakjongScore: HakjongScore | null;
+
+  // 학종 청사진 GAP (α3-2, 2026-04-20) — Reward 와 짝. target 없으면 axisGaps=[] + priority='low'.
+  readonly blueprintGap: import("./blueprint-gap").BlueprintGap | null;
 
   // 청사진 참조
   readonly blueprint: BlueprintAnchor | null;

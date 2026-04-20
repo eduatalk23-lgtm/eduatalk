@@ -7,25 +7,33 @@
 // BlueprintPhaseOutput으로 반환.
 // ============================================
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { Database } from "@/lib/supabase/database.types";
 import type { BlueprintPhaseOutput } from "./types";
 
 const LOG_CTX = { domain: "record-analysis", action: "blueprint-loader" };
+
+type Client = SupabaseClient<Database>;
 
 /**
  * 가장 최근 완료된 blueprint 파이프라인의 _blueprintPhase 산출물을 로드.
  * 찾지 못하면 null (로깅만 남기고 조용히 실패).
  *
- * Admin 클라이언트 사용 — 파이프라인 엔진(서버리스 route) 내부 호출 전용.
+ * Admin 클라이언트 기본 — 파이프라인 엔진(서버리스 route) 내부 호출 전용.
  * createSupabaseServerClient는 cookies() 의존이라 tsx 스크립트/background worker에서 실패.
+ *
+ * α3-2 (2026-04-20): buildStudentState 에서도 호출 — cron CLI 의 admin client 를
+ *   그대로 재주입해야 cookies() 컨텍스트 의존 회피. 세 번째 인자로 client 주입 가능.
  */
 export async function loadBlueprintForStudent(
   studentId: string,
   tenantId: string,
+  client?: Client,
 ): Promise<BlueprintPhaseOutput | null> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = client ?? createSupabaseAdminClient();
     if (!supabase) {
       logActionWarn(LOG_CTX, "admin 클라이언트 미설정 — blueprint 로드 불가", { studentId });
       return null;
