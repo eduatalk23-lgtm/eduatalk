@@ -14,6 +14,7 @@ import { AttendanceSection } from "./_components/AttendanceSection";
 import { RiskCard } from "./_components/RiskCard";
 import { RecommendationPanel } from "./_components/RecommendationPanel";
 import { AdminFilesSection } from "./_components/AdminFilesSection";
+import { AiAccessPanel } from "./_components/AiAccessPanel";
 import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
@@ -61,6 +62,9 @@ export default async function AdminStudentDetailPage({
             backHref="/admin/students"
             backLabel="학생 목록으로"
           />
+
+          {/* 학생 AI 에이전트 접근 권한 (M0 opt-in 게이트) */}
+          <AiAccessPanel studentId={studentId} />
 
           {/* 탭 구조 */}
           <StudentDetailTabs defaultTab={defaultTab}>

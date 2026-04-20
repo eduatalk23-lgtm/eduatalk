@@ -12704,6 +12704,60 @@ export type Database = {
         }
         Relationships: []
       }
+      student_ai_access: {
+        Row: {
+          access_level: string
+          created_at: string
+          granted_at: string | null
+          granted_by: string | null
+          last_revoked_at: string | null
+          notes: string | null
+          revoke_reason: string | null
+          student_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_level?: string
+          created_at?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          last_revoked_at?: string | null
+          notes?: string | null
+          revoke_reason?: string | null
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_level?: string
+          created_at?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          last_revoked_at?: string | null
+          notes?: string | null
+          revoke_reason?: string | null
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_ai_access_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_ai_access_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_activity_summaries: {
         Row: {
           admin_notes: string | null
