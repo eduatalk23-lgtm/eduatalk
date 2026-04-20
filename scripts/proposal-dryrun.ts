@@ -33,6 +33,7 @@
 
 import { createSupabaseAdminClient } from "../lib/supabase/admin";
 import { runPerceptionTrigger } from "../lib/domains/student-record/actions/perception-scheduler";
+import { runProposalJob } from "../lib/domains/student-record/actions/proposal-scheduler";
 import { buildStudentState } from "../lib/domains/student-record/state/build-student-state";
 import { buildRuleProposal } from "../lib/domains/student-record/state/rule-proposal";
 import { runLlmProposal } from "../lib/domains/student-record/state/llm-proposal";
@@ -77,6 +78,7 @@ const engineMode = engineArg as "rule_v1" | "llm_v1";
 const tierPref = tierArg as "auto" | "standard_only" | "advanced_first";
 
 const forceTrigger = args.includes("--force-trigger");
+const persist = args.includes("--persist");
 
 if (engineMode === "llm_v1") {
   console.warn(
@@ -86,6 +88,11 @@ if (engineMode === "llm_v1") {
 if (forceTrigger) {
   console.warn(
     "[proposal-dryrun] ⚠ --force-trigger — Perception 결과 무시하고 synthetic trigger 로 rule/llm 엔진 강제 실행. 실측용, 운영 금지.",
+  );
+}
+if (persist) {
+  console.warn(
+    "[proposal-dryrun] ⚠ --persist — proposal_jobs / proposal_items 실제 DB 저장. UI Drawer 에서 리뷰 가능.",
   );
 }
 
@@ -296,7 +303,60 @@ async function main(): Promise<void> {
         outputTokens: number | null;
         error: string | null;
       } | null = null;
+      let persistedJobId: string | null = null;
 
+      if (persist) {
+        // scheduler 경유 — proposal_jobs + proposal_items 영속화
+        const schedulerResult = await runProposalJob({
+          studentId: s.id,
+          tenantId: s.tenant_id,
+          perception,
+          state,
+          gap: state.blueprintGap ?? null,
+          options: {
+            engine: engineMode,
+            tierPreference: tierPref,
+            client: supabase,
+          },
+        });
+
+        if (schedulerResult.status === "completed") {
+          persistedJobId = schedulerResult.jobId;
+          // scheduler 는 items 자체를 반환하지 않음 → DB 재조회 대신 빈 표시
+          // UI Drawer 에서 확인 유도
+          items = [];
+          llmMeta =
+            engineMode === "llm_v1"
+              ? {
+                  engine: schedulerResult.engine,
+                  model: null, // scheduler 응답에 model 은 없음, metadata 조회 필요 (생략)
+                  tier: null,
+                  costUsd: null,
+                  inputTokens: null,
+                  outputTokens: null,
+                  error: null,
+                }
+              : null;
+          bucket.generated++;
+          itemCountDistribution[Math.min(5, schedulerResult.itemCount)]++;
+
+          console.log(
+            `· ${label}\n` +
+              `  ${perception.diff.from.label} → ${perception.diff.to.label}\n` +
+              `  severity=${perception.severity} → ${schedulerResult.itemCount}건 생성 [engine=${schedulerResult.engine}] jobId=${persistedJobId}\n` +
+              `  (persist 모드 — 상세는 admin UI Drawer 확인)\n`,
+          );
+          continue;
+        } else {
+          bucket.zero_candidates++;
+          console.log(
+            `· ${label}\n  scheduler skipped — reason=${schedulerResult.reason}${schedulerResult.error ? ` err=${schedulerResult.error}` : ""}\n`,
+          );
+          continue;
+        }
+      }
+
+      // non-persist 경로 (기존)
       if (engineMode === "llm_v1") {
         const result = await runLlmProposal(ruleInput, {
           tierPreference: tierPref,
