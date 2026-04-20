@@ -326,18 +326,21 @@ export async function runTaskWithState(
     //
     //   best-effort. 실패해도 파이프라인 자체에는 영향 없음. trigger_source='pipeline_completion'.
     if (ctx.pipelineType === "synthesis") {
-      await refreshStudentStateSnapshot(ctx).catch((err) => {
+      const refreshedState = await refreshStudentStateSnapshot(ctx).catch((err) => {
         logActionWarn(
           LOG_CTX,
           `StudentState snapshot 갱신 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
           { pipelineId: ctx.pipelineId, studentId: ctx.studentId },
         );
+        return null;
       });
 
       // α4 Perception Scheduler (2026-04-20 C): snapshot 갱신 직후 diff + trigger 판정.
       //   snapshot 갱신이 실패했어도 직전 snapshot 과 비교할 수는 있으므로 독립 실행.
       //   best-effort — 실패해도 파이프라인에 영향 없음.
-      await import("@/lib/domains/student-record/actions/perception-scheduler")
+      const perceptionResult = await import(
+        "@/lib/domains/student-record/actions/perception-scheduler"
+      )
         .then(({ runPerceptionTrigger }) =>
           runPerceptionTrigger(ctx.studentId, ctx.tenantId, {
             source: "pipeline_completion",
@@ -350,7 +353,37 @@ export async function runTaskWithState(
             `Perception Trigger 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
             { pipelineId: ctx.pipelineId, studentId: ctx.studentId },
           );
+          return null;
         });
+
+      // α4 Proposal Scheduler (Sprint 2, 2026-04-20): Perception triggered=true 시 rule_v1 엔진 기동.
+      //   refreshedState 와 perceptionResult 모두 확보된 경우에만 실행.
+      //   best-effort — 실패해도 파이프라인에 영향 없음. LLM 비용 0 (rule_v1).
+      if (
+        refreshedState &&
+        perceptionResult &&
+        perceptionResult.status === "evaluated" &&
+        perceptionResult.triggered
+      ) {
+        await import("@/lib/domains/student-record/actions/proposal-scheduler")
+          .then(({ runProposalJob }) =>
+            runProposalJob({
+              studentId: ctx.studentId,
+              tenantId: ctx.tenantId,
+              perception: perceptionResult,
+              state: refreshedState,
+              gap: refreshedState.blueprintGap ?? null,
+              options: { client: ctx.supabase as SupabaseAdminClient },
+            }),
+          )
+          .catch((err) => {
+            logActionWarn(
+              LOG_CTX,
+              `Proposal Scheduler 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+              { pipelineId: ctx.pipelineId, studentId: ctx.studentId },
+            );
+          });
+      }
     }
   }
 }
@@ -363,8 +396,12 @@ export async function runTaskWithState(
  * DB 반영 전에도 snapshot 에 포함되도록 함.
  *
  * 실패해도 파이프라인 자체 완료에는 영향 없음 — 호출자가 catch 로 처리.
+ *
+ * Sprint 2 (2026-04-20): 빌드된 StudentState 를 반환해 Proposal Scheduler 가 재빌드 없이 소비.
  */
-async function refreshStudentStateSnapshot(ctx: PipelineContext): Promise<void> {
+async function refreshStudentStateSnapshot(
+  ctx: PipelineContext,
+): Promise<import("@/lib/domains/student-record/types/student-state").StudentState> {
   const [{ buildStudentState }, { upsertSnapshot }] = await Promise.all([
     import("@/lib/domains/student-record/state/build-student-state"),
     import("@/lib/domains/student-record/repository/student-state-repository"),
@@ -385,6 +422,8 @@ async function refreshStudentStateSnapshot(ctx: PipelineContext): Promise<void> 
     { triggerSource: "pipeline_completion" },
     ctx.supabase as SupabaseAdminClient,
   );
+
+  return state;
 }
 
 // ============================================

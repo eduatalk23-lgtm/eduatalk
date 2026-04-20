@@ -169,6 +169,76 @@ export async function fetchPerceptionTriggerResult(
   }
 }
 
+/**
+ * α4 Proposal Job DTO — 최신 완료된 제안 job 을 UI 배너용으로 축약.
+ * "use server" 제약: type re-export 금지 → 이 파일에서 직접 정의 (inline DTO).
+ *
+ * 없는 경우 present=false. 있는 경우 아이템 수와 기본 정보만 노출 (상세 drawer 는 별도 쿼리).
+ */
+export type ProposalJobBadgeDTO = {
+  present: boolean;
+  jobId: string | null;
+  engine: "rule_v1" | "llm_v1" | null;
+  severity: "none" | "low" | "medium" | "high" | null;
+  itemCount: number;
+  triggeredAt: string | null;
+  topItems: Array<{
+    rank: number;
+    name: string;
+    targetArea: "academic" | "career" | "community";
+    horizon: "immediate" | "this_semester" | "next_semester" | "long_term";
+  }>;
+};
+
+/**
+ * α4 최신 완료된 ProposalJob 조회 (UI 배너 용).
+ *
+ * 없는 경우 present=false. 실패 시 조용히 present=false (로그만).
+ */
+export async function fetchLatestProposalJob(
+  studentId: string,
+  tenantId: string,
+): Promise<ProposalJobBadgeDTO> {
+  const empty: ProposalJobBadgeDTO = {
+    present: false,
+    jobId: null,
+    engine: null,
+    severity: null,
+    itemCount: 0,
+    triggeredAt: null,
+    topItems: [],
+  };
+  try {
+    await requireAdminOrConsultant();
+    const { findLatestCompletedJob } = await import(
+      "../repository/proposal-repository"
+    );
+    const job = await findLatestCompletedJob(studentId, tenantId);
+    if (!job) return empty;
+    return {
+      present: true,
+      jobId: job.id,
+      engine: job.engine,
+      severity: job.severity === "none" ? null : job.severity,
+      itemCount: job.items.length,
+      triggeredAt: job.triggeredAt,
+      topItems: job.items.slice(0, 3).map((it) => ({
+        rank: it.rank,
+        name: it.name,
+        targetArea: it.targetArea,
+        horizon: it.horizon,
+      })),
+    };
+  } catch (error) {
+    logActionError(
+      { ...LOG_CTX, action: "fetchLatestProposalJob" },
+      error,
+      { studentId },
+    );
+    return empty;
+  }
+}
+
 /** 학생의 면접 예상 질문 조회 */
 export async function fetchInterviewQuestions(
   studentId: string,

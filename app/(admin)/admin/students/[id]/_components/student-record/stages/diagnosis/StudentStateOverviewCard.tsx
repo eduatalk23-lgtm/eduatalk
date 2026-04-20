@@ -17,8 +17,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   studentStateQueryOptions,
   perceptionTriggerQueryOptions,
+  latestProposalJobQueryOptions,
 } from "@/lib/query-options/studentRecord";
-import type { PerceptionBadgeDTO } from "@/lib/domains/student-record/actions/diagnosis-helpers";
+import type {
+  PerceptionBadgeDTO,
+  ProposalJobBadgeDTO,
+} from "@/lib/domains/student-record/actions/diagnosis-helpers";
 import {
   SNAPSHOT_LAYER_FLAGS,
   type StudentState,
@@ -60,6 +64,9 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
   );
   const { data: perception } = useQuery(
     perceptionTriggerQueryOptions(studentId, tenantId),
+  );
+  const { data: proposal } = useQuery(
+    latestProposalJobQueryOptions(studentId, tenantId),
   );
 
   if (isLoading) {
@@ -138,6 +145,8 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
 
       {perception?.delta && <PerceptionDeltaRow delta={perception.delta} />}
 
+      {proposal?.present && <ProposalJobBanner dto={proposal} />}
+
       <footer className="mt-3 flex flex-wrap gap-3 border-t border-[var(--border-primary)] pt-2 text-xs text-[var(--text-tertiary)]">
         <span>빌드 시각 {formatBuiltAt(snapshot.built_at)}</span>
         <span>builder {snapshot.builder_version}</span>
@@ -146,6 +155,58 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
         )}
       </footer>
     </article>
+  );
+}
+
+// α4 Sprint 2 (2026-04-20): 최신 완료된 Proposal Job 배너.
+//   Perception triggered=true 시 rule_v1 엔진이 생성한 활동 제안 3~5개 요약.
+//   학생 비노출 원칙(feedback_no-ai-label-student) 준수 — 이 카드 자체가 admin 전용.
+//   상세/수락은 Sprint 3 (Chat-First Shell) 이후 구현.
+function ProposalJobBanner({ dto }: { dto: ProposalJobBadgeDTO }) {
+  const areaKo = (a: "academic" | "career" | "community") =>
+    a === "academic" ? "학업" : a === "career" ? "진로" : "공동체";
+  const horizonKo = (h: "immediate" | "this_semester" | "next_semester" | "long_term") =>
+    h === "immediate"
+      ? "즉시"
+      : h === "this_semester"
+        ? "이번 학기"
+        : h === "next_semester"
+          ? "다음 학기"
+          : "장기";
+
+  return (
+    <div className="mt-3 rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-semibold text-[var(--text-secondary)]">
+          새 제안 {dto.itemCount}건
+        </span>
+        {dto.engine && (
+          <span className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+            {dto.engine}
+          </span>
+        )}
+        {dto.triggeredAt && (
+          <span className="text-[var(--text-tertiary)]">
+            {formatBuiltAt(dto.triggeredAt)}
+          </span>
+        )}
+      </div>
+      {dto.topItems.length > 0 && (
+        <ol className="mt-1.5 space-y-0.5 text-[11px] text-[var(--text-primary)]">
+          {dto.topItems.map((it) => (
+            <li key={it.rank} className="flex gap-2">
+              <span className="shrink-0 font-medium text-[var(--text-tertiary)]">
+                #{it.rank}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{it.name}</span>
+              <span className="shrink-0 text-[var(--text-tertiary)]">
+                {areaKo(it.targetArea)} · {horizonKo(it.horizon)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
 

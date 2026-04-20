@@ -9302,6 +9302,158 @@ export type Database = {
         }
         Relationships: []
       }
+      proposal_jobs: {
+        Row: {
+          completed_at: string | null
+          cost_usd: number | null
+          created_at: string
+          engine: string
+          error: string | null
+          gap_priority: string | null
+          id: string
+          metadata: Json
+          model: string | null
+          perception_reasons: string[]
+          perception_source: string
+          severity: string
+          state_as_of: Json
+          status: string
+          student_id: string
+          tenant_id: string
+          triggered_at: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          engine: string
+          error?: string | null
+          gap_priority?: string | null
+          id?: string
+          metadata?: Json
+          model?: string | null
+          perception_reasons?: string[]
+          perception_source: string
+          severity: string
+          state_as_of: Json
+          status: string
+          student_id: string
+          tenant_id: string
+          triggered_at?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          engine?: string
+          error?: string | null
+          gap_priority?: string | null
+          id?: string
+          metadata?: Json
+          model?: string | null
+          perception_reasons?: string[]
+          perception_source?: string
+          severity?: string
+          state_as_of?: Json
+          status?: string
+          student_id?: string
+          tenant_id?: string
+          triggered_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_jobs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_items: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          evidence_refs: string[]
+          expected_impact: Json
+          horizon: string
+          id: string
+          job_id: string
+          name: string
+          prerequisite: string[]
+          rank: number
+          rationale: string
+          risks: string[]
+          roadmap_area: string
+          student_decision: string
+          student_feedback: string | null
+          summary: string
+          target_area: string
+          target_axes: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          evidence_refs?: string[]
+          expected_impact: Json
+          horizon: string
+          id?: string
+          job_id: string
+          name: string
+          prerequisite?: string[]
+          rank: number
+          rationale: string
+          risks?: string[]
+          roadmap_area: string
+          student_decision?: string
+          student_feedback?: string | null
+          summary: string
+          target_area: string
+          target_axes: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          evidence_refs?: string[]
+          expected_impact?: Json
+          horizon?: string
+          id?: string
+          job_id?: string
+          name?: string
+          prerequisite?: string[]
+          rank?: number
+          rationale?: string
+          risks?: string[]
+          roadmap_area?: string
+          student_decision?: string
+          student_feedback?: string | null
+          summary?: string
+          target_area?: string
+          target_axes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_dlq: {
         Row: {
           created_at: string | null

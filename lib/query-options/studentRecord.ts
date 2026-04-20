@@ -47,6 +47,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "studentStateLatest", studentId] as const,
   perceptionTrigger: (studentId: string) =>
     [...studentRecordKeys.all, "perceptionTrigger", studentId] as const,
+  latestProposalJob: (studentId: string) =>
+    [...studentRecordKeys.all, "latestProposalJob", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -208,6 +210,22 @@ export function perceptionTriggerQueryOptions(studentId: string, tenantId: strin
         "@/lib/domains/student-record/actions/diagnosis-helpers"
       );
       return fetchPerceptionTriggerResult(studentId, tenantId);
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** α4 Sprint 2 (2026-04-20): 최신 완료된 Proposal Job (UI 배너용). */
+export function latestProposalJobQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.latestProposalJob(studentId),
+    queryFn: async () => {
+      const { fetchLatestProposalJob } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchLatestProposalJob(studentId, tenantId);
     },
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
