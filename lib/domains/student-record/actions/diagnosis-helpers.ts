@@ -75,6 +75,25 @@ export async function fetchPersistedProfileCards(
   }
 }
 
+/**
+ * α1-6: 학생의 최신 StudentState snapshot 조회.
+ * snapshot 영속화는 α1-3-d 의 daily cron + 파이프라인 완료 훅에 의존.
+ * snapshot 없는 학생 (신규 / 아직 빌드되지 않음) → null 반환. UI는 placeholder 렌더.
+ */
+export async function fetchLatestStudentStateSnapshot(
+  studentId: string,
+  tenantId: string,
+) {
+  try {
+    await requireAdminOrConsultant();
+    const { findLatestSnapshot } = await import("../repository/student-state-repository");
+    return await findLatestSnapshot(studentId, tenantId);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchLatestStudentStateSnapshot" }, error, { studentId });
+    return null;
+  }
+}
+
 /** 학생의 면접 예상 질문 조회 */
 export async function fetchInterviewQuestions(
   studentId: string,

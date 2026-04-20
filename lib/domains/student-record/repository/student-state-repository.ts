@@ -62,18 +62,9 @@ export interface PersistedStudentStateSnapshot {
   updated_at: string;
 }
 
-/** layer_flags bitmap 비트 정의 — 소비자 코드가 이 상수로 decode. */
-export const SNAPSHOT_LAYER_FLAGS = {
-  LAYER0:         1,
-  LAYER1:         1 << 1,
-  LAYER2:         1 << 2,
-  LAYER3:         1 << 3,
-  AUX_VOLUNTEER:  1 << 4,
-  AUX_AWARDS:     1 << 5,
-  AUX_ATTENDANCE: 1 << 6,
-  AUX_READING:    1 << 7,
-  BLUEPRINT:      1 << 8,
-} as const;
+// layer_flags bitmap 상수는 `types/student-state` 로 이관 (client-safe).
+// 기존 서버 경로 호환용 re-export.
+export { SNAPSHOT_LAYER_FLAGS } from "../types/student-state";
 
 function toPersisted(row: SnapshotRow): PersistedStudentStateSnapshot {
   return {

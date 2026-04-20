@@ -43,6 +43,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "narrativeArcs", studentId] as const,
   profileCards: (studentId: string) =>
     [...studentRecordKeys.all, "profileCards", studentId] as const,
+  studentStateLatest: (studentId: string) =>
+    [...studentRecordKeys.all, "studentStateLatest", studentId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -175,6 +177,22 @@ export function profileCardsQueryOptions(studentId: string, tenantId: string) {
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** α1-6: 학생 최신 StudentState snapshot (α1-3-d cron 기반). snapshot 부재 시 null. */
+export function studentStateQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.studentStateLatest(studentId),
+    queryFn: async () => {
+      const { fetchLatestStudentStateSnapshot } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchLatestStudentStateSnapshot(studentId, tenantId);
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     enabled: !!studentId,
   });
 }

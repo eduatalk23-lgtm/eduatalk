@@ -26,6 +26,7 @@ import { TimeSeriesCard } from "./TimeSeriesCard";
 import { ProfileCardPanel } from "./ProfileCardPanel";
 import { NarrativeArcPanel } from "./NarrativeArcPanel";
 import { HyperedgeListPanel } from "./HyperedgeListPanel";
+import { StudentStateOverviewCard } from "./StudentStateOverviewCard";
 
 const ProjectedAnalysisSection = lazy(() =>
   import("../../../report/sections/ProjectedAnalysisSection").then((m) => ({ default: m.ProjectedAnalysisSection })),
@@ -96,6 +97,15 @@ export function DiagnosisStageContent({
     <>
       {/* ─── 🔍 진단 스테이지 구분선 ──────────── */}
       <StageDivider emoji="🔍" label="진단" />
+
+      {/* α1-6: 학생 상태 스냅샷 개요 (Layer 0~3 + aux 4축 + 청사진 한눈에) */}
+      <StrategySection id="sec-student-state-overview" title="학생 상태 스냅샷">
+        <p className="mb-3 text-xs text-[var(--text-tertiary)]">
+          Layer 0~3·보조 영역(봉사·수상·출결·독서)·청사진·영역별 채움률을 α1-3~α1-5 스냅샷에서 요약.
+          야간 크론(03:30 KST) 또는 파이프라인 완료 시 갱신.
+        </p>
+        <StudentStateOverviewCard studentId={studentId} tenantId={tenantId} />
+      </StrategySection>
 
       {/* F1: AI 종합 분석 (Synthesis 완료 시에만 표시) */}
       {executiveSummary && (
