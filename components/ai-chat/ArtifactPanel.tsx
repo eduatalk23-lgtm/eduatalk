@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, Pencil, Save, X } from "lucide-react";
 import { useArtifactStore, type Artifact } from "@/lib/stores/artifactStore";
 import { useArtifactHistory } from "@/lib/hooks/useArtifactHistory";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "./ScoresCard";
 import { ArtifactVersionTabs } from "./ArtifactVersionTabs";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import { saveArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactEdit";
 
 const TYPE_LABELS: Record<string, string> = {
   scores: "내신 성적",
@@ -26,7 +27,8 @@ const TYPE_LABELS: Record<string, string> = {
 export function ArtifactPanel() {
   const { artifact, closeArtifact } = useArtifactStore();
   // Phase C-2: persistedId 가 주어지면 버전 히스토리 lazy fetch.
-  useArtifactHistory();
+  // Phase C-3: 편집 저장 후 버전 목록 재조회용 reload 노출.
+  const { reload: reloadHistory } = useArtifactHistory();
 
   // 모바일 sheet 가 열려 있을 때 바디 스크롤 잠금
   useEffect(() => {
@@ -61,7 +63,11 @@ export function ArtifactPanel() {
         {!artifact ? (
           <EmptyPlaceholder />
         ) : (
-          <ArtifactBody artifact={artifact} onClose={closeArtifact} />
+          <ArtifactBody
+            artifact={artifact}
+            onClose={closeArtifact}
+            reloadHistory={reloadHistory}
+          />
         )}
       </aside>
 
@@ -91,7 +97,12 @@ export function ArtifactPanel() {
             >
               <span className="h-1 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" />
             </div>
-            <ArtifactBody artifact={artifact} onClose={closeArtifact} mobileSheet />
+            <ArtifactBody
+              artifact={artifact}
+              onClose={closeArtifact}
+              reloadHistory={reloadHistory}
+              mobileSheet
+            />
           </div>
         </div>
       )}
@@ -115,12 +126,44 @@ function EmptyPlaceholder() {
 function ArtifactBody({
   artifact,
   onClose,
+  reloadHistory,
   mobileSheet,
 }: {
   artifact: Artifact;
   onClose: () => void;
+  reloadHistory: () => void;
   mobileSheet?: boolean;
 }) {
+  const editMode = useArtifactStore((s) => s.editMode);
+  const draftProps = useArtifactStore((s) => s.draftProps);
+  const enterEditMode = useArtifactStore((s) => s.enterEditMode);
+  const updateDraft = useArtifactStore((s) => s.updateDraft);
+  const discardDraft = useArtifactStore((s) => s.discardDraft);
+  const commitDraft = useArtifactStore((s) => s.commitDraft);
+  const [isPending, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const persistedId = artifact.persistedId ?? null;
+  const canEdit = artifact.type === "scores" && persistedId != null;
+  const displayProps = editMode ? draftProps : artifact.props;
+
+  const handleSave = () => {
+    if (!persistedId) return;
+    setSaveError(null);
+    startTransition(async () => {
+      const result = await saveArtifactEdit({
+        artifactId: persistedId,
+        props: draftProps,
+      });
+      if (result.ok) {
+        commitDraft(result.versionNo);
+        reloadHistory();
+      } else {
+        setSaveError(result.message ?? result.reason);
+      }
+    });
+  };
+
   return (
     <>
       <header
@@ -145,7 +188,41 @@ function ArtifactBody({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {artifact.originPath && (
+          {!editMode && canEdit && (
+            <button
+              type="button"
+              onClick={enterEditMode}
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              aria-label="아티팩트 편집"
+            >
+              <Pencil size={12} />
+              편집
+            </button>
+          )}
+          {editMode && (
+            <>
+              <button
+                type="button"
+                onClick={discardDraft}
+                disabled={isPending}
+                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                aria-label="편집 취소"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isPending}
+                className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                aria-label="편집 저장"
+              >
+                <Save size={12} />
+                {isPending ? "저장 중…" : "저장"}
+              </button>
+            </>
+          )}
+          {!editMode && artifact.originPath && (
             <Link
               href={artifact.originPath}
               className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
@@ -158,21 +235,36 @@ function ArtifactBody({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            disabled={isPending}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
             aria-label="아티팩트 닫기"
           >
             <X size={14} />
           </button>
         </div>
       </header>
-      <ArtifactVersionTabs />
+      {!editMode && <ArtifactVersionTabs />}
+      {editMode && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          편집 중 — 저장 시 새 버전(v{(artifact.versionNo ?? 0) + 1})이 생성됩니다. 원본 성적 DB 는 변경되지 않습니다.
+        </div>
+      )}
+      {saveError && (
+        <div className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
+          저장 실패: {saveError}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-4">
         {artifact.type === "scores" && (
-          <ScoresCard output={artifact.props as GetScoresOutput} />
+          <ScoresCard
+            output={displayProps as GetScoresOutput}
+            editable={editMode}
+            onChange={editMode ? (next) => updateDraft(next) : undefined}
+          />
         )}
         {artifact.type === "generic" && (
           <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-            {JSON.stringify(artifact.props, null, 2)}
+            {JSON.stringify(displayProps, null, 2)}
           </pre>
         )}
         {artifact.type !== "scores" && artifact.type !== "generic" && (

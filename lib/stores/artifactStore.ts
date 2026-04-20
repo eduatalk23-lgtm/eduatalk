@@ -40,25 +40,72 @@ type ArtifactStore = {
   artifact: Artifact | null;
   /** 현재 artifact 의 버전 목록 (DESC). 버전 탭 렌더용. */
   versions: ArtifactVersionSummary[];
+  /**
+   * Phase C-3: 편집 모드 플래그. true 면 ScoresCard 가 input 으로 렌더된다.
+   */
+  editMode: boolean;
+  /**
+   * Phase C-3: 편집 중인 props (unsaved). null 이면 artifact.props 가 SSOT.
+   */
+  draftProps: unknown;
   openArtifact: (artifact: Artifact) => void;
   closeArtifact: () => void;
   isOpen: (id: string) => boolean;
   /** 서버 hydration 이후 버전 목록·현재 버전 업데이트. */
   setVersions: (versions: ArtifactVersionSummary[]) => void;
-  /** UI 에서 버전 선택 시 props 교체. */
+  /** UI 에서 버전 선택 시 props 교체. editMode 면 draft 포기 후 전환. */
   switchVersion: (versionNo: number, props: unknown) => void;
+  /** Phase C-3: 편집 진입. 현재 props 를 draft 로 복제. */
+  enterEditMode: () => void;
+  /** Phase C-3: draft 변경. 저장 전 로컬 상태. */
+  updateDraft: (props: unknown) => void;
+  /** Phase C-3: 편집 취소. draft 버리고 읽기 모드 복귀. */
+  discardDraft: () => void;
+  /**
+   * Phase C-3: 저장 성공 후 호출. 새 버전을 active 로, draft 클리어, editMode off.
+   * versions 목록 재동기화는 상위 훅(`useArtifactHistory`)이 담당.
+   */
+  commitDraft: (versionNo: number) => void;
 };
 
 export const useArtifactStore = create<ArtifactStore>((set, get) => ({
   artifact: null,
   versions: [],
-  openArtifact: (artifact) => set({ artifact, versions: [] }),
-  closeArtifact: () => set({ artifact: null, versions: [] }),
+  editMode: false,
+  draftProps: null,
+  openArtifact: (artifact) =>
+    set({ artifact, versions: [], editMode: false, draftProps: null }),
+  closeArtifact: () =>
+    set({ artifact: null, versions: [], editMode: false, draftProps: null }),
   isOpen: (id) => get().artifact?.id === id,
   setVersions: (versions) => set({ versions }),
   switchVersion: (versionNo, props) => {
     const current = get().artifact;
     if (!current) return;
-    set({ artifact: { ...current, props, versionNo } });
+    set({
+      artifact: { ...current, props, versionNo },
+      editMode: false,
+      draftProps: null,
+    });
+  },
+  enterEditMode: () => {
+    const current = get().artifact;
+    if (!current) return;
+    set({ editMode: true, draftProps: current.props });
+  },
+  updateDraft: (props) => {
+    if (!get().editMode) return;
+    set({ draftProps: props });
+  },
+  discardDraft: () => set({ editMode: false, draftProps: null }),
+  commitDraft: (versionNo) => {
+    const current = get().artifact;
+    const draft = get().draftProps;
+    if (!current) return;
+    set({
+      artifact: { ...current, props: draft, versionNo },
+      editMode: false,
+      draftProps: null,
+    });
   },
 }));

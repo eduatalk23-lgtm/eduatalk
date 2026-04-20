@@ -327,6 +327,95 @@ export async function listConversationArtifacts(
 }
 
 /**
+ * Phase C-3: 사용자 편집 경로 전용 버전 INSERT.
+ *
+ * `upsertArtifactWithVersion` 과 차이:
+ *  - 반드시 기존 artifact 가 존재해야 한다 (편집은 최소 v1 이 있어야 시작).
+ *  - `edited_by_user_id` 를 강제로 채운다 (tool 생성 버전과 구분).
+ *  - props hash 가 직전 버전과 같으면 no-op (skip).
+ *
+ * RLS: 호출자가 server client 를 전달 — artifact 조회 실패 시 권한 없음으로 간주.
+ */
+export type InsertEditedVersionArgs = {
+  artifactId: string;
+  editedByUserId: string;
+  props: unknown;
+};
+
+export type InsertEditedVersionResult = {
+  artifactId: string;
+  versionNo: number;
+  versionInserted: boolean;
+};
+
+export async function insertEditedVersion(
+  args: InsertEditedVersionArgs,
+  supabase: SupabaseClient<Database>,
+): Promise<InsertEditedVersionResult> {
+  const propsHash = computePropsHash(args.props);
+
+  const artifact = await supabase
+    .from("ai_artifacts")
+    .select("id")
+    .eq("id", args.artifactId)
+    .maybeSingle();
+
+  if (artifact.error) {
+    throw new Error(`artifact lookup: ${artifact.error.message}`);
+  }
+  if (!artifact.data) {
+    throw new Error("artifact not found or not accessible");
+  }
+
+  const latest = await supabase
+    .from("ai_artifact_versions")
+    .select("version_no, props_hash")
+    .eq("artifact_id", args.artifactId)
+    .order("version_no", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latest.error) {
+    throw new Error(`latest version lookup: ${latest.error.message}`);
+  }
+
+  if (latest.data && latest.data.props_hash === propsHash) {
+    return {
+      artifactId: args.artifactId,
+      versionNo: latest.data.version_no,
+      versionInserted: false,
+    };
+  }
+
+  const nextVersion = (latest.data?.version_no ?? 0) + 1;
+  const versionInsert = await supabase.from("ai_artifact_versions").insert({
+    artifact_id: args.artifactId,
+    version_no: nextVersion,
+    props: args.props as never,
+    props_hash: propsHash,
+    created_by_message_id: null,
+    edited_by_user_id: args.editedByUserId,
+  });
+  if (versionInsert.error) {
+    throw new Error(`edited version insert: ${versionInsert.error.message}`);
+  }
+
+  const pointerUpdate = await supabase
+    .from("ai_artifacts")
+    .update({ latest_version: nextVersion })
+    .eq("id", args.artifactId);
+  if (pointerUpdate.error) {
+    throw new Error(`artifact pointer update: ${pointerUpdate.error.message}`);
+  }
+
+  return {
+    artifactId: args.artifactId,
+    versionNo: nextVersion,
+    versionInserted: true,
+  };
+}
+
+/**
  * 특정 artifact 의 전체 버전 목록 (UI 버전 탭 드롭다운).
  * 최신 버전이 앞(DESC).
  */

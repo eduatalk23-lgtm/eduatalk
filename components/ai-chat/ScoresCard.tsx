@@ -1,9 +1,37 @@
 import { cn } from "@/lib/cn";
-import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { GetScoresOutput, ScoreRow } from "@/lib/mcp/tools/getScores";
 
 type Props = {
   output: GetScoresOutput;
+  /**
+   * Phase C-3: 편집 모드. true 면 rawScore / rankGrade 가 input 으로 렌더된다.
+   * onChange 와 함께 제공되지 않으면 무시된다.
+   */
+  editable?: boolean;
+  /**
+   * Phase C-3: 편집 시 변경된 전체 output 을 상위로 전달.
+   * 상위(ArtifactPanel)가 draft store 로 propagate.
+   */
+  onChange?: (next: GetScoresOutput) => void;
 };
+
+const RAW_SCORE_MIN = 0;
+const RAW_SCORE_MAX = 100;
+const RANK_MIN = 1;
+const RANK_MAX = 9;
+
+function clampOrNull(
+  value: string,
+  min: number,
+  max: number,
+): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
+}
 
 function gradeLabel(g: number | null): string {
   if (g == null) return "-";
@@ -18,7 +46,17 @@ function gradeColor(g: number | null): string {
   return "bg-rose-100 text-rose-700";
 }
 
-export function ScoresCard({ output }: Props) {
+export function ScoresCard({ output, editable, onChange }: Props) {
+  const isEditing = Boolean(editable && onChange && output.ok);
+
+  const updateRow = (index: number, patch: Partial<ScoreRow>) => {
+    if (!onChange || !output.ok) return;
+    const nextRows = output.rows.map((r, i) =>
+      i === index ? { ...r, ...patch } : r,
+    );
+    onChange({ ...output, rows: nextRows });
+  };
+
   if (!output.ok) {
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -108,17 +146,69 @@ export function ScoresCard({ output }: Props) {
                   </div>
                 </td>
                 <td className="px-4 py-2 text-right font-mono text-sm">
-                  {r.rawScore != null ? r.rawScore : "-"}
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={RAW_SCORE_MIN}
+                      max={RAW_SCORE_MAX}
+                      step="0.1"
+                      defaultValue={r.rawScore ?? ""}
+                      onBlur={(e) =>
+                        updateRow(i, {
+                          rawScore: clampOrNull(
+                            e.currentTarget.value,
+                            RAW_SCORE_MIN,
+                            RAW_SCORE_MAX,
+                          ),
+                        })
+                      }
+                      aria-label={`${r.subject} 원점수`}
+                      className="w-16 rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-right font-mono text-sm text-blue-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  ) : r.rawScore != null ? (
+                    r.rawScore
+                  ) : (
+                    "-"
+                  )}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
-                      gradeColor(r.rankGrade),
-                    )}
-                  >
-                    {gradeLabel(r.rankGrade)}
-                  </span>
+                  {isEditing ? (
+                    <select
+                      defaultValue={r.rankGrade ?? ""}
+                      onChange={(e) =>
+                        updateRow(i, {
+                          rankGrade:
+                            e.currentTarget.value === ""
+                              ? null
+                              : Number(e.currentTarget.value),
+                        })
+                      }
+                      aria-label={`${r.subject} 등급`}
+                      className={cn(
+                        "rounded-md border border-blue-300 bg-white px-1 py-0.5 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-400",
+                      )}
+                    >
+                      <option value="">-</option>
+                      {Array.from({ length: RANK_MAX - RANK_MIN + 1 }, (_, k) => {
+                        const g = RANK_MIN + k;
+                        return (
+                          <option key={g} value={g}>
+                            {g}등급
+                          </option>
+                        );
+                      })}
+                    </select>
+                  ) : (
+                    <span
+                      className={cn(
+                        "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+                        gradeColor(r.rankGrade),
+                      )}
+                    >
+                      {gradeLabel(r.rankGrade)}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

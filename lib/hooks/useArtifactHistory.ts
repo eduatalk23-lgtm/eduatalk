@@ -8,14 +8,21 @@
  * 버전 탭 UI 가 이 store 를 읽어 렌더.
  */
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useArtifactStore, type ArtifactVersionSummary } from "@/lib/stores/artifactStore";
 
-export function useArtifactHistory(): void {
+/**
+ * Phase C-3: 편집 저장 성공 후 버전 목록을 재조회하기 위한 reload 트리거 반환.
+ * ArtifactPanel 이 saveArtifactEdit 성공 후 reload() 호출.
+ */
+export function useArtifactHistory(): { reload: () => void } {
   const artifact = useArtifactStore((s) => s.artifact);
   const setVersions = useArtifactStore((s) => s.setVersions);
 
   const persistedId = artifact?.persistedId ?? null;
+  const [reloadCounter, setReloadCounter] = useState(0);
+
+  const reload = useCallback(() => setReloadCounter((n) => n + 1), []);
 
   useEffect(() => {
     if (!persistedId) {
@@ -61,5 +68,7 @@ export function useArtifactHistory(): void {
     return () => {
       cancelled = true;
     };
-  }, [persistedId, setVersions]);
+  }, [persistedId, setVersions, reloadCounter]);
+
+  return { reload };
 }
