@@ -135,6 +135,8 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
 
       {state && <AuxSummaryGrid state={state} />}
 
+      {perception?.delta && <PerceptionDeltaRow delta={perception.delta} />}
+
       <footer className="mt-3 flex flex-wrap gap-3 border-t border-[var(--border-primary)] pt-2 text-xs text-[var(--text-tertiary)]">
         <span>빌드 시각 {formatBuiltAt(snapshot.built_at)}</span>
         <span>builder {snapshot.builder_version}</span>
@@ -143,6 +145,60 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
         )}
       </footer>
     </article>
+  );
+}
+
+// 6b-A (2026-04-20 C): 직전 snapshot 대비 변화 요약을 한 줄로 inline 표시.
+//   뱃지(PerceptionBadge) 는 severity 만, 이 행은 구체 변화량을 숫자로 노출.
+//   "변화 없음" (모든 필드 0/빈) 은 미렌더 — PerceptionBadge 가 이미 "변화 없음" 표시.
+function PerceptionDeltaRow({
+  delta,
+}: {
+  delta: NonNullable<PerceptionBadgeDTO["delta"]>;
+}) {
+  const chips: string[] = [];
+  if (delta.hakjongScoreDelta !== null && delta.hakjongScoreDelta !== 0) {
+    const sign = delta.hakjongScoreDelta > 0 ? "+" : "";
+    chips.push(`학종 ${sign}${delta.hakjongScoreDelta}`);
+  }
+  if (delta.competencyChangeCount > 0) {
+    chips.push(`역량 ${delta.competencyChangeCount}축`);
+  }
+  if (delta.newRecordCount > 0) {
+    chips.push(`신규 ${delta.newRecordCount}건`);
+  }
+  if (delta.volunteerHoursDelta > 0) {
+    chips.push(`봉사 +${delta.volunteerHoursDelta}h`);
+  }
+  if (delta.awardsAdded > 0) {
+    chips.push(`수상 +${delta.awardsAdded}`);
+  }
+  if (delta.integrityChanged) {
+    chips.push("출결 변화");
+  }
+  if (delta.staleBlueprint) {
+    chips.push("⚠ 청사진 stale");
+  }
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-2 text-xs">
+      <span className="font-semibold text-[var(--text-secondary)]">직전 대비</span>
+      <span className="text-[var(--text-tertiary)]">
+        {delta.fromLabel} → {delta.toLabel}
+      </span>
+      <span className="text-[var(--text-tertiary)]">·</span>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((chip, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[11px] text-[var(--text-primary)]"
+          >
+            {chip}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

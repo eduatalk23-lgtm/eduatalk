@@ -97,12 +97,25 @@ export async function fetchLatestStudentStateSnapshot(
 /**
  * α4 Perception Badge DTO — snapshot 2개 비교로 trigger 판정 결과를 UI 용으로 축약.
  * "use server" 제약: type re-export 금지 → 이 파일에서 직접 정의 (inline DTO).
+ *
+ * delta: evaluated=true 일 때만 값. 직전 snapshot 대비 요약 (6b-A).
  */
 export type PerceptionBadgeDTO = {
   evaluated: boolean;
   triggered: boolean;
   severity: "none" | "low" | "medium" | "high";
   reasons: string[];
+  delta: {
+    fromLabel: string;
+    toLabel: string;
+    hakjongScoreDelta: number | null;
+    competencyChangeCount: number;
+    newRecordCount: number;
+    volunteerHoursDelta: number;
+    awardsAdded: number;
+    integrityChanged: boolean;
+    staleBlueprint: boolean;
+  } | null;
 };
 
 /**
@@ -115,6 +128,13 @@ export async function fetchPerceptionTriggerResult(
   studentId: string,
   tenantId: string,
 ): Promise<PerceptionBadgeDTO> {
+  const empty: PerceptionBadgeDTO = {
+    evaluated: false,
+    triggered: false,
+    severity: "none",
+    reasons: [],
+    delta: null,
+  };
   try {
     await requireAdminOrConsultant();
     const { runPerceptionTrigger } = await import("./perception-scheduler");
@@ -125,12 +145,23 @@ export async function fetchPerceptionTriggerResult(
         triggered: result.triggered,
         severity: result.severity,
         reasons: [...result.reasons],
+        delta: {
+          fromLabel: result.diff.from.label,
+          toLabel: result.diff.to.label,
+          hakjongScoreDelta: result.diff.hakjongScoreDelta,
+          competencyChangeCount: result.diff.competencyChanges.length,
+          newRecordCount: result.diff.newRecordIds.length,
+          volunteerHoursDelta: result.diff.auxChanges.volunteerHoursDelta,
+          awardsAdded: result.diff.auxChanges.awardsAdded,
+          integrityChanged: result.diff.auxChanges.integrityChanged,
+          staleBlueprint: result.diff.staleBlueprint,
+        },
       };
     }
-    return { evaluated: false, triggered: false, severity: "none", reasons: [] };
+    return empty;
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchPerceptionTriggerResult" }, error, { studentId });
-    return { evaluated: false, triggered: false, severity: "none", reasons: [] };
+    return empty;
   }
 }
 
