@@ -127,6 +127,8 @@ export async function runProposalJob(
   let model: string | null = null;
   let costUsd: number | null = 0;
   let engineError: string | null = null;
+  let llmTier: "fast" | "standard" | "advanced" | null = null;
+  let llmUsage: { inputTokens: number; outputTokens: number } | null = null;
 
   if (engine === "llm_v1") {
     // Sprint 3 scaffold — LLM 호출 + rule_v1 seed + graceful fallback
@@ -141,6 +143,8 @@ export async function runProposalJob(
     model = result.model;
     costUsd = result.costUsd;
     engineError = result.error;
+    llmTier = result.tier;
+    llmUsage = result.usage;
     // LLM 실패 → engine='rule_v1' 로 영속 (실제 생성 경로 기록)
     if (result.engine === "rule_v1_fallback") {
       effectiveEngine = "rule_v1";
@@ -185,6 +189,8 @@ export async function runProposalJob(
       diffCompetencyChanges: perception.diff.competencyChanges.length,
       requestedEngine: engine,
       engineError,
+      llmTier,
+      llmUsage,
     },
   };
 

@@ -20,6 +20,13 @@ export interface LlmProposalResult {
   readonly costUsd: number | null;
   readonly elapsedMs: number;
   readonly error: string | null;
+  /** llm_v1 성공 시 tier. rule_v1_fallback 이면 null. aiUsageLogger 연결용. */
+  readonly tier: "fast" | "standard" | "advanced" | null;
+  /** llm_v1 성공 시 usage. aiUsageLogger 연결용. */
+  readonly usage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+  } | null;
 }
 
 /**
@@ -67,10 +74,11 @@ export async function runLlmProposal(
         items: result.data.items,
         engine: "llm_v1",
         model: result.modelName ?? null,
-        // TODO(Sprint 3): aiUsageLogger 연결 후 정확한 cost 주입
-        costUsd: null,
+        costUsd: result.costUsd,
         elapsedMs: Date.now() - startMs,
         error: null,
+        tier: result.tier,
+        usage: result.usage ?? null,
       };
     }
 
@@ -82,6 +90,8 @@ export async function runLlmProposal(
       costUsd: 0,
       elapsedMs: Date.now() - startMs,
       error: result.error,
+      tier: null,
+      usage: null,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -92,6 +102,8 @@ export async function runLlmProposal(
       costUsd: 0,
       elapsedMs: Date.now() - startMs,
       error: msg,
+      tier: null,
+      usage: null,
     };
   }
 }

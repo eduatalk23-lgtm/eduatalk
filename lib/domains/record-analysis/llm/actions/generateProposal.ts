@@ -12,6 +12,7 @@
 
 import { generateTextWithRateLimit, type ModelTier } from "../ai-client";
 import { withRetry } from "../retry";
+import { estimateCost } from "@/lib/domains/plan/llm/client";
 import {
   PROPOSAL_SYSTEM_PROMPT,
   buildProposalUserPrompt,
@@ -27,6 +28,8 @@ export interface ProposalLlmSuccess {
   readonly usage?: { readonly inputTokens: number; readonly outputTokens: number };
   readonly elapsedMs: number;
   readonly tier: ModelTier;
+  /** usage + tier 기반 estimatedCost. usage 미제공 시 null. */
+  readonly costUsd: number | null;
 }
 
 export interface ProposalLlmFailure {
@@ -96,6 +99,9 @@ export async function generateProposal(
     try {
       const { content, modelName, usage } = await callProposalLlm(input, tier);
       const parsed = parseProposalResponse(content);
+      const costUsd = usage
+        ? estimateCost(usage.inputTokens, usage.outputTokens, tier)
+        : null;
       return {
         success: true,
         data: parsed,
@@ -103,6 +109,7 @@ export async function generateProposal(
         ...(usage ? { usage } : {}),
         elapsedMs: Date.now() - startMs,
         tier,
+        costUsd,
       };
     } catch (err) {
       lastError = err;

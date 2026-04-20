@@ -1,33 +1,41 @@
 #!/usr/bin/env npx tsx
 /**
- * α4 Proposal Engine dry-run CLI (Sprint 2, 2026-04-20)
+ * α4 Proposal Engine dry-run CLI (Sprint 2 + Sprint 3, 2026-04-20)
  *
- * Perception Trigger → rule_v1 엔진을 실행해 제안 결과만 콘솔에 덤프.
- * DB 쓰기 **없음**. LLM 호출 **없음**. 완전 read-only.
+ * Perception Trigger → rule_v1 또는 llm_v1 엔진을 실행해 제안 결과를 콘솔에 덤프.
+ *
+ * 기본: DB 쓰기 없음, LLM 호출 없음, 완전 read-only (rule_v1).
+ * --engine=llm_v1: 실제 LLM 호출 발생. **비용 주의** (Gemini 2.5 Pro ~$0.05/call).
  *
  * 사용법:
  *   npx tsx scripts/proposal-dryrun.ts --student=<uuid>
- *   npx tsx scripts/proposal-dryrun.ts --tenant=<uuid>
- *   npx tsx scripts/proposal-dryrun.ts --all
+ *   npx tsx scripts/proposal-dryrun.ts --tenant=<uuid> --engine=llm_v1
+ *   npx tsx scripts/proposal-dryrun.ts --all --engine=llm_v1 --tier=standard_only
+ *
+ * 옵션:
+ *   --engine=rule_v1 (기본) | llm_v1
+ *   --tier=auto (기본, standard→advanced) | standard_only | advanced_first
  *
  * 출력:
- *   학생별 1 block 덤프. Perception severity + 제안 N건 + 각 제안의 요약.
- *   Perception not triggered → "skipped not_triggered" / snapshot 부재 → "skipped no_prior_snapshot".
+ *   학생별 1 block 덤프. Perception severity + 제안 N건 + 각 제안 요약.
+ *   llm_v1 경로는 추가로 model / tier / usage / costUsd 표시.
  *
  * 목적:
  *   - Sprint 4 김세린·인제고 실측 준비
- *   - rule_v1 매핑표의 실제 분포 (제안 0건 / 1~5건) 확인
+ *   - rule_v1 매핑표의 실제 분포 확인 (제안 0건 / 1~5건)
  *   - 영역 다양성 가드(F16) 실제 학생 데이터 검증
- *   - LLM 통합(Sprint 3) 진입 전 규칙 엔진의 한계·강점 체감
+ *   - llm_v1 실호출 테스트 (엔진 플래그 명시 시)
  *
  * 환경변수:
  *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 필수 (admin client)
+ *   LLM_PROVIDER_OVERRIDE 등 ai-sdk 설정은 호출 시 환경 그대로 사용
  */
 
 import { createSupabaseAdminClient } from "../lib/supabase/admin";
 import { runPerceptionTrigger } from "../lib/domains/student-record/actions/perception-scheduler";
 import { buildStudentState } from "../lib/domains/student-record/state/build-student-state";
 import { buildRuleProposal } from "../lib/domains/student-record/state/rule-proposal";
+import { runLlmProposal } from "../lib/domains/student-record/state/llm-proposal";
 import type { StudentState } from "../lib/domains/student-record/types/student-state";
 import type { ProposalItem } from "../lib/domains/student-record/types/proposal";
 
@@ -45,12 +53,33 @@ function arg(name: string): string | undefined {
 const flagAll = args.includes("--all");
 const tenantId = arg("tenant");
 const studentId = arg("student");
+const engineArg = (arg("engine") ?? "rule_v1").toLowerCase();
+const tierArg = (arg("tier") ?? "auto").toLowerCase();
 
 if (!flagAll && !tenantId && !studentId) {
   console.error(
     "[proposal-dryrun] 하나 이상의 대상 지정 필수: --all / --tenant=<uuid> / --student=<uuid>",
   );
   process.exit(1);
+}
+
+if (engineArg !== "rule_v1" && engineArg !== "llm_v1") {
+  console.error(`[proposal-dryrun] --engine 값 오류: ${engineArg} (rule_v1 | llm_v1)`);
+  process.exit(1);
+}
+if (!["auto", "standard_only", "advanced_first"].includes(tierArg)) {
+  console.error(
+    `[proposal-dryrun] --tier 값 오류: ${tierArg} (auto | standard_only | advanced_first)`,
+  );
+  process.exit(1);
+}
+const engineMode = engineArg as "rule_v1" | "llm_v1";
+const tierPref = tierArg as "auto" | "standard_only" | "advanced_first";
+
+if (engineMode === "llm_v1") {
+  console.warn(
+    "[proposal-dryrun] ⚠ --engine=llm_v1 — 실제 LLM 호출 발생. 비용 주의. OpenAI/Gemini 예산 확인.",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,12 +136,19 @@ async function main(): Promise<void> {
 
   const bucket = {
     generated: 0, // 제안 ≥ 1건
-    zero_candidates: 0, // triggered 인데 rule_v1 후보 0
+    zero_candidates: 0, // triggered 인데 후보 0
     not_triggered: 0,
     no_prior_snapshot: 0,
     error: 0,
   };
   const itemCountDistribution = [0, 0, 0, 0, 0, 0]; // index = item 수 0~5
+
+  // llm_v1 전용 집계
+  let totalCostUsd = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let llmSuccessCount = 0;
+  let llmFallbackCount = 0;
 
   for (const s of students) {
     const label = `${s.id.slice(0, 8)}…`;
@@ -159,24 +195,61 @@ async function main(): Promise<void> {
         continue;
       }
 
-      // 3) rule_v1 실행
+      // 3) 엔진 실행
       const remaining =
         state.blueprintGap?.remainingSemesters ??
         (3 - state.asOf.grade) * 2 + (state.asOf.semester === 1 ? 1 : 0);
 
-      const items = buildRuleProposal({
+      const ruleInput = {
         diff: perception.diff,
         trigger: perception.trigger,
         state,
         gap: state.blueprintGap ?? null,
         remainingSemesters: remaining,
-      });
+      };
+
+      let items: readonly ProposalItem[];
+      let llmMeta: {
+        engine: string;
+        model: string | null;
+        tier: string | null;
+        costUsd: number | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        error: string | null;
+      } | null = null;
+
+      if (engineMode === "llm_v1") {
+        const result = await runLlmProposal(ruleInput, {
+          tierPreference: tierPref,
+        });
+        items = result.items;
+        llmMeta = {
+          engine: result.engine,
+          model: result.model,
+          tier: result.tier,
+          costUsd: result.costUsd,
+          inputTokens: result.usage?.inputTokens ?? null,
+          outputTokens: result.usage?.outputTokens ?? null,
+          error: result.error,
+        };
+        if (result.engine === "llm_v1") {
+          totalCostUsd += result.costUsd ?? 0;
+          totalInputTokens += result.usage?.inputTokens ?? 0;
+          totalOutputTokens += result.usage?.outputTokens ?? 0;
+          llmSuccessCount++;
+        } else {
+          llmFallbackCount++;
+        }
+      } else {
+        items = buildRuleProposal(ruleInput);
+      }
 
       if (items.length === 0) {
         bucket.zero_candidates++;
         itemCountDistribution[0]++;
         console.log(
-          `· ${label}\n  severity=${perception.severity} → rule_v1 후보 0건 (gap=${state.blueprintGap ? "있음" : "없음"})\n`,
+          `· ${label}\n  severity=${perception.severity} → 후보 0건 (engine=${engineMode}, gap=${state.blueprintGap ? "있음" : "없음"})${llmMeta?.error ? `\n  LLM error: ${llmMeta.error}` : ""}\n`,
         );
         continue;
       }
@@ -188,10 +261,16 @@ async function main(): Promise<void> {
       const areaCount = { academic: 0, career: 0, community: 0 };
       for (const it of items) areaCount[it.targetArea]++;
 
+      const llmLine = llmMeta
+        ? `\n  engine=${llmMeta.engine} model=${llmMeta.model ?? "—"} tier=${llmMeta.tier ?? "—"} cost=${llmMeta.costUsd !== null ? `$${llmMeta.costUsd.toFixed(4)}` : "—"} in=${llmMeta.inputTokens ?? "—"} out=${llmMeta.outputTokens ?? "—"}${llmMeta.error ? ` error="${llmMeta.error}"` : ""}`
+        : "";
+
       console.log(
         `· ${label}\n` +
           `  ${perception.diff.from.label} → ${perception.diff.to.label}\n` +
-          `  severity=${perception.severity} → ${items.length}건 [학업${areaCount.academic}/진로${areaCount.career}/공동체${areaCount.community}]\n` +
+          `  severity=${perception.severity} → ${items.length}건 [학업${areaCount.academic}/진로${areaCount.career}/공동체${areaCount.community}]` +
+          llmLine +
+          "\n" +
           items.map((it) => `    ${summarizeItem(it)}`).join("\n") +
           "\n",
       );
@@ -205,7 +284,7 @@ async function main(): Promise<void> {
 
   // ─── 요약 ─────────────────────────────────────────────────────
   console.log("─".repeat(60));
-  console.log(`총 ${students.length}명 — rule_v1 dry-run 요약:`);
+  console.log(`총 ${students.length}명 — ${engineMode} dry-run 요약:`);
   console.log(`  generated        ${bucket.generated} (제안 ≥1건)`);
   console.log(`  zero_candidates  ${bucket.zero_candidates} (triggered 인데 후보 0)`);
   console.log(`  not_triggered    ${bucket.not_triggered}`);
@@ -217,12 +296,27 @@ async function main(): Promise<void> {
     console.log(`  ${n}건: ${itemCountDistribution[n]}`);
   }
 
+  if (engineMode === "llm_v1") {
+    console.log();
+    console.log("llm_v1 비용·호출:");
+    console.log(`  LLM 성공        ${llmSuccessCount}`);
+    console.log(`  rule_v1 fallback ${llmFallbackCount}`);
+    console.log(`  총 input tokens  ${totalInputTokens.toLocaleString()}`);
+    console.log(`  총 output tokens ${totalOutputTokens.toLocaleString()}`);
+    console.log(`  총 비용         $${totalCostUsd.toFixed(4)}`);
+    if (llmSuccessCount > 0) {
+      console.log(
+        `  평균 비용/호출   $${(totalCostUsd / llmSuccessCount).toFixed(4)}`,
+      );
+    }
+  }
+
   // GITHUB_STEP_SUMMARY
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
   if (summaryPath) {
     const { appendFileSync } = await import("node:fs");
     const lines = [
-      "## Proposal Engine rule_v1 dry-run 요약",
+      `## Proposal Engine ${engineMode} dry-run 요약`,
       "",
       `- 대상: ${students.length}명`,
       `- generated: ${bucket.generated}`,
@@ -233,8 +327,19 @@ async function main(): Promise<void> {
       "",
       "### item 수 분포",
       ...[1, 2, 3, 4, 5].map((n) => `- ${n}건: ${itemCountDistribution[n]}`),
-      "",
     ];
+    if (engineMode === "llm_v1") {
+      lines.push(
+        "",
+        "### llm_v1 비용·호출",
+        `- LLM 성공: ${llmSuccessCount}`,
+        `- rule_v1 fallback: ${llmFallbackCount}`,
+        `- 총 input tokens: ${totalInputTokens.toLocaleString()}`,
+        `- 총 output tokens: ${totalOutputTokens.toLocaleString()}`,
+        `- 총 비용: $${totalCostUsd.toFixed(4)}`,
+      );
+    }
+    lines.push("");
     appendFileSync(summaryPath, lines.join("\n"));
   }
 }
