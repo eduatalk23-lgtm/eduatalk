@@ -180,7 +180,8 @@ export async function runTierPlanRefinement(
   // ── α3-4 (2026-04-20): 최신 snapshot 의 blueprintGap 을 주입.
   //   α1-3-d 야간 cron 또는 pipeline 완료 훅이 영속한 snapshot 기반.
   //   snapshot 부재/파싱 실패 시 null — S7 은 기존과 동일 동작.
-  const blueprintGap = await loadLatestBlueprintGap(studentId, tenantId, supabase);
+  // α3-3-2 (2026-04-20): multiScenarioGap 도 같이 로드 — dominantScenario 가 baseline 과 다르면 LLM 에 브랜치 힌트.
+  const snapshotGaps = await loadLatestScenarioGaps(studentId, tenantId, supabase);
 
   const suggestion = await extractTierPlanSuggestion({
     currentThemeLabel: active.theme_label,
@@ -194,7 +195,8 @@ export async function runTierPlanRefinement(
     roadmapHighlights,
     qualityPatterns,
     diagnosisWeaknesses,
-    blueprintGap,
+    blueprintGap: snapshotGaps.blueprintGap,
+    multiScenarioGap: snapshotGaps.multiScenarioGap,
   });
 
   if (!suggestion.success) {
@@ -362,19 +364,25 @@ export async function runTierPlanRefinement(
   }
 }
 
-// α3-4 (2026-04-20): 최신 snapshot 에서 blueprintGap 만 뽑아 반환.
+// α3-4 (2026-04-20): 최신 snapshot 에서 blueprintGap + multiScenarioGap 을 함께 반환.
 // 실패/부재/파싱 이슈 모두 null. S7 은 기존과 동일하게 동작.
-async function loadLatestBlueprintGap(
+async function loadLatestScenarioGaps(
   studentId: string,
   tenantId: string,
   client: Parameters<typeof findLatestSnapshot>[2],
-): Promise<StudentState["blueprintGap"] | null> {
+): Promise<{
+  blueprintGap: StudentState["blueprintGap"] | null;
+  multiScenarioGap: StudentState["multiScenarioGap"] | null;
+}> {
   try {
     const snap = await findLatestSnapshot(studentId, tenantId, client);
-    if (!snap?.snapshot_data) return null;
+    if (!snap?.snapshot_data) return { blueprintGap: null, multiScenarioGap: null };
     const state = snap.snapshot_data as unknown as Partial<StudentState>;
-    return state.blueprintGap ?? null;
+    return {
+      blueprintGap: state.blueprintGap ?? null,
+      multiScenarioGap: state.multiScenarioGap ?? null,
+    };
   } catch {
-    return null;
+    return { blueprintGap: null, multiScenarioGap: null };
   }
 }

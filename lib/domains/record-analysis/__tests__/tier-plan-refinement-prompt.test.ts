@@ -131,6 +131,79 @@ describe("buildTierPlanRefinementUserPrompt", () => {
     expect(prompt).not.toContain("청사진 GAP");
   });
 
+  // α3-3-2 (2026-04-20): multiScenarioGap 섹션
+  it("multiScenarioGap dominant=aggressive + priority 상이 → 시나리오 비교 섹션 + 힌트 렌더", () => {
+    const gap = (priority: "high" | "medium" | "low", maxGap: number) => ({
+      computedAt: "2026-04-20T00:00:00Z",
+      version: "v1_rule" as const,
+      remainingSemesters: 4,
+      areaGaps: {
+        academic: { area: "academic" as const, currentScore: 75, targetScore: 75 + maxGap, gapSize: maxGap, mainCause: null },
+        career: { area: "career" as const, currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+        community: { area: "community" as const, currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+      },
+      axisGaps: [],
+      priority,
+      summary: `s_${priority}`,
+    });
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      multiScenarioGap: {
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule_multi",
+        baseline: gap("medium", 10),
+        stable: gap("low", 3),
+        aggressive: gap("high", 20),
+        dominantScenario: "aggressive",
+      },
+    });
+    expect(prompt).toContain("시나리오 비교 (브랜치 탐색)");
+    expect(prompt).toContain("dominantScenario: aggressive");
+    expect(prompt).toContain("baseline [MEDIUM]");
+    expect(prompt).toContain("stable [LOW]");
+    expect(prompt).toContain("aggressive [HIGH]");
+    expect(prompt).toContain("dominantScenario=aggressive");
+  });
+
+  it("multiScenarioGap null 이면 시나리오 섹션·힌트 모두 생략", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      multiScenarioGap: null,
+    });
+    expect(prompt).not.toContain("시나리오 비교");
+    expect(prompt).not.toContain("dominantScenario=");
+  });
+
+  it("multiScenarioGap dominant=baseline + priority 동일 → 섹션 생략(노이즈 회피)", () => {
+    const gap = (priority: "high" | "medium" | "low") => ({
+      computedAt: "2026-04-20T00:00:00Z",
+      version: "v1_rule" as const,
+      remainingSemesters: 4,
+      areaGaps: {
+        academic: { area: "academic" as const, currentScore: 75, targetScore: 80, gapSize: 5, mainCause: null },
+        career: { area: "career" as const, currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+        community: { area: "community" as const, currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+      },
+      axisGaps: [],
+      priority,
+      summary: "s",
+    });
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      multiScenarioGap: {
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule_multi",
+        baseline: gap("medium"),
+        stable: gap("medium"),
+        aggressive: gap("medium"),
+        dominantScenario: "baseline",
+      },
+    });
+    expect(prompt).not.toContain("시나리오 비교");
+    // dominant=baseline 이라 힌트도 없음
+    expect(prompt).not.toContain("dominantScenario=");
+  });
+
   it("blueprintGap priority=low 면 섹션은 렌더하지만 우선 개정 힌트는 생략", () => {
     const prompt = buildTierPlanRefinementUserPrompt({
       ...BASE_INPUT,

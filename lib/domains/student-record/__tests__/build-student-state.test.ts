@@ -158,6 +158,8 @@ describe("buildStudentState — 빈 학생", () => {
     expect(state.blueprint).toBeNull();
     // α3-2: blueprint 없으면 blueprintGap 도 null.
     expect(state.blueprintGap).toBeNull();
+    // α3-3-2: blueprint 없으면 multiScenarioGap 도 null.
+    expect(state.multiScenarioGap).toBeNull();
     // α2: hakjongScore 는 항상 객체. 데이터 없으면 모든 필드 null.
     expect(state.hakjongScore).not.toBeNull();
     expect(state.hakjongScore!.total).toBeNull();
@@ -625,6 +627,21 @@ describe("buildStudentState — α3-2 blueprintGap 주입", () => {
     expect(state.blueprintGap!.remainingSemesters).toBe(2);
     expect(state.blueprintGap!.axisGaps).toHaveLength(2);
     expect(state.blueprintGap!.axisGaps.every((g) => g.pattern === "latent")).toBe(true);
+
+    // α3-3-2: multiScenarioGap 도 동시 계산됨 (baseline + stable + aggressive).
+    expect(state.multiScenarioGap).not.toBeNull();
+    expect(state.multiScenarioGap!.version).toBe("v1_rule_multi");
+    expect(state.multiScenarioGap!.baseline.axisGaps).toHaveLength(2);
+    expect(state.multiScenarioGap!.stable).not.toBeNull();
+    expect(state.multiScenarioGap!.aggressive).not.toBeNull();
+    // stable/aggressive 는 grade shift 를 반영해 targetGrade 가 변경된 상태.
+    // baseline A+ → stable A- (shift -1), aggressive A+ (상한 clamp).
+    const academicBase = state.multiScenarioGap!.baseline.axisGaps.find((g) => g.code === "academic_inquiry");
+    const academicStable = state.multiScenarioGap!.stable!.axisGaps.find((g) => g.code === "academic_inquiry");
+    expect(academicBase?.targetGrade).toBe("A+");
+    expect(academicStable?.targetGrade).toBe("A-");
+    // dominantScenario 는 null 이 아님 (targets 있음).
+    expect(state.multiScenarioGap!.dominantScenario).not.toBeNull();
   });
 
   it("blueprint active + targets 빈 배열 → blueprintGap=null (GAP 계산 skip)", async () => {
@@ -649,5 +666,7 @@ describe("buildStudentState — α3-2 blueprintGap 주입", () => {
     expect(state.blueprint).not.toBeNull();
     expect(state.blueprint!.competencyGrowthTargets).toEqual([]);
     expect(state.blueprintGap).toBeNull();
+    // α3-3-2: targets 빈 경우 multiScenarioGap 도 null.
+    expect(state.multiScenarioGap).toBeNull();
   });
 });

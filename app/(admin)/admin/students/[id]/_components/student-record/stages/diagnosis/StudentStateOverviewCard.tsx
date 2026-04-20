@@ -25,6 +25,8 @@ import type {
   AreaGap,
   AxisGap,
   GapPattern,
+  MultiScenarioBlueprintGap,
+  ScenarioType,
 } from "@/lib/domains/student-record/types/blueprint-gap";
 
 interface Props {
@@ -102,6 +104,10 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
       {state?.hakjongScore && <HakjongAreaRow score={state.hakjongScore} />}
 
       {state?.blueprintGap && <BlueprintGapSection gap={state.blueprintGap} />}
+
+      {state?.multiScenarioGap && (
+        <ScenarioCompareSection multi={state.multiScenarioGap} />
+      )}
 
       <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <LayerFlagsRow flags={snapshot.layer_flags} />
@@ -503,6 +509,122 @@ function AxisGapChip({ gap }: { gap: AxisGap }) {
       <span className="font-semibold">{GAP_PATTERN_LABEL[gap.pattern]}</span>
       <span>{GAP_CODE_LABEL[gap.code]}</span>
     </span>
+  );
+}
+
+// ─── α3-3-2 (2026-04-20): 3 시나리오 비교 섹션 ──────────────
+
+const SCENARIO_LABEL: Record<ScenarioType, string> = {
+  baseline: "기본",
+  stable: "보수",
+  aggressive: "공격",
+};
+
+const SCENARIO_DESCRIPTION: Record<ScenarioType, string> = {
+  baseline: "현 청사진 target",
+  stable: "각 목표 −1등급",
+  aggressive: "각 목표 +1등급",
+};
+
+function ScenarioCompareSection({
+  multi,
+}: {
+  multi: MultiScenarioBlueprintGap;
+}) {
+  const entries: ReadonlyArray<[ScenarioType, BlueprintGap | null]> = [
+    ["stable", multi.stable],
+    ["baseline", multi.baseline],
+    ["aggressive", multi.aggressive],
+  ];
+
+  return (
+    <section className="mt-3 flex flex-col gap-2 rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] p-2">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
+            시나리오 브랜치 비교
+          </h4>
+          {multi.dominantScenario && (
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              우선 분기 · <strong className="text-[var(--text-secondary)]">{SCENARIO_LABEL[multi.dominantScenario]}</strong>
+            </span>
+          )}
+          <span className="text-[10px] text-[var(--text-tertiary)]">v1 규칙</span>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-3 gap-2">
+        {entries.map(([scenario, gap]) => (
+          <ScenarioCell
+            key={scenario}
+            scenario={scenario}
+            gap={gap}
+            dominant={multi.dominantScenario === scenario}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ScenarioCell({
+  scenario,
+  gap,
+  dominant,
+}: {
+  scenario: ScenarioType;
+  gap: BlueprintGap | null;
+  dominant: boolean;
+}) {
+  const borderClass = dominant
+    ? "border-indigo-400 ring-1 ring-indigo-300 dark:border-indigo-500 dark:ring-indigo-700"
+    : "border-[var(--border-primary)]";
+
+  if (!gap) {
+    return (
+      <div className={`rounded border px-2 py-1.5 ${borderClass} bg-[var(--bg-secondary)]`}>
+        <p className="flex items-center justify-between text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+          <span>{SCENARIO_LABEL[scenario]}</span>
+        </p>
+        <p className="mt-0.5 text-sm font-semibold text-[var(--text-tertiary)]">—</p>
+        <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+          {SCENARIO_DESCRIPTION[scenario]}
+        </p>
+      </div>
+    );
+  }
+
+  const maxAreaGap = Math.max(
+    gap.areaGaps.academic.gapSize ?? -Infinity,
+    gap.areaGaps.career.gapSize ?? -Infinity,
+    gap.areaGaps.community.gapSize ?? -Infinity,
+  );
+  const displayGap = Number.isFinite(maxAreaGap) ? Math.round(maxAreaGap * 10) / 10 : null;
+  const axisCount = gap.axisGaps.length;
+
+  return (
+    <div
+      className={`rounded border px-2 py-1.5 ${borderClass} bg-[var(--bg-secondary)]`}
+      title={gap.summary}
+    >
+      <p className="flex items-center justify-between text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+        <span>{SCENARIO_LABEL[scenario]}</span>
+        <GapPriorityBadge priority={gap.priority} />
+      </p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+        {displayGap !== null && displayGap > 0
+          ? `+${displayGap}`
+          : displayGap !== null
+            ? `${displayGap}`
+            : "—"}
+        <span className="ml-1 text-[10px] font-normal text-[var(--text-tertiary)]">
+          max area · {axisCount}축
+        </span>
+      </p>
+      <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+        {SCENARIO_DESCRIPTION[scenario]}
+      </p>
+    </div>
   );
 }
 

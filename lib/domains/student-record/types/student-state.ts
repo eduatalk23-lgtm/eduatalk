@@ -327,6 +327,10 @@ export interface StudentState {
   // 학종 청사진 GAP (α3-2, 2026-04-20) — Reward 와 짝. target 없으면 axisGaps=[] + priority='low'.
   readonly blueprintGap: import("./blueprint-gap").BlueprintGap | null;
 
+  // 3 시나리오 브랜치 GAP (α3-3-2, 2026-04-20) — baseline/stable/aggressive 병행.
+  // target 빈 경우 null. baseline 은 blueprintGap 과 동일 수치(중복 표현이지만 UI·S7 분리 편의).
+  readonly multiScenarioGap: import("./blueprint-gap").MultiScenarioBlueprintGap | null;
+
   // 청사진 참조
   readonly blueprint: BlueprintAnchor | null;
 

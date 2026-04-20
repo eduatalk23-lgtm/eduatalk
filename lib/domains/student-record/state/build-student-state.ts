@@ -71,6 +71,7 @@ import {
 } from "../repository/attendance-repository";
 import { computeHakjongScore } from "../reward/compute-hakjong-score";
 import { computeBlueprintGap } from "../gap/compute-blueprint-gap";
+import { computeMultiScenarioGap } from "../gap/compute-multi-scenario-gap";
 import type { CompetencyGradeTarget } from "../types/blueprint-gap";
 import { loadBlueprintForStudent } from "@/lib/domains/record-analysis/blueprint/loader";
 import {
@@ -974,6 +975,7 @@ export async function buildStudentState(
     aux: { volunteer, awards, attendance, reading },
     hakjongScore: null,
     blueprintGap: null,
+    multiScenarioGap: null,
     blueprint,
     metadata,
   };
@@ -986,15 +988,28 @@ export async function buildStudentState(
 
   // α3-2: GAP 계산. blueprint null 이거나 targets 빈 경우 — 엔진이 내부적으로
   // axisGaps=[] + priority='low' 반환 (null 아님). blueprint 자체가 없으면 skip.
-  const blueprintGap =
-    blueprint && blueprint.competencyGrowthTargets.length > 0
-      ? computeBlueprintGap({
-          state: withReward,
-          targets: blueprint.competencyGrowthTargets,
-          currentGrade: resolvedAsOf.grade,
-          currentSemester: resolvedAsOf.semester,
-        })
-      : null;
+  const hasTargets =
+    blueprint !== null && blueprint.competencyGrowthTargets.length > 0;
 
-  return { ...withReward, blueprintGap };
+  const blueprintGap = hasTargets
+    ? computeBlueprintGap({
+        state: withReward,
+        targets: blueprint!.competencyGrowthTargets,
+        currentGrade: resolvedAsOf.grade,
+        currentSemester: resolvedAsOf.semester,
+      })
+    : null;
+
+  // α3-3-2: 3 시나리오 GAP. baseline/stable/aggressive 병행 계산.
+  // target 없거나 blueprint 없으면 null — Overview 카드·S7 모두 섹션 생략.
+  const multiScenarioGap = hasTargets
+    ? computeMultiScenarioGap({
+        state: withReward,
+        baselineTargets: blueprint!.competencyGrowthTargets,
+        currentGrade: resolvedAsOf.grade,
+        currentSemester: resolvedAsOf.semester,
+      })
+    : null;
+
+  return { ...withReward, blueprintGap, multiScenarioGap };
 }

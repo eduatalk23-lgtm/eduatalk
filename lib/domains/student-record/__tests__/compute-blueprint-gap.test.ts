@@ -92,6 +92,7 @@ function makeState(overrides: {
     aux: { volunteer: null, awards: null, attendance: null, reading: null },
     hakjongScore: overrides.hakjongScore ?? null,
     blueprintGap: null,
+    multiScenarioGap: null,
     blueprint: null,
     metadata: makeMetadata(),
   };
