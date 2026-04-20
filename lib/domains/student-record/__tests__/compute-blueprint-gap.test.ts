@@ -60,6 +60,7 @@ function makeMetadata(): StudentStateMetadata {
 function makeState(overrides: {
   axes?: CompetencyAxisState[];
   hakjongScore?: HakjongScore | null;
+  hakjongScoreV2Pre?: HakjongScore | null;
 } = {}): StudentState {
   return {
     studentId: "s-1",
@@ -91,7 +92,7 @@ function makeState(overrides: {
     trajectory: [],
     aux: { volunteer: null, awards: null, attendance: null, reading: null },
     hakjongScore: overrides.hakjongScore ?? null,
-    hakjongScoreV2Pre: null,
+    hakjongScoreV2Pre: overrides.hakjongScoreV2Pre ?? null,
     blueprintGap: null,
     multiScenarioGap: null,
     blueprint: null,
@@ -269,5 +270,103 @@ describe("computeBlueprintGap — latent", () => {
     expect(gap.axisGaps[0].rationale).toContain("시간 부족");
     // gap 수치 + remaining 0 → HIGH_AXIS_GAP=3 미달이지만 5, priority=high
     expect(gap.priority).toBe("high");
+  });
+});
+
+// ============================================
+// α2-StepC (2026-04-20): useV2Pre 옵션
+// ============================================
+
+describe("computeBlueprintGap — useV2Pre 옵션", () => {
+  const baseAxes = [
+    makeAxis("academic_achievement", "academic", "B+"),
+    makeAxis("community_caring", "community", "B"),
+    makeAxis("community_leadership", "community", "B"),
+  ];
+  const targets = [target("community_caring", "A-", 3)];
+
+  const v1Score = (community: number | null): HakjongScore => ({
+    academic: 80, career: 80, community, total: community !== null ? 80 : null,
+    computedAt: "2026-04-20T00:00:00Z",
+    version: "v1_rule",
+    confidence: { academic: 1, career: 1, community: 1, total: 1 },
+  });
+  const v2Score = (community: number | null): HakjongScore => ({
+    academic: 80, career: 80, community, total: community !== null ? 80 : null,
+    computedAt: "2026-04-20T00:00:00Z",
+    version: "v2_rule_calibrated",
+    confidence: { academic: 1, career: 1, community: 1, total: 1 },
+  });
+
+  it("useV2Pre=false (기본) → v1 community 점수 사용", () => {
+    const state = makeState({
+      axes: baseAxes,
+      hakjongScore: v1Score(80),
+      hakjongScoreV2Pre: v2Score(50),
+    });
+    const gap = computeBlueprintGap({
+      state, targets, currentGrade: 2, currentSemester: 2,
+    });
+    // community currentScore=80, target=85 → gap=5
+    expect(gap.areaGaps.community.currentScore).toBe(80);
+    expect(gap.areaGaps.community.gapSize).toBe(5);
+  });
+
+  it("useV2Pre=true + v2Pre 존재 → v2-pre community 점수 사용 (더 보수적)", () => {
+    const state = makeState({
+      axes: baseAxes,
+      hakjongScore: v1Score(80),
+      hakjongScoreV2Pre: v2Score(50),
+    });
+    const gap = computeBlueprintGap({
+      state, targets, currentGrade: 2, currentSemester: 2,
+      useV2Pre: true,
+    });
+    // community currentScore=50 (v2-pre), target=85 → gap=35
+    expect(gap.areaGaps.community.currentScore).toBe(50);
+    expect(gap.areaGaps.community.gapSize).toBe(35);
+  });
+
+  it("useV2Pre=true + v2Pre null → v1 fallback", () => {
+    const state = makeState({
+      axes: baseAxes,
+      hakjongScore: v1Score(80),
+      hakjongScoreV2Pre: null,
+    });
+    const gap = computeBlueprintGap({
+      state, targets, currentGrade: 2, currentSemester: 2,
+      useV2Pre: true,
+    });
+    expect(gap.areaGaps.community.currentScore).toBe(80);
+    expect(gap.areaGaps.community.gapSize).toBe(5);
+  });
+
+  it("useV2Pre=true + v2Pre.community null → v1 fallback (영역별 null 내구성)", () => {
+    const state = makeState({
+      axes: baseAxes,
+      hakjongScore: v1Score(80),
+      hakjongScoreV2Pre: v2Score(null),
+    });
+    const gap = computeBlueprintGap({
+      state, targets, currentGrade: 2, currentSemester: 2,
+      useV2Pre: true,
+    });
+    expect(gap.areaGaps.community.currentScore).toBe(80);
+  });
+
+  it("useV2Pre 는 axisGaps 에 영향 없음 — currentGrade 기반 pattern 동일", () => {
+    const state = makeState({
+      axes: baseAxes,
+      hakjongScore: v1Score(80),
+      hakjongScoreV2Pre: v2Score(50),
+    });
+    const v1Result = computeBlueprintGap({
+      state, targets, currentGrade: 2, currentSemester: 2,
+    });
+    const v2Result = computeBlueprintGap({
+      state, targets, currentGrade: 2, currentSemester: 2, useV2Pre: true,
+    });
+    // axisGaps 는 competency grade 기반 — 동일
+    expect(v1Result.axisGaps).toEqual(v2Result.axisGaps);
   });
 });

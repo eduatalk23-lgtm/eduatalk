@@ -102,6 +102,15 @@ export interface BlueprintGapInput {
   readonly targets: readonly CompetencyGradeTarget[];
   readonly currentGrade: 1 | 2 | 3;
   readonly currentSemester: 1 | 2;
+  /**
+   * α2-StepC (2026-04-20): v2-pre Reward 기반 currentScore 사용 여부.
+   * true 이면 state.hakjongScoreV2Pre?.academic|career|community 를 areaGap.currentScore
+   * 로 사용. v2Pre null 이면 v1 fallback. 기본 false (v1 canonical 유지).
+   *
+   * 사용처: 공동체 영역의 aux 연속 기여 차이가 GAP 에도 반영되어야 하는 경우.
+   * Proposal Engine (α4) 이 v2-pre 기반 GAP 을 선호할 경우 opt-in.
+   */
+  readonly useV2Pre?: boolean;
 }
 
 // ─── α3-3 (2026-04-20): 다중 시나리오 브랜치 ──────────────────

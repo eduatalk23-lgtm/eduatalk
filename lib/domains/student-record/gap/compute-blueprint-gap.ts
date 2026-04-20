@@ -188,9 +188,13 @@ function areaKo(area: CompetencyArea): string {
  *
  * target 이 빈 배열이면 axisGaps=[], areaGap.targetScore=null, priority='low'.
  * state.hakjongScore 가 null 영역이면 areaGap.gapSize=null.
+ *
+ * useV2Pre=true 옵션 (2026-04-20):
+ *   state.hakjongScoreV2Pre 의 영역별 점수를 currentScore 로 사용.
+ *   v2Pre null 이거나 해당 영역 null 이면 v1 fallback. axisGaps 는 영향 없음.
  */
 export function computeBlueprintGap(input: BlueprintGapInput): BlueprintGap {
-  const { state, targets, currentGrade, currentSemester } = input;
+  const { state, targets, currentGrade, currentSemester, useV2Pre = false } = input;
   const remaining = remainingSemesters(currentGrade, currentSemester);
 
   const axes = state.competencies?.axes ?? [];
@@ -218,10 +222,19 @@ export function computeBlueprintGap(input: BlueprintGapInput): BlueprintGap {
   }
 
   // ── areaGaps 계산 ──
+  // useV2Pre=true: v2-pre 의 영역 점수 우선, 없으면 v1 fallback.
+  const pickCurrentScore = (area: "academic" | "career" | "community"): number | null => {
+    if (useV2Pre) {
+      const v2 = state.hakjongScoreV2Pre?.[area] ?? null;
+      if (v2 !== null) return v2;
+    }
+    return state.hakjongScore?.[area] ?? null;
+  };
+
   const areaGaps = {
-    academic: computeAreaGap("academic", state.hakjongScore?.academic ?? null, targets, axisGaps),
-    career: computeAreaGap("career", state.hakjongScore?.career ?? null, targets, axisGaps),
-    community: computeAreaGap("community", state.hakjongScore?.community ?? null, targets, axisGaps),
+    academic: computeAreaGap("academic", pickCurrentScore("academic"), targets, axisGaps),
+    career: computeAreaGap("career", pickCurrentScore("career"), targets, axisGaps),
+    community: computeAreaGap("community", pickCurrentScore("community"), targets, axisGaps),
   };
 
   // ── priority 산정 ──
