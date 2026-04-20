@@ -6229,6 +6229,183 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_answers: {
+        Row: {
+          ai_signals: Json | null
+          analyzed_at: string | null
+          analyzed_by: string | null
+          answer_text: string
+          audio_url: string | null
+          chain_id: string
+          coach_comment: string | null
+          consistency_score: number | null
+          cost_usd: number | null
+          created_at: string
+          gap_findings: Json
+          id: string
+          authenticity_score: number | null
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          ai_signals?: Json | null
+          analyzed_at?: string | null
+          analyzed_by?: string | null
+          answer_text: string
+          audio_url?: string | null
+          chain_id: string
+          coach_comment?: string | null
+          consistency_score?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          gap_findings?: Json
+          id?: string
+          authenticity_score?: number | null
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_signals?: Json | null
+          analyzed_at?: string | null
+          analyzed_by?: string | null
+          answer_text?: string
+          audio_url?: string | null
+          chain_id?: string
+          coach_comment?: string | null
+          consistency_score?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          gap_findings?: Json
+          id?: string
+          authenticity_score?: number | null
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_answers_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: true
+            referencedRelation: "interview_question_chains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_question_chains: {
+        Row: {
+          created_at: string
+          depth: number
+          expected_hook: string | null
+          generated_by: string
+          id: string
+          parent_chain_id: string | null
+          question_text: string
+          root_question_id: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          depth: number
+          expected_hook?: string | null
+          generated_by: string
+          id?: string
+          parent_chain_id?: string | null
+          question_text: string
+          root_question_id: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          depth?: number
+          expected_hook?: string | null
+          generated_by?: string
+          id?: string
+          parent_chain_id?: string | null
+          question_text?: string
+          root_question_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_question_chains_parent_chain_id_fkey"
+            columns: ["parent_chain_id"]
+            isOneToOne: false
+            referencedRelation: "interview_question_chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_question_chains_root_question_id_fkey"
+            columns: ["root_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_interview_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_question_chains_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          scenario: Json
+          score_summary: Json | null
+          started_at: string
+          status: string
+          student_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          scenario?: Json
+          score_summary?: Json | null
+          started_at?: string
+          status: string
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          scenario?: Json
+          score_summary?: Json | null
+          started_at?: string
+          status?: string
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted_at: string | null
