@@ -672,12 +672,23 @@ async function collectBlueprint(
   studentId: string,
   tenantId: string,
 ): Promise<BlueprintAnchor | null> {
-  const active = await getActiveMainExploration(
-    studentId,
-    tenantId,
-    { scope: "overall", trackLabel: null, direction: "analysis" },
-    client,
-  );
+  // α3 E2E 실측에서 발견: design 이 청사진 기본 모드(auto_bootstrap/migrated),
+  // analysis 는 그 청사진이 실측 기반으로 재구성된 경우. GAP 엔진은 design 우선.
+  // 김세린·인제고 실측 시 direction='analysis' 단독 조회로 blueprint=null 오판정 발생.
+  const slice = { scope: "overall" as const, trackLabel: null };
+  const active =
+    (await getActiveMainExploration(
+      studentId,
+      tenantId,
+      { ...slice, direction: "design" },
+      client,
+    )) ??
+    (await getActiveMainExploration(
+      studentId,
+      tenantId,
+      { ...slice, direction: "analysis" },
+      client,
+    ));
   if (!active) return null;
   const tierPlan = active.tier_plan as
     | { foundational?: unknown; development?: unknown; advanced?: unknown }

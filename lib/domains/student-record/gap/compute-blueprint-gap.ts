@@ -324,6 +324,8 @@ function buildSummary(
   }
   withGap.sort(([, a], [, b]) => (b.gapSize ?? 0) - (a.gapSize ?? 0));
   const [topArea, topAreaGap] = withGap[0];
-  const cause = topAreaGap.mainCause ?? "주 원인 미식별";
+  // axisGaps 가 balanced 기준에 걸려 빈 경우에도 area 수준 gap 은 남을 수 있음.
+  // mainCause null 이면 "축 세부 원인 없음 — 영역 평균 기준" 으로 폴백.
+  const cause = topAreaGap.mainCause ?? "축별 세부 없음 — 영역 평균 기준";
   return `${areaKo(topArea)} 갭 ${topAreaGap.gapSize!}점. 주원인 = ${cause}`;
 }
