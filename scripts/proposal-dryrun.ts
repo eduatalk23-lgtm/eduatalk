@@ -76,9 +76,16 @@ if (!["auto", "standard_only", "advanced_first"].includes(tierArg)) {
 const engineMode = engineArg as "rule_v1" | "llm_v1";
 const tierPref = tierArg as "auto" | "standard_only" | "advanced_first";
 
+const forceTrigger = args.includes("--force-trigger");
+
 if (engineMode === "llm_v1") {
   console.warn(
     "[proposal-dryrun] ⚠ --engine=llm_v1 — 실제 LLM 호출 발생. 비용 주의. OpenAI/Gemini 예산 확인.",
+  );
+}
+if (forceTrigger) {
+  console.warn(
+    "[proposal-dryrun] ⚠ --force-trigger — Perception 결과 무시하고 synthetic trigger 로 rule/llm 엔진 강제 실행. 실측용, 운영 금지.",
   );
 }
 
@@ -154,31 +161,102 @@ async function main(): Promise<void> {
     const label = `${s.id.slice(0, 8)}…`;
 
     try {
-      // 1) Perception 판정
-      const perception = await runPerceptionTrigger(s.id, s.tenant_id, {
+      // 1) Perception 판정 (force-trigger 면 스킵 가능)
+      let perception = await runPerceptionTrigger(s.id, s.tenant_id, {
         source: "manual",
         client: supabase,
       });
 
       if (perception.status === "skipped") {
-        if (perception.reason === "no_prior_snapshot") {
-          bucket.no_prior_snapshot++;
-          console.log(`· ${label}\n  skipped no_prior_snapshot\n`);
-        } else {
-          bucket.error++;
-          console.log(
-            `· ${label}\n  error — ${perception.error ?? "unknown"}\n`,
-          );
+        if (!forceTrigger) {
+          if (perception.reason === "no_prior_snapshot") {
+            bucket.no_prior_snapshot++;
+            console.log(`· ${label}\n  skipped no_prior_snapshot\n`);
+          } else {
+            bucket.error++;
+            console.log(
+              `· ${label}\n  error — ${perception.error ?? "unknown"}\n`,
+            );
+          }
+          continue;
         }
-        continue;
+        // force-trigger: synthetic evaluated result 주입
+        perception = {
+          status: "evaluated",
+          source: "snapshot",
+          triggered: true,
+          severity: "medium",
+          reasons: ["synthetic force-trigger (real perception skipped)"],
+          diff: {
+            from: {
+              schoolYear: 2025,
+              grade: 1,
+              semester: 2,
+              label: "forced from",
+              builtAt: "2025-12-01T00:00:00Z",
+            },
+            to: {
+              schoolYear: 2026,
+              grade: 2,
+              semester: 1,
+              label: "forced to",
+              builtAt: new Date().toISOString(),
+            },
+            hakjongScoreDelta: 0,
+            competencyChanges: [],
+            newRecordIds: [],
+            staleBlueprint: false,
+            auxChanges: {
+              volunteerHoursDelta: 0,
+              awardsAdded: 0,
+              integrityChanged: false,
+            },
+          },
+          trigger: {
+            shouldTrigger: true,
+            severity: "medium",
+            reasons: ["synthetic force-trigger (실측 전용)"],
+            signals: [
+              {
+                kind: "new_records",
+                weight: "medium",
+                detail: "forced synthetic",
+              },
+            ],
+          },
+        };
       }
 
       if (!perception.triggered) {
-        bucket.not_triggered++;
-        console.log(
-          `· ${label}\n  skipped not_triggered (severity=${perception.severity})\n`,
-        );
-        continue;
+        if (!forceTrigger) {
+          bucket.not_triggered++;
+          console.log(
+            `· ${label}\n  skipped not_triggered (severity=${perception.severity})\n`,
+          );
+          continue;
+        }
+        // force-trigger: 기존 diff 는 유지하되 synthetic trigger signal 주입
+        perception = {
+          ...perception,
+          triggered: true,
+          severity: "medium",
+          reasons: [
+            ...perception.reasons,
+            "synthetic force-trigger on top of real perception",
+          ],
+          trigger: {
+            shouldTrigger: true,
+            severity: "medium",
+            reasons: ["synthetic force-trigger"],
+            signals: [
+              {
+                kind: "new_records",
+                weight: "medium",
+                detail: "forced synthetic",
+              },
+            ],
+          },
+        };
       }
 
       // 2) StudentState 재빌드 (dry-run 이므로 snapshot 저장 안 함)

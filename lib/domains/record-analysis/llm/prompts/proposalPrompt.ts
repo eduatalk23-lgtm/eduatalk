@@ -103,7 +103,14 @@ export const PROPOSAL_SYSTEM_PROMPT = `당신은 대한민국 학생부 종합�
 }
 \`\`\`
 
-**JSON 외 다른 설명 금지. rank 는 1부터 연속.**`;
+**JSON 외 다른 설명 금지. rank 는 1부터 연속.**
+
+## 필드 값 재확인 (엄격 enum)
+- targetArea: "academic" | "career" | "community" 중 하나
+- roadmapArea: "autonomy" | "club" | "career" | "setek" | "personal_setek" | "reading" | "course_selection" | "competition" | "external" | "volunteer" | "general" 중 하나. 임의 값("project", "study" 등) 금지
+- horizon: "immediate" | "this_semester" | "next_semester" | "long_term" 중 하나
+- targetAxes 의 각 code: "academic_achievement" | "academic_attitude" | "academic_inquiry" | "career_course_effort" | "career_course_achievement" | "career_exploration" | "community_collaboration" | "community_caring" | "community_integrity" | "community_leadership" 중 하나
+- grade (toGrade, fromGrade): "A+" | "A-" | "B+" | "B" | "B-" | "C" 중 하나`;
 
 // ─── User prompt 빌더 ─────────────────────────────────────────
 
@@ -339,9 +346,16 @@ export function parseProposalResponse(raw: string): ProposalLlmResult {
       throw new Error(`items[${idx}].targetAxes 최소 1개 필요`);
     }
 
-    const roadmapArea = o.roadmapArea as RoadmapArea;
+    // roadmapArea: LLM 이 임의 값 생성하는 경우가 잦아 lenient 모드 —
+    // 알려지지 않은 값은 targetArea 기반 기본값으로 폴백 (parser 전체 실패 방지).
+    let roadmapArea = o.roadmapArea as RoadmapArea;
     if (!VALID_ROADMAP_AREAS.includes(roadmapArea)) {
-      throw new Error(`items[${idx}].roadmapArea 오류: ${String(o.roadmapArea)}`);
+      roadmapArea =
+        targetArea === "academic"
+          ? "setek"
+          : targetArea === "career"
+            ? "career"
+            : "general";
     }
 
     const horizon = o.horizon as ProposalHorizon;
