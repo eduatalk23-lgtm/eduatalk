@@ -239,6 +239,171 @@ export async function fetchLatestProposalJob(
   }
 }
 
+/**
+ * α4 Proposal Job 상세 DTO — Drawer UI 용. 전체 item 구조 + 학생 decision.
+ * "use server" 제약으로 ProposalJob 직접 re-export 금지 → 인라인 DTO.
+ */
+export type ProposalJobDetailDTO = {
+  jobId: string;
+  engine: "rule_v1" | "llm_v1";
+  severity: "none" | "low" | "medium" | "high";
+  perceptionSource: "snapshot" | "metric_events";
+  perceptionReasons: string[];
+  triggeredAt: string;
+  completedAt: string | null;
+  model: string | null;
+  costUsd: number | null;
+  gapPriority: "high" | "medium" | "low" | null;
+  items: Array<{
+    id: string;
+    rank: number;
+    name: string;
+    summary: string;
+    targetArea: "academic" | "career" | "community";
+    targetAxes: string[];
+    roadmapArea: string;
+    horizon: "immediate" | "this_semester" | "next_semester" | "long_term";
+    rationale: string;
+    expectedImpact: {
+      hakjongScoreDelta: number | null;
+      axisMovements: Array<{
+        code: string;
+        fromGrade: string | null;
+        toGrade: string;
+      }>;
+    };
+    prerequisite: string[];
+    risks: string[];
+    evidenceRefs: string[];
+    studentDecision: "pending" | "accepted" | "rejected" | "executed" | "deferred";
+    studentFeedback: string | null;
+    decidedAt: string | null;
+  }>;
+};
+
+/**
+ * α4 ProposalJob 상세 조회 (Drawer 용).
+ * job row + 전체 items row 직접 조회 (findLatestCompletedJob 는 최신 1건만).
+ */
+export async function fetchProposalJobDetail(
+  jobId: string,
+): Promise<ProposalJobDetailDTO | null> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: job, error } = await supabase
+      .from("proposal_jobs")
+      .select("*")
+      .eq("id", jobId)
+      .eq("tenant_id", tenantId!)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!job) return null;
+
+    const { data: itemRows, error: itemErr } = await supabase
+      .from("proposal_items")
+      .select("*")
+      .eq("job_id", jobId)
+      .order("rank", { ascending: true });
+    if (itemErr) throw itemErr;
+
+    const items = (itemRows ?? []).map((r) => {
+      const ei = (r.expected_impact ?? {}) as {
+        hakjongScoreDelta?: number | null;
+        axisMovements?: Array<{
+          code: string;
+          fromGrade: string | null;
+          toGrade: string;
+        }>;
+      };
+      return {
+        id: r.id,
+        rank: r.rank,
+        name: r.name,
+        summary: r.summary,
+        targetArea: r.target_area as "academic" | "career" | "community",
+        targetAxes: r.target_axes,
+        roadmapArea: r.roadmap_area,
+        horizon: r.horizon as
+          | "immediate"
+          | "this_semester"
+          | "next_semester"
+          | "long_term",
+        rationale: r.rationale,
+        expectedImpact: {
+          hakjongScoreDelta: ei.hakjongScoreDelta ?? null,
+          axisMovements: ei.axisMovements ?? [],
+        },
+        prerequisite: r.prerequisite,
+        risks: r.risks,
+        evidenceRefs: r.evidence_refs,
+        studentDecision: r.student_decision as
+          | "pending"
+          | "accepted"
+          | "rejected"
+          | "executed"
+          | "deferred",
+        studentFeedback: r.student_feedback,
+        decidedAt: r.decided_at,
+      };
+    });
+
+    return {
+      jobId: job.id,
+      engine: job.engine as "rule_v1" | "llm_v1",
+      severity: job.severity as "none" | "low" | "medium" | "high",
+      perceptionSource: job.perception_source as "snapshot" | "metric_events",
+      perceptionReasons: job.perception_reasons,
+      triggeredAt: job.triggered_at,
+      completedAt: job.completed_at,
+      model: job.model,
+      costUsd: job.cost_usd,
+      gapPriority:
+        (job.gap_priority as "high" | "medium" | "low" | null) ?? null,
+      items,
+    };
+  } catch (error) {
+    logActionError(
+      { ...LOG_CTX, action: "fetchProposalJobDetail" },
+      error,
+      { jobId },
+    );
+    return null;
+  }
+}
+
+/**
+ * α4 ProposalItem 학생 결정 업데이트 (Drawer UI 용).
+ * admin/consultant 가 대리 기록 — 실제 학생 UI 노출 시 별도 권한 분기 필요.
+ * Sprint 4 수락률 측정 기반.
+ */
+export async function updateProposalItemDecisionAction(
+  itemId: string,
+  decision: "pending" | "accepted" | "rejected" | "executed" | "deferred",
+  feedback?: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrConsultant();
+    const { updateItemDecision } = await import(
+      "../repository/proposal-repository"
+    );
+    await updateItemDecision(itemId, decision, feedback ?? null);
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/admin/students/[id]", "page");
+    return { success: true };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logActionError(
+      { ...LOG_CTX, action: "updateProposalItemDecisionAction" },
+      error,
+      { itemId, decision },
+    );
+    return { success: false, error: msg };
+  }
+}
+
 /** 학생의 면접 예상 질문 조회 */
 export async function fetchInterviewQuestions(
   studentId: string,

@@ -49,6 +49,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "perceptionTrigger", studentId] as const,
   latestProposalJob: (studentId: string) =>
     [...studentRecordKeys.all, "latestProposalJob", studentId] as const,
+  proposalJobDetail: (jobId: string) =>
+    [...studentRecordKeys.all, "proposalJobDetail", jobId] as const,
   setekGuides: (studentId: string) =>
     [...studentRecordKeys.all, "setekGuides", studentId] as const,
   changcheGuides: (studentId: string) =>
@@ -230,6 +232,23 @@ export function latestProposalJobQueryOptions(studentId: string, tenantId: strin
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
     enabled: !!studentId,
+  });
+}
+
+/** α4 Sprint 3 (2026-04-20): ProposalJob 상세 (Drawer 에서 enabled=open 시 활성). */
+export function proposalJobDetailQueryOptions(jobId: string | null) {
+  return queryOptions({
+    queryKey: studentRecordKeys.proposalJobDetail(jobId ?? "none"),
+    queryFn: async () => {
+      if (!jobId) return null;
+      const { fetchProposalJobDetail } = await import(
+        "@/lib/domains/student-record/actions/diagnosis-helpers"
+      );
+      return fetchProposalJobDetail(jobId);
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!jobId,
   });
 }
 

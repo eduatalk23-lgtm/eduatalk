@@ -14,6 +14,7 @@
 // ============================================
 
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   studentStateQueryOptions,
   perceptionTriggerQueryOptions,
@@ -23,6 +24,7 @@ import type {
   PerceptionBadgeDTO,
   ProposalJobBadgeDTO,
 } from "@/lib/domains/student-record/actions/diagnosis-helpers";
+import { ProposalJobDrawer } from "./ProposalJobDrawer";
 import {
   SNAPSHOT_LAYER_FLAGS,
   type StudentState,
@@ -68,6 +70,7 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
   const { data: proposal } = useQuery(
     latestProposalJobQueryOptions(studentId, tenantId),
   );
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -145,7 +148,17 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
 
       {perception?.delta && <PerceptionDeltaRow delta={perception.delta} />}
 
-      {proposal?.present && <ProposalJobBanner dto={proposal} />}
+      {proposal?.present && (
+        <ProposalJobBanner
+          dto={proposal}
+          onOpenDetail={() => setDrawerOpen(true)}
+        />
+      )}
+      <ProposalJobDrawer
+        jobId={proposal?.jobId ?? null}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
 
       <footer className="mt-3 flex flex-wrap gap-3 border-t border-[var(--border-primary)] pt-2 text-xs text-[var(--text-tertiary)]">
         <span>빌드 시각 {formatBuiltAt(snapshot.built_at)}</span>
@@ -162,7 +175,13 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
 //   Perception triggered=true 시 rule_v1 엔진이 생성한 활동 제안 3~5개 요약.
 //   학생 비노출 원칙(feedback_no-ai-label-student) 준수 — 이 카드 자체가 admin 전용.
 //   상세/수락은 Sprint 3 (Chat-First Shell) 이후 구현.
-function ProposalJobBanner({ dto }: { dto: ProposalJobBadgeDTO }) {
+function ProposalJobBanner({
+  dto,
+  onOpenDetail,
+}: {
+  dto: ProposalJobBadgeDTO;
+  onOpenDetail: () => void;
+}) {
   const areaKo = (a: "academic" | "career" | "community") =>
     a === "academic" ? "학업" : a === "career" ? "진로" : "공동체";
   const horizonKo = (h: "immediate" | "this_semester" | "next_semester" | "long_term") =>
@@ -175,7 +194,12 @@ function ProposalJobBanner({ dto }: { dto: ProposalJobBadgeDTO }) {
           : "장기";
 
   return (
-    <div className="mt-3 rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-2 text-xs">
+    <button
+      type="button"
+      onClick={onOpenDetail}
+      className="mt-3 w-full rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-2 text-left text-xs hover:bg-[var(--bg-secondary)] transition-colors"
+      aria-label="활동 제안 상세 보기"
+    >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="font-semibold text-[var(--text-secondary)]">
           새 제안 {dto.itemCount}건
@@ -190,6 +214,7 @@ function ProposalJobBanner({ dto }: { dto: ProposalJobBadgeDTO }) {
             {formatBuiltAt(dto.triggeredAt)}
           </span>
         )}
+        <span className="ml-auto text-[var(--text-tertiary)]">자세히 →</span>
       </div>
       {dto.topItems.length > 0 && (
         <ol className="mt-1.5 space-y-0.5 text-[11px] text-[var(--text-primary)]">
@@ -206,7 +231,7 @@ function ProposalJobBanner({ dto }: { dto: ProposalJobBadgeDTO }) {
           ))}
         </ol>
       )}
-    </div>
+    </button>
   );
 }
 
