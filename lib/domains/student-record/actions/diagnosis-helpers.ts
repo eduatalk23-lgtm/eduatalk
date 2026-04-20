@@ -242,6 +242,8 @@ export async function fetchLatestProposalJob(
 /**
  * α4 Proposal Job 상세 DTO — Drawer UI 용. 전체 item 구조 + 학생 decision.
  * "use server" 제약으로 ProposalJob 직접 re-export 금지 → 인라인 DTO.
+ *
+ * Phase 1 (2026-04-20): 컨설턴트 맥락 확장 — studentInfo + stateSummary.
  */
 export type ProposalJobDetailDTO = {
   jobId: string;
@@ -254,6 +256,28 @@ export type ProposalJobDetailDTO = {
   model: string | null;
   costUsd: number | null;
   gapPriority: "high" | "medium" | "low" | null;
+  /** 학생 identity — Drawer 헤더에서 "누구" 즉시 인식. */
+  studentInfo: {
+    name: string;
+    grade: number | null;
+    schoolName: string | null;
+    targetMajor: string | null;
+    targetMajor2: string | null;
+    targetSchoolTier: string | null;
+  } | null;
+  /** 최신 StudentState snapshot 요약 — Reward 위치와 axis 현재 grade 판단 근거. */
+  stateSummary: {
+    asOfLabel: string;
+    hakjongScore: {
+      academic: number | null;
+      career: number | null;
+      community: number | null;
+      total: number | null;
+    } | null;
+    /** code → grade ("A+"|"A-"|"B+"|"B"|"B-"|"C"|null). item.targetAxes 조회용. */
+    competencyAxes: Record<string, string | null>;
+    completenessRatio: number;
+  } | null;
   items: Array<{
     id: string;
     rank: number;
@@ -309,6 +333,64 @@ export async function fetchProposalJobDetail(
       .order("rank", { ascending: true });
     if (itemErr) throw itemErr;
 
+    // Phase 1 (2026-04-20): 컨설턴트 맥락 보강 — 학생 / 최신 snapshot 병렬 조회
+    const [profileRes, studentRes, snapshotRes] = await Promise.all([
+      supabase
+        .from("user_profiles")
+        .select("name")
+        .eq("id", job.student_id)
+        .maybeSingle(),
+      supabase
+        .from("students")
+        .select("grade, school_name, target_major, target_major_2, target_school_tier")
+        .eq("id", job.student_id)
+        .maybeSingle(),
+      supabase
+        .from("student_state_snapshots")
+        .select("as_of_label, snapshot_data, completeness_ratio")
+        .eq("student_id", job.student_id)
+        .eq("tenant_id", tenantId!)
+        .order("built_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const studentInfo: ProposalJobDetailDTO["studentInfo"] = profileRes.data
+      ? {
+          name: profileRes.data.name ?? "(이름 없음)",
+          grade: studentRes.data?.grade ?? null,
+          schoolName: studentRes.data?.school_name ?? null,
+          targetMajor: studentRes.data?.target_major ?? null,
+          targetMajor2: studentRes.data?.target_major_2 ?? null,
+          targetSchoolTier: studentRes.data?.target_school_tier ?? null,
+        }
+      : null;
+
+    let stateSummary: ProposalJobDetailDTO["stateSummary"] = null;
+    if (snapshotRes.data) {
+      const snap = snapshotRes.data.snapshot_data as {
+        hakjongScore?: {
+          academic: number | null;
+          career: number | null;
+          community: number | null;
+          total: number | null;
+        } | null;
+        competencies?: {
+          axes: Array<{ code: string; grade: string | null }>;
+        } | null;
+      } | null;
+      const axes: Record<string, string | null> = {};
+      for (const a of snap?.competencies?.axes ?? []) {
+        axes[a.code] = a.grade ?? null;
+      }
+      stateSummary = {
+        asOfLabel: snapshotRes.data.as_of_label,
+        hakjongScore: snap?.hakjongScore ?? null,
+        competencyAxes: axes,
+        completenessRatio: snapshotRes.data.completeness_ratio,
+      };
+    }
+
     const items = (itemRows ?? []).map((r) => {
       const ei = (r.expected_impact ?? {}) as {
         hakjongScoreDelta?: number | null;
@@ -362,6 +444,8 @@ export async function fetchProposalJobDetail(
       costUsd: job.cost_usd,
       gapPriority:
         (job.gap_priority as "high" | "medium" | "low" | null) ?? null,
+      studentInfo,
+      stateSummary,
       items,
     };
   } catch (error) {

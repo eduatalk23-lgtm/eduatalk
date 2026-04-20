@@ -15,14 +15,35 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
-import { proposalJobDetailQueryOptions } from "@/lib/query-options/studentRecord";
-import { updateProposalItemDecisionAction } from "@/lib/domains/student-record/actions/diagnosis-helpers";
+import {
+  proposalJobDetailQueryOptions,
+  perceptionTriggerQueryOptions,
+} from "@/lib/query-options/studentRecord";
+import {
+  updateProposalItemDecisionAction,
+  type ProposalJobDetailDTO,
+} from "@/lib/domains/student-record/actions/diagnosis-helpers";
 
 interface Props {
   jobId: string | null;
+  studentId: string;
+  tenantId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const CODE_KO: Record<string, string> = {
+  academic_achievement: "학업성취도",
+  academic_attitude: "학업태도",
+  academic_inquiry: "탐구력",
+  career_course_effort: "진로교과 이수노력",
+  career_course_achievement: "진로교과 성취도",
+  career_exploration: "진로탐색",
+  community_collaboration: "협업/소통",
+  community_caring: "나눔/배려",
+  community_integrity: "성실/규칙준수",
+  community_leadership: "리더십",
+};
 
 const AREA_KO = {
   academic: "학업",
@@ -45,11 +66,21 @@ const DECISION_KO = {
   deferred: "연기",
 } as const;
 
-export function ProposalJobDrawer({ jobId, open, onOpenChange }: Props) {
+export function ProposalJobDrawer({
+  jobId,
+  studentId,
+  tenantId,
+  open,
+  onOpenChange,
+}: Props) {
   const queryClient = useQueryClient();
   const { data: job, isLoading } = useQuery({
     ...proposalJobDetailQueryOptions(jobId),
     enabled: !!jobId && open,
+  });
+  const { data: perception } = useQuery({
+    ...perceptionTriggerQueryOptions(studentId, tenantId),
+    enabled: open,
   });
 
   const title =
@@ -82,6 +113,19 @@ export function ProposalJobDrawer({ jobId, open, onOpenChange }: Props) {
         )}
         {job && (
           <div className="flex flex-col gap-3">
+            {/* Phase 1: 학생 identity + Reward 위치 헤더 */}
+            {job.studentInfo && (
+              <StudentContextHeader
+                info={job.studentInfo}
+                state={job.stateSummary}
+              />
+            )}
+
+            {/* Phase 1: 직전 변화 요약 (OverviewCard 의 delta row 재활용) */}
+            {perception?.evaluated && perception.delta && (
+              <DeltaSummary delta={perception.delta} />
+            )}
+
             {job.perceptionReasons.length > 0 && (
               <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
                 <h4 className="mb-1 font-semibold text-[var(--text-secondary)]">
@@ -100,6 +144,7 @@ export function ProposalJobDrawer({ jobId, open, onOpenChange }: Props) {
                 <ProposalItemCard
                   key={it.id}
                   item={it}
+                  axesMap={job.stateSummary?.competencyAxes ?? {}}
                   onDecisionChanged={() => {
                     queryClient.invalidateQueries({
                       queryKey: ["studentRecord"],
@@ -124,28 +169,35 @@ export function ProposalJobDrawer({ jobId, open, onOpenChange }: Props) {
 
 function ProposalItemCard({
   item,
+  axesMap,
   onDecisionChanged,
 }: {
-  item: NonNullable<
-    Awaited<
-      ReturnType<
-        typeof import("@/lib/domains/student-record/actions/diagnosis-helpers").fetchProposalJobDetail
-      >
-    >
-  >["items"][number];
+  item: NonNullable<ProposalJobDetailDTO>["items"][number];
+  axesMap: Record<string, string | null>;
   onDecisionChanged: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [localDecision, setLocalDecision] = useState(item.studentDecision);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectFeedback, setRejectFeedback] = useState("");
 
   const mutation = useMutation({
-    mutationFn: async (decision: typeof item.studentDecision) => {
-      const result = await updateProposalItemDecisionAction(item.id, decision);
+    mutationFn: async (args: {
+      decision: typeof item.studentDecision;
+      feedback?: string | null;
+    }) => {
+      const result = await updateProposalItemDecisionAction(
+        item.id,
+        args.decision,
+        args.feedback ?? null,
+      );
       if (!result.success) throw new Error(result.error ?? "업데이트 실패");
       return result;
     },
-    onSuccess: (_, decision) => {
-      setLocalDecision(decision);
+    onSuccess: (_, args) => {
+      setLocalDecision(args.decision);
+      setRejectDialogOpen(false);
+      setRejectFeedback("");
       startTransition(() => {
         onDecisionChanged();
       });
@@ -154,7 +206,18 @@ function ProposalItemCard({
 
   const decide = (d: typeof item.studentDecision) => {
     if (mutation.isPending || localDecision === d) return;
-    mutation.mutate(d);
+    if (d === "rejected") {
+      // Phase 1: 거절 시 이유 필수 입력
+      setRejectDialogOpen(true);
+      return;
+    }
+    mutation.mutate({ decision: d });
+  };
+
+  const confirmReject = () => {
+    const feedback = rejectFeedback.trim();
+    if (!feedback) return;
+    mutation.mutate({ decision: "rejected", feedback });
   };
 
   return (
@@ -179,6 +242,32 @@ function ProposalItemCard({
       </header>
 
       <p className="mt-2 text-[var(--text-primary)]">{item.summary}</p>
+
+      {/* Phase 1: 대상 축의 현재 grade 즉시 표시 */}
+      <div className="mt-2 flex flex-wrap gap-1">
+        {item.targetAxes.map((code) => {
+          const grade = axesMap[code] ?? null;
+          return (
+            <span
+              key={code}
+              className="inline-flex items-center gap-1 rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-1.5 py-0.5 text-[11px]"
+            >
+              <span className="text-[var(--text-secondary)]">
+                {CODE_KO[code] ?? code}
+              </span>
+              <span
+                className={
+                  grade
+                    ? "font-semibold text-[var(--text-primary)]"
+                    : "text-[var(--text-tertiary)]"
+                }
+              >
+                {grade ?? "미측정"}
+              </span>
+            </span>
+          );
+        })}
+      </div>
 
       <Field label="근거">{item.rationale}</Field>
 
@@ -229,6 +318,15 @@ function ProposalItemCard({
         </Field>
       )}
 
+      {/* 기존에 기록된 피드백 표시 (있을 때) */}
+      {item.studentFeedback && (
+        <Field label="기록된 피드백">
+          <span className="italic text-[var(--text-secondary)]">
+            {item.studentFeedback}
+          </span>
+        </Field>
+      )}
+
       {/* 학생 결정 (admin 대리) */}
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border-primary)] pt-2">
         <span className="text-xs text-[var(--text-tertiary)]">컨설턴트 판정:</span>
@@ -259,6 +357,55 @@ function ProposalItemCard({
           </span>
         )}
       </div>
+
+      {/* Phase 1: 거절 사유 입력 Dialog */}
+      <Dialog
+        open={rejectDialogOpen}
+        onOpenChange={(v) => {
+          if (!mutation.isPending) setRejectDialogOpen(v);
+        }}
+        title="거절 사유"
+        description="학습 데이터로 남습니다. 간단히라도 이유를 적어주세요 (필수)"
+        size="md"
+      >
+        <DialogContent>
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="text-[var(--text-secondary)]">
+              왜 이 제안이 부적절한가요?
+            </span>
+            <textarea
+              value={rejectFeedback}
+              onChange={(e) => setRejectFeedback(e.target.value)}
+              rows={4}
+              placeholder="예: 이미 유사 세특 2건 존재, 진로 도배 우려, 학생 역량 대비 무리한 주제…"
+              className="w-full rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
+              autoFocus
+              disabled={mutation.isPending}
+            />
+          </label>
+          {mutation.isError && (
+            <p className="mt-2 text-xs text-red-500">
+              {(mutation.error as Error).message}
+            </p>
+          )}
+        </DialogContent>
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setRejectDialogOpen(false)}
+            disabled={mutation.isPending}
+          >
+            취소
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirmReject}
+            disabled={mutation.isPending || rejectFeedback.trim().length === 0}
+          >
+            {mutation.isPending ? "저장 중…" : "거절 확정"}
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </li>
   );
 }
@@ -322,6 +469,124 @@ function DecisionButton({
     >
       {children}
     </button>
+  );
+}
+
+// ─── Phase 1: 학생 identity + Reward 위치 헤더 ────────────────
+
+function StudentContextHeader({
+  info,
+  state,
+}: {
+  info: NonNullable<ProposalJobDetailDTO>["studentInfo"];
+  state: NonNullable<ProposalJobDetailDTO>["stateSummary"];
+}) {
+  if (!info) return null;
+  const lineBits: string[] = [];
+  if (info.grade !== null) lineBits.push(`${info.grade}학년`);
+  if (info.schoolName) lineBits.push(info.schoolName);
+  if (info.targetMajor) lineBits.push(`목표: ${info.targetMajor}`);
+  if (info.targetSchoolTier) lineBits.push(info.targetSchoolTier);
+
+  return (
+    <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h3 className="text-base font-semibold text-[var(--text-primary)]">
+          {info.name}
+        </h3>
+        <span className="text-xs text-[var(--text-tertiary)]">
+          {lineBits.join(" · ")}
+        </span>
+      </div>
+      {state?.hakjongScore && (
+        <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
+          <RewardCell label="총점" value={state.hakjongScore.total} big />
+          <RewardCell label="학업" value={state.hakjongScore.academic} />
+          <RewardCell label="진로" value={state.hakjongScore.career} />
+          <RewardCell label="공동체" value={state.hakjongScore.community} />
+        </div>
+      )}
+      {state && (
+        <p className="mt-2 text-[11px] text-[var(--text-tertiary)]">
+          기준: {state.asOfLabel} · 데이터 완결성{" "}
+          {Math.round(state.completenessRatio * 100)}%
+        </p>
+      )}
+    </section>
+  );
+}
+
+function RewardCell({
+  label,
+  value,
+  big,
+}: {
+  label: string;
+  value: number | null;
+  big?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1">
+      <span className="text-[10px] text-[var(--text-tertiary)]">{label}</span>
+      <span
+        className={`font-semibold text-[var(--text-primary)] ${big ? "text-base" : "text-sm"}`}
+      >
+        {value === null ? "—" : value.toFixed(0)}
+      </span>
+    </div>
+  );
+}
+
+// ─── Phase 1: 직전 변화 summary ─────────────────────────────
+
+function DeltaSummary({
+  delta,
+}: {
+  delta: NonNullable<
+    NonNullable<
+      Awaited<
+        ReturnType<
+          typeof import("@/lib/domains/student-record/actions/diagnosis-helpers").fetchPerceptionTriggerResult
+        >
+      >
+    >["delta"]
+  >;
+}) {
+  const chips: string[] = [];
+  if (delta.hakjongScoreDelta !== null && delta.hakjongScoreDelta !== 0) {
+    const s = delta.hakjongScoreDelta > 0 ? "+" : "";
+    chips.push(`학종 ${s}${delta.hakjongScoreDelta}`);
+  }
+  if (delta.competencyChangeCount > 0)
+    chips.push(`역량 ${delta.competencyChangeCount}축`);
+  if (delta.newRecordCount > 0) chips.push(`신규 ${delta.newRecordCount}건`);
+  if (delta.volunteerHoursDelta > 0)
+    chips.push(`봉사 +${delta.volunteerHoursDelta}h`);
+  if (delta.awardsAdded > 0) chips.push(`수상 +${delta.awardsAdded}`);
+  if (delta.integrityChanged) chips.push("출결 변화");
+  if (delta.staleBlueprint) chips.push("⚠ 청사진 stale");
+  if (chips.length === 0) return null;
+
+  return (
+    <section className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-2 text-xs">
+      <span className="font-semibold text-[var(--text-secondary)]">
+        직전 대비
+      </span>
+      <span className="text-[var(--text-tertiary)]">
+        {delta.fromLabel} → {delta.toLabel}
+      </span>
+      <span className="text-[var(--text-tertiary)]">·</span>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[11px] text-[var(--text-primary)]"
+          >
+            {c}
+          </span>
+        ))}
+      </div>
+    </section>
   );
 }
 

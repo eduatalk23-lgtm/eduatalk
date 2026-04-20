@@ -156,6 +156,8 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
       )}
       <ProposalJobDrawer
         jobId={proposal?.jobId ?? null}
+        studentId={studentId}
+        tenantId={tenantId}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
       />
