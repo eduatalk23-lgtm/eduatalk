@@ -39,6 +39,9 @@ export interface FollowupLlmResult {
   readonly expectedHook: string;
 }
 
+export const INTERVIEW_FOLLOWUP_PROMPT_VERSION =
+  "interview-followup-2026-04-20-v1" as const;
+
 export const INTERVIEW_FOLLOWUP_SYSTEM_PROMPT = `당신은 대한민국 대입 학종 면접 사정관입니다. 학생의 이전 답변에서 논리적 약점·미증명 주장을 공략하는 꼬꼬무(follow-up) 질문 1개를 생성합니다.
 
 ## 좋은 세특 8단계 (면접관이 확인하는 고리)

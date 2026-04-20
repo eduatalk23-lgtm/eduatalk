@@ -37,6 +37,9 @@ export type AnswerAnalysisLlmResult = Omit<
   "analyzedAt" | "costUsd"
 >;
 
+export const INTERVIEW_ANSWER_ANALYSIS_PROMPT_VERSION =
+  "interview-answer-2026-04-20-v1" as const;
+
 export const INTERVIEW_ANSWER_ANALYSIS_SYSTEM_PROMPT = `당신은 대한민국 대입 학종 면접 대비 코치이자 학생 답변 분석가입니다. 학생의 면접 답변을 면접관 시각으로 분석해 JSON 을 반환합니다.
 
 ## 평가 차원

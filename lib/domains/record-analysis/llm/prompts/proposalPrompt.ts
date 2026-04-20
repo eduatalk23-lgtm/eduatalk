@@ -46,6 +46,13 @@ export interface ProposalLlmResult {
   readonly items: readonly ProposalItem[];
 }
 
+// ─── Prompt Version (α6 Reflection 2026-04-20) ────────────────
+// 프롬프트 본문이 실질 변경될 때마다 이 상수 bump. metadata.promptVersion 로 저장되어
+// 대시보드에서 "버전별 수락률" 비교 가능.
+
+export const PROPOSAL_PROMPT_VERSION = "proposal-prompt-2026-04-20-v1" as const;
+export type ProposalPromptVersion = typeof PROPOSAL_PROMPT_VERSION;
+
 // ─── System prompt ────────────────────────────────────────────
 
 export const PROPOSAL_SYSTEM_PROMPT = `당신은 대한민국 학생부 종합전형(학종) 설계 전문가입니다.

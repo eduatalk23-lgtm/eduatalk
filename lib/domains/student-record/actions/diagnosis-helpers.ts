@@ -12,6 +12,7 @@ import type { PersistedEdge } from "../repository/edge-repository";
 import type { PersistedHyperedge } from "../repository/hyperedge-repository";
 import type { PersistedNarrativeArc } from "../repository/narrative-arc-repository";
 import type { PersistedProfileCard } from "../repository/profile-card-repository";
+import type { ProposalStudentDecision } from "../types/proposal";
 
 const LOG_CTX = { domain: "student-record", action: "diagnosis-helpers" };
 
@@ -647,6 +648,25 @@ export type TenantProposalsOverviewDTO = {
     costUsd: number | null;
     triggeredAt: string;
   }>;
+  /** α6 Reflection — 프롬프트 버전별 수락률·실행률 집계. */
+  reflection: {
+    totalJobs: number;
+    totalItems: number;
+    byVersion: Array<{
+      promptVersion: string;
+      engine: "rule_v1" | "llm_v1";
+      jobCount: number;
+      itemCount: number;
+      accepted: number;
+      rejected: number;
+      executed: number;
+      pending: number;
+      deferred: number;
+      acceptanceRate: number;
+      roadmapLinkRate: number;
+      executionRate: number;
+    }>;
+  };
 };
 
 export async function fetchTenantProposalsOverview(
@@ -677,6 +697,7 @@ export async function fetchTenantProposalsOverview(
       },
     },
     recentJobs: [],
+    reflection: { totalJobs: 0, totalItems: 0, byVersion: [] },
   };
 
   try {
@@ -684,36 +705,40 @@ export async function fetchTenantProposalsOverview(
     if (!tenantId) return empty;
     const supabase = await createSupabaseServerClient();
 
-    const [jobsRes, itemsRes] = await Promise.all([
-      supabase
-        .from("proposal_jobs")
-        .select(
-          "id, student_id, engine, model, severity, status, cost_usd, triggered_at",
-        )
-        .eq("tenant_id", tenantId)
-        .order("triggered_at", { ascending: false }),
-      supabase
-        .from("proposal_items")
-        .select("job_id, student_decision")
-        .in(
-          "job_id",
-          // 서브쿼리 대용 — PostgREST 는 IN with select 불가, 모든 item 가져온 후 필터
-          [],
-        )
-        .limit(1),
-    ]);
+    const { data: jobsData, error: jobsErr } = await supabase
+      .from("proposal_jobs")
+      .select(
+        "id, student_id, engine, model, severity, status, cost_usd, triggered_at, metadata",
+      )
+      .eq("tenant_id", tenantId)
+      .order("triggered_at", { ascending: false });
 
-    if (jobsRes.error) throw jobsRes.error;
-    const jobs = jobsRes.data ?? [];
+    if (jobsErr) throw jobsErr;
+    const jobs = jobsData ?? [];
     if (jobs.length === 0) return empty;
 
-    // items 일괄 조회 — jobs id 목록 확정 후
+    // items + roadmap 실행 여부 일괄 조회
     const jobIds = jobs.map((j) => j.id);
     const { data: allItems, error: itemsErr } = await supabase
       .from("proposal_items")
-      .select("job_id, student_decision")
+      .select("id, job_id, student_decision, roadmap_item_id")
       .in("job_id", jobIds);
     if (itemsErr) throw itemsErr;
+
+    // 연결된 roadmap_items 의 executed_at 조회 (실행 판정)
+    const roadmapIds = (allItems ?? [])
+      .map((it) => it.roadmap_item_id)
+      .filter((v): v is string => !!v);
+    let roadmapExecutedSet = new Set<string>();
+    if (roadmapIds.length > 0) {
+      const { data: rmRows } = await supabase
+        .from("student_record_roadmap_items")
+        .select("id, executed_at")
+        .in("id", roadmapIds);
+      for (const r of rmRows ?? []) {
+        if (r.executed_at) roadmapExecutedSet.add(r.id);
+      }
+    }
 
     // items 집계
     const byJob = new Map<
@@ -839,7 +864,54 @@ export async function fetchTenantProposalsOverview(
         };
       });
 
-    return { stats, recentJobs };
+    // α6 Reflection 집계: job.metadata.promptVersion + roadmap 실행 여부 → byVersion
+    const itemsByJob = new Map<
+      string,
+      Array<{
+        id: string;
+        studentDecision: ProposalStudentDecision;
+        roadmapItemId: string | null;
+        roadmapExecuted: boolean;
+      }>
+    >();
+    for (const it of allItems ?? []) {
+      const list = itemsByJob.get(it.job_id) ?? [];
+      list.push({
+        id: it.id,
+        studentDecision: it.student_decision as ProposalStudentDecision,
+        roadmapItemId: it.roadmap_item_id ?? null,
+        roadmapExecuted: it.roadmap_item_id
+          ? roadmapExecutedSet.has(it.roadmap_item_id)
+          : false,
+      });
+      itemsByJob.set(it.job_id, list);
+    }
+    const reflectionInputs = jobs.map((j) => {
+      const md = (j.metadata ?? {}) as Record<string, unknown>;
+      const pv =
+        typeof md.promptVersion === "string"
+          ? md.promptVersion
+          : j.engine === "llm_v1"
+            ? "unknown-llm"
+            : "proposal-rule-v1";
+      return {
+        jobId: j.id,
+        engine: j.engine as "rule_v1" | "llm_v1",
+        promptVersion: pv,
+        status: j.status as
+          | "completed"
+          | "failed"
+          | "running"
+          | "pending"
+          | "skipped",
+        severity: j.severity as "none" | "low" | "medium" | "high",
+        items: itemsByJob.get(j.id) ?? [],
+      };
+    });
+    const { summarizeReflection } = await import("../state/proposal-reflection");
+    const reflection = summarizeReflection(reflectionInputs);
+
+    return { stats, recentJobs, reflection };
   } catch (error) {
     logActionError(
       { ...LOG_CTX, action: "fetchTenantProposalsOverview" },

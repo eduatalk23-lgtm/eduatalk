@@ -25,6 +25,7 @@ import {
   insertJob,
   type InsertJobInput,
 } from "../repository/proposal-repository";
+import { PROPOSAL_PROMPT_VERSION } from "@/lib/domains/record-analysis/llm/prompts/proposalPrompt";
 import { buildRuleProposal } from "../state/rule-proposal";
 import type { StudentState } from "../types/student-state";
 import type { BlueprintGap } from "../types/blueprint-gap";
@@ -191,6 +192,11 @@ export async function runProposalJob(
       engineError,
       llmTier,
       llmUsage,
+      // α6 Reflection: 프롬프트 버전 기록 (rule_v1 은 엔진 코드 버전으로 동일 취급).
+      promptVersion:
+        effectiveEngine === "llm_v1"
+          ? PROPOSAL_PROMPT_VERSION
+          : "proposal-rule-v1",
     },
   };
 

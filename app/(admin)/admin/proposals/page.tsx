@@ -36,7 +36,7 @@ const STATUS_KO: Record<string, string> = {
 
 export default async function ProposalsDashboardPage() {
   const overview = await fetchTenantProposalsOverview({ recentLimit: 50 });
-  const { stats, recentJobs } = overview;
+  const { stats, recentJobs, reflection } = overview;
 
   const acceptanceRate =
     stats.decisionStats.total > 0
@@ -110,6 +110,104 @@ export default async function ProposalsDashboardPage() {
           <DecisionCell label="거절" count={stats.decisionStats.rejected} tone="red" />
           <DecisionCell label="미결" count={stats.decisionStats.pending} tone="muted" />
         </div>
+      </section>
+
+      {/* α6 Reflection: 프롬프트 버전별 수락률·실행률 */}
+      <section className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+        <header className="flex items-center justify-between border-b border-[var(--border-primary)] px-4 py-2">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+            프롬프트 버전별 성과 (α6 Reflection)
+          </h2>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            completed job {reflection.totalJobs}건 · item {reflection.totalItems}건
+          </span>
+        </header>
+        {reflection.byVersion.length === 0 ? (
+          <p className="p-4 text-sm text-[var(--text-tertiary)]">
+            완료된 제안이 없어 버전별 성과 측정 불가.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="bg-[var(--bg-primary)] text-xs text-[var(--text-tertiary)]">
+                <tr>
+                  <Th>버전</Th>
+                  <Th>엔진</Th>
+                  <Th>item</Th>
+                  <Th>수락률</Th>
+                  <Th>수락</Th>
+                  <Th>거절</Th>
+                  <Th>실행(컨설턴트)</Th>
+                  <Th>로드맵 매핑</Th>
+                  <Th>실행률</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {reflection.byVersion.map((v) => (
+                  <tr
+                    key={`${v.engine}::${v.promptVersion}`}
+                    className="border-t border-[var(--border-primary)]"
+                  >
+                    <Td>
+                      <code className="font-mono text-xs text-[var(--text-secondary)]">
+                        {v.promptVersion}
+                      </code>
+                    </Td>
+                    <Td>
+                      <span className="text-[var(--text-primary)]">
+                        {v.engine}
+                      </span>
+                    </Td>
+                    <Td>{v.itemCount}</Td>
+                    <Td>
+                      <span
+                        className={
+                          v.acceptanceRate >= 0.5
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-amber-600 dark:text-amber-400"
+                        }
+                      >
+                        {(v.acceptanceRate * 100).toFixed(0)}%
+                      </span>
+                    </Td>
+                    <Td>
+                      <span className="text-green-600 dark:text-green-400">
+                        {v.accepted}
+                      </span>
+                    </Td>
+                    <Td>
+                      <span className="text-red-600 dark:text-red-400">
+                        {v.rejected}
+                      </span>
+                    </Td>
+                    <Td>{v.executed}</Td>
+                    <Td>
+                      <span className="text-xs text-[var(--text-secondary)]">
+                        {(v.roadmapLinkRate * 100).toFixed(0)}%
+                      </span>
+                    </Td>
+                    <Td>
+                      <span
+                        className={
+                          v.executionRate >= 0.5
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-[var(--text-tertiary)]"
+                        }
+                      >
+                        {(v.executionRate * 100).toFixed(0)}%
+                      </span>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="px-4 py-2 text-xs text-[var(--text-tertiary)]">
+          수락률 = (accepted+executed)/item. 실행률 = roadmap executed_at 설정된
+          수락 item / 전체 수락 item. 버전 표기는 proposalPrompt.ts 의
+          PROPOSAL_PROMPT_VERSION 상수. 프롬프트 변경 시 bump 하면 신구 비교 가능.
+        </p>
       </section>
 
       {/* 최근 job 테이블 */}
