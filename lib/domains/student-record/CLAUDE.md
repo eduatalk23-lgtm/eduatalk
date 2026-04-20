@@ -121,6 +121,24 @@ Autonomous 학종 Coach 의 Perception/Reward/GAP/Proposal 공용 입력.
   - 하한 0, 상한 100
   - attendance row·징계 모두 부재 → `null` (데이터 없음)
   - `flags` 는 "무단결석 N일" / "무단 지각·조퇴 N건" / "징계 N건" / "과다결석 N/M일" (총 결석 > school_days 5%).
+
+## α2 v1 Reward 엔진 (2026-04-20)
+
+**순수 함수**: `reward/compute-hakjong-score.ts` `computeHakjongScore(state) → HakjongScore`.
+
+**공식 (v1 규칙 기반)**:
+- `CompetencyGrade → 점수`: A+=95, A-=85, B+=75, B=65, B-=55, C=40 (0~100 스케일)
+- 영역별 score = 해당 영역 non-null 축 점수 평균. 최소 축 2 개 필요(`MIN_AXES_FOR_AREA_SCORE`), 미달 시 null.
+  - academic: 학업 3축 중 ≥ 2
+  - career: 진로 3축 중 ≥ 2
+  - community: Layer1 공동체 4축 × 0.7 + aux 기여 × 0.3
+    - aux 기여 = (volunteer 존재 100 + awards 존재 100 + attendance integrityScore) / 3
+- total = academic × 0.3 + career × 0.4 + community × 0.3 (**세 영역 모두 non-null 일 때만**)
+- confidence: area별 `nonNull axes / maxAxes` (0~1). total = min 3 영역.
+
+**주입**: `buildStudentState` 말미에 `computeHakjongScore(partial)` 호출 → snapshot 영속 시 `hakjongScore` 필드로 저장.
+**UI 노출**: `StudentStateOverviewCard` 헤더 Reward 배지(총점) + 3영역 셀(학업/진로/공동체).
+**β 이월**: v2 exemplar 거리 학습, 대학-전공 × 가중치 루브릭, target parameter.
 - **hakjongScore**: α2 Reward 엔진까지 `null`. 빌더는 area별 computable 플래그만 계산.
 
 ## Tests

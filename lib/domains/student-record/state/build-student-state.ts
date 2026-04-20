@@ -69,6 +69,7 @@ import {
   fetchAttendanceUpTo,
   fetchDisciplinaryUpTo,
 } from "../repository/attendance-repository";
+import { computeHakjongScore } from "../reward/compute-hakjong-score";
 import {
   listTrajectory,
   type PersistedStudentStateSnapshot,
@@ -897,7 +898,7 @@ export async function buildStudentState(
     blueprint,
   });
 
-  return {
+  const partial: StudentState = {
     studentId,
     tenantId,
     asOf: resolvedAsOf,
@@ -907,8 +908,11 @@ export async function buildStudentState(
     narrativeArc,
     trajectory,
     aux: { volunteer, awards, attendance, reading },
-    hakjongScore: null, // α2
+    hakjongScore: null,
     blueprint,
     metadata,
   };
+
+  // α2 v1: Reward 계산 (규칙 기반). 순수 함수라 partial → hakjongScore 도출 후 교체.
+  return { ...partial, hakjongScore: computeHakjongScore(partial) };
 }

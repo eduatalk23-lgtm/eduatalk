@@ -150,7 +150,12 @@ describe("buildStudentState — 빈 학생", () => {
     expect(state.aux.attendance).toBeNull();
     expect(state.aux.reading).toBeNull();
     expect(state.blueprint).toBeNull();
-    expect(state.hakjongScore).toBeNull();
+    // α2: hakjongScore 는 항상 객체. 데이터 없으면 모든 필드 null.
+    expect(state.hakjongScore).not.toBeNull();
+    expect(state.hakjongScore!.total).toBeNull();
+    expect(state.hakjongScore!.academic).toBeNull();
+    expect(state.hakjongScore!.career).toBeNull();
+    expect(state.hakjongScore!.community).toBeNull();
     expect(state.metadata.completenessRatio).toBe(0);
     expect(state.metadata.hakjongScoreComputable).toEqual({
       academic: false,

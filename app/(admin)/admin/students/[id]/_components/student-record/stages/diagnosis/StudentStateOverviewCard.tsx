@@ -18,6 +18,7 @@ import { studentStateQueryOptions } from "@/lib/query-options/studentRecord";
 import {
   SNAPSHOT_LAYER_FLAGS,
   type StudentState,
+  type HakjongScore,
 } from "@/lib/domains/student-record/types/student-state";
 
 interface Props {
@@ -86,8 +87,13 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
             {snapshot.as_of_label}
           </span>
         </div>
-        <CompletenessBadge pct={completenessPct} />
+        <div className="flex items-center gap-2">
+          {state?.hakjongScore && <HakjongTotalBadge score={state.hakjongScore} />}
+          <CompletenessBadge pct={completenessPct} />
+        </div>
       </header>
+
+      {state?.hakjongScore && <HakjongAreaRow score={state.hakjongScore} />}
 
       <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <LayerFlagsRow flags={snapshot.layer_flags} />
@@ -108,6 +114,72 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
 }
 
 // ─── 서브 컴포넌트 ───────────────────────────────────────
+
+function HakjongTotalBadge({ score }: { score: HakjongScore }) {
+  if (score.total === null) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/20 dark:text-gray-400"
+        title="3 영역 모두 ≥ 2 축 필요"
+      >
+        Reward —
+      </span>
+    );
+  }
+  const pct = Math.round(score.total);
+  const tone =
+    pct >= 80 ? "emerald" : pct >= 65 ? "blue" : pct >= 50 ? "amber" : "red";
+  const bgByTone = {
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
+    blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+    amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+    red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+  }[tone];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${bgByTone}`}
+      title={`학종 Reward v1 (conf ${Math.round(score.confidence.total * 100)}%)`}
+    >
+      Reward {pct}
+    </span>
+  );
+}
+
+function HakjongAreaRow({ score }: { score: HakjongScore }) {
+  return (
+    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+      <HakjongAreaCell label="학업 30%" value={score.academic} conf={score.confidence.academic} />
+      <HakjongAreaCell label="진로 40%" value={score.career} conf={score.confidence.career} />
+      <HakjongAreaCell label="공동체 30%" value={score.community} conf={score.confidence.community} />
+    </div>
+  );
+}
+
+function HakjongAreaCell({
+  label,
+  value,
+  conf,
+}: {
+  label: string;
+  value: number | null;
+  conf: number;
+}) {
+  return (
+    <div className="rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-2 py-1.5">
+      <p className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+        {label}
+      </p>
+      <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+        {value !== null ? Math.round(value) : "—"}
+        {value !== null && (
+          <span className="ml-1 text-[10px] font-normal text-[var(--text-tertiary)]">
+            / 100 · conf {Math.round(conf * 100)}%
+          </span>
+        )}
+      </p>
+    </div>
+  );
+}
 
 function CompletenessBadge({ pct }: { pct: number }) {
   const tone =
