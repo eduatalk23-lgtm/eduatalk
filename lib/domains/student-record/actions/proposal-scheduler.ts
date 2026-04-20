@@ -66,9 +66,16 @@ export interface ProposalSchedulerInput {
   readonly state: StudentState;
   readonly gap: BlueprintGap | null;
   readonly options?: {
-    readonly engine?: "rule_v1";
+    /**
+     * 엔진 선택 (Sprint 3 확장).
+     *   - 'rule_v1' (기본): 결정적 매핑. LLM 비용 0
+     *   - 'llm_v1': LLM 호출 + rule_v1 seed + 실패 시 rule_v1 fallback. 비용 발생
+     */
+    readonly engine?: ProposalEngine;
     readonly maxItems?: 3 | 4 | 5;
     readonly client?: Client;
+    /** llm_v1 시 tier 선호도 (기본 'auto' = standard → advanced). */
+    readonly tierPreference?: "auto" | "standard_only" | "advanced_first";
   };
 }
 
@@ -105,26 +112,56 @@ export async function runProposalJob(
     return { status: "skipped", reason: "perception_not_triggered" };
   }
 
-  // 2) 후보 ProposalItem 생성 (순수 함수)
+  // 2) 후보 ProposalItem 생성
   const remaining = gap?.remainingSemesters ?? computeRemainingSemesters(state);
-  const items = buildRuleProposal(
-    {
-      diff: perception.diff,
-      trigger: perception.trigger,
-      state,
-      gap,
-      remainingSemesters: remaining,
-    },
-    { maxItems },
-  );
+  const ruleInput = {
+    diff: perception.diff,
+    trigger: perception.trigger,
+    state,
+    gap,
+    remainingSemesters: remaining,
+  };
+
+  let items: readonly import("../types/proposal").ProposalItem[];
+  let effectiveEngine: ProposalEngine = engine;
+  let model: string | null = null;
+  let costUsd: number | null = 0;
+  let engineError: string | null = null;
+
+  if (engine === "llm_v1") {
+    // Sprint 3 scaffold — LLM 호출 + rule_v1 seed + graceful fallback
+    const { runLlmProposal } = await import("../state/llm-proposal");
+    const result = await runLlmProposal(ruleInput, {
+      maxItems,
+      ...(input.options?.tierPreference
+        ? { tierPreference: input.options.tierPreference }
+        : {}),
+    });
+    items = result.items;
+    model = result.model;
+    costUsd = result.costUsd;
+    engineError = result.error;
+    // LLM 실패 → engine='rule_v1' 로 영속 (실제 생성 경로 기록)
+    if (result.engine === "rule_v1_fallback") {
+      effectiveEngine = "rule_v1";
+      logActionWarn(
+        LOG_CTX,
+        `llm_v1 failed, fell back to rule_v1 seed — ${engineError ?? "unknown"}`,
+        { studentId, tenantId },
+      );
+    }
+  } else {
+    items = buildRuleProposal(ruleInput, { maxItems });
+  }
 
   // 3) 후보 0건 → 스킵 (job 생성 안 함)
   if (items.length === 0) {
-    logActionWarn(LOG_CTX, "skipped — no candidates from rule_v1", {
+    logActionWarn(LOG_CTX, "skipped — no candidates", {
       studentId,
       tenantId,
       severity: perception.severity,
       reasons: perception.reasons,
+      engine,
     });
     return { status: "skipped", reason: "no_candidates" };
   }
@@ -136,7 +173,8 @@ export async function runProposalJob(
     perceptionSource: perception.source,
     severity: perception.severity,
     perceptionReasons: perception.reasons,
-    engine,
+    engine: effectiveEngine,
+    model,
     status: "running",
     stateAsOf: state.asOf,
     gapPriority: gap?.priority ?? null,
@@ -145,6 +183,8 @@ export async function runProposalJob(
       triggerSignals: perception.trigger.signals.length,
       diffHakjongDelta: perception.diff.hakjongScoreDelta,
       diffCompetencyChanges: perception.diff.competencyChanges.length,
+      requestedEngine: engine,
+      engineError,
     },
   };
 
@@ -163,7 +203,7 @@ export async function runProposalJob(
   // 5) items insert + status='completed'
   try {
     await insertItems(jobId, items, client);
-    await completeJob(jobId, { status: "completed", costUsd: 0 }, client);
+    await completeJob(jobId, { status: "completed", costUsd }, client);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logActionWarn(LOG_CTX, `failed to finalize job ${jobId} — ${msg}`, {
@@ -187,7 +227,10 @@ export async function runProposalJob(
     studentId,
     tenantId,
     jobId,
-    engine,
+    engine: effectiveEngine,
+    requestedEngine: engine,
+    model,
+    costUsd,
     severity: perception.severity,
     gapPriority: gap?.priority ?? null,
   });
@@ -196,7 +239,7 @@ export async function runProposalJob(
     status: "completed",
     jobId,
     itemCount: items.length,
-    engine,
+    engine: effectiveEngine,
   };
 }
 
