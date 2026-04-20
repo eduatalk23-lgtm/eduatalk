@@ -40,3 +40,73 @@ export function isAtLeast(
 ): boolean {
   return AI_ACCESS_LEVEL_ORDER[current] >= AI_ACCESS_LEVEL_ORDER[required];
 }
+
+// ─── M0.5 Consent Grants ────────────────────────────────────
+
+export type ConsentGrantLevel = "observer" | "active";
+
+export interface AiConsentGrant {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly studentId: string;
+  readonly grantedLevel: ConsentGrantLevel;
+  readonly studentSignedAt: string | null;
+  readonly studentUserId: string | null;
+  readonly parentSignedAt: string | null;
+  readonly parentUserId: string | null;
+  readonly consultantSignedAt: string | null;
+  readonly consultantUserId: string | null;
+  readonly scope: Record<string, unknown>;
+  readonly consentVersion: string;
+  readonly consentNotes: string | null;
+  readonly effectiveAt: string;
+  readonly expiresAt: string | null;
+  readonly revokedAt: string | null;
+  readonly revokedBy: string | null;
+  readonly revokeReason: string | null;
+  readonly recordedBy: string | null;
+  readonly createdAt: string;
+}
+
+export interface GrantValidityCheck {
+  readonly nowIso: string;
+}
+
+/**
+ * 특정 시점(nowIso) 기준 grant 가 **현재 유효한가**를 판정.
+ * 판정 규칙:
+ *   - revokedAt 설정됨 → invalid
+ *   - effectiveAt > now → invalid (미래 시점)
+ *   - expiresAt !== null && expiresAt <= now → invalid (만료)
+ *   - grantedLevel='active' 인데 3자 signed_at 중 하나라도 누락 → invalid
+ *     (CHECK 제약으로 DB 레벨 방어되지만 UI·action 경로에서 이중 방어)
+ */
+export function isGrantCurrentlyValid(
+  grant: AiConsentGrant,
+  ctx: GrantValidityCheck,
+): boolean {
+  if (grant.revokedAt !== null) return false;
+
+  const nowMs = Date.parse(ctx.nowIso);
+  if (Number.isNaN(nowMs)) return false;
+
+  const effectiveMs = Date.parse(grant.effectiveAt);
+  if (Number.isNaN(effectiveMs) || effectiveMs > nowMs) return false;
+
+  if (grant.expiresAt !== null) {
+    const expMs = Date.parse(grant.expiresAt);
+    if (Number.isNaN(expMs) || expMs <= nowMs) return false;
+  }
+
+  if (grant.grantedLevel === "active") {
+    if (
+      !grant.studentSignedAt ||
+      !grant.parentSignedAt ||
+      !grant.consultantSignedAt
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}

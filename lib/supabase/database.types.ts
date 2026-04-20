@@ -484,6 +484,90 @@ export type Database = {
           },
         ]
       }
+      ai_consent_grants: {
+        Row: {
+          consent_notes: string | null
+          consent_version: string
+          consultant_signed_at: string | null
+          consultant_user_id: string | null
+          created_at: string
+          effective_at: string
+          expires_at: string | null
+          granted_level: string
+          id: string
+          parent_signed_at: string | null
+          parent_user_id: string | null
+          recorded_by: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          scope: Json
+          student_id: string
+          student_signed_at: string | null
+          student_user_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          consent_notes?: string | null
+          consent_version: string
+          consultant_signed_at?: string | null
+          consultant_user_id?: string | null
+          created_at?: string
+          effective_at?: string
+          expires_at?: string | null
+          granted_level: string
+          id?: string
+          parent_signed_at?: string | null
+          parent_user_id?: string | null
+          recorded_by?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scope?: Json
+          student_id: string
+          student_signed_at?: string | null
+          student_user_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          consent_notes?: string | null
+          consent_version?: string
+          consultant_signed_at?: string | null
+          consultant_user_id?: string | null
+          created_at?: string
+          effective_at?: string
+          expires_at?: string | null
+          granted_level?: string
+          id?: string
+          parent_signed_at?: string | null
+          parent_user_id?: string | null
+          recorded_by?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scope?: Json
+          student_id?: string
+          student_signed_at?: string | null
+          student_user_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_consent_grants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_consent_grants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           anonymized_at: string | null
