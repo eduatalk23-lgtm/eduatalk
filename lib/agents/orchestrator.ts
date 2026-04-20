@@ -1,6 +1,10 @@
 // ============================================
 // Agent 오케스트레이터
-// streamText + tools + maxSteps:7 패턴
+// streamText + tools. 실제 stopWhen/maxSteps 는 caller(app/api/agent/route.ts)에서 설정:
+//   - gemini-2.5-flash: stepCountIs(12), maxOutputTokens 8192
+//   - gemini-3.1-pro-preview: stepCountIs(16), maxOutputTokens 16384
+//   - abortSignal: req.signal ∪ AbortSignal.timeout(55_000)
+//   - maxRetries: 1
 // ============================================
 
 import type { AgentContext } from "./types";

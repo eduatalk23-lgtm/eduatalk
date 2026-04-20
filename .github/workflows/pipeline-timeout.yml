@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Trigger pipeline timeout check
         run: |
-          response=$(curl -sf -w "\n%{http_code}" -X GET \
+          response=$(curl -s -w "\n%{http_code}" -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.DEPLOYMENT_URL }}/api/cron/pipeline-timeout")
 
