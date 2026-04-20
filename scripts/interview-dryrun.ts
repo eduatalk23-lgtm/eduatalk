@@ -1,25 +1,27 @@
 #!/usr/bin/env npx tsx
 /**
- * α5 면접 모듈 dry-run CLI (Sprint 2.5, 2026-04-20)
+ * α5 면접 모듈 dry-run CLI (Sprint 3, 2026-04-20)
  *
  * 학생 + root_question_id 를 받아 모의 면접 세션을 E2E 실행:
  *   1) startInterviewSession (depth=1 root chain 생성)
- *   2) appendFollowupChainRuleV1 × 4 (depth 2~5)
+ *   2) depth 2~5 꼬꼬무 생성 (engine=rule_v1 or llm_v1)
  *   3) 각 chain 에 sample answer 주입 (CLI 인자 또는 자동 샘플)
- *   4) analyzeAnswerRuleV1Action 호출
+ *   4) 답변 분석 (engine=rule_v1 or llm_v1)
  *   5) completeSession → score_summary 출력
  *
  * DB 쓰기 O (interview_sessions/chains/answers).
- * LLM 호출 없음 (rule_v1 전용).
+ * engine=llm_v1 일 때 실 LLM 호출 발생 (비용 주의).
  *
  * 사용법:
  *   npx tsx scripts/interview-dryrun.ts --student=<uuid> --root=<question_id>
+ *   npx tsx scripts/interview-dryrun.ts --student=<uuid> --root=<question_id> --engine=llm_v1
  *   npx tsx scripts/interview-dryrun.ts --student=<uuid> --root=<question_id> --answer-style=vague
  *
  * 옵션:
+ *   --engine=rule_v1 (기본) | llm_v1
  *   --answer-style=specific (기본) | vague | mixed
  *
- * 환경변수: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * 환경변수: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (+ engine=llm_v1 시 OPENAI/GEMINI 키)
  */
 
 import { createSupabaseAdminClient } from "../lib/supabase/admin";
@@ -33,11 +35,18 @@ function arg(name: string): string | undefined {
 const studentId = arg("student");
 const rootQuestionId = arg("root");
 const answerStyle = (arg("answer-style") ?? "specific").toLowerCase();
+const engine = (arg("engine") ?? "rule_v1").toLowerCase() as
+  | "rule_v1"
+  | "llm_v1";
 
 if (!studentId || !rootQuestionId) {
   console.error(
     "[interview-dryrun] 필수 인자: --student=<uuid> --root=<question_id>",
   );
+  process.exit(1);
+}
+if (engine !== "rule_v1" && engine !== "llm_v1") {
+  console.error(`[interview-dryrun] --engine 오류: ${engine}`);
   process.exit(1);
 }
 
@@ -108,15 +117,24 @@ async function main(): Promise<void> {
   console.log(`  root question: "${rootQ.question}"`);
   console.log(`  question_type: ${rootQ.question_type}`);
   console.log(`  answer style: ${answerStyle}`);
+  console.log(`  engine: ${engine}`);
   console.log("─".repeat(70));
 
   // ─── dynamic import (tsx + dev 환경에서 Next 모듈 그래프 로드 회피) ──
   const [
     { insertSession, insertChain, findChain, findSessionChains, findSession, upsertAnswer, updateAnswerAnalysis, updateSessionStatus, findAnswersBySession },
     { analyzeAnswerRuleV1, buildFollowupChainRuleV1, aggregateSessionScore },
+    llmFollowupMod,
+    llmAnalyzeMod,
   ] = await Promise.all([
     import("../lib/domains/student-record/repository/interview-repository"),
     import("../lib/domains/student-record/state/interview-followup"),
+    engine === "llm_v1"
+      ? import("../lib/domains/record-analysis/llm/actions/generateInterviewFollowup")
+      : Promise.resolve(null),
+    engine === "llm_v1"
+      ? import("../lib/domains/record-analysis/llm/actions/analyzeInterviewAnswer")
+      : Promise.resolve(null),
   ]);
 
   // 1) session 시작
@@ -153,39 +171,79 @@ async function main(): Promise<void> {
   let parentId = rootChainId;
   const chainIds: string[] = [rootChainId];
 
-  // 3) depth 2~5 follow-ups
+  // 3) depth 2~5 follow-ups — engine 분기
   for (let i = 2; i <= 5; i++) {
     const parentChain = await findChain(parentId, supabase);
     const existing = await findSessionChains(sessionId, supabase);
     if (!parentChain) throw new Error("parent 복구 실패");
-    const next = buildFollowupChainRuleV1({
+    const ruleNext = buildFollowupChainRuleV1({
       existingChains: existing,
       parentChain,
     });
-    if (!next || next.terminal) {
+    if (!ruleNext || ruleNext.terminal) {
       console.log(`   depth=${i} terminal 도달`);
       break;
     }
+
+    let questionText = ruleNext.questionText;
+    let expectedHook = ruleNext.expectedHook;
+    let generatedBy: "seed" | "llm_v1" = "seed";
+    const slugTag = `[${ruleNext.slug}]`;
+
+    if (engine === "llm_v1" && llmFollowupMod) {
+      const sessionRow = await findSession(sessionId, supabase);
+      const llmResult = await llmFollowupMod.generateInterviewFollowup({
+        rootQuestion: rootQ.question,
+        chain: existing
+          .slice()
+          .sort((a, b) => a.depth - b.depth)
+          .map((c) => ({ depth: c.depth, question: c.questionText, answer: null })),
+        nextDepth: ruleNext.depth as 2 | 3 | 4 | 5,
+        scenario: sessionRow?.scenario ?? {
+          targetMajor: null,
+          targetUniversityLevel: null,
+          focus: null,
+        },
+        evidenceRefs: [
+          { recordId: `root:${rootQ.id}`, summary: rootQ.question },
+        ],
+      });
+      if (llmResult.success) {
+        questionText = llmResult.data.question;
+        expectedHook = `[llm_v1] ${llmResult.data.expectedHook}`;
+        generatedBy = "llm_v1";
+        console.log(
+          `   depth=${i} llm tier=${llmResult.tier} cost=$${(llmResult.costUsd ?? 0).toFixed(4)} elapsed=${llmResult.elapsedMs}ms`,
+        );
+      } else {
+        console.warn(
+          `   depth=${i} llm_v1 실패 → rule_v1 fallback: ${llmResult.error}`,
+        );
+      }
+    }
+
     const newId = await insertChain(
       {
         sessionId,
         rootQuestionId: rootQ.id,
         parentChainId: parentChain.id,
-        depth: next.depth,
-        questionText: next.questionText,
-        expectedHook: next.expectedHook,
-        generatedBy: "seed",
+        depth: ruleNext.depth,
+        questionText,
+        expectedHook,
+        generatedBy,
       },
       supabase,
     );
-    console.log(`   depth=${i} [${next.slug}] chain ${newId.slice(0, 8)}`);
-    console.log(`     Q: ${next.questionText}`);
+    console.log(
+      `   depth=${i} ${slugTag} chain ${newId.slice(0, 8)} [${generatedBy}]`,
+    );
+    console.log(`     Q: ${questionText}`);
     chainIds.push(newId);
     parentId = newId;
   }
 
-  // 4) 각 chain 에 답변 주입 + 분석
-  console.log(`\n2. 답변 제출 + 규칙 분석`);
+  // 4) 각 chain 에 답변 주입 + 분석 (engine 분기)
+  console.log(`\n2. 답변 제출 + ${engine} 분석`);
   for (const [idx, cid] of chainIds.entries()) {
     const answerText = answers[idx] ?? answers[answers.length - 1];
     const answerId = await upsertAnswer(
@@ -193,19 +251,49 @@ async function main(): Promise<void> {
       supabase,
     );
     const chain = await findChain(cid, supabase);
-    // 간단한 evidence: root 질문 본문 자체를 증거로 사용 (Sprint 2 정책과 동일)
     const evidence = [
       { recordId: `root:${rootQ.id}`, summary: rootQ.question },
     ];
-    const analysis = analyzeAnswerRuleV1({
-      questionText: chain?.questionText ?? "",
-      expectedHook: chain?.expectedHook ?? null,
-      answerText,
-      evidenceRefs: evidence,
-    });
+
+    let analysis = null as ReturnType<typeof analyzeAnswerRuleV1> | null;
+    let analyzerLabel: "rule_v1" | "llm_v1" = "rule_v1";
+
+    if (engine === "llm_v1" && llmAnalyzeMod) {
+      const llmResult = await llmAnalyzeMod.analyzeInterviewAnswer({
+        questionText: chain?.questionText ?? "",
+        expectedHook: chain?.expectedHook ?? null,
+        answerText,
+        evidenceRefs: evidence,
+        asOfLabel: null,
+      });
+      if (llmResult.success) {
+        analysis = {
+          ...llmResult.data,
+          costUsd: llmResult.costUsd ?? 0,
+        };
+        analyzerLabel = "llm_v1";
+        console.log(
+          `   depth=${idx + 1} llm tier=${llmResult.tier} cost=$${(llmResult.costUsd ?? 0).toFixed(4)} elapsed=${llmResult.elapsedMs}ms`,
+        );
+      } else {
+        console.warn(
+          `   depth=${idx + 1} llm_v1 분석 실패 → rule_v1 fallback: ${llmResult.error}`,
+        );
+      }
+    }
+
+    if (!analysis) {
+      analysis = analyzeAnswerRuleV1({
+        questionText: chain?.questionText ?? "",
+        expectedHook: chain?.expectedHook ?? null,
+        answerText,
+        evidenceRefs: evidence,
+      });
+    }
+
     await updateAnswerAnalysis(answerId, analysis, supabase);
     console.log(
-      `   depth=${idx + 1} answer=${answerId.slice(0, 8)} consistency=${analysis.consistencyScore} authenticity=${analysis.authenticityScore} ai=${JSON.stringify(analysis.aiSignals)} gaps=${analysis.gapFindings.length}`,
+      `   depth=${idx + 1} answer=${answerId.slice(0, 8)} [${analyzerLabel}] consistency=${analysis.consistencyScore} authenticity=${analysis.authenticityScore} ai=${JSON.stringify(analysis.aiSignals)} gaps=${analysis.gapFindings.length}`,
     );
     if (analysis.gapFindings.length > 0) {
       for (const g of analysis.gapFindings) {

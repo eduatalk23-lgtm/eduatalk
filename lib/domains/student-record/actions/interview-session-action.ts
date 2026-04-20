@@ -17,6 +17,8 @@ import { revalidatePath } from "next/cache";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { generateInterviewFollowup } from "@/lib/domains/record-analysis/llm/actions/generateInterviewFollowup";
+import { analyzeInterviewAnswer } from "@/lib/domains/record-analysis/llm/actions/analyzeInterviewAnswer";
 import {
   findChain,
   findSession,
@@ -134,13 +136,21 @@ export interface AppendFollowupInput {
 export interface AppendFollowupResult {
   readonly chain: InterviewChainNode | null; // terminal 시 null
   readonly terminal: boolean;
+  readonly engineUsed: "rule_v1" | "llm_v1";
+  readonly fallbackReason?: string;
 }
 
-export async function appendFollowupChainRuleV1Action(
+/**
+ * depth ≤ 5 꼬꼬무 생성. engine='llm_v1' 실패 시 rule_v1 graceful fallback.
+ * 호출자가 engine 를 명시적으로 선택 (학생 opt-in 게이트는 상위 레이어 책임).
+ */
+export async function appendFollowupChainAction(
   input: AppendFollowupInput,
+  options?: { engine?: "rule_v1" | "llm_v1" },
 ): Promise<InterviewActionResult<AppendFollowupResult>> {
   try {
     await requireAdminOrConsultant();
+    const engine = options?.engine ?? "rule_v1";
 
     const parent = await findChain(input.parentChainId);
     if (!parent) throw new Error("parent chain 없음");
@@ -148,30 +158,99 @@ export async function appendFollowupChainRuleV1Action(
       throw new Error("session ↔ parent chain 불일치");
 
     const existing = await findSessionChains(input.sessionId);
-    const next = buildFollowupChainRuleV1({
+
+    // rule_v1 로 depth·terminal 판정 (llm_v1 도 이 판정을 공유)
+    const ruleNext = buildFollowupChainRuleV1({
       existingChains: existing,
       parentChain: parent,
     });
-    if (!next) throw new Error("follow-up 생성 불가");
-    if (next.terminal) {
-      return { success: true, data: { chain: null, terminal: true } };
+    if (!ruleNext) throw new Error("follow-up 생성 불가");
+    if (ruleNext.terminal) {
+      return {
+        success: true,
+        data: { chain: null, terminal: true, engineUsed: engine },
+      };
+    }
+
+    let questionText = ruleNext.questionText;
+    let expectedHook = ruleNext.expectedHook;
+    let engineUsed: "rule_v1" | "llm_v1" = "rule_v1";
+    let fallbackReason: string | undefined;
+
+    if (engine === "llm_v1") {
+      const session = await findSession(input.sessionId);
+      const scenario: InterviewScenario = session?.scenario ?? {
+        targetMajor: null,
+        targetUniversityLevel: null,
+        focus: null,
+      };
+      const answersInSession = await findAnswersBySession(input.sessionId);
+      const answerByChain = new Map(
+        answersInSession.map((a) => [a.chainId, a.answerText]),
+      );
+      const chainEntries = existing
+        .slice()
+        .sort((a, b) => a.depth - b.depth)
+        .map((c) => ({
+          depth: c.depth,
+          question: c.questionText,
+          answer: answerByChain.get(c.id) ?? null,
+        }));
+      const rootChain = existing.find((c) => c.depth === 1);
+      const rootQuestionText = rootChain?.questionText ?? parent.questionText;
+      const evidence = await collectEvidenceForRootQuestion(parent.rootQuestionId);
+
+      const llm = await generateInterviewFollowup({
+        rootQuestion: rootQuestionText,
+        chain: chainEntries,
+        nextDepth: ruleNext.depth as 2 | 3 | 4 | 5,
+        scenario,
+        evidenceRefs: evidence,
+      });
+
+      if (llm.success) {
+        questionText = llm.data.question;
+        expectedHook = `[llm_v1] ${llm.data.expectedHook}`;
+        engineUsed = "llm_v1";
+      } else {
+        fallbackReason = llm.error;
+        logActionWarn(LOG_CTX, "llm_v1 follow-up 실패 → rule_v1 fallback", {
+          sessionId: input.sessionId,
+          error: llm.error,
+        });
+      }
     }
 
     const chainId = await insertChain({
       sessionId: input.sessionId,
       rootQuestionId: parent.rootQuestionId,
       parentChainId: parent.id,
-      depth: next.depth,
-      questionText: next.questionText,
-      expectedHook: next.expectedHook,
-      generatedBy: "seed", // rule_v1 템플릿 = 시드 수준. llm_v1 일 때 'llm_v1' 로 표기.
+      depth: ruleNext.depth,
+      questionText,
+      expectedHook,
+      generatedBy: engineUsed === "llm_v1" ? "llm_v1" : "seed",
     });
     const chain = await findChain(chainId);
     if (!chain) throw new Error("chain 복구 실패");
-    return { success: true, data: { chain, terminal: false } };
+    return {
+      success: true,
+      data: {
+        chain,
+        terminal: false,
+        engineUsed,
+        ...(fallbackReason ? { fallbackReason } : {}),
+      },
+    };
   } catch (err) {
     return fail(err, { sessionId: input.sessionId });
   }
+}
+
+/** 하위 호환: Sprint 2 직접 호출자 유지용. engine='rule_v1' 고정. */
+export async function appendFollowupChainRuleV1Action(
+  input: AppendFollowupInput,
+): Promise<InterviewActionResult<AppendFollowupResult>> {
+  return appendFollowupChainAction(input, { engine: "rule_v1" });
 }
 
 // ─── 3. 답변 제출 ─────────────────────────────────────────
@@ -200,18 +279,32 @@ export async function submitAnswerAction(
   }
 }
 
-// ─── 4. rule_v1 답변 분석 ─────────────────────────────────
+// ─── 4. 답변 분석 (engine 분기) ───────────────────────────
 
 export interface AnalyzeAnswerInput {
   readonly answerId: string;
 }
 
-export async function analyzeAnswerRuleV1Action(
+export interface AnalyzeAnswerResult {
+  readonly analyzed: boolean;
+  readonly engineUsed: "rule_v1" | "llm_v1";
+  readonly costUsd: number;
+  readonly fallbackReason?: string;
+}
+
+/**
+ * 답변 분석. engine='llm_v1' 실패 시 rule_v1 graceful fallback.
+ * evidence 는 root_question 의 source_type/source_id 에서 자동 수집.
+ */
+export async function analyzeAnswerAction(
   input: AnalyzeAnswerInput,
-): Promise<InterviewActionResult<{ analyzed: boolean }>> {
+  options?: { engine?: "rule_v1" | "llm_v1" },
+): Promise<InterviewActionResult<AnalyzeAnswerResult>> {
   try {
     await requireAdminOrConsultant();
+    const engine = options?.engine ?? "rule_v1";
     const supabase = await createSupabaseServerClient();
+
     const { data: answer, error: ansErr } = await supabase
       .from("interview_answers")
       .select("id, chain_id, answer_text")
@@ -228,34 +321,180 @@ export async function analyzeAnswerRuleV1Action(
     if (chainErr) throw chainErr;
     if (!chain) throw new Error("chain 없음");
 
-    // 관련 생기부 근거: root_question_id → source_type/source_id → 해당 테이블 본문 요약.
-    // Sprint 2 에서는 root_question 의 suggested_answer + question 자체를 evidence 로 사용.
-    const { data: rootQ } = await supabase
-      .from("student_record_interview_questions")
-      .select("question, suggested_answer, source_type, source_id")
-      .eq("id", chain.root_question_id)
-      .maybeSingle();
-    const evidence =
-      rootQ?.suggested_answer || rootQ?.question
-        ? [
-            {
-              recordId: `root:${chain.root_question_id}`,
-              summary: `${rootQ?.question ?? ""}\n${rootQ?.suggested_answer ?? ""}`.trim(),
-            },
-          ]
-        : [];
+    const evidence = await collectEvidenceForRootQuestion(chain.root_question_id);
 
-    const analysis = analyzeAnswerRuleV1({
-      questionText: chain.question_text,
-      expectedHook: chain.expected_hook,
-      answerText: answer.answer_text,
-      evidenceRefs: evidence,
-    });
+    let fallbackReason: string | undefined;
+    let engineUsed: "rule_v1" | "llm_v1" = "rule_v1";
+    type AnalysisPayload = Parameters<typeof updateAnswerAnalysis>[1];
+    let analysisPayload: AnalysisPayload | null = null;
 
-    await updateAnswerAnalysis(answer.id, analysis);
-    return { success: true, data: { analyzed: true } };
+    if (engine === "llm_v1") {
+      const llm = await analyzeInterviewAnswer({
+        questionText: chain.question_text,
+        expectedHook: chain.expected_hook,
+        answerText: answer.answer_text,
+        evidenceRefs: evidence,
+        asOfLabel: null,
+      });
+      if (llm.success) {
+        engineUsed = "llm_v1";
+        analysisPayload = {
+          ...llm.data,
+          costUsd: llm.costUsd ?? 0,
+        };
+      } else {
+        fallbackReason = llm.error;
+        logActionWarn(LOG_CTX, "llm_v1 analyze 실패 → rule_v1 fallback", {
+          answerId: input.answerId,
+          error: llm.error,
+        });
+      }
+    }
+
+    if (!analysisPayload) {
+      analysisPayload = analyzeAnswerRuleV1({
+        questionText: chain.question_text,
+        expectedHook: chain.expected_hook,
+        answerText: answer.answer_text,
+        evidenceRefs: evidence,
+      });
+    }
+
+    await updateAnswerAnalysis(answer.id, analysisPayload);
+    return {
+      success: true,
+      data: {
+        analyzed: true,
+        engineUsed,
+        costUsd: analysisPayload.costUsd ?? 0,
+        ...(fallbackReason ? { fallbackReason } : {}),
+      },
+    };
   } catch (err) {
     return fail(err, { answerId: input.answerId });
+  }
+}
+
+/** 하위 호환: Sprint 2 직접 호출자 유지용. engine='rule_v1' 고정. */
+export async function analyzeAnswerRuleV1Action(
+  input: AnalyzeAnswerInput,
+): Promise<InterviewActionResult<{ analyzed: boolean }>> {
+  const result = await analyzeAnswerAction(input, { engine: "rule_v1" });
+  if (!result.success) return result;
+  return { success: true, data: { analyzed: result.data.analyzed } };
+}
+
+// ─── 4.5 Evidence 수집 (server-only) ──────────────────────
+
+interface EvidenceEntry {
+  readonly recordId: string;
+  readonly summary: string;
+}
+
+/** root 질문의 source_type/source_id 로 관련 원본 레코드 본문을 수집. */
+async function collectEvidenceForRootQuestion(
+  rootQuestionId: string,
+): Promise<readonly EvidenceEntry[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data: rootQ } = await supabase
+    .from("student_record_interview_questions")
+    .select("question, suggested_answer, source_type, source_id")
+    .eq("id", rootQuestionId)
+    .maybeSingle();
+  if (!rootQ) return [];
+
+  const out: EvidenceEntry[] = [];
+  const rootSummary = `${rootQ.question ?? ""}${
+    rootQ.suggested_answer ? `\n${rootQ.suggested_answer}` : ""
+  }`.trim();
+  if (rootSummary) {
+    out.push({ recordId: `root:${rootQuestionId}`, summary: rootSummary });
+  }
+
+  if (rootQ.source_type && rootQ.source_id) {
+    const recordSummary = await fetchRecordSummary(
+      rootQ.source_type,
+      rootQ.source_id,
+    );
+    if (recordSummary) {
+      out.push({
+        recordId: `${rootQ.source_type}:${rootQ.source_id}`,
+        summary: recordSummary,
+      });
+    }
+  }
+
+  return out;
+}
+
+/** 원본 레코드 1건의 본문 (imported > confirmed > content 우선). 독서는 title/content, general 은 skip. */
+async function fetchRecordSummary(
+  sourceType: string,
+  sourceId: string,
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const pickBody = (row: {
+    imported_content?: string | null;
+    confirmed_content?: string | null;
+    content?: string | null;
+  }): string | null => {
+    const body =
+      row.imported_content?.trim() ||
+      row.confirmed_content?.trim() ||
+      row.content?.trim() ||
+      null;
+    return body;
+  };
+
+  try {
+    switch (sourceType) {
+      case "setek":
+      case "personal_setek": {
+        const table = sourceType === "setek" ? "student_record_seteks" : "student_record_personal_seteks";
+        const { data } = await supabase
+          .from(table)
+          .select("imported_content, confirmed_content, content")
+          .eq("id", sourceId)
+          .maybeSingle();
+        return data ? pickBody(data) : null;
+      }
+      case "changche": {
+        const { data } = await supabase
+          .from("student_record_changche")
+          .select("imported_content, confirmed_content, content")
+          .eq("id", sourceId)
+          .maybeSingle();
+        return data ? pickBody(data) : null;
+      }
+      case "haengteuk": {
+        const { data } = await supabase
+          .from("student_record_haengteuk")
+          .select("imported_content, confirmed_content, content")
+          .eq("id", sourceId)
+          .maybeSingle();
+        return data ? pickBody(data) : null;
+      }
+      case "reading": {
+        const { data } = await supabase
+          .from("student_record_reading")
+          .select("book_title, author, post_reading_activity, notes")
+          .eq("id", sourceId)
+          .maybeSingle();
+        if (!data) return null;
+        const header = [data.book_title, data.author].filter(Boolean).join(" / ");
+        const body = [data.post_reading_activity?.trim(), data.notes?.trim()]
+          .filter(Boolean)
+          .join("\n");
+        const merged = [header, body].filter(Boolean).join("\n");
+        return merged.trim() || null;
+      }
+      default:
+        return null;
+    }
+  } catch (err) {
+    logActionError(LOG_CTX, err, { fn: "fetchRecordSummary", sourceType, sourceId });
+    return null;
   }
 }
 
