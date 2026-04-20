@@ -97,11 +97,22 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
         </div>
         <div className="flex items-center gap-2">
           {state?.hakjongScore && <HakjongTotalBadge score={state.hakjongScore} />}
+          {state?.hakjongScore && state?.hakjongScoreV2Pre && (
+            <HakjongV2PreDeltaBadge
+              v1={state.hakjongScore}
+              v2Pre={state.hakjongScoreV2Pre}
+            />
+          )}
           <CompletenessBadge pct={completenessPct} />
         </div>
       </header>
 
-      {state?.hakjongScore && <HakjongAreaRow score={state.hakjongScore} />}
+      {state?.hakjongScore && (
+        <HakjongAreaRow
+          score={state.hakjongScore}
+          v2Pre={state.hakjongScoreV2Pre ?? null}
+        />
+      )}
 
       {state?.blueprintGap && <BlueprintGapSection gap={state.blueprintGap} />}
 
@@ -159,12 +170,66 @@ function HakjongTotalBadge({ score }: { score: HakjongScore }) {
   );
 }
 
-function HakjongAreaRow({ score }: { score: HakjongScore }) {
+// α2 v2-pre (2026-04-20): aux 연속 기여 버전 total delta 배지.
+// v1/v2-pre 둘 다 total 있어야 노출. 없으면 숨김.
+function HakjongV2PreDeltaBadge({
+  v1,
+  v2Pre,
+}: {
+  v1: HakjongScore;
+  v2Pre: HakjongScore;
+}) {
+  if (v1.total === null || v2Pre.total === null) return null;
+  const delta = Math.round((v2Pre.total - v1.total) * 10) / 10;
+  const pct = Math.round(v2Pre.total);
+  const tone = delta > 0 ? "emerald" : delta < 0 ? "red" : "gray";
+  const bgByTone = {
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
+    red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+    gray: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-700",
+  }[tone];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${bgByTone}`}
+      title={`α2 v2-pre (aux 연속 기여): total ${pct} (v1 대비 ${delta > 0 ? "+" : ""}${delta})`}
+    >
+      v2-pre {pct}
+      {delta !== 0 && (
+        <span className="opacity-70">
+          ({delta > 0 ? "+" : ""}{delta})
+        </span>
+      )}
+    </span>
+  );
+}
+
+function HakjongAreaRow({
+  score,
+  v2Pre,
+}: {
+  score: HakjongScore;
+  v2Pre: HakjongScore | null;
+}) {
   return (
     <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-      <HakjongAreaCell label="학업 30%" value={score.academic} conf={score.confidence.academic} />
-      <HakjongAreaCell label="진로 40%" value={score.career} conf={score.confidence.career} />
-      <HakjongAreaCell label="공동체 30%" value={score.community} conf={score.confidence.community} />
+      <HakjongAreaCell
+        label="학업 30%"
+        value={score.academic}
+        conf={score.confidence.academic}
+        v2Value={v2Pre?.academic ?? null}
+      />
+      <HakjongAreaCell
+        label="진로 40%"
+        value={score.career}
+        conf={score.confidence.career}
+        v2Value={v2Pre?.career ?? null}
+      />
+      <HakjongAreaCell
+        label="공동체 30%"
+        value={score.community}
+        conf={score.confidence.community}
+        v2Value={v2Pre?.community ?? null}
+      />
     </div>
   );
 }
@@ -173,11 +238,17 @@ function HakjongAreaCell({
   label,
   value,
   conf,
+  v2Value,
 }: {
   label: string;
   value: number | null;
   conf: number;
+  v2Value: number | null;
 }) {
+  const v2Delta =
+    value !== null && v2Value !== null
+      ? Math.round((v2Value - value) * 10) / 10
+      : null;
   return (
     <div className="rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-2 py-1.5">
       <p className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
@@ -191,6 +262,19 @@ function HakjongAreaCell({
           </span>
         )}
       </p>
+      {v2Value !== null && v2Delta !== null && (
+        <p
+          className="text-[10px] text-[var(--text-tertiary)] tabular-nums"
+          title="α2 v2-pre: aux 연속 기여 버전 (공동체 영역에만 실효 차이)"
+        >
+          v2-pre {Math.round(v2Value)}
+          {v2Delta !== 0 && (
+            <span className={v2Delta > 0 ? "ml-1 text-emerald-600 dark:text-emerald-400" : "ml-1 text-red-600 dark:text-red-400"}>
+              ({v2Delta > 0 ? "+" : ""}{v2Delta})
+            </span>
+          )}
+        </p>
+      )}
     </div>
   );
 }

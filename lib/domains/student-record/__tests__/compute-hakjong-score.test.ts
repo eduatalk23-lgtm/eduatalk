@@ -98,6 +98,7 @@ function makeState(overrides: {
       reading: null,
     },
     hakjongScore: null,
+    hakjongScoreV2Pre: null,
     blueprintGap: null,
     multiScenarioGap: null,
     blueprint: null,

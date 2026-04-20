@@ -166,6 +166,10 @@ describe("buildStudentState — 빈 학생", () => {
     expect(state.hakjongScore!.academic).toBeNull();
     expect(state.hakjongScore!.career).toBeNull();
     expect(state.hakjongScore!.community).toBeNull();
+    // α2 Step C: v2-pre 병행 계산. 빈 state 에서도 객체 존재 + total null.
+    expect(state.hakjongScoreV2Pre).not.toBeNull();
+    expect(state.hakjongScoreV2Pre!.total).toBeNull();
+    expect(state.hakjongScoreV2Pre!.version).toBe("v2_rule_calibrated");
     expect(state.metadata.completenessRatio).toBe(0);
     expect(state.metadata.hakjongScoreComputable).toEqual({
       academic: false,

@@ -69,7 +69,10 @@ import {
   fetchAttendanceUpTo,
   fetchDisciplinaryUpTo,
 } from "../repository/attendance-repository";
-import { computeHakjongScore } from "../reward/compute-hakjong-score";
+import {
+  computeHakjongScore,
+  computeHakjongScoreV2Pre,
+} from "../reward/compute-hakjong-score";
 import { computeBlueprintGap } from "../gap/compute-blueprint-gap";
 import { computeMultiScenarioGap } from "../gap/compute-multi-scenario-gap";
 import type { CompetencyGradeTarget } from "../types/blueprint-gap";
@@ -974,16 +977,19 @@ export async function buildStudentState(
     trajectory,
     aux: { volunteer, awards, attendance, reading },
     hakjongScore: null,
+    hakjongScoreV2Pre: null,
     blueprintGap: null,
     multiScenarioGap: null,
     blueprint,
     metadata,
   };
 
-  // α2 v1: Reward 계산 (규칙 기반). 순수 함수라 partial → hakjongScore 도출 후 교체.
+  // α2 v1 + v2-pre 병행 계산 (순수 함수). 소비자(GAP 등) 는 v1 을 기본으로 사용.
+  // v2-pre 는 aux binary → 연속 기여 교체판. UI toggle / S7 프롬프트 분석용.
   const withReward: StudentState = {
     ...partial,
     hakjongScore: computeHakjongScore(partial),
+    hakjongScoreV2Pre: computeHakjongScoreV2Pre(partial),
   };
 
   // α3-2: GAP 계산. blueprint null 이거나 targets 빈 경우 — 엔진이 내부적으로

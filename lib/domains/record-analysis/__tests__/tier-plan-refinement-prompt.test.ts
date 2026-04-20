@@ -204,6 +204,104 @@ describe("buildTierPlanRefinementUserPrompt", () => {
     expect(prompt).not.toContain("dominantScenario=");
   });
 
+  // α2 Step C (2026-04-20): Reward 맥락 섹션
+  it("hakjongScore 주입 시 Reward 맥락 섹션 렌더", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      hakjongScore: {
+        academic: 75.5,
+        career: 82.3,
+        community: 55.0,
+        total: 72.8,
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule",
+        confidence: { academic: 0.9, career: 1.0, community: 0.6, total: 0.6 },
+      },
+    });
+    expect(prompt).toContain("학종 Reward 맥락");
+    expect(prompt).toContain("v1 total: 73");
+    expect(prompt).toContain("conf 60%");
+    expect(prompt).toContain("학업 76 / 진로 82 / 공동체 55");
+    // v2-pre 미제공 → v2-pre 라인 없음
+    expect(prompt).not.toContain("v2-pre total");
+  });
+
+  it("hakjongScore + v2-pre 둘 다 주입 시 delta 라인 추가", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      hakjongScore: {
+        academic: 80,
+        career: 80,
+        community: 60,
+        total: 74,
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule",
+        confidence: { academic: 1, career: 1, community: 0.75, total: 0.75 },
+      },
+      hakjongScoreV2Pre: {
+        academic: 80,
+        career: 80,
+        community: 50,
+        total: 71,
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v2_rule_calibrated",
+        confidence: { academic: 1, career: 1, community: 0.75, total: 0.75 },
+      },
+    });
+    expect(prompt).toContain("v2-pre total: 71");
+    expect(prompt).toContain("-3");
+  });
+
+  it("hakjongScore null 또는 total null 시 Reward 섹션 생략", () => {
+    const promptNull = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      hakjongScore: null,
+    });
+    expect(promptNull).not.toContain("학종 Reward 맥락");
+
+    const promptTotalNull = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      hakjongScore: {
+        academic: null,
+        career: null,
+        community: null,
+        total: null,
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule",
+        confidence: { academic: 0, career: 0, community: 0, total: 0 },
+      },
+    });
+    expect(promptTotalNull).not.toContain("학종 Reward 맥락");
+  });
+
+  it("Reward 섹션 길이 ≤ 300자 가드 (single-line 예산)", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      hakjongScore: {
+        academic: 75,
+        career: 80,
+        community: 55,
+        total: 70,
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule",
+        confidence: { academic: 1, career: 1, community: 0.5, total: 0.5 },
+      },
+      hakjongScoreV2Pre: {
+        academic: 75,
+        career: 80,
+        community: 50,
+        total: 68,
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v2_rule_calibrated",
+        confidence: { academic: 1, career: 1, community: 0.5, total: 0.5 },
+      },
+    });
+    const section = prompt.substring(prompt.indexOf("## 학종 Reward 맥락"));
+    const end = section.indexOf("\n\n");
+    const rewardOnly = end === -1 ? section : section.substring(0, end);
+    expect(rewardOnly.length).toBeLessThanOrEqual(300);
+  });
+
   it("blueprintGap priority=low 면 섹션은 렌더하지만 우선 개정 힌트는 생략", () => {
     const prompt = buildTierPlanRefinementUserPrompt({
       ...BASE_INPUT,

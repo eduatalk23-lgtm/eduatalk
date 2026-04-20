@@ -81,6 +81,7 @@ function makeState(axes: CompetencyAxisState[], hs?: HakjongScore | null): Stude
     trajectory: [],
     aux: { volunteer: null, awards: null, attendance: null, reading: null },
     hakjongScore: hs ?? null,
+    hakjongScoreV2Pre: null,
     blueprintGap: null,
     multiScenarioGap: null,
     blueprint: null,

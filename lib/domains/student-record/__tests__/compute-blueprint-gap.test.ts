@@ -91,6 +91,7 @@ function makeState(overrides: {
     trajectory: [],
     aux: { volunteer: null, awards: null, attendance: null, reading: null },
     hakjongScore: overrides.hakjongScore ?? null,
+    hakjongScoreV2Pre: null,
     blueprintGap: null,
     multiScenarioGap: null,
     blueprint: null,

@@ -321,8 +321,12 @@ export interface StudentState {
     readonly reading: ReadingState | null;
   };
 
-  // 학종 목적 함수
+  // 학종 목적 함수 — v1 (canonical, Reward·GAP 소비자 기본값)
   readonly hakjongScore: HakjongScore | null;
+
+  // α2 v2-pre (2026-04-20) — aux 연속 기여 병행 점수. v1 과 동시 계산·영속.
+  // UI toggle / S7 프롬프트 비교 분석용. 소비자(GAP 엔진 등) 는 아직 v1 을 기본으로.
+  readonly hakjongScoreV2Pre: HakjongScore | null;
 
   // 학종 청사진 GAP (α3-2, 2026-04-20) — Reward 와 짝. target 없으면 axisGaps=[] + priority='low'.
   readonly blueprintGap: import("./blueprint-gap").BlueprintGap | null;
