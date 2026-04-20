@@ -25,6 +25,10 @@ import {
   type ProposalJobDetailDTO,
   type RecentProposalJobDTO,
 } from "@/lib/domains/student-record/actions/diagnosis-helpers";
+import {
+  deriveConfidenceFromLlmMeta,
+  type ConfidenceSelfReport,
+} from "@/lib/agents/reliability/confidence-band";
 
 interface Props {
   jobId: string | null;
@@ -875,11 +879,20 @@ function ExecutionMetadataSection({
 }) {
   const hasFallback =
     meta.requestedEngine === "llm_v1" && engine === "rule_v1";
+  const confidence = deriveConfidenceFromLlmMeta({
+    engine,
+    tier: meta.llmTier,
+    fallbackOccurred: hasFallback,
+    engineError: meta.engineError,
+    outputTokens: meta.llmUsage?.outputTokens ?? null,
+    elapsedMs: null,
+  });
   return (
     <section className="rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] p-3 text-xs">
       <details>
-        <summary className="cursor-pointer font-semibold text-[var(--text-secondary)]">
-          실행 정보{" "}
+        <summary className="flex cursor-pointer flex-wrap items-center gap-2 font-semibold text-[var(--text-secondary)]">
+          <span>실행 정보</span>
+          <ConfidenceBadge report={confidence} />
           {hasFallback && (
             <span className="text-amber-600 dark:text-amber-400">
               (LLM 실패 → rule_v1 fallback)
@@ -949,6 +962,34 @@ function ExecutionMetadataSection({
         )}
       </details>
     </section>
+  );
+}
+
+// ─── M2 Reliability 신뢰도 뱃지 ──────────────────────────────
+
+function ConfidenceBadge({ report }: { report: ConfidenceSelfReport }) {
+  const label =
+    report.band === "high" ? "신뢰도 높음" : report.band === "medium" ? "신뢰도 중간" : "신뢰도 낮음";
+  const color =
+    report.band === "high"
+      ? "bg-green-500/10 text-green-700 dark:text-green-400"
+      : report.band === "medium"
+        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+        : "bg-red-500/10 text-red-700 dark:text-red-400";
+  const tooltipLines = [
+    `${label} (score ${report.score.toFixed(2)})`,
+    report.guidance,
+    ...(report.reasons.length > 0
+      ? ["", "감점 신호:", ...report.reasons.map((r) => `· ${r.description}`)]
+      : []),
+  ].join("\n");
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${color}`}
+      title={tooltipLines}
+    >
+      {label}
+    </span>
   );
 }
 
