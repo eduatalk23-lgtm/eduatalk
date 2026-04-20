@@ -72,6 +72,86 @@ describe("buildTierPlanRefinementUserPrompt", () => {
     const prompt = buildTierPlanRefinementUserPrompt(BASE_INPUT);
     expect(prompt).not.toContain("복수 전공 계열");
   });
+
+  // α3-4 (2026-04-20): blueprintGap 섹션
+  it("blueprintGap 주입 시 GAP 섹션 렌더 + priority 힌트 추가", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      blueprintGap: {
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule",
+        remainingSemesters: 4,
+        areaGaps: {
+          academic: { area: "academic", currentScore: 75, targetScore: 95, gapSize: 20, mainCause: "탐구력 부족 (2등급)" },
+          career: { area: "career", currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+          community: { area: "community", currentScore: 80, targetScore: 85, gapSize: 5, mainCause: null },
+        },
+        axisGaps: [
+          {
+            code: "academic_inquiry",
+            area: "academic",
+            currentGrade: "B+",
+            targetGrade: "A+",
+            gapSize: 2,
+            pattern: "insufficient",
+            rationale: "탐구력 B+ → 목표 A+ (차 2등급)",
+          },
+          {
+            code: "community_leadership",
+            area: "community",
+            currentGrade: null,
+            targetGrade: "A-",
+            gapSize: 5,
+            pattern: "latent",
+            rationale: "리더십 미측정. 잔여 4학기 내 활성화 가능",
+          },
+        ],
+        priority: "high",
+        summary: "학업역량 갭 20점. 주원인 = 탐구력 부족 (2등급)",
+      },
+    });
+
+    expect(prompt).toContain("청사진 GAP (우선 개정 대상)");
+    expect(prompt).toContain("priority: HIGH");
+    expect(prompt).toContain("remainingSemesters: 4");
+    expect(prompt).toContain("summary: 학업역량 갭 20점");
+    expect(prompt).toContain("areaGaps");
+    expect(prompt).toContain("학업: gap +20");
+    expect(prompt).toContain("공동체: gap +5");
+    // career 는 gapSize null 이라 라인 생략
+    expect(prompt).not.toContain("진로: gap");
+    expect(prompt).toContain("[부족] academic_inquiry");
+    expect(prompt).toContain("[잠재] community_leadership");
+    // priority high 이면 우선 개정 힌트가 마지막에 추가됨
+    expect(prompt).toContain("청사진 GAP priority=high");
+  });
+
+  it("blueprintGap null 이면 GAP 섹션 없음 + priority 힌트 없음", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({ ...BASE_INPUT, blueprintGap: null });
+    expect(prompt).not.toContain("청사진 GAP");
+  });
+
+  it("blueprintGap priority=low 면 섹션은 렌더하지만 우선 개정 힌트는 생략", () => {
+    const prompt = buildTierPlanRefinementUserPrompt({
+      ...BASE_INPUT,
+      blueprintGap: {
+        computedAt: "2026-04-20T00:00:00Z",
+        version: "v1_rule",
+        remainingSemesters: 6,
+        areaGaps: {
+          academic: { area: "academic", currentScore: 85, targetScore: 85, gapSize: 0, mainCause: null },
+          career: { area: "career", currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+          community: { area: "community", currentScore: null, targetScore: null, gapSize: null, mainCause: null },
+        },
+        axisGaps: [],
+        priority: "low",
+        summary: "전 영역 청사진 목표 충족 (gap ≤ 0)",
+      },
+    });
+    expect(prompt).toContain("청사진 GAP (우선 개정 대상)");
+    expect(prompt).toContain("priority: LOW");
+    expect(prompt).not.toContain("청사진 GAP priority=");
+  });
 });
 
 describe("parseTierPlanRefinementResponse", () => {

@@ -29,6 +29,8 @@ import {
 } from "../../blueprint/tier-plan-similarity";
 import { extractTierPlanSuggestion } from "../../llm/actions/extractTierPlanSuggestion";
 import { judgeTierPlanConvergence } from "../../llm/actions/judgeTierPlanConvergence";
+import { findLatestSnapshot } from "@/lib/domains/student-record/repository/student-state-repository";
+import type { StudentState } from "@/lib/domains/student-record/types/student-state";
 import { MAJOR_TO_TIER1 } from "@/lib/constants/career-classification";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 
@@ -175,6 +177,11 @@ export async function runTierPlanRefinement(
     advanced: { theme: string; key_questions: string[]; suggested_activities: string[] };
   };
 
+  // ── α3-4 (2026-04-20): 최신 snapshot 의 blueprintGap 을 주입.
+  //   α1-3-d 야간 cron 또는 pipeline 완료 훅이 영속한 snapshot 기반.
+  //   snapshot 부재/파싱 실패 시 null — S7 은 기존과 동일 동작.
+  const blueprintGap = await loadLatestBlueprintGap(studentId, tenantId, supabase);
+
   const suggestion = await extractTierPlanSuggestion({
     currentThemeLabel: active.theme_label,
     currentThemeKeywords: active.theme_keywords ?? [],
@@ -187,6 +194,7 @@ export async function runTierPlanRefinement(
     roadmapHighlights,
     qualityPatterns,
     diagnosisWeaknesses,
+    blueprintGap,
   });
 
   if (!suggestion.success) {
@@ -351,5 +359,22 @@ export async function runTierPlanRefinement(
         elapsedMs: Date.now() - startMs,
       },
     };
+  }
+}
+
+// α3-4 (2026-04-20): 최신 snapshot 에서 blueprintGap 만 뽑아 반환.
+// 실패/부재/파싱 이슈 모두 null. S7 은 기존과 동일하게 동작.
+async function loadLatestBlueprintGap(
+  studentId: string,
+  tenantId: string,
+  client: Parameters<typeof findLatestSnapshot>[2],
+): Promise<StudentState["blueprintGap"] | null> {
+  try {
+    const snap = await findLatestSnapshot(studentId, tenantId, client);
+    if (!snap?.snapshot_data) return null;
+    const state = snap.snapshot_data as unknown as Partial<StudentState>;
+    return state.blueprintGap ?? null;
+  } catch {
+    return null;
   }
 }
