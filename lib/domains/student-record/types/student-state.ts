@@ -199,7 +199,7 @@ export interface HakjongScore {
   readonly community: number | null;           // 0~100 (공동체역량)
   readonly total: number | null;               // 학업×0.3 + 진로×0.4 + 공동체×0.3
   readonly computedAt: string;
-  readonly version: "v1_rule" | "v2_exemplar";
+  readonly version: "v1_rule" | "v2_rule_calibrated" | "v2_exemplar";
   /**
    * area 별 데이터 완결성 기반 신뢰도.
    * total = min(academic, career, community) — 가장 약한 영역이 전체 신뢰도 제약.
