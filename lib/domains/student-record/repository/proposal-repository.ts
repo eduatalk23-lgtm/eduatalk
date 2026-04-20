@@ -264,3 +264,121 @@ export async function updateItemDecision(
 
   if (error) throw new Error(error.message);
 }
+
+/** 수락된 제안을 로드맵 row 에 역방향 링크. 1:1 관계. */
+export async function linkItemToRoadmap(
+  itemId: string,
+  roadmapItemId: string,
+  client?: Client,
+): Promise<void> {
+  const supabase = await resolveClient(client);
+  const { error } = await supabase
+    .from("proposal_items")
+    .update({ roadmap_item_id: roadmapItemId })
+    .eq("id", itemId);
+  if (error) throw new Error(error.message);
+}
+
+/** 단일 item 조회 (job context + roadmap link 포함). */
+export interface ProposalItemWithContext {
+  readonly id: string;
+  readonly jobId: string;
+  readonly tenantId: string;
+  readonly studentId: string;
+  readonly stateAsOf: ProposalJobMetadata["stateAsOf"];
+  readonly studentDecision: ProposalStudentDecision;
+  readonly roadmapItemId: string | null;
+  readonly item: ProposalItem;
+}
+
+export async function findItemWithContext(
+  itemId: string,
+  client?: Client,
+): Promise<ProposalItemWithContext | null> {
+  const supabase = await resolveClient(client);
+  const { data, error } = await supabase
+    .from("proposal_items")
+    .select(
+      "id, job_id, rank, name, summary, target_area, target_axes, roadmap_area, horizon, rationale, expected_impact, prerequisite, risks, evidence_refs, student_decision, roadmap_item_id, proposal_jobs!inner(tenant_id, student_id, state_as_of)",
+    )
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  // supabase join 이 `proposal_jobs` 를 배열로 반환할 수 있어 평면화
+  const jobJoin = (data as unknown as {
+    proposal_jobs:
+      | {
+          tenant_id: string;
+          student_id: string;
+          state_as_of: unknown;
+        }
+      | { tenant_id: string; student_id: string; state_as_of: unknown }[];
+  }).proposal_jobs;
+  const job = Array.isArray(jobJoin) ? jobJoin[0] : jobJoin;
+  if (!job) throw new Error("join proposal_jobs 복구 실패");
+
+  return {
+    id: data.id,
+    jobId: data.job_id,
+    tenantId: job.tenant_id,
+    studentId: job.student_id,
+    stateAsOf: (job.state_as_of as unknown) as ProposalJobMetadata["stateAsOf"],
+    studentDecision: data.student_decision as ProposalStudentDecision,
+    roadmapItemId: data.roadmap_item_id ?? null,
+    item: rowToItem({
+      rank: data.rank,
+      name: data.name,
+      summary: data.summary,
+      target_area: data.target_area,
+      target_axes: data.target_axes,
+      roadmap_area: data.roadmap_area,
+      horizon: data.horizon,
+      rationale: data.rationale,
+      expected_impact: data.expected_impact,
+      prerequisite: data.prerequisite,
+      risks: data.risks,
+      evidence_refs: data.evidence_refs,
+    } as ProposalItemRow),
+  };
+}
+
+// ─── Roadmap items 보조 ──────────────────────────────────────
+
+/** 같은 학생+학년도 의 max sort_order+1 반환. 데이터 없으면 1. */
+export async function nextRoadmapSortOrder(
+  studentId: string,
+  tenantId: string,
+  schoolYear: number,
+  client?: Client,
+): Promise<number> {
+  const supabase = await resolveClient(client);
+  const { data, error } = await supabase
+    .from("student_record_roadmap_items")
+    .select("sort_order")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("school_year", schoolYear)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const max = data?.sort_order ?? 0;
+  return max + 1;
+}
+
+/** roadmap_items insert 후 id 반환. */
+export async function insertRoadmapItem(
+  row: Database["public"]["Tables"]["student_record_roadmap_items"]["Insert"],
+  client?: Client,
+): Promise<string> {
+  const supabase = await resolveClient(client);
+  const { data, error } = await supabase
+    .from("student_record_roadmap_items")
+    .insert(row)
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id;
+}

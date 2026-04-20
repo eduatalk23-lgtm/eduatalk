@@ -207,6 +207,9 @@ function ProposalItemCard({
 }) {
   const [isPending, startTransition] = useTransition();
   const [localDecision, setLocalDecision] = useState(item.studentDecision);
+  const [localRoadmapItemId, setLocalRoadmapItemId] = useState<string | null>(
+    item.roadmapItemId,
+  );
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectFeedback, setRejectFeedback] = useState("");
 
@@ -223,8 +226,11 @@ function ProposalItemCard({
       if (!result.success) throw new Error(result.error ?? "업데이트 실패");
       return result;
     },
-    onSuccess: (_, args) => {
+    onSuccess: (result, args) => {
       setLocalDecision(args.decision);
+      if (args.decision === "accepted" && result.roadmapItemId) {
+        setLocalRoadmapItemId(result.roadmapItemId);
+      }
       setRejectDialogOpen(false);
       setRejectFeedback("");
       startTransition(() => {
@@ -394,6 +400,26 @@ function ProposalItemCard({
           </span>
         )}
       </div>
+
+      {/* 로드맵 링크 (수락 시 자동 생성) */}
+      {localDecision === "accepted" && localRoadmapItemId && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <span className="rounded bg-[var(--bg-tertiary)] px-2 py-0.5 text-[var(--text-primary)]">
+            로드맵 등록됨
+          </span>
+          <code className="font-mono text-[var(--text-tertiary)]">
+            #{localRoadmapItemId.slice(0, 8)}
+          </code>
+          <span className="text-[var(--text-tertiary)]">
+            · 설계 탭 로드맵 섹션에서 계획/실행 추적 가능
+          </span>
+        </div>
+      )}
+      {localDecision === "accepted" && !localRoadmapItemId && (
+        <div className="mt-2 text-xs text-yellow-600">
+          ⚠ 수락되었으나 로드맵 매핑 실패 — 재수락으로 재시도
+        </div>
+      )}
 
       {/* Phase 1: 거절 사유 입력 Dialog */}
       <Dialog

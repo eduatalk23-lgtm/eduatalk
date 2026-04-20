@@ -9572,6 +9572,7 @@ export type Database = {
           rationale: string
           risks: string[]
           roadmap_area: string
+          roadmap_item_id: string | null
           student_decision: string
           student_feedback: string | null
           summary: string
@@ -9593,6 +9594,7 @@ export type Database = {
           rationale: string
           risks?: string[]
           roadmap_area: string
+          roadmap_item_id?: string | null
           student_decision?: string
           student_feedback?: string | null
           summary: string
@@ -9614,6 +9616,7 @@ export type Database = {
           rationale?: string
           risks?: string[]
           roadmap_area?: string
+          roadmap_item_id?: string | null
           student_decision?: string
           student_feedback?: string | null
           summary?: string
@@ -9627,6 +9630,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "proposal_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_items_roadmap_item_id_fkey"
+            columns: ["roadmap_item_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_roadmap_items"
             referencedColumns: ["id"]
           },
         ]

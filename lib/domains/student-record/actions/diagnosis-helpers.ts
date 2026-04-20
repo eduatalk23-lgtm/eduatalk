@@ -337,6 +337,8 @@ export type ProposalJobDetailDTO = {
     studentDecision: "pending" | "accepted" | "rejected" | "executed" | "deferred";
     studentFeedback: string | null;
     decidedAt: string | null;
+    /** 수락 시 자동 생성된 로드맵 row id. null=아직 수락 전 또는 매핑 실패. */
+    roadmapItemId: string | null;
   }>;
 };
 
@@ -526,6 +528,7 @@ export async function fetchProposalJobDetail(
           | "deferred",
         studentFeedback: r.student_feedback,
         decidedAt: r.decided_at,
+        roadmapItemId: r.roadmap_item_id ?? null,
       };
     });
 
@@ -950,16 +953,56 @@ export async function updateProposalItemDecisionAction(
   itemId: string,
   decision: "pending" | "accepted" | "rejected" | "executed" | "deferred",
   feedback?: string | null,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+  success: boolean;
+  error?: string;
+  roadmapItemId?: string | null;
+}> {
   try {
     await requireAdminOrConsultant();
-    const { updateItemDecision } = await import(
-      "../repository/proposal-repository"
+    const {
+      updateItemDecision,
+      findItemWithContext,
+      insertRoadmapItem,
+      linkItemToRoadmap,
+      nextRoadmapSortOrder,
+    } = await import("../repository/proposal-repository");
+    const { buildRoadmapInsertFromProposal } = await import(
+      "../state/proposal-to-roadmap"
     );
+
     await updateItemDecision(itemId, decision, feedback ?? null);
+
+    // 수락 → 로드맵 row 자동 생성 (없을 때만). 다른 결정은 링크만 유지.
+    let roadmapItemId: string | null = null;
+    if (decision === "accepted") {
+      const ctx = await findItemWithContext(itemId);
+      if (!ctx) throw new Error("제안 item context 조회 실패");
+
+      if (ctx.roadmapItemId) {
+        // 이미 생성되어 있음 — 재수락 허용하되 중복 insert 방지
+        roadmapItemId = ctx.roadmapItemId;
+      } else {
+        const sortOrder = await nextRoadmapSortOrder(
+          ctx.studentId,
+          ctx.tenantId,
+          ctx.stateAsOf.schoolYear,
+        );
+        const row = buildRoadmapInsertFromProposal({
+          item: ctx.item,
+          tenantId: ctx.tenantId,
+          studentId: ctx.studentId,
+          asOf: ctx.stateAsOf,
+          sortOrder,
+        });
+        roadmapItemId = await insertRoadmapItem(row);
+        await linkItemToRoadmap(itemId, roadmapItemId);
+      }
+    }
+
     const { revalidatePath } = await import("next/cache");
     revalidatePath("/admin/students/[id]", "page");
-    return { success: true };
+    return { success: true, roadmapItemId };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     logActionError(
