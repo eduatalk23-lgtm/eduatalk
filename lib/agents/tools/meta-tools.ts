@@ -20,7 +20,7 @@ export function createMetaTools() {
         "사용 시점: (1) 여러 도구 결과를 종합할 때, (2) 모순되는 데이터를 발견했을 때, " +
         "(3) 전형 추천처럼 여러 기준을 가중치로 판단해야 할 때. " +
         "단순 질문에는 사용하지 마세요.",
-      parameters: z.object({
+      inputSchema: z.object({
         situation: z
           .string()
           .describe("현재 파악한 상황 요약"),

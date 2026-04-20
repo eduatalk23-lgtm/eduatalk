@@ -18,7 +18,7 @@ export function createMemoryTools(ctx: AgentContext) {
       description:
         "과거 유사 컨설팅 사례를 검색합니다. 비슷한 프로필의 학생에게 어떤 진단과 전략이 적용되었는지 확인할 수 있습니다. " +
         "새 학생 분석 전 유사 사례를 먼저 확인하면 더 정확한 판단이 가능합니다.",
-      parameters: z.object({
+      inputSchema: z.object({
         query: z
           .string()
           .describe("검색 쿼리 (예: '내신 3등급 자사고 정치외교학 종합전형')"),
@@ -77,7 +77,7 @@ export function createMemoryTools(ctx: AgentContext) {
       description:
         "과거 컨설턴트가 교정한 내용을 검색합니다. 비슷한 상황에서 에이전트가 했던 실수와 교정 내용을 확인합니다. " +
         "분석 전 이 도구로 과거 교정을 확인하면 같은 실수를 반복하지 않을 수 있습니다.",
-      parameters: z.object({
+      inputSchema: z.object({
         query: z
           .string()
           .describe("검색 쿼리 (예: '자사고 내신 해석', '3학년 전략 추천')"),
@@ -128,7 +128,7 @@ export function createMemoryTools(ctx: AgentContext) {
       description:
         "연도별 입시 예측 정확도를 조회합니다. 배치 분석의 신뢰도를 판단하는 데 활용하세요. " +
         "정확도가 낮으면 보수적으로 판단해야 합니다.",
-      parameters: z.object({
+      inputSchema: z.object({
         dataYear: z
           .number()
           .optional()
@@ -151,7 +151,7 @@ export function createMemoryTools(ctx: AgentContext) {
       description:
         "특정 대학/학과의 과거 입시 예측 결과와 실제 결과를 조회합니다. " +
         "해당 대학에 대한 과거 예측이 얼마나 정확했는지 참고할 수 있습니다.",
-      parameters: z.object({
+      inputSchema: z.object({
         universityName: z.string().describe("대학 이름"),
         departmentName: z.string().optional().describe("학과 이름"),
         limit: z.number().min(1).max(20).optional().describe("결과 수 (기본: 10)"),
