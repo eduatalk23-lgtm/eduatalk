@@ -104,6 +104,8 @@ export type PerceptionBadgeDTO = {
   evaluated: boolean;
   triggered: boolean;
   severity: "none" | "low" | "medium" | "high";
+  /** 판정 근거: "snapshot"=full diff / "metric_events"=hakjong만 (학기 내 fallback) / null=skipped */
+  source: "snapshot" | "metric_events" | null;
   reasons: string[];
   delta: {
     fromLabel: string;
@@ -132,6 +134,7 @@ export async function fetchPerceptionTriggerResult(
     evaluated: false,
     triggered: false,
     severity: "none",
+    source: null,
     reasons: [],
     delta: null,
   };
@@ -144,6 +147,7 @@ export async function fetchPerceptionTriggerResult(
         evaluated: true,
         triggered: result.triggered,
         severity: result.severity,
+        source: result.source,
         reasons: [...result.reasons],
         delta: {
           fromLabel: result.diff.from.label,

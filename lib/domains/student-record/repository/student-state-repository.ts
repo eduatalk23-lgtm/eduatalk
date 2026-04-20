@@ -29,6 +29,7 @@ async function resolveClient(client?: Client): Promise<Client> {
 }
 
 type SnapshotRow = Database["public"]["Tables"]["student_state_snapshots"]["Row"];
+type MetricEventRow = Database["public"]["Tables"]["student_state_metric_events"]["Row"];
 type MetricEventInsert = Database["public"]["Tables"]["student_state_metric_events"]["Insert"];
 
 // ============================================
@@ -152,6 +153,36 @@ export async function findSnapshotAt(
   if (error) throw new Error(error.message);
   return data ? toPersisted(data) : null;
 }
+
+/**
+ * α4 하이브리드 (2026-04-20 C): snapshot 부재 시 metric_events 2 건으로 fallback diff.
+ *
+ * snapshot 은 (학년도 × 학년 × 학기) UPSERT 이므로 학기 내 변화가 덮임.
+ * metric_events 는 append-only 라 학기 내 시계열을 보존 → hakjong/completeness delta 만 추출 가능.
+ * captured_at DESC 로 최근 N 건.
+ */
+export async function findRecentMetricEvents(
+  studentId: string,
+  tenantId: string,
+  n: number,
+  client?: Client,
+): Promise<MetricEventRow[]> {
+  if (n <= 0) return [];
+  const supabase = await resolveClient(client);
+  const { data, error } = await supabase
+    .from("student_state_metric_events")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .order("captured_at", { ascending: false })
+    .limit(n);
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// 타입 재export — perception-scheduler 에서 직접 참조
+export type { MetricEventRow };
 
 /**
  * 학생의 시계열 trajectory.

@@ -111,6 +111,7 @@ export function StudentStateOverviewCard({ studentId, tenantId }: Props) {
             />
           )}
           {perception && <PerceptionBadge dto={perception} />}
+          {perception?.source && <PerceptionSourceNote source={perception.source} />}
           <CompletenessBadge pct={completenessPct} />
         </div>
       </header>
@@ -199,6 +200,23 @@ function PerceptionDeltaRow({
         ))}
       </div>
     </div>
+  );
+}
+
+// metric_events fallback 경로 표기 — 학기 내 변화를 hakjong delta 만으로 근사했음을 알림.
+function PerceptionSourceNote({
+  source,
+}: {
+  source: NonNullable<PerceptionBadgeDTO["source"]>;
+}) {
+  if (source !== "metric_events") return null;
+  return (
+    <span
+      className="text-[10px] text-[var(--text-tertiary)] italic"
+      title="snapshot 2 건 부족 — metric_events 에서 hakjong delta 만 근사. 학기 경계에서 더 정밀한 판정."
+    >
+      (fallback)
+    </span>
   );
 }
 
