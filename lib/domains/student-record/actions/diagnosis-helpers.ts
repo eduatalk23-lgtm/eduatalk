@@ -597,6 +597,257 @@ export async function fetchProposalJobDetail(
 }
 
 /**
+ * 방향 B (2026-04-20): tenant 전체 Proposal 대시보드 집계.
+ * admin 운영자가 Proposal Engine 활동을 한 화면에서 파악.
+ */
+export type TenantProposalsOverviewDTO = {
+  stats: {
+    totalJobs: number;
+    distinctStudents: number;
+    engineCounts: { rule_v1: number; llm_v1: number };
+    severityCounts: {
+      none: number;
+      low: number;
+      medium: number;
+      high: number;
+    };
+    statusCounts: {
+      completed: number;
+      failed: number;
+      running: number;
+      pending: number;
+      skipped: number;
+    };
+    totalCostUsd: number;
+    decisionStats: {
+      accepted: number;
+      rejected: number;
+      executed: number;
+      deferred: number;
+      pending: number;
+      total: number;
+    };
+  };
+  recentJobs: Array<{
+    jobId: string;
+    studentId: string;
+    studentName: string;
+    schoolName: string | null;
+    grade: number | null;
+    engine: "rule_v1" | "llm_v1";
+    model: string | null;
+    severity: "none" | "low" | "medium" | "high";
+    status: "completed" | "failed" | "running" | "pending" | "skipped";
+    itemCount: number;
+    acceptedCount: number;
+    rejectedCount: number;
+    costUsd: number | null;
+    triggeredAt: string;
+  }>;
+};
+
+export async function fetchTenantProposalsOverview(
+  options?: { readonly recentLimit?: number },
+): Promise<TenantProposalsOverviewDTO> {
+  const recentLimit = options?.recentLimit ?? 50;
+  const empty: TenantProposalsOverviewDTO = {
+    stats: {
+      totalJobs: 0,
+      distinctStudents: 0,
+      engineCounts: { rule_v1: 0, llm_v1: 0 },
+      severityCounts: { none: 0, low: 0, medium: 0, high: 0 },
+      statusCounts: {
+        completed: 0,
+        failed: 0,
+        running: 0,
+        pending: 0,
+        skipped: 0,
+      },
+      totalCostUsd: 0,
+      decisionStats: {
+        accepted: 0,
+        rejected: 0,
+        executed: 0,
+        deferred: 0,
+        pending: 0,
+        total: 0,
+      },
+    },
+    recentJobs: [],
+  };
+
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    if (!tenantId) return empty;
+    const supabase = await createSupabaseServerClient();
+
+    const [jobsRes, itemsRes] = await Promise.all([
+      supabase
+        .from("proposal_jobs")
+        .select(
+          "id, student_id, engine, model, severity, status, cost_usd, triggered_at",
+        )
+        .eq("tenant_id", tenantId)
+        .order("triggered_at", { ascending: false }),
+      supabase
+        .from("proposal_items")
+        .select("job_id, student_decision")
+        .in(
+          "job_id",
+          // 서브쿼리 대용 — PostgREST 는 IN with select 불가, 모든 item 가져온 후 필터
+          [],
+        )
+        .limit(1),
+    ]);
+
+    if (jobsRes.error) throw jobsRes.error;
+    const jobs = jobsRes.data ?? [];
+    if (jobs.length === 0) return empty;
+
+    // items 일괄 조회 — jobs id 목록 확정 후
+    const jobIds = jobs.map((j) => j.id);
+    const { data: allItems, error: itemsErr } = await supabase
+      .from("proposal_items")
+      .select("job_id, student_decision")
+      .in("job_id", jobIds);
+    if (itemsErr) throw itemsErr;
+
+    // items 집계
+    const byJob = new Map<
+      string,
+      {
+        count: number;
+        accepted: number;
+        rejected: number;
+        executed: number;
+        deferred: number;
+        pending: number;
+      }
+    >();
+    const decisionStats = {
+      accepted: 0,
+      rejected: 0,
+      executed: 0,
+      deferred: 0,
+      pending: 0,
+      total: 0,
+    };
+    for (const it of allItems ?? []) {
+      const v = byJob.get(it.job_id) ?? {
+        count: 0,
+        accepted: 0,
+        rejected: 0,
+        executed: 0,
+        deferred: 0,
+        pending: 0,
+      };
+      v.count++;
+      decisionStats.total++;
+      const d = it.student_decision as
+        | "accepted"
+        | "rejected"
+        | "executed"
+        | "deferred"
+        | "pending";
+      v[d]++;
+      decisionStats[d]++;
+      byJob.set(it.job_id, v);
+    }
+
+    // 학생 정보 일괄 조회 (name via user_profiles, grade/school via students)
+    const studentIds = Array.from(new Set(jobs.map((j) => j.student_id)));
+    const [profilesRes, studentsRes] = await Promise.all([
+      supabase
+        .from("user_profiles")
+        .select("id, name")
+        .in("id", studentIds),
+      supabase
+        .from("students")
+        .select("id, grade, school_name")
+        .in("id", studentIds),
+    ]);
+    const nameById = new Map<string, string>();
+    for (const p of profilesRes.data ?? []) nameById.set(p.id, p.name ?? "—");
+    const metaById = new Map<string, { grade: number | null; school: string | null }>();
+    for (const s of studentsRes.data ?? [])
+      metaById.set(s.id, {
+        grade: s.grade ?? null,
+        school: s.school_name ?? null,
+      });
+
+    // 집계
+    const stats: TenantProposalsOverviewDTO["stats"] = {
+      totalJobs: jobs.length,
+      distinctStudents: studentIds.length,
+      engineCounts: { rule_v1: 0, llm_v1: 0 },
+      severityCounts: { none: 0, low: 0, medium: 0, high: 0 },
+      statusCounts: {
+        completed: 0,
+        failed: 0,
+        running: 0,
+        pending: 0,
+        skipped: 0,
+      },
+      totalCostUsd: 0,
+      decisionStats,
+    };
+    for (const j of jobs) {
+      const engine = j.engine as keyof typeof stats.engineCounts;
+      if (engine in stats.engineCounts) stats.engineCounts[engine]++;
+      const sev = j.severity as keyof typeof stats.severityCounts;
+      if (sev in stats.severityCounts) stats.severityCounts[sev]++;
+      const st = j.status as keyof typeof stats.statusCounts;
+      if (st in stats.statusCounts) stats.statusCounts[st]++;
+      stats.totalCostUsd += Number(j.cost_usd ?? 0);
+    }
+
+    const recentJobs: TenantProposalsOverviewDTO["recentJobs"] = jobs
+      .slice(0, recentLimit)
+      .map((j) => {
+        const agg = byJob.get(j.id) ?? {
+          count: 0,
+          accepted: 0,
+          rejected: 0,
+          executed: 0,
+          deferred: 0,
+          pending: 0,
+        };
+        const meta = metaById.get(j.student_id);
+        return {
+          jobId: j.id,
+          studentId: j.student_id,
+          studentName: nameById.get(j.student_id) ?? "—",
+          schoolName: meta?.school ?? null,
+          grade: meta?.grade ?? null,
+          engine: j.engine as "rule_v1" | "llm_v1",
+          model: j.model,
+          severity: j.severity as "none" | "low" | "medium" | "high",
+          status: j.status as
+            | "completed"
+            | "failed"
+            | "running"
+            | "pending"
+            | "skipped",
+          itemCount: agg.count,
+          acceptedCount: agg.accepted + agg.executed,
+          rejectedCount: agg.rejected,
+          costUsd: j.cost_usd,
+          triggeredAt: j.triggered_at,
+        };
+      });
+
+    return { stats, recentJobs };
+  } catch (error) {
+    logActionError(
+      { ...LOG_CTX, action: "fetchTenantProposalsOverview" },
+      error,
+      {},
+    );
+    return empty;
+  }
+}
+
+/**
  * α4 Phase 2 (2026-04-20): 학생 최근 Proposal Job 목록 (Drawer 과거 아코디언 용).
  * 같은 학생에 같은 제안이 반복 올라오는지 컨설턴트 확인 용.
  */
