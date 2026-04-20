@@ -9,7 +9,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
-import { studentRecordKeys } from "@/lib/query-options/studentRecord";
+import {
+  gradeAwarePipelineStatusQueryOptions,
+  studentRecordKeys,
+} from "@/lib/query-options/studentRecord";
+import {
+  getCareerTier1Label,
+  isCareerTier1Code,
+} from "@/lib/constants/career-classification";
 
 interface InquiryCategoryEditorProps {
   /** student_main_explorations.id */
@@ -86,11 +93,7 @@ export function InquiryCategoryEditorSection({
   }
 
   if (error || !data) {
-    return (
-      <div className="rounded-lg border border-dashed border-[var(--border-default)] p-4 text-sm text-[var(--text-tertiary)]">
-        활성 메인 탐구가 없습니다. 컨설턴트 패널에서 메인 탐구를 먼저 생성하세요.
-      </div>
-    );
+    return <BootstrapAwareEmptyState studentId={studentId} />;
   }
 
   return (
@@ -101,6 +104,53 @@ export function InquiryCategoryEditorSection({
         editedByConsultantAt={data.editedByConsultantAt}
       />
       <InquiryCategoryEditor mainExplorationId={data.id} studentId={studentId} />
+    </div>
+  );
+}
+
+/**
+ * Bootstrap 진행 중이면 "AI가 메인 탐구 생성 중" 스켈레톤, 아니면 기존 안내 텍스트.
+ * Bootstrap 완료 전환 시 active-main-exploration 쿼리를 invalidate 해 자동 갱신.
+ */
+function BootstrapAwareEmptyState({ studentId }: { studentId: string }) {
+  const qc = useQueryClient();
+  const { data: pipelineStatus } = useQuery({
+    ...gradeAwarePipelineStatusQueryOptions(studentId),
+    refetchInterval: (q) => {
+      const running = q.state.data?.bootstrapPipeline?.status === "running";
+      return running ? 3000 : false;
+    },
+  });
+
+  const bootstrap = pipelineStatus?.bootstrapPipeline ?? null;
+  const isRunning = bootstrap?.status === "running";
+
+  // bootstrap row 가 존재하는데 더 이상 running 이 아니면 완료/실패.
+  // 활성 메인 탐구 쿼리를 재조회해 새로 생성된 row 를 반영.
+  useEffect(() => {
+    if (bootstrap && !isRunning) {
+      qc.invalidateQueries({ queryKey: ["active-main-exploration", studentId] });
+    }
+  }, [bootstrap, isRunning, qc, studentId]);
+
+  if (isRunning) {
+    return (
+      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">
+        <div className="flex items-center gap-2">
+          <span className="animate-pulse" aria-hidden>
+            ✨
+          </span>
+          <span>
+            AI가 메인 탐구를 생성하는 중입니다… 완료되면 자동으로 표시됩니다.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-dashed border-[var(--border-default)] p-4 text-sm text-[var(--text-tertiary)]">
+      활성 메인 탐구가 없습니다. 컨설턴트 패널에서 메인 탐구를 먼저 생성하세요.
     </div>
   );
 }
@@ -299,13 +349,18 @@ export function InquiryCategoryEditor({ mainExplorationId, studentId }: InquiryC
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] p-4">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
+        <div className="flex flex-col gap-1">
           <h4 className="text-sm font-semibold text-[var(--text-primary)]">
             메인 탐구 카테고리 점수 (5축 진단 입력)
           </h4>
-          <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+          <p className="text-xs text-[var(--text-tertiary)]">
             테마: {data.themeKeywords?.join(", ") || "(없음)"} ·
-            진로: {data.careerField || "(없음)"}
+            진로:{" "}
+            {data.careerField
+              ? isCareerTier1Code(data.careerField)
+                ? getCareerTier1Label(data.careerField)
+                : data.careerField
+              : "(없음)"}
           </p>
         </div>
         <span className="text-xs text-[var(--text-tertiary)]">
@@ -344,7 +399,7 @@ export function InquiryCategoryEditor({ mainExplorationId, studentId }: InquiryC
                 className={cn(
                   "w-12 text-right text-sm tabular-nums",
                   isOverride
-                    ? "font-semibold text-amber-700 dark:text-amber-400"
+                    ? "font-semibold text-[var(--color-warning-700)] dark:text-[var(--color-warning-400)]"
                     : "text-[var(--text-tertiary)]",
                 )}
               >
@@ -371,7 +426,7 @@ export function InquiryCategoryEditor({ mainExplorationId, studentId }: InquiryC
           type="button"
           disabled={!isDirty || mutation.isPending}
           onClick={() => mutation.mutate()}
-          className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          className="rounded bg-[var(--color-primary-600)] px-3 py-1.5 text-sm font-medium text-white transition hover:bg-[var(--color-primary-700)] disabled:opacity-50"
         >
           {mutation.isPending ? "저장 중…" : "저장"}
         </button>
