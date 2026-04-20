@@ -228,6 +228,16 @@ draft_refinement  ← [haengteuk_guide, draft_generation, draft_analysis]
 
 스킵된 태스크: `status="failed"`, `error="선행 태스크 실패로 건너뜀: ..."`. 재실행 cascade로 복구.
 
+### 파이프라인 완료 훅 (best-effort, 2026-04-20)
+
+`pipeline-executor.ts` 의 `executePhase` 말미에서 `isFinal && finalStatus === "completed"` 판정 후 2종 훅 실행:
+- `saveWarningSnapshot` (모든 pipelineType): E2 경고 히스토리 저장.
+- `refreshStudentStateSnapshot` (**synthesis 한정**): `buildStudentState` + `upsertSnapshot` 호출로 `student_state_snapshots` 즉시 갱신. `trigger_source='pipeline_completion'`.
+
+**야간 cron (α1-3-d) 과의 차이**: cron 은 모든 학생 일괄 03:30 KST. 완료 훅은 해당 학생만 즉시. Perception Trigger (α4) 가 최신 snapshot 으로 diff 계산.
+
+실패 시 파이프라인 자체에는 영향 없음 (catch 로 warning 로그만).
+
 ### 재실행 클린업 (`student-record/actions/pipeline-orchestrator-rerun.ts`)
 
 `rerunGradePipelineTasks()` 시 competency 태스크 재실행이면:

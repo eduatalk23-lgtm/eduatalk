@@ -317,7 +317,56 @@ export async function runTaskWithState(
         ),
       )
       .catch(() => {});
+
+    // α4-전구체 (2026-04-20): synthesis 완료 시 StudentState snapshot 갱신.
+    //   grade 파이프라인은 학년 단위 재분석 결과가 S2~S7 synthesis 까지 전파된 후
+    //   최종 state 가 형성되므로, grade 단계에서는 skip. synthesis 파이프라인만 훅.
+    //   야간 cron (α1-3-d) 과 별개로 파이프라인 결과 즉시 반영 — Perception Trigger 가
+    //   최신 snapshot 에서 diff 추출 가능.
+    //
+    //   best-effort. 실패해도 파이프라인 자체에는 영향 없음. trigger_source='pipeline_completion'.
+    if (ctx.pipelineType === "synthesis") {
+      await refreshStudentStateSnapshot(ctx).catch((err) => {
+        logActionWarn(
+          LOG_CTX,
+          `StudentState snapshot 갱신 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+          { pipelineId: ctx.pipelineId, studentId: ctx.studentId },
+        );
+      });
+    }
   }
+}
+
+/**
+ * α4-전구체 (2026-04-20): synthesis 파이프라인 완료 훅.
+ *
+ * `buildStudentState` 를 현 시점에 실행해 `student_state_snapshots` 를 갱신.
+ * ctx.results 를 함께 주입해 α1-2/α1-4-b 의 volunteer/awards themes 가
+ * DB 반영 전에도 snapshot 에 포함되도록 함.
+ *
+ * 실패해도 파이프라인 자체 완료에는 영향 없음 — 호출자가 catch 로 처리.
+ */
+async function refreshStudentStateSnapshot(ctx: PipelineContext): Promise<void> {
+  const [{ buildStudentState }, { upsertSnapshot }] = await Promise.all([
+    import("@/lib/domains/student-record/state/build-student-state"),
+    import("@/lib/domains/student-record/repository/student-state-repository"),
+  ]);
+
+  const state = await buildStudentState(
+    ctx.studentId,
+    ctx.tenantId,
+    undefined,
+    {
+      client: ctx.supabase as SupabaseAdminClient,
+      pipelineResults: ctx.results,
+    },
+  );
+
+  await upsertSnapshot(
+    state,
+    { triggerSource: "pipeline_completion" },
+    ctx.supabase as SupabaseAdminClient,
+  );
 }
 
 // ============================================
