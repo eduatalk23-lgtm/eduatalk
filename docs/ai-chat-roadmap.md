@@ -139,7 +139,10 @@
 |---|------|--------|------|------|
 | C-1 | MCP 서버 래핑 (`@modelcontextprotocol/sdk`) + Streamable HTTP | High | 1w | |
 | C-2 | Artifact 버전 관리 (`artifacts` 테이블 + 버전 탭) | High | 1w | |
-| C-3 | Artifact Canvas 편집 (성적 수정 / 플랜 편집) | High | 1w | **전환 유형 D** — 내러티브 안에서 GUI 재현 |
+| C-3 | Artifact Canvas 편집 (성적 수정 / 플랜 편집) | High | 1w | **전환 유형 D** — Sprint 1 스냅샷 편집 ✅ / Sprint 2 HITL writeback / Sprint 3 type 확장 |
+| C-3 S1 | Artifact 스냅샷 편집 + 버전 저장 (what-if) | — | ✅ | `54d64c47` |
+| C-3 S2 | HITL writeback — LLM 자율 tool + InlineConfirm + 서버 액션 | — | 2~3d | `archiveConversation` 패턴 복제. 마이그 0. `feedback_llm-writeback-hitl-required.md` |
+| C-3 S3 | plan/analysis/blueprint 렌더러 편집 지원 | — | 미정 | |
 | C-4 | Citation + sources 패널 | Med | 3d | |
 
 **산출**: Claude Desktop·Cursor 등 외부 AI가 에듀엣톡 tool 호출. ChatGPT Canvas 수준 아티팩트. Phase T에서 시작된 전환 축의 최종 완성(D).

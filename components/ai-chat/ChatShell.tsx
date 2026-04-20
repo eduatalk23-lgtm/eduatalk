@@ -46,13 +46,17 @@ import { InlineConfirm } from "@/components/ai-chat/InlineConfirm";
 import { ChatComposer } from "@/components/ai-chat/ChatComposer";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import { toggleArchiveConversation } from "@/lib/domains/ai-chat/actions";
+import { applyArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactApply";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import type { NavigateToOutput } from "@/lib/mcp/tools/navigateTo";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 import type { AnalyzeRecordDeepOutput } from "@/lib/mcp/tools/analyzeRecordDeep";
 import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
 import type { AnalyzeAdmissionOutput } from "@/lib/mcp/tools/analyzeAdmission";
-import type { ArchiveConversationOutput } from "@/app/api/chat/route";
+import type {
+  ArchiveConversationOutput,
+  ApplyArtifactEditOutput,
+} from "@/app/api/chat/route";
 
 const PATH_LABELS: Record<string, string> = {
   // student
@@ -182,6 +186,48 @@ export function ChatShell({
       output,
     });
     if (res.ok) router.refresh();
+  };
+
+  // Phase C-3 Sprint 2: applyArtifactEdit HITL 승인/거부 핸들러.
+  // 승인 시 서버 액션 호출 후 addToolResult 로 결과 주입 →
+  // AI SDK 가 어시스턴트 응답을 이어서 생성.
+  const handleApplyArtifactEditApproval = async (
+    toolCallId: string,
+    confirmed: boolean,
+    input: { artifactId?: string; versionNo?: number | null },
+  ) => {
+    if (!confirmed) {
+      addToolResult({
+        tool: "applyArtifactEdit",
+        toolCallId,
+        output: {
+          ok: false as const,
+          reason: "사용자가 취소했습니다.",
+        } satisfies ApplyArtifactEditOutput,
+      });
+      return;
+    }
+    if (!input.artifactId) {
+      addToolResult({
+        tool: "applyArtifactEdit",
+        toolCallId,
+        output: {
+          ok: false as const,
+          reason: "아티팩트 id 가 누락되었습니다.",
+        } satisfies ApplyArtifactEditOutput,
+      });
+      return;
+    }
+    const result = await applyArtifactEdit({
+      artifactId: input.artifactId,
+      versionNo: input.versionNo ?? undefined,
+    });
+    addToolResult({
+      tool: "applyArtifactEdit",
+      toolCallId,
+      output: result,
+    });
+    if (result.ok) router.refresh();
   };
 
   // Phase B-2: ⌘K / Ctrl+K 로 팔레트 열기. split 모드에서는 상위 페이지 단축키와
@@ -383,6 +429,7 @@ export function ChatShell({
                   );
                 }}
                 onArchiveApproval={handleArchiveApproval}
+                onApplyArtifactEditApproval={handleApplyArtifactEditApproval}
                 role={role}
               />
             ))}
@@ -608,6 +655,15 @@ type MessageRowProps = {
   }) => void;
   onNavigate: (path: string) => void;
   onArchiveApproval: (toolCallId: string, confirmed: boolean) => Promise<void>;
+  /**
+   * Phase C-3 Sprint 2: applyArtifactEdit HITL 승인 콜백.
+   * input 은 해당 tool call 에 LLM 이 제공한 { artifactId, versionNo } 전달.
+   */
+  onApplyArtifactEditApproval: (
+    toolCallId: string,
+    confirmed: boolean,
+    input: { artifactId?: string; versionNo?: number | null },
+  ) => Promise<void>;
   /** F-5: Tier budget SLO 게이트에서 role 별 에스컬레이션 동작 분기용. */
   role?: ChatShellRole;
 };
@@ -618,10 +674,12 @@ function MessageRow({
   onOpenArtifact,
   onNavigate,
   onArchiveApproval,
+  onApplyArtifactEditApproval,
   role,
 }: MessageRowProps) {
   const isUser = message.role === "user";
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
+  const [applyBusyId, setApplyBusyId] = useState<string | null>(null);
 
   // F-2 후속: AI SDK useChat 이 CSR 초기 state 계산 시 MCP tool parts 를
   // 내부 재가공하여 SSR/CSR 트리가 엇갈리는 hydration mismatch 회귀가 발생함.
@@ -701,6 +759,20 @@ function MessageRow({
       await onArchiveApproval(toolCallId, confirmed);
     } finally {
       setArchiveBusyId(null);
+    }
+  };
+
+  const respondApplyArtifactEdit = async (
+    toolCallId: string,
+    confirmed: boolean,
+    input: { artifactId?: string; versionNo?: number | null },
+  ) => {
+    if (applyBusyId) return;
+    setApplyBusyId(toolCallId);
+    try {
+      await onApplyArtifactEditApproval(toolCallId, confirmed, input);
+    } finally {
+      setApplyBusyId(null);
     }
   };
 
@@ -862,6 +934,83 @@ function MessageRow({
               <ToolCard
                 key={i}
                 name="archiveConversation"
+                icon={<Archive size={14} />}
+                state={output?.ok === false ? "error" : cardState}
+                summary={summary}
+                errorText={output?.ok === false ? output.reason : undefined}
+              />
+            );
+          }
+
+          // Phase C-3 Sprint 2: applyArtifactEdit HITL 카드.
+          // archiveConversation 과 동일 패턴 — execute 없는 tool 이라
+          // state='input-available' 에서 InlineConfirm 으로 사용자 승인 수집,
+          // 승인 시 서버 액션 호출 → addToolResult 로 LLM resume.
+          if (
+            toolCardsMounted &&
+            matchesTool(p, "applyArtifactEdit") &&
+            "state" in p
+          ) {
+            const rawState = p.state;
+            const input =
+              "input" in p
+                ? (p.input as {
+                    artifactId?: string;
+                    versionNo?: number | null;
+                  })
+                : undefined;
+            const output =
+              rawState === "output-available"
+                ? extractToolOutput<ApplyArtifactEditOutput>(p.output)
+                : undefined;
+
+            if (rawState === "input-available") {
+              const busy = applyBusyId === p.toolCallId;
+              const versionLabel = input?.versionNo
+                ? `v${input.versionNo}`
+                : "최신 버전";
+              return (
+                <ToolCard
+                  key={i}
+                  name="applyArtifactEdit"
+                  icon={<Archive size={14} />}
+                  state="running"
+                  summary={`편집된 성적 ${versionLabel} 을 원본 DB 에 적용`}
+                  footer={
+                    <InlineConfirm
+                      title="편집된 성적을 원본 DB 에 적용할까요?"
+                      description="이 작업은 되돌릴 수 없습니다. student_internal_scores 테이블의 원점수·등급이 새 값으로 덮어쓰기됩니다."
+                      confirmLabel="적용"
+                      tone="destructive"
+                      busy={busy}
+                      onConfirm={() =>
+                        respondApplyArtifactEdit(p.toolCallId, true, input ?? {})
+                      }
+                      onCancel={() =>
+                        respondApplyArtifactEdit(p.toolCallId, false, input ?? {})
+                      }
+                    />
+                  }
+                />
+              );
+            }
+
+            const cardState = toolState(rawState);
+            const summary =
+              output?.ok === true
+                ? `${output.appliedCount}건 적용${
+                    output.skippedCount > 0
+                      ? ` · ${output.skippedCount}건 스킵`
+                      : ""
+                  }`
+                : output?.ok === false
+                  ? output.reason
+                  : "적용 준비 중";
+
+            return (
+              <ToolCard
+                key={i}
+                name="applyArtifactEdit"
                 icon={<Archive size={14} />}
                 state={output?.ok === false ? "error" : cardState}
                 summary={summary}

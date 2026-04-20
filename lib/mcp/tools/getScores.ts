@@ -13,6 +13,11 @@ import {
 } from "@/lib/mcp/tools/_shared/resolveStudent";
 
 export type ScoreRow = {
+  /**
+   * C-3 Sprint 2: `student_internal_scores.id` — writeback 대상 식별자.
+   * C-2 이전에 생성된 artifact 스냅샷에는 없을 수 있어 optional. 없으면 applyArtifactEdit 서버 액션에서 거부.
+   */
+  id?: string;
   subjectGroup: string;
   subject: string;
   grade: number;
@@ -98,6 +103,7 @@ export async function getScoresExecute({
   );
 
   const rows: ScoreRow[] = scores.map((s) => ({
+    id: s.id,
     subjectGroup: s.subject_group?.name ?? "-",
     subject: s.subject?.name ?? "-",
     grade: s.grade,
