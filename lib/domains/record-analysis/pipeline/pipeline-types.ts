@@ -102,6 +102,7 @@ export interface PipelineTaskResultMap {
   /**
    * P9: 가안 재생성 (Phase 5 Sprint 1). disabled 시 skipped=true + 전체 null.
    * Feature flag `ENABLE_DRAFT_REFINEMENT` (default off).
+   * Sprint 3 (2026-04-20): variantBreakdown 추가 — A/B 프롬프트 별 집계.
    */
   draft_refinement: {
     enabled: boolean;
@@ -110,6 +111,8 @@ export interface PipelineTaskResultMap {
     rolledBack: number;     // rollback (score 하락)
     skipped: number;        // retry_count>=1 또는 LLM 에러
     avgScoreDelta: number;  // 성공한 refined 의 평균 score 상승분
+    /** Sprint 3 A/B 집계. variant 별 refined/rolledBack/skipped/avgScoreDelta. flag off 시 omit. */
+    variantBreakdown?: Record<string, { refined: number; rolledBack: number; skipped: number; avgScoreDelta: number }>;
     elapsedMs?: number;
   };
 

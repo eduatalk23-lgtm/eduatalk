@@ -27,6 +27,8 @@ import {
   buildSetekRefinementUserPrompt,
   buildChangcheRefinementUserPrompt,
   buildHaengteukRefinementUserPrompt,
+  selectRefinementVariant,
+  type RefinementVariant,
 } from "../llm/prompts/draft-refinement-prompts";
 import { PIPELINE_THRESHOLDS } from "@/lib/domains/student-record/constants";
 
@@ -169,6 +171,7 @@ async function applyRollback(
   tenantId: string,
   targetSchoolYear: number,
   snap: RollbackSnapshot,
+  variant: RefinementVariant | null = null,
 ): Promise<void> {
   const tableMap: Record<RecordType, string> = {
     setek: "student_record_seteks",
@@ -182,7 +185,7 @@ async function applyRollback(
     .update({ ai_draft_content: snap.originalDraft })
     .eq("id", snap.recordId);
 
-  // 2. content_quality 원복 (retry_count=1 로 재시도 방지)
+  // 2. content_quality 원복 (retry_count=1 로 재시도 방지, Sprint 3 variant 기록)
   const { error: cqErr } = await supabase
     .from("student_record_content_quality")
     .upsert(
@@ -202,6 +205,7 @@ async function applyRollback(
         feedback: snap.originalQuality.feedback,
         source: "ai_projected",
         retry_count: 1,  // 재시도 방지 (score 하락이지만 시도 기록)
+        refinement_variant: variant,
       },
       { onConflict: "tenant_id,student_id,record_id,source" },
     );
@@ -271,6 +275,7 @@ function buildRefinementUserPromptForRecord(
   recordType: RecordType,
   quality: QualityRow,
   previousDraft: string,
+  variant: RefinementVariant,
   subjectName?: string,
   activityLabel?: string,
   charLimit?: number,
@@ -295,6 +300,7 @@ function buildRefinementUserPromptForRecord(
       issues: quality.issues,
       feedback: quality.feedback,
       axisScores,
+      variant,
     });
     return { userPrompt, systemPrompt: SETEK_DRAFT_SYSTEM_PROMPT };
   }
@@ -312,6 +318,7 @@ function buildRefinementUserPromptForRecord(
       issues: quality.issues,
       feedback: quality.feedback,
       axisScores,
+      variant,
     });
     return { userPrompt, systemPrompt: CHANGCHE_DRAFT_SYSTEM_PROMPT };
   }
@@ -328,6 +335,7 @@ function buildRefinementUserPromptForRecord(
     issues: quality.issues,
     feedback: quality.feedback,
     axisScores,
+    variant,
   });
   return { userPrompt, systemPrompt: HAENGTEUK_DRAFT_SYSTEM_PROMPT };
 }
@@ -336,10 +344,33 @@ function buildRefinementUserPromptForRecord(
 // 메인 청크 runner
 // ============================================
 
+export interface VariantBreakdownEntry {
+  refined: number;
+  rolledBack: number;
+  skipped: number;
+  avgScoreDelta: number;
+}
+
+export type VariantBreakdown = Record<RefinementVariant, VariantBreakdownEntry>;
+
+function buildVariantBreakdown(stats?: Record<RefinementVariant, VariantStat>): VariantBreakdown {
+  const src = stats ?? emptyVariantStats();
+  const entries = Object.entries(src) as Array<[RefinementVariant, VariantStat]>;
+  return entries.reduce<VariantBreakdown>((out, [variant, s]) => {
+    out[variant] = {
+      refined: s.refined,
+      rolledBack: s.rolledBack,
+      skipped: s.skipped,
+      avgScoreDelta: s.refined > 0 ? s.totalScoreDelta / s.refined : 0,
+    };
+    return out;
+  }, {} as VariantBreakdown);
+}
+
 export async function runDraftRefinementChunkForGrade(
   ctx: PipelineContext,
   chunkSize: number = DEFAULT_CHUNK_SIZE,
-): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number; result: { enabled: boolean; processed: number; refined: number; rolledBack: number; skipped: number; avgScoreDelta: number } }> {
+): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number; result: { enabled: boolean; processed: number; refined: number; rolledBack: number; skipped: number; avgScoreDelta: number; variantBreakdown?: VariantBreakdown } }> {
   assertGradeCtx(ctx);
 
   // ─── Feature flag 체크 ───────────────────────────────────────────────────
@@ -478,7 +509,8 @@ export async function runDraftRefinementChunkForGrade(
       continue;
     }
 
-    // c. 재생성 프롬프트 빌드
+    // c. 재생성 프롬프트 빌드 (Sprint 3: variant 결정적 선택)
+    const variant = selectRefinementVariant(quality.record_id);
     const subjectName = subjectNameMap.get(quality.record_id);
     const activityLabel = changcheTypeMap.get(quality.record_id);
     const charLimit = quality.record_type === "changche"
@@ -491,6 +523,7 @@ export async function runDraftRefinementChunkForGrade(
       quality.record_type,
       quality,
       previousDraft,
+      variant,
       subjectName,
       activityLabel,
       charLimit,
@@ -577,7 +610,7 @@ export async function runDraftRefinementChunkForGrade(
 
         // g. 분기: score 상승 vs 하락
         if (newScore >= quality.overall_score) {
-          // 승격: content_quality 업데이트 (retry_count=1)
+          // 승격: content_quality 업데이트 (retry_count=1, Sprint 3 variant 기록)
           const { error: cqErr } = await supabase
             .from("student_record_content_quality")
             .upsert(
@@ -597,6 +630,7 @@ export async function runDraftRefinementChunkForGrade(
                 feedback: newQuality.feedback,
                 source: "ai_projected",
                 retry_count: 1,
+                refinement_variant: variant,
               },
               { onConflict: "tenant_id,student_id,record_id,source" },
             );
@@ -630,30 +664,43 @@ export async function runDraftRefinementChunkForGrade(
 
           acc.refined++;
           acc.totalScoreDelta += newScore - quality.overall_score;
-          logActionDebug(LOG_CTX, `정제 성공: ${quality.record_id} ${quality.overall_score} → ${newScore}`);
+          const vStats = acc.variantStats ?? emptyVariantStats();
+          vStats[variant].refined++;
+          vStats[variant].totalScoreDelta += newScore - quality.overall_score;
+          acc.variantStats = vStats;
+          logActionDebug(LOG_CTX, `정제 성공[${variant}]: ${quality.record_id} ${quality.overall_score} → ${newScore}`);
         } else {
-          // rollback: 4종 원복
-          await applyRollback(supabase, studentId, tenantId, targetSchoolYear, snap);
+          // rollback: 4종 원복 (variant 기록 포함)
+          await applyRollback(supabase, studentId, tenantId, targetSchoolYear, snap, variant);
           acc.rolledBack++;
-          logActionDebug(LOG_CTX, `rollback: ${quality.record_id} ${quality.overall_score} ← ${newScore} (하락)`);
+          const vStats = acc.variantStats ?? emptyVariantStats();
+          vStats[variant].rolledBack++;
+          acc.variantStats = vStats;
+          logActionDebug(LOG_CTX, `rollback[${variant}]: ${quality.record_id} ${quality.overall_score} ← ${newScore} (하락)`);
         }
 
         chunkProcessed++;
         acc.processed++;
       } else {
         // 분석 실패 — rollback 후 skip
-        await applyRollback(supabase, studentId, tenantId, targetSchoolYear, snap);
+        await applyRollback(supabase, studentId, tenantId, targetSchoolYear, snap, variant);
         acc.skipped++;
+        const vStats = acc.variantStats ?? emptyVariantStats();
+        vStats[variant].skipped++;
+        acc.variantStats = vStats;
       }
     } catch (err) {
       logActionError(LOG_CTX, err, { recordId: quality.record_id, phase: "reanalysis" });
       // 재분석 LLM 에러 — rollback
       try {
-        await applyRollback(supabase, studentId, tenantId, targetSchoolYear, snap);
+        await applyRollback(supabase, studentId, tenantId, targetSchoolYear, snap, variant);
       } catch (rollbackErr) {
         logActionError(LOG_CTX, rollbackErr, { recordId: quality.record_id, phase: "rollback_on_error" });
       }
       acc.skipped++;
+      const vStats = acc.variantStats ?? emptyVariantStats();
+      vStats[variant].skipped++;
+      acc.variantStats = vStats;
     }
   }
 
@@ -661,6 +708,8 @@ export async function runDraftRefinementChunkForGrade(
   setAccumulated(ctx, acc);
 
   const avgScoreDelta = acc.refined > 0 ? acc.totalScoreDelta / acc.refined : 0;
+
+  const variantBreakdown = buildVariantBreakdown(acc.variantStats);
 
   if (hasMore) {
     return {
@@ -675,6 +724,7 @@ export async function runDraftRefinementChunkForGrade(
         rolledBack: acc.rolledBack,
         skipped: acc.skipped,
         avgScoreDelta,
+        variantBreakdown,
       },
     };
   }
@@ -694,6 +744,7 @@ export async function runDraftRefinementChunkForGrade(
       rolledBack: acc.rolledBack,
       skipped: acc.skipped,
       avgScoreDelta,
+      variantBreakdown,
     },
   };
 }
@@ -702,17 +753,43 @@ export async function runDraftRefinementChunkForGrade(
 
 const ACC_KEY = "draft_refinement_accumulated";
 
-interface AccState {
-  processed: number;
+interface VariantStat {
   refined: number;
   rolledBack: number;
   skipped: number;
   totalScoreDelta: number;
 }
 
+interface AccState {
+  processed: number;
+  refined: number;
+  rolledBack: number;
+  skipped: number;
+  totalScoreDelta: number;
+  variantStats?: Record<RefinementVariant, VariantStat>;
+}
+
+function emptyVariantStats(): Record<RefinementVariant, VariantStat> {
+  return {
+    v1_baseline: { refined: 0, rolledBack: 0, skipped: 0, totalScoreDelta: 0 },
+    v2_axis_targeted: { refined: 0, rolledBack: 0, skipped: 0, totalScoreDelta: 0 },
+  };
+}
+
 function getAccumulated(ctx: PipelineContext): AccState {
   const raw = ctx.results?.[ACC_KEY] as AccState | undefined;
-  return raw ?? { processed: 0, refined: 0, rolledBack: 0, skipped: 0, totalScoreDelta: 0 };
+  if (raw) {
+    raw.variantStats ??= emptyVariantStats();
+    return raw;
+  }
+  return {
+    processed: 0,
+    refined: 0,
+    rolledBack: 0,
+    skipped: 0,
+    totalScoreDelta: 0,
+    variantStats: emptyVariantStats(),
+  };
 }
 
 function setAccumulated(ctx: PipelineContext, state: AccState): void {

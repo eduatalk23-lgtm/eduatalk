@@ -13937,6 +13937,7 @@ export type Database = {
           overall_score: number
           record_id: string
           record_type: string
+          refinement_variant: string | null
           retry_count: number
           school_year: number
           scientific_validity: number | null
@@ -13958,6 +13959,7 @@ export type Database = {
           overall_score: number
           record_id: string
           record_type: string
+          refinement_variant?: string | null
           retry_count?: number
           school_year: number
           scientific_validity?: number | null
@@ -13979,6 +13981,7 @@ export type Database = {
           overall_score?: number
           record_id?: string
           record_type?: string
+          refinement_variant?: string | null
           retry_count?: number
           school_year?: number
           scientific_validity?: number | null

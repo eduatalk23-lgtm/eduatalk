@@ -16,7 +16,10 @@ import {
   buildSetekRefinementUserPrompt,
   buildChangcheRefinementUserPrompt,
   buildHaengteukRefinementUserPrompt,
+  selectRefinementVariant,
+  REFINEMENT_VARIANTS,
   type RefinementUserPromptInput,
+  type RefinementVariant,
 } from "../llm/prompts/draft-refinement-prompts";
 
 const BASE_INPUT: RefinementUserPromptInput = {
@@ -86,6 +89,117 @@ describe("draft-refinement-prompts 빌더", () => {
     const emptyFeedback: RefinementUserPromptInput = { ...BASE_INPUT, feedback: "" };
     const prompt = buildSetekRefinementUserPrompt(emptyFeedback);
     expect(prompt).toContain("피드백: 없음");
+  });
+});
+
+// ============================================
+// Sprint 3: A/B variant 빌더
+// ============================================
+
+describe("Sprint 3 — variant 'v1_baseline' 동작", () => {
+  it("variant 미지정 시 기존 baseline 섹션 유지 (backward compat)", () => {
+    const prompt = buildSetekRefinementUserPrompt(BASE_INPUT);
+    expect(prompt).toContain("## 개선 지시\n- 위 약점을 구체적으로 해결");
+    expect(prompt).not.toContain("개선 지시 (축 집중)");
+  });
+
+  it("variant='v1_baseline' 명시도 baseline 섹션", () => {
+    const prompt = buildSetekRefinementUserPrompt({ ...BASE_INPUT, variant: "v1_baseline" });
+    expect(prompt).toContain("## 개선 지시\n- 위 약점을 구체적으로 해결");
+    expect(prompt).not.toContain("개선 지시 (축 집중)");
+  });
+});
+
+describe("Sprint 3 — variant 'v2_axis_targeted' 축 집중 동작", () => {
+  it("최하위 축 라벨 + 축별 instruction 노출", () => {
+    // BASE_INPUT axisScores: spec=2, depth=2, coh=3, gram=5, sci=3
+    // 동점일 때 specificity 우선 (findLowestAxis 순서: specificity > depth > ...)
+    const prompt = buildSetekRefinementUserPrompt({ ...BASE_INPUT, variant: "v2_axis_targeted" });
+    expect(prompt).toContain("개선 지시 (축 집중)");
+    expect(prompt).toContain("구체성(specificity) 2/5");
+    expect(prompt).toContain("실제 활동 구체 장면");
+  });
+
+  it("depth 가 단독 최하위면 depth instruction 선택", () => {
+    const input: RefinementUserPromptInput = {
+      ...BASE_INPUT,
+      axisScores: { specificity: 4, coherence: 4, depth: 1, grammar: 5, scientificValidity: 4 },
+      variant: "v2_axis_targeted",
+    };
+    const prompt = buildSetekRefinementUserPrompt(input);
+    expect(prompt).toContain("심화도(depth) 1/5");
+    expect(prompt).toContain("개념 연결·가설 검증·반례 탐색");
+  });
+
+  it("scientificValidity 단독 최하위 + null 케이스 모두 동작", () => {
+    const sciLowest: RefinementUserPromptInput = {
+      ...BASE_INPUT,
+      axisScores: { specificity: 4, coherence: 4, depth: 4, grammar: 5, scientificValidity: 1 },
+      variant: "v2_axis_targeted",
+    };
+    expect(buildSetekRefinementUserPrompt(sciLowest)).toContain("학술정합(scientificValidity) 1/5");
+
+    const noSci: RefinementUserPromptInput = {
+      ...BASE_INPUT,
+      axisScores: { specificity: 2, coherence: 3, depth: 2, grammar: 5, scientificValidity: null },
+      variant: "v2_axis_targeted",
+    };
+    const prompt = buildSetekRefinementUserPrompt(noSci);
+    expect(prompt).not.toContain("학술정합");
+    expect(prompt).toContain("구체성(specificity) 2/5");
+  });
+
+  it("창체·행특 빌더에도 variant='v2_axis_targeted' 적용", () => {
+    const changche = buildChangcheRefinementUserPrompt({ ...BASE_INPUT, variant: "v2_axis_targeted" });
+    const haengteuk = buildHaengteukRefinementUserPrompt({ ...BASE_INPUT, variant: "v2_axis_targeted" });
+    for (const p of [changche, haengteuk]) {
+      expect(p).toContain("개선 지시 (축 집중)");
+    }
+  });
+});
+
+describe("Sprint 3 — selectRefinementVariant 결정적 선택", () => {
+  it("같은 record_id 는 항상 같은 variant 반환 (재실행 안정)", () => {
+    const id = "0e3a1b9a-2c5d-4f6e-8a9b-1c2d3e4f5a6b";
+    const v1 = selectRefinementVariant(id);
+    const v2 = selectRefinementVariant(id);
+    const v3 = selectRefinementVariant(id);
+    expect(v1).toBe(v2);
+    expect(v2).toBe(v3);
+  });
+
+  it("정의된 2개 variant 중 하나만 반환", () => {
+    for (const id of ["a", "abc", "ffffffff-aaaa", "uuid-1234", "55e84981"]) {
+      const v = selectRefinementVariant(id);
+      expect(REFINEMENT_VARIANTS).toContain(v);
+    }
+  });
+
+  it("100개 가짜 uuid 표본에서 분포 30~70% 범위 (50/50 근사)", () => {
+    const counts: Record<RefinementVariant, number> = { v1_baseline: 0, v2_axis_targeted: 0 };
+    for (let i = 0; i < 100; i++) {
+      const id = `record-${i}-${Math.random().toString(16).slice(2, 10)}`;
+      counts[selectRefinementVariant(id)]++;
+    }
+    expect(counts.v1_baseline).toBeGreaterThan(30);
+    expect(counts.v1_baseline).toBeLessThan(70);
+    expect(counts.v2_axis_targeted).toBeGreaterThan(30);
+    expect(counts.v2_axis_targeted).toBeLessThan(70);
+  });
+
+  it("실 측정에 사용한 record_id 7개의 variant 매핑이 안정", () => {
+    const ids = [
+      "55e84981",
+      "f1cb67c3",
+      "3c5b4df5",
+      "79f60e5f",
+      "5c0d02dc",
+      "28a496cb",
+      "ca3aa64c",
+    ];
+    const first = ids.map(selectRefinementVariant);
+    const second = ids.map(selectRefinementVariant);
+    expect(first).toEqual(second);
   });
 });
 

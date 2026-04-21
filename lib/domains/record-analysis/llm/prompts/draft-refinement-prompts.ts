@@ -4,7 +4,18 @@
 // Phase 5 Sprint 1 (2026-04-19): IMPROVE 논문 component-at-a-time iteration.
 // P8 에서 overall_score<70 판정된 레코드를 이전 draft + 5축 score + issues + feedback 을
 // 프롬프트에 주입하여 1회 재생성한다.
+//
+// Phase 5 Sprint 3 (2026-04-20): A/B variant 추가. 결정적 선택(record_id hash) 로 재실행 안정.
+//   · v1_baseline       — Sprint 1/2 원본 프롬프트
+//   · v2_axis_targeted  — 최하위 축(specificity/depth 등) 에 집중 개선 지시 추가
 // ============================================
+
+export type RefinementVariant = "v1_baseline" | "v2_axis_targeted";
+
+export const REFINEMENT_VARIANTS: readonly RefinementVariant[] = [
+  "v1_baseline",
+  "v2_axis_targeted",
+] as const;
 
 export interface RefinementUserPromptInput {
   /** P7 빌더가 생성한 원본 user prompt 그대로 재활용 */
@@ -23,28 +34,32 @@ export interface RefinementUserPromptInput {
     grammar: number;
     scientificValidity: number | null;
   };
+  /** Sprint 3 A/B variant. 미지정 시 v1_baseline */
+  variant?: RefinementVariant;
 }
 
-/**
- * 세특 가안 재생성 user prompt 빌더.
- * 원본 user prompt 를 그대로 유지한 뒤, "이전 가안 + 약점 + 개선 지시" 섹션을 추가한다.
- */
 export function buildSetekRefinementUserPrompt(input: RefinementUserPromptInput): string {
   return buildRefinementUserPrompt(input);
 }
 
-/**
- * 창체 가안 재생성 user prompt 빌더.
- */
 export function buildChangcheRefinementUserPrompt(input: RefinementUserPromptInput): string {
   return buildRefinementUserPrompt(input);
 }
 
-/**
- * 행특 가안 재생성 user prompt 빌더.
- */
 export function buildHaengteukRefinementUserPrompt(input: RefinementUserPromptInput): string {
   return buildRefinementUserPrompt(input);
+}
+
+// ─── variant 결정적 선택 ────────────────────────────────────────────────────
+//
+// record_id 의 djb2 hash parity 로 50/50 분할. 같은 레코드는 재실행해도 동일 variant 사용.
+
+export function selectRefinementVariant(recordId: string): RefinementVariant {
+  let hash = 5381;
+  for (let i = 0; i < recordId.length; i++) {
+    hash = ((hash << 5) + hash + recordId.charCodeAt(i)) | 0;
+  }
+  return (hash & 1) === 0 ? "v1_baseline" : "v2_axis_targeted";
 }
 
 // ─── 내부 공통 빌더 ─────────────────────────────────────────────────────────
@@ -64,13 +79,53 @@ function formatAxisScores(
   return lines.join("\n");
 }
 
-function buildRefinementUserPrompt(input: RefinementUserPromptInput): string {
-  const { originalUserPrompt, previousDraft, issues, feedback, axisScores } = input;
+// 최하위 축 찾기 (동점 시 specificity > depth > coherence > grammar > scientificValidity 순서)
+function findLowestAxis(
+  axisScores: RefinementUserPromptInput["axisScores"],
+): { name: string; korean: string; score: number } {
+  const axes: Array<{ name: string; korean: string; score: number }> = [
+    { name: "specificity", korean: "구체성", score: axisScores.specificity },
+    { name: "depth", korean: "심화도", score: axisScores.depth },
+    { name: "coherence", korean: "일관성", score: axisScores.coherence },
+    { name: "grammar", korean: "문법", score: axisScores.grammar },
+  ];
+  if (axisScores.scientificValidity != null) {
+    axes.push({ name: "scientificValidity", korean: "학술정합", score: axisScores.scientificValidity });
+  }
+  return axes.reduce((min, a) => (a.score < min.score ? a : min));
+}
 
-  const issueList =
-    issues.length > 0
-      ? issues.join(", ")
-      : "없음";
+function axisFocusInstruction(axis: { name: string; korean: string; score: number }): string {
+  const focusMap: Record<string, string> = {
+    specificity: "추상어·수식어를 제거하고 **실제 활동 구체 장면**(사용한 도구·방법·수치·상황)을 1~2건 삽입하세요.",
+    depth: "표면 설명을 줄이고 **개념 연결·가설 검증·반례 탐색** 같은 심화 과정을 1문장 이상 서술하세요.",
+    coherence: "앞뒤 문장의 **인과·전개 흐름**을 정리하고, 동일 주제가 2회 이상 반복되면 하나로 통합하세요.",
+    grammar: "불명확한 주어·조사·시제를 교정하고 긴 문장은 분리하세요.",
+    scientificValidity: "과장·오개념을 제거하고 **학술 용어·출처 근거** 를 정확히 쓰세요.",
+  };
+  const instruction = focusMap[axis.name] ?? "해당 축의 기준을 충족하도록 재작성하세요.";
+  return `- 최하위 축: **${axis.korean}(${axis.name}) ${axis.score}/5** — ${instruction}`;
+}
+
+function buildRefinementUserPrompt(input: RefinementUserPromptInput): string {
+  const { originalUserPrompt, previousDraft, issues, feedback, axisScores, variant } = input;
+  const resolvedVariant = variant ?? "v1_baseline";
+
+  const issueList = issues.length > 0 ? issues.join(", ") : "없음";
+
+  const baselineSection = `## 개선 지시
+- 위 약점을 구체적으로 해결하여 재작성하세요.
+- 기존 강점(키워드·주제·길이)은 유지하세요.
+- 원본 대비 품질이 반드시 향상되어야 합니다.`;
+
+  const improvementSection =
+    resolvedVariant === "v2_axis_targeted"
+      ? `## 개선 지시 (축 집중)
+${axisFocusInstruction(findLowestAxis(axisScores))}
+- 나머지 축은 현 수준 유지 — 집중 축에서 확실한 점수 상승을 노리세요.
+- 기존 강점(키워드·주제·길이)은 유지.
+- 원본 대비 품질이 반드시 향상되어야 합니다.`
+      : baselineSection;
 
   return `${originalUserPrompt}
 
@@ -85,8 +140,5 @@ ${formatAxisScores(axisScores)}
 - 문제 코드: ${issueList}
 - 피드백: ${feedback || "없음"}
 
-## 개선 지시
-- 위 약점을 구체적으로 해결하여 재작성하세요.
-- 기존 강점(키워드·주제·길이)은 유지하세요.
-- 원본 대비 품질이 반드시 향상되어야 합니다.`;
+${improvementSection}`;
 }
