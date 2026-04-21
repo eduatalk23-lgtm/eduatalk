@@ -933,25 +933,30 @@ ${feedback}
 
           const supabase = await createSupabaseServerClient();
 
-          // 학생의 이수 과목 조회 (성적이 있는 과목)
+          // 학생의 이수 과목 조회 (성적이 있는 과목). G-6 Sprint 2: tenant 필터 추가.
           const { data: scores } = await supabase
             .from("student_internal_scores")
             .select("subject_id")
-            .eq("student_id", ctx.studentId);
+            .eq("student_id", ctx.studentId)
+            .eq("tenant_id", ctx.tenantId);
 
           const takenSubjects = (scores ?? []).map(
             (s: { subject_id: string }) => s.subject_id,
           );
 
-          // 학교 개설 과목 조회
+          // 학교 개설 과목 조회. G-6 Sprint 2: students / school_offered_subjects 는
+          // 각각 tenant scoped. student 조회는 id+tenant 로 소유권 재확인.
           const { data: student } = await supabase
             .from("students")
             .select("school_name")
             .eq("id", ctx.studentId)
+            .eq("tenant_id", ctx.tenantId)
             .maybeSingle();
 
           let offeredSubjects: string[] | null = null;
           if (student?.school_name) {
+            // school_offered_subjects 는 tenant-neutral 공용 카탈로그(school_profile_id
+            // FK 만 보유). 별도 tenant 필터 불필요.
             const { data: offered } = await supabase
               .from("school_offered_subjects")
               .select("subject_id")

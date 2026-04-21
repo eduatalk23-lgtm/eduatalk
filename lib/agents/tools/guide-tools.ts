@@ -293,16 +293,19 @@ export function createGuideTools(ctx: AgentContext) {
 
           try {
             const supabase = await createSupabaseServerClient();
+            // G-6 Sprint 2: 두 쿼리 모두 ctx.tenantId 재검증(defence-in-depth).
             const [guidesRes, seteksRes] = await Promise.allSettled([
               supabase
                 .from("setek_direction_guides")
                 .select("subject_id, keywords, subjects(name)")
                 .eq("student_id", ctx.studentId)
+                .eq("tenant_id", ctx.tenantId)
                 .eq("school_year", year),
               supabase
                 .from("student_records")
                 .select("subject_id, content, subjects(name)")
                 .eq("student_id", ctx.studentId)
+                .eq("tenant_id", ctx.tenantId)
                 .eq("record_type", "setek")
                 .not("content", "is", null),
             ]);
