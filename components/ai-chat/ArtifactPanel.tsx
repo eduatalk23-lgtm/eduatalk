@@ -148,7 +148,10 @@ function ArtifactBody({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const persistedId = artifact.persistedId ?? null;
-  const canEdit = artifact.type === "scores" && persistedId != null;
+  // Sprint P3 (2026-04-21): plan 도 편집 가능. plan_status 드롭다운만 현 스프린트.
+  const canEdit =
+    (artifact.type === "scores" || artifact.type === "plan") &&
+    persistedId != null;
   const displayProps = editMode ? draftProps : artifact.props;
 
   const handleSave = () => {
@@ -250,7 +253,7 @@ function ArtifactBody({
       {!editMode && <ArtifactVersionTabs />}
       {editMode && (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          편집 중 — 저장 시 새 버전(v{(artifact.versionNo ?? 0) + 1})이 생성됩니다. 원본 성적 DB 는 변경되지 않습니다.
+          편집 중 — 저장 시 새 버전(v{(artifact.versionNo ?? 0) + 1})이 생성됩니다. 원본 DB 에 반영하려면 대화창에서 적용 요청이 필요합니다.
         </div>
       )}
       {saveError && (
@@ -272,9 +275,13 @@ function ArtifactBody({
           <RecordAnalysisCard output={displayProps as AnalyzeRecordOutput} />
         )}
         {artifact.type === "plan" && (
-          // C-3 S3 3단계: plan artifact 를 PlanCard 로 렌더 (read-only).
-          // 추천 과목 채택/거절 등 편집 지원은 후속.
-          <PlanCard output={displayProps as DesignStudentPlanOutput} />
+          // Sprint P3/P4 (2026-04-21): plan_status 편집 지원.
+          // priority 재정렬·학기 재배정은 Sprint 2(P5/P6)에서.
+          <PlanCard
+            output={displayProps as DesignStudentPlanOutput}
+            editable={editMode}
+            onChange={editMode ? (next) => updateDraft(next) : undefined}
+          />
         )}
         {artifact.type === "generic" && (
           <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">

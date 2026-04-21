@@ -22,6 +22,26 @@ function resolveSchoolYear(): number {
   return now.getMonth() < 2 ? now.getFullYear() - 1 : now.getFullYear();
 }
 
+/**
+ * Phase C-3 Sprint P1 (2026-04-21): Artifact 편집 지원용 row snapshot.
+ *
+ * PlanCard 가 테이블로 렌더하고, applyArtifactEdit 가 plan_status 변경을
+ * `student_course_plans.id` 로 뒤에 writeback 할 수 있도록 **DB row id 를
+ * 보존한 형태**로 함께 전달한다. LLM 은 rows 를 해석할 필요가 없고 summary
+ * 만 사용하면 된다(prompt 에서 강제).
+ */
+export type PlanRow = {
+  id: string;
+  subjectId: string;
+  subjectName: string;
+  grade: number;
+  semester: number;
+  planStatus: "recommended" | "confirmed" | "rejected" | "completed";
+  source: "auto" | "consultant" | "student" | "import";
+  priority: number;
+  notes: string | null;
+};
+
 export type DesignStudentPlanOutput =
   | {
       ok: true;
@@ -40,6 +60,13 @@ export type DesignStudentPlanOutput =
         artifactIds: string[];
         followUpQuestions?: string[];
       };
+      /**
+       * Sprint P1: planSub 실행 직후 `student_course_plans` 재조회 결과.
+       * PlanCard 편집 / applyArtifactEdit(type='plan') 의 SSOT.
+       * planSub 이 추천을 생성하지 않은 경우에도 학생의 전체 계획을 반환
+       * (빈 배열 가능).
+       */
+      rows: PlanRow[];
     }
   | { ok: false; reason: string; runId?: string | null };
 
@@ -137,6 +164,15 @@ export async function designStudentPlanExecute({
     return { ok: false, reason: result.reason, runId: result.runId };
   }
 
+  // Sprint P1: planSub 실행 완료 후 student_course_plans 재조회 → PlanCard·
+  // applyArtifactEdit 이 사용할 rows 스냅샷 구축. 실패해도 tool 자체는 성공
+  // 으로 취급(rows=[]) — read-only 렌더는 가능.
+  const rows = await fetchPlanRows(
+    supabase,
+    target.tenantId,
+    target.studentId,
+  );
+
   return {
     ok: true,
     runId: result.runId,
@@ -154,5 +190,56 @@ export async function designStudentPlanExecute({
       artifactIds: result.summary.artifactIds ?? [],
       followUpQuestions: result.summary.followUpQuestions,
     },
+    rows,
   };
+}
+
+/**
+ * student_course_plans + subjects.name 병렬 조회 → PlanRow[] 빌드.
+ * planSub 이 추천을 쓰지 않은 경우에도 학생의 기존 계획을 반환.
+ * 에러는 흡수 — 빈 배열로 fallback.
+ */
+async function fetchPlanRows(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  tenantId: string,
+  studentId: string,
+): Promise<PlanRow[]> {
+  const plansRes = await supabase
+    .from("student_course_plans")
+    .select(
+      "id, subject_id, grade, semester, plan_status, source, priority, notes",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("student_id", studentId)
+    .order("grade", { ascending: true })
+    .order("semester", { ascending: true })
+    .order("priority", { ascending: true });
+
+  if (plansRes.error || !plansRes.data || plansRes.data.length === 0) {
+    return [];
+  }
+
+  const subjectIds = Array.from(
+    new Set(plansRes.data.map((r) => r.subject_id).filter(Boolean)),
+  );
+  const subjectsRes =
+    subjectIds.length > 0
+      ? await supabase.from("subjects").select("id, name").in("id", subjectIds)
+      : { data: [] as Array<{ id: string; name: string }>, error: null };
+
+  const nameById = new Map(
+    (subjectsRes.data ?? []).map((s) => [s.id, s.name] as const),
+  );
+
+  return plansRes.data.map((r) => ({
+    id: r.id,
+    subjectId: r.subject_id,
+    subjectName: nameById.get(r.subject_id) ?? "(알 수 없음)",
+    grade: r.grade,
+    semester: r.semester,
+    planStatus: r.plan_status as PlanRow["planStatus"],
+    source: r.source as PlanRow["source"],
+    priority: r.priority ?? 0,
+    notes: r.notes,
+  }));
 }

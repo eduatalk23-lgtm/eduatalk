@@ -30,6 +30,7 @@ import {
 } from "@/lib/domains/score/computation";
 import { getAchievementScale } from "@/lib/domains/score/validation";
 import type { ScoreRow } from "@/lib/mcp/tools/getScores";
+import type { PlanRow } from "@/lib/mcp/tools/designStudentPlan";
 
 export type ApplyArtifactEditOutput =
   | {
@@ -80,13 +81,33 @@ type ArtifactVersionProps = {
   rows?: ScoreRow[];
 };
 
+/**
+ * Sprint P1~P2 (2026-04-21): plan artifact props shape.
+ * designStudentPlan output.rows 와 동일 shape. applyArtifactEdit 은 id 로
+ * student_course_plans 를 찾아 plan_status 만 writeback (현 스프린트 범위).
+ */
+const planRowSchema: z.ZodType<PlanRow> = z.object({
+  id: z.string().regex(UUID_RE, "row id 가 UUID 형식이 아닙니다."),
+  subjectId: z.string(),
+  subjectName: z.string(),
+  grade: z.number().int().min(1).max(3),
+  semester: z.number().int().min(1).max(2),
+  planStatus: z.enum(["recommended", "confirmed", "rejected", "completed"]),
+  source: z.enum(["auto", "consultant", "student", "import"]),
+  priority: z.number(),
+  notes: z.string().nullable(),
+});
+
+const planPropsSchema = z.object({
+  rows: z.array(planRowSchema).min(1),
+});
+
 // ─── Type dispatch (Sprint 3) ───────────────────────────────────────────────
 //
-// 현재는 'scores' 만 구현. plan/analysis/blueprint 추가 시 SUPPORTED_TYPES 에
-// 등록하고 핸들러 분기 추가. 미지원 type 은 일관된 reason 으로 차단.
+// scores / plan 구현. analysis/blueprint 은 후속 스프린트.
 
-const SUPPORTED_TYPES = new Set<string>(["scores"]);
-const FUTURE_TYPES = new Set<string>(["plan", "analysis", "blueprint"]);
+const SUPPORTED_TYPES = new Set<string>(["scores", "plan"]);
+const FUTURE_TYPES = new Set<string>(["analysis", "blueprint"]);
 
 /**
  * Chat Shell HITL 승인 콜백에서 호출. 실패는 ok:false reason 반환 (throw 안 함).
@@ -139,7 +160,7 @@ export async function applyArtifactEdit(
 
   const versionNo = validatedInput.versionNo ?? artifactRes.data.latest_version;
 
-  // 2) 해당 버전 props 로드.
+  // 2) 해당 버전 props 로드. (공통)
   const versionRes = await supabase
     .from("ai_artifact_versions")
     .select("props, version_no")
@@ -148,6 +169,18 @@ export async function applyArtifactEdit(
     .maybeSingle();
   if (versionRes.error || !versionRes.data) {
     return { ok: false, reason: `v${versionNo} 을 찾을 수 없습니다.` };
+  }
+
+  // Sprint P2: plan type 은 별도 handler 로 분기 (props shape 다름).
+  if (artifactType === "plan") {
+    return handlePlanApply({
+      supabase,
+      user,
+      tenantId,
+      artifactId: validatedInput.artifactId,
+      versionNo,
+      rawProps: versionRes.data.props,
+    });
   }
 
   // Sprint 3: props.rows 런타임 shape 검증.
@@ -523,4 +556,123 @@ function toAuditActorRole(role: string | null | undefined): AuditActorRole {
   if (role === "superadmin") return "superadmin";
   if (role === "consultant") return "consultant";
   return "admin";
+}
+
+// ─── Plan artifact handler (Sprint P2) ───────────────────────────────────────
+//
+// scores 와 달리 학생 본인이 편집할 수 없음(student RLS 는 read-only). 관리자
+// 경로 전용. diff 대상은 plan_status (P5/P6 에서 priority·학기 재배정 확장 예정).
+
+type PlanApplyArgs = {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+  tenantId: string;
+  artifactId: string;
+  versionNo: number;
+  rawProps: unknown;
+};
+
+async function handlePlanApply(
+  args: PlanApplyArgs,
+): Promise<ApplyArtifactEditOutput> {
+  const { supabase, user, tenantId, artifactId, versionNo, rawProps } = args;
+
+  const isAdminLike =
+    user.role === "admin" ||
+    user.role === "consultant" ||
+    user.role === "superadmin";
+  if (!isAdminLike) {
+    return {
+      ok: false,
+      reason: "수강 계획 편집은 관리자·컨설턴트만 가능합니다.",
+    };
+  }
+
+  const propsParse = planPropsSchema.safeParse(rawProps);
+  if (!propsParse.success) {
+    const issue = propsParse.error.issues[0];
+    if (issue?.path.includes("rows") && issue.code === "too_small") {
+      return { ok: false, reason: "적용할 계획 행이 없습니다." };
+    }
+    return {
+      ok: false,
+      reason: `계획 데이터 형식 오류: ${issue?.message ?? "rows 가 유효하지 않습니다."}`,
+    };
+  }
+  const rows = propsParse.data.rows;
+
+  const ids = rows.map((r) => r.id);
+  const existingRes = await supabase
+    .from("student_course_plans")
+    .select("id, tenant_id, student_id, subject_id, plan_status, priority, source")
+    .in("id", ids);
+  if (existingRes.error) {
+    return { ok: false, reason: `계획 조회 실패: ${existingRes.error.message}` };
+  }
+  const existingById = new Map(
+    (existingRes.data ?? []).map((e) => [e.id, e] as const),
+  );
+
+  let appliedCount = 0;
+  let skippedCount = 0;
+  const affectedStudents = new Set<string>();
+
+  for (const row of rows) {
+    const existing = existingById.get(row.id);
+    if (!existing || existing.tenant_id !== tenantId) {
+      skippedCount += 1;
+      continue;
+    }
+    if (existing.plan_status === row.planStatus) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const updateRes = await supabase
+      .from("student_course_plans")
+      .update({
+        plan_status: row.planStatus,
+        source: "consultant",
+      })
+      .eq("id", row.id)
+      .eq("tenant_id", tenantId);
+    if (updateRes.error) {
+      skippedCount += 1;
+      continue;
+    }
+
+    appliedCount += 1;
+    affectedStudents.add(existing.student_id);
+
+    void recordAuditLog({
+      tenantId,
+      actorId: user.userId,
+      actorRole: toAuditActorRole(user.role),
+      actorEmail: user.email ?? null,
+      action: "update",
+      resourceType: "course_plan",
+      resourceId: row.id,
+      oldData: { plan_status: existing.plan_status, source: existing.source },
+      newData: { plan_status: row.planStatus, source: "consultant" },
+      metadata: { via: "ai-chat-hitl", artifactId, versionNo },
+    });
+  }
+
+  if (appliedCount === 0) {
+    return {
+      ok: false,
+      reason:
+        skippedCount > 0
+          ? `변경점이 없거나 권한이 없어 적용되지 않았습니다. (${skippedCount}건 스킵)`
+          : "적용 가능한 행이 없습니다.",
+    };
+  }
+
+  // 학생별 상세 페이지 revalidate — admin 경로는 여러 곳에서 수강 계획을 노출.
+  for (const studentId of affectedStudents) {
+    revalidatePath(`/admin/students/${studentId}`);
+  }
+  revalidatePath("/admin/students");
+
+  return { ok: true, appliedCount, skippedCount, artifactId, versionNo };
 }
