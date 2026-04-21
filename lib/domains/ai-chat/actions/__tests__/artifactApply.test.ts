@@ -118,6 +118,32 @@ describe("applyArtifactEdit — guard paths", () => {
     if (!result.ok) expect(result.reason).toMatch(/아티팩트/);
   });
 
+  it("artifact.tenant_id 가 user.tenantId 와 다르면 차단 (G-6 S3 Gap #6)", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce({
+      userId: "u-1",
+      role: "admin",
+      tenantId: "t-1",
+      email: null,
+    });
+    vi.mocked(createSupabaseServerClient).mockResolvedValueOnce(
+      makeSupabaseWithResponses([
+        {
+          data: {
+            id: VALID_UUID,
+            type: "scores",
+            tenant_id: "t-OTHER", // cross-tenant — RLS 우회 가정
+            owner_user_id: "u-x",
+            latest_version: 1,
+          },
+          error: null,
+        },
+      ]) as never,
+    );
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/찾을 수 없거나/);
+  });
+
   it("type 이 'scores' 아닌 미지원 type 은 일반 에러 reason", async () => {
     vi.mocked(getCurrentUser).mockResolvedValueOnce({
       userId: "u-1",

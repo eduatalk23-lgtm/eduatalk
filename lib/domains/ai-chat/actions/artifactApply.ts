@@ -186,6 +186,17 @@ export async function applyArtifactEdit(
   if (artifactRes.error || !artifactRes.data) {
     return { ok: false, reason: "아티팩트를 찾을 수 없거나 접근 권한이 없습니다." };
   }
+
+  // G-6 Sprint 3 Gap #6: artifact.tenant_id ↔ user.tenantId 1차 검증.
+  // RLS 가 먼저 막아주지만 defence-in-depth — RLS 우회·정책 회귀 시 최후 방어선.
+  // handlePlanApply / handleBlueprintApply / scores 분기에서 타겟 리소스 tenant_id 로 2차 검증.
+  if (artifactRes.data.tenant_id !== tenantId) {
+    return {
+      ok: false,
+      reason: "아티팩트를 찾을 수 없거나 접근 권한이 없습니다.",
+    };
+  }
+
   // Sprint 3: type dispatch — 현재 'scores' 만 지원. 향후 type 은 명확한 안내.
   const artifactType = artifactRes.data.type;
   if (!SUPPORTED_TYPES.has(artifactType)) {
@@ -302,6 +313,8 @@ export async function applyArtifactEdit(
     }
 
     // 권한: 학생은 본인, admin-like 는 동일 tenant.
+    // G-6 Sprint 3 Gap #6 2차 검증 — artifact.tenant_id 는 이미 user.tenantId 와 일치 확정,
+    // 여기선 타겟 리소스가 동일 tenant 인지 재확인(정합성 방어).
     if (isAdminLike) {
       if (existing.tenant_id !== tenantId) {
         skippedCount += 1;
@@ -673,6 +686,7 @@ async function handlePlanApply(
 
   for (const row of rows) {
     const existing = existingById.get(row.id);
+    // G-6 Sprint 3 Gap #6 2차 검증 — course_plan 이 artifact 와 동일 tenant 인지 재확인.
     if (!existing || existing.tenant_id !== tenantId) {
       skippedCount += 1;
       continue;
@@ -794,6 +808,7 @@ async function handleBlueprintApply(
   const validated = propsParse.data;
 
   // prev row 조회 — mainExplorationId 가 아직 활성인지 확인.
+  // G-6 Sprint 3 Gap #6 2차 검증 — main_exploration 이 artifact 와 동일 tenant 인지 재확인.
   const prev = await getMainExplorationById(validated.mainExplorationId, supabase);
   if (!prev || prev.tenant_id !== tenantId) {
     return {
