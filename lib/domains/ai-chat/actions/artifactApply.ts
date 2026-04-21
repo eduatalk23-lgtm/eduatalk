@@ -11,9 +11,13 @@
  *
  * 서버 액션으로 직접 호출도 가능(ArtifactPanel 등) — 다만 UI 경로는 Sprint 2 에선
  * Chat Shell HITL 만 공식 지원.
+ *
+ * Sprint 3 (2026-04-21): Zod 입력·props 런타임 검증 + type dispatch 골격 도입.
+ *  · 향후 plan/analysis/blueprint type 추가 시 ARTIFACT_HANDLERS 에 등록.
  */
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { updateInternalScore as updateInternalScoreData } from "@/lib/data/studentScores";
@@ -40,16 +44,49 @@ export type ApplyArtifactEditOutput =
       reason: string;
     };
 
-export type ApplyArtifactEditInput = {
-  artifactId: string;
-  /** 생략 시 latest_version. */
-  versionNo?: number;
-};
+// ─── Zod schemas (Sprint 3) ─────────────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+export const applyArtifactEditInputSchema = z.object({
+  artifactId: z.string().regex(UUID_RE, "artifactId 가 UUID 형식이 아닙니다."),
+  versionNo: z.number().int().positive().optional(),
+});
+
+export type ApplyArtifactEditInput = z.infer<typeof applyArtifactEditInputSchema>;
+
+/**
+ * scores artifact 의 props.rows 런타임 shape 검증.
+ * `id` 는 optional (C-2 이전 스냅샷 호환).
+ */
+const scoreRowSchema: z.ZodType<ScoreRow> = z.object({
+  id: z.string().optional(),
+  subjectGroup: z.string(),
+  subject: z.string(),
+  grade: z.number().int().min(1).max(3),
+  semester: z.number().int().min(1).max(2),
+  rawScore: z.number().min(0).max(100).nullable(),
+  rankGrade: z.number().int().min(1).max(9).nullable(),
+  creditHours: z.number().min(0),
+});
+
+const scoresPropsSchema = z.object({
+  ok: z.literal(true).optional(),
+  rows: z.array(scoreRowSchema).min(1),
+});
 
 type ArtifactVersionProps = {
   ok?: boolean;
   rows?: ScoreRow[];
 };
+
+// ─── Type dispatch (Sprint 3) ───────────────────────────────────────────────
+//
+// 현재는 'scores' 만 구현. plan/analysis/blueprint 추가 시 SUPPORTED_TYPES 에
+// 등록하고 핸들러 분기 추가. 미지원 type 은 일관된 reason 으로 차단.
+
+const SUPPORTED_TYPES = new Set<string>(["scores"]);
+const FUTURE_TYPES = new Set<string>(["plan", "analysis", "blueprint"]);
 
 /**
  * Chat Shell HITL 승인 콜백에서 호출. 실패는 ok:false reason 반환 (throw 안 함).
@@ -57,6 +94,16 @@ type ArtifactVersionProps = {
 export async function applyArtifactEdit(
   input: ApplyArtifactEditInput,
 ): Promise<ApplyArtifactEditOutput> {
+  // 0) Sprint 3: 입력 런타임 검증.
+  const parsedInput = applyArtifactEditInputSchema.safeParse(input);
+  if (!parsedInput.success) {
+    return {
+      ok: false,
+      reason: `입력 형식 오류: ${parsedInput.error.issues[0]?.message ?? "유효하지 않습니다."}`,
+    };
+  }
+  const validatedInput = parsedInput.data;
+
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, reason: "로그인이 필요합니다." };
@@ -73,33 +120,50 @@ export async function applyArtifactEdit(
   const artifactRes = await supabase
     .from("ai_artifacts")
     .select("id, type, tenant_id, owner_user_id, latest_version")
-    .eq("id", input.artifactId)
+    .eq("id", validatedInput.artifactId)
     .maybeSingle();
   if (artifactRes.error || !artifactRes.data) {
     return { ok: false, reason: "아티팩트를 찾을 수 없거나 접근 권한이 없습니다." };
   }
-  if (artifactRes.data.type !== "scores") {
+  // Sprint 3: type dispatch — 현재 'scores' 만 지원. 향후 type 은 명확한 안내.
+  const artifactType = artifactRes.data.type;
+  if (!SUPPORTED_TYPES.has(artifactType)) {
+    if (FUTURE_TYPES.has(artifactType)) {
+      return {
+        ok: false,
+        reason: `'${artifactType}' 아티팩트 적용은 곧 지원됩니다 (Sprint 3 후속). 현재는 성적만 가능합니다.`,
+      };
+    }
     return { ok: false, reason: "성적 아티팩트만 원본 DB 에 적용할 수 있습니다." };
   }
 
-  const versionNo = input.versionNo ?? artifactRes.data.latest_version;
+  const versionNo = validatedInput.versionNo ?? artifactRes.data.latest_version;
 
   // 2) 해당 버전 props 로드.
   const versionRes = await supabase
     .from("ai_artifact_versions")
     .select("props, version_no")
-    .eq("artifact_id", input.artifactId)
+    .eq("artifact_id", validatedInput.artifactId)
     .eq("version_no", versionNo)
     .maybeSingle();
   if (versionRes.error || !versionRes.data) {
     return { ok: false, reason: `v${versionNo} 을 찾을 수 없습니다.` };
   }
 
-  const props = versionRes.data.props as ArtifactVersionProps | null;
-  const rows = props?.rows;
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return { ok: false, reason: "적용할 성적 행이 없습니다." };
+  // Sprint 3: props.rows 런타임 shape 검증.
+  const rawProps = versionRes.data.props as ArtifactVersionProps | null;
+  const propsParse = scoresPropsSchema.safeParse(rawProps);
+  if (!propsParse.success) {
+    const issue = propsParse.error.issues[0];
+    if (issue?.path.includes("rows") && issue.code === "too_small") {
+      return { ok: false, reason: "적용할 성적 행이 없습니다." };
+    }
+    return {
+      ok: false,
+      reason: `아티팩트 데이터 형식 오류: ${issue?.message ?? "rows 가 유효하지 않습니다."}`,
+    };
   }
+  const rows = propsParse.data.rows;
 
   // 3) 각 row 에 DB id 존재 여부 확인 — 없으면 C-2 이전 artifact 로 간주.
   const rowsWithId = rows.filter((r): r is ScoreRow & { id: string } =>
@@ -226,7 +290,7 @@ export async function applyArtifactEdit(
         },
         metadata: {
           via: "ai-chat-hitl",
-          artifactId: input.artifactId,
+          artifactId: validatedInput.artifactId,
           versionNo,
         },
       });
@@ -257,7 +321,7 @@ export async function applyArtifactEdit(
     ok: true,
     appliedCount,
     skippedCount,
-    artifactId: input.artifactId,
+    artifactId: validatedInput.artifactId,
     versionNo,
   };
 }

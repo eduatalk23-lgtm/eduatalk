@@ -75,6 +75,9 @@ function makeSupabaseWithResponses(
   };
 }
 
+// Sprint 3: applyArtifactEdit 의 artifactId 가 Zod 로 UUID 형식 검증됨.
+const VALID_UUID = "11111111-2222-3333-4444-555555555555";
+
 describe("applyArtifactEdit — guard paths", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -82,7 +85,7 @@ describe("applyArtifactEdit — guard paths", () => {
 
   it("로그인 없으면 ok:false", async () => {
     vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
-    const result = await applyArtifactEdit({ artifactId: "any" });
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
     expect(result).toEqual({ ok: false, reason: "로그인이 필요합니다." });
   });
 
@@ -93,7 +96,7 @@ describe("applyArtifactEdit — guard paths", () => {
       tenantId: null,
       email: null,
     });
-    const result = await applyArtifactEdit({ artifactId: "any" });
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/기관 정보/);
   });
@@ -110,12 +113,12 @@ describe("applyArtifactEdit — guard paths", () => {
         { data: null, error: null }, // ai_artifacts lookup empty
       ]) as never,
     );
-    const result = await applyArtifactEdit({ artifactId: "missing" });
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/아티팩트/);
   });
 
-  it("type 이 'scores' 아니면 ok:false", async () => {
+  it("type 이 'scores' 아닌 미지원 type 은 일반 에러 reason", async () => {
     vi.mocked(getCurrentUser).mockResolvedValueOnce({
       userId: "u-1",
       role: "student",
@@ -126,8 +129,8 @@ describe("applyArtifactEdit — guard paths", () => {
       makeSupabaseWithResponses([
         {
           data: {
-            id: "art-1",
-            type: "plan",
+            id: VALID_UUID,
+            type: "generic", // not in SUPPORTED nor FUTURE
             tenant_id: "t-1",
             owner_user_id: "u-1",
             latest_version: 1,
@@ -136,9 +139,9 @@ describe("applyArtifactEdit — guard paths", () => {
         },
       ]) as never,
     );
-    const result = await applyArtifactEdit({ artifactId: "art-1" });
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toMatch(/성적 아티팩트/);
+    if (!result.ok) expect(result.reason).toMatch(/성적 아티팩트만/);
   });
 
   it("version props 못 찾으면 ok:false", async () => {
@@ -152,7 +155,7 @@ describe("applyArtifactEdit — guard paths", () => {
       makeSupabaseWithResponses([
         {
           data: {
-            id: "art-1",
+            id: VALID_UUID,
             type: "scores",
             tenant_id: "t-1",
             owner_user_id: "u-1",
@@ -164,7 +167,7 @@ describe("applyArtifactEdit — guard paths", () => {
       ]) as never,
     );
     const result = await applyArtifactEdit({
-      artifactId: "art-1",
+      artifactId: VALID_UUID,
       versionNo: 2,
     });
     expect(result.ok).toBe(false);
@@ -182,7 +185,7 @@ describe("applyArtifactEdit — guard paths", () => {
       makeSupabaseWithResponses([
         {
           data: {
-            id: "art-1",
+            id: VALID_UUID,
             type: "scores",
             tenant_id: "t-1",
             owner_user_id: "u-1",
@@ -193,7 +196,7 @@ describe("applyArtifactEdit — guard paths", () => {
         { data: { props: { ok: true, rows: [] }, version_no: 1 }, error: null },
       ]) as never,
     );
-    const result = await applyArtifactEdit({ artifactId: "art-1" });
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/행이 없습니다/);
   });
@@ -209,7 +212,7 @@ describe("applyArtifactEdit — guard paths", () => {
       makeSupabaseWithResponses([
         {
           data: {
-            id: "art-1",
+            id: VALID_UUID,
             type: "scores",
             tenant_id: "t-1",
             owner_user_id: "u-1",
@@ -240,8 +243,213 @@ describe("applyArtifactEdit — guard paths", () => {
         },
       ]) as never,
     );
-    const result = await applyArtifactEdit({ artifactId: "art-1" });
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/구 버전 스냅샷/);
+  });
+});
+
+// ============================================
+// Sprint 3 — Zod 입력·props 런타임 검증 + 향후 type dispatch
+// ============================================
+
+describe("applyArtifactEdit — Sprint 3 Zod input validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("UUID 형식이 아닌 artifactId 는 즉시 차단 (auth/DB 호출 전)", async () => {
+    const result = await applyArtifactEdit({ artifactId: "not-a-uuid" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/입력 형식 오류/);
+    expect(getCurrentUser).not.toHaveBeenCalled();
+  });
+
+  it("versionNo 가 음수면 차단", async () => {
+    const result = await applyArtifactEdit({
+      artifactId: VALID_UUID,
+      versionNo: -1,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/입력 형식 오류/);
+  });
+
+  it("versionNo 가 0 (positive 위반) 도 차단", async () => {
+    const result = await applyArtifactEdit({
+      artifactId: VALID_UUID,
+      versionNo: 0,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/입력 형식 오류/);
+  });
+});
+
+describe("applyArtifactEdit — Sprint 3 future type dispatch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  for (const futureType of ["plan", "analysis", "blueprint"] as const) {
+    it(`'${futureType}' type 은 곧 지원 예정 안내`, async () => {
+      vi.mocked(getCurrentUser).mockResolvedValueOnce({
+        userId: "u-1",
+        role: "admin",
+        tenantId: "t-1",
+        email: null,
+      });
+      vi.mocked(createSupabaseServerClient).mockResolvedValueOnce(
+        makeSupabaseWithResponses([
+          {
+            data: {
+              id: VALID_UUID,
+              type: futureType,
+              tenant_id: "t-1",
+              owner_user_id: "u-1",
+              latest_version: 1,
+            },
+            error: null,
+          },
+        ]) as never,
+      );
+      const result = await applyArtifactEdit({ artifactId: VALID_UUID });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toContain(futureType);
+        expect(result.reason).toMatch(/곧 지원/);
+      }
+    });
+  }
+});
+
+describe("applyArtifactEdit — Sprint 3 props.rows shape validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rawScore 가 100 초과면 데이터 형식 오류", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce({
+      userId: "u-1",
+      role: "admin",
+      tenantId: "t-1",
+      email: null,
+    });
+    vi.mocked(createSupabaseServerClient).mockResolvedValueOnce(
+      makeSupabaseWithResponses([
+        {
+          data: {
+            id: VALID_UUID,
+            type: "scores",
+            tenant_id: "t-1",
+            owner_user_id: "u-1",
+            latest_version: 1,
+          },
+          error: null,
+        },
+        {
+          data: {
+            props: {
+              ok: true,
+              rows: [
+                {
+                  id: "score-1",
+                  subjectGroup: "수학",
+                  subject: "수학I",
+                  grade: 2,
+                  semester: 1,
+                  rawScore: 999, // 범위 초과
+                  rankGrade: 1,
+                  creditHours: 4,
+                },
+              ],
+            },
+            version_no: 1,
+          },
+          error: null,
+        },
+      ]) as never,
+    );
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/데이터 형식 오류/);
+  });
+
+  it("rankGrade 가 9 초과면 데이터 형식 오류", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce({
+      userId: "u-1",
+      role: "admin",
+      tenantId: "t-1",
+      email: null,
+    });
+    vi.mocked(createSupabaseServerClient).mockResolvedValueOnce(
+      makeSupabaseWithResponses([
+        {
+          data: {
+            id: VALID_UUID,
+            type: "scores",
+            tenant_id: "t-1",
+            owner_user_id: "u-1",
+            latest_version: 1,
+          },
+          error: null,
+        },
+        {
+          data: {
+            props: {
+              ok: true,
+              rows: [
+                {
+                  id: "score-1",
+                  subjectGroup: "수학",
+                  subject: "수학I",
+                  grade: 2,
+                  semester: 1,
+                  rawScore: 90,
+                  rankGrade: 12, // 범위 초과
+                  creditHours: 4,
+                },
+              ],
+            },
+            version_no: 1,
+          },
+          error: null,
+        },
+      ]) as never,
+    );
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/데이터 형식 오류/);
+  });
+
+  it("rows 가 array 가 아니면 데이터 형식 오류", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce({
+      userId: "u-1",
+      role: "admin",
+      tenantId: "t-1",
+      email: null,
+    });
+    vi.mocked(createSupabaseServerClient).mockResolvedValueOnce(
+      makeSupabaseWithResponses([
+        {
+          data: {
+            id: VALID_UUID,
+            type: "scores",
+            tenant_id: "t-1",
+            owner_user_id: "u-1",
+            latest_version: 1,
+          },
+          error: null,
+        },
+        {
+          data: {
+            props: { ok: true, rows: "not-an-array" },
+            version_no: 1,
+          },
+          error: null,
+        },
+      ]) as never,
+    );
+    const result = await applyArtifactEdit({ artifactId: VALID_UUID });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/데이터 형식 오류/);
   });
 });
