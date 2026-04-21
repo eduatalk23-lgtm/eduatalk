@@ -31,6 +31,16 @@ import {
 import { getAchievementScale } from "@/lib/domains/score/validation";
 import type { ScoreRow } from "@/lib/mcp/tools/getScores";
 import type { PlanRow } from "@/lib/mcp/tools/designStudentPlan";
+import type {
+  BlueprintTierProps,
+  BlueprintTiers,
+} from "@/lib/mcp/tools/getBlueprint";
+import {
+  getMainExplorationById,
+  createMainExploration,
+  type MainExplorationTierEntry,
+  type MainExplorationTierPlan,
+} from "@/lib/domains/student-record/repository/main-exploration-repository";
 
 export type ApplyArtifactEditOutput =
   | {
@@ -102,12 +112,42 @@ const planPropsSchema = z.object({
   rows: z.array(planRowSchema).min(1),
 });
 
+/**
+ * Sprint G2~G4 (2026-04-21): blueprint artifact props shape.
+ * getBlueprint output 와 동일. tiers 변경만 DB 에 반영(그 외는 prev 에서 복사).
+ */
+const tierPropsSchema: z.ZodType<BlueprintTierProps> = z.object({
+  theme: z.string().nullable(),
+  keyQuestions: z.array(z.string()),
+  suggestedActivities: z.array(z.string()),
+  linkedIds: z.object({
+    storyline: z.array(z.string()),
+    roadmapItem: z.array(z.string()),
+    narrativeArc: z.array(z.string()),
+    hyperedge: z.array(z.string()),
+    setekGuide: z.array(z.string()),
+    changcheGuide: z.array(z.string()),
+    haengteukGuide: z.array(z.string()),
+    topicTrajectory: z.array(z.string()),
+  }),
+});
+
+const blueprintPropsSchema = z.object({
+  mainExplorationId: z.string().regex(UUID_RE, "mainExplorationId UUID 형식 오류"),
+  studentId: z.string().regex(UUID_RE),
+  tiers: z.object({
+    foundational: tierPropsSchema,
+    development: tierPropsSchema,
+    advanced: tierPropsSchema,
+  }),
+});
+
 // ─── Type dispatch (Sprint 3) ───────────────────────────────────────────────
 //
-// scores / plan 구현. analysis/blueprint 은 후속 스프린트.
+// scores / plan / blueprint 구현. analysis 는 후속 스프린트.
 
-const SUPPORTED_TYPES = new Set<string>(["scores", "plan"]);
-const FUTURE_TYPES = new Set<string>(["analysis", "blueprint"]);
+const SUPPORTED_TYPES = new Set<string>(["scores", "plan", "blueprint"]);
+const FUTURE_TYPES = new Set<string>(["analysis"]);
 
 /**
  * Chat Shell HITL 승인 콜백에서 호출. 실패는 ok:false reason 반환 (throw 안 함).
@@ -174,6 +214,18 @@ export async function applyArtifactEdit(
   // Sprint P2: plan type 은 별도 handler 로 분기 (props shape 다름).
   if (artifactType === "plan") {
     return handlePlanApply({
+      supabase,
+      user,
+      tenantId,
+      artifactId: validatedInput.artifactId,
+      versionNo,
+      rawProps: versionRes.data.props,
+    });
+  }
+
+  // Sprint G4: blueprint type.
+  if (artifactType === "blueprint") {
+    return handleBlueprintApply({
       supabase,
       user,
       tenantId,
@@ -705,4 +757,165 @@ async function handlePlanApply(
   revalidatePath("/admin/students");
 
   return { ok: true, appliedCount, skippedCount, artifactId, versionNo };
+}
+
+// ─── Blueprint artifact handler (Sprint G4) ──────────────────────────────────
+//
+// student_main_explorations 의 tier_plan 을 편집. createMainExploration 을
+// 재사용해 prev row 자동 deactivate + 새 version row INSERT (origin='ai_chat_hitl').
+// prev 가 auto_bootstrap* 이면 edited_by_consultant_at 을 mark 해 재부트스트랩 덮어쓰기 차단.
+
+type BlueprintApplyArgs = PlanApplyArgs;
+
+async function handleBlueprintApply(
+  args: BlueprintApplyArgs,
+): Promise<ApplyArtifactEditOutput> {
+  const { supabase, user, tenantId, artifactId, versionNo, rawProps } = args;
+
+  const isAdminLike =
+    user.role === "admin" ||
+    user.role === "consultant" ||
+    user.role === "superadmin";
+  if (!isAdminLike) {
+    return {
+      ok: false,
+      reason: "Blueprint 편집은 관리자·컨설턴트만 가능합니다.",
+    };
+  }
+
+  const propsParse = blueprintPropsSchema.safeParse(rawProps);
+  if (!propsParse.success) {
+    const issue = propsParse.error.issues[0];
+    return {
+      ok: false,
+      reason: `Blueprint 데이터 형식 오류: ${issue?.message ?? "tiers 가 유효하지 않습니다."}`,
+    };
+  }
+  const validated = propsParse.data;
+
+  // prev row 조회 — mainExplorationId 가 아직 활성인지 확인.
+  const prev = await getMainExplorationById(validated.mainExplorationId, supabase);
+  if (!prev || prev.tenant_id !== tenantId) {
+    return {
+      ok: false,
+      reason: "Blueprint 원본을 찾을 수 없거나 권한이 없습니다.",
+    };
+  }
+  if (!prev.is_active) {
+    return {
+      ok: false,
+      reason:
+        "이 Blueprint 는 이미 최신이 아닙니다. 패널을 닫고 다시 조회 후 재편집해주세요.",
+    };
+  }
+
+  // tier_plan 재구성 (BlueprintTierProps → MainExplorationTierEntry).
+  const tierPlan: MainExplorationTierPlan = {
+    foundational: toTierEntry((validated.tiers as BlueprintTiers).foundational),
+    development: toTierEntry((validated.tiers as BlueprintTiers).development),
+    advanced: toTierEntry((validated.tiers as BlueprintTiers).advanced),
+  };
+
+  // auto_bootstrap* 가 컨설턴트에 의해 수정됨을 mark — 재부트스트랩 가드.
+  if (
+    prev.origin === "auto_bootstrap" ||
+    prev.origin === "auto_bootstrap_v2"
+  ) {
+    const markRes = await supabase
+      .from("student_main_explorations")
+      .update({ edited_by_consultant_at: new Date().toISOString() })
+      .eq("id", prev.id);
+    if (markRes.error) {
+      return {
+        ok: false,
+        reason: `Blueprint 보호 플래그 갱신 실패: ${markRes.error.message}`,
+      };
+    }
+  }
+
+  try {
+    const newRow = await createMainExploration(
+      {
+        studentId: prev.student_id,
+        tenantId: prev.tenant_id,
+        pipelineId: prev.pipeline_id,
+        schoolYear: prev.school_year,
+        grade: prev.grade,
+        semester: prev.semester as 1 | 2,
+        scope: prev.scope as "overall" | "track" | "grade",
+        trackLabel: prev.track_label,
+        direction: prev.direction as "analysis" | "design",
+        semanticRole: prev.semantic_role as
+          | "hypothesis_root"
+          | "aggregation_target"
+          | "hybrid_recursion"
+          | "consultant_pin",
+        source: "consultant",
+        origin: "ai_chat_hitl",
+        pinnedByConsultant: prev.pinned_by_consultant,
+        themeLabel: prev.theme_label,
+        themeKeywords: prev.theme_keywords ?? [],
+        careerField: prev.career_field,
+        tierPlan,
+        identityAlignmentScore: prev.identity_alignment_score,
+        exemplarReferenceIds: prev.exemplar_reference_ids ?? [],
+        modelName: prev.model_name,
+      },
+      { parentVersionId: prev.id, isActive: true },
+      supabase,
+    );
+
+    void recordAuditLog({
+      tenantId,
+      actorId: user.userId,
+      actorRole: toAuditActorRole(user.role),
+      actorEmail: user.email ?? null,
+      action: "update",
+      resourceType: "main_exploration",
+      resourceId: newRow.id,
+      oldData: {
+        id: prev.id,
+        version: prev.version,
+        origin: prev.origin,
+      },
+      newData: {
+        id: newRow.id,
+        version: newRow.version,
+        origin: newRow.origin,
+      },
+      metadata: {
+        via: "ai-chat-hitl",
+        artifactId,
+        versionNo,
+        parentVersionId: prev.id,
+      },
+    });
+
+    revalidatePath(`/admin/students/${prev.student_id}`);
+    revalidatePath("/admin/students");
+
+    return { ok: true, appliedCount: 1, skippedCount: 0, artifactId, versionNo };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      reason: `Blueprint 버전 생성 실패: ${message}`,
+    };
+  }
+}
+
+function toTierEntry(p: BlueprintTierProps): MainExplorationTierEntry {
+  return {
+    theme: p.theme ?? undefined,
+    key_questions: p.keyQuestions,
+    suggested_activities: p.suggestedActivities,
+    linked_storyline_ids: p.linkedIds.storyline,
+    linked_roadmap_item_ids: p.linkedIds.roadmapItem,
+    linked_narrative_arc_ids: p.linkedIds.narrativeArc,
+    linked_hyperedge_ids: p.linkedIds.hyperedge,
+    linked_setek_guide_ids: p.linkedIds.setekGuide,
+    linked_changche_guide_ids: p.linkedIds.changcheGuide,
+    linked_haengteuk_guide_ids: p.linkedIds.haengteukGuide,
+    linked_topic_trajectory_ids: p.linkedIds.topicTrajectory,
+  };
 }

@@ -59,6 +59,7 @@ import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 import type { AnalyzeRecordDeepOutput } from "@/lib/mcp/tools/analyzeRecordDeep";
 import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
 import type { AnalyzeAdmissionOutput } from "@/lib/mcp/tools/analyzeAdmission";
+import type { GetBlueprintOutput } from "@/lib/mcp/tools/getBlueprint";
 import type {
   ArchiveConversationOutput,
   ApplyArtifactEditOutput,
@@ -2100,6 +2101,19 @@ function resolveCitationToArtifact(
       id: `plan:${idSuffix}`,
       type: "plan",
       title: `${output.studentName ?? "학생"} 수강 계획`,
+      subtitle: citation.detail ?? undefined,
+      props: output,
+      originPath: citation.originPath ?? undefined,
+    };
+  }
+
+  if (citation.type === "blueprint") {
+    const output = extractToolOutput<GetBlueprintOutput>(matched.output);
+    if (!output?.ok) return null;
+    return {
+      id: `blueprint:${idSuffix}`,
+      type: "blueprint",
+      title: `${output.studentName ?? "학생"} Blueprint — ${output.themeLabel}`,
       subtitle: citation.detail ?? undefined,
       props: output,
       originPath: citation.originPath ?? undefined,

@@ -239,6 +239,121 @@ describe("extractCitations — designStudentPlan", () => {
   });
 });
 
+describe("extractCitations — getBlueprint (Sprint G3)", () => {
+  const blueprintOutput = {
+    ok: true,
+    mainExplorationId: "11111111-1111-1111-1111-111111111111",
+    studentId: "stu-1",
+    studentName: "김세린",
+    schoolYear: 2026,
+    grade: 2,
+    semester: 1,
+    scope: "overall",
+    trackLabel: null,
+    direction: "design",
+    themeLabel: "국제통상 기초",
+    themeKeywords: [],
+    careerField: null,
+    version: 2,
+    origin: "consultant_direct",
+    tiers: {
+      foundational: {
+        theme: null,
+        keyQuestions: [],
+        suggestedActivities: [],
+        linkedIds: {
+          storyline: [],
+          roadmapItem: [],
+          narrativeArc: [],
+          hyperedge: [],
+          setekGuide: [],
+          changcheGuide: [],
+          haengteukGuide: [],
+          topicTrajectory: [],
+        },
+      },
+      development: {
+        theme: null,
+        keyQuestions: [],
+        suggestedActivities: [],
+        linkedIds: {
+          storyline: [],
+          roadmapItem: [],
+          narrativeArc: [],
+          hyperedge: [],
+          setekGuide: [],
+          changcheGuide: [],
+          haengteukGuide: [],
+          topicTrajectory: [],
+        },
+      },
+      advanced: {
+        theme: null,
+        keyQuestions: [],
+        suggestedActivities: [],
+        linkedIds: {
+          storyline: [],
+          roadmapItem: [],
+          narrativeArc: [],
+          hyperedge: [],
+          setekGuide: [],
+          changcheGuide: [],
+          haengteukGuide: [],
+          topicTrajectory: [],
+        },
+      },
+    },
+  };
+
+  it("정상 output → blueprint 근거", () => {
+    const parts = [
+      {
+        type: "tool-getBlueprint",
+        state: "output-available",
+        output: blueprintOutput,
+      },
+    ];
+    const result = extractCitations(parts);
+    expect(result[0]).toMatchObject({
+      tool: "getBlueprint",
+      type: "blueprint",
+      subjectKey: "stu-1::overall::::design",
+      label: "김세린 Blueprint",
+      originPath: "/admin/students/stu-1",
+    });
+    expect(result[0].detail).toContain("전체");
+    expect(result[0].detail).toContain("설계");
+    expect(result[0].detail).toContain("v2");
+  });
+
+  it("mainExplorationId 누락 → 제외", () => {
+    const parts = [
+      {
+        type: "tool-getBlueprint",
+        state: "output-available",
+        output: { ...blueprintOutput, mainExplorationId: "" },
+      },
+    ];
+    expect(extractCitations(parts)).toEqual([]);
+  });
+
+  it("track 슬라이스는 라벨에 포함", () => {
+    const parts = [
+      {
+        type: "tool-getBlueprint",
+        state: "output-available",
+        output: {
+          ...blueprintOutput,
+          scope: "track",
+          trackLabel: "경영",
+        },
+      },
+    ];
+    const result = extractCitations(parts);
+    expect(result[0].detail).toContain("경영 트랙");
+  });
+});
+
 describe("extractCitations — 공통", () => {
   it("pending state 는 무시", () => {
     const parts = [

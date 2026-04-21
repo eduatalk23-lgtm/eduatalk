@@ -289,8 +289,9 @@ describe("applyArtifactEdit — Sprint 3 future type dispatch", () => {
     vi.clearAllMocks();
   });
 
-  // Sprint P2 (2026-04-21): 'plan' 은 이제 SUPPORTED_TYPES — FUTURE 에서 제외.
-  for (const futureType of ["analysis", "blueprint"] as const) {
+  // Sprint P2 (2026-04-21): 'plan' SUPPORTED.
+  // Sprint G4 (2026-04-21): 'blueprint' SUPPORTED. 'analysis' 만 FUTURE.
+  for (const futureType of ["analysis"] as const) {
     it(`'${futureType}' type 은 곧 지원 예정 안내`, async () => {
       vi.mocked(getCurrentUser).mockResolvedValueOnce({
         userId: "u-1",

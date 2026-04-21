@@ -10,6 +10,7 @@
 import type { UIMessage } from "ai";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
+import type { GetBlueprintOutput } from "@/lib/mcp/tools/getBlueprint";
 import type { AnalyzeRecordOutput } from "./actions/record-analysis";
 import type { ArtifactType } from "./artifact-repository";
 
@@ -75,8 +76,45 @@ function mapPartToCandidate(part: unknown): ArtifactCandidate | null {
   if (toolName === "designStudentPlan") {
     return mapDesignStudentPlan(p.output);
   }
+  if (toolName === "getBlueprint") {
+    return mapGetBlueprint(p.output);
+  }
 
   return null;
+}
+
+function mapGetBlueprint(output: unknown): ArtifactCandidate | null {
+  if (!output || typeof output !== "object") return null;
+  const o = output as Partial<GetBlueprintOutput> & { ok?: boolean };
+  if (o.ok !== true) return null;
+  const ok = o as Extract<GetBlueprintOutput, { ok: true }>;
+  if (!ok.mainExplorationId) return null;
+
+  const studentLabel = ok.studentName ?? "학생";
+  const sliceLabel =
+    ok.scope === "track" && ok.trackLabel
+      ? `${ok.trackLabel} 트랙`
+      : ok.scope === "overall"
+        ? "전체"
+        : `${ok.grade}학년`;
+  const directionLabel = ok.direction === "analysis" ? "분석" : "설계";
+  const subtitleParts = [sliceLabel, directionLabel, `v${ok.version}`];
+
+  return {
+    type: "blueprint",
+    title: `${studentLabel} Blueprint — ${ok.themeLabel}`,
+    subtitle: subtitleParts.join(" · "),
+    originPath: `/admin/students/${ok.studentId}`,
+    // subjectKey: slice 단위 stable — scope/track/direction 재호출 시 동일 artifact 로
+    // history 누적. mainExplorationId 는 props 에 있어 HITL writeback 이 타겟 식별 가능.
+    subjectKey: [
+      ok.studentId,
+      ok.scope,
+      ok.trackLabel ?? "",
+      ok.direction,
+    ].join("::"),
+    props: ok,
+  };
 }
 
 function mapDesignStudentPlan(output: unknown): ArtifactCandidate | null {

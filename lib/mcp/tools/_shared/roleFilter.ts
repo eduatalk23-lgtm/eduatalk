@@ -22,6 +22,7 @@ export const ADMIN_ONLY_TOOL_NAMES = new Set<string>([
   "analyzeRecordDeep",
   "designStudentPlan",
   "analyzeAdmission",
+  "getBlueprint",
 ]);
 
 export function isAdminLikeRole(role: McpUserRole): boolean {

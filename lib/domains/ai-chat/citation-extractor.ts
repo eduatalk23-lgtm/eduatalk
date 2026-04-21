@@ -12,6 +12,7 @@
 import type { UIMessage } from "ai";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
+import type { GetBlueprintOutput } from "@/lib/mcp/tools/getBlueprint";
 import type { AnalyzeRecordOutput } from "./actions/record-analysis";
 import type { ArtifactType } from "./artifact-repository";
 
@@ -69,7 +70,39 @@ function mapPartToCitation(part: unknown): MessageCitation | null {
   if (toolName === "getScores") return citeGetScores(p.output);
   if (toolName === "analyzeRecord") return citeAnalyzeRecord(p.output);
   if (toolName === "designStudentPlan") return citeDesignStudentPlan(p.output);
+  if (toolName === "getBlueprint") return citeGetBlueprint(p.output);
   return null;
+}
+
+function citeGetBlueprint(output: unknown): MessageCitation | null {
+  if (!output || typeof output !== "object") return null;
+  const o = output as Partial<GetBlueprintOutput> & { ok?: boolean };
+  if (o.ok !== true) return null;
+  const ok = o as Extract<GetBlueprintOutput, { ok: true }>;
+  if (!ok.mainExplorationId || !ok.studentId) return null;
+
+  const sliceLabel =
+    ok.scope === "track" && ok.trackLabel
+      ? `${ok.trackLabel} 트랙`
+      : ok.scope === "overall"
+        ? "전체"
+        : `${ok.grade}학년`;
+  const directionLabel = ok.direction === "analysis" ? "분석" : "설계";
+
+  return {
+    tool: "getBlueprint",
+    type: "blueprint",
+    // mapper 와 동일 dedup 규약.
+    subjectKey: [
+      ok.studentId,
+      ok.scope,
+      ok.trackLabel ?? "",
+      ok.direction,
+    ].join("::"),
+    label: `${ok.studentName ?? "학생"} Blueprint`,
+    detail: `${sliceLabel} · ${directionLabel} · v${ok.version}`,
+    originPath: `/admin/students/${ok.studentId}`,
+  };
 }
 
 function citeGetScores(output: unknown): MessageCitation | null {

@@ -69,6 +69,11 @@ import {
   analyzeAdmissionExecute,
   analyzeAdmissionInputShape,
 } from "@/lib/mcp/tools/analyzeAdmission";
+import {
+  getBlueprintDescription,
+  getBlueprintExecute,
+  getBlueprintInputShape,
+} from "@/lib/mcp/tools/getBlueprint";
 
 export const MCP_SERVER_INFO = {
   name: "eduatalk-mcp",
@@ -296,6 +301,27 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const result = await analyzeAdmissionExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "getBlueprint",
+    {
+      description: getBlueprintDescription,
+      inputSchema: getBlueprintInputShape,
+    },
+    async (args) => {
+      const result = await getBlueprintExecute(args);
       return {
         content: [
           {

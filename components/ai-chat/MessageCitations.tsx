@@ -8,7 +8,12 @@
  * Panel 이 이미 해당 artifact 를 열고 있으면 강조(active) 만 표시.
  */
 
-import { BarChart3, CalendarClock, FileSearch } from "lucide-react";
+import {
+  BarChart3,
+  CalendarClock,
+  FileSearch,
+  LayoutTemplate,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { MessageCitation } from "@/lib/domains/ai-chat/citation-extractor";
 import type { ArtifactType } from "@/lib/domains/ai-chat/artifact-repository";
@@ -17,7 +22,7 @@ const TYPE_ICON: Record<ArtifactType, typeof BarChart3 | null> = {
   scores: BarChart3,
   analysis: FileSearch,
   plan: CalendarClock,
-  blueprint: null,
+  blueprint: LayoutTemplate,
   generic: null,
 };
 

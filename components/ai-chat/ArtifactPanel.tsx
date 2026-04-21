@@ -9,9 +9,11 @@ import { cn } from "@/lib/cn";
 import { ScoresCard } from "./ScoresCard";
 import { RecordAnalysisCard } from "./RecordAnalysisCard";
 import { PlanCard } from "./PlanCard";
+import { BlueprintCard } from "./BlueprintCard";
 import { ArtifactVersionTabs } from "./ArtifactVersionTabs";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
 import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
+import type { GetBlueprintOutput } from "@/lib/mcp/tools/getBlueprint";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import { saveArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactEdit";
 
@@ -148,9 +150,12 @@ function ArtifactBody({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const persistedId = artifact.persistedId ?? null;
-  // Sprint P3 (2026-04-21): plan 도 편집 가능. plan_status 드롭다운만 현 스프린트.
+  // Sprint P3 (2026-04-21): plan 편집.
+  // Sprint G2 (2026-04-21): blueprint 편집(tier_plan 구조).
   const canEdit =
-    (artifact.type === "scores" || artifact.type === "plan") &&
+    (artifact.type === "scores" ||
+      artifact.type === "plan" ||
+      artifact.type === "blueprint") &&
     persistedId != null;
   const displayProps = editMode ? draftProps : artifact.props;
 
@@ -283,6 +288,14 @@ function ArtifactBody({
             onChange={editMode ? (next) => updateDraft(next) : undefined}
           />
         )}
+        {artifact.type === "blueprint" && (
+          // Sprint G2 (2026-04-21): 3 tier 탭 편집. linked_ids 는 read-only.
+          <BlueprintCard
+            output={displayProps as GetBlueprintOutput}
+            editable={editMode}
+            onChange={editMode ? (next) => updateDraft(next) : undefined}
+          />
+        )}
         {artifact.type === "generic" && (
           <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
             {JSON.stringify(displayProps, null, 2)}
@@ -291,6 +304,7 @@ function ArtifactBody({
         {artifact.type !== "scores" &&
           artifact.type !== "analysis" &&
           artifact.type !== "plan" &&
+          artifact.type !== "blueprint" &&
           artifact.type !== "generic" && (
             <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-center dark:border-zinc-700 dark:bg-zinc-900">
               <p className="text-sm text-zinc-500 dark:text-zinc-400">

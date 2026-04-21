@@ -489,6 +489,103 @@ describe("extractArtifactCandidates — analyzeRecord", () => {
     expect(result).toHaveLength(2);
     expect(result.map((c) => c.type).sort()).toEqual(["analysis", "scores"]);
   });
+
+  // ─── Sprint G3 (2026-04-21): blueprint artifact ────────────────────────────
+  it("getBlueprint 성공 output → blueprint artifact", () => {
+    const parts = [
+      {
+        type: "tool-getBlueprint",
+        state: "output-available",
+        output: {
+          ok: true,
+          mainExplorationId: "11111111-1111-1111-1111-111111111111",
+          studentId: "stu-1",
+          studentName: "김세린",
+          schoolYear: 2026,
+          grade: 2,
+          semester: 1,
+          scope: "overall",
+          trackLabel: null,
+          direction: "design",
+          themeLabel: "국제통상·정치외교 핵심",
+          themeKeywords: ["경제", "정치"],
+          careerField: "SOC",
+          version: 3,
+          origin: "auto_bootstrap_v2",
+          tiers: {
+            foundational: {
+              theme: "기초 이론",
+              keyQuestions: [],
+              suggestedActivities: [],
+              linkedIds: {
+                storyline: [],
+                roadmapItem: [],
+                narrativeArc: [],
+                hyperedge: [],
+                setekGuide: [],
+                changcheGuide: [],
+                haengteukGuide: [],
+                topicTrajectory: [],
+              },
+            },
+            development: {
+              theme: null,
+              keyQuestions: [],
+              suggestedActivities: [],
+              linkedIds: {
+                storyline: [],
+                roadmapItem: [],
+                narrativeArc: [],
+                hyperedge: [],
+                setekGuide: [],
+                changcheGuide: [],
+                haengteukGuide: [],
+                topicTrajectory: [],
+              },
+            },
+            advanced: {
+              theme: null,
+              keyQuestions: [],
+              suggestedActivities: [],
+              linkedIds: {
+                storyline: [],
+                roadmapItem: [],
+                narrativeArc: [],
+                hyperedge: [],
+                setekGuide: [],
+                changcheGuide: [],
+                haengteukGuide: [],
+                topicTrajectory: [],
+              },
+            },
+          },
+        },
+      },
+    ];
+    const result = extractArtifactCandidates(parts);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      type: "blueprint",
+      subjectKey: "stu-1::overall::::design",
+      originPath: "/admin/students/stu-1",
+    });
+    expect(result[0].title).toContain("김세린 Blueprint");
+    expect(result[0].title).toContain("국제통상·정치외교 핵심");
+    expect(result[0].subtitle).toContain("전체");
+    expect(result[0].subtitle).toContain("설계");
+    expect(result[0].subtitle).toContain("v3");
+  });
+
+  it("getBlueprint ok=false → 제외", () => {
+    const parts = [
+      {
+        type: "tool-getBlueprint",
+        state: "output-available",
+        output: { ok: false, reason: "활성 blueprint 없음" },
+      },
+    ];
+    expect(extractArtifactCandidates(parts)).toEqual([]);
+  });
 });
 
 // Test-only alias to appease linter when passing undefined intentionally.
