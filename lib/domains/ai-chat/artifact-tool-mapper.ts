@@ -4,11 +4,12 @@
  * 서버(`saveChatTurn` onFinish) 와 클라이언트(`ChatShell.MessageRow` auto-open)
  * 양쪽에서 동일 규칙을 쓸 수 있도록 순수 함수로 분리.
  *
- * 현재 지원: `getScores` 만. 향후 analyzeRecordDeep 등 추가.
+ * 현재 지원: `getScores`, `analyzeRecord` (C-3 S3 2단계).
  */
 
 import type { UIMessage } from "ai";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { AnalyzeRecordOutput } from "./actions/record-analysis";
 import type { ArtifactType } from "./artifact-repository";
 
 export type ArtifactCandidate = {
@@ -67,8 +68,47 @@ function mapPartToCandidate(part: unknown): ArtifactCandidate | null {
   if (toolName === "getScores") {
     return mapGetScores(p.output);
   }
+  if (toolName === "analyzeRecord") {
+    return mapAnalyzeRecord(p.output);
+  }
 
   return null;
+}
+
+function mapAnalyzeRecord(output: unknown): ArtifactCandidate | null {
+  if (!output || typeof output !== "object") return null;
+  const o = output as Partial<AnalyzeRecordOutput> & { ok?: boolean };
+  if (o.ok !== true) return null;
+  const ok = o as Extract<AnalyzeRecordOutput, { ok: true }>;
+
+  // 진단 요약(summary) 이 없는 단계(no_analysis 등) 도 artifact 로 노출 — 진행 상태 카드.
+  // 단 학생 식별 가능해야 함.
+  if (!ok.studentId) return null;
+
+  const studentLabel = ok.studentName ?? "학생";
+  const statusLabel: Record<typeof ok.status, string> = {
+    no_analysis: "분석 전",
+    running: "분석 진행 중",
+    partial: "부분 완료",
+    completed: "분석 완료",
+  };
+  const subtitleParts: string[] = [statusLabel[ok.status]];
+  if (ok.summary) {
+    subtitleParts.push(`${ok.summary.schoolYear}학년도`);
+    subtitleParts.push(ok.summary.overallGrade);
+  } else if (ok.progress.completedGrades.length > 0) {
+    subtitleParts.push(`완료 ${ok.progress.completedGrades.join("·")}학년`);
+  }
+
+  return {
+    type: "analysis",
+    title: `${studentLabel} 생기부 분석`,
+    subtitle: subtitleParts.join(" · "),
+    originPath: ok.detailPath ?? null,
+    // subjectKey = studentId. 같은 학생 재분석은 동일 artifact 버전으로 누적.
+    subjectKey: ok.studentId,
+    props: ok,
+  };
 }
 
 function mapGetScores(output: unknown): ArtifactCandidate | null {

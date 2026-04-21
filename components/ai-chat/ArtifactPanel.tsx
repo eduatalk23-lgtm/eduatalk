@@ -7,8 +7,10 @@ import { useArtifactStore, type Artifact } from "@/lib/stores/artifactStore";
 import { useArtifactHistory } from "@/lib/hooks/useArtifactHistory";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "./ScoresCard";
+import { RecordAnalysisCard } from "./RecordAnalysisCard";
 import { ArtifactVersionTabs } from "./ArtifactVersionTabs";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import { saveArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactEdit";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -262,21 +264,28 @@ function ArtifactBody({
             onChange={editMode ? (next) => updateDraft(next) : undefined}
           />
         )}
+        {artifact.type === "analysis" && (
+          // C-3 S3 2단계: analysis artifact 를 RecordAnalysisCard 로 렌더 (read-only).
+          // 편집 지원은 S3 후속 세션(도메인 모델 확정 후).
+          <RecordAnalysisCard output={displayProps as AnalyzeRecordOutput} />
+        )}
         {artifact.type === "generic" && (
           <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
             {JSON.stringify(displayProps, null, 2)}
           </pre>
         )}
-        {artifact.type !== "scores" && artifact.type !== "generic" && (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-center dark:border-zinc-700 dark:bg-zinc-900">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {TYPE_LABELS[artifact.type]} 렌더러가 아직 준비되지 않았습니다.
-            </p>
-            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-              추후 Wave에서 연결됩니다.
-            </p>
-          </div>
-        )}
+        {artifact.type !== "scores" &&
+          artifact.type !== "analysis" &&
+          artifact.type !== "generic" && (
+            <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-center dark:border-zinc-700 dark:bg-zinc-900">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {TYPE_LABELS[artifact.type]} 렌더러가 아직 준비되지 않았습니다.
+              </p>
+              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                추후 Wave에서 연결됩니다.
+              </p>
+            </div>
+          )}
       </div>
     </>
   );
