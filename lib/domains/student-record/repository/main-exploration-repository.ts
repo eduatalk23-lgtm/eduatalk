@@ -41,16 +41,18 @@ export type MainExplorationSource = "ai" | "consultant" | "hybrid";
  *   - auto_bootstrap     : Phase 0~2 자동 셋업으로 생성된 초안
  *   - auto_bootstrap_v2  : Phase 4 Synthesis 학습 후 재부트스트랩으로 갱신
  *   - consultant_direct  : 컨설턴트가 UI 로 처음부터 작성
+ *   - ai_chat_hitl       : AI-Chat HITL 경로(BlueprintCard → applyArtifactEdit)에서 편집된 version
  *   - migrated           : Phase 3 도입 이전부터 존재 (backfill)
  *
  * source 는 대분류(AI/Consultant), origin 은 세부 경로 + 재부트스트랩 가드용.
  * `edited_by_consultant_at` 과 조합하여 `origin='auto_bootstrap*' AND edited_by_consultant_at IS NULL`
- * 인 row 만 재부트스트랩이 덮어쓰기 가능.
+ * 인 row 만 재부트스트랩이 덮어쓰기 가능 (ai_chat_hitl/consultant_direct 는 보호).
  */
 export type MainExplorationOrigin =
   | "auto_bootstrap"
   | "auto_bootstrap_v2"
   | "consultant_direct"
+  | "ai_chat_hitl"
   | "migrated";
 export type MainExplorationTier = "foundational" | "development" | "advanced";
 
