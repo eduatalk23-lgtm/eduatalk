@@ -19730,6 +19730,28 @@ export type Database = {
           union_size: number
         }[]
       }
+      search_exemplar_narratives: {
+        Args: {
+          grade_filter?: number
+          match_count?: number
+          query_embedding: string
+          similarity_threshold?: number
+          source_table_filter?: string
+          subject_filter?: string
+          university_filter?: string
+        }
+        Returns: {
+          admission_year: number
+          content: string
+          department: string
+          embedding_id: string
+          exemplar_id: string
+          similarity: number
+          source_id: string
+          source_table: string
+          university_name: string
+        }[]
+      }
       search_guides:
         | {
             Args: {
@@ -20060,5 +20082,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.90.0 (currently installed v2.65.5)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
