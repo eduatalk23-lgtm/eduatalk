@@ -121,6 +121,8 @@ describe("mapSessionToOtelTrace - tool-call 자식 span", () => {
     expect(attrs["gen_ai.tool.name"]).toBe("getStudentRecords");
     expect(attrs["gen_ai.tool.arguments"]).toBe('{"studentName":"김세린"}');
     expect(attrs["gen_ai.tool.result"]).toBe('{"ok":true,"records":[]}');
+    // G-6 Sprint 3 Gap #5: tenant scope 가 child span 에도 전파됨
+    expect(attrs["eduatalk.agent.tenant_id"]).toBe("tenant-1");
 
     // think / text 는 root span event 로 흡수
     expect(trace.rootSpan.events).toHaveLength(2);
@@ -150,6 +152,26 @@ describe("mapSessionToOtelTrace - tool-call 자식 span", () => {
       "execute_tool b",
       "execute_tool c",
     ]);
+    // G-6 Sprint 3 Gap #5: 모든 child span 이 tenant_id 보유
+    for (const span of trace.childSpans) {
+      const attrs = Object.fromEntries(span.attributes.map((a) => [a.key, a.value]));
+      expect(attrs["eduatalk.agent.tenant_id"]).toBe("tenant-1");
+    }
+  });
+
+  it("tenantId 가 다른 세션은 child span 에 그 값이 그대로 전파", () => {
+    const trace = mapSessionToOtelTrace(
+      makeParams({
+        tenantId: "tenant-other",
+        stepTraces: [
+          { stepIndex: 0, stepType: "tool-call", toolName: "x", durationMs: 50 },
+        ],
+      }),
+    );
+    const attrs = Object.fromEntries(
+      trace.childSpans[0].attributes.map((a) => [a.key, a.value]),
+    );
+    expect(attrs["eduatalk.agent.tenant_id"]).toBe("tenant-other");
   });
 
   it("toolInput 이 이미 문자열이면 그대로 저장", () => {

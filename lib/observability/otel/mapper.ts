@@ -54,7 +54,10 @@ function buildRootAttributes(p: AgentSessionParams): OtelAttribute[] {
   return out;
 }
 
-function buildToolSpanAttributes(step: StepTrace): OtelAttribute[] {
+function buildToolSpanAttributes(
+  step: StepTrace,
+  tenantId: string,
+): OtelAttribute[] {
   const out: OtelAttribute[] = [];
   push(out, attr("gen_ai.system", GEN_AI_SYSTEM));
   push(out, attr("gen_ai.operation.name", "execute_tool"));
@@ -82,6 +85,8 @@ function buildToolSpanAttributes(step: StepTrace): OtelAttribute[] {
     );
   }
   push(out, attr("eduatalk.step.index", step.stepIndex));
+  // G-6 Sprint 3 Gap #5: tenant scope propagation to child span.
+  push(out, attr("eduatalk.agent.tenant_id", tenantId));
   return out;
 }
 
@@ -147,7 +152,7 @@ export function mapSessionToOtelTrace(
         startTimeMs: stepStart,
         endTimeMs: stepEnd,
         status: "ok",
-        attributes: buildToolSpanAttributes(step),
+        attributes: buildToolSpanAttributes(step, params.tenantId),
       });
     } else {
       // think / text → root span event 로 흡수
