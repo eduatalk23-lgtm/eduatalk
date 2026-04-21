@@ -319,7 +319,7 @@ export async function runSubagent<TSchema extends z.ZodTypeAny>(
       .then((promptHash) =>
         logAgentSession({
           sessionId,
-          tenantId: ctx.tenantId!,
+          tenantId: ctx.tenantId,
           userId: ctx.userId,
           studentId: ctx.studentId,
           modelId: def.model.id,

@@ -87,9 +87,11 @@ describe("runSubagent role 가드", () => {
 });
 
 describe("runSubagent tenantId 가드", () => {
-  it("tenantId=null 이면 즉시 ok:false", async () => {
+  // Phase G-6 Sprint 1 (2026-04-21): AgentContext.tenantId 가 `string` 필수화됨.
+  // 컴파일 레벨 null 차단 + 런타임 falsy 방어(defence-in-depth) 유지 검증.
+  it("tenantId 가 빈 문자열(falsy)이면 즉시 ok:false", async () => {
     const def = makeDef();
-    const ctx = makeCtx({ tenantId: null });
+    const ctx = makeCtx({ tenantId: "" });
     const result = await runSubagent({ def, ctx, input: "테스트" });
     expect(result.ok).toBe(false);
     if (!result.ok) {

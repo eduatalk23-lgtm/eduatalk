@@ -8,8 +8,13 @@ export interface AgentContext {
   userId: string;
   /** 관리자 역할 */
   role: "admin" | "consultant" | "superadmin";
-  /** 테넌트 ID */
-  tenantId: string | null;
+  /**
+   * 테넌트 ID. Phase G-6 Sprint 1 (2026-04-21): `string | null` → `string` 필수화.
+   * caller(`app/api/agent/route.ts`, MCP tool 3종) 가 null 검증 후 AgentContext 를
+   * 생성하므로 컴파일 레벨에서 null 을 제거해 cross-tenant 누수 경로를 차단.
+   * 런타임 방어(`runSubagent` 의 falsy 체크)는 defence-in-depth 로 유지.
+   */
+  tenantId: string;
   /** 대상 학생 ID */
   studentId: string;
   /** 대상 학생 이름 (시스템 프롬프트용) */
