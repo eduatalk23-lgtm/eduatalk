@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
@@ -45,6 +45,12 @@ import type { SlashCommand } from "@/components/ai-chat/SlashMenu";
 import { InlineConfirm } from "@/components/ai-chat/InlineConfirm";
 import { ChatComposer } from "@/components/ai-chat/ChatComposer";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
+import {
+  extractCitations,
+  type MessageCitation,
+} from "@/lib/domains/ai-chat/citation-extractor";
+import type { ArtifactType } from "@/lib/domains/ai-chat/artifact-repository";
+import { MessageCitations } from "@/components/ai-chat/MessageCitations";
 import { toggleArchiveConversation } from "@/lib/domains/ai-chat/actions";
 import { applyArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactApply";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
@@ -647,7 +653,7 @@ type MessageRowProps = {
   openedArtifactId: string | null;
   onOpenArtifact: (artifact: {
     id: string;
-    type: "scores";
+    type: ArtifactType;
     title: string;
     subtitle?: string;
     props: unknown;
@@ -1940,6 +1946,14 @@ function MessageRow({
         })}
 
         {!isUser && (
+          <MessageCitationsSlot
+            message={message}
+            openedArtifactId={openedArtifactId}
+            onOpenArtifact={onOpenArtifact}
+            onNavigate={onNavigate}
+          />
+        )}
+        {!isUser && (
           <EscalationBanner
             message={message}
             role={role}
@@ -1950,6 +1964,149 @@ function MessageRow({
       </div>
     </div>
   );
+}
+
+/**
+ * Phase C-4 (2026-04-21): assistant 메시지 말미 citation pill slot.
+ *
+ * extractCitations 는 parts 만으로 근거 라벨을 뽑지만, pill 클릭 시 패널을
+ * 열려면 실제 tool output props 가 필요하다. 여기서 (citation → message.parts
+ * 매칭 part → Artifact 객체) 로 resolve 한다.
+ *
+ * activeKey 는 현재 패널에 열린 artifactId 와 citation 의 resolved id 를
+ * 교차해 "지금 이 근거가 패널에 열려 있는가" 를 계산 — tool card 의
+ * "패널에 열림" 라벨과 동일 규약.
+ */
+function MessageCitationsSlot({
+  message,
+  openedArtifactId,
+  onOpenArtifact,
+  onNavigate,
+}: {
+  message: UIMessage;
+  openedArtifactId: string | null;
+  onOpenArtifact: MessageRowProps["onOpenArtifact"];
+  onNavigate: (path: string) => void;
+}) {
+  const citations = useMemo(
+    () => extractCitations(message.parts),
+    [message.parts],
+  );
+
+  const resolvedById = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof resolveCitationToArtifact>>();
+    for (const c of citations) {
+      const artifact = resolveCitationToArtifact(message, c);
+      map.set(`${c.type}::${c.subjectKey}`, artifact);
+    }
+    return map;
+  }, [citations, message]);
+
+  if (citations.length === 0) return null;
+
+  const activeKey =
+    openedArtifactId != null
+      ? ([...resolvedById.entries()].find(
+          ([, a]) => a?.id === openedArtifactId,
+        )?.[0] ?? null)
+      : null;
+
+  return (
+    <MessageCitations
+      citations={citations}
+      activeKey={activeKey}
+      onPillClick={(c) => {
+        const artifact = resolvedById.get(`${c.type}::${c.subjectKey}`);
+        if (artifact) {
+          onOpenArtifact(artifact);
+        } else if (c.originPath) {
+          onNavigate(c.originPath);
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * citation → message.parts 매칭 output → ArtifactPanel 이 요구하는 최종 Artifact.
+ *
+ * 같은 tool 이 한 메시지 안에서 여러 번 호출되면 마지막 호출 결과를 채택
+ * (dedup 규약 = extractCitations 와 동일, 마지막 우선).
+ * output-available 가 아닌 part 는 제외. 정상 output 이 전혀 없으면 null
+ * 반환 → 상위가 originPath 로 폴백.
+ */
+function resolveCitationToArtifact(
+  message: UIMessage,
+  citation: MessageCitation,
+): Parameters<MessageRowProps["onOpenArtifact"]>[0] | null {
+  let matched: {
+    output: unknown;
+    toolCallId?: string;
+  } | null = null;
+  for (const rawPart of message.parts) {
+    if (!matchesTool(rawPart, citation.tool)) continue;
+    const p = rawPart as {
+      state?: string;
+      output?: unknown;
+      toolCallId?: string;
+    };
+    if (p.state !== "output-available") continue;
+    matched = { output: p.output, toolCallId: p.toolCallId };
+  }
+  if (!matched) return null;
+
+  const idSuffix = matched.toolCallId ?? citation.subjectKey;
+
+  if (citation.type === "scores") {
+    const output = extractToolOutput<GetScoresOutput>(matched.output);
+    if (!output?.ok) return null;
+    const subtitle = [
+      output.filter.grade ? `${output.filter.grade}학년` : null,
+      output.filter.semester ? `${output.filter.semester}학기` : null,
+      `${output.count}과목`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      id: `scores:${idSuffix}`,
+      type: "scores",
+      title: `${output.studentName ?? "학생"} 내신 성적`,
+      subtitle,
+      props: output,
+      originPath:
+        output.filter.grade && output.filter.semester
+          ? `/scores/school/${output.filter.grade}/${output.filter.semester}`
+          : "/scores",
+    };
+  }
+
+  if (citation.type === "analysis") {
+    const output = extractToolOutput<AnalyzeRecordOutput>(matched.output);
+    if (!output?.ok) return null;
+    return {
+      id: `analysis:${idSuffix}`,
+      type: "analysis",
+      title: `${output.studentName ?? "학생"} 생기부 분석`,
+      subtitle: citation.detail ?? undefined,
+      props: output,
+      originPath: output.detailPath ?? citation.originPath ?? undefined,
+    };
+  }
+
+  if (citation.type === "plan") {
+    const output = extractToolOutput<DesignStudentPlanOutput>(matched.output);
+    if (!output?.ok) return null;
+    return {
+      id: `plan:${idSuffix}`,
+      type: "plan",
+      title: `${output.studentName ?? "학생"} 수강 계획`,
+      subtitle: citation.detail ?? undefined,
+      props: output,
+      originPath: citation.originPath ?? undefined,
+    };
+  }
+
+  return null;
 }
 
 /**
