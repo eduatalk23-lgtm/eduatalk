@@ -166,6 +166,93 @@ describe("extractArtifactCandidates", () => {
 // C-3 S3 2단계: analyzeRecord → analysis artifact 매핑
 // ============================================
 
+describe("extractArtifactCandidates — designStudentPlan", () => {
+  const planOutput = {
+    ok: true,
+    runId: "run-1",
+    studentId: "stu-1",
+    studentName: "김세린",
+    durationMs: 12345,
+    stepCount: 6,
+    summary: {
+      headline: "경영 계열 적합 — 2학년 2학기 2과목 추가 권장",
+      adequacyScore: 75,
+      keyFindings: ["경제·통계 강세"],
+      conflicts: ["일본어II vs 통계 충돌"],
+      recommendedCourses: ["경제수학", "통계", "심화국어"],
+      recommendedActions: ["기초 미적분 보강"],
+      artifactIds: [],
+      followUpQuestions: ["통계 과목 학기 조정 의향?"],
+    },
+  };
+
+  it("ok=true + studentId + summary 가 있으면 plan artifact", () => {
+    const parts = [
+      { type: "tool-designStudentPlan", state: "output-available", output: planOutput },
+    ];
+    const result = extractArtifactCandidates(parts);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      type: "plan",
+      title: "김세린 수강 계획",
+      subjectKey: "stu-1",
+      originPath: "/admin/students/stu-1",
+    });
+    expect(result[0].subtitle).toContain("적합도 75");
+    expect(result[0].subtitle).toContain("충돌 1건");
+    expect(result[0].subtitle).toContain("추천 3과목");
+  });
+
+  it("subtitle 빌드 가능한 항목이 없으면 headline 으로 폴백", () => {
+    const parts = [
+      {
+        type: "tool-designStudentPlan",
+        state: "output-available",
+        output: {
+          ...planOutput,
+          summary: {
+            ...planOutput.summary,
+            adequacyScore: undefined,
+            conflicts: [],
+            recommendedCourses: [],
+          },
+        },
+      },
+    ];
+    const result = extractArtifactCandidates(parts);
+    expect(result[0].subtitle).toBe(planOutput.summary.headline);
+  });
+
+  it("ok=false 면 제외", () => {
+    const parts = [
+      {
+        type: "tool-designStudentPlan",
+        state: "output-available",
+        output: { ok: false, reason: "권한 없음" },
+      },
+    ];
+    expect(extractArtifactCandidates(parts)).toEqual([]);
+  });
+
+  it("같은 학생 재설계는 마지막만 (subjectKey=studentId)", () => {
+    const parts = [
+      {
+        type: "tool-designStudentPlan",
+        state: "output-available",
+        output: { ...planOutput, summary: { ...planOutput.summary, adequacyScore: 50 } },
+      },
+      {
+        type: "tool-designStudentPlan",
+        state: "output-available",
+        output: { ...planOutput, summary: { ...planOutput.summary, adequacyScore: 80 } },
+      },
+    ];
+    const result = extractArtifactCandidates(parts);
+    expect(result).toHaveLength(1);
+    expect(result[0].subtitle).toContain("적합도 80");
+  });
+});
+
 describe("extractArtifactCandidates — analyzeRecord", () => {
   it("completed status + summary 가 있으면 analysis artifact", () => {
     const parts = [
@@ -302,6 +389,66 @@ describe("extractArtifactCandidates — analyzeRecord", () => {
     const result = extractArtifactCandidates(parts);
     expect(result).toHaveLength(1);
     expect(result[0].subtitle).toContain("분석 완료");
+  });
+
+  it("scores + analysis + plan 모두 있으면 셋 다 별도 candidate", () => {
+    const parts = [
+      {
+        type: "tool-getScores",
+        state: "output-available",
+        output: {
+          ok: true,
+          studentName: "김세린",
+          filter: { grade: 2 },
+          count: 5,
+          rows: [],
+        },
+      },
+      {
+        type: "tool-analyzeRecord",
+        state: "output-available",
+        output: {
+          ok: true,
+          studentId: "stu-1",
+          studentName: "김세린",
+          status: "completed",
+          progress: { completedGrades: [1, 2], runningGrades: [], synthesisStatus: "completed" },
+          summary: {
+            schoolYear: 2026,
+            overallGrade: "A",
+            recordDirection: null,
+            strengths: [],
+            weaknesses: [],
+            recommendedMajors: [],
+          },
+          detailPath: "/admin/students/stu-1",
+        },
+      },
+      {
+        type: "tool-designStudentPlan",
+        state: "output-available",
+        output: {
+          ok: true,
+          runId: "run-1",
+          studentId: "stu-1",
+          studentName: "김세린",
+          durationMs: 12345,
+          stepCount: 6,
+          summary: {
+            headline: "경영 계열 적합 — 2학년 2학기 2과목 추가 권장",
+            adequacyScore: 75,
+            keyFindings: ["경제·통계 강세"],
+            conflicts: [],
+            recommendedCourses: ["경제수학", "통계"],
+            recommendedActions: ["기초 미적분 보강"],
+            artifactIds: [],
+          },
+        },
+      },
+    ];
+    const result = extractArtifactCandidates(parts);
+    expect(result).toHaveLength(3);
+    expect(result.map((c) => c.type).sort()).toEqual(["analysis", "plan", "scores"]);
   });
 
   it("scores + analysis 같이 있으면 둘 다 별도 candidate", () => {

@@ -9,6 +9,7 @@
 
 import type { UIMessage } from "ai";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
 import type { AnalyzeRecordOutput } from "./actions/record-analysis";
 import type { ArtifactType } from "./artifact-repository";
 
@@ -71,8 +72,41 @@ function mapPartToCandidate(part: unknown): ArtifactCandidate | null {
   if (toolName === "analyzeRecord") {
     return mapAnalyzeRecord(p.output);
   }
+  if (toolName === "designStudentPlan") {
+    return mapDesignStudentPlan(p.output);
+  }
 
   return null;
+}
+
+function mapDesignStudentPlan(output: unknown): ArtifactCandidate | null {
+  if (!output || typeof output !== "object") return null;
+  const o = output as Partial<DesignStudentPlanOutput> & { ok?: boolean };
+  if (o.ok !== true) return null;
+  const ok = o as Extract<DesignStudentPlanOutput, { ok: true }>;
+  if (!ok.studentId || !ok.summary) return null;
+
+  const studentLabel = ok.studentName ?? "학생";
+  const subtitleParts: string[] = [];
+  if (typeof ok.summary.adequacyScore === "number") {
+    subtitleParts.push(`적합도 ${ok.summary.adequacyScore}`);
+  }
+  if (ok.summary.conflicts.length > 0) {
+    subtitleParts.push(`충돌 ${ok.summary.conflicts.length}건`);
+  }
+  if (ok.summary.recommendedCourses.length > 0) {
+    subtitleParts.push(`추천 ${ok.summary.recommendedCourses.length}과목`);
+  }
+
+  return {
+    type: "plan",
+    title: `${studentLabel} 수강 계획`,
+    subtitle: subtitleParts.length > 0 ? subtitleParts.join(" · ") : ok.summary.headline,
+    originPath: `/admin/students/${ok.studentId}`,
+    // subjectKey=studentId. 같은 학생 재설계는 마지막만.
+    subjectKey: ok.studentId,
+    props: ok,
+  };
 }
 
 function mapAnalyzeRecord(output: unknown): ArtifactCandidate | null {

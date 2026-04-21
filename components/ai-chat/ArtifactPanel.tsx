@@ -8,8 +8,10 @@ import { useArtifactHistory } from "@/lib/hooks/useArtifactHistory";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "./ScoresCard";
 import { RecordAnalysisCard } from "./RecordAnalysisCard";
+import { PlanCard } from "./PlanCard";
 import { ArtifactVersionTabs } from "./ArtifactVersionTabs";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
+import type { DesignStudentPlanOutput } from "@/lib/mcp/tools/designStudentPlan";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import { saveArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactEdit";
 
@@ -269,6 +271,11 @@ function ArtifactBody({
           // 편집 지원은 S3 후속 세션(도메인 모델 확정 후).
           <RecordAnalysisCard output={displayProps as AnalyzeRecordOutput} />
         )}
+        {artifact.type === "plan" && (
+          // C-3 S3 3단계: plan artifact 를 PlanCard 로 렌더 (read-only).
+          // 추천 과목 채택/거절 등 편집 지원은 후속.
+          <PlanCard output={displayProps as DesignStudentPlanOutput} />
+        )}
         {artifact.type === "generic" && (
           <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
             {JSON.stringify(displayProps, null, 2)}
@@ -276,6 +283,7 @@ function ArtifactBody({
         )}
         {artifact.type !== "scores" &&
           artifact.type !== "analysis" &&
+          artifact.type !== "plan" &&
           artifact.type !== "generic" && (
             <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-center dark:border-zinc-700 dark:bg-zinc-900">
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
