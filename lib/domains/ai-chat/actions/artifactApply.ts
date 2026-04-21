@@ -604,7 +604,9 @@ async function handlePlanApply(
   const ids = rows.map((r) => r.id);
   const existingRes = await supabase
     .from("student_course_plans")
-    .select("id, tenant_id, student_id, subject_id, plan_status, priority, source")
+    .select(
+      "id, tenant_id, student_id, subject_id, grade, semester, plan_status, priority, source",
+    )
     .in("id", ids);
   if (existingRes.error) {
     return { ok: false, reason: `계획 조회 실패: ${existingRes.error.message}` };
@@ -623,17 +625,33 @@ async function handlePlanApply(
       skippedCount += 1;
       continue;
     }
-    if (existing.plan_status === row.planStatus) {
+
+    const statusChanged = existing.plan_status !== row.planStatus;
+    const priorityChanged = (existing.priority ?? 0) !== row.priority;
+    const slotChanged =
+      existing.grade !== row.grade || existing.semester !== row.semester;
+    if (!statusChanged && !priorityChanged && !slotChanged) {
       skippedCount += 1;
       continue;
     }
 
+    const updatePayload: {
+      plan_status?: PlanRow["planStatus"];
+      priority?: number;
+      grade?: number;
+      semester?: number;
+      source: "consultant";
+    } = { source: "consultant" };
+    if (statusChanged) updatePayload.plan_status = row.planStatus;
+    if (priorityChanged) updatePayload.priority = row.priority;
+    if (slotChanged) {
+      updatePayload.grade = row.grade;
+      updatePayload.semester = row.semester;
+    }
+
     const updateRes = await supabase
       .from("student_course_plans")
-      .update({
-        plan_status: row.planStatus,
-        source: "consultant",
-      })
+      .update(updatePayload)
       .eq("id", row.id)
       .eq("tenant_id", tenantId);
     if (updateRes.error) {
@@ -652,8 +670,20 @@ async function handlePlanApply(
       action: "update",
       resourceType: "course_plan",
       resourceId: row.id,
-      oldData: { plan_status: existing.plan_status, source: existing.source },
-      newData: { plan_status: row.planStatus, source: "consultant" },
+      oldData: {
+        plan_status: existing.plan_status,
+        priority: existing.priority,
+        grade: existing.grade,
+        semester: existing.semester,
+        source: existing.source,
+      },
+      newData: {
+        plan_status: row.planStatus,
+        priority: row.priority,
+        grade: row.grade,
+        semester: row.semester,
+        source: "consultant",
+      },
       metadata: { via: "ai-chat-hitl", artifactId, versionNo },
     });
   }
