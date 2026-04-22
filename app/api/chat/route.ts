@@ -12,6 +12,7 @@ import { getStudentById } from "@/lib/data/students";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getConversationOrigin,
+  getConversationSubjectStudentId,
   saveChatTurn,
 } from "@/lib/domains/ai-chat/persistence";
 import { createChatMcpHandle } from "@/lib/mcp/client";
@@ -20,6 +21,8 @@ import type { AIConversationPersona } from "@/lib/domains/ai-chat/types";
 import { getHandoffSource } from "@/lib/domains/ai-chat/handoff/sources";
 import { validateAndResolveHandoff } from "@/lib/domains/ai-chat/handoff/validator";
 import { buildHandoffPromptSection } from "@/lib/domains/ai-chat/handoff/prompt";
+import { buildMemoryPromptSection } from "@/lib/domains/ai-chat/memory/promptInjection";
+import { extractLastUserText } from "@/lib/domains/ai-chat/memory/messageText";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -327,11 +330,49 @@ export async function POST(req: Request) {
     ? await buildHandoffSectionForConversation(conversationId, user)
     : "";
 
+  // Phase D-4 Sprint 2: 현재 대화의 subject_student_id 조회 → 기억 필터 + saveChatTurn 인자 전달.
+  // 이 값이 없으면 saveChatTurn upsert 가 subject_student_id=null 로 덮어쓰는 기존 동작을 재현.
+  const subjectStudentId =
+    conversationId && user
+      ? await getConversationSubjectStudentId(conversationId)
+      : null;
+
+  // Phase D-4 Sprint 2: 요청 수신 직후 장기 기억 top-K 검색 → system prompt 주입.
+  // 실패·빈 결과는 빈 문자열 → dynamicSuffix 에 영향 없음.
+  let memorySection = "";
+  if (user) {
+    try {
+      const queryText = extractLastUserText(messages);
+      if (queryText) {
+        const supabaseForMemory = await createSupabaseServerClient();
+        const { section } = await buildMemoryPromptSection({
+          supabase: supabaseForMemory,
+          queryText,
+          ownerUserId: user.userId,
+          subjectStudentId,
+          currentConversationId: conversationId ?? null,
+        });
+        memorySection = section;
+      }
+    } catch (err) {
+      console.warn(
+        "[ai-chat] memory retrieval 실패:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   const modelName = process.env.OLLAMA_MODEL ?? "gemma4:latest";
 
   // 2026-04 Vercel AI SDK 공식 권고: static prefix + variable suffix
   // 앞부분(STATIC_SYSTEM_PREFIX)이 매 요청 동일 → Ollama KV cache prefix 재사용
-  const dynamicSuffix = `${userContext}${handoffSection ? "\n\n" + handoffSection : ""}`;
+  const dynamicSuffix = [
+    userContext,
+    handoffSection,
+    memorySection,
+  ]
+    .filter((s) => s.length > 0)
+    .join("\n\n");
 
   const startedAt = Date.now();
 
@@ -400,6 +441,7 @@ export async function POST(req: Request) {
           ownerUserId: user.userId,
           tenantId: user.tenantId,
           persona,
+          subjectStudentId,
           title,
         },
         finalMessages,

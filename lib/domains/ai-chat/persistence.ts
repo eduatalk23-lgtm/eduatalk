@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { upsertArtifactWithVersion } from "./artifact-repository";
 import { extractArtifactCandidates } from "./artifact-tool-mapper";
+import { saveTurnMemory } from "./memory/saveTurnMemory";
 
 type SaveConversationArgs = {
   conversationId: string;
@@ -81,6 +82,27 @@ export async function saveChatTurn(
 
   if (msgErr) {
     return { ok: false, error: `message upsert: ${msgErr.message}` };
+  }
+
+  // Phase D-4 Sprint 2: 방금 완료된 턴(user+assistant)을 장기 기억으로 자동 적재.
+  // best-effort — 실패해도 대화 저장은 성공으로 간주. 임베딩 실패·짧은 텍스트는 조용히 skip.
+  try {
+    const memResult = await saveTurnMemory({
+      supabase,
+      messages,
+      ownerUserId: args.ownerUserId,
+      tenantId: args.tenantId,
+      subjectStudentId: args.subjectStudentId ?? null,
+      conversationId: args.conversationId,
+    });
+    if (!memResult.ok) {
+      console.warn("[ai-chat] saveTurnMemory 실패:", memResult.error);
+    }
+  } catch (err) {
+    console.warn(
+      "[ai-chat] saveTurnMemory 예외:",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   // Phase C-2: 응답 메시지의 tool 결과 → artifact upsert (best-effort).
@@ -286,6 +308,27 @@ export async function getConversationOrigin(
   const origin = (data as unknown as { origin: AIConversationOrigin | null })
     .origin;
   return origin ?? null;
+}
+
+/**
+ * 대화의 현재 subject_student_id 조회.
+ * route.ts 전단 기억 검색 필터 + saveChatTurn 인자 전달용.
+ * 원본 값 보존(upsert 로 null 덮어쓰기 방지)이 목적이므로 RLS owner 만 읽을 수 있으면 충분.
+ */
+export async function getConversationSubjectStudentId(
+  conversationId: string,
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("ai_conversations")
+    .select("subject_student_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (
+    (data as unknown as { subject_student_id: string | null })
+      .subject_student_id ?? null
+  );
 }
 
 /**
