@@ -169,15 +169,17 @@
 
 **목표**: 빅테크가 못 하는 교육 특화. 차별화 지점.
 
-| # | 작업 | 난이도 | 시간 |
-|---|------|--------|------|
-| E-1 | 추가 tool 5종 (createPlan, findGuide, analyzeRecord, listStudents, scheduleMeeting) | Med | 2w |
-| E-2 | Persona 라우터 분리 (`/api/chat/student` vs `/admin/consultant`) | Med | 1w |
-| E-3 | Multi-student 컨설턴트 Workspace (학생 비교 아티팩트) | High | 2w |
-| E-4 | Sensitivity 표시 (성적·생기부 공유 경고) | Low | 3d |
-| E-5 | Background agent (성적 변동·출결 이상 감지 선제 알림) | High | 1w |
-| E-6 | Voice 입력 (Web Speech API, 학생용) | Med | 3d |
-| E-7 | 3자 대화 (학생·학부모·컨설턴트 shared thread) | High | 2w |
+| # | 작업 | 난이도 | 시간 | 상태 |
+|---|------|--------|------|------|
+| E-1 | 추가 tool (`listStudents`·`findGuide`·`createPlan`·`scheduleMeeting`) — `analyzeRecord` 는 이미 Shell MCP 등록됨(중복, 제외) | Med | 6~7d | 🟡 S-1 2/2 ✅ (`e5dd90d8`·`f1c78fa1`) / S-2 HITL 2종 대기 |
+| E-2 | Persona 라우터 분리 (`/api/chat/student` vs `/admin/consultant`) | Med | 1w | ❌ |
+| E-3 | Multi-student 컨설턴트 Workspace (학생 비교 아티팩트) | High | 2w | ❌ |
+| E-4 | Sensitivity 표시 (성적·생기부 공유 경고) | Low | 3d | ❌ |
+| E-5 | Background agent (성적 변동·출결 이상 감지 선제 알림) | High | 1w | ❌ |
+| E-6 | Voice 입력 (Web Speech API, 학생용) | Med | 3d | ❌ |
+| E-7 | 3자 대화 (학생·학부모·컨설턴트 shared thread) | High | 2w | ❌ |
+
+**E-1 설계 근거**: [phase-e1-tool-expansion-brief.md](../.claude/memory/phase-e1-tool-expansion-brief.md)
 
 **산출**: 교육 도메인에서 ChatGPT가 못 하는 것을 제공. 도메인 확립.
 
