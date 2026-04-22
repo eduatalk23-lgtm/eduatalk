@@ -131,35 +131,35 @@
 
 ---
 
-## Phase C (1개월) — MCP + 고급 Artifact
+## Phase C (1개월) — MCP + 고급 Artifact ✅ 완료 (2026-04-21)
 
 **목표**: 외부 AI 생태계 플러그인 가능. Artifact 본격화. **전환 유형 D** 완성 지점.
 
 | # | 작업 | 난이도 | 시간 | 비고 |
 |---|------|--------|------|------|
-| C-1 | MCP 서버 래핑 (`@modelcontextprotocol/sdk`) + Streamable HTTP | High | 1w | |
-| C-2 | Artifact 버전 관리 (`artifacts` 테이블 + 버전 탭) | High | 1w | |
-| C-3 | Artifact Canvas 편집 (성적 수정 / 플랜 편집) | High | 1w | **전환 유형 D** — Sprint 1 스냅샷 편집 ✅ / Sprint 2 HITL writeback / Sprint 3 type 확장 |
-| C-3 S1 | Artifact 스냅샷 편집 + 버전 저장 (what-if) | — | ✅ | `54d64c47` |
-| C-3 S2 | HITL writeback — LLM 자율 tool + InlineConfirm + 서버 액션 | — | 2~3d | `archiveConversation` 패턴 복제. 마이그 0. `feedback_llm-writeback-hitl-required.md` |
-| C-3 S3 | plan/analysis/blueprint 렌더러 편집 지원 | — | 미정 | |
-| C-4 | Citation + sources 패널 | Med | 3d | |
+| C-1 | MCP 서버 래핑 (`@modelcontextprotocol/sdk`) + Streamable HTTP | High | 1w | **Phase F 로 이관·세분화** (F-1~F-3). 2026-04-18 결정. |
+| C-2 | Artifact 버전 관리 (`artifacts` 테이블 + 버전 탭) | High | ✅ | `4378dc3b` (04-20 M) |
+| C-3 | Artifact Canvas 편집 (성적 수정 / 플랜 편집) | High | ✅ | **전환 유형 D** — 3 Sprint 전부 완결 |
+| C-3 S1 | Artifact 스냅샷 편집 + 버전 저장 (what-if) | — | ✅ | `54d64c47` (04-20 P) |
+| C-3 S2 | HITL writeback — LLM 자율 tool + InlineConfirm + 서버 액션 | — | ✅ | `51ce1a24` (04-20 Q). `archiveConversation` 패턴 복제. `feedback_llm-writeback-hitl-required.md` |
+| C-3 S3 | plan/analysis/blueprint 렌더러 편집 지원 | — | ✅ | `ff85c572`/`e08d9502`/`df608626`/`bb847efe` (04-21 A). `plan_status='rejected'` 값 추가 포함 |
+| C-4 | Citation + sources 패널 | Med | ✅ | `a0e2f8c2` extractor + `c6af80c9` pill UI (04-21 A/B) |
 
 **산출**: Claude Desktop·Cursor 등 외부 AI가 에듀엣톡 tool 호출. ChatGPT Canvas 수준 아티팩트. Phase T에서 시작된 전환 축의 최종 완성(D).
 
 ---
 
-## Phase D (1개월) — Agent + Memory (Gen 4 진입)
+## Phase D (1개월) — Agent + Memory (Gen 4 진입) ✅ 완료 (2026-04-22)
 
 **목표**: 상주·기억. 세션을 넘는 정체성.
 
-| # | 작업 | 난이도 | 시간 |
-|---|------|--------|------|
-| D-1 | Agent 추상화 (`ToolLoopAgent`) 도입 + multi-step | High | 4d |
-| D-2 | Agent Status Bar (하단 live tool 실행 표시) | Low | 2d |
-| D-3 | Memory Panel (ChatGPT Memory 스타일, 편집 가능) | Med | 4d |
-| D-4 | mem0 OSS + Supabase pgvector 장기 기억 | High | 2w |
-| D-5 | Resumable streaming (Upstash Redis + @vercel/kv) | Low | 2d |
+| # | 작업 | 난이도 | 시간 | 비고 |
+|---|------|--------|------|------|
+| D-1 | Agent 추상화 (`ToolLoopAgent`) 도입 + multi-step | High | ✅ | 4 Sprint (04-22 C~D): S1 뼈대+스키마 추출기(`12cd1149`) / S2 subagentRunner(`e568de6a`) / S3 agent/route(`ed290f30`) / S4 chat/route(`9b3fcb5f`) |
+| D-2 | Agent Status Bar (하단 live tool 실행 표시) | Low | ✅ | `9b3afa43` (04-22 E). UIMessage parts + extractAgentStatus. 14 tool 한국어 라벨 |
+| D-3 | Memory Panel (ChatGPT Memory 스타일, 편집 가능) | Med | ✅ | S1 읽기 `9d3c28dd` (04-22 H) + S2 편집/삭제/pin/필터 4 커밋 `b56c6e3f`→`17eb6748` (04-22 I) |
+| D-4 | mem0 OSS + Supabase pgvector 장기 기억 | High | ✅ | 3 Sprint (04-22 C~F): S1 기초(`c2cbf3fc`) / S2 자동 적재·주입(`e82e9d2b`) / S3 자동 요약(`f552bc35`) |
+| D-5 | Resumable streaming (Upstash Redis + @vercel/kv) | Low | ✅ | `331c8d21` (04-22 G). consumeSseStream + `after()` tee + `/api/chat/<id>/stream` GET + useChat.resumeStream() |
 
 **산출**: "3년 기억하는 AI 컨설턴트" 기반. Gen 4 진입.
 
@@ -210,29 +210,27 @@
 
 **배경 (2026-04-19 재편)**: 선두 6 서비스(Claude Code·Claude.ai·ChatGPT·Cursor·LangGraph·MS Copilot) 전부 단일 UI + Agent-as-Tool 수렴. 사용자 요구로 Phase G를 **D/E 이전으로 상향**. Domain Agent 49 tool flat 구조 → 3 서브에이전트(실측 56 tool) 계층화 + `/admin/agent` 격하. 동시에 실사용 trace를 golden set으로 자동 편입하는 **AI factory 개선 루프**도 이 Phase에서.
 
-### Sprint 구조 (04-19 신설)
+### Sprint 구조 (04-19 신설) — ✅ S-0~S-3 전부 완결 (04-20)
 
-**핵심 전환 4 스프린트**:
-
-| Sprint | 내용 | 기간 | 의존 |
-|--------|------|------|------|
-| **S-0** 설계·합의 | 56 tool 인벤토리 ✅ · 3 서브에이전트 경계안 ✅ · 호출 규약 문서 ✅ · 로드맵 재편 ✅ | 1~2d | — |
-| **S-1** record-sub 구현 | 24 tool 묶음. Shell MCP 에 `analyzeRecordDeep`·`designBlueprint` 등 상위 tool 로 등록. 컨텍스트 격리 + 요약 반환 | 3~4d | S-0 |
-| **S-2** UI 통합 | Shell 에 서브에이전트 진행 표시(Claude Code Task tool 스타일 타임라인). admin-only tool role 가드. `/admin/agent` 를 debug/trace 전용으로 격하 | 2d | S-1 |
-| **S-3** plan-sub + admission-sub + 폴리싱 | 나머지 27 tool 두 서브에 분산 이관. agent_sessions 와 Shell 대화 연동. 실측 회귀 수정 | 3~4d | S-2 |
+| Sprint | 내용 | 기간 | 의존 | 커밋 |
+|--------|------|------|------|------|
+| **S-0** 설계·합의 | 56 tool 인벤토리 + 3 서브에이전트 경계안 + 호출 규약 + 로드맵 재편 | 1~2d | — | ✅ `2a811f28` |
+| **S-1** record-sub 구현 | 24 tool 묶음. Shell MCP 에 `analyzeRecordDeep`·`designBlueprint` 등 상위 tool 로 등록. 컨텍스트 격리 + 요약 반환 | 3~4d | S-0 | ✅ `544f3606` (04-20 I) |
+| **S-2** UI 통합 | Shell 에 서브에이전트 진행 표시 + Layer 1 가드 + trace 배너. admin-only tool role 가드. `/admin/agent` 를 debug/trace 전용으로 격하 | 2d | S-1 | ✅ `d2738897` (04-20 J) |
+| **S-3** plan-sub + admission-sub + 폴리싱 | 나머지 27 tool 두 서브에 분산 이관. 11 tool 체제(직속 8 + 서브 3) 완성 | 3~4d | S-2 | ✅ `2e947224` (04-20 J) |
 
 **후속 G 항목** (Auto-improve 루프):
 
 | # | 작업 | 난이도 | 시간 | 비고 |
 |---|------|--------|------|------|
-| G-3 | Observability 표준화 — `agent_step_traces` → OTEL span 매핑 (옵션: Langfuse 연동) | Med | 3d | 선두는 Langfuse/LangSmith 상용 |
-| G-4 | Trace → Golden set 자동 편입 파이프라인 — 주간 cron 실사용 trace 샘플링 → eval 후보 제안 | Med | 3d | F3 CI 워크플로우 확장 |
-| G-5 | Auto-regression 리포트 — 주간 PR 코멘트: 신규 golden 추가분 대비 현재 통과율 | Low | 2d | |
-| G-6 | Multi-tenant agent isolation — tenant별 agent 인스턴스 분리 (Harvey/Glean 패턴) | High | 1w | 장기 스케일 대비 |
+| G-3 | Observability 표준화 — `agent_step_traces` → OTEL span 매핑 (옵션: Langfuse 연동) | Med | ✅ | `eb843aef` (04-20 K). `gen_ai.*` 표준 속성. exporter 스켈레톤 |
+| G-4 | Trace → Golden set 자동 편입 파이프라인 — 주간 cron 실사용 trace 샘플링 → eval 후보 제안 | Med | 3d | 🔶 **미착수**. 실사용 trace 누적 선행 |
+| G-5 | Auto-regression 리포트 — 주간 PR 코멘트: 신규 golden 추가분 대비 현재 통과율 | Low | 2d | 🔶 **미착수**. G-4 의존 |
+| G-6 | Multi-tenant agent isolation — tenant별 agent 인스턴스 분리 (Harvey/Glean 패턴) | High | 1w | ✅ Sprint 1~4 전부 완결. DELETE RLS + AgentContext.tenantId 필수 + 54 tool 감사 + OTel child tenant_id + artifactApply 2중 검증 + superadmin = Option A(내부 관리자 cross-tenant). 04-21 B/C + 04-22 A |
 
 **산출**: Shell vs Agent UI 분리 해소(Cursor 2.0 merge 동등). 선두 6 패턴 전부 완비. "AI factory 자동 개선 루프" 가동.
 
-**의존성**: Phase F 완료 후. Phase C/D/E는 G 완료 이후로 재배치.
+**의존성**: Phase F 완료 후. G-4/G-5 만 실사용 trace 누적 대기 (코드 블로커 없음).
 
 ---
 
@@ -285,22 +283,28 @@
 
 ---
 
-## 타임라인 요약 (**04-19 재편**)
+## 타임라인 요약 (**04-22 재갱신 · 실측**)
 
 ```
-Week 1-2   │ Phase A ✅          │ ChatGPT 수준 도달 (2026-04-17 완료)
+Week 1-2   │ Phase A ✅          │ ChatGPT 수준 도달 (2026-04-17)
 Week 3-4   │ Phase T ✅          │ GUI↔내러티브 전환 브리지 (v0 + v1 #2/#3)
-Week 5-7   │ Phase B ✅          │ 2026 표준 완성
+Week 5-7   │ Phase B ✅          │ 2026 표준 완성 (04-18)
 Week 8-9   │ Phase F ✅          │ MCP 중심화 + Tier Routing v0 (04-18~19)
-Week 10-11 │ Phase G 스프린트 🔥 │ Agent-as-Tool 통합 UI (S-0~S-3, 2주 집중)
-Week 12-14 │ Phase G 후속        │ Observability/OTEL + Auto-improve 루프
-Week 15-18 │ Phase C (+D 유형)   │ Artifact Canvas 편집
-Week 19-26 │ Phase D + E         │ Memory(Gen 4) + L3 도메인 차별화
+Week 10    │ Phase G S-0~S-3 ✅  │ Agent-as-Tool 통합 UI (04-20 I~J)
+Week 10    │ Phase G G-3 ✅      │ OTel span 매핑 (04-20 K)
+Week 10    │ Phase C-2/C-3 ✅    │ Artifact 버전 + Canvas 편집 3 Sprint (04-20 M~Q)
+Week 11    │ Phase C-4 ✅        │ Citation pill + 패널 resolve (04-21 A~B)
+Week 11    │ Phase G G-6 ✅      │ Multi-tenant agent isolation 4 Sprint (04-21 B~04-22 A)
+Week 12    │ Phase D 6/6 ✅      │ ToolLoopAgent + Status Bar + Memory + mem0 + Resume (04-22 B~I)
+Week 13+   │ Phase E (북극성)    │ L3 도메인 차별화 — E-1~E-7 (미착수)
+Week 13+   │ Phase G G-4/G-5     │ Trace→Golden cron + Auto-regression (실사용 trace 누적 대기)
 ```
 
 **6개월 후 목표**: 에듀엣톡 = 교육 도메인 Gen 4 AI 파트너. 빅테크 L1/L2 표준 + **GUI↔내러티브 전환 축** + **단일 Shell + Agent-as-Tool 통합 UI** + 교육 L3 독점.
 
-**04-19 변경점**: Phase G를 D/E 이전으로 상향(업계 수렴 UI 반영). Phase C(Artifact Canvas)는 G 완료 후 자연 통합.
+**04-22 상태**: **5 Phase (A·T·B·F·G 주력·C·D) 전부 완결**. 잔여 = Phase E (신규 진입) + G-4/G-5 (외부 대기).
+
+**04-19 변경점**: Phase G를 D/E 이전으로 상향(업계 수렴 UI 반영). Phase C(Artifact Canvas)는 G 병행으로 완료.
 
 ---
 
@@ -330,3 +334,15 @@ Week 19-26 │ Phase D + E         │ Memory(Gen 4) + L3 도메인 차별화
   - S-0-a 실측: 49 tool 가정 → **56 tool** 전수 확인. 3 서브에이전트(record-sub 24 / plan-sub 5 / admission-sub 22) + Shell 직속 8 경계안 확정
   - 04-18 "판단 기준 4-step(Shell vs Agent 이분)" 폐기. 새 판단 기준은 노출 role·long-running·도메인 축·컨텍스트 크기 4축
   - 관련 메모리: `mcp-elicitation-deferred.md`, `mcp-external-client-deferred.md`
+- **2026-04-20 (Phase G S-1~S-3 + G-3 + Phase C-2/C-3 전부 완주)**:
+  - G Sprint 시리즈 04-20 단일 주에 압축 완주: S-1 record-sub(`544f3606`) → S-2 UI 통합·Layer 1 가드·trace 배너(`d2738897`) → S-3 plan-sub+admission-sub(`2e947224`). **11 tool 체제(직속 8 + 서브 3) 확정**
+  - G-3 OTel span 매핑(`eb843aef`) — `gen_ai.*` 표준 속성 19 검증 테스트. exporter 스켈레톤
+  - Phase C-2 Artifact 버전 관리(`4378dc3b`) — 2 테이블 + API + UI 버전 탭
+  - Phase C-3 S1~S2 완결: S1 스냅샷 편집(`54d64c47`) → **자율 에이전트 우려 리서치 → execute-less tool + InlineConfirm HITL 표준 채택** → S2 writeback(`51ce1a24`). 메모리 `feedback_llm-writeback-hitl-required.md` 신설
+  - 관련 메모리: `session-handoff-2026-04-20-{i,j,k,l,o,q}.md`
+- **2026-04-21~22 (Phase C-3 S3 + C-4 + G-6 4 Sprint + Phase D 6/6)**:
+  - **C 완결**: C-3 S3 plan/analysis/blueprint 렌더러 편집(4 커밋, 04-21 A) · C-4 citation extractor+pill(`a0e2f8c2`/`c6af80c9`, 04-21 A~B)
+  - **G-6 Multi-tenant isolation 4 Sprint 완결**: S1 DELETE RLS · S2 AgentContext.tenantId 필수+54 tool 감사 · S3 OTel child span tenant_id + applyArtifactEdit 2중 검증 · **S4 superadmin = Option A (내부 관리자 cross-tenant 확정)**. resolveStudent 분기 + CLAUDE.md Multi-tenant Role Model 섹션. 04-21 B~04-22 A
+  - **Phase D 6/6 완결** (04-22 B~I): D-1 ToolLoopAgent 4 Sprint(뼈대→subagentRunner→agent/route→chat/route) · D-2 Agent Status Bar(UIMessage parts extractor) · D-3 Memory Panel(S1 읽기 + S2 편집·Pin·삭제·필터 5 커밋) · D-4 mem0+pgvector 3 Sprint(기초→자동 적재주입→자동 요약) · D-5 Resumable streaming(`after()` tee + Upstash RPUSH + resumeStream)
+  - **잔여** = Phase E (미착수, 북극성) + G-4/G-5 (실사용 trace 누적 대기)
+  - 관련 메모리: `superadmin-option-a-decision.md`, `session-handoff-2026-04-22-{a,b,c,d,e,f,g,h,i}.md`
