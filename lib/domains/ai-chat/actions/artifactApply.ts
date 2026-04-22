@@ -55,12 +55,12 @@ export type ApplyArtifactEditOutput =
 
 // ─── Zod schemas (Sprint 3) ─────────────────────────────────────────────────
 
-export const applyArtifactEditInputSchema = z.object({
+const applyArtifactEditInputSchema = z.object({
   artifactId: z.string().uuid("artifactId 가 UUID 형식이 아닙니다."),
   versionNo: z.number().int().positive().optional(),
 });
 
-export type ApplyArtifactEditInput = z.infer<typeof applyArtifactEditInputSchema>;
+type ApplyArtifactEditInput = z.infer<typeof applyArtifactEditInputSchema>;
 
 /**
  * scores artifact 의 props.rows 런타임 shape 검증.
