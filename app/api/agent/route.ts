@@ -3,17 +3,18 @@
 // POST /api/agent
 // ============================================
 
-import { streamText, stepCountIs, convertToModelMessages } from "ai";
+import { convertToModelMessages, type streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createOrchestrator } from "@/lib/agents/orchestrator";
 import type { AgentContext } from "@/lib/agents/types";
 import { geminiRateLimiter, geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
-import { isRateLimitError, isOverloadError, isRetryableError } from "@/lib/domains/plan/llm/ai-sdk";
+import { isRetryableError } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
-import { logAgentSession, hashSystemPrompt, type StepTrace } from "@/lib/agents/session-logger";
+import { logAgentSession, hashSystemPrompt } from "@/lib/agents/session-logger";
 import { extractCaseFromTraces, saveCaseToDb } from "@/lib/agents/memory/case-extractor";
+import { runStreamToolLoop } from "@/lib/agents/tool-loop-agent/stream-agent";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel Hobby 최대
@@ -158,11 +159,7 @@ async function _handlePost(req: Request) {
     // 7. UIMessages → ModelMessages 변환
     const modelMessages = await convertToModelMessages(messages);
 
-    // 8. 세션 트레이스 수집
-    const stepTraces: StepTrace[] = [];
-    let stepStartTime = Date.now();
-
-    // 9. 모델 fallback 체인 (Flash → Pro)
+    // 8. 모델 fallback 체인 (Flash → Pro)
     // Flash 1순위: 안정적이고 빠름. Pro는 preview 모델이라 응답 없이 hang 가능.
     // streamText는 즉시 반환 → 스트림 hang 시 fallback 불가하므로 안정 모델 우선.
     const AGENT_MODEL_CHAIN = [
@@ -170,91 +167,69 @@ async function _handlePost(req: Request) {
       { id: "gemini-3.1-pro-preview", maxSteps: 16, maxTokens: 16384, temp: 0.4 },
     ] as const;
 
-    // 10. 모델 fallback + Rate-limited streamText
-    let result: Awaited<ReturnType<typeof streamText>> | null = null;
+    // 9. 모델 fallback + Rate-limited runStreamToolLoop
+    //    loop 내부(stopWhen/onStepFinish/stepTrace 수집/토큰 추출)는 공용 헬퍼가 담당.
+    //    본 파일은 fallback chain + geminiRateLimiter + onFinish side-effect(logAgentSession·saveCaseToDb) 만 책임.
+    let result: ReturnType<typeof streamText> | null = null;
     let selectedModel = AGENT_MODEL_CHAIN[0];
 
     for (const candidate of AGENT_MODEL_CHAIN) {
       try {
         result = await geminiRateLimiter.execute(async () => {
-          return streamText({
-            model: google(candidate.id),
-            system: systemPrompt,
-            messages: modelMessages,
-            tools,
-            stopWhen: stepCountIs(candidate.maxSteps),
-            maxOutputTokens: candidate.maxTokens,
-            temperature: candidate.temp,
-            maxRetries: 1, // 재시도 1회로 제한 (기본 3회 → 타임아웃 방지)
-            // 클라이언트 중단(req.signal) + 55초 안전 타임아웃 결합
-            // Vercel maxDuration 60초 전에 정리되도록 5초 여유
-            abortSignal: AbortSignal.any([req.signal, AbortSignal.timeout(55_000)]),
-            onStepFinish: ({ toolCalls, toolResults, text }) => {
-              const now = Date.now();
-              const elapsed = now - stepStartTime;
-              stepStartTime = now;
-
-              if (toolCalls && toolCalls.length > 0) {
-                for (let i = 0; i < toolCalls.length; i++) {
-                  const call = toolCalls[i];
-                  const toolResult = toolResults?.[i];
-                  const isThink = call.toolName === "think";
-                  stepTraces.push({
-                    stepIndex: stepTraces.length,
-                    stepType: isThink ? "think" : "tool-call",
-                    toolName: call.toolName,
-                    toolInput: call.args,
-                    toolOutput: toolResult?.result,
-                    reasoning: isThink ? (call.args as { analysis?: string })?.analysis : undefined,
-                    durationMs: i === 0 ? elapsed : undefined,
-                  });
-                }
-              } else if (text) {
-                stepTraces.push({
-                  stepIndex: stepTraces.length,
-                  stepType: "text",
-                  textContent: text,
-                  durationMs: elapsed,
-                });
-              }
-            },
-            onFinish: async ({ usage, finishReason }) => {
-              const promptHash = await hashSystemPrompt(systemPrompt).catch(() => undefined);
-              logAgentSession({
-                sessionId,
-                tenantId,
-                userId,
-                studentId,
-                modelId: candidate.id,
-                systemPromptHash: promptHash,
-                totalSteps: stepTraces.length,
-                totalInputTokens: usage?.promptTokens ?? 0,
-                totalOutputTokens: usage?.completionTokens ?? 0,
-                durationMs: Date.now() - startTime,
-                stopReason: finishReason,
+          return runStreamToolLoop(
+            {
+              model: google(candidate.id),
+              systemPrompt,
+              maxSteps: candidate.maxSteps,
+              maxOutputTokens: candidate.maxTokens,
+              temperature: candidate.temp,
+              // 클라이언트 중단(req.signal) + 55초 안전 타임아웃 결합
+              // Vercel maxDuration 60초 전에 정리되도록 5초 여유
+              abortSignal: AbortSignal.any([req.signal, AbortSignal.timeout(55_000)]),
+              onFinish: async ({
                 stepTraces,
-              }).catch(() => {});
-
-              const extracted = extractCaseFromTraces(stepTraces);
-              if (extracted) {
-                saveCaseToDb({
-                  tenantId,
+                inputTokens,
+                outputTokens,
+                finishReason,
+              }) => {
+                const promptHash = await hashSystemPrompt(systemPrompt).catch(() => undefined);
+                logAgentSession({
                   sessionId,
-                  studentGrade: studentGrade ?? undefined,
-                  schoolCategory: schoolCategory ?? undefined,
-                  targetMajor: targetMajor ?? undefined,
-                  curriculumRevision: curriculumRevision ?? undefined,
-                  ...extracted,
+                  tenantId,
+                  userId,
+                  studentId,
+                  modelId: candidate.id,
+                  systemPromptHash: promptHash,
+                  totalSteps: stepTraces.length,
+                  totalInputTokens: inputTokens,
+                  totalOutputTokens: outputTokens,
+                  durationMs: Date.now() - startTime,
+                  stopReason: finishReason,
+                  stepTraces,
                 }).catch(() => {});
-              }
+
+                const extracted = extractCaseFromTraces(stepTraces);
+                if (extracted) {
+                  saveCaseToDb({
+                    tenantId,
+                    sessionId,
+                    studentGrade: studentGrade ?? undefined,
+                    schoolCategory: schoolCategory ?? undefined,
+                    targetMajor: targetMajor ?? undefined,
+                    curriculumRevision: curriculumRevision ?? undefined,
+                    ...extracted,
+                  }).catch(() => {});
+                }
+              },
+              onError: (error) => {
+                logActionError(
+                  "agent.stream",
+                  error instanceof Error ? error.message : String(error),
+                );
+              },
             },
-            onError: ({ error }) => {
-              logActionError(
-                "agent.stream",
-                error instanceof Error ? error.message : String(error),
-              );
-            },
-          });
+            { messages: modelMessages, tools },
+          );
         });
         selectedModel = candidate;
         logActionDebug("agent.api", `선택 모델: ${candidate.id}`);
