@@ -1,11 +1,10 @@
 import {
   convertToModelMessages,
-  stepCountIs,
-  streamText,
   tool,
   type UIMessage,
 } from "ai";
 import { ollama } from "ai-sdk-ollama";
+import { runStreamToolLoop } from "@/lib/agents/tool-loop-agent/stream-agent";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getStudentById } from "@/lib/data/students";
@@ -388,22 +387,31 @@ export async function POST(req: Request) {
     ...buildApplyArtifactEditTool(),
   };
 
-  const result = streamText({
-    model: ollama(modelName, {
-      // Gemma 4 thinking 비활성화 — OllamaChatSettings top-level (options 아님)
-      // E2B/E4B 완전 비활성화. 단순 질문에도 내부 reasoning 수백 토큰 생성하던 문제 해결.
-      think: false,
-      options: {
-        num_ctx: 8192,
-        num_predict: 500,
-        num_keep: 256,
-      },
-    }),
-    system: `${STATIC_SYSTEM_PREFIX}\n\n${dynamicSuffix}`,
-    messages: await convertToModelMessages(messages),
-    tools,
-    stopWhen: stepCountIs(2),
-  });
+  // D-1 Sprint 4: ToolLoopAgent 스트림 헬퍼 흡수.
+  // HITL(execute-less archiveConversation·applyArtifactEdit) 는 AI SDK 내부에서
+  // state='input-available' 로 yield 되므로 래퍼 수준에서 특별 처리 불필요.
+  // stepTrace 는 수집되지만 소비자 없으면 GC — 향후 observability 훅 대기.
+  // maxRetries 는 helper 기본 1 (agent route 와 일관. Vercel 60s 안전).
+  const result = runStreamToolLoop(
+    {
+      model: ollama(modelName, {
+        // Gemma 4 thinking 비활성화 — OllamaChatSettings top-level (options 아님)
+        // E2B/E4B 완전 비활성화. 단순 질문에도 내부 reasoning 수백 토큰 생성하던 문제 해결.
+        think: false,
+        options: {
+          num_ctx: 8192,
+          num_predict: 500,
+          num_keep: 256,
+        },
+      }),
+      systemPrompt: `${STATIC_SYSTEM_PREFIX}\n\n${dynamicSuffix}`,
+      maxSteps: 2,
+    },
+    {
+      messages: await convertToModelMessages(messages),
+      tools,
+    },
+  );
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
