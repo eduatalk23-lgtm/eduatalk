@@ -6,7 +6,7 @@
  * 프롬프트 인젝션으로 tool name 을 추측해 호출을 시도하는 경로를 원천 차단.
  *
  * 현재 admin 전용 tool: analyzeRecordDeep (record-sub), designStudentPlan (plan-sub),
- * analyzeAdmission (admission-sub), getBlueprint.
+ * analyzeAdmission (admission-sub), getBlueprint, listStudents (Phase E-1 S-1).
  *
  * G-6 Sprint 4 Option A: superadmin 은 admin-like 에 포함. eduatalk 운영사 내부
  * 관리자로서 cross-tenant 조회 가능(tenantId=null). `resolveStudentTarget` 에서
@@ -28,6 +28,7 @@ export const ADMIN_ONLY_TOOL_NAMES = new Set<string>([
   "designStudentPlan",
   "analyzeAdmission",
   "getBlueprint",
+  "listStudents",
 ]);
 
 export function isAdminLikeRole(role: McpUserRole): boolean {
