@@ -31,16 +31,14 @@ import {
 import { getAchievementScale } from "@/lib/domains/score/validation";
 import type { ScoreRow } from "@/lib/mcp/tools/getScores";
 import type { PlanRow } from "@/lib/mcp/tools/designStudentPlan";
-import type {
-  BlueprintTierProps,
-  BlueprintTiers,
-} from "@/lib/mcp/tools/getBlueprint";
+import type { BlueprintTierProps } from "@/lib/mcp/tools/getBlueprint";
 import {
   getMainExplorationById,
   createMainExploration,
   type MainExplorationTierEntry,
   type MainExplorationTierPlan,
 } from "@/lib/domains/student-record/repository/main-exploration-repository";
+import { isAdminLikeRole } from "@/lib/mcp/tools/_shared/roleFilter";
 
 export type ApplyArtifactEditOutput =
   | {
@@ -57,10 +55,8 @@ export type ApplyArtifactEditOutput =
 
 // ─── Zod schemas (Sprint 3) ─────────────────────────────────────────────────
 
-const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
 export const applyArtifactEditInputSchema = z.object({
-  artifactId: z.string().regex(UUID_RE, "artifactId 가 UUID 형식이 아닙니다."),
+  artifactId: z.string().uuid("artifactId 가 UUID 형식이 아닙니다."),
   versionNo: z.number().int().positive().optional(),
 });
 
@@ -97,7 +93,7 @@ type ArtifactVersionProps = {
  * student_course_plans 를 찾아 plan_status 만 writeback (현 스프린트 범위).
  */
 const planRowSchema: z.ZodType<PlanRow> = z.object({
-  id: z.string().regex(UUID_RE, "row id 가 UUID 형식이 아닙니다."),
+  id: z.string().uuid("row id 가 UUID 형식이 아닙니다."),
   subjectId: z.string(),
   subjectName: z.string(),
   grade: z.number().int().min(1).max(3),
@@ -133,8 +129,8 @@ const tierPropsSchema: z.ZodType<BlueprintTierProps> = z.object({
 });
 
 const blueprintPropsSchema = z.object({
-  mainExplorationId: z.string().regex(UUID_RE, "mainExplorationId UUID 형식 오류"),
-  studentId: z.string().regex(UUID_RE),
+  mainExplorationId: z.string().uuid("mainExplorationId UUID 형식 오류"),
+  studentId: z.string().uuid(),
   tiers: z.object({
     foundational: tierPropsSchema,
     development: tierPropsSchema,
@@ -155,7 +151,6 @@ const FUTURE_TYPES = new Set<string>(["analysis"]);
 export async function applyArtifactEdit(
   input: ApplyArtifactEditInput,
 ): Promise<ApplyArtifactEditOutput> {
-  // 0) Sprint 3: 입력 런타임 검증.
   const parsedInput = applyArtifactEditInputSchema.safeParse(input);
   if (!parsedInput.success) {
     return {
@@ -177,7 +172,7 @@ export async function applyArtifactEdit(
 
   const supabase = await createSupabaseServerClient();
 
-  // 1) artifact 로드 (RLS — 접근 불가면 not found).
+  // RLS 로 접근 불가면 not found 로 처리.
   const artifactRes = await supabase
     .from("ai_artifacts")
     .select("id, type, tenant_id, owner_user_id, latest_version")
@@ -197,7 +192,6 @@ export async function applyArtifactEdit(
     };
   }
 
-  // Sprint 3: type dispatch — 현재 'scores' 만 지원. 향후 type 은 명확한 안내.
   const artifactType = artifactRes.data.type;
   if (!SUPPORTED_TYPES.has(artifactType)) {
     if (FUTURE_TYPES.has(artifactType)) {
@@ -211,7 +205,6 @@ export async function applyArtifactEdit(
 
   const versionNo = validatedInput.versionNo ?? artifactRes.data.latest_version;
 
-  // 2) 해당 버전 props 로드. (공통)
   const versionRes = await supabase
     .from("ai_artifact_versions")
     .select("props, version_no")
@@ -222,7 +215,7 @@ export async function applyArtifactEdit(
     return { ok: false, reason: `v${versionNo} 을 찾을 수 없습니다.` };
   }
 
-  // Sprint P2: plan type 은 별도 handler 로 분기 (props shape 다름).
+  // plan/blueprint 은 props shape 이 달라 별도 handler 로 분기.
   if (artifactType === "plan") {
     return handlePlanApply({
       supabase,
@@ -234,7 +227,6 @@ export async function applyArtifactEdit(
     });
   }
 
-  // Sprint G4: blueprint type.
   if (artifactType === "blueprint") {
     return handleBlueprintApply({
       supabase,
@@ -246,7 +238,6 @@ export async function applyArtifactEdit(
     });
   }
 
-  // Sprint 3: props.rows 런타임 shape 검증.
   const rawProps = versionRes.data.props as ArtifactVersionProps | null;
   const propsParse = scoresPropsSchema.safeParse(rawProps);
   if (!propsParse.success) {
@@ -261,7 +252,7 @@ export async function applyArtifactEdit(
   }
   const rows = propsParse.data.rows;
 
-  // 3) 각 row 에 DB id 존재 여부 확인 — 없으면 C-2 이전 artifact 로 간주.
+  // row.id 누락은 C-2 이전 artifact — 원본 DB 적용 경로 없음.
   const rowsWithId = rows.filter((r): r is ScoreRow & { id: string } =>
     typeof r.id === "string" && r.id.length > 0,
   );
@@ -272,7 +263,7 @@ export async function applyArtifactEdit(
     };
   }
 
-  // 4) DB 원본 조회 — 권한 체크 위해 student_id · tenant_id 포함.
+  // student_id · tenant_id 는 아래 권한 체크에 필요.
   const ids = rowsWithId.map((r) => r.id);
   const existingRes = await supabase
     .from("student_internal_scores")
@@ -290,11 +281,7 @@ export async function applyArtifactEdit(
     (existingRes.data ?? []).map((e) => [e.id, e] as const),
   );
 
-  // 5) 권한 필터 + diff 계산.
-  const isAdminLike =
-    user.role === "admin" ||
-    user.role === "consultant" ||
-    user.role === "superadmin";
+  const isAdminLike = isAdminLikeRole(user.role);
 
   const meta = await fetchComputationMetaForRows(
     supabase,
@@ -370,12 +357,11 @@ export async function applyArtifactEdit(
     // admin/consultant/superadmin 만 허용). 학생 본인 수정은 별도 자취 없음
     // (기존 updateInternalScore 와 동일 정책).
     if (isAdminLike) {
-      void recordAuditLog({
+      recordHitlAudit({
+        user,
         tenantId: existing.tenant_id ?? tenantId,
-        actorId: user.userId,
-        actorRole: toAuditActorRole(user.role),
-        actorEmail: user.email ?? null,
-        action: "update",
+        artifactId: validatedInput.artifactId,
+        versionNo,
         resourceType: "score",
         resourceId: existing.id,
         oldData: {
@@ -385,11 +371,6 @@ export async function applyArtifactEdit(
         newData: {
           raw_score: nextRaw,
           rank_grade: nextRank,
-        },
-        metadata: {
-          via: "ai-chat-hitl",
-          artifactId: validatedInput.artifactId,
-          versionNo,
         },
       });
     }
@@ -405,7 +386,7 @@ export async function applyArtifactEdit(
     };
   }
 
-  // 6) risk index 비동기 재계산 (학생별 1회).
+  // 학생별 1회만 재계산하고 실패는 무시 (fire-and-forget).
   for (const studentId of affectedStudents) {
     recalculateRiskIndex({ studentId, tenantId }).catch(() => {
       // 비동기 실패는 메인 결과에 영향 없음.
@@ -623,6 +604,45 @@ function toAuditActorRole(role: string | null | undefined): AuditActorRole {
   return "admin";
 }
 
+type HitlUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+function recordHitlAudit(params: {
+  user: HitlUser;
+  tenantId: string;
+  artifactId: string;
+  versionNo: number;
+  resourceType: "score" | "course_plan" | "main_exploration";
+  resourceId: string;
+  oldData: Record<string, unknown>;
+  newData: Record<string, unknown>;
+  extraMetadata?: Record<string, unknown>;
+}): void {
+  void recordAuditLog({
+    tenantId: params.tenantId,
+    actorId: params.user.userId,
+    actorRole: toAuditActorRole(params.user.role),
+    actorEmail: params.user.email ?? null,
+    action: "update",
+    resourceType: params.resourceType,
+    resourceId: params.resourceId,
+    oldData: params.oldData,
+    newData: params.newData,
+    metadata: {
+      via: "ai-chat-hitl",
+      artifactId: params.artifactId,
+      versionNo: params.versionNo,
+      ...(params.extraMetadata ?? {}),
+    },
+  });
+}
+
+function revalidateAdminStudents(studentIds: Iterable<string>): void {
+  for (const studentId of studentIds) {
+    revalidatePath(`/admin/students/${studentId}`);
+  }
+  revalidatePath("/admin/students");
+}
+
 // ─── Plan artifact handler (Sprint P2) ───────────────────────────────────────
 //
 // scores 와 달리 학생 본인이 편집할 수 없음(student RLS 는 read-only). 관리자
@@ -642,11 +662,7 @@ async function handlePlanApply(
 ): Promise<ApplyArtifactEditOutput> {
   const { supabase, user, tenantId, artifactId, versionNo, rawProps } = args;
 
-  const isAdminLike =
-    user.role === "admin" ||
-    user.role === "consultant" ||
-    user.role === "superadmin";
-  if (!isAdminLike) {
+  if (!isAdminLikeRole(user.role)) {
     return {
       ok: false,
       reason: "수강 계획 편집은 관리자·컨설턴트만 가능합니다.",
@@ -728,12 +744,11 @@ async function handlePlanApply(
     appliedCount += 1;
     affectedStudents.add(existing.student_id);
 
-    void recordAuditLog({
+    recordHitlAudit({
+      user,
       tenantId,
-      actorId: user.userId,
-      actorRole: toAuditActorRole(user.role),
-      actorEmail: user.email ?? null,
-      action: "update",
+      artifactId,
+      versionNo,
       resourceType: "course_plan",
       resourceId: row.id,
       oldData: {
@@ -750,7 +765,6 @@ async function handlePlanApply(
         semester: row.semester,
         source: "consultant",
       },
-      metadata: { via: "ai-chat-hitl", artifactId, versionNo },
     });
   }
 
@@ -764,11 +778,7 @@ async function handlePlanApply(
     };
   }
 
-  // 학생별 상세 페이지 revalidate — admin 경로는 여러 곳에서 수강 계획을 노출.
-  for (const studentId of affectedStudents) {
-    revalidatePath(`/admin/students/${studentId}`);
-  }
-  revalidatePath("/admin/students");
+  revalidateAdminStudents(affectedStudents);
 
   return { ok: true, appliedCount, skippedCount, artifactId, versionNo };
 }
@@ -786,11 +796,7 @@ async function handleBlueprintApply(
 ): Promise<ApplyArtifactEditOutput> {
   const { supabase, user, tenantId, artifactId, versionNo, rawProps } = args;
 
-  const isAdminLike =
-    user.role === "admin" ||
-    user.role === "consultant" ||
-    user.role === "superadmin";
-  if (!isAdminLike) {
+  if (!isAdminLikeRole(user.role)) {
     return {
       ok: false,
       reason: "Blueprint 편집은 관리자·컨설턴트만 가능합니다.",
@@ -826,9 +832,9 @@ async function handleBlueprintApply(
 
   // tier_plan 재구성 (BlueprintTierProps → MainExplorationTierEntry).
   const tierPlan: MainExplorationTierPlan = {
-    foundational: toTierEntry((validated.tiers as BlueprintTiers).foundational),
-    development: toTierEntry((validated.tiers as BlueprintTiers).development),
-    advanced: toTierEntry((validated.tiers as BlueprintTiers).advanced),
+    foundational: toTierEntry(validated.tiers.foundational),
+    development: toTierEntry(validated.tiers.development),
+    advanced: toTierEntry(validated.tiers.advanced),
   };
 
   // auto_bootstrap* 가 컨설턴트에 의해 수정됨을 mark — 재부트스트랩 가드.
@@ -880,12 +886,11 @@ async function handleBlueprintApply(
       supabase,
     );
 
-    void recordAuditLog({
+    recordHitlAudit({
+      user,
       tenantId,
-      actorId: user.userId,
-      actorRole: toAuditActorRole(user.role),
-      actorEmail: user.email ?? null,
-      action: "update",
+      artifactId,
+      versionNo,
       resourceType: "main_exploration",
       resourceId: newRow.id,
       oldData: {
@@ -898,16 +903,10 @@ async function handleBlueprintApply(
         version: newRow.version,
         origin: newRow.origin,
       },
-      metadata: {
-        via: "ai-chat-hitl",
-        artifactId,
-        versionNo,
-        parentVersionId: prev.id,
-      },
+      extraMetadata: { parentVersionId: prev.id },
     });
 
-    revalidatePath(`/admin/students/${prev.student_id}`);
-    revalidatePath("/admin/students");
+    revalidateAdminStudents([prev.student_id]);
 
     return { ok: true, appliedCount: 1, skippedCount: 0, artifactId, versionNo };
   } catch (e) {

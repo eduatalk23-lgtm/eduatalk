@@ -20,7 +20,11 @@ export interface CoursePlan {
   updated_at: string;
 }
 
-export type CoursePlanStatus = "recommended" | "confirmed" | "completed";
+export type CoursePlanStatus =
+  | "recommended"
+  | "confirmed"
+  | "rejected"
+  | "completed";
 export type CoursePlanSource = "auto" | "consultant" | "student" | "import";
 
 /** DB 행 + subject 정보 JOIN */
