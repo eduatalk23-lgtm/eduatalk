@@ -58,9 +58,10 @@ export default async function Home() {
 
   if (role === "student") {
     const { data: student } = await supabaseForCheck
-      .from("students")
+      .from("user_profiles")
       .select("is_active")
       .eq("id", userId)
+      .eq("role", "student")
       .maybeSingle();
 
     if (student && student.is_active === false) {
