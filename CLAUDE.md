@@ -157,6 +157,47 @@ CREATE FUNCTION rls_check_example(p_id uuid) RETURNS boolean AS $$
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 ```
 
+### Multi-tenant Role Model (G-6 확정)
+
+모든 tenant-bound 리소스 정책 작성 시 다음 스코프 정의를 준수한다.
+
+| role | 스코프 | 의미 | 대표 경로 |
+|---|---|---|---|
+| `student` | self (tenant 내부) | 본인 레코드만 | `/dashboard` |
+| `parent` | 자녀 (tenant 내부) | 연결된 학생만 | `/parent/*` |
+| `consultant` | tenant 내부 | 담당 tenant 의 학생들 | `/admin/*` |
+| `admin` | tenant 내부 전체 | 담당 tenant 최고 권한 | `/admin/*` |
+| `superadmin` | **cross-tenant** | eduatalk 운영사 내부 관리자, 모든 tenant | `/superadmin/*`, `/ai-chat` |
+
+**핵심 원칙 (Option A):**
+- `admin` / `consultant` = 고객사(학원) 소속, 본인 tenant 범위 내 완전 권한.
+- `superadmin` = 에듀엣톡 운영사 내부 팀. JWT 상 `tenant_id=null`, 전 tenant 접근 가능.
+- 엔터프라이즈 판매(체인 본부 등) 요구 시 `tenant_owner` 같은 별도 role 을 추가하는 방향(superadmin 의미 재해석 금지).
+
+**RLS 정책 템플릿:**
+```sql
+-- tenant-bound 리소스 (students/scores/plans 등)
+CREATE POLICY "example_select" ON my_table
+  FOR SELECT
+  USING (
+    -- 본인 tenant 관리자 경로
+    (public.rls_check_is_admin_full(tenant_id))
+    -- superadmin cross-tenant 경로
+    OR public.rls_check_is_superadmin()
+  );
+
+-- 또는 (tenant 컬럼이 별도 조인 필요한 경우):
+USING ((SELECT (auth.jwt() ->> 'user_role')) IN ('admin','consultant','superadmin'))
+-- 이때 superadmin 은 tenant 필터 없이 통과.
+```
+
+**서버 액션·MCP tool 작성 시:**
+- `user.tenantId === null` 이 곧 "superadmin 가능성" 이므로, tenant 필수 가드 전에 `user.role === 'superadmin'` 분기 제공.
+- superadmin 이 특정 학생 문맥에 진입하면 학생의 `tenant_id` 를 downstream 에 주입 (예: `lib/mcp/tools/_shared/resolveStudent.ts` 패턴).
+- `AgentContext.tenantId: string` 필수 계약은 유지 — superadmin 도 학생 문맥이 생기면 학생 tenant 로 seed.
+
+세부 결정 맥락은 `memory/superadmin-option-a-decision.md` 참조.
+
 ## AI & Cold Start System
 
 ### Cold Start 콘텐츠 추천

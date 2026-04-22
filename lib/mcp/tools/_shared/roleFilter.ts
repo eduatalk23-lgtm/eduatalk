@@ -6,7 +6,12 @@
  * 프롬프트 인젝션으로 tool name 을 추측해 호출을 시도하는 경로를 원천 차단.
  *
  * 현재 admin 전용 tool: analyzeRecordDeep (record-sub), designStudentPlan (plan-sub),
- * analyzeAdmission (admission-sub).
+ * analyzeAdmission (admission-sub), getBlueprint.
+ *
+ * G-6 Sprint 4 Option A: superadmin 은 admin-like 에 포함. eduatalk 운영사 내부
+ * 관리자로서 cross-tenant 조회 가능(tenantId=null). `resolveStudentTarget` 에서
+ * 학생 tenant 를 cross-tenant 검색으로 결정 → downstream tool 이 학생 tenant 로
+ * 동작. 세부는 `memory/superadmin-option-a-decision.md` 참조.
  */
 
 export type McpUserRole =

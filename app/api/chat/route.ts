@@ -290,6 +290,11 @@ async function buildUserContextPrompt(): Promise<string> {
     }
   }
 
+  // G-6 Sprint 4 Option A: superadmin 은 운영사 내부 관리자. cross-tenant 조회 가능.
+  if (user.role === "superadmin") {
+    lines.push("- scope: cross-tenant (모든 테넌트의 학생 조회 가능)");
+  }
+
   return lines.join("\n");
 }
 
