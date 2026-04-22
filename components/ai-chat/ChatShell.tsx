@@ -384,6 +384,14 @@ export function ChatShell({
                 >
                   <kbd className="font-sans">⌘K</kbd>
                 </button>
+                <Link
+                  href="/ai-chat/memory"
+                  aria-label="기억 패널 열기"
+                  title="AI 가 학습한 기억 보기"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <Brain size={14} />기억
+                </Link>
                 <button
                   type="button"
                   onClick={() => router.push("/ai-chat")}

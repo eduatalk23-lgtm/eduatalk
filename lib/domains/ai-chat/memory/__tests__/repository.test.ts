@@ -11,6 +11,7 @@ import {
   insertMemory,
   searchMemoriesByEmbedding,
   listRecentMemoriesForOwner,
+  listMemoriesForOwner,
   deleteMemoryById,
 } from "../repository";
 
@@ -247,6 +248,126 @@ describe("listRecentMemoriesForOwner", () => {
       ownerUserId: "u-1",
     });
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("listMemoriesForOwner", () => {
+  /** 체인 호출을 캡처하는 전용 thenable. */
+  function makeCapturingThenable(
+    response: FakeResponse<unknown>,
+    capture: Record<string, unknown[][]>,
+  ) {
+    const self: Record<string, unknown> = {};
+    const chain = (name: string) => (...args: unknown[]) => {
+      capture[name] = capture[name] ?? [];
+      capture[name].push(args);
+      return self;
+    };
+    for (const fn of ["select", "eq", "is", "order", "limit"]) {
+      self[fn] = chain(fn);
+    }
+    self.then = (resolve: (v: FakeResponse<unknown>) => void) =>
+      resolve(response);
+    return self;
+  }
+
+  function makeClientWithCapture(
+    response: FakeResponse<unknown>,
+    capture: Record<string, unknown[][]>,
+  ): SupabaseClient<Database> {
+    return {
+      from: () => makeCapturingThenable(response, capture),
+    } as unknown as SupabaseClient<Database>;
+  }
+
+  it("필터 없으면 owner_user_id 만 걸고 최신순 제한", async () => {
+    const capture: Record<string, unknown[][]> = {};
+    const client = makeClientWithCapture(
+      { data: [sampleRow], error: null },
+      capture,
+    );
+    const result = await listMemoriesForOwner(client, {
+      ownerUserId: "u-1",
+      limit: 20,
+    });
+    expect(result.ok).toBe(true);
+    // owner_user_id eq 1 회만, kind/pinned 는 미호출
+    expect(capture.eq).toEqual([["owner_user_id", "u-1"]]);
+    expect(capture.is).toBeUndefined();
+    expect(capture.order).toEqual([
+      ["created_at", { ascending: false }],
+    ]);
+    expect(capture.limit).toEqual([[20]]);
+  });
+
+  it("kind='summary' 필터 시 eq 체인에 kind 추가", async () => {
+    const capture: Record<string, unknown[][]> = {};
+    const client = makeClientWithCapture(
+      { data: [], error: null },
+      capture,
+    );
+    await listMemoriesForOwner(client, {
+      ownerUserId: "u-1",
+      kind: "summary",
+    });
+    expect(capture.eq).toEqual([
+      ["owner_user_id", "u-1"],
+      ["kind", "summary"],
+    ]);
+  });
+
+  it("subjectStudentId 문자열 시 eq, null 시 is(null)", async () => {
+    // 케이스 1: 구체 학생 id
+    {
+      const cap: Record<string, unknown[][]> = {};
+      const c = makeClientWithCapture({ data: [], error: null }, cap);
+      await listMemoriesForOwner(c, {
+        ownerUserId: "u-1",
+        subjectStudentId: "s-9",
+      });
+      expect(cap.eq).toEqual([
+        ["owner_user_id", "u-1"],
+        ["subject_student_id", "s-9"],
+      ]);
+      expect(cap.is).toBeUndefined();
+    }
+    // 케이스 2: 명시적 null (학생 미지정 기억만)
+    {
+      const cap: Record<string, unknown[][]> = {};
+      const c = makeClientWithCapture({ data: [], error: null }, cap);
+      await listMemoriesForOwner(c, {
+        ownerUserId: "u-1",
+        subjectStudentId: null,
+      });
+      expect(cap.is).toEqual([["subject_student_id", null]]);
+    }
+  });
+
+  it("pinnedOnly=true 시 pinned eq 추가", async () => {
+    const capture: Record<string, unknown[][]> = {};
+    const client = makeClientWithCapture(
+      { data: [], error: null },
+      capture,
+    );
+    await listMemoriesForOwner(client, {
+      ownerUserId: "u-1",
+      pinnedOnly: true,
+    });
+    expect(capture.eq).toEqual([
+      ["owner_user_id", "u-1"],
+      ["pinned", true],
+    ]);
+  });
+
+  it("DB 오류 → ok:false 전파", async () => {
+    const capture: Record<string, unknown[][]> = {};
+    const client = makeClientWithCapture(
+      { data: null, error: { message: "rls" } },
+      capture,
+    );
+    const result = await listMemoriesForOwner(client, { ownerUserId: "u-1" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("rls");
   });
 });
 

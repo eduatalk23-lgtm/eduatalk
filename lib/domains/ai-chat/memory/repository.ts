@@ -114,6 +114,52 @@ export async function listRecentMemoriesForOwner(
   return { ok: true, memories: rows.map(mapRow) };
 }
 
+/**
+ * Phase D-3 Sprint 1: Memory Panel 전용 필터 조회.
+ * listRecentMemoriesForOwner 보다 UI 필터링(kind · subject · pinned) 이
+ * 자유로운 버전. 모든 필터는 optional — 무필터 시 최근 N건 최신순.
+ */
+export async function listMemoriesForOwner(
+  client: Client,
+  args: {
+    ownerUserId: string;
+    /** 특정 kind 만 조회. 생략 시 전체. */
+    kind?: ConversationMemoryRow["kind"];
+    /** 특정 학생 문맥만 조회. 생략 시 전체. null 은 "학생 미지정" 기억만. */
+    subjectStudentId?: string | null;
+    /** pinned=true 만 조회. 생략 시 무시. */
+    pinnedOnly?: boolean;
+    limit?: number;
+  },
+): Promise<
+  | { ok: true; memories: ConversationMemoryRow[] }
+  | { ok: false; error: string }
+> {
+  let query = client
+    .from("ai_conversation_memories")
+    .select("*")
+    .eq("owner_user_id", args.ownerUserId)
+    .order("created_at", { ascending: false })
+    .limit(args.limit ?? 50);
+
+  if (args.kind) {
+    query = query.eq("kind", args.kind);
+  }
+  if (args.subjectStudentId === null) {
+    query = query.is("subject_student_id", null);
+  } else if (args.subjectStudentId !== undefined) {
+    query = query.eq("subject_student_id", args.subjectStudentId);
+  }
+  if (args.pinnedOnly) {
+    query = query.eq("pinned", true);
+  }
+
+  const { data, error } = await query;
+  if (error) return { ok: false, error: error.message };
+  const rows = (data as Array<Record<string, unknown>> | null) ?? [];
+  return { ok: true, memories: rows.map(mapRow) };
+}
+
 /** 특정 기억 삭제. RLS 로 owner 외에는 차단. */
 export async function deleteMemoryById(
   client: Client,
