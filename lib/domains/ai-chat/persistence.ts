@@ -11,6 +11,7 @@ import type {
 import { upsertArtifactWithVersion } from "./artifact-repository";
 import { extractArtifactCandidates } from "./artifact-tool-mapper";
 import { saveTurnMemory } from "./memory/saveTurnMemory";
+import { maybeSummarizeConversation } from "./memory/summarizeConversation";
 
 type SaveConversationArgs = {
   conversationId: string;
@@ -101,6 +102,27 @@ export async function saveChatTurn(
   } catch (err) {
     console.warn(
       "[ai-chat] saveTurnMemory 예외:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  // Phase D-4 Sprint 3: 대화가 충분히 길어지면 요약 1건 추가(kind='summary').
+  // turn 기록 성공 직후 조건(총 10 / 신규 5) 확인 후 LLM 호출. best-effort.
+  // 실패·조건 미충족은 조용히 skip. 원본 turn 기억은 삭제하지 않음.
+  try {
+    const sumResult = await maybeSummarizeConversation({
+      supabase,
+      conversationId: args.conversationId,
+      ownerUserId: args.ownerUserId,
+      tenantId: args.tenantId,
+      subjectStudentId: args.subjectStudentId ?? null,
+    });
+    if (!sumResult.ok) {
+      console.warn("[ai-chat] summarizeConversation 실패:", sumResult.error);
+    }
+  } catch (err) {
+    console.warn(
+      "[ai-chat] summarizeConversation 예외:",
       err instanceof Error ? err.message : err,
     );
   }

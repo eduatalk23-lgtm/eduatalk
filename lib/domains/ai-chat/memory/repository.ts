@@ -127,3 +127,92 @@ export async function deleteMemoryById(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/**
+ * Phase D-4 Sprint 3: 대화 요약 트리거용 쿼리.
+ *
+ * 다음 3 함수는 onFinish 훅(admin client) 경로에서 호출되므로 RLS 경로와 별개.
+ * owner_user_id·conversation_id 필터를 항상 함께 걸어 cross-owner 누출을 방지.
+ */
+
+/**
+ * 해당 대화에서 가장 최근에 생성된 kind='summary' 기억 1건.
+ * 없으면 null. 다음 요약의 "시작점" 을 결정한다.
+ */
+export async function findLatestSummary(
+  client: Client,
+  args: { conversationId: string; ownerUserId: string },
+): Promise<
+  | { ok: true; summary: ConversationMemoryRow | null }
+  | { ok: false; error: string }
+> {
+  const { data, error } = await client
+    .from("ai_conversation_memories")
+    .select("*")
+    .eq("conversation_id", args.conversationId)
+    .eq("owner_user_id", args.ownerUserId)
+    .eq("kind", "summary")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) return { ok: false, error: error.message };
+  const rows = (data as Array<Record<string, unknown>> | null) ?? [];
+  return {
+    ok: true,
+    summary: rows.length > 0 ? mapRow(rows[0]) : null,
+  };
+}
+
+/**
+ * 해당 대화의 kind='turn' 기억 개수.
+ * 요약 트리거 임계값 비교용.
+ */
+export async function countTurnMemoriesInConversation(
+  client: Client,
+  args: { conversationId: string; ownerUserId: string },
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const { count, error } = await client
+    .from("ai_conversation_memories")
+    .select("*", { count: "exact", head: true })
+    .eq("conversation_id", args.conversationId)
+    .eq("owner_user_id", args.ownerUserId)
+    .eq("kind", "turn");
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, count: count ?? 0 };
+}
+
+/**
+ * sinceIso 보다 엄격히 뒤에 생성된 kind='turn' 기억 목록(오래된 순).
+ * sinceIso=null 이면 대화의 모든 turn. 요약 입력으로 직접 사용.
+ */
+export async function listTurnMemoriesSince(
+  client: Client,
+  args: {
+    conversationId: string;
+    ownerUserId: string;
+    sinceIso: string | null;
+    limit?: number;
+  },
+): Promise<
+  | { ok: true; turns: ConversationMemoryRow[] }
+  | { ok: false; error: string }
+> {
+  let query = client
+    .from("ai_conversation_memories")
+    .select("*")
+    .eq("conversation_id", args.conversationId)
+    .eq("owner_user_id", args.ownerUserId)
+    .eq("kind", "turn")
+    .order("created_at", { ascending: true })
+    .limit(args.limit ?? 50);
+
+  if (args.sinceIso) {
+    query = query.gt("created_at", args.sinceIso);
+  }
+
+  const { data, error } = await query;
+  if (error) return { ok: false, error: error.message };
+  const rows = (data as Array<Record<string, unknown>> | null) ?? [];
+  return { ok: true, turns: rows.map(mapRow) };
+}
