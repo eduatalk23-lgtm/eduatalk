@@ -1,15 +1,19 @@
 /**
- * Phase D-3 Sprint 1 — Memory Panel (읽기 전용).
+ * Phase D-3 Sprint 2 — Memory Panel (편집 가능).
  *
- * 목적: 현재 로그인 사용자의 AI 대화 장기 기억을 최신순으로 조회.
- *  - turn / summary / explicit 3 kind 필터
- *  - 학생 문맥 필터 (학생 id 가 있는 기억만 / 특정 학생)
- *  - 편집·삭제·pin 은 Sprint 2 범위
+ * 목적: 현재 로그인 사용자의 AI 대화 장기 기억을 최신순으로 조회·편집.
+ *  - turn / summary / explicit 3 kind 필터 + kind 별 총 count 뱃지
+ *  - 학생 문맥 필터 (전체 / 미지정 / 특정 학생)
+ *  - Pin 토글 · 삭제 · explicit 편집 (MemoryList 내부)
  *
  * 데이터 경로:
- *  1. ownerUserId 기준으로 `ai_conversation_memories` 최근 50 건 (RLS 자동 적용)
- *  2. 집합된 conversationId / subjectStudentId 배치 조회 → 제목·이름 맵 enrich
- *  3. 클라이언트 컴포넌트(MemoryList) 에 직렬화된 뷰 모델 전달
+ *  1. 병렬 3 쿼리:
+ *     - listMemoriesForOwner (kind + student 필터 적용) — 최근 50 건
+ *     - countMemoriesByKind — 전체 owner 기준 kind 별 총 개수 (필터 무관)
+ *     - 학생 옵션 목록용: subject_student_id 가 있는 기억 전체 (name 매핑용 up to 500)
+ *  2. 집합된 conversationId 배치 조회 → 제목 맵 enrich
+ *  3. 학생 프로필 조회 (카드 enrich + 드롭다운 옵션) — 합집합 1 쿼리
+ *  4. 클라이언트 컴포넌트(MemoryList) 에 직렬화된 뷰 모델 전달
  */
 
 import { redirect } from "next/navigation";
@@ -18,7 +22,10 @@ import { ArrowLeft } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { listMemoriesForOwner } from "@/lib/domains/ai-chat/memory/repository";
+import {
+  listMemoriesForOwner,
+  countMemoriesByKind,
+} from "@/lib/domains/ai-chat/memory/repository";
 import {
   MEMORY_KINDS,
   type MemoryKind,
@@ -27,6 +34,7 @@ import { MemoryList, type MemoryListItem } from "@/components/ai-chat/MemoryList
 
 type SearchParams = {
   kind?: string;
+  student?: string;
 };
 
 function parseKind(raw: string | undefined): MemoryKind | undefined {
@@ -36,13 +44,30 @@ function parseKind(raw: string | undefined): MemoryKind | undefined {
     : undefined;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 학생 필터 3 상태:
+ *  - `undefined`: 필터 없음 (전체 학생 + 미지정 모두)
+ *  - `null`: 학생 미지정 기억만
+ *  - uuid 문자열: 특정 학생 문맥만
+ */
+function parseStudentFilter(raw: string | undefined): string | null | undefined {
+  if (!raw) return undefined;
+  if (raw === "none") return null;
+  if (UUID_RE.test(raw)) return raw;
+  return undefined;
+}
+
 export default async function AiChatMemoryPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const { kind: kindRaw } = await searchParams;
+  const { kind: kindRaw, student: studentRaw } = await searchParams;
   const kind = parseKind(kindRaw);
+  const studentFilter = parseStudentFilter(studentRaw);
 
   const user = await getCurrentUser();
   if (!user) {
@@ -51,21 +76,52 @@ export default async function AiChatMemoryPage({
 
   const supabase = await createSupabaseServerClient();
 
-  const memRes = await listMemoriesForOwner(supabase, {
-    ownerUserId: user.userId,
-    kind,
-    limit: 50,
-  });
+  // 필터 적용 리스트 + 전체 kind count + 학생 옵션용 id 셋을 병렬로.
+  const [memRes, countsRes, studentIdsRes] = await Promise.all([
+    listMemoriesForOwner(supabase, {
+      ownerUserId: user.userId,
+      kind,
+      subjectStudentId: studentFilter,
+      limit: 50,
+    }),
+    countMemoriesByKind(supabase, { ownerUserId: user.userId }),
+    supabase
+      .from("ai_conversation_memories")
+      .select("subject_student_id")
+      .eq("owner_user_id", user.userId)
+      .not("subject_student_id", "is", null)
+      .limit(500),
+  ]);
 
-  // enrichment: subject_student_id 집합 → user_profiles.name 맵
-  //            conversation_id 집합 → ai_conversations.title 맵
   const memories = memRes.ok ? memRes.memories : [];
-  const studentIds = Array.from(
+  const loadError = !memRes.ok ? memRes.error : null;
+
+  const counts = countsRes.ok
+    ? {
+        total: countsRes.counts.total,
+        turn: countsRes.counts.turn,
+        summary: countsRes.counts.summary,
+        explicit: countsRes.counts.explicit,
+      }
+    : { total: 0, turn: 0, summary: 0, explicit: 0 };
+
+  const availableStudentIds = Array.from(
     new Set(
-      memories
-        .map((m) => m.subjectStudentId)
+      ((studentIdsRes.data as Array<{ subject_student_id: string | null }> | null) ??
+        [])
+        .map((r) => r.subject_student_id)
         .filter((v): v is string => Boolean(v)),
     ),
+  );
+
+  // enrichment 용 id 합집합 (드롭다운 + 카드)
+  const studentIdsForLookup = Array.from(
+    new Set([
+      ...availableStudentIds,
+      ...memories
+        .map((m) => m.subjectStudentId)
+        .filter((v): v is string => Boolean(v)),
+    ]),
   );
   const conversationIds = Array.from(
     new Set(
@@ -76,11 +132,11 @@ export default async function AiChatMemoryPage({
   );
 
   const studentNameById = new Map<string, string>();
-  if (studentIds.length > 0) {
+  if (studentIdsForLookup.length > 0) {
     const { data } = await supabase
       .from("user_profiles")
       .select("id, name")
-      .in("id", studentIds);
+      .in("id", studentIdsForLookup);
     for (const row of (data as Array<{ id: string; name: string | null }> | null) ??
       []) {
       studentNameById.set(row.id, row.name ?? "학생");
@@ -117,7 +173,9 @@ export default async function AiChatMemoryPage({
       : null,
   }));
 
-  const loadError = !memRes.ok ? memRes.error : null;
+  const studentOptions = availableStudentIds
+    .map((id) => ({ id, name: studentNameById.get(id) ?? "학생" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   return (
     <div className="min-h-dvh bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
@@ -133,7 +191,7 @@ export default async function AiChatMemoryPage({
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-semibold">기억</h1>
             <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-              AI 가 학습한 내용을 조회합니다. 편집·삭제는 준비 중입니다.
+              AI 가 학습한 내용을 조회·편집합니다.
             </p>
           </div>
         </div>
@@ -143,7 +201,10 @@ export default async function AiChatMemoryPage({
         <MemoryList
           items={items}
           activeKind={kind ?? null}
+          activeStudentFilter={studentFilter}
           loadError={loadError}
+          counts={counts}
+          studentOptions={studentOptions}
         />
       </main>
     </div>

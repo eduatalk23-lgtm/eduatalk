@@ -12,7 +12,7 @@
  *  - Edit 버튼 + 인라인 에디터는 후속 커밋 (explicit 전용, updateExplicitMemory 연결).
  */
 
-import { useMemo, useOptimistic, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -52,8 +52,24 @@ type Props = {
   items: MemoryListItem[];
   /** 현재 URL 에서 선택된 kind. null 이면 '전체'. */
   activeKind: MemoryKind | null;
+  /**
+   * 학생 필터 3 상태:
+   *  - undefined: 필터 없음 (전체)
+   *  - null: 학생 미지정 기억만
+   *  - uuid: 특정 학생 문맥만
+   */
+  activeStudentFilter: string | null | undefined;
   /** 서버 조회 실패 시 메시지(UI에 safely 표시). */
   loadError: string | null;
+  /** kind 별 총 count (현 필터와 무관한 owner 전체 기준). */
+  counts: {
+    total: number;
+    turn: number;
+    summary: number;
+    explicit: number;
+  };
+  /** 학생 필터 드롭다운 옵션 (사용자가 기억을 보유한 학생들). */
+  studentOptions: Array<{ id: string; name: string }>;
 };
 
 type FilterOption = {
@@ -67,6 +83,9 @@ const FILTER_OPTIONS: FilterOption[] = [
   { key: "summary", label: "요약" },
   { key: "explicit", label: "직접 추가" },
 ];
+
+const STUDENT_FILTER_ALL = "";
+const STUDENT_FILTER_NONE = "__none__";
 
 const KIND_LABEL: Record<MemoryKind, string> = {
   turn: "대화 단위",
@@ -106,34 +125,54 @@ const CONTENT_PREVIEW_LIMIT = 300;
 const EDIT_MIN_LEN = 5;
 const EDIT_MAX_LEN = 4000;
 
-export function MemoryList({ items, activeKind, loadError }: Props) {
+export function MemoryList({
+  items,
+  activeKind,
+  activeStudentFilter,
+  loadError,
+  counts,
+  studentOptions,
+}: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const selectKind = (kind: MemoryKind | null) => {
+  /** key 에 null 을 주면 파라미터 제거. */
+  const pushWithParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(searchParams.toString());
-    if (kind === null) {
-      next.delete("kind");
+    if (value === null) {
+      next.delete(key);
     } else {
-      next.set("kind", kind);
+      next.set(key, value);
     }
     const query = next.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   };
 
+  const selectKind = (kind: MemoryKind | null) =>
+    pushWithParam("kind", kind === null ? null : kind);
+
+  const selectStudent = (raw: string) => {
+    if (raw === STUDENT_FILTER_ALL) pushWithParam("student", null);
+    else if (raw === STUDENT_FILTER_NONE) pushWithParam("student", "none");
+    else pushWithParam("student", raw);
+  };
+
   const hasItems = items.length > 0;
 
-  const counts = useMemo(() => {
-    // 현재 activeKind 가 아닌 전체 items 는 서버가 이미 필터링했기 때문에
-    // 이 리스트의 counts 는 "현재 보여주는 필터 결과 수" 하나만 의미가 있다.
-    // kind 별 정확한 총량은 S2 에서 서버 aggregated counts 로 보강.
-    return items.length;
-  }, [items]);
+  const countForKind = (key: MemoryKind | null): number =>
+    key === null ? counts.total : counts[key];
+
+  const studentSelectValue =
+    activeStudentFilter === undefined
+      ? STUDENT_FILTER_ALL
+      : activeStudentFilter === null
+        ? STUDENT_FILTER_NONE
+        : activeStudentFilter;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 필터 칩 */}
+      {/* 필터 칩 — kind */}
       <div
         role="tablist"
         aria-label="기억 종류 필터"
@@ -141,6 +180,7 @@ export function MemoryList({ items, activeKind, loadError }: Props) {
       >
         {FILTER_OPTIONS.map((opt) => {
           const isActive = (activeKind ?? null) === opt.key;
+          const n = countForKind(opt.key);
           return (
             <button
               key={opt.label}
@@ -155,11 +195,44 @@ export function MemoryList({ items, activeKind, loadError }: Props) {
                   : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100",
               )}
             >
-              {opt.label}
+              <span>{opt.label}</span>
+              <span
+                className={cn(
+                  "tabular-nums text-[10px]",
+                  isActive ? "opacity-80" : "opacity-60",
+                )}
+              >
+                {n}
+              </span>
             </button>
           );
         })}
       </div>
+
+      {/* 학생 필터 드롭다운 — 학생 옵션이 하나도 없으면 생략 */}
+      {studentOptions.length > 0 ? (
+        <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+          <span>학생</span>
+          <select
+            value={studentSelectValue}
+            onChange={(e) => selectStudent(e.target.value)}
+            className={cn(
+              "rounded-md border px-2 py-1 text-xs",
+              "border-zinc-200 bg-white text-zinc-900",
+              "dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
+              "focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500",
+            )}
+          >
+            <option value={STUDENT_FILTER_ALL}>전체 학생</option>
+            <option value={STUDENT_FILTER_NONE}>학생 미지정</option>
+            {studentOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {loadError ? (
         <div
@@ -171,7 +244,9 @@ export function MemoryList({ items, activeKind, loadError }: Props) {
       ) : null}
 
       <div className="text-xs text-zinc-500 dark:text-zinc-400">
-        {hasItems ? `${counts}건 표시` : "조건에 맞는 기억이 없습니다."}
+        {hasItems
+          ? `${items.length}건 표시`
+          : "조건에 맞는 기억이 없습니다."}
       </div>
 
       <ul className="flex flex-col gap-3">
