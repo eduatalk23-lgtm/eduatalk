@@ -44,6 +44,7 @@ import { CommandPalette } from "@/components/ai-chat/CommandPalette";
 import type { SlashCommand } from "@/components/ai-chat/SlashMenu";
 import { InlineConfirm } from "@/components/ai-chat/InlineConfirm";
 import { ChatComposer } from "@/components/ai-chat/ChatComposer";
+import { AgentStatusBar } from "@/components/ai-chat/AgentStatusBar";
 import { useArtifactStore } from "@/lib/stores/artifactStore";
 import {
   extractCitations,
@@ -466,25 +467,8 @@ export function ChatShell({
                 </div>
               )}
 
-            <div
-              role="status"
-              aria-live="polite"
-              className={cn(
-                "flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500",
-                !isBusy && "sr-only",
-              )}
-            >
-              {isBusy && (
-                <>
-                  <span className="flex gap-1" aria-hidden="true">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400 [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400 [animation-delay:300ms]" />
-                  </span>
-                  생각 중
-                </>
-              )}
-            </div>
+            {/* Phase D-2: tool 실행 단계를 한 줄로 가시화. idle 은 sr-only 로 자동 처리. */}
+            <AgentStatusBar messages={messages} status={status} variant="shell" />
 
             {error && (
               <p role="alert" className="text-xs text-red-600 dark:text-red-400">

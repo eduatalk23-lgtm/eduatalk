@@ -11,6 +11,7 @@ import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { Send, Loader2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AgentMessageBubble } from "./AgentMessageBubble";
+import { AgentStatusBar } from "@/components/ai-chat/AgentStatusBar";
 import type { UIStateSnapshot } from "@/lib/agents/ui-state";
 import type { AgentAction } from "@/lib/agents/agent-actions";
 
@@ -188,12 +189,8 @@ export function AgentChat({
           />
         ))}
 
-        {isLoading && messages[messages.length - 1]?.role === "user" && (
-          <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            분석 중...
-          </div>
-        )}
+        {/* Phase D-2: tool 실행 단계 가시화 (기존 '분석 중...' 대체). idle 은 sr-only. */}
+        <AgentStatusBar messages={messages} status={status} variant="agent" />
       </div>
 
       {/* 에러 표시 */}
