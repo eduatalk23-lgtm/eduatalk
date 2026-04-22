@@ -1,30 +1,36 @@
 "use client";
 
 /**
- * Phase D-3 Sprint 1 — 읽기 전용 Memory 카드 리스트.
+ * Phase D-3 Sprint 2 — 편집 가능 Memory 카드 리스트.
  *
  * 입력: 서버에서 enrich 된 `MemoryListItem[]` (학생명·대화 제목 포함).
  * 기능:
  *  - kind 필터 칩 (전체·자동 turn·요약 summary·수동 explicit)
  *    → router.push 로 /ai-chat/memory?kind=... 재진입 (서버 재조회)
  *  - 카드: kind 뱃지 + 내용(300자 초과 시 펼치기) + 학생·대화 라벨 + 상대 시간
- *  - 편집·삭제·pin 버튼은 S2 범위 — 이 컴포넌트에서는 UI 제외.
+ *  - Pin 토글 (useOptimistic) + Delete (confirm) — 전 kind 공통
+ *  - Edit 버튼 + 인라인 에디터는 후속 커밋 (explicit 전용, updateExplicitMemory 연결).
  */
 
-import { useMemo } from "react";
+import { useMemo, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import {
   Pin,
+  PinOff,
   MessageSquare,
   User as UserIcon,
   BookMarked,
   ScrollText,
+  Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import type { MemoryKind } from "@/lib/domains/ai-chat/memory/types";
+import {
+  deleteMemory,
+  toggleMemoryPin,
+} from "@/lib/domains/ai-chat/memory/actions";
 
 export type MemoryListItem = {
   id: string;
@@ -167,21 +173,51 @@ export function MemoryList({ items, activeKind, loadError }: Props) {
         ))}
       </ul>
 
-      {/* S2 예고 안내 */}
+      {/* S2 예고 안내 — 편집만 남음 */}
       <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
-        편집·삭제·고정 기능은 곧 추가됩니다.
+        편집 기능은 곧 추가됩니다.
       </p>
     </div>
   );
 }
 
 function MemoryCard({ item }: { item: MemoryListItem }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [optimisticPinned, setOptimisticPinned] = useOptimistic(item.pinned);
+
   const Icon = KIND_ICON[item.kind];
   const over = item.content.length > CONTENT_PREVIEW_LIMIT;
   const preview = over
     ? item.content.slice(0, CONTENT_PREVIEW_LIMIT) + "…"
     : item.content;
+
+  const handleTogglePin = () => {
+    const next = !optimisticPinned;
+    startTransition(async () => {
+      setOptimisticPinned(next);
+      const result = await toggleMemoryPin({ id: item.id, pinned: next });
+      if (!result.ok) {
+        // 실패 시 useOptimistic 가 다음 렌더에서 원본 값으로 자동 복구.
+        alert(`고정 상태 변경에 실패했습니다: ${result.error}`);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  const handleDelete = () => {
+    if (!confirm("이 기억을 삭제할까요? 되돌릴 수 없습니다.")) return;
+    startTransition(async () => {
+      const result = await deleteMemory({ id: item.id });
+      if (!result.ok) {
+        alert(`삭제에 실패했습니다: ${result.error}`);
+        return;
+      }
+      router.refresh();
+    });
+  };
 
   return (
     <li className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -190,7 +226,7 @@ function MemoryCard({ item }: { item: MemoryListItem }) {
           <Icon size={12} />
           {KIND_LABEL[item.kind]}
         </span>
-        {item.pinned ? (
+        {optimisticPinned ? (
           <span
             className="inline-flex items-center gap-1 text-warning-600 dark:text-warning-400"
             title="고정됨"
@@ -200,6 +236,42 @@ function MemoryCard({ item }: { item: MemoryListItem }) {
           </span>
         ) : null}
         <span className="ml-auto">{formatRelativeKo(item.createdAt)}</span>
+
+        {/* 액션 버튼 묶음 */}
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={handleTogglePin}
+            disabled={isPending}
+            title={optimisticPinned ? "고정 해제" : "고정"}
+            aria-label={optimisticPinned ? "고정 해제" : "고정"}
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+              "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
+              "dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              optimisticPinned &&
+                "text-warning-600 dark:text-warning-400",
+            )}
+          >
+            {optimisticPinned ? <PinOff size={14} /> : <Pin size={14} />}
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isPending}
+            title="삭제"
+            aria-label="기억 삭제"
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+              "text-zinc-500 hover:bg-error-50 hover:text-error-600",
+              "dark:text-zinc-400 dark:hover:bg-error-900/30 dark:hover:text-error-400",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
       <p
