@@ -1,29 +1,33 @@
 /**
- * Phase G S-1: 서브에이전트 실행 런타임.
+ * Phase G S-1 + D-1 Sprint 2: 서브에이전트 실행 런타임.
  *
  * 흐름:
  *  1. allowedRoles 가드 (Layer 2)
  *  2. ai_subagent_runs INSERT (status='running')
- *  3. generateText 로 tool loop 실행 (stopWhen=stepCountIs(maxSteps))
- *  4. 최종 assistant text → generateObject 로 summarySchema 구조화
+ *  3. ToolLoopAgent.run — tool loop 실행 (stepCountIs·abortSignal·stepTraces 수집)
+ *  4. extractSchemaSummary — 최종 텍스트 → 고정 schema JSON
  *  5. ai_subagent_runs UPDATE (completed / failed)
  *  6. agent_sessions / agent_step_traces 기존 인프라 재사용
  *
+ * D-1 S2 이전: loop·StepTrace·extractTokens 로직이 본 파일 216~255 에 중복 구현.
+ * D-1 S2 이후: `ToolLoopAgent` 로 통합, 이 파일은 정책(가드·DB·cost) 책임만 보유.
+ *
  * 제약:
- *  - Vercel maxDuration=60s 를 넘지 않도록 timeoutMs 기본 55_000ms
+ *  - Vercel maxDuration=60s 를 넘지 않도록 def.timeoutMs 기본 55_000ms
  *  - 실패 시 ok:false + error 문자열. Shell 쪽에서 사용자에게 전달
  */
 
-import { generateText, generateObject, stepCountIs, type Tool } from "ai";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import type { z } from "zod";
 import type { LanguageModel } from "ai";
 
+import { ToolLoopAgent } from "@/lib/agents/tool-loop-agent/agent";
+import { extractSchemaSummary } from "@/lib/agents/tool-loop-agent/schema-extractor";
+
 import {
   hashSystemPrompt,
   logAgentSession,
-  type StepTrace,
 } from "@/lib/agents/session-logger";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import { estimateCost } from "@/lib/domains/plan/llm/client";
@@ -37,6 +41,13 @@ import type {
 
 const LOG_CTX = { domain: "mcp.subagent", action: "run" };
 
+/** summary 추출 단계 최대 시간 (ms). */
+const SUMMARY_TIMEOUT_MS = 15_000;
+
+const SUMMARY_SYSTEM_PROMPT =
+  "당신은 서브에이전트의 최종 출력을 고정 schema JSON 으로 구조화합니다. " +
+  "원본 정보를 임의로 보강하거나 누락하지 마세요. 한국어로 작성합니다.";
+
 function resolveModel(spec: SubagentModelSpec): LanguageModel {
   if (spec.provider === "openai") return openai.chat(spec.id);
   return google(spec.id);
@@ -46,25 +57,6 @@ function resolveSummaryModel(spec: SubagentModelSpec): LanguageModel {
   const id = spec.summaryId ?? (spec.provider === "openai" ? "gpt-4o-mini" : "gemini-2.5-flash");
   if (spec.provider === "openai") return openai.chat(id);
   return google(id);
-}
-
-/**
- * AI SDK v4(promptTokens/completionTokens)·v6(inputTokens/outputTokens) 호환.
- */
-function extractTokens(usage: unknown): { input: number; output: number } {
-  if (!usage || typeof usage !== "object") return { input: 0, output: 0 };
-  const u = usage as Record<string, unknown>;
-  const input = typeof u.inputTokens === "number"
-    ? u.inputTokens
-    : typeof u.promptTokens === "number"
-      ? u.promptTokens
-      : 0;
-  const output = typeof u.outputTokens === "number"
-    ? u.outputTokens
-    : typeof u.completionTokens === "number"
-      ? u.completionTokens
-      : 0;
-  return { input, output };
 }
 
 function mapModelToTier(modelId: string): "fast" | "standard" | "advanced" {
@@ -191,11 +183,9 @@ export async function runSubagent<TSchema extends z.ZodTypeAny>(
 
   logActionDebug(LOG_CTX, `start ${def.name} run=${runId}`);
 
-  const stepTraces: StepTrace[] = [];
-  let stepStartTime = Date.now();
-  let tools: Record<string, Tool>;
+  // tools · systemPrompt 초기화 단계 — 에러 시 전용 메시지로 반환.
+  let tools: ReturnType<typeof def.buildTools>;
   let systemPrompt: string;
-
   try {
     tools = def.buildTools(ctx);
     systemPrompt = def.buildSystemPrompt(ctx);
@@ -210,164 +200,129 @@ export async function runSubagent<TSchema extends z.ZodTypeAny>(
     };
   }
 
-  try {
-    const model = resolveModel(def.model);
+  // 1단계: tool loop 실행
+  const agent = new ToolLoopAgent({
+    model: resolveModel(def.model),
+    systemPrompt,
+    maxSteps: def.maxSteps,
+    timeoutMs: def.timeoutMs,
+    maxRetries: 1,
+  });
+  const runResult = await agent.run({
+    messages: [{ role: "user", content: input }],
+    tools,
+  });
 
-    const result = await generateText({
-      model,
-      system: systemPrompt,
-      messages: [{ role: "user", content: input }],
-      tools,
-      stopWhen: stepCountIs(def.maxSteps),
-      maxRetries: 1,
-      abortSignal: AbortSignal.timeout(def.timeoutMs),
-      onStepFinish: ({ toolCalls, toolResults, text }) => {
-        const now = Date.now();
-        const elapsed = now - stepStartTime;
-        stepStartTime = now;
-
-        if (toolCalls && toolCalls.length > 0) {
-          for (let i = 0; i < toolCalls.length; i++) {
-            const call = toolCalls[i];
-            const toolResult = toolResults?.[i];
-            const isThink = call.toolName === "think";
-            stepTraces.push({
-              stepIndex: stepTraces.length,
-              stepType: isThink ? "think" : "tool-call",
-              toolName: call.toolName,
-              toolInput: (call as { args?: unknown }).args,
-              toolOutput: (toolResult as { result?: unknown } | undefined)?.result,
-              reasoning: isThink
-                ? ((call as { args?: { analysis?: string } }).args?.analysis)
-                : undefined,
-              durationMs: i === 0 ? elapsed : undefined,
-            });
-          }
-        } else if (text) {
-          stepTraces.push({
-            stepIndex: stepTraces.length,
-            stepType: "text",
-            textContent: text,
-            durationMs: elapsed,
-          });
-        }
-      },
-    });
-
-    const { input: mainIn, output: mainOut } = extractTokens(result.usage);
-    const finalText = result.text?.trim() ?? "";
-
-    // 2-stage: 요약 추출
-    let summaryObject: z.infer<TSchema>;
-    let summaryUsage = { input: 0, output: 0 };
-    try {
-      const summaryModel = resolveSummaryModel(def.model);
-      const summaryPrompt = finalText.length > 0
-        ? finalText
-        : `[서브에이전트가 텍스트 응답 없이 종료. 아래 tool 호출 흔적을 바탕으로 요약을 생성하세요.]\n${JSON.stringify(
-            stepTraces.slice(0, 10),
-          ).slice(0, 3000)}`;
-      const summaryResult = await generateObject({
-        model: summaryModel,
-        schema: def.summarySchema,
-        system:
-          "당신은 서브에이전트의 최종 출력을 고정 schema JSON 으로 구조화합니다. " +
-          "원본 정보를 임의로 보강하거나 누락하지 마세요. 한국어로 작성합니다.",
-        prompt: summaryPrompt,
-        maxRetries: 1,
-        abortSignal: AbortSignal.timeout(15_000),
-      });
-      summaryObject = summaryResult.object as z.infer<TSchema>;
-      const s = extractTokens(summaryResult.usage);
-      summaryUsage = s;
-    } catch (e) {
-      const reason = e instanceof Error ? e.message : String(e);
-      const durationMs = Date.now() - startTime;
-      await updateRun({
-        runId,
-        status: "failed",
-        error: `요약 추출 실패: ${reason}`,
-        totalInputTokens: mainIn,
-        totalOutputTokens: mainOut,
-        stepCount: stepTraces.length,
-      });
-      return {
-        ok: false,
-        runId,
-        reason: `요약 추출 실패: ${reason}`,
-        durationMs,
-      };
-    }
-
-    const durationMs = Date.now() - startTime;
-    const totalIn = mainIn + summaryUsage.input;
-    const totalOut = mainOut + summaryUsage.output;
-    const usdCost = estimateCost(totalIn, totalOut, mapModelToTier(def.model.id));
-
+  if (!runResult.ok) {
     await updateRun({
       runId,
-      status: "completed",
-      summary: summaryObject,
-      totalInputTokens: totalIn,
-      totalOutputTokens: totalOut,
-      usdCost,
-      stepCount: stepTraces.length,
+      status: "failed",
+      error: runResult.reason,
+      totalInputTokens: runResult.usage.input,
+      totalOutputTokens: runResult.usage.output,
+      stepCount: runResult.stepTraces.length,
     });
-
-    // 기존 agent_sessions / agent_step_traces 재사용 (fire-and-forget)
-    void hashSystemPrompt(systemPrompt)
-      .then((promptHash) =>
-        logAgentSession({
-          sessionId,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          studentId: ctx.studentId,
-          modelId: def.model.id,
-          systemPromptHash: promptHash,
-          totalSteps: stepTraces.length,
-          totalInputTokens: totalIn,
-          totalOutputTokens: totalOut,
-          durationMs,
-          stopReason: result.finishReason,
-          stepTraces,
-        }),
-      )
-      .catch(() => {});
-
-    logActionDebug(
-      LOG_CTX,
-      `complete ${def.name} run=${runId} steps=${stepTraces.length} duration=${durationMs}ms`,
-    );
-
-    const usage: SubagentUsage = {
-      inputTokens: totalIn,
-      outputTokens: totalOut,
-      usdCost,
-    };
-
+    logActionError(LOG_CTX, new Error(runResult.reason));
     return {
-      ok: true,
+      ok: false,
       runId,
-      summary: summaryObject,
-      durationMs,
-      stepCount: stepTraces.length,
-      usage,
+      reason: runResult.reason,
+      durationMs: runResult.durationMs,
     };
-  } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e);
+  }
+
+  const { text: finalText, stepTraces } = runResult;
+  const mainIn = runResult.usage.input;
+  const mainOut = runResult.usage.output;
+
+  // 2단계: 요약 추출
+  const summaryPrompt = finalText.length > 0
+    ? finalText
+    : `[서브에이전트가 텍스트 응답 없이 종료. 아래 tool 호출 흔적을 바탕으로 요약을 생성하세요.]\n${JSON.stringify(
+        stepTraces.slice(0, 10),
+      ).slice(0, 3000)}`;
+
+  const summary = await extractSchemaSummary({
+    model: resolveSummaryModel(def.model),
+    schema: def.summarySchema,
+    system: SUMMARY_SYSTEM_PROMPT,
+    prompt: summaryPrompt,
+    timeoutMs: SUMMARY_TIMEOUT_MS,
+    maxRetries: 1,
+  });
+
+  if (!summary.ok) {
     const durationMs = Date.now() - startTime;
     await updateRun({
       runId,
       status: "failed",
-      error: reason,
+      error: `요약 추출 실패: ${summary.reason}`,
+      totalInputTokens: mainIn,
+      totalOutputTokens: mainOut,
       stepCount: stepTraces.length,
     });
-    logActionError(LOG_CTX, e instanceof Error ? e : new Error(reason));
     return {
       ok: false,
       runId,
-      reason,
+      reason: `요약 추출 실패: ${summary.reason}`,
       durationMs,
     };
   }
+
+  const summaryObject = summary.object;
+  const durationMs = Date.now() - startTime;
+  const totalIn = mainIn + summary.usage.input;
+  const totalOut = mainOut + summary.usage.output;
+  const usdCost = estimateCost(totalIn, totalOut, mapModelToTier(def.model.id));
+
+  await updateRun({
+    runId,
+    status: "completed",
+    summary: summaryObject,
+    totalInputTokens: totalIn,
+    totalOutputTokens: totalOut,
+    usdCost,
+    stepCount: stepTraces.length,
+  });
+
+  // 기존 agent_sessions / agent_step_traces 재사용 (fire-and-forget).
+  // ToolLoopAgent 의 StepTrace 는 session-logger 의 StepTrace 와 필드 동일.
+  void hashSystemPrompt(systemPrompt)
+    .then((promptHash) =>
+      logAgentSession({
+        sessionId,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        studentId: ctx.studentId,
+        modelId: def.model.id,
+        systemPromptHash: promptHash,
+        totalSteps: stepTraces.length,
+        totalInputTokens: totalIn,
+        totalOutputTokens: totalOut,
+        durationMs,
+        stopReason: runResult.finishReason,
+        stepTraces,
+      }),
+    )
+    .catch(() => {});
+
+  logActionDebug(
+    LOG_CTX,
+    `complete ${def.name} run=${runId} steps=${stepTraces.length} duration=${durationMs}ms`,
+  );
+
+  const usage: SubagentUsage = {
+    inputTokens: totalIn,
+    outputTokens: totalOut,
+    usdCost,
+  };
+
+  return {
+    ok: true,
+    runId,
+    summary: summaryObject,
+    durationMs,
+    stepCount: stepTraces.length,
+    usage,
+  };
 }
