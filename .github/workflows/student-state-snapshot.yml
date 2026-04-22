@@ -5,9 +5,10 @@ name: Student State Snapshot
 # 준실시간 snapshot 은 α4 Perception Trigger 가 별도 경로로 처리.
 
 on:
-  schedule:
-    # 매일 03:30 KST = UTC 18:30
-    - cron: '30 18 * * *'
+  # Gemini 프로젝트 통합 작업으로 자동 실행 보류 — secrets.GOOGLE_API_KEY 를 timelevelup 신규 키로 갱신한 뒤 주석 해제.
+  # schedule:
+  #   # 매일 03:30 KST = UTC 18:30
+  #   - cron: '30 18 * * *'
 
   workflow_dispatch:
     inputs:

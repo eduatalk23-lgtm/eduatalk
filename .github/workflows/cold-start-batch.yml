@@ -2,8 +2,9 @@ name: Cold Start Batch Processing
 
 on:
   # 매일 새벽 3시 (KST) = UTC 18:00 실행
-  schedule:
-    - cron: '0 18 * * *'
+  # Gemini 프로젝트 통합 작업으로 자동 실행 보류 — secrets.GOOGLE_API_KEY 를 timelevelup 신규 키로 갱신한 뒤 주석 해제.
+  # schedule:
+  #   - cron: '0 18 * * *'
 
   # 수동 실행 가능
   workflow_dispatch:
