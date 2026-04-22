@@ -22,6 +22,13 @@ import { validateAndResolveHandoff } from "@/lib/domains/ai-chat/handoff/validat
 import { buildHandoffPromptSection } from "@/lib/domains/ai-chat/handoff/prompt";
 import { buildMemoryPromptSection } from "@/lib/domains/ai-chat/memory/promptInjection";
 import { extractLastUserText } from "@/lib/domains/ai-chat/memory/messageText";
+import {
+  appendChunk,
+  beginStream,
+  completeStream,
+  isStreamStoreConfigured,
+} from "@/lib/domains/ai-chat/stream-store";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -375,6 +382,20 @@ export async function POST(req: Request) {
 
   const startedAt = Date.now();
 
+  // D-5: Upstash Redis 가 구성되어 있고 conversationId 가 있을 때만 resumable 경로 활성화.
+  // 시작 시 이전 잔여 청크 제거 + status='streaming' 기록. 실패해도 본 스트림에는 영향 X.
+  const resumableEnabled = Boolean(conversationId) && isStreamStoreConfigured();
+  if (resumableEnabled && conversationId) {
+    try {
+      await beginStream(conversationId);
+    } catch (err) {
+      console.warn(
+        "[ai-chat] beginStream 실패 — resumable 경로 비활성화:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   // F-2: 요청별 MCP 서버↔클라이언트 쌍(InMemoryTransport)을 띄워 tool 정의 수령.
   // navigateTo·getScores·analyzeRecord 는 MCP 경유, archiveConversation 은 HITL inline.
   // G S-2: Layer 1 가드 — admin/consultant/superadmin 이 아닌 role 에는
@@ -426,6 +447,48 @@ export async function POST(req: Request) {
       }
       return undefined;
     },
+    // D-5: tee 된 SSE 복사본을 Upstash Redis 에 append.
+    // - 원본 client stream 과 독립적으로 소비되므로, 클라이언트가 중간에 disconnect 해도
+    //   서버에서는 본 콜백이 계속 pull 해 Redis 에 쌓인다.
+    // - `after()` 와 결합해 Vercel function 이 response 종료 후에도 후속 completeStream
+    //   호출을 보장한다.
+    consumeSseStream: resumableEnabled && conversationId
+      ? ({ stream }) => {
+          const conversationIdForTee = conversationId;
+          // 비동기 소비 루프 — 실패해도 본 응답에는 영향 X.
+          const consume = async () => {
+            const reader = stream.getReader();
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (typeof value === "string" && value.length > 0) {
+                  try {
+                    await appendChunk(conversationIdForTee, value);
+                  } catch (err) {
+                    console.warn(
+                      "[ai-chat] appendChunk 실패(개별 청크 skip):",
+                      err instanceof Error ? err.message : err,
+                    );
+                  }
+                }
+              }
+            } finally {
+              reader.releaseLock();
+              try {
+                await completeStream(conversationIdForTee);
+              } catch (err) {
+                console.warn(
+                  "[ai-chat] completeStream 실패:",
+                  err instanceof Error ? err.message : err,
+                );
+              }
+            }
+          };
+          // Vercel 서버리스: response body 송출이 끝나도 tee 소비가 끝날 때까지 함수 유지.
+          after(consume());
+        }
+      : undefined,
     onFinish: async ({ messages: finalMessages }) => {
       // F-2: 스트림 종료 시 MCP handle 해제 (누수 방지). saveChatTurn 실패와 무관하게 close.
       await mcp.close();

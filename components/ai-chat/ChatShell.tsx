@@ -149,21 +149,39 @@ export function ChatShell({
   const openedArtifactId = useArtifactStore((s) => s.artifact?.id ?? null);
   const hydrateArtifacts = useConversationArtifactHydration(conversationId);
 
-  const { messages, sendMessage, status, error, stop, addToolResult } =
-    useChat({
-      id: conversationId,
-      messages: initialMessages,
-      transport: new DefaultChatTransport({ api: "/api/chat" }),
-      // Vercel AI Chatbot 공식 패턴 적용: 응답 완료 시 서버 컴포넌트 재실행 →
-      // listConversations 재조회 → 사이드바 자동 갱신(제목·최근활동·신규 대화 반영).
-      // router.refresh 는 서버 컴포넌트만 재실행하고 useChat messages 등 클라이언트
-      // state 는 보존함.
-      onFinish: () => {
-        router.refresh();
-        // Phase C-2: DB 에 저장된 artifact 의 persistedId 를 현재 열린 카드에 주입.
-        void hydrateArtifacts();
-      },
-    });
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    stop,
+    addToolResult,
+    resumeStream,
+  } = useChat({
+    id: conversationId,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    // Vercel AI Chatbot 공식 패턴 적용: 응답 완료 시 서버 컴포넌트 재실행 →
+    // listConversations 재조회 → 사이드바 자동 갱신(제목·최근활동·신규 대화 반영).
+    // router.refresh 는 서버 컴포넌트만 재실행하고 useChat messages 등 클라이언트
+    // state 는 보존함.
+    onFinish: () => {
+      router.refresh();
+      // Phase C-2: DB 에 저장된 artifact 의 persistedId 를 현재 열린 카드에 주입.
+      void hydrateArtifacts();
+    },
+  });
+
+  // Phase D-5: 마운트 직후(그리고 conversationId 변경 시) 활성 스트림 재연결 시도.
+  // GET /api/chat/<id>/stream 이 204(활성 스트림 없음) 를 주면 AI SDK 가 null 로 해석하고
+  // 조용히 no-op. 신규 대화·완료된 대화에서는 단순 HEAD-like 호출 1 회 비용만 든다.
+  // 리로드 시점에 server 가 consumeSseStream 으로 Redis 에 청크를 계속 쌓고 있으면,
+  // 여기서 resumeStream 이 그 청크들을 소비해 어시스턴트 응답을 이어서 렌더한다.
+  useEffect(() => {
+    void resumeStream();
+    // conversationId 가 바뀌면 재평가 — 초기 마운트 포함.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   const isBusy = status === "submitted" || status === "streaming";
 
