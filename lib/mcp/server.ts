@@ -79,6 +79,11 @@ import {
   listStudentsExecute,
   listStudentsInputShape,
 } from "@/lib/mcp/tools/listStudents";
+import {
+  findGuideDescription,
+  findGuideExecute,
+  findGuideInputShape,
+} from "@/lib/mcp/tools/findGuide";
 
 export const MCP_SERVER_INFO = {
   name: "eduatalk-mcp",
@@ -348,6 +353,27 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const result = await listStudentsExecute(args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+        isError: !result.ok,
+      };
+    },
+  );
+
+  server.registerTool(
+    "findGuide",
+    {
+      description: findGuideDescription,
+      inputSchema: findGuideInputShape,
+    },
+    async (args) => {
+      const result = await findGuideExecute(args);
       return {
         content: [
           {
