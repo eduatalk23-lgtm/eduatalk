@@ -175,6 +175,93 @@ export async function deleteMemoryById(
 }
 
 /**
+ * Phase D-3 Sprint 2: 기억 본문 + embedding 갱신. RLS 로 owner 외 차단.
+ * 호출자는 새 embedding 을 별도 단계에서 생성해 인자로 넘긴다 (repository 는 순수 DB 레이어).
+ */
+export async function updateMemoryContent(
+  client: Client,
+  args: { id: string; content: string; embedding: number[] },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await client
+    .from("ai_conversation_memories")
+    .update({
+      content: args.content,
+      embedding: JSON.stringify(args.embedding),
+    } as unknown as never)
+    .eq("id", args.id);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Phase D-3 Sprint 2: pin 토글. RLS 로 owner 외 차단. */
+export async function togglePinMemoryById(
+  client: Client,
+  args: { id: string; pinned: boolean },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await client
+    .from("ai_conversation_memories")
+    .update({ pinned: args.pinned } as unknown as never)
+    .eq("id", args.id);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Phase D-3 Sprint 2: owner 본인 기억의 kind 별 개수 + 총 개수 + pinned 개수.
+ *
+ * Supabase JS 는 GROUP BY 집계를 직접 지원하지 않으므로, HEAD count 요청
+ * 5건(총/turn/summary/explicit/pinned)을 병렬로 날린다. RLS 인덱스
+ * `idx_ai_memories_owner_created` 로 각 쿼리는 상수 시간.
+ */
+export async function countMemoriesByKind(
+  client: Client,
+  args: { ownerUserId: string },
+): Promise<
+  | {
+      ok: true;
+      counts: {
+        total: number;
+        turn: number;
+        summary: number;
+        explicit: number;
+        pinned: number;
+      };
+    }
+  | { ok: false; error: string }
+> {
+  const base = () =>
+    client
+      .from("ai_conversation_memories")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_user_id", args.ownerUserId);
+
+  const [total, turn, summary, explicit, pinned] = await Promise.all([
+    base(),
+    base().eq("kind", "turn"),
+    base().eq("kind", "summary"),
+    base().eq("kind", "explicit"),
+    base().eq("pinned", true),
+  ]);
+
+  for (const r of [total, turn, summary, explicit, pinned]) {
+    if (r.error) return { ok: false, error: r.error.message };
+  }
+
+  return {
+    ok: true,
+    counts: {
+      total: total.count ?? 0,
+      turn: turn.count ?? 0,
+      summary: summary.count ?? 0,
+      explicit: explicit.count ?? 0,
+      pinned: pinned.count ?? 0,
+    },
+  };
+}
+
+/**
  * Phase D-4 Sprint 3: 대화 요약 트리거용 쿼리.
  *
  * 다음 3 함수는 onFinish 훅(admin client) 경로에서 호출되므로 RLS 경로와 별개.

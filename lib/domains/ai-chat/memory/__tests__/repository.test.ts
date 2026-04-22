@@ -13,6 +13,9 @@ import {
   listRecentMemoriesForOwner,
   listMemoriesForOwner,
   deleteMemoryById,
+  updateMemoryContent,
+  togglePinMemoryById,
+  countMemoriesByKind,
 } from "../repository";
 
 type FakeResponse<T> = { data: T | null; error: { message: string } | null };
@@ -28,6 +31,8 @@ function makeThenable(response: FakeResponse<unknown>) {
     "limit",
     "delete",
     "single",
+    "update",
+    "maybeSingle",
   ]) {
     self[fn] = chain;
   }
@@ -387,5 +392,136 @@ describe("deleteMemoryById", () => {
     const result = await deleteMemoryById(client, "m-1");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("permission denied");
+  });
+});
+
+describe("updateMemoryContent", () => {
+  it("성공 시 ok:true", async () => {
+    const client = makeFakeClient({
+      fromResponse: { data: null, error: null },
+    });
+    const result = await updateMemoryContent(client, {
+      id: "m-1",
+      content: "수정된 내용",
+      embedding: [0.1, 0.2],
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("DB 오류 시 ok:false + error 전파", async () => {
+    const client = makeFakeClient({
+      fromResponse: { data: null, error: { message: "update failed" } },
+    });
+    const result = await updateMemoryContent(client, {
+      id: "m-1",
+      content: "x",
+      embedding: [0],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("update failed");
+  });
+});
+
+describe("togglePinMemoryById", () => {
+  it("pinned=true 성공", async () => {
+    const client = makeFakeClient({
+      fromResponse: { data: null, error: null },
+    });
+    const result = await togglePinMemoryById(client, {
+      id: "m-1",
+      pinned: true,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("DB 오류 시 ok:false", async () => {
+    const client = makeFakeClient({
+      fromResponse: { data: null, error: { message: "rls" } },
+    });
+    const result = await togglePinMemoryById(client, {
+      id: "m-1",
+      pinned: false,
+    });
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("countMemoriesByKind", () => {
+  /**
+   * 5건 병렬 HEAD count 쿼리를 시뮬레이션.
+   * from() 호출마다 counts 배열에서 순차로 반환.
+   * 순서: total → turn → summary → explicit → pinned
+   * (Promise.all 순서는 정의 순서 보존이므로 JS 엔진 표준 동작에 의존)
+   */
+  function makeCountClient(counts: number[]): SupabaseClient<Database> {
+    let idx = 0;
+    return {
+      from: () => {
+        const current = counts[idx++] ?? 0;
+        const self: Record<string, unknown> = {};
+        const chain = () => self;
+        for (const fn of ["select", "eq"]) self[fn] = chain;
+        self.then = (
+          resolve: (v: { count: number; error: null }) => void,
+        ) => resolve({ count: current, error: null });
+        return self;
+      },
+    } as unknown as SupabaseClient<Database>;
+  }
+
+  function makeErrorCountClient(errMsg: string): SupabaseClient<Database> {
+    return {
+      from: () => {
+        const self: Record<string, unknown> = {};
+        const chain = () => self;
+        for (const fn of ["select", "eq"]) self[fn] = chain;
+        self.then = (
+          resolve: (v: { count: null; error: { message: string } }) => void,
+        ) => resolve({ count: null, error: { message: errMsg } });
+        return self;
+      },
+    } as unknown as SupabaseClient<Database>;
+  }
+
+  it("총/turn/summary/explicit/pinned 5건 count 반환", async () => {
+    const client = makeCountClient([42, 20, 5, 10, 7]);
+    const result = await countMemoriesByKind(client, { ownerUserId: "u-1" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.counts).toEqual({
+        total: 42,
+        turn: 20,
+        summary: 5,
+        explicit: 10,
+        pinned: 7,
+      });
+    }
+  });
+
+  it("count 가 null 인 경우 0 으로 안전 처리", async () => {
+    const client = {
+      from: () => {
+        const self: Record<string, unknown> = {};
+        const chain = () => self;
+        for (const fn of ["select", "eq"]) self[fn] = chain;
+        self.then = (
+          resolve: (v: { count: null; error: null }) => void,
+        ) => resolve({ count: null, error: null });
+        return self;
+      },
+    } as unknown as SupabaseClient<Database>;
+    const result = await countMemoriesByKind(client, { ownerUserId: "u-1" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.counts.total).toBe(0);
+      expect(result.counts.turn).toBe(0);
+    }
+  });
+
+  it("어느 한 쿼리라도 오류면 ok:false", async () => {
+    const client = makeErrorCountClient("boom");
+    const result = await countMemoriesByKind(client, { ownerUserId: "u-1" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("boom");
   });
 });
