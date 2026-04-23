@@ -171,7 +171,7 @@
 
 | # | 작업 | 난이도 | 시간 | 상태 |
 |---|------|--------|------|------|
-| E-1 | 추가 tool (`listStudents`·`findGuide`·`createPlan`·`scheduleMeeting`) — `analyzeRecord` 는 이미 Shell MCP 등록됨(중복, 제외) | Med | 6~7d | 🟡 S-1 2/2 ✅ (`e5dd90d8`·`f1c78fa1`) / S-2 HITL 2종 대기 |
+| E-1 | 추가 tool (`listStudents`·`findGuide`·`createPlan`·`scheduleMeeting`) — `analyzeRecord` 는 이미 Shell MCP 등록됨(중복, 제외) | Med | 6~7d | 🟡 3/4 완결 — S-1 read 2종 ✅ (`e5dd90d8`·`f1c78fa1`) / S-2.1 createPlan HITL ✅ (`9756bbe0`) / S-2.2 scheduleMeeting 대기 |
 | E-2 | Persona 라우터 분리 (`/api/chat/student` vs `/admin/consultant`) | Med | 1w | ❌ |
 | E-3 | Multi-student 컨설턴트 Workspace (학생 비교 아티팩트) | High | 2w | ❌ |
 | E-4 | Sensitivity 표시 (성적·생기부 공유 경고) | Low | 3d | ❌ |
