@@ -208,16 +208,26 @@ export function ChatShell({
       });
       return;
     }
-    const res = await toggleArchiveConversation(conversationId, true);
-    const output: ArchiveConversationOutput = res.ok
-      ? { ok: true, conversationId }
-      : { ok: false, reason: res.error };
+    let output: ArchiveConversationOutput;
+    try {
+      const res = await toggleArchiveConversation(conversationId, true);
+      output = res.ok
+        ? { ok: true, conversationId }
+        : { ok: false, reason: res.error };
+    } catch (err) {
+      // 서버 액션 throw 시 addToolResult 가 호출되지 않으면 스트림이 input-available 에
+      // 영구 정체. fallback 주입해 LLM resume 보장.
+      output = {
+        ok: false,
+        reason: err instanceof Error ? `보관 실패: ${err.message}` : "보관 실패",
+      };
+    }
     addToolResult({
       tool: "archiveConversation",
       toolCallId,
       output,
     });
-    if (res.ok) router.refresh();
+    if (output.ok) router.refresh();
   };
 
   // Phase C-3 Sprint 2: applyArtifactEdit HITL 승인/거부 핸들러.
@@ -250,10 +260,19 @@ export function ChatShell({
       });
       return;
     }
-    const result = await applyArtifactEdit({
-      artifactId: input.artifactId,
-      versionNo: input.versionNo ?? undefined,
-    });
+    let result: ApplyArtifactEditOutput;
+    try {
+      result = await applyArtifactEdit({
+        artifactId: input.artifactId,
+        versionNo: input.versionNo ?? undefined,
+      });
+    } catch (err) {
+      result = {
+        ok: false,
+        reason:
+          err instanceof Error ? `적용 실패: ${err.message}` : "적용 실패",
+      };
+    }
     addToolResult({
       tool: "applyArtifactEdit",
       toolCallId,
@@ -292,7 +311,16 @@ export function ChatShell({
       });
       return;
     }
-    const result = await applyCreatePlan(input);
+    let result: ApplyCreatePlanOutput;
+    try {
+      result = await applyCreatePlan(input);
+    } catch (err) {
+      result = {
+        ok: false,
+        reason:
+          err instanceof Error ? `등록 실패: ${err.message}` : "등록 실패",
+      };
+    }
     addToolResult({
       tool: "createPlan",
       toolCallId,
