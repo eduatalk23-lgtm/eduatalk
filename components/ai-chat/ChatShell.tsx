@@ -27,6 +27,7 @@ import {
   Brain,
   CalendarClock,
   Target,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ScoresCard } from "@/components/ai-chat/ScoresCard";
@@ -54,6 +55,11 @@ import type { ArtifactType } from "@/lib/domains/ai-chat/artifact-repository";
 import { MessageCitations } from "@/components/ai-chat/MessageCitations";
 import { toggleArchiveConversation } from "@/lib/domains/ai-chat/actions";
 import { applyArtifactEdit } from "@/lib/domains/ai-chat/actions/artifactApply";
+import { applyCreatePlan } from "@/lib/domains/ai-chat/actions/createPlan";
+import type {
+  ApplyCreatePlanOutput,
+  CreatePlanInput,
+} from "@/lib/mcp/tools/createPlan";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import type { NavigateToOutput } from "@/lib/mcp/tools/navigateTo";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
@@ -250,6 +256,45 @@ export function ChatShell({
     });
     addToolResult({
       tool: "applyArtifactEdit",
+      toolCallId,
+      output: result,
+    });
+    if (result.ok) router.refresh();
+  };
+
+  // Phase E-1 Sprint 2.1: createPlan HITL 승인/거부 핸들러.
+  // 승인 시 서버 액션 applyCreatePlan 호출 후 addToolResult 로 resume.
+  // admin-like role 재검증은 서버 액션 내부에서 수행.
+  const handleCreatePlanApproval = async (
+    toolCallId: string,
+    confirmed: boolean,
+    input: CreatePlanInput | null,
+  ) => {
+    if (!confirmed) {
+      addToolResult({
+        tool: "createPlan",
+        toolCallId,
+        output: {
+          ok: false as const,
+          reason: "사용자가 취소했습니다.",
+        } satisfies ApplyCreatePlanOutput,
+      });
+      return;
+    }
+    if (!input) {
+      addToolResult({
+        tool: "createPlan",
+        toolCallId,
+        output: {
+          ok: false as const,
+          reason: "입력이 누락되었습니다.",
+        } satisfies ApplyCreatePlanOutput,
+      });
+      return;
+    }
+    const result = await applyCreatePlan(input);
+    addToolResult({
+      tool: "createPlan",
       toolCallId,
       output: result,
     });
@@ -464,6 +509,7 @@ export function ChatShell({
                 }}
                 onArchiveApproval={handleArchiveApproval}
                 onApplyArtifactEditApproval={handleApplyArtifactEditApproval}
+                onCreatePlanApproval={handleCreatePlanApproval}
                 role={role}
               />
             ))}
@@ -681,6 +727,15 @@ type MessageRowProps = {
     confirmed: boolean,
     input: { artifactId?: string; versionNo?: number | null },
   ) => Promise<void>;
+  /**
+   * Phase E-1 Sprint 2.1: createPlan HITL 승인 콜백.
+   * input 은 LLM 이 제공한 { studentId, studentName, courses[] }.
+   */
+  onCreatePlanApproval: (
+    toolCallId: string,
+    confirmed: boolean,
+    input: CreatePlanInput | null,
+  ) => Promise<void>;
   /** F-5: Tier budget SLO 게이트에서 role 별 에스컬레이션 동작 분기용. */
   role?: ChatShellRole;
 };
@@ -692,11 +747,13 @@ function MessageRow({
   onNavigate,
   onArchiveApproval,
   onApplyArtifactEditApproval,
+  onCreatePlanApproval,
   role,
 }: MessageRowProps) {
   const isUser = message.role === "user";
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
   const [applyBusyId, setApplyBusyId] = useState<string | null>(null);
+  const [createPlanBusyId, setCreatePlanBusyId] = useState<string | null>(null);
 
   // F-2 후속: AI SDK useChat 이 CSR 초기 state 계산 시 MCP tool parts 를
   // 내부 재가공하여 SSR/CSR 트리가 엇갈리는 hydration mismatch 회귀가 발생함.
@@ -790,6 +847,20 @@ function MessageRow({
       await onApplyArtifactEditApproval(toolCallId, confirmed, input);
     } finally {
       setApplyBusyId(null);
+    }
+  };
+
+  const respondCreatePlan = async (
+    toolCallId: string,
+    confirmed: boolean,
+    input: CreatePlanInput | null,
+  ) => {
+    if (createPlanBusyId) return;
+    setCreatePlanBusyId(toolCallId);
+    try {
+      await onCreatePlanApproval(toolCallId, confirmed, input);
+    } finally {
+      setCreatePlanBusyId(null);
     }
   };
 
@@ -1029,6 +1100,87 @@ function MessageRow({
                 key={i}
                 name="applyArtifactEdit"
                 icon={<Archive size={14} />}
+                state={output?.ok === false ? "error" : cardState}
+                summary={summary}
+                errorText={output?.ok === false ? output.reason : undefined}
+              />
+            );
+          }
+
+          // Phase E-1 Sprint 2.1: createPlan HITL 카드.
+          // applyArtifactEdit 과 동일 패턴 — execute 없는 tool 이라 state='input-available'
+          // 에서 InlineConfirm 으로 승인 수집, 승인 시 서버 액션 호출 → addToolResult 로 resume.
+          if (
+            toolCardsMounted &&
+            matchesTool(p, "createPlan") &&
+            "state" in p
+          ) {
+            const rawState = p.state;
+            const input =
+              "input" in p ? (p.input as CreatePlanInput | undefined) : undefined;
+            const output =
+              rawState === "output-available"
+                ? extractToolOutput<ApplyCreatePlanOutput>(p.output)
+                : undefined;
+
+            if (rawState === "input-available") {
+              const busy = createPlanBusyId === p.toolCallId;
+              const count = input?.courses?.length ?? 0;
+              const studentLabel = input?.studentName ?? "학생";
+              const preview = (input?.courses ?? [])
+                .slice(0, 3)
+                .map(
+                  (c) => `${c.grade}학년 ${c.semester}학기 · ${c.subjectName}`,
+                )
+                .join(" / ");
+              const more = count > 3 ? ` 외 ${count - 3}건` : "";
+              return (
+                <ToolCard
+                  key={i}
+                  name="createPlan"
+                  icon={<ClipboardList size={14} />}
+                  state="running"
+                  summary={`${studentLabel} 수강 계획 ${count}건 신규 등록 대기`}
+                  footer={
+                    <InlineConfirm
+                      title={`${studentLabel}에게 수강 계획 ${count}건을 등록할까요?`}
+                      description={
+                        preview
+                          ? `${preview}${more} · 같은 학기·과목이 이미 있으면 자동으로 건너뜁니다.`
+                          : "student_course_plans 에 source='consultant', plan_status='recommended' 로 INSERT 됩니다."
+                      }
+                      confirmLabel="등록"
+                      tone="destructive"
+                      busy={busy}
+                      onConfirm={() =>
+                        respondCreatePlan(p.toolCallId, true, input ?? null)
+                      }
+                      onCancel={() =>
+                        respondCreatePlan(p.toolCallId, false, input ?? null)
+                      }
+                    />
+                  }
+                />
+              );
+            }
+
+            const cardState = toolState(rawState);
+            const summary =
+              output?.ok === true
+                ? `${output.createdCount}건 등록${
+                    output.skippedCount > 0
+                      ? ` · ${output.skippedCount}건 스킵`
+                      : ""
+                  }`
+                : output?.ok === false
+                  ? output.reason
+                  : "등록 준비 중";
+
+            return (
+              <ToolCard
+                key={i}
+                name="createPlan"
+                icon={<ClipboardList size={14} />}
                 state={output?.ok === false ? "error" : cardState}
                 summary={summary}
                 errorText={output?.ok === false ? output.reason : undefined}
