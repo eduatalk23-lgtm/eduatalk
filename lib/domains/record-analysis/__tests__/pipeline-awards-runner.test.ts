@@ -109,13 +109,14 @@ function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
     errors: {},
     pipelineType: "grade",
     targetGrade: 2,
-    resolvedRecords: {
-      2: { hasAnyNeis: true, hasAnySetek: true, hasAnyChangche: false, hasAnyHaengteuk: false },
-    },
     cachedSeteks: [],
     cachedChangche: [],
     cachedHaengteuk: [],
-    belief: {},
+    belief: {
+      resolvedRecords: {
+        2: { hasAnyNeis: true, hasAnySetek: true, hasAnyChangche: false, hasAnyHaengteuk: false },
+      },
+    },
     ...overrides,
   } as unknown as PipelineContext;
 }

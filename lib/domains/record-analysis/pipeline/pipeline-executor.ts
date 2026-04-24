@@ -739,7 +739,6 @@ export async function loadPipelineContext(
     cachedChangche,
     cachedHaengteuk,
     coursePlanData,
-    resolvedRecords,
     neisGrades,
     consultingGrades,
     pipelineType,

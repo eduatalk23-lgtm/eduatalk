@@ -540,12 +540,6 @@ export interface PipelineContext {
   cachedSeteks?: CachedSetek[] | null;
   cachedChangche?: CachedChangche[] | null;
   cachedHaengteuk?: CachedHaengteuk[] | null;
-  /**
-   * NEIS 기반 해소 데이터 (Step 1 이후 항상 세팅).
-   *
-   * α 후속 6 (2026-04-24): `ctx.belief.resolvedRecords` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   */
-  resolvedRecords?: ResolvedRecordsByGrade;
   consultingGrades?: number[];
   /**
    * Phase 1-3(역량 분석) 완료 후 수집된 분석 맥락.
@@ -681,11 +675,10 @@ export type CorePipelineFields = Pick<
 // 기존 PipelineContext를 깨지 않고 소비자 측에서 타입 안전성 확보
 // ============================================
 
-/** Grade P1-P3 완료 후: resolvedRecords + cachedRecords + analysisContext 보장 */
+/** Grade P1-P3 완료 후: belief.resolvedRecords + analysisContext 보장 */
 export interface GradeAnalysisCompleteCtx extends PipelineContext {
   pipelineType: "grade";
   targetGrade: number;
-  resolvedRecords: NonNullable<PipelineContext["resolvedRecords"]>;
   analysisContext: NonNullable<PipelineContext["analysisContext"]>;
 }
 
@@ -711,7 +704,7 @@ export interface SynthesisCtx extends PipelineContext {
 export function assertGradeCtx(ctx: PipelineContext): asserts ctx is GradeAnalysisCompleteCtx {
   if (ctx.pipelineType !== "grade") throw new Error(`assertGradeCtx: expected grade pipeline, got ${ctx.pipelineType}`);
   if (ctx.targetGrade == null) throw new Error("assertGradeCtx: targetGrade is required");
-  if (!ctx.resolvedRecords) throw new Error("assertGradeCtx: resolvedRecords not populated");
+  if (!ctx.belief.resolvedRecords) throw new Error("assertGradeCtx: belief.resolvedRecords not populated");
 }
 
 export function assertSynthesisCtx(ctx: PipelineContext): asserts ctx is SynthesisCtx {

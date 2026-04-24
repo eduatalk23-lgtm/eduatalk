@@ -241,12 +241,11 @@ describe("runDraftRefinementChunkForGrade — feature flag off 동작", () => {
       tenantId: "tnt-1",
       studentGrade: 2,
       targetGrade: 2,
-      resolvedRecords: { 2: { hasAnyNeis: false } },
       tasks: {},
       previews: {},
       results: {},
       errors: {},
-      belief: {},
+      belief: { resolvedRecords: { 2: { hasAnyNeis: false } } },
       supabase: {} as never,
     } as never;
 
@@ -272,12 +271,11 @@ describe("runDraftRefinementChunkForGrade — feature flag off 동작", () => {
       tenantId: "tnt-1",
       studentGrade: 2,
       targetGrade: 2,
-      resolvedRecords: { 2: { hasAnyNeis: false } },
       tasks: {},
       previews: {},
       results: {},
       errors: {},
-      belief: {},
+      belief: { resolvedRecords: { 2: { hasAnyNeis: false } } },
       supabase: {} as never,
     } as never;
 

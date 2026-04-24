@@ -29,17 +29,17 @@ function truncateContent(content: string, maxChars = 550): string {
 
 /**
  * H1: 학년 단위 cross-subject theme 추출.
- * 입력: ctx.resolvedRecords[targetGrade] + ctx.analysisContext[targetGrade] + ctx.profileCard
+ * 입력: ctx.belief.resolvedRecords[targetGrade] + ctx.analysisContext[targetGrade] + ctx.profileCard
  * 출력: ctx.gradeThemes (GradeThemeExtractionResult)
  */
 export async function runCrossSubjectThemeExtractionForGrade(
   ctx: PipelineContext,
 ): Promise<TaskRunnerOutput> {
-  const { studentId, targetGrade, resolvedRecords, snapshot } = ctx;
+  const { studentId, targetGrade, snapshot } = ctx;
   if (targetGrade == null) {
     return "테마 추출 스킵: targetGrade 미설정";
   }
-  const gradeBucket = resolvedRecords?.[targetGrade];
+  const gradeBucket = ctx.belief.resolvedRecords?.[targetGrade];
   if (!gradeBucket) {
     // α 후속 1: dual write
     ctx.gradeThemes = undefined;

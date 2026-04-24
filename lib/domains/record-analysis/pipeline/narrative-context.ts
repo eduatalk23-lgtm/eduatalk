@@ -96,7 +96,7 @@ const COMPETENCY_LABEL_BY_CODE = new Map<string, { label: string; area: Competen
  *
  * - Phase 3 완료 후 Phase 4 진입 초반에 1회 호출.
  * - `recordPriorityOrder` 는 reportData(coursePlans) 접근이 필요해 이 경로에서는 비움.
- *   필요 시 후속 단계에서 ctx.resolvedRecords + coursePlanData 로 보강.
+ *   필요 시 후속 단계에서 ctx.belief.resolvedRecords + coursePlanData 로 보강.
  * - 빈 결과는 undefined 반환 (graceful).
  */
 export function buildNarrativeContextFromAnalysisContext(
