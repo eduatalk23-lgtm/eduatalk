@@ -109,7 +109,7 @@ export async function runActivitySummary(
   let priorInterviewSection: string | undefined;
   let priorInterviewCount = 0;
   let priorInterviewSectionChars = 0;
-  const prevRun = ctx.previousRunOutputs;
+  const prevRun = ctx.belief.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
     const prevInterview = getPreviousRunResult<{
@@ -386,7 +386,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   let priorGapSection: string | undefined;
   let priorGapBridgeCount = 0;
   let priorGapSectionChars = 0;
-  const prevRun = ctx.previousRunOutputs;
+  const prevRun = ctx.belief.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
     const prevGap = getPreviousRunResult<{

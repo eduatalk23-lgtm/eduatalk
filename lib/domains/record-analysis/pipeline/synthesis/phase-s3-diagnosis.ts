@@ -227,7 +227,7 @@ export async function runAiDiagnosis(
   // manifest: course_recommendation.writesForNextRun = ["ai_diagnosis"].
   let priorCourseRecCount = 0;
   let priorCourseSectionChars = 0;
-  const prevRun = ctx.previousRunOutputs;
+  const prevRun = ctx.belief.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
     const prevCourse = getPreviousRunResult<{

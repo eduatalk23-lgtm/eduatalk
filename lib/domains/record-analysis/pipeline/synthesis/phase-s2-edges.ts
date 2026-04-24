@@ -523,7 +523,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   // 현 슬라이스에서는 ranking 반영 없음(guide 도메인 수술 회피) — 읽기 + task_result 노출만.
   // 후속 슬라이스에서 autoRecommendGuidesAction 에 boost/demote 신호로 연결할 수 있도록 보존.
   let priorHighLinkAssignmentIds: string[] | undefined;
-  const prevRun = ctx.previousRunOutputs;
+  const prevRun = ctx.belief.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
     const prevLinking = getPreviousRunResult<{

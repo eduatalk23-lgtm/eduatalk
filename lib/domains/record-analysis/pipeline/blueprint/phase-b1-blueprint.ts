@@ -60,7 +60,7 @@ export async function runBlueprintGeneration(
   // 직전 실행의 blueprint_generation 이 writesForNextRun 으로 남긴 convergences 를 꺼내
   // LLM 프롬프트에 주입. 강한 이유 없이 테마 교체 방지.
   const prevPayload = getPreviousRunResult<BlueprintPreviousRunPayload>(
-    ctx.previousRunOutputs,
+    ctx.belief.previousRunOutputs,
     "blueprint_generation",
   );
   const previousConvergences = prevPayload?.convergences;

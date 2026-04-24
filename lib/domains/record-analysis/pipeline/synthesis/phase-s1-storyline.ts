@@ -107,7 +107,7 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
   // Cross-run feedback (Path A, 2026-04-17 풍부화 이후): 직전 실행의 activity_summary task_result 에서
   // 저장된 summaries 목록을 직접 읽어 "이미 포착한 축" 힌트로 주입. DB 재조회 없음.
   // roadmap_generation.items 가 있으면 "과거 계획 대비 진척" 서사 힌트도 함께 주입.
-  const prevRun = ctx.previousRunOutputs;
+  const prevRun = ctx.belief.previousRunOutputs;
   if (prevRun?.runId) {
     const { getPreviousRunResult } = await import("../pipeline-previous-run");
     const prevSummary = getPreviousRunResult<{

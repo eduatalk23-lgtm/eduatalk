@@ -49,7 +49,7 @@ export async function runPastDiagnosis(
     // Cross-run: 직전 실행 past_strategy.suggestions → "전 번 권고 이행도" 맥락.
     // manifest: past_strategy.writesForNextRun = ["past_diagnosis"].
     // buildPastDiagnosisUserPrompt 가 단일 섹션만 받으므로 pastStorylineSection 에 헤더로 구분해 병합.
-    const prevRun = ctx.previousRunOutputs;
+    const prevRun = ctx.belief.previousRunOutputs;
     if (prevRun?.runId) {
       const { getPreviousRunResult } = await import("../pipeline-previous-run");
       const prevPast = getPreviousRunResult<{
