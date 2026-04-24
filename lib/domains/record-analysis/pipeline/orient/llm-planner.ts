@@ -248,16 +248,18 @@ export async function runLlmPlanner(
     const { system, user } = buildOrientPlannerPrompt(beliefSummary);
 
     // ── Flash tier LLM 호출 ──────────────────────────────────
-    const result = await generateTextWithRateLimit(
-      [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      { tier: "fast" },
-    );
+    const result = await generateTextWithRateLimit({
+      system,
+      messages: [{ role: "user", content: user }],
+      modelTier: "fast",
+      responseFormat: "json",
+    });
 
     const llmDurationMs = Date.now() - startMs;
-    const rawText = result.text ?? "";
+    const rawText =
+      (result as { text?: string; content?: string }).text ??
+      (result as { content?: string }).content ??
+      "";
 
     // ── JSON 파싱 ────────────────────────────────────────────
     const parsed = extractJson<PlannerLlmOutput>(rawText);
