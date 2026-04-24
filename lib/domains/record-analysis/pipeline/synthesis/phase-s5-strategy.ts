@@ -341,14 +341,12 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     logActionError({ ...LOG_CTX, action: "pipeline.universityMatch" }, umErr, { pipelineId });
   }
 
-  // Phase 재시작 시 ctx.qualityPatterns가 유실된 경우 DB에서 재집계
-  if (!ctx.qualityPatterns) {
+  // Phase 재시작 시 belief.qualityPatterns 가 유실된 경우 DB에서 재집계
+  if (!ctx.belief.qualityPatterns) {
     try {
       const { aggregateQualityPatterns } = await import("./helpers");
       const { repeatingPatterns } = await aggregateQualityPatterns(ctx);
       if (repeatingPatterns.length > 0) {
-        ctx.qualityPatterns = repeatingPatterns;
-        // α 후속 3: dual write — Phase 재시작 재집계 경로도 belief 동기화
         ctx.belief.qualityPatterns = repeatingPatterns;
       }
     } catch { /* 재집계 실패해도 전략 생성은 계속 */ }
@@ -432,7 +430,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     universityMatchContext,
     guideContextSection: guideContextSection || undefined,
     hyperedgeSummarySection: combinedHyperedgeSection,
-    qualityPatterns: ctx.qualityPatterns,
+    qualityPatterns: ctx.belief.qualityPatterns,
     mainExplorationSection: mainExplorationSection || undefined,
   });
   if (!result.success) throw new Error(result.error);

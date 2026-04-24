@@ -744,16 +744,10 @@ export async function loadPipelineContext(
     pipelineType,
     targetGrade,
     gradeMode,
-    qualityPatterns,
-    analysisContext: persistedAnalysisContext,
     unifiedInput,
-    previousRunOutputs,
-    // Step 3 (2026-04-24): BeliefState 초기화 — 빈 객체로 시작.
-    // profileCard 는 P1-P3 runner 가 dual write. 나머지 belief 필드는 후속 Sprint 편입.
-    // α 후속 3 (2026-04-24): ai_diagnosis task_result 에서 복원된 qualityPatterns 를 belief 에 seed.
-    // α 후속 4 (2026-04-24): loadPreviousRunOutputs 로 로드된 previousRunOutputs 를 belief 에 seed.
-    // α 후속 5 (2026-04-24): task_results._analysisContext 에서 복원된 analysisContext 를 belief 에 seed.
-    // α 후속 6 (2026-04-24): DB 에서 신규 계산된 resolvedRecords 를 belief 에 seed.
+    // BeliefState — 파이프라인 공용 상태. profileCard 는 P1-P3 runner 가 write.
+    // task_results 복원본: qualityPatterns(ai_diagnosis) + previousRunOutputs(loadPreviousRunOutputs)
+    //  + analysisContext(_analysisContext) + DB 신규 계산본 resolvedRecords.
     belief: {
       ...(qualityPatterns ? { qualityPatterns } : {}),
       previousRunOutputs,

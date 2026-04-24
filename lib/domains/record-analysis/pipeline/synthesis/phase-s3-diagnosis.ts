@@ -122,8 +122,6 @@ export async function runAiDiagnosis(
       const { qualityPatternSection, repeatingPatterns } = await aggregateQualityPatterns(ctx);
       if (qualityPatternSection) diagQualityPatternSection = qualityPatternSection;
       if (repeatingPatterns.length > 0) {
-        ctx.qualityPatterns = repeatingPatterns;
-        // α 후속 3: dual write — ctx.qualityPatterns 소비처(phase-s5-strategy, phase-s7-tier-plan-refinement) 무수정
         ctx.belief.qualityPatterns = repeatingPatterns;
       }
       // 집계 실패 또는 빈 결과: belief.qualityPatterns 는 undefined 유지 (graceful)
@@ -360,7 +358,7 @@ export async function runAiDiagnosis(
       // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
       ...(savedTsAnalysis ? { _timeSeriesAnalysis: savedTsAnalysis } : {}),
       // S6: qualityPatterns를 DB에 영속화하여 Phase 재시작 시 S5에서 복원 가능
-      ...(ctx.qualityPatterns && ctx.qualityPatterns.length > 0 ? { qualityPatterns: ctx.qualityPatterns } : {}),
+      ...(ctx.belief.qualityPatterns && ctx.belief.qualityPatterns.length > 0 ? { qualityPatterns: ctx.belief.qualityPatterns } : {}),
     },
   };
 }

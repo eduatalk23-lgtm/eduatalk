@@ -94,7 +94,7 @@ async function runCompetencyForRecords(
   // 3-state invariant: undefined=미빌드, ""=시도했으나 데이터 없음, "..."=빌드 완료
   // setek/changche/haengteuk × chunked run (최대 6회 호출) 간 중복 DB 조회 방지
   // DB cache hit = 이전 파이프라인 실행의 interest_consistency 재사용 → LLM 호출 스킵
-  if (ctx.profileCard === undefined) {
+  if (ctx.belief.profileCard === undefined) {
     const {
       buildStudentProfileCard,
       enrichCardWithInterestConsistency,
@@ -146,16 +146,14 @@ async function runCompetencyForRecords(
         }
       }
     }
-    // Step 3 (2026-04-24): dual write — 기존 ctx.profileCard 소비처 유지 + BeliefState 편입
-    ctx.profileCard = card ? renderStudentProfileCard(card) : "";
-    ctx.belief.profileCard = ctx.profileCard;
+    ctx.belief.profileCard = card ? renderStudentProfileCard(card) : "";
     logActionDebug(
       LOG_CTX,
       `profileCard built: ${card ? `${card.priorSchoolYears.length}yrs, ${card.persistentWeaknesses.length}약점, narrative=${card.interestConsistency ? "yes" : "no"}, cache=${cacheOutcome}` : "empty"}`,
       { studentId, targetGrade },
     );
   }
-  const profileCardSection = ctx.profileCard || undefined;
+  const profileCardSection = ctx.belief.profileCard || undefined;
 
   // 증분 분석: 배치 캐시 조회
   const cachedEntries = await competencyRepo.findAnalysisCacheByRecordIds(
@@ -568,18 +566,16 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
     ctx, targetGrade, recordType, analysisRecords, { taskKey: config.taskKey },
   );
 
-  // Phase 간 맥락 전달: 분석 결과를 ctx.analysisContext에 축적
+  // Phase 간 맥락 전달: 분석 결과를 ctx.belief.analysisContext 에 축적
   collectAnalysisContext(ctx, targetGrade, recordType, analysisRecords, allResults);
 
   // 행특이 마지막 역량 분석 Phase이므로 여기서 전 영역 집계를 실행
   if (recordType === "haengteuk") {
     await runHaengteukAggregate(ctx, targetGrade, allResults);
 
-    // P2: analysisContext를 task_results에 영속화 → Phase 분할 재시작 시 복원 가능
-    if (ctx.analysisContext) {
-      ctx.results["_analysisContext"] = ctx.analysisContext;
-      // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
-      ctx.belief.analysisContext = ctx.analysisContext;
+    // Phase 분할 재시작 시 복원 가능하도록 task_results 에 영속화
+    if (ctx.belief.analysisContext) {
+      ctx.results["_analysisContext"] = ctx.belief.analysisContext;
     }
   }
 
@@ -634,18 +630,16 @@ async function runCompetencyChunkForType(
     { chunkSize },
   );
 
-  // Phase 간 맥락 전달: 청크 결과도 ctx.analysisContext에 축적
+  // Phase 간 맥락 전달: 청크 결과도 ctx.belief.analysisContext 에 축적
   collectAnalysisContext(ctx, targetGrade, recordType, analysisRecords, allResults);
 
   // 행특: 마지막 청크에서만 집계 실행
   if (recordType === "haengteuk" && !hasMore) {
     await runHaengteukAggregate(ctx, targetGrade, allResults);
 
-    // P2: analysisContext를 task_results에 영속화 → Phase 분할 재시작 시 복원 가능
-    if (ctx.analysisContext) {
-      ctx.results["_analysisContext"] = ctx.analysisContext;
-      // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
-      ctx.belief.analysisContext = ctx.analysisContext;
+    // Phase 분할 재시작 시 복원 가능하도록 task_results 에 영속화
+    if (ctx.belief.analysisContext) {
+      ctx.results["_analysisContext"] = ctx.belief.analysisContext;
     }
   }
 

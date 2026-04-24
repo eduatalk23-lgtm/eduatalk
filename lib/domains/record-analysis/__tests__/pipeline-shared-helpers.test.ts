@@ -2,7 +2,7 @@
 // pipeline-task-runners-shared.ts 순수 로직 함수 유닛 테스트
 //
 // 대상 함수:
-//   1. collectAnalysisContext()   — Phase 1-3 결과 → ctx.analysisContext 축적
+//   1. collectAnalysisContext()   — Phase 1-3 결과 → ctx.belief.analysisContext 축적
 //   2. toGuideAnalysisContext()   — GradeAnalysisContext → GuideAnalysisContext 변환
 //   3. buildGuideAnalysisContextFromReport() — ReportData → GuideAnalysisContext 변환
 //   4. runWithConcurrency()       — 동시성 제한 병렬 실행
@@ -115,17 +115,17 @@ function makeResultWithWeakCompetency(): HighlightAnalysisResult {
 // ============================================
 
 describe("collectAnalysisContext()", () => {
-  it("빈 allResults를 넘기면 ctx.analysisContext가 초기화되고 내용은 빈 배열", () => {
+  it("빈 allResults를 넘기면 ctx.belief.analysisContext가 초기화되고 내용은 빈 배열", () => {
     const ctx = makeCtx();
     const records = [{ id: "r1", subjectName: "수학" }];
     const allResults = new Map<string, HighlightAnalysisResult>();
 
     collectAnalysisContext(ctx, 1, "setek", records, allResults);
 
-    expect(ctx.analysisContext).toBeDefined();
-    expect(ctx.analysisContext![1]).toBeDefined();
-    expect(ctx.analysisContext![1].qualityIssues).toHaveLength(0);
-    expect(ctx.analysisContext![1].weakCompetencies).toHaveLength(0);
+    expect(ctx.belief.analysisContext).toBeDefined();
+    expect(ctx.belief.analysisContext![1]).toBeDefined();
+    expect(ctx.belief.analysisContext![1].qualityIssues).toHaveLength(0);
+    expect(ctx.belief.analysisContext![1].weakCompetencies).toHaveLength(0);
   });
 
   it("issues 없는 결과는 qualityIssues에 추가되지 않는다", () => {
@@ -135,7 +135,7 @@ describe("collectAnalysisContext()", () => {
 
     collectAnalysisContext(ctx, 1, "setek", records, allResults);
 
-    expect(ctx.analysisContext![1].qualityIssues).toHaveLength(0);
+    expect(ctx.belief.analysisContext![1].qualityIssues).toHaveLength(0);
   });
 
   it("issues가 있는 레코드는 qualityIssues에 RecordAnalysisContext로 추가된다", () => {
@@ -145,7 +145,7 @@ describe("collectAnalysisContext()", () => {
 
     collectAnalysisContext(ctx, 1, "setek", records, allResults);
 
-    const issues = ctx.analysisContext![1].qualityIssues;
+    const issues = ctx.belief.analysisContext![1].qualityIssues;
     expect(issues).toHaveLength(1);
     expect(issues[0].recordId).toBe("r1");
     expect(issues[0].recordType).toBe("setek");
@@ -163,7 +163,7 @@ describe("collectAnalysisContext()", () => {
 
     collectAnalysisContext(ctx, 1, "setek", records, allResults);
 
-    const weak = ctx.analysisContext![1].weakCompetencies;
+    const weak = ctx.belief.analysisContext![1].weakCompetencies;
     expect(weak.length).toBeGreaterThanOrEqual(2);
     const itemCodes = weak.map((w) => w.item);
     expect(itemCodes).toContain("critical_thinking");
@@ -179,7 +179,7 @@ describe("collectAnalysisContext()", () => {
 
     collectAnalysisContext(ctx, 1, "changche", records, allResults);
 
-    const criticalThinking = ctx.analysisContext![1].weakCompetencies.find(
+    const criticalThinking = ctx.belief.analysisContext![1].weakCompetencies.find(
       (w) => w.item === "critical_thinking",
     );
     expect(criticalThinking).toBeDefined();
@@ -201,8 +201,8 @@ describe("collectAnalysisContext()", () => {
 
     collectAnalysisContext(ctx, 1, "setek", records, allResults);
 
-    expect(ctx.analysisContext![1].qualityIssues).toHaveLength(1);
-    expect(ctx.analysisContext![1].qualityIssues[0].recordId).toBe("r1");
+    expect(ctx.belief.analysisContext![1].qualityIssues).toHaveLength(1);
+    expect(ctx.belief.analysisContext![1].qualityIssues[0].recordId).toBe("r1");
   });
 
   it("같은 recordId는 중복 추가되지 않는다 (idempotent)", () => {
@@ -213,7 +213,7 @@ describe("collectAnalysisContext()", () => {
     collectAnalysisContext(ctx, 1, "setek", records, allResults);
     collectAnalysisContext(ctx, 1, "setek", records, allResults); // 두 번 호출
 
-    expect(ctx.analysisContext![1].qualityIssues).toHaveLength(1);
+    expect(ctx.belief.analysisContext![1].qualityIssues).toHaveLength(1);
   });
 
   it("같은 역량 item + grade 조합은 중복 추가되지 않는다", () => {
@@ -229,7 +229,7 @@ describe("collectAnalysisContext()", () => {
     collectAnalysisContext(ctx, 1, "setek", records1, allResults1);
     collectAnalysisContext(ctx, 1, "changche", records2, allResults2);
 
-    const criticals = ctx.analysisContext![1].weakCompetencies.filter(
+    const criticals = ctx.belief.analysisContext![1].weakCompetencies.filter(
       (w) => w.item === "critical_thinking" && w.grade === "B-",
     );
     expect(criticals).toHaveLength(1);
@@ -243,10 +243,10 @@ describe("collectAnalysisContext()", () => {
     collectAnalysisContext(ctx, 1, "setek", records1, new Map([["r1", makeResultWithIssues()]]));
     collectAnalysisContext(ctx, 2, "setek", records2, new Map([["r2", makeResultWithIssues(["F10_성장부재"])]]));
 
-    expect(ctx.analysisContext![1].qualityIssues[0].recordId).toBe("r1");
-    expect(ctx.analysisContext![2].qualityIssues[0].recordId).toBe("r2");
-    expect(ctx.analysisContext![1].qualityIssues[0].issues).toContain("P1_나열식");
-    expect(ctx.analysisContext![2].qualityIssues[0].issues).toContain("F10_성장부재");
+    expect(ctx.belief.analysisContext![1].qualityIssues[0].recordId).toBe("r1");
+    expect(ctx.belief.analysisContext![2].qualityIssues[0].recordId).toBe("r2");
+    expect(ctx.belief.analysisContext![1].qualityIssues[0].issues).toContain("P1_나열식");
+    expect(ctx.belief.analysisContext![2].qualityIssues[0].issues).toContain("F10_성장부재");
   });
 
   it("contentQuality가 undefined인 결과는 qualityIssues에 추가되지 않는다", () => {
@@ -260,10 +260,10 @@ describe("collectAnalysisContext()", () => {
     };
     collectAnalysisContext(ctx, 1, "setek", records, new Map([["r1", result]]));
 
-    expect(ctx.analysisContext![1].qualityIssues).toHaveLength(0);
+    expect(ctx.belief.analysisContext![1].qualityIssues).toHaveLength(0);
   });
 
-  it("ctx.analysisContext가 이미 있을 때 기존 학년 데이터를 덮어쓰지 않는다", () => {
+  it("ctx.belief.analysisContext가 이미 있을 때 기존 학년 데이터를 덮어쓰지 않는다", () => {
     const ctx = makeCtx();
     // 먼저 2학년 데이터 세팅
     collectAnalysisContext(
@@ -282,8 +282,8 @@ describe("collectAnalysisContext()", () => {
       new Map([["r1", makeResultWithIssues(["P1_나열식"])]]),
     );
 
-    expect(ctx.analysisContext![2].qualityIssues[0].issues).toContain("F10_성장부재");
-    expect(ctx.analysisContext![1].qualityIssues[0].issues).toContain("P1_나열식");
+    expect(ctx.belief.analysisContext![2].qualityIssues[0].issues).toContain("F10_성장부재");
+    expect(ctx.belief.analysisContext![1].qualityIssues[0].issues).toContain("P1_나열식");
   });
 });
 

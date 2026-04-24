@@ -35,12 +35,12 @@ const COMPETENCY_AREA_BY_CODE = new Map<string, CompetencyArea>(
 const ACTIVITY_LABELS: Record<string, string> = { autonomy: "자율활동", club: "동아리활동", career: "진로활동" };
 
 /**
- * L4-E: ctx.analysisContext에 채워진 prior grade weakCompetencies를 area set으로 환산.
+ * L4-E: ctx.belief.analysisContext에 채워진 prior grade weakCompetencies를 area set으로 환산.
  * 1학년 또는 prior 분석 미수행 시 빈 Set 반환 → 정렬은 기존 동작.
  */
 function collectPriorWeakAreas(ctx: PipelineContext): Set<CompetencyArea> {
   const out = new Set<CompetencyArea>();
-  const buckets = ctx.analysisContext;
+  const buckets = ctx.belief.analysisContext;
   if (!buckets) return out;
   for (const grade of Object.keys(buckets)) {
     const ac = buckets[Number(grade)];

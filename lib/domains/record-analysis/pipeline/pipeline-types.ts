@@ -541,31 +541,12 @@ export interface PipelineContext {
   cachedChangche?: CachedChangche[] | null;
   cachedHaengteuk?: CachedHaengteuk[] | null;
   consultingGrades?: number[];
-  /**
-   * Phase 1-3(역량 분석) 완료 후 수집된 분석 맥락.
-   * Phase 4-6(가이드 생성)에서 직접 참조하여 약점/이슈 기반 가이드 작성.
-   * ctx.results(untyped)와 별도로 typed 필드로 관리.
-   *
-   * α 후속 5 (2026-04-24): `ctx.belief.analysisContext` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   * 학년별 구조 그대로 보존 — `ctx.belief.analysisContext?.[grade]` 로 접근.
-   */
-  analysisContext?: AnalysisContextByGrade;
   /** Grade Pipeline의 모드: analysis(NEIS) 또는 design(수강계획 기반 설계) */
   gradeMode?: "analysis" | "design";
   /** 레벨링 결과 캐시 (P7에서 1회 산출, P8/Synthesis에서 재사용) */
   leveling?: import("@/lib/domains/student-record/leveling/types").LevelingResult;
   /** C3: fetchReportData 결과 캐시 — Phase 4-6 간 공유하여 중복 호출 방지 */
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData;
-  /**
-   * C4: Layer 0 학생 프로필 카드 (렌더된 prompt 섹션 문자열).
-   * - `undefined` = 미빌드
-   * - `""` = 빌드 시도했으나 데이터 없음 (1학년/데이터 공란)
-   * - `"## 학생 프로필 카드..."` = 빌드 완료
-   * P1-P3에서 1회만 빌드, 이후 재사용. 세 상태를 구분해 6회 호출 간 중복 DB 조회 방지.
-   *
-   * Step 3 (2026-04-24): `ctx.belief.profileCard` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   */
-  profileCard?: string;
   /**
    * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
    * α 후속 1 (2026-04-24): gradeThemes 편입. α 후속 2 (2026-04-24): blueprint 편입.
@@ -574,34 +555,11 @@ export interface PipelineContext {
    * α 후속 1~6 전부 완료 — β 단계에서 소비처 재배선 가능.
    */
   belief: import("./belief-state").BeliefState;
-  /**
-   * Blueprint 설계 산출물 캐시 (2026-04-16 D 결정 5).
-   * Grade Pipeline 설계 모드(P4~P7) 프롬프트에 주입. Phase 4 진입 시 DB 조회 후 캐시.
-   * Past Analytics는 접근 불필요(역참조 불허).
-   *
-   * α 후속 2 (2026-04-24): `ctx.belief.blueprint` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   */
-  blueprint?: import("../blueprint/types").BlueprintPhaseOutput;
-
   // ── Synthesis Pipeline 전용 ───────────────────────────
   /** 의존하는 grade 파이프라인 ID 목록 (완료 판정 등에 사용) */
   gradePipelineIds?: string[];
   /** 통합 학년 입력 (buildUnifiedGradeInput으로 1회 구성) */
   unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
-  /**
-   * S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달).
-   *
-   * α 후속 3 (2026-04-24): `ctx.belief.qualityPatterns` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   */
-  qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
-  /**
-   * H1 / L3-A: 학년 단위 과목 교차 테마 추출 결과 (Grade Pipeline 한정).
-   * Phase 4 진입 직전 1회 산출 → setek/changche/haengteuk 가이드 프롬프트에 주입.
-   * 실패/스킵 시 undefined (가이드는 themes 없이 동작 — graceful degradation).
-   *
-   * α 후속 1 (2026-04-24): `ctx.belief.gradeThemes` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   */
-  gradeThemes?: import("../llm/types").GradeThemeExtractionResult;
   /**
    * Step 1 (2026-04-24, 비선형 재조직 로드맵): Priority Queue 선구체.
    * Phase 3 완료 직후 Phase 4 진입 초반에 `analysisContext` 기반 1회 계산.
@@ -629,22 +587,6 @@ export interface PipelineContext {
   /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
   cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
 
-  /**
-   * PR 5 (2026-04-17): Cross-run feedback 인프라.
-   * 같은 `pipeline_type` 의 직전 completed 파이프라인 `task_results` 요약.
-   * `pendingCrossRunFeedback: true` 인 terminal 태스크(activity_summary / interview_generation /
-   * roadmap_generation / course_recommendation / haengteuk_linking / gap_tracking / past_strategy)
-   * 의 산출물이 다음 실행의 상류 태스크에 공급되는 경로를 담는다.
-   *
-   * - `undefined` = 로드 시도 전(인프라 미진입 파이프라인)
-   * - `{ runId: null, ... }` = 직전 실행 없음(최초 실행)
-   * - `{ runId: "...", ... }` = 직전 실행 산출물 로드 완료
-   *
-   * Manifest 의 `writesForNextRun` 에 선언된 downstream task 만 읽어야 한다(CI 검증 대상).
-   *
-   * α 후속 4 (2026-04-24): `ctx.belief.previousRunOutputs` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
-   */
-  previousRunOutputs?: PreviousRunOutputs;
 }
 
 /**
@@ -675,11 +617,10 @@ export type CorePipelineFields = Pick<
 // 기존 PipelineContext를 깨지 않고 소비자 측에서 타입 안전성 확보
 // ============================================
 
-/** Grade P1-P3 완료 후: belief.resolvedRecords + analysisContext 보장 */
+/** Grade P1-P3 완료 후: belief.resolvedRecords 보장 */
 export interface GradeAnalysisCompleteCtx extends PipelineContext {
   pipelineType: "grade";
   targetGrade: number;
-  analysisContext: NonNullable<PipelineContext["analysisContext"]>;
 }
 
 /** Grade P4-P6 완료 후: 가이드 생성 컨텍스트 보장 */

@@ -59,7 +59,7 @@ export async function runWithConcurrency<T>(
 const WEAK_COMPETENCY_GRADES = new Set(["B-", "C"]);
 
 /**
- * runCompetencyForRecords 결과에서 분석 맥락을 추출하여 ctx.analysisContext에 축적한다.
+ * runCompetencyForRecords 결과에서 분석 맥락을 추출하여 ctx.belief.analysisContext에 축적한다.
  * Phase 1-3(역량 분석) 완료 시 호출. 실패한 레코드는 allResults에 포함되지 않으므로 자동 제외.
  */
 export function collectAnalysisContext(
@@ -70,14 +70,14 @@ export function collectAnalysisContext(
   allResults: Map<string, HighlightAnalysisResult>,
 ): void {
   // 맥락 초기화
-  if (!ctx.analysisContext) ctx.analysisContext = {};
-  if (!ctx.analysisContext[targetGrade]) {
-    ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+  if (!ctx.belief.analysisContext) ctx.belief.analysisContext = {};
+  if (!ctx.belief.analysisContext[targetGrade]) {
+    ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
   }
   // α 후속 5 (2026-04-24): ctx.belief.analysisContext 를 동일 객체로 동기화 (dual write alias).
   // 객체 참조를 공유하므로 이후 gradeCtx 변이가 belief 에 자동 반영된다.
-  ctx.belief.analysisContext = ctx.analysisContext;
-  const gradeCtx: GradeAnalysisContext = ctx.analysisContext[targetGrade];
+  ctx.belief.analysisContext = ctx.belief.analysisContext;
+  const gradeCtx: GradeAnalysisContext = ctx.belief.analysisContext[targetGrade];
 
   // 레코드 ID → subjectName 매핑
   const subjectNameById = new Map(records.map((r) => [r.id, r.subjectName]));

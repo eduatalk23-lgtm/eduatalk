@@ -271,7 +271,7 @@ export async function runDraftAnalysisForGrade(
     }
   }
 
-  // ─── ctx.analysisContext에 P8 약점 축적 (Synthesis 참조용) ──
+  // ─── ctx.belief.analysisContext에 P8 약점 축적 (Synthesis 참조용) ──
   if (allCompetencyGrades.length > 0) {
     const WEAK_GRADES = new Set(["B-", "C"]);
     const weakItems = allCompetencyGrades
@@ -284,13 +284,13 @@ export async function runDraftAnalysisForGrade(
       }));
 
     if (weakItems.length > 0) {
-      if (!ctx.analysisContext) ctx.analysisContext = {};
-      if (!ctx.analysisContext[targetGrade]) {
-        ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+      if (!ctx.belief.analysisContext) ctx.belief.analysisContext = {};
+      if (!ctx.belief.analysisContext[targetGrade]) {
+        ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
       }
-      ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
+      ctx.belief.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
       // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
-      ctx.belief.analysisContext = ctx.analysisContext;
+      ctx.belief.analysisContext = ctx.belief.analysisContext;
     }
   }
 
@@ -590,7 +590,7 @@ async function finalizeDraftAnalysisChunked(
     }
   }
 
-  // ctx.analysisContext 에 P8 약점 축적 (Synthesis 참조용)
+  // ctx.belief.analysisContext 에 P8 약점 축적 (Synthesis 참조용)
   if (allCompetencyGrades.length > 0) {
     const WEAK_GRADES = new Set(["B-", "C"]);
     const weakItems = allCompetencyGrades
@@ -603,13 +603,13 @@ async function finalizeDraftAnalysisChunked(
       }));
 
     if (weakItems.length > 0) {
-      if (!ctx.analysisContext) ctx.analysisContext = {};
-      if (!ctx.analysisContext[targetGrade]) {
-        ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+      if (!ctx.belief.analysisContext) ctx.belief.analysisContext = {};
+      if (!ctx.belief.analysisContext[targetGrade]) {
+        ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
       }
-      ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
+      ctx.belief.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
       // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
-      ctx.belief.analysisContext = ctx.analysisContext;
+      ctx.belief.analysisContext = ctx.belief.analysisContext;
     }
   }
 

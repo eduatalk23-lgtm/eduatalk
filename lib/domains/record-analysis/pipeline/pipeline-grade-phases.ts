@@ -260,13 +260,13 @@ export async function executeGradePhase4(
   if (await checkCancelled(ctx)) return;
 
   // ── Step 1 (2026-04-24, 비선형 재조직): narrativeContext 격상 ──
-  // Phase 1~3 완료 후 축적된 `ctx.analysisContext` 를 기반으로
+  // Phase 1~3 완료 후 축적된 `ctx.belief.analysisContext` 를 기반으로
   // Priority Queue 선구체(`NarrativeContext`) 를 ctx 최상위에 세팅.
   // Phase 4 진입 시점이 "P1~P3 완료 직후 + P4 판정 전" 이라 적합.
   // Orient Phase MVP 가 prioritizedWeaknesses.length 로 modelTier 판정에 활용.
   if (!ctx.narrativeContext) {
     const { buildNarrativeContextFromAnalysisContext } = await import("./narrative-context");
-    ctx.narrativeContext = buildNarrativeContextFromAnalysisContext(ctx.analysisContext);
+    ctx.narrativeContext = buildNarrativeContextFromAnalysisContext(ctx.belief.analysisContext);
   }
 
   // ── Step 2 (2026-04-24): Orient Phase Planner MVP ──
@@ -280,13 +280,10 @@ export async function executeGradePhase4(
   // ── Blueprint ctx 캐시 (설계 모드 P4~P7 프롬프트 주입용, 2026-04-16 D 결정 5) ──
   // 설계 모드(design) 진입 시 1회만 로드, analysis 모드는 스킵.
   // 로드 실패는 graceful degradation — blueprint 없이도 가이드 생성은 계속.
-  // α 후속 2 (2026-04-24): ctx.belief.blueprint dual write 추가.
   if (ctx.gradeMode === "design" && !ctx.belief.blueprint) {
     const { loadBlueprintForStudent } = await import("../blueprint/loader");
     const loaded = await loadBlueprintForStudent(ctx.studentId, ctx.tenantId);
     if (loaded) {
-      ctx.blueprint = loaded;
-      // α 후속 2: dual write — ctx.blueprint 소비처(pipeline-task-runners-guide.ts, draft-generation.ts) 무수정
       ctx.belief.blueprint = loaded;
     }
     // 로드 실패(loaded === null/undefined): belief.blueprint 는 undefined 유지 (graceful)
