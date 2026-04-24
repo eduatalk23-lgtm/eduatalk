@@ -259,6 +259,24 @@ export async function executeGradePhase4(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
+  // ── Step 1 (2026-04-24, 비선형 재조직): narrativeContext 격상 ──
+  // Phase 1~3 완료 후 축적된 `ctx.analysisContext` 를 기반으로
+  // Priority Queue 선구체(`NarrativeContext`) 를 ctx 최상위에 세팅.
+  // Phase 4 진입 시점이 "P1~P3 완료 직후 + P4 판정 전" 이라 적합.
+  // Orient Phase MVP 가 prioritizedWeaknesses.length 로 modelTier 판정에 활용.
+  if (!ctx.narrativeContext) {
+    const { buildNarrativeContextFromAnalysisContext } = await import("./narrative-context");
+    ctx.narrativeContext = buildNarrativeContextFromAnalysisContext(ctx.analysisContext);
+  }
+
+  // ── Step 2 (2026-04-24): Orient Phase Planner MVP ──
+  // Phase 4 진입 직전 학생 상태(belief) 를 읽고 skipTasks / modelTier 판정.
+  // 규칙 기반 (LLM 호출 0회). 기본값은 현재 동작 유지 (fallback 안전망).
+  if (!ctx.plannerDirective) {
+    const { runOrientPhase } = await import("./pipeline-orient-phase");
+    ctx.plannerDirective = await runOrientPhase(ctx);
+  }
+
   // ── Blueprint ctx 캐시 (설계 모드 P4~P7 프롬프트 주입용, 2026-04-16 D 결정 5) ──
   // 설계 모드(design) 진입 시 1회만 로드, analysis 모드는 스킵.
   // 로드 실패는 graceful degradation — blueprint 없이도 가이드 생성은 계속.
@@ -412,6 +430,17 @@ export async function executeGradePhase7(
     return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
   }
 
+  // Step 2 (2026-04-24): Orient 판정으로 draft_generation skip 인 경우 early exit
+  const { skipIfOrientSkipped: _orientSkipGen } = await import("./pipeline-orient-phase");
+  if (_orientSkipGen(ctx, "draft_generation")) {
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {},
+    );
+    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
   // 청크 모드 (B6, B5 패턴 이식)
   if (chunkOpts?.chunkSize != null) {
     if (skipIfPrereqFailed(ctx, "draft_generation")) {
@@ -500,6 +529,17 @@ export async function executeGradePhase8(
     return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
   }
 
+  // Step 2 (2026-04-24): Orient 판정으로 draft_analysis skip 인 경우 early exit
+  const { skipIfOrientSkipped: _orientSkipAna } = await import("./pipeline-orient-phase");
+  if (_orientSkipAna(ctx, "draft_analysis")) {
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {},
+    );
+    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
   // 청크 모드
   if (chunkOpts?.chunkSize != null) {
     if (skipIfPrereqFailed(ctx, "draft_analysis")) {
@@ -580,6 +620,13 @@ export async function executeGradePhase9(
 ): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
   if (await checkCancelled(ctx)) {
     return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
+  // Step 2 (2026-04-24): Orient 판정으로 draft_refinement skip 인 경우 early exit
+  const { skipIfOrientSkipped: _orientSkipRef } = await import("./pipeline-orient-phase");
+  if (_orientSkipRef(ctx, "draft_refinement")) {
+    await finalizeDesignModeStatus(ctx);
+    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
   }
 
   // 청크 모드

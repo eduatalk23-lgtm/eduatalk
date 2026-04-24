@@ -111,6 +111,7 @@ function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
     results: {},
     errors: {},
     pipelineType: "grade",
+    belief: {},
     ...overrides,
   };
 }

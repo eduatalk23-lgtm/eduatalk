@@ -163,6 +163,7 @@ function makeCtx(
     pipelineType: "synthesis" as const,
     neisGrades: [1, 2],
     unifiedInput: { hasAnyDesign: false, grades: {} },
+    belief: {},
     ...rest,
   };
 }

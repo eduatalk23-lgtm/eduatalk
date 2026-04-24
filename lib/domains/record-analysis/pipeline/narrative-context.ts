@@ -89,6 +89,48 @@ const COMPETENCY_LABEL_BY_CODE = new Map<string, { label: string; area: Competen
 // ============================================
 
 /**
+ * 파이프라인 ctx 기반 NarrativeContext 빌더 (Step 1: narrativeContext 격상, 2026-04-24).
+ *
+ * `fetchReportData` 를 거치지 않는 파이프라인 경로에서 `AnalysisContextByGrade` 만으로
+ * `prioritizedWeaknesses` 를 합성한다. Orient Phase Planner MVP 의 입력이 된다.
+ *
+ * - Phase 3 완료 후 Phase 4 진입 초반에 1회 호출.
+ * - `recordPriorityOrder` 는 reportData(coursePlans) 접근이 필요해 이 경로에서는 비움.
+ *   필요 시 후속 단계에서 ctx.resolvedRecords + coursePlanData 로 보강.
+ * - 빈 결과는 undefined 반환 (graceful).
+ */
+export function buildNarrativeContextFromAnalysisContext(
+  analysisContext:
+    | import("./pipeline-types").AnalysisContextByGrade
+    | undefined,
+): NarrativeContext | undefined {
+  if (!analysisContext) return undefined;
+  try {
+    const allWeak: Array<{ item: string; grade: string; reasoning?: string | null }> = [];
+    const issuesPerRecord: Array<string[] | null | undefined> = [];
+
+    for (const gradeCtx of Object.values(analysisContext)) {
+      if (!gradeCtx) continue;
+      for (const w of gradeCtx.weakCompetencies) {
+        allWeak.push({ item: w.item, grade: w.grade, reasoning: w.reasoning });
+      }
+      for (const q of gradeCtx.qualityIssues) {
+        issuesPerRecord.push(q.issues);
+      }
+    }
+
+    const prioritizedWeaknesses = computePrioritizedWeaknessesFromInputs(
+      allWeak,
+      issuesPerRecord,
+    );
+    if (prioritizedWeaknesses.length === 0) return undefined;
+    return { prioritizedWeaknesses, recordPriorityOrder: [] };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * 설계 학년의 레코드와 보강 우선순위 약점을 합성한다.
  * - `designGrades`가 비었거나 reportData에 데이터가 부족하면 undefined.
  * - 예외는 던지지 않는다(렌더링 경로용 — 항상 graceful).

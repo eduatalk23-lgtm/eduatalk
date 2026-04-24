@@ -81,6 +81,7 @@ function makeCtx(
     results: {},
     errors: {},
     pipelineType: "grade",
+    belief: {},
     ...overrides,
   };
 }

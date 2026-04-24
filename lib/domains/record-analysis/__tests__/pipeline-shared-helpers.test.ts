@@ -41,6 +41,7 @@ function makeCtx(): PipelineContext {
     errors: {},
     pipelineType: "grade",
     targetGrade: 1,
+    belief: {},
   };
 }
 

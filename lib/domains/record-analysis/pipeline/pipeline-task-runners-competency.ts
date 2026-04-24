@@ -146,7 +146,9 @@ async function runCompetencyForRecords(
         }
       }
     }
+    // Step 3 (2026-04-24): dual write — 기존 ctx.profileCard 소비처 유지 + BeliefState 편입
     ctx.profileCard = card ? renderStudentProfileCard(card) : "";
+    ctx.belief.profileCard = ctx.profileCard;
     logActionDebug(
       LOG_CTX,
       `profileCard built: ${card ? `${card.priorSchoolYears.length}yrs, ${card.persistentWeaknesses.length}약점, narrative=${card.interestConsistency ? "yes" : "no"}, cache=${cacheOutcome}` : "empty"}`,

@@ -116,6 +116,7 @@ function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
     cachedSeteks: [],
     cachedChangche: [],
     cachedHaengteuk: [],
+    belief: {},
     ...overrides,
   } as unknown as PipelineContext;
 }

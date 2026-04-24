@@ -565,8 +565,16 @@ export interface PipelineContext {
    * - `""` = 빌드 시도했으나 데이터 없음 (1학년/데이터 공란)
    * - `"## 학생 프로필 카드..."` = 빌드 완료
    * P1-P3에서 1회만 빌드, 이후 재사용. 세 상태를 구분해 6회 호출 간 중복 DB 조회 방지.
+   *
+   * Step 3 (2026-04-24): `ctx.belief.profileCard` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
    */
   profileCard?: string;
+  /**
+   * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
+   * 현재는 `profileCard` 한 필드만 dual write. 후속 Sprint 에서 analysisContext /
+   * gradeThemes / blueprint 등이 순차 편입된다.
+   */
+  belief: import("./belief-state").BeliefState;
   /**
    * Blueprint 설계 산출물 캐시 (2026-04-16 D 결정 5).
    * Grade Pipeline 설계 모드(P4~P7) 프롬프트에 주입. Phase 4 진입 시 DB 조회 후 캐시.
@@ -587,6 +595,19 @@ export interface PipelineContext {
    * 실패/스킵 시 undefined (가이드는 themes 없이 동작 — graceful degradation).
    */
   gradeThemes?: import("../llm/types").GradeThemeExtractionResult;
+  /**
+   * Step 1 (2026-04-24, 비선형 재조직 로드맵): Priority Queue 선구체.
+   * Phase 3 완료 직후 Phase 4 진입 초반에 `analysisContext` 기반 1회 계산.
+   * Orient Phase MVP 가 `prioritizedWeaknesses.length` 로 modelTier 판정.
+   * 재계산 비용 거의 0 (순수 함수), 실패 시 undefined (graceful).
+   */
+  narrativeContext?: import("./narrative-context").NarrativeContext;
+  /**
+   * Step 2 (2026-04-24): Orient Phase Planner 판정 결과.
+   * Phase 4 진입 직전 1회 계산. skipTasks 는 `skipIfOrientSkipped` 로 소비.
+   * modelTier 는 후속 단계에서 러너가 직접 참조 (MVP 에서는 기록만).
+   */
+  plannerDirective?: import("./pipeline-orient-phase").PlannerDirective;
   /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
   cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
 
