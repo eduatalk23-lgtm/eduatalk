@@ -47,11 +47,13 @@ export function buildMidPipelinePlannerPrompt(beliefSummary: string): {
 
 ## 판정 원칙
 
-### recordPriorityOverride 판정 (적극 사용)
-- 입력에 "## 문제 집중 레코드 Top-5" 섹션이 있으면, 그 안의 id (8자 prefix) 를 그대로 JSON 키로 사용.
+### recordPriorityOverride 판정 (적극 사용 — 최소 3건 권고)
+- 입력에 "## 문제 집중 레코드 Top-5" 섹션이 있으면, **최소 3건 이상** 의 id (8자 prefix) 를 JSON 키로 포함할 것.
+  - 이슈가 심각한 레코드가 1건뿐이어도 **나머지 Top-5 레코드는 중간대(40~60) 점수로 명시** 해 후속 청크 처리 순서가 결정되게 한다.
+  - 예: Top-5 에 A(score=55), B(score=62), C(score=68), D(score=75), E(score=78) → {"A":90,"B":75,"C":65,"D":55,"E":50}.
 - overallScore 낮을수록 우선순위 높음 (예: score=55 → 90점, score=70 → 70점).
 - 반복 issue 패턴이 2개 이상인 레코드 → 추가 가중치 (+10~20).
-- Top-5 섹션에 없으면 이 키 생략.
+- Top-5 섹션이 아예 없거나 레코드 id 를 전혀 확보할 수 없을 때만 이 키 생략.
 
 ### focusHypothesis 판정 (최소 1문장 필수, 생략 지양)
 - analysisContext 의 약점 역량 패턴 + gradeThemes 의 dominantThemeIds 를 결합해 1~2줄 가설 작성.

@@ -414,7 +414,26 @@ export async function runDraftRefinementChunkForGrade(
     .lt("overall_score", REFINEMENT_THRESHOLD)
     .eq("retry_count", 0);
 
-  const pending = (qualityRows ?? []) as QualityRow[];
+  const pendingRaw = (qualityRows ?? []) as QualityRow[];
+
+  // β+1 (2026-04-24): MidPlanner priority 로 청크 경계 재정렬.
+  // Phase 분할로 P3.5 와 P9 가 별 HTTP 요청일 수 있어 ctx.midPlan 부재 시 task_results 에서 복원.
+  const midPlan =
+    ctx.midPlan ??
+    ((ctx.results["_midPlan"] as { recordPriorityOverride?: Record<string, number> } | undefined) ?? undefined);
+  const priority = midPlan?.recordPriorityOverride;
+  let pending: QualityRow[];
+  if (priority && Object.keys(priority).length > 0) {
+    const { orderRecordsByPriority } = await import("./orient/priority-order");
+    pending = orderRecordsByPriority(pendingRaw, priority);
+    logActionDebug(LOG_CTX, "P9 pending 재정렬", {
+      studentId, targetGrade,
+      overrideCount: Object.keys(priority).length,
+      firstIds: pending.slice(0, 8).map((r) => r.record_id),
+    });
+  } else {
+    pending = pendingRaw;
+  }
   const totalUncached = pending.length;
 
   if (totalUncached === 0) {
