@@ -571,14 +571,16 @@ export interface PipelineContext {
   profileCard?: string;
   /**
    * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
-   * 현재는 `profileCard` 한 필드만 dual write. 후속 Sprint 에서 analysisContext /
-   * gradeThemes / blueprint 등이 순차 편입된다.
+   * α 후속 1 (2026-04-24): gradeThemes 편입. α 후속 2 (2026-04-24): blueprint 편입.
+   * 후속 Sprint 에서 analysisContext / qualityPatterns 등이 순차 편입된다.
    */
   belief: import("./belief-state").BeliefState;
   /**
    * Blueprint 설계 산출물 캐시 (2026-04-16 D 결정 5).
    * Grade Pipeline 설계 모드(P4~P7) 프롬프트에 주입. Phase 4 진입 시 DB 조회 후 캐시.
    * Past Analytics는 접근 불필요(역참조 불허).
+   *
+   * α 후속 2 (2026-04-24): `ctx.belief.blueprint` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
    */
   blueprint?: import("../blueprint/types").BlueprintPhaseOutput;
 
