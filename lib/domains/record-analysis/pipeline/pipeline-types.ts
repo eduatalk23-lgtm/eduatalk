@@ -593,6 +593,8 @@ export interface PipelineContext {
    * H1 / L3-A: 학년 단위 과목 교차 테마 추출 결과 (Grade Pipeline 한정).
    * Phase 4 진입 직전 1회 산출 → setek/changche/haengteuk 가이드 프롬프트에 주입.
    * 실패/스킵 시 undefined (가이드는 themes 없이 동작 — graceful degradation).
+   *
+   * α 후속 1 (2026-04-24): `ctx.belief.gradeThemes` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
    */
   gradeThemes?: import("../llm/types").GradeThemeExtractionResult;
   /**

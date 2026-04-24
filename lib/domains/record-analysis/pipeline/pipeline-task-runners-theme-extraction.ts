@@ -3,6 +3,9 @@
 // 학년 내 세특/창체/행특 레코드를 한 프롬프트에 일괄 주입 → 과목 교차 테마 감지
 // 결과는 ctx.gradeThemes에 저장되어 P4-P6 가이드 프롬프트에 주입된다.
 // 실패는 non-fatal — 가이드는 themes 없이 동작 (graceful degradation).
+//
+// α 후속 1 (2026-04-24): ctx.belief.gradeThemes dual write 추가.
+// 기존 ctx.gradeThemes 소비처(pipeline-task-runners-guide.ts) 무수정.
 // ============================================
 
 import { logActionWarn, logActionDebug } from "@/lib/logging/actionLogger";
@@ -38,7 +41,9 @@ export async function runCrossSubjectThemeExtractionForGrade(
   }
   const gradeBucket = resolvedRecords?.[targetGrade];
   if (!gradeBucket) {
+    // α 후속 1: dual write
     ctx.gradeThemes = undefined;
+    ctx.belief.gradeThemes = undefined;
     return "테마 추출 스킵: 해소된 레코드 없음";
   }
 
@@ -91,6 +96,7 @@ export async function runCrossSubjectThemeExtractionForGrade(
 
   // 1건 이하면 cross-subject 정의상 의미 없음 → 빈 결과로 즉시 종료
   if (records.length < 2) {
+    // α 후속 1: dual write
     ctx.gradeThemes = {
       themes: [],
       themeCount: 0,
@@ -98,6 +104,7 @@ export async function runCrossSubjectThemeExtractionForGrade(
       dominantThemeIds: [],
       elapsedMs: 0,
     };
+    ctx.belief.gradeThemes = ctx.gradeThemes;
     return `테마 추출 스킵: 분석 가능 레코드 ${records.length}건`;
   }
 
@@ -114,11 +121,15 @@ export async function runCrossSubjectThemeExtractionForGrade(
     const result = await extractCrossSubjectThemes(input);
     if (!result.success) {
       logActionWarn(LOG_CTX, `theme extraction failed: ${result.error}`, { studentId, targetGrade });
+      // α 후속 1: dual write
       ctx.gradeThemes = undefined;
+      ctx.belief.gradeThemes = undefined;
       return `테마 추출 실패: ${result.error}`;
     }
 
+    // α 후속 1: dual write — ctx.gradeThemes 소비처 무수정, belief 동기화
     ctx.gradeThemes = result.data;
+    ctx.belief.gradeThemes = result.data;
     logActionDebug(
       LOG_CTX,
       `themes=${result.data.themeCount} cross=${result.data.crossSubjectPatternCount} dominant=${result.data.dominantThemeIds.length}`,
@@ -148,7 +159,9 @@ export async function runCrossSubjectThemeExtractionForGrade(
     // extractCrossSubjectThemes 자체가 try/catch 내부에서 처리하지만, 예외 안전망
     const msg = err instanceof Error ? err.message : String(err);
     logActionWarn(LOG_CTX, `theme extraction threw: ${msg}`, { studentId, targetGrade });
+    // α 후속 1: dual write
     ctx.gradeThemes = undefined;
+    ctx.belief.gradeThemes = undefined;
     return `테마 추출 예외: ${msg}`;
   }
 }
