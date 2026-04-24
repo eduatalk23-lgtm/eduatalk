@@ -316,6 +316,19 @@ export async function executeGradePhase4(
       // MidPlanner 실패는 파이프라인에 무영향 (best-effort)
       ctx.midPlan = null;
     }
+    // telemetry 영속 — _analysisContext 패턴과 동일하게 task_results 에 저장
+    if (ctx.midPlan !== null) {
+      ctx.results["_midPlan"] = ctx.midPlan as unknown as Record<string, unknown>;
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId,
+        "running",
+        ctx.tasks,
+        ctx.previews,
+        ctx.results,
+        ctx.errors,
+      );
+    }
   }
 
   // ── α1-2: 봉사 역량 태깅 (pre-task) ──
