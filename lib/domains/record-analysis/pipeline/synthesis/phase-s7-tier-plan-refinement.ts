@@ -166,7 +166,7 @@ export async function runTierPlanRefinement(
     )
     .filter((s) => s.length > 0);
 
-  const qualityPatterns = (ctx.qualityPatterns ?? [])
+  const qualityPatterns = (ctx.belief.qualityPatterns ?? [])
     .slice(0, MAX_QUALITY_PATTERNS)
     .map((p) => `${p.pattern} (${p.count}회, 과목: ${p.subjects.join(", ")})`);
 
