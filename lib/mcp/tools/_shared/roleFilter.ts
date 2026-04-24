@@ -7,7 +7,8 @@
  *
  * 현재 admin 전용 tool: analyzeRecordDeep (record-sub), designStudentPlan (plan-sub),
  * analyzeAdmission (admission-sub), getBlueprint, listStudents (Phase E-1 S-1),
- * findGuide (Phase E-1 S-1), createPlan (Phase E-1 S-2, HITL).
+ * findGuide (Phase E-1 S-1), createPlan (Phase E-1 S-2.1, HITL),
+ * scheduleMeeting (Phase E-1 S-2.2, HITL).
  *
  * G-6 Sprint 4 Option A: superadmin 은 admin-like 에 포함. eduatalk 운영사 내부
  * 관리자로서 cross-tenant 조회 가능(tenantId=null). `resolveStudentTarget` 에서
@@ -32,6 +33,7 @@ export const ADMIN_ONLY_TOOL_NAMES = new Set<string>([
   "listStudents",
   "findGuide",
   "createPlan",
+  "scheduleMeeting",
 ]);
 
 export function isAdminLikeRole(role: McpUserRole): boolean {

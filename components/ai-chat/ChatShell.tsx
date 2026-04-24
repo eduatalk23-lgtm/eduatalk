@@ -60,6 +60,11 @@ import type {
   ApplyCreatePlanOutput,
   CreatePlanInput,
 } from "@/lib/mcp/tools/createPlan";
+import { applyScheduleMeeting } from "@/lib/domains/ai-chat/actions/scheduleMeeting";
+import type {
+  ApplyScheduleMeetingOutput,
+  ScheduleMeetingInput,
+} from "@/lib/mcp/tools/scheduleMeeting";
 import type { AnalyzeRecordOutput } from "@/lib/domains/ai-chat/actions/record-analysis";
 import type { NavigateToOutput } from "@/lib/mcp/tools/navigateTo";
 import type { GetScoresOutput } from "@/lib/mcp/tools/getScores";
@@ -329,6 +334,53 @@ export function ChatShell({
     if (result.ok) router.refresh();
   };
 
+  // Phase E-1 Sprint 2.2: scheduleMeeting HITL 승인/거부 핸들러.
+  // 승인 시 서버 액션 applyScheduleMeeting 호출 후 addToolResult 로 resume.
+  const handleScheduleMeetingApproval = async (
+    toolCallId: string,
+    confirmed: boolean,
+    input: ScheduleMeetingInput | null,
+  ) => {
+    if (!confirmed) {
+      addToolResult({
+        tool: "scheduleMeeting",
+        toolCallId,
+        output: {
+          ok: false as const,
+          reason: "사용자가 취소했습니다.",
+        } satisfies ApplyScheduleMeetingOutput,
+      });
+      return;
+    }
+    if (!input) {
+      addToolResult({
+        tool: "scheduleMeeting",
+        toolCallId,
+        output: {
+          ok: false as const,
+          reason: "입력이 누락되었습니다.",
+        } satisfies ApplyScheduleMeetingOutput,
+      });
+      return;
+    }
+    let result: ApplyScheduleMeetingOutput;
+    try {
+      result = await applyScheduleMeeting(input);
+    } catch (err) {
+      result = {
+        ok: false,
+        reason:
+          err instanceof Error ? `일정 등록 실패: ${err.message}` : "일정 등록 실패",
+      };
+    }
+    addToolResult({
+      tool: "scheduleMeeting",
+      toolCallId,
+      output: result,
+    });
+    if (result.ok) router.refresh();
+  };
+
   // Phase B-2: ⌘K / Ctrl+K 로 팔레트 열기. split 모드에서는 상위 페이지 단축키와
   // 충돌 가능성 있어 full variant 에서만 활성화.
   useEffect(() => {
@@ -538,6 +590,7 @@ export function ChatShell({
                 onArchiveApproval={handleArchiveApproval}
                 onApplyArtifactEditApproval={handleApplyArtifactEditApproval}
                 onCreatePlanApproval={handleCreatePlanApproval}
+                onScheduleMeetingApproval={handleScheduleMeetingApproval}
                 role={role}
               />
             ))}
@@ -717,6 +770,51 @@ function extractToolOutput<T>(raw: unknown): T | undefined {
   return raw as T;
 }
 
+/**
+ * Phase E-1 Sprint 2.2: scheduleMeeting HITL 카드용 KST 시간 범위 포맷.
+ * 입력이 파싱 실패하면 원본을 최대한 노출. 같은 날이면 종료는 시/분만 표기.
+ */
+function formatMeetingRange(
+  startAt: string | undefined,
+  endAt: string | undefined,
+): string {
+  if (!startAt || !endAt) return "시간 미정";
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${startAt} ~ ${endAt}`;
+  }
+  const dateFmt = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  });
+  const timeFmt = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const sameDay =
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(start) ===
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(end);
+  if (sameDay) {
+    return `${dateFmt.format(start)} ${timeFmt.format(start)}~${timeFmt.format(end)}`;
+  }
+  return `${dateFmt.format(start)} ${timeFmt.format(start)} ~ ${dateFmt.format(end)} ${timeFmt.format(end)}`;
+}
+
 function statusLabel(
   status: "no_analysis" | "running" | "partial" | "completed",
 ): string {
@@ -764,6 +862,15 @@ type MessageRowProps = {
     confirmed: boolean,
     input: CreatePlanInput | null,
   ) => Promise<void>;
+  /**
+   * Phase E-1 Sprint 2.2: scheduleMeeting HITL 승인 콜백.
+   * input 은 LLM 이 제공한 { studentId?, title, startAt, endAt, ... }.
+   */
+  onScheduleMeetingApproval: (
+    toolCallId: string,
+    confirmed: boolean,
+    input: ScheduleMeetingInput | null,
+  ) => Promise<void>;
   /** F-5: Tier budget SLO 게이트에서 role 별 에스컬레이션 동작 분기용. */
   role?: ChatShellRole;
 };
@@ -776,12 +883,14 @@ function MessageRow({
   onArchiveApproval,
   onApplyArtifactEditApproval,
   onCreatePlanApproval,
+  onScheduleMeetingApproval,
   role,
 }: MessageRowProps) {
   const isUser = message.role === "user";
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
   const [applyBusyId, setApplyBusyId] = useState<string | null>(null);
   const [createPlanBusyId, setCreatePlanBusyId] = useState<string | null>(null);
+  const [scheduleBusyId, setScheduleBusyId] = useState<string | null>(null);
 
   // F-2 후속: AI SDK useChat 이 CSR 초기 state 계산 시 MCP tool parts 를
   // 내부 재가공하여 SSR/CSR 트리가 엇갈리는 hydration mismatch 회귀가 발생함.
@@ -889,6 +998,20 @@ function MessageRow({
       await onCreatePlanApproval(toolCallId, confirmed, input);
     } finally {
       setCreatePlanBusyId(null);
+    }
+  };
+
+  const respondScheduleMeeting = async (
+    toolCallId: string,
+    confirmed: boolean,
+    input: ScheduleMeetingInput | null,
+  ) => {
+    if (scheduleBusyId) return;
+    setScheduleBusyId(toolCallId);
+    try {
+      await onScheduleMeetingApproval(toolCallId, confirmed, input);
+    } finally {
+      setScheduleBusyId(null);
     }
   };
 
@@ -1209,6 +1332,93 @@ function MessageRow({
                 key={i}
                 name="createPlan"
                 icon={<ClipboardList size={14} />}
+                state={output?.ok === false ? "error" : cardState}
+                summary={summary}
+                errorText={output?.ok === false ? output.reason : undefined}
+              />
+            );
+          }
+
+          // Phase E-1 Sprint 2.2: scheduleMeeting HITL 카드.
+          // createPlan 과 동일 패턴 — execute 없는 tool, state='input-available'
+          // 에서 InlineConfirm 으로 승인 수집, 승인 시 applyScheduleMeeting → addToolResult.
+          if (
+            toolCardsMounted &&
+            matchesTool(p, "scheduleMeeting") &&
+            "state" in p
+          ) {
+            const rawState = p.state;
+            const input =
+              "input" in p
+                ? (p.input as ScheduleMeetingInput | undefined)
+                : undefined;
+            const output =
+              rawState === "output-available"
+                ? extractToolOutput<ApplyScheduleMeetingOutput>(p.output)
+                : undefined;
+
+            if (rawState === "input-available") {
+              const busy = scheduleBusyId === p.toolCallId;
+              const title = input?.title ?? "새 일정";
+              const range = formatMeetingRange(input?.startAt, input?.endAt);
+              const target = input?.studentName
+                ? `@${input.studentName}`
+                : input?.studentId
+                  ? "학생 대상"
+                  : "관리자 개인 캘린더";
+              const syncLabel =
+                input?.syncGoogle === false
+                  ? "Google 동기화 없음"
+                  : input?.studentId
+                    ? "Google 연동 시 동기화 시도"
+                    : "로컬 캘린더만";
+              const descSnippet = input?.description
+                ? ` · ${input.description.slice(0, 40)}${
+                    input.description.length > 40 ? "…" : ""
+                  }`
+                : "";
+              const locSnippet = input?.location ? ` · 장소: ${input.location}` : "";
+              return (
+                <ToolCard
+                  key={i}
+                  name="scheduleMeeting"
+                  icon={<CalendarClock size={14} />}
+                  state="running"
+                  summary={`${title} · ${range} 등록 대기`}
+                  footer={
+                    <InlineConfirm
+                      title={`${title}을(를) ${range}에 등록할까요?`}
+                      description={`${target} · ${syncLabel}${locSnippet}${descSnippet}`}
+                      confirmLabel="등록"
+                      tone="destructive"
+                      busy={busy}
+                      onConfirm={() =>
+                        respondScheduleMeeting(p.toolCallId, true, input ?? null)
+                      }
+                      onCancel={() =>
+                        respondScheduleMeeting(p.toolCallId, false, input ?? null)
+                      }
+                    />
+                  }
+                />
+              );
+            }
+
+            const cardState = toolState(rawState);
+            const summary =
+              output?.ok === true
+                ? `${output.calendarScope === "student" ? "학생" : "관리자"} 캘린더 등록${
+                    output.syncedToGoogle ? " · Google 동기화 요청" : ""
+                  }`
+                : output?.ok === false
+                  ? output.reason
+                  : "일정 등록 준비 중";
+
+            return (
+              <ToolCard
+                key={i}
+                name="scheduleMeeting"
+                icon={<CalendarClock size={14} />}
                 state={output?.ok === false ? "error" : cardState}
                 summary={summary}
                 errorText={output?.ok === false ? output.reason : undefined}
