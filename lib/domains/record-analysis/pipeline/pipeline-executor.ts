@@ -754,10 +754,12 @@ export async function loadPipelineContext(
     // α 후속 3 (2026-04-24): ai_diagnosis task_result 에서 복원된 qualityPatterns 를 belief 에 seed.
     // α 후속 4 (2026-04-24): loadPreviousRunOutputs 로 로드된 previousRunOutputs 를 belief 에 seed.
     // α 후속 5 (2026-04-24): task_results._analysisContext 에서 복원된 analysisContext 를 belief 에 seed.
+    // α 후속 6 (2026-04-24): DB 에서 신규 계산된 resolvedRecords 를 belief 에 seed.
     belief: {
       ...(qualityPatterns ? { qualityPatterns } : {}),
       previousRunOutputs,
       ...(persistedAnalysisContext ? { analysisContext: persistedAnalysisContext } : {}),
+      resolvedRecords,
     },
   };
 }

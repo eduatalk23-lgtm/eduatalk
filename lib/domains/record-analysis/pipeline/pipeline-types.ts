@@ -544,7 +544,11 @@ export interface PipelineContext {
   cachedSeteks?: CachedSetek[] | null;
   cachedChangche?: CachedChangche[] | null;
   cachedHaengteuk?: CachedHaengteuk[] | null;
-  /** NEIS 기반 해소 데이터 (Step 1 이후 항상 세팅) */
+  /**
+   * NEIS 기반 해소 데이터 (Step 1 이후 항상 세팅).
+   *
+   * α 후속 6 (2026-04-24): `ctx.belief.resolvedRecords` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
+   */
   resolvedRecords?: ResolvedRecordsByGrade;
   consultingGrades?: number[];
   /**
@@ -576,7 +580,8 @@ export interface PipelineContext {
    * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
    * α 후속 1 (2026-04-24): gradeThemes 편입. α 후속 2 (2026-04-24): blueprint 편입.
    * α 후속 3 (2026-04-24): qualityPatterns 편입. α 후속 4 (2026-04-24): previousRunOutputs 편입.
-   * α 후속 5 (2026-04-24): analysisContext 편입.
+   * α 후속 5 (2026-04-24): analysisContext 편입. α 후속 6 (2026-04-24): resolvedRecords 편입.
+   * α 후속 1~6 전부 완료 — β 단계에서 소비처 재배선 가능.
    */
   belief: import("./belief-state").BeliefState;
   /**

@@ -11,8 +11,9 @@
 // α 후속 3: qualityPatterns 편입 (2026-04-24).
 // α 후속 4: previousRunOutputs 편입 (2026-04-24).
 // α 후속 5: analysisContext 편입 (2026-04-24).
-// 기존 `ctx.profileCard` / `ctx.gradeThemes` / `ctx.blueprint` / `ctx.qualityPatterns` / `ctx.previousRunOutputs` / `ctx.analysisContext` 경로 **유지** — dual write alias.
-// 소비처 무수정. 나머지 belief 필드는 후속 Sprint 에서 순차 편입.
+// α 후속 6: resolvedRecords 편입 (2026-04-24).
+// 기존 `ctx.profileCard` / `ctx.gradeThemes` / `ctx.blueprint` / `ctx.qualityPatterns` / `ctx.previousRunOutputs` / `ctx.analysisContext` / `ctx.resolvedRecords` 경로 **유지** — dual write alias.
+// 소비처 무수정. 모든 belief 필드 편입 완료 (α 후속 1~6). β 단계에서 소비처 재배선 가능.
 //
 // profileCard 3-state invariant (pipeline-types.ts:563-569 주석):
 //   undefined = 미빌드 / "" = 빌드했으나 빈 카드 / "..." = 빌드 완료
@@ -27,6 +28,10 @@
 // analysisContext: Phase 1-3(역량 분석) collectAnalysisContext 로 점진 축적. 학년별 구조 그대로 보존.
 //   executor restore: task_results._analysisContext 에서 복원 시 belief 에도 seed.
 //   undefined = Phase 1-3 미실행 또는 NEIS 레코드 없음 / { [grade]: GradeAnalysisContext } = 1개 이상 학년 완료
+// resolvedRecords: loadPipelineContext 에서 매번 DB 에서 신규 계산 (previousRunOutputs 와 동일 패턴).
+//   Grade Pipeline: targetGrade 기준 단일 학년 또는 전체 학년 해소.
+//   undefined = 로드 미진입 파이프라인 (Synthesis 전용) / ResolvedRecordsByGrade = 해소 완료 (빈 객체 포함).
+//   executor restore: DB 에서 항상 신규 계산 — task_results 복원 불필요.
 // ============================================
 
 export interface BeliefState {
@@ -97,6 +102,19 @@ export interface BeliefState {
    *   (loadPipelineContext 의 `persistedAnalysisContext` 경로).
    */
   analysisContext?: import("./pipeline-types").AnalysisContextByGrade;
+
+  /**
+   * NEIS 기반 해소 데이터 (학년별 구조). `loadPipelineContext` 에서 매번 DB 에서 신규 계산.
+   * Grade Pipeline 전용 — Synthesis Pipeline 에서는 undefined.
+   * P1~P6(역량 분석 + 가이드), P8(draft_analysis), P9(draft_refinement) 에서
+   * `ctx.resolvedRecords?.[targetGrade]` 로 읽혀 effectiveContent 우선 콘텐츠 해소에 사용된다.
+   * 빈 객체(`{}`)는 "해소 완료, 레코드 0건"을 의미 (Synthesis 와 구분).
+   *
+   * dual write 하위 호환: `ctx.resolvedRecords` 와 값 동기화 (한 세션 내 alias).
+   * invalidation: loadPipelineContext 호출 시 항상 DB 신규 계산 — 세션 내 불변(재로드 조건 없음).
+   * executor restore: DB 에서 항상 신규 계산 — task_results 복원 불필요 (previousRunOutputs 와 동일 정책).
+   */
+  resolvedRecords?: import("./pipeline-types").ResolvedRecordsByGrade;
 }
 
 /** 빈 BeliefState 초기값 — `loadPipelineContext` 에서 사용. */
