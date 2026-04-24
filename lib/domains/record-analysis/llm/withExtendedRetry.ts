@@ -18,6 +18,7 @@
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { touchPipelineHeartbeat } from "../pipeline/pipeline-executor";
 import { logActionWarn } from "@/lib/logging/actionLogger";
+import { isLlmClientError } from "./error-classifier";
 
 const EXTENDED_DELAYS_MS = [
   1_000,           // 1 초
@@ -50,21 +51,6 @@ async function sleepWithHeartbeat(
   }
 }
 
-/** `withRetry` 의 classifyError 와 동일 규칙. client_error 는 재시도 스킵용. */
-function isClientError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const msg = error.message.toLowerCase();
-  // 4xx non-429 만. 429 (rate limit) 는 재시도 대상.
-  if (msg.includes("429")) return false;
-  return (
-    msg.includes("400") ||
-    msg.includes("401") ||
-    msg.includes("403") ||
-    msg.includes("404") ||
-    msg.includes("invalid")
-  );
-}
-
 export interface WithExtendedRetryOptions {
   pipelineId: string;
   supabase: SupabaseAdminClient;
@@ -91,7 +77,7 @@ export async function withExtendedRetry<T>(
     } catch (error) {
       lastError = error;
 
-      if (isClientError(error)) {
+      if (isLlmClientError(error)) {
         // 400/401/403/404 류 — 재시도 의미 없음. 즉시 throw.
         throw error;
       }

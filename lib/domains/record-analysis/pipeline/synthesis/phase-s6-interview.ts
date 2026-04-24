@@ -13,6 +13,7 @@ import {
 } from "../pipeline-types";
 import * as repository from "@/lib/domains/student-record/repository";
 import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
+import { resolveEffectiveContent } from "../pipeline-data-resolver";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
@@ -55,16 +56,8 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   function getRecordType(r: CachedRecord): "setek" | "changche" {
     return isCachedSetek(r) ? "setek" : "changche";
   }
-  /** 콘텐츠 해소 우선순위: imported > confirmed > content > ai_draft */
-  function getEffectiveContent(r: CachedRecord): string {
-    const imported = r.imported_content?.trim();
-    if (imported && imported.length > 0) return imported;
-    const confirmed = r.confirmed_content?.trim();
-    if (confirmed && confirmed.length > 0) return confirmed;
-    const content = r.content?.trim();
-    if (content && content.length > 0) return content;
-    return r.ai_draft_content?.trim() ?? "";
-  }
+  /** 콘텐츠 해소: `pipeline-data-resolver.resolveEffectiveContent` 재사용 (4-layer 우선순위 단일 소스) */
+  const getEffectiveContent = (r: CachedRecord): string => resolveEffectiveContent(r).text;
 
   // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용) — imported_content 우선
   // 문턱 150자: 얕은 답안 생성을 방지 (50자 미만 기록은 면접 질문으로 부적절)

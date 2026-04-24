@@ -10,6 +10,7 @@
 import type { ReportData } from "@/lib/domains/student-record/report/actions";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
 import type { CompetencyArea } from "@/lib/domains/student-record/types";
+import { resolveEffectiveContent } from "./pipeline-data-resolver";
 
 // ============================================
 // 타입
@@ -276,7 +277,7 @@ function collectCandidates(reportData: ReportData, designGrades: number[]): Reco
         ...(subjectName ? { subjectName } : {}),
         isCareerSubject: careerSubjects.has(s.subject_id),
         matchedAreas: setekAreas,
-        isEmpty: !((s.ai_draft_content ?? "").trim() || (s.content ?? "").trim()),
+        isEmpty: !resolveEffectiveContent(s).text,
       });
     }
     for (const c of tab.changche ?? []) {
@@ -289,7 +290,7 @@ function collectCandidates(reportData: ReportData, designGrades: number[]): Reco
         label,
         isCareerSubject: false,
         matchedAreas: CHANGCHE_AREA_MAP[c.activity_type] ?? new Set<CompetencyArea>(),
-        isEmpty: !((c.ai_draft_content ?? "").trim() || (c.content ?? "").trim()),
+        isEmpty: !resolveEffectiveContent(c).text,
       });
     }
     if (tab.haengteuk) {
@@ -302,7 +303,7 @@ function collectCandidates(reportData: ReportData, designGrades: number[]): Reco
         label: "행동특성 및 종합의견",
         isCareerSubject: false,
         matchedAreas: haengteukAreas,
-        isEmpty: !((h.ai_draft_content ?? "").trim() || (h.content ?? "").trim()),
+        isEmpty: !resolveEffectiveContent(h).text,
       });
     }
   }
