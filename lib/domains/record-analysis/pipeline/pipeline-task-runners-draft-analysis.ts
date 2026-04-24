@@ -137,11 +137,8 @@ export async function runDraftAnalysisForGrade(
   assertGradeCtx(ctx);
   const { studentId, tenantId, studentGrade, targetGrade } = ctx;
 
-  // 설계 모드 판별
-  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
-  const hasNeis = gradeResolved?.hasAnyNeis ?? false;
-
-  if (hasNeis) {
+  // 설계 모드 판별 — NEIS 레코드 있으면 P1-P3에서 이미 분석 완료, 가안 분석 스킵
+  if (ctx.belief.resolvedRecords?.[targetGrade]?.hasAnyNeis) {
     return "분석 모드 학년 — 가안 분석 스킵 (P1-P3에서 처리)";
   }
 
@@ -377,9 +374,7 @@ export async function runDraftAnalysisChunkForGrade(
   const { studentId, tenantId, studentGrade, targetGrade, supabase } = ctx;
 
   // 설계 모드 판별 (기존 runDraftAnalysisForGrade 와 동일)
-  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
-  const hasNeis = gradeResolved?.hasAnyNeis ?? false;
-  if (hasNeis) {
+  if (ctx.belief.resolvedRecords?.[targetGrade]?.hasAnyNeis) {
     return {
       preview: "분석 모드 학년 — 가안 분석 스킵 (P1-P3에서 처리)",
       hasMore: false,

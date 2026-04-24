@@ -386,10 +386,8 @@ export async function runDraftRefinementChunkForGrade(
 
   const { studentId, tenantId, studentGrade, targetGrade, supabase } = ctx;
 
-  // ─── 설계 모드 판별 ──────────────────────────────────────────────────────
-  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
-  const hasNeis = gradeResolved?.hasAnyNeis ?? false;
-  if (hasNeis) {
+  // ─── 설계 모드 판별 — NEIS 레코드 있으면 P9 재생성 스킵 ────────────────────
+  if (ctx.belief.resolvedRecords?.[targetGrade]?.hasAnyNeis) {
     return {
       preview: "분석 모드 학년 — 가안 개선 스킵",
       hasMore: false,
