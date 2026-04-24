@@ -578,6 +578,8 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
     // P2: analysisContext를 task_results에 영속화 → Phase 분할 재시작 시 복원 가능
     if (ctx.analysisContext) {
       ctx.results["_analysisContext"] = ctx.analysisContext;
+      // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
+      ctx.belief.analysisContext = ctx.analysisContext;
     }
   }
 
@@ -642,6 +644,8 @@ async function runCompetencyChunkForType(
     // P2: analysisContext를 task_results에 영속화 → Phase 분할 재시작 시 복원 가능
     if (ctx.analysisContext) {
       ctx.results["_analysisContext"] = ctx.analysisContext;
+      // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
+      ctx.belief.analysisContext = ctx.analysisContext;
     }
   }
 

@@ -10,7 +10,8 @@
 // α 후속 2: blueprint 편입 (2026-04-24).
 // α 후속 3: qualityPatterns 편입 (2026-04-24).
 // α 후속 4: previousRunOutputs 편입 (2026-04-24).
-// 기존 `ctx.profileCard` / `ctx.gradeThemes` / `ctx.blueprint` / `ctx.qualityPatterns` / `ctx.previousRunOutputs` 경로 **유지** — dual write alias.
+// α 후속 5: analysisContext 편입 (2026-04-24).
+// 기존 `ctx.profileCard` / `ctx.gradeThemes` / `ctx.blueprint` / `ctx.qualityPatterns` / `ctx.previousRunOutputs` / `ctx.analysisContext` 경로 **유지** — dual write alias.
 // 소비처 무수정. 나머지 belief 필드는 후속 Sprint 에서 순차 편입.
 //
 // profileCard 3-state invariant (pipeline-types.ts:563-569 주석):
@@ -23,6 +24,9 @@
 //   undefined = 미집계 또는 집계 실패(graceful) / Array = 집계 완료
 // previousRunOutputs: loadPipelineContext 에서 1회 로드 (DB 직전 completed 파이프라인 스냅샷).
 //   undefined = 로드 미진입 파이프라인 / { runId: null, ... } = 최초 실행 / { runId: "...", ... } = 로드 완료
+// analysisContext: Phase 1-3(역량 분석) collectAnalysisContext 로 점진 축적. 학년별 구조 그대로 보존.
+//   executor restore: task_results._analysisContext 에서 복원 시 belief 에도 seed.
+//   undefined = Phase 1-3 미실행 또는 NEIS 레코드 없음 / { [grade]: GradeAnalysisContext } = 1개 이상 학년 완료
 // ============================================
 
 export interface BeliefState {
@@ -79,6 +83,20 @@ export interface BeliefState {
    * executor restore: previousRunOutputs 는 DB 에서 항상 새로 로드되므로 task_results 에서 복원하지 않음.
    */
   previousRunOutputs?: import("./pipeline-types").PreviousRunOutputs;
+
+  /**
+   * Phase 1-3(역량 분석) 완료 후 수집된 분석 맥락 (학년별 구조).
+   * `collectAnalysisContext()` 가 setek/changche/haengteuk 완료 시마다 점진 축적.
+   * P8(draft_analysis) 도 weak competencies 를 동일 구조에 누적.
+   * Phase 4-6(가이드 생성) 에서 issues/약점 기반 프롬프트 주입에 소비된다.
+   * 학년별 구조(`{ [grade]: GradeAnalysisContext }`)를 그대로 유지 — 학년별 분해 금지.
+   *
+   * dual write 하위 호환: `ctx.analysisContext` 와 값 동기화 (한 세션 내 alias).
+   * invalidation: collectAnalysisContext 호출 시 점진 갱신 — 두 alias 는 항상 동일 객체 참조.
+   * executor restore: task_results._analysisContext 에서 복원 시 belief 에도 seed
+   *   (loadPipelineContext 의 `persistedAnalysisContext` 경로).
+   */
+  analysisContext?: import("./pipeline-types").AnalysisContextByGrade;
 }
 
 /** 빈 BeliefState 초기값 — `loadPipelineContext` 에서 사용. */

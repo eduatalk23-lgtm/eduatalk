@@ -292,6 +292,8 @@ export async function runDraftAnalysisForGrade(
         ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
       }
       ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
+      // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
+      ctx.belief.analysisContext = ctx.analysisContext;
     }
   }
 
@@ -611,6 +613,8 @@ async function finalizeDraftAnalysisChunked(
         ctx.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
       }
       ctx.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
+      // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
+      ctx.belief.analysisContext = ctx.analysisContext;
     }
   }
 

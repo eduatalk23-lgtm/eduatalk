@@ -551,6 +551,9 @@ export interface PipelineContext {
    * Phase 1-3(역량 분석) 완료 후 수집된 분석 맥락.
    * Phase 4-6(가이드 생성)에서 직접 참조하여 약점/이슈 기반 가이드 작성.
    * ctx.results(untyped)와 별도로 typed 필드로 관리.
+   *
+   * α 후속 5 (2026-04-24): `ctx.belief.analysisContext` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
+   * 학년별 구조 그대로 보존 — `ctx.belief.analysisContext?.[grade]` 로 접근.
    */
   analysisContext?: AnalysisContextByGrade;
   /** Grade Pipeline의 모드: analysis(NEIS) 또는 design(수강계획 기반 설계) */
@@ -573,7 +576,7 @@ export interface PipelineContext {
    * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
    * α 후속 1 (2026-04-24): gradeThemes 편입. α 후속 2 (2026-04-24): blueprint 편입.
    * α 후속 3 (2026-04-24): qualityPatterns 편입. α 후속 4 (2026-04-24): previousRunOutputs 편입.
-   * 후속 Sprint 에서 analysisContext 등이 순차 편입된다.
+   * α 후속 5 (2026-04-24): analysisContext 편입.
    */
   belief: import("./belief-state").BeliefState;
   /**
