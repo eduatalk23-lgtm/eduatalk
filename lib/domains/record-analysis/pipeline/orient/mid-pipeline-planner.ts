@@ -119,22 +119,25 @@ export function serializeBeliefForPlanner(
     `## 학년/모드\n- 현재 학년: ${ctx.studentGrade}\n- 모드: ${gradeMode}\n- 대상 학년: ${targetGrade}`,
   );
 
-  // ── NEIS 레코드 커버리지 섹션 ────────────────────────────
+  // ── 레코드 수집 현황 섹션 ──────────────────────────────
+  // NEIS_확정기록_있음: 최종 NEIS 문서로 확정된 학기 기록 존재 여부 (flag)
+  // 수집된_세특수: 실제 DB 에 축적된 세특 row 수 (NEIS 미확정 포함, ai_draft/consultant edit 포함)
+  // 둘이 달라질 수 있음 — flag=false 여도 rowCount > 0 가능 (가안·컨설턴트 편집만 있는 경우)
   const resolved = belief.resolvedRecords;
   if (resolved && Object.keys(resolved).length > 0) {
     const lines: string[] = [];
     for (const [grade, bucket] of Object.entries(resolved)) {
       if (!bucket) continue;
-      const hasNeis = bucket.hasAnyNeis ? "true" : "false";
+      const hasNeis = bucket.hasAnyNeis ? "있음" : "없음";
       const setekCount = bucket.seteks?.length ?? 0;
       const changcheCount = bucket.changche?.length ?? 0;
-      const haengteuk = bucket.haengteuk ? "yes" : "no";
+      const haengteuk = bucket.haengteuk ? "있음" : "없음";
       lines.push(
-        `- ${grade}학년: hasAnyNeis=${hasNeis}, seteks=${setekCount}, changche=${changcheCount}, haengteuk=${haengteuk}`,
+        `- ${grade}학년: NEIS_확정기록_${hasNeis} / 수집된_세특수=${setekCount}건, 창체=${changcheCount}건, 행특_${haengteuk}`,
       );
     }
     if (lines.length > 0) {
-      sections.push(`## NEIS 레코드 커버리지\n${lines.join("\n")}`);
+      sections.push(`## 레코드 수집 현황\n${lines.join("\n")}`);
     }
   }
 
@@ -146,16 +149,54 @@ export function serializeBeliefForPlanner(
       if (!gradeCtx) continue;
       const qualityIssueCount = gradeCtx.qualityIssues?.length ?? 0;
       const weakCompCount = gradeCtx.weakCompetencies?.length ?? 0;
-      const top3Issues = gradeCtx.qualityIssues
-        ?.slice(0, 3)
-        .map((i) => i.recordType ?? "unknown")
-        .join(", ");
       lines.push(
-        `- ${grade}학년: 품질이슈 ${qualityIssueCount}건, 약점역량 ${weakCompCount}건${top3Issues ? ` (주요: ${top3Issues})` : ""}`,
+        `- ${grade}학년: 품질이슈 ${qualityIssueCount}건, 약점역량 ${weakCompCount}건`,
       );
     }
     if (lines.length > 0) {
-      sections.push(`## 학년별 약점 요약 (analysisContext)\n${lines.join("\n")}`);
+      sections.push(`## 학년별 약점 요약\n${lines.join("\n")}`);
+    }
+  }
+
+  // ── 문제 집중 레코드 Top-N 섹션 (recordPriorityOverride 판정 근거) ────────
+  // LLM 이 특정 recordId 에 우선순위를 부여하려면 실제 id 를 봐야 함.
+  // overallScore 오름차순 정렬 후 Top 5 만 노출.
+  if (analysisContext && Object.keys(analysisContext).length > 0) {
+    const allRecords: Array<{
+      grade: string;
+      recordId: string;
+      recordType: string;
+      subjectName?: string;
+      issues: string[];
+      overallScore: number;
+      feedback: string;
+    }> = [];
+    for (const [grade, gradeCtx] of Object.entries(analysisContext)) {
+      if (!gradeCtx?.qualityIssues) continue;
+      for (const r of gradeCtx.qualityIssues) {
+        allRecords.push({
+          grade,
+          recordId: r.recordId,
+          recordType: r.recordType,
+          subjectName: r.subjectName,
+          issues: r.issues,
+          overallScore: r.overallScore,
+          feedback: r.feedback,
+        });
+      }
+    }
+    if (allRecords.length > 0) {
+      const top5 = allRecords
+        .sort((a, b) => a.overallScore - b.overallScore)
+        .slice(0, 5);
+      const lines = top5.map((r) => {
+        const subject = r.subjectName ? `(${r.subjectName})` : "";
+        const issuesStr = r.issues.slice(0, 3).join(", ");
+        return `- id=${r.recordId.slice(0, 8)}… ${r.recordType}${subject} score=${r.overallScore} issues=[${issuesStr}]`;
+      });
+      sections.push(
+        `## 문제 집중 레코드 Top-5 (overallScore 낮은 순)\n${lines.join("\n")}`,
+      );
     }
   }
 
@@ -238,11 +279,13 @@ export async function runMidPipelinePlanner(
     // ── 프롬프트 빌드 ────────────────────────────────────────
     const { system, user } = buildMidPipelinePlannerPrompt(beliefSummary);
 
-    // ── Flash tier LLM 호출 ──────────────────────────────────
+    // ── Standard tier LLM 호출 ──────────────────────────────
+    // 메타 판단 작업 — fast tier 는 belief 데이터 환각 경향 확인됨(2026-04-24 실측).
+    // standard 로 올려 hallucination 억제. 호출 빈도 낮으므로(run 당 1회) 비용 부담 적음.
     const result = await generateTextWithRateLimit({
       system,
       messages: [{ role: "user", content: user }],
-      modelTier: "fast",
+      modelTier: "standard",
       responseFormat: "json",
     });
 

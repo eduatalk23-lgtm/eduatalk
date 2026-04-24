@@ -47,16 +47,17 @@ export function buildMidPipelinePlannerPrompt(beliefSummary: string): {
 
 ## 판정 원칙
 
-### recordPriorityOverride 판정
-- 품질 이슈가 많은 레코드(qualityIssues 에 반복 등장): 높은 점수(70~100).
-- 탐구 주제 교차점이 많은 레코드(gradeThemes 주요 테마와 연관): 높은 점수(70~100).
-- 이슈 없고 테마 연관 낮은 레코드: 낮은 점수(0~40).
-- 레코드 ID 정보가 없거나 belief 에 명시되지 않으면 생략(빈 {} 또는 키 자체 생략).
+### recordPriorityOverride 판정 (적극 사용)
+- 입력에 "## 문제 집중 레코드 Top-5" 섹션이 있으면, 그 안의 id (8자 prefix) 를 그대로 JSON 키로 사용.
+- overallScore 낮을수록 우선순위 높음 (예: score=55 → 90점, score=70 → 70점).
+- 반복 issue 패턴이 2개 이상인 레코드 → 추가 가중치 (+10~20).
+- Top-5 섹션에 없으면 이 키 생략.
 
-### focusHypothesis 판정
+### focusHypothesis 판정 (최소 1문장 필수, 생략 지양)
 - analysisContext 의 약점 역량 패턴 + gradeThemes 의 dominantThemeIds 를 결합해 1~2줄 가설 작성.
-- 예: "academic_inquiry 축이 전 학년 약하나, community 계열 테마는 강함 — 탐구 깊이보다 공동체 활동 서사 중심"
-- 정보 부족(analysisContext·gradeThemes 없음) 시 이 키 생략.
+- 가설은 입력 belief 에 **실제 등장한 테마명·역량명** 만 인용. 없는 값을 만들지 말 것.
+- belief 가 완전히 비었을 때만 생략 허용. analysisContext 나 qualityPatterns 또는 gradeThemes 중 하나라도 있으면 반드시 1문장 작성.
+- 가설이 불확실하면 "~일 가능성", "~로 추정" 같은 유보 표현 사용하되 반드시 데이터 근거 포함.
 
 ### concernFlags 판정 (0~3건)
 - 반복 품질 패턴(qualityPatterns) 이 특정 레코드 유형에 집중 → 1건 추가.
@@ -66,8 +67,9 @@ export function buildMidPipelinePlannerPrompt(beliefSummary: string): {
 
 ### rationale (반드시 belief 실 데이터 인용)
 - 최소 1건 필수. 최대 4건.
-- 예: "P1_나열식 22건 집중 → setek 레코드 우선 플래그", "gradeThemes dominantTheme: science_inquiry(3건)"
-- 막연한 "정보 부족" 단독 표현 금지 — 이유 있으면 belief 에서 근거 인용.
+- 각 bullet 은 입력 belief 요약의 **실제 숫자·id·테마명·패턴명** 을 그대로 인용해야 함.
+- 입력에 등장하지 않는 수치·패턴명을 **절대 만들어내지 말 것**. 예시 속 값을 복사하지 말 것.
+- 막연한 "정보 부족" 단독 표현 금지 — belief 에서 근거 인용.
 
 ### 보수적 기본값 (불확실 시)
 - recordPriorityOverride: {} (또는 키 생략)
