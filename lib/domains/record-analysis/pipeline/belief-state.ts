@@ -9,7 +9,8 @@
 // α 후속 1: gradeThemes 편입 (2026-04-24).
 // α 후속 2: blueprint 편입 (2026-04-24).
 // α 후속 3: qualityPatterns 편입 (2026-04-24).
-// 기존 `ctx.profileCard` / `ctx.gradeThemes` / `ctx.blueprint` / `ctx.qualityPatterns` 경로 **유지** — dual write alias.
+// α 후속 4: previousRunOutputs 편입 (2026-04-24).
+// 기존 `ctx.profileCard` / `ctx.gradeThemes` / `ctx.blueprint` / `ctx.qualityPatterns` / `ctx.previousRunOutputs` 경로 **유지** — dual write alias.
 // 소비처 무수정. 나머지 belief 필드는 후속 Sprint 에서 순차 편입.
 //
 // profileCard 3-state invariant (pipeline-types.ts:563-569 주석):
@@ -20,6 +21,8 @@
 //   undefined = 분석 모드 또는 로드 실패 / BlueprintPhaseOutput = 로드 완료
 // qualityPatterns: S3 aggregateQualityPatterns 1회 집계 → S5 재시작 시 재집계 또는 executor 복원.
 //   undefined = 미집계 또는 집계 실패(graceful) / Array = 집계 완료
+// previousRunOutputs: loadPipelineContext 에서 1회 로드 (DB 직전 completed 파이프라인 스냅샷).
+//   undefined = 로드 미진입 파이프라인 / { runId: null, ... } = 최초 실행 / { runId: "...", ... } = 로드 완료
 // ============================================
 
 export interface BeliefState {
@@ -63,6 +66,19 @@ export interface BeliefState {
    * invalidation: Synthesis 세션당 1회 집계 — 재집계 조건: S5 Phase 재시작 시 ctx 유실.
    */
   qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
+
+  /**
+   * Cross-run feedback 인프라 — 동일 pipeline_type 의 직전 completed 파이프라인 task_results 스냅샷.
+   * loadPipelineContext 에서 1회 로드 (DB 재조회 없음). S1/S2/S3/S5/B1 가 `ctx.previousRunOutputs` 를 읽어
+   * 직전 실행 산출물(activity_summary, interview, course_recommendation, gap_tracking, haengteuk_linking)을
+   * 프롬프트 힌트로 주입한다.
+   * undefined = 로드 미진입 파이프라인 / { runId: null, ... } = 최초 실행(정상) / { runId: "...", ... } = 로드 완료.
+   *
+   * dual write 하위 호환: `ctx.previousRunOutputs` 와 값 동기화 (한 세션 내 alias).
+   * invalidation: loadPipelineContext 호출 시 항상 최신 DB 조회 — 세션 내 불변(재로드 조건 없음).
+   * executor restore: previousRunOutputs 는 DB 에서 항상 새로 로드되므로 task_results 에서 복원하지 않음.
+   */
+  previousRunOutputs?: import("./pipeline-types").PreviousRunOutputs;
 }
 
 /** 빈 BeliefState 초기값 — `loadPipelineContext` 에서 사용. */

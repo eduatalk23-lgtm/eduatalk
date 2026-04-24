@@ -572,7 +572,7 @@ export interface PipelineContext {
   /**
    * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
    * α 후속 1 (2026-04-24): gradeThemes 편입. α 후속 2 (2026-04-24): blueprint 편입.
-   * α 후속 3 (2026-04-24): qualityPatterns 편입.
+   * α 후속 3 (2026-04-24): qualityPatterns 편입. α 후속 4 (2026-04-24): previousRunOutputs 편입.
    * 후속 Sprint 에서 analysisContext 등이 순차 편입된다.
    */
   belief: import("./belief-state").BeliefState;
@@ -632,6 +632,8 @@ export interface PipelineContext {
    * - `{ runId: "...", ... }` = 직전 실행 산출물 로드 완료
    *
    * Manifest 의 `writesForNextRun` 에 선언된 downstream task 만 읽어야 한다(CI 검증 대상).
+   *
+   * α 후속 4 (2026-04-24): `ctx.belief.previousRunOutputs` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
    */
   previousRunOutputs?: PreviousRunOutputs;
 }
