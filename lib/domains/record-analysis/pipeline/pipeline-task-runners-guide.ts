@@ -521,7 +521,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   const currentSchoolYear = calcSchoolYear();
   const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
 
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   const isNeisGrade = gradeResolved?.hasAnyNeis ?? false;
 
   if (!gradeResolved) {

@@ -138,7 +138,7 @@ export async function runDraftAnalysisForGrade(
   const { studentId, tenantId, studentGrade, targetGrade } = ctx;
 
   // 설계 모드 판별
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   const hasNeis = gradeResolved?.hasAnyNeis ?? false;
 
   if (hasNeis) {
@@ -377,7 +377,7 @@ export async function runDraftAnalysisChunkForGrade(
   const { studentId, tenantId, studentGrade, targetGrade, supabase } = ctx;
 
   // 설계 모드 판별 (기존 runDraftAnalysisForGrade 와 동일)
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   const hasNeis = gradeResolved?.hasAnyNeis ?? false;
   if (hasNeis) {
     return {

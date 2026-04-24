@@ -557,7 +557,7 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
   const { targetGrade } = ctx;
   const config = COMPETENCY_TYPE_CONFIG[recordType];
 
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
     return `${targetGrade}학년 NEIS 기록 없음 — ${config.label} 역량 분석 건너뜀`;
   }
@@ -615,7 +615,7 @@ async function runCompetencyChunkForType(
   const { targetGrade } = ctx;
   const config = COMPETENCY_TYPE_CONFIG[recordType];
 
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   if (!gradeResolved?.hasAnyNeis) {
     return {
       preview: `${targetGrade}학년 NEIS 기록 없음 — ${config.label} 역량 분석 건너뜀`,

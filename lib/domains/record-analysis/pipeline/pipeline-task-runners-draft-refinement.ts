@@ -387,7 +387,7 @@ export async function runDraftRefinementChunkForGrade(
   const { studentId, tenantId, studentGrade, targetGrade, supabase } = ctx;
 
   // ─── 설계 모드 판별 ──────────────────────────────────────────────────────
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   const hasNeis = gradeResolved?.hasAnyNeis ?? false;
   if (hasNeis) {
     return {

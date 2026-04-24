@@ -21,7 +21,7 @@ export async function runSlotGenerationForGrade(ctx: PipelineContext): Promise<T
   assertGradeCtx(ctx);
   const { studentId, tenantId, studentGrade, coursePlanData, supabase, targetGrade } = ctx;
 
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
 
   // NEIS 학년: 임포트 데이터가 있으나, 누락된 창체 슬롯만 보충
   if (gradeResolved?.hasAnyNeis) {
@@ -56,7 +56,7 @@ async function backfillMissingChangcheSlots(ctx: PipelineContext): Promise<numbe
   const { studentId, tenantId, studentGrade, supabase, targetGrade } = ctx;
 
   // 현재 해당 학년의 창체 레코드에서 이미 있는 activity_type 확인
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   const existingTypes = new Set(
     (gradeResolved?.changche ?? [])
       .map((c) => c.activityType)

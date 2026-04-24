@@ -87,7 +87,7 @@ export async function runOrientPhase(
 
   // 규칙 1: 분석 모드 또는 전 학년 NEIS 완비 → draft skip
   const analysisMode = ctx.gradeMode === "analysis";
-  const fullNeis = allGradesHaveNeis(ctx.resolvedRecords);
+  const fullNeis = allGradesHaveNeis(ctx.belief.resolvedRecords);
   if (analysisMode || fullNeis) {
     for (const k of DRAFT_TASKS) skipTasks.push(k);
     rationale.push(
@@ -105,7 +105,7 @@ export async function runOrientPhase(
   }
 
   // 규칙 3: 1학년 온보딩 (설계 모드 + NEIS 전무) → competency_* fast tier
-  const anyNeis = hasAnyNeisAcrossGrades(ctx.resolvedRecords);
+  const anyNeis = hasAnyNeisAcrossGrades(ctx.belief.resolvedRecords);
   if (ctx.studentGrade === 1 && !anyNeis) {
     for (const k of COMPETENCY_TASKS) {
       if (!modelTier[k]) modelTier[k] = "fast";

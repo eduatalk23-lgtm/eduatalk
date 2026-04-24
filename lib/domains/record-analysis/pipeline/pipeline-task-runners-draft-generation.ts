@@ -456,7 +456,7 @@ export async function runDraftGenerationForGrade(
   assertGradeCtx(ctx);
   const { targetGrade } = ctx;
 
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   if (gradeResolved?.hasAnyNeis) {
     return "분석 모드 학년 — 가안 생성 스킵 (NEIS 기록 기반)";
   }
@@ -496,7 +496,7 @@ export async function runDraftGenerationChunkForGrade(
   assertGradeCtx(ctx);
   const { targetGrade } = ctx;
 
-  const gradeResolved = ctx.resolvedRecords?.[targetGrade];
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
   if (gradeResolved?.hasAnyNeis) {
     return {
       preview: "분석 모드 학년 — 가안 생성 스킵 (NEIS 기록 기반)",
