@@ -1,108 +1,98 @@
 // ============================================
-// β LLM Planner — S1 스켈레톤 (2026-04-24)
+// β(A) MidPlanner — P3.5 완료 후 LLM 메타 판정 (2026-04-24)
 //
-// 비선형 재조직 로드맵 β 단계:
-// `runOrientPhase` 의 규칙 기반 판정을 보완·대체하는 LLM Planner.
-// 컨설턴트 메타 판단(NEIS 풍부도·약점 분포·레코드 중요도)을 LLM 에 위임.
+// 비선형 재조직 로드맵 β 재포지셔닝(A안):
+// - 구 LLM Planner(Orient 시점)를 P3.5 완료 직후로 이동.
+// - 이 시점엔 analysisContext + gradeThemes + qualityPatterns 전부 채워짐 → 진짜 메타 판단 가능.
 //
-// S1 범위: 타입 정의 + serializer + runLlmPlanner 스켈레톤.
-// ENABLE_ORIENT_LLM_PLANNER=false(기본) 시 null 즉시 반환 → 기존 동작 무영향.
-//
-// S2 에서 pipeline-orient-phase.ts 가 이 함수를 호출하여 merged 판정.
-// S3 에서 테스트 추가.
+// ENABLE_MID_PIPELINE_PLANNER=false(기본) 시 null 즉시 반환 → 기존 동작 무영향.
+// 소비처: pipeline-grade-phases.ts(executeGradePhase4) — P3.5 완료 직후, P4 setek_guide 진입 전.
+//         이번 작업에서는 telemetry 전용(ctx.midPlan 저장 + task_results 영속).
+//         가이드 러너 소비 재배선은 β+1 작업.
 //
 // 전체 흐름: memory/pipeline-nonlinear-reorganization-roadmap.md
 // ============================================
 
 import type { PipelineContext } from "../pipeline-types";
 import type { BeliefState } from "../belief-state";
-import { buildOrientPlannerPrompt } from "../../llm/prompts/orientPlannerPrompt";
+import { buildMidPipelinePlannerPrompt } from "../../llm/prompts/midPipelinePlannerPrompt";
 import { generateTextWithRateLimit } from "../../llm/ai-client";
 import { extractJson } from "../../llm/extractJson";
 import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
-// PlanDecision 타입 — OrientDecision(PlannerDirective) 의 superset
+// MidPlan 타입 — β(A) 재포지셔닝 후 MidPlanner 출력
 // ============================================
 
 /**
- * LLM Planner 가 내리는 판정 결과.
+ * MidPlanner(P3.5 직후)가 내리는 메타 판정 결과.
  *
- * 기존 `PlannerDirective` (pipeline-orient-phase.ts) 의 superset:
- * - `skipTasks`, `modelTier`, `rationale` 은 PlannerDirective 와 구조 호환 유지
- * - `recordPriorityOverride`, `plannerSource`, `llmRationale`, `llmDurationMs` 신설
- *
- * S2 에서 규칙 판정 + LLM 판정을 merge → plannerSource="merged"
+ * β(A) 2026-04-24 재포지셔닝:
+ * - skipTasks / modelTier / plannerSource 는 Orient 규칙 엔진 전담으로 이동 → 여기서 제거.
+ * - MidPlanner 는 analysisContext + gradeThemes + qualityPatterns 이 채워진 시점에서
+ *   컨설턴트가 즉시 주목할 레코드 중요도 / 탐구 축 가설 / 우려 플래그만 판정.
  */
-export interface PlanDecision {
+export interface MidPlan {
   /**
-   * 이번 run 에서 실행을 건너뛸 태스크 키 목록.
-   * skipIfOrientSkipped() 가 소비한다.
-   */
-  skipTasks: string[];
-
-  /**
-   * 태스크별 모델 티어 권고.
-   * "fast" | "standard" | "advanced" 중 하나.
-   * 러너가 tierOverride 로 참조한다 (MVP 에서는 기록만).
-   */
-  modelTier: "fast" | "standard" | "advanced";
-
-  /**
-   * 레코드별 중요도 점수 덮어쓰기. recordId → priority score (0~100).
-   * narrativeContext.recordPriorityOrder 를 보완·대체한다.
-   * 미지정이면 기존 우선순위 순서 그대로 유지.
+   * 레코드별 우선순위 점수 덮어쓰기. recordId → 0~100.
+   * narrativeContext.recordPriorityOrder 를 보완하는 메타 판정.
+   * 정보 부족 시 생략(undefined). 가이드 러너 소비는 β+1 작업.
    */
   recordPriorityOverride?: Record<string, number>;
 
   /**
-   * 판정 근거 문자열 (규칙 기반 rationale 채널).
-   * 디버그 로그·향후 UI 제안 카드에 표시.
+   * 이 학생의 핵심 탐구 축에 대한 컨설턴트 가설 (1~2줄, 한국어).
+   * belief 실 데이터 기반 — "academic_inquiry 축이 약하나 community 축은 강함" 등.
+   * 정보 부족 시 undefined.
+   */
+  focusHypothesis?: string;
+
+  /**
+   * 컨설턴트가 즉시 플래그할 우려사항 (0~3건, 한국어 bullet).
+   * "레코드 N개에 반복 품질 패턴 집중", "직전 run 대비 회귀", "특정 학기 공백" 등.
+   * 없으면 빈 배열.
+   */
+  concernFlags?: string[];
+
+  /**
+   * LLM 한국어 판정 근거 bullet (최소 1건 필수, belief 실 데이터 인용).
+   * 예: "P1_나열식 22건 집중", "직전 run 대비 academic_inquiry 0.3 하락" 등.
    */
   rationale: string[];
 
-  /**
-   * 판정 출처:
-   * - "rule"    : 규칙 엔진만 사용 (S1/S2 기본 fallback)
-   * - "llm"     : LLM Planner 단독 판정
-   * - "merged"  : 규칙 + LLM 병합 (S2 에서 활성화)
-   */
-  plannerSource: "rule" | "llm" | "merged";
+  /** 판정 출처 — 현재 "llm" 고정 (MidPlanner 는 LLM 전용). */
+  source: "llm";
 
-  /**
-   * LLM Planner 의 한국어 판정 근거 bullet (LLM 응답 원문).
-   * plannerSource="llm" 또는 "merged" 일 때만 존재.
-   */
-  llmRationale?: string[];
-
-  /**
-   * LLM Planner 호출 소요 시간 (ms).
-   * 텔레메트리 목적; plannerSource="llm"/"merged" 일 때만 존재.
-   */
-  llmDurationMs?: number;
+  /** LLM 호출 소요 시간 (ms). 텔레메트리 목적. */
+  llmDurationMs: number;
 }
 
 // ============================================
-// LLM Planner 입력 JSON 스키마 (파싱용 내부 타입)
+// LLM 응답 파싱용 내부 타입
 // ============================================
 
-interface PlannerLlmOutput {
-  skipTasks: string[];
-  modelTier: "fast" | "standard" | "advanced";
+interface MidPlannerLlmOutput {
   recordPriorityOverride?: Record<string, number>;
+  focusHypothesis?: string;
+  concernFlags?: string[];
   rationale: string[];
 }
 
 // ============================================
-// serializeBeliefForPlanner
+// serializeBeliefForPlanner (재사용)
 // ============================================
 
 /**
- * BeliefState 를 Planner 프롬프트용 요약 문자열로 렌더한다.
+ * BeliefState 를 MidPlanner 프롬프트용 요약 문자열로 렌더한다.
  *
- * - 토큰 절약: 각 필드는 있을 때만 섹션 추가. 장황한 JSON 덤프 금지.
- * - 학년 컨텍스트(studentGrade, gradeMode, targetGrade) 는 ctx 에서 직접 받는다.
- * - previousRunOutputs 는 간략 1줄 요약만 (runId 있음 여부 + completedAt).
+ * P3.5 완료 이후 호출되므로 아래 필드가 채워진 상태:
+ * - profileCard (P1 진입 시 빌드)
+ * - analysisContext (P1~P3 완료 시 축적)
+ * - gradeThemes (P3.5 완료 시 세팅)
+ * - qualityPatterns (이전 run Synthesis ai_diagnosis 에서 복원)
+ * - resolvedRecords, previousRunOutputs (파이프라인 시작 시 로드)
+ *
+ * 토큰 절약: 각 필드는 있을 때만 섹션 추가. 장황한 JSON 덤프 금지.
  */
 export function serializeBeliefForPlanner(
   belief: BeliefState,
@@ -113,7 +103,6 @@ export function serializeBeliefForPlanner(
   // ── 학생 프로필 섹션 ─────────────────────────────────────
   const profileCard = belief.profileCard;
   if (profileCard && profileCard.length > 0) {
-    // profileCard 는 이미 마크다운 형식이므로 그대로 삽입 (200자 상한)
     const trimmed =
       profileCard.length > 200
         ? profileCard.slice(0, 200) + "…(생략)"
@@ -149,7 +138,7 @@ export function serializeBeliefForPlanner(
     }
   }
 
-  // ── 학년별 약점 요약 섹션 ────────────────────────────────
+  // ── 학년별 약점 요약 섹션 (analysisContext — P1~P3 완료 후 풍부) ───────────
   const analysisContext = belief.analysisContext;
   if (analysisContext && Object.keys(analysisContext).length > 0) {
     const lines: string[] = [];
@@ -170,7 +159,7 @@ export function serializeBeliefForPlanner(
     }
   }
 
-  // ── 테마·품질 패턴 섹션 ─────────────────────────────────
+  // ── 테마·품질 패턴 섹션 (P3.5 완료 후 gradeThemes 채워짐) ──────────────────
   const gradeThemes = belief.gradeThemes;
   const qualityPatterns = belief.qualityPatterns;
 
@@ -211,33 +200,35 @@ export function serializeBeliefForPlanner(
 }
 
 // ============================================
-// runLlmPlanner — 스켈레톤 (S1)
+// runMidPipelinePlanner
 // ============================================
 
 /**
- * Orient Phase LLM Planner.
+ * MidPipeline Planner — P3.5(cross_subject_theme_extraction) 완료 직후, P4 진입 전에 호출.
  *
- * **S1 단계**: ENABLE_ORIENT_LLM_PLANNER env flag 가 "true" 가 아니면 null 반환(즉시).
- * 기존 `runOrientPhase` 동작에 영향 없음.
+ * 이 시점엔 belief 에 다음 필드가 채워진 상태:
+ * - analysisContext: P1~P3 역량 분석 완료 → 품질 이슈·약점 역량 풍부
+ * - gradeThemes: P3.5 완료 → 과목 교차 주요 테마 세팅
+ * - qualityPatterns: 이전 run Synthesis ai_diagnosis 에서 복원(있으면)
  *
- * S2 에서 pipeline-orient-phase.ts 의 `runOrientPhase` 가 이 함수를 호출하여
- * 규칙 판정 결과와 merge, `plannerSource="merged"` 로 반환.
+ * ENABLE_MID_PIPELINE_PLANNER env flag 가 "true" 가 아니면 null 즉시 반환.
+ * 실패/파싱 오류 시 null fallback → 파이프라인 계속 진행.
  *
- * @param ctx - PipelineContext (belief + studentGrade + gradeMode + targetGrade 소비)
- * @returns PlanDecision (plannerSource="llm") 또는 null (flag off / 파싱 실패 / 타임아웃)
+ * @param ctx - PipelineContext (P3.5 완료 이후 상태)
+ * @returns MidPlan (source="llm") 또는 null (flag off / 파싱 실패 / 타임아웃)
  */
-export async function runLlmPlanner(
+export async function runMidPipelinePlanner(
   ctx: PipelineContext,
-): Promise<PlanDecision | null> {
+): Promise<MidPlan | null> {
   // ── env flag 가드 ────────────────────────────────────────
-  if (process.env.ENABLE_ORIENT_LLM_PLANNER !== "true") {
+  if (process.env.ENABLE_MID_PIPELINE_PLANNER !== "true") {
     return null;
   }
 
   const startMs = Date.now();
 
   try {
-    // ── belief 직렬화 ────────────────────────────────────────
+    // ── belief 직렬화 (P3.5 이후 상태 — analysisContext + gradeThemes 풍부) ──
     const beliefSummary = serializeBeliefForPlanner(ctx.belief, {
       studentGrade: ctx.studentGrade,
       gradeMode: ctx.gradeMode,
@@ -245,7 +236,7 @@ export async function runLlmPlanner(
     });
 
     // ── 프롬프트 빌드 ────────────────────────────────────────
-    const { system, user } = buildOrientPlannerPrompt(beliefSummary);
+    const { system, user } = buildMidPipelinePlannerPrompt(beliefSummary);
 
     // ── Flash tier LLM 호출 ──────────────────────────────────
     const result = await generateTextWithRateLimit({
@@ -262,36 +253,43 @@ export async function runLlmPlanner(
       "";
 
     // ── JSON 파싱 ────────────────────────────────────────────
-    const parsed = extractJson<PlannerLlmOutput>(rawText);
+    const parsed = extractJson<MidPlannerLlmOutput>(rawText);
 
     // ── 필수 필드 검증 ───────────────────────────────────────
-    if (
-      !Array.isArray(parsed.skipTasks) ||
-      !["fast", "standard", "advanced"].includes(parsed.modelTier) ||
-      !Array.isArray(parsed.rationale)
-    ) {
+    if (!Array.isArray(parsed.rationale) || parsed.rationale.length === 0) {
       logActionError(
-        { domain: "record-analysis", action: "runLlmPlanner" },
-        `LLM Planner 응답 스키마 불일치 — modelTier=${parsed.modelTier}, skipTasks=${JSON.stringify(parsed.skipTasks)}, fallback null`,
+        { domain: "record-analysis", action: "runMidPipelinePlanner" },
+        `MidPlanner 응답 스키마 불일치 — rationale 누락 또는 빈 배열, fallback null`,
       );
       return null;
     }
 
-    const decision: PlanDecision = {
-      skipTasks: parsed.skipTasks,
-      modelTier: parsed.modelTier,
-      recordPriorityOverride: parsed.recordPriorityOverride,
-      rationale: [],
-      plannerSource: "llm",
-      llmRationale: parsed.rationale,
+    // ── recordPriorityOverride 0~100 clamp ──────────────────
+    let recordPriorityOverride: Record<string, number> | undefined;
+    if (
+      parsed.recordPriorityOverride &&
+      Object.keys(parsed.recordPriorityOverride).length > 0
+    ) {
+      recordPriorityOverride = {};
+      for (const [recordId, score] of Object.entries(parsed.recordPriorityOverride)) {
+        recordPriorityOverride[recordId] = Math.max(0, Math.min(100, score));
+      }
+    }
+
+    const midPlan: MidPlan = {
+      recordPriorityOverride,
+      focusHypothesis: typeof parsed.focusHypothesis === "string" ? parsed.focusHypothesis : undefined,
+      concernFlags: Array.isArray(parsed.concernFlags) ? parsed.concernFlags : [],
+      rationale: parsed.rationale,
+      source: "llm",
       llmDurationMs,
     };
 
-    return decision;
+    return midPlan;
   } catch (err) {
     logActionError(
-      { domain: "record-analysis", action: "runLlmPlanner" },
-      `LLM Planner 호출 실패 — fallback null: ${String(err)}`,
+      { domain: "record-analysis", action: "runMidPipelinePlanner" },
+      `MidPlanner 호출 실패 — fallback null: ${String(err)}`,
     );
     return null;
   }
