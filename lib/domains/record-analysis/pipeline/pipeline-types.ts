@@ -572,7 +572,8 @@ export interface PipelineContext {
   /**
    * Step 3 (2026-04-24, 비선형 재조직 로드맵): 학생에 대한 파이프라인 공용 belief 상태.
    * α 후속 1 (2026-04-24): gradeThemes 편입. α 후속 2 (2026-04-24): blueprint 편입.
-   * 후속 Sprint 에서 analysisContext / qualityPatterns 등이 순차 편입된다.
+   * α 후속 3 (2026-04-24): qualityPatterns 편입.
+   * 후속 Sprint 에서 analysisContext 등이 순차 편입된다.
    */
   belief: import("./belief-state").BeliefState;
   /**
@@ -589,7 +590,11 @@ export interface PipelineContext {
   gradePipelineIds?: string[];
   /** 통합 학년 입력 (buildUnifiedGradeInput으로 1회 구성) */
   unifiedInput?: import("./pipeline-unified-input").UnifiedGradeInput;
-  /** S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달) */
+  /**
+   * S3에서 산출한 전 학년 반복 품질 패턴 (S5 전략 생성에 전달).
+   *
+   * α 후속 3 (2026-04-24): `ctx.belief.qualityPatterns` 와 dual write. 기존 소비처는 이 필드를 그대로 읽음.
+   */
   qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
   /**
    * H1 / L3-A: 학년 단위 과목 교차 테마 추출 결과 (Grade Pipeline 한정).

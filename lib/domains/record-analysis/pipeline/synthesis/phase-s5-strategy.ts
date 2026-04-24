@@ -346,7 +346,11 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     try {
       const { aggregateQualityPatterns } = await import("./helpers");
       const { repeatingPatterns } = await aggregateQualityPatterns(ctx);
-      if (repeatingPatterns.length > 0) ctx.qualityPatterns = repeatingPatterns;
+      if (repeatingPatterns.length > 0) {
+        ctx.qualityPatterns = repeatingPatterns;
+        // α 후속 3: dual write — Phase 재시작 재집계 경로도 belief 동기화
+        ctx.belief.qualityPatterns = repeatingPatterns;
+      }
     } catch { /* 재집계 실패해도 전략 생성은 계속 */ }
   }
 

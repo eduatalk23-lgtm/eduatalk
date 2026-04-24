@@ -121,7 +121,12 @@ export async function runAiDiagnosis(
     try {
       const { qualityPatternSection, repeatingPatterns } = await aggregateQualityPatterns(ctx);
       if (qualityPatternSection) diagQualityPatternSection = qualityPatternSection;
-      if (repeatingPatterns.length > 0) ctx.qualityPatterns = repeatingPatterns;
+      if (repeatingPatterns.length > 0) {
+        ctx.qualityPatterns = repeatingPatterns;
+        // α 후속 3: dual write — ctx.qualityPatterns 소비처(phase-s5-strategy, phase-s7-tier-plan-refinement) 무수정
+        ctx.belief.qualityPatterns = repeatingPatterns;
+      }
+      // 집계 실패 또는 빈 결과: belief.qualityPatterns 는 undefined 유지 (graceful)
     } catch (qpErr) {
       logActionError({ ...LOG_CTX, action: "pipeline.aggregateQualityPatterns" }, qpErr, { pipelineId });
     }

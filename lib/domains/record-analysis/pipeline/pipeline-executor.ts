@@ -751,7 +751,10 @@ export async function loadPipelineContext(
     previousRunOutputs,
     // Step 3 (2026-04-24): BeliefState 초기화 — 빈 객체로 시작.
     // profileCard 는 P1-P3 runner 가 dual write. 나머지 belief 필드는 후속 Sprint 편입.
-    belief: {},
+    // α 후속 3 (2026-04-24): ai_diagnosis task_result 에서 복원된 qualityPatterns 를 belief 에 seed.
+    belief: {
+      ...(qualityPatterns ? { qualityPatterns } : {}),
+    },
   };
 }
 
