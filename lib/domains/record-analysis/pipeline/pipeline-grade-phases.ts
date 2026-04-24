@@ -110,6 +110,152 @@ export interface PhaseChunkResult {
   totalUncached: number;
 }
 
+const EMPTY_CHUNK_RESULT: PhaseChunkResult = {
+  completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0,
+};
+const COMPLETED_CHUNK_RESULT: PhaseChunkResult = {
+  completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0,
+};
+
+// ============================================
+// 청크 실행 헬퍼 — Phase 1/2/3/7/8 공통 패턴 추상화
+// ============================================
+
+interface ChunkRunnerOutput {
+  hasMore: boolean;
+  preview: string;
+  result: unknown;
+  chunkProcessed: number;
+  totalUncached: number;
+}
+
+/**
+ * 역량 분석 Phase (1/2/3) 의 청크 실행 표준.
+ *
+ * - 첫 청크 running 마킹 + persist
+ * - 각 청크 preview 갱신 + persist
+ * - 마지막 청크 completed 마킹 + result.spread + elapsedMs 기록
+ * - 에러 시 failed 마킹 + persist + 빈 결과 반환 (swallow — 전체 파이프라인 계속)
+ */
+async function executeCompetencyChunk<K extends GradePipelineTaskKey>(
+  ctx: PipelineContext,
+  taskKey: K,
+  chunkSize: number,
+  chunkRunner: (ctx: PipelineContext, size: number) => Promise<ChunkRunnerOutput>,
+): Promise<PhaseChunkResult> {
+  const startMs = Date.now();
+
+  if (ctx.tasks[taskKey] !== "running") {
+    ctx.tasks[taskKey] = "running";
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+  }
+
+  try {
+    const result = await chunkRunner(ctx, chunkSize);
+
+    if (!result.hasMore) {
+      ctx.tasks[taskKey] = "completed";
+      ctx.previews[taskKey] = result.preview;
+      const prev = (typeof result.result === "object" && result.result != null)
+        ? result.result as Record<string, unknown>
+        : {};
+      ctx.results[taskKey] = { ...prev, elapsedMs: Date.now() - startMs };
+    } else {
+      ctx.previews[taskKey] = result.preview;
+    }
+
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+
+    return {
+      completed: !result.hasMore,
+      hasMore: result.hasMore,
+      chunkProcessed: result.chunkProcessed,
+      totalUncached: result.totalUncached,
+    };
+  } catch (err) {
+    ctx.tasks[taskKey] = "failed";
+    ctx.errors[taskKey] = err instanceof Error ? err.message : String(err);
+    ctx.results[taskKey] = { elapsedMs: Date.now() - startMs };
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+    );
+    return EMPTY_CHUNK_RESULT;
+  }
+}
+
+/**
+ * Draft Phase (7/8) 의 청크 실행 표준.
+ *
+ * 역량 Phase 와 차이:
+ * - running 마킹만, persist 별도 (청크 persist 때 일괄)
+ * - preview 는 옵션 (runner 가 빈 결과 반환 가능)
+ * - result 병합 없음 (final status 는 finalizeDesignModeStatus 가 담당)
+ * - 에러 시 failed 마킹 + persist 후 **rethrow** (호출자에게 전파)
+ */
+async function executeDraftChunk<K extends GradePipelineTaskKey>(
+  ctx: PipelineContext,
+  taskKey: K,
+  chunkSize: number,
+  chunkRunner: (ctx: PipelineContext, size: number) => Promise<{
+    hasMore: boolean;
+    preview?: string;
+    chunkProcessed: number;
+    totalUncached: number;
+  }>,
+): Promise<PhaseChunkResult> {
+  if (ctx.tasks[taskKey] !== "running") {
+    ctx.tasks[taskKey] = "running";
+  }
+
+  try {
+    const result = await chunkRunner(ctx, chunkSize);
+
+    if (result.preview) ctx.previews[taskKey] = result.preview;
+
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
+    );
+
+    if (!result.hasMore) {
+      ctx.tasks[taskKey] = "completed";
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId, "running",
+        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
+      );
+    }
+
+    return {
+      completed: !result.hasMore,
+      hasMore: result.hasMore,
+      chunkProcessed: result.chunkProcessed,
+      totalUncached: result.totalUncached,
+    };
+  } catch (err) {
+    ctx.tasks[taskKey] = "failed";
+    ctx.errors = ctx.errors ?? {};
+    ctx.errors[taskKey] = err instanceof Error ? err.message : String(err);
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId, "running",
+      ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors, false,
+    );
+    throw err;
+  }
+}
+
 // ============================================
 // Grade Phase 1: 세특 역량 분석 (청크 지원)
 // ============================================
@@ -118,76 +264,15 @@ export async function executeGradePhase1(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
 ): Promise<PhaseChunkResult> {
-  if (await checkCancelled(ctx)) {
-    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
-
-  // 이미 완료
-  if (ctx.tasks["competency_setek"] === "completed") {
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+  if (await checkCancelled(ctx)) return EMPTY_CHUNK_RESULT;
+  if (ctx.tasks["competency_setek"] === "completed") return COMPLETED_CHUNK_RESULT;
 
   if (chunkOpts?.chunkSize != null) {
-    // ── 청크 경로: runTaskWithState 우회, 상태 직접 관리 ──
-    const startMs = Date.now();
-
-    // 첫 청크이면 running 마킹
-    if (ctx.tasks["competency_setek"] !== "running") {
-      ctx.tasks["competency_setek"] = "running";
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-      );
-    }
-
-    try {
-      const result = await runCompetencySetekChunkForGrade(ctx, chunkOpts.chunkSize);
-
-      if (!result.hasMore) {
-        // 마지막 청크 — completed 마킹
-        ctx.tasks["competency_setek"] = "completed";
-        ctx.previews["competency_setek"] = result.preview;
-        ctx.results["competency_setek"] = {
-          ...(typeof result.result === "object" && result.result != null ? result.result as Record<string, unknown> : {}),
-          elapsedMs: Date.now() - startMs,
-        };
-      } else {
-        // 중간 청크 — preview만 업데이트
-        ctx.previews["competency_setek"] = result.preview;
-      }
-
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-      );
-
-      return {
-        completed: !result.hasMore,
-        hasMore: result.hasMore,
-        chunkProcessed: result.chunkProcessed,
-        totalUncached: result.totalUncached,
-      };
-    } catch (err) {
-      ctx.tasks["competency_setek"] = "failed";
-      const msg = err instanceof Error ? err.message : String(err);
-      ctx.errors["competency_setek"] = msg;
-      ctx.results["competency_setek"] = { elapsedMs: Date.now() - startMs };
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-      );
-      return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-    }
+    return executeCompetencyChunk(ctx, "competency_setek", chunkOpts.chunkSize, runCompetencySetekChunkForGrade);
   }
 
-  // ── 기존 경로 (청크 미사용) ──
-  await runTaskWithState(ctx, "competency_setek", () =>
-    runCompetencySetekForGrade(ctx),
-  );
-  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  await runTaskWithState(ctx, "competency_setek", () => runCompetencySetekForGrade(ctx));
+  return COMPLETED_CHUNK_RESULT;
 }
 
 // ============================================
@@ -198,43 +283,15 @@ export async function executeGradePhase2(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
 ): Promise<PhaseChunkResult> {
-  if (await checkCancelled(ctx)) return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-
-  if (ctx.tasks["competency_changche"] === "completed") {
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+  if (await checkCancelled(ctx)) return EMPTY_CHUNK_RESULT;
+  if (ctx.tasks["competency_changche"] === "completed") return COMPLETED_CHUNK_RESULT;
 
   if (chunkOpts?.chunkSize != null) {
-    const startMs = Date.now();
-    if (ctx.tasks["competency_changche"] !== "running") {
-      ctx.tasks["competency_changche"] = "running";
-      await updatePipelineState(ctx.supabase as SupabaseAdminClient, ctx.pipelineId, "running", ctx.tasks, ctx.previews, ctx.results, ctx.errors);
-    }
-    try {
-      const result = await runCompetencyChangcheChunkForGrade(ctx, chunkOpts.chunkSize);
-      if (!result.hasMore) {
-        ctx.tasks["competency_changche"] = "completed";
-        ctx.previews["competency_changche"] = result.preview;
-        ctx.results["competency_changche"] = {
-          ...(typeof result.result === "object" && result.result != null ? result.result as Record<string, unknown> : {}),
-          elapsedMs: Date.now() - startMs,
-        };
-      } else {
-        ctx.previews["competency_changche"] = result.preview;
-      }
-      await updatePipelineState(ctx.supabase as SupabaseAdminClient, ctx.pipelineId, "running", ctx.tasks, ctx.previews, ctx.results, ctx.errors);
-      return { completed: !result.hasMore, hasMore: result.hasMore, chunkProcessed: result.chunkProcessed, totalUncached: result.totalUncached };
-    } catch (err) {
-      ctx.tasks["competency_changche"] = "failed";
-      ctx.errors["competency_changche"] = err instanceof Error ? err.message : String(err);
-      ctx.results["competency_changche"] = { elapsedMs: Date.now() - startMs };
-      await updatePipelineState(ctx.supabase as SupabaseAdminClient, ctx.pipelineId, "running", ctx.tasks, ctx.previews, ctx.results, ctx.errors);
-      return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-    }
+    return executeCompetencyChunk(ctx, "competency_changche", chunkOpts.chunkSize, runCompetencyChangcheChunkForGrade);
   }
 
   await runTaskWithState(ctx, "competency_changche", () => runCompetencyChangcheForGrade(ctx));
-  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  return COMPLETED_CHUNK_RESULT;
 }
 
 // ============================================
@@ -245,43 +302,15 @@ export async function executeGradePhase3(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
 ): Promise<PhaseChunkResult> {
-  if (await checkCancelled(ctx)) return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-
-  if (ctx.tasks["competency_haengteuk"] === "completed") {
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+  if (await checkCancelled(ctx)) return EMPTY_CHUNK_RESULT;
+  if (ctx.tasks["competency_haengteuk"] === "completed") return COMPLETED_CHUNK_RESULT;
 
   if (chunkOpts?.chunkSize != null) {
-    const startMs = Date.now();
-    if (ctx.tasks["competency_haengteuk"] !== "running") {
-      ctx.tasks["competency_haengteuk"] = "running";
-      await updatePipelineState(ctx.supabase as SupabaseAdminClient, ctx.pipelineId, "running", ctx.tasks, ctx.previews, ctx.results, ctx.errors);
-    }
-    try {
-      const result = await runCompetencyHaengteukChunkForGrade(ctx, chunkOpts.chunkSize);
-      if (!result.hasMore) {
-        ctx.tasks["competency_haengteuk"] = "completed";
-        ctx.previews["competency_haengteuk"] = result.preview;
-        ctx.results["competency_haengteuk"] = {
-          ...(typeof result.result === "object" && result.result != null ? result.result as Record<string, unknown> : {}),
-          elapsedMs: Date.now() - startMs,
-        };
-      } else {
-        ctx.previews["competency_haengteuk"] = result.preview;
-      }
-      await updatePipelineState(ctx.supabase as SupabaseAdminClient, ctx.pipelineId, "running", ctx.tasks, ctx.previews, ctx.results, ctx.errors);
-      return { completed: !result.hasMore, hasMore: result.hasMore, chunkProcessed: result.chunkProcessed, totalUncached: result.totalUncached };
-    } catch (err) {
-      ctx.tasks["competency_haengteuk"] = "failed";
-      ctx.errors["competency_haengteuk"] = err instanceof Error ? err.message : String(err);
-      ctx.results["competency_haengteuk"] = { elapsedMs: Date.now() - startMs };
-      await updatePipelineState(ctx.supabase as SupabaseAdminClient, ctx.pipelineId, "running", ctx.tasks, ctx.previews, ctx.results, ctx.errors);
-      return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-    }
+    return executeCompetencyChunk(ctx, "competency_haengteuk", chunkOpts.chunkSize, runCompetencyHaengteukChunkForGrade);
   }
 
   await runTaskWithState(ctx, "competency_haengteuk", () => runCompetencyHaengteukForGrade(ctx));
-  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  return COMPLETED_CHUNK_RESULT;
 }
 
 // ============================================
@@ -471,10 +500,8 @@ export async function executeGradePhase6(
 export async function executeGradePhase7(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
-): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
-  if (await checkCancelled(ctx)) {
-    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+): Promise<PhaseChunkResult> {
+  if (await checkCancelled(ctx)) return EMPTY_CHUNK_RESULT;
 
   // Step 2 (2026-04-24): Orient 판정으로 draft_generation skip 인 경우 early exit
   const { skipIfOrientSkipped: _orientSkipGen } = await import("./pipeline-orient-phase");
@@ -484,73 +511,21 @@ export async function executeGradePhase7(
       ctx.pipelineId, "running",
       ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {},
     );
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+    return COMPLETED_CHUNK_RESULT;
   }
 
-  // 청크 모드 (B6, B5 패턴 이식)
   if (chunkOpts?.chunkSize != null) {
-    if (await skipAndPersist(ctx, "draft_generation")) {
-      return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-    }
-
-    const existingStatus = ctx.tasks["draft_generation"];
-    if (existingStatus !== "running") {
-      ctx.tasks["draft_generation"] = "running";
-    }
-
-    try {
-      const result = await runDraftGenerationChunkForGrade(ctx, chunkOpts.chunkSize);
-
-      if (result.preview) ctx.previews["draft_generation"] = result.preview;
-
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId,
-        "running",
-        ctx.tasks,
-        ctx.previews,
-        ctx.results ?? {},
-        ctx.errors ?? {},
-        false,
-      );
-
-      if (!result.hasMore) {
-        ctx.tasks["draft_generation"] = "completed";
-        await updatePipelineState(
-          ctx.supabase as SupabaseAdminClient,
-          ctx.pipelineId, "running",
-          ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
-        );
-      }
-
-      return {
-        completed: !result.hasMore,
-        hasMore: result.hasMore,
-        chunkProcessed: result.chunkProcessed,
-        totalUncached: result.totalUncached,
-      };
-    } catch (err) {
-      ctx.tasks["draft_generation"] = "failed";
-      ctx.errors = ctx.errors ?? {};
-      ctx.errors["draft_generation"] = err instanceof Error ? err.message : String(err);
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors, false,
-      );
-      throw err;
-    }
+    if (await skipAndPersist(ctx, "draft_generation")) return COMPLETED_CHUNK_RESULT;
+    return executeDraftChunk(ctx, "draft_generation", chunkOpts.chunkSize, runDraftGenerationChunkForGrade);
   }
 
   // 단일 호출 (기존 동작 유지 — 호환성)
-  if (await skipAndPersist(ctx, "draft_generation")) {
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+  if (await skipAndPersist(ctx, "draft_generation")) return COMPLETED_CHUNK_RESULT;
 
   await runTaskWithState(ctx, "draft_generation", () =>
     runDraftGenerationForGrade(ctx),
   );
-  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  return COMPLETED_CHUNK_RESULT;
 }
 
 // ============================================
@@ -560,10 +535,8 @@ export async function executeGradePhase7(
 export async function executeGradePhase8(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
-): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
-  if (await checkCancelled(ctx)) {
-    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+): Promise<PhaseChunkResult> {
+  if (await checkCancelled(ctx)) return EMPTY_CHUNK_RESULT;
 
   // Step 2 (2026-04-24): Orient 판정으로 draft_analysis skip 인 경우 early exit
   const { skipIfOrientSkipped: _orientSkipAna } = await import("./pipeline-orient-phase");
@@ -573,63 +546,12 @@ export async function executeGradePhase8(
       ctx.pipelineId, "running",
       ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {},
     );
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+    return COMPLETED_CHUNK_RESULT;
   }
 
-  // 청크 모드
   if (chunkOpts?.chunkSize != null) {
-    if (await skipAndPersist(ctx, "draft_analysis")) {
-      // 선행 실패로 스킵 — P9 가 최종이므로 여기서는 상태만 반영
-      return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-    }
-
-    const existingStatus = ctx.tasks["draft_analysis"];
-    if (existingStatus !== "running") {
-      ctx.tasks["draft_analysis"] = "running";
-    }
-
-    try {
-      const result = await runDraftAnalysisChunkForGrade(ctx, chunkOpts.chunkSize);
-
-      if (result.preview) ctx.previews["draft_analysis"] = result.preview;
-
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId,
-        "running",
-        ctx.tasks,
-        ctx.previews,
-        ctx.results ?? {},
-        ctx.errors ?? {},
-        false,
-      );
-
-      if (!result.hasMore) {
-        ctx.tasks["draft_analysis"] = "completed";
-        await updatePipelineState(
-          ctx.supabase as SupabaseAdminClient,
-          ctx.pipelineId, "running",
-          ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
-        );
-      }
-
-      return {
-        completed: !result.hasMore,
-        hasMore: result.hasMore,
-        chunkProcessed: result.chunkProcessed,
-        totalUncached: result.totalUncached,
-      };
-    } catch (err) {
-      ctx.tasks["draft_analysis"] = "failed";
-      ctx.errors = ctx.errors ?? {};
-      ctx.errors["draft_analysis"] = err instanceof Error ? err.message : String(err);
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors, false,
-      );
-      throw err;
-    }
+    if (await skipAndPersist(ctx, "draft_analysis")) return COMPLETED_CHUNK_RESULT;
+    return executeDraftChunk(ctx, "draft_analysis", chunkOpts.chunkSize, runDraftAnalysisChunkForGrade);
   }
 
   // 단일 호출 (기존 동작 유지 — 호환성)
@@ -638,7 +560,7 @@ export async function executeGradePhase8(
       runDraftAnalysisForGrade(ctx),
     );
   }
-  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  return COMPLETED_CHUNK_RESULT;
 }
 
 // ============================================
@@ -648,24 +570,21 @@ export async function executeGradePhase8(
 export async function executeGradePhase9(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },
-): Promise<{ completed: boolean; hasMore: boolean; chunkProcessed: number; totalUncached: number }> {
-  if (await checkCancelled(ctx)) {
-    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
-  }
+): Promise<PhaseChunkResult> {
+  if (await checkCancelled(ctx)) return EMPTY_CHUNK_RESULT;
 
   // Step 2 (2026-04-24): Orient 판정으로 draft_refinement skip 인 경우 early exit
   const { skipIfOrientSkipped: _orientSkipRef } = await import("./pipeline-orient-phase");
   if (_orientSkipRef(ctx, "draft_refinement")) {
     await finalizeDesignModeStatus(ctx);
-    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+    return COMPLETED_CHUNK_RESULT;
   }
 
-  // 청크 모드
+  // 청크 모드 — finalize + result merge 특이성으로 executeDraftChunk 미적용 (P7/P8 와 다름)
   if (chunkOpts?.chunkSize != null) {
     if (skipIfPrereqFailed(ctx, "draft_refinement")) {
-      // 선행 실패로 스킵 — 최종 상태 판정 후 종료
       await finalizeDesignModeStatus(ctx);
-      return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+      return COMPLETED_CHUNK_RESULT;
     }
 
     const existingStatus = ctx.tasks["draft_refinement"];
@@ -724,7 +643,7 @@ export async function executeGradePhase9(
     );
   }
   await finalizeDesignModeStatus(ctx);
-  return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  return COMPLETED_CHUNK_RESULT;
 }
 
 async function finalizeDesignModeStatus(ctx: PipelineContext): Promise<void> {
