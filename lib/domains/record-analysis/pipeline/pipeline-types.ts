@@ -625,6 +625,17 @@ export interface PipelineContext {
    * modelTier 는 후속 단계에서 러너가 직접 참조 (MVP 에서는 기록만).
    */
   plannerDirective?: import("./pipeline-orient-phase").PlannerDirective;
+
+  /**
+   * β(A) 2026-04-24 재포지셔닝: MidPipeline Planner 판정 결과.
+   * P3.5(cross_subject_theme_extraction) 완료 직후, P4(setek_guide) 진입 전 세팅.
+   * 이 시점엔 analysisContext + gradeThemes + qualityPatterns 전부 채워짐.
+   *
+   * ENABLE_MID_PIPELINE_PLANNER=false(기본) 시 null.
+   * 이번 작업 범위: telemetry 전용(ctx.midPlan 저장 + task_results 영속).
+   * 가이드 러너 소비 재배선은 β+1 작업.
+   */
+  midPlan?: import("./orient/mid-pipeline-planner").MidPlan | null;
   /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
   cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
 

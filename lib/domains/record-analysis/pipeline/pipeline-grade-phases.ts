@@ -304,6 +304,20 @@ export async function executeGradePhase4(
     if (await checkCancelled(ctx)) return;
   }
 
+  // ── β(A) 2026-04-24: MidPipeline Planner — P3.5 완료 직후, P4 진입 전 ──
+  // ENABLE_MID_PIPELINE_PLANNER=false(기본) → null 즉시 반환, 파이프라인 무영향.
+  // 이 시점엔 analysisContext(P1~P3) + gradeThemes(P3.5) + qualityPatterns(이전 run) 채워짐.
+  // 이번 작업 범위: telemetry 전용(ctx.midPlan 저장). 가이드 러너 소비는 β+1.
+  if (ctx.midPlan === undefined) {
+    try {
+      const { runMidPipelinePlanner } = await import("./orient/mid-pipeline-planner");
+      ctx.midPlan = await runMidPipelinePlanner(ctx);
+    } catch {
+      // MidPlanner 실패는 파이프라인에 무영향 (best-effort)
+      ctx.midPlan = null;
+    }
+  }
+
   // ── α1-2: 봉사 역량 태깅 (pre-task) ──
   // - 선행 없음(P1-P3와 독립). 학년 봉사 rows → community_caring 태깅 + recurringThemes.
   // - 실패해도 후속 가이드 계속 진행 (graceful). activity_tags(record_type='volunteer')만 기록.
