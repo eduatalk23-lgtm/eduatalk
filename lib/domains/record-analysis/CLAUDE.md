@@ -107,6 +107,29 @@ Grade Pipeline (학년별, 12태스크×9Phase)
           재분석 score 가 원본보다 높으면 content_quality 승격, 낮으면 rollback (ai_draft_content + content_quality + activity_tags + competency_scores 4종 원복).
           max_retry=1 (content_quality.retry_count 영속). Feature flag `ENABLE_DRAFT_REFINEMENT` default off.
           분석 모드 학년은 skip (가안 없음). 청크 실행 (chunkSize=4).
+          **Phase 5 Sprint 3 (2026-04-20, 커밋 `7fe12657`)**: A/B variant 2종(`v1_baseline` / `v2_axis_targeted`) + 결정적 배분(record_id djb2 parity).
+            `content_quality.refinement_variant TEXT NULL` 컬럼(마이그 `20260420700000_content_quality_refinement_variant.sql`)에 영속.
+            runner 반환에 `variantBreakdown: Record<variant, {refined, rolledBack, skipped, avgScoreDelta}>` surface.
+
+### Phase 5 운영 전환 상태 (2026-04-24)
+
+**코드 완결 · 운영 블로커 대기 중.**
+
+| 트랙 | 상태 | 비고 |
+|------|------|------|
+| Sprint 1 스캐폴드 | ✅ `d9183265` | 3 type 프롬프트 + 재분석 + rollback |
+| Sprint 2 측정 + 버그 수정 | ✅ `05759ce0` | `markRecordAsRetried()` 로 no-draft skip loop 차단 |
+| Sprint 3 A/B infra | ✅ `7fe12657` | v1/v2 variant + variantBreakdown + refinement_variant 컬럼 |
+| 운영 env flag | ⏸ 대기 | `ENABLE_DRAFT_REFINEMENT=true` on 필요 |
+| 2주 telemetry 누적 | ⏸ 대기 | variant 별 refined n ≥ 30 확보 목표 |
+
+**운영 전환 시 참조**:
+- 런북: `docs/phase-5-production-rollout-checklist.md` — 단계적 플래그 on + 중단 조건 + 판정 분기
+- 수동 쿼리: `scripts/phase-5-telemetry-queries.sql` — Q1~Q6
+- 대시보드: `/superadmin/pipeline-telemetry` (superadmin 전용 · cross-tenant 집계)
+- 판정 기준: `lib/domains/record-analysis/llm/prompts/draft-refinement-prompts.ts` 상단 docstring — v2 승격 / v1 고정 / v3 설계 / max_retry 승격 조건
+
+**롤백**: env off 만으로 즉시 no-op. `retry_count=1` 가드로 중복 처리 없음.
 
 Synthesis Pipeline (종합, 14태스크×7Phase — 트랙 D 2026-04-14 3종 승격 + Phase 4b Sprint 3 S7 신설)
   S1: storyline_generation

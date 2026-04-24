@@ -15,6 +15,7 @@ import {
   Settings,
   BookOpen,
   FileText,
+  Activity,
 } from "lucide-react";
 
 export const superadminCategories: NavigationCategory[] = [
@@ -66,6 +67,19 @@ export const superadminCategories: NavigationCategory[] = [
         label: "테넌트 미할당 사용자",
         href: "/superadmin/tenantless-users",
         icon: <Link2 className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "superadmin-pipeline",
+    label: "파이프라인 운영",
+    icon: <Activity className="w-4 h-4" />,
+    items: [
+      {
+        id: "superadmin-pipeline-telemetry",
+        label: "Phase 5 Telemetry",
+        href: "/superadmin/pipeline-telemetry",
+        icon: <Activity className="w-4 h-4" />,
       },
     ],
   },

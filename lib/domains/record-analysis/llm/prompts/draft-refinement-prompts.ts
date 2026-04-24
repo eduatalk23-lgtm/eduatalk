@@ -8,6 +8,41 @@
 // Phase 5 Sprint 3 (2026-04-20): A/B variant 추가. 결정적 선택(record_id hash) 로 재실행 안정.
 //   · v1_baseline       — Sprint 1/2 원본 프롬프트
 //   · v2_axis_targeted  — 최하위 축(specificity/depth 등) 에 집중 개선 지시 추가
+//
+// ─── v1 vs v2 승격 판정 기준 (2주 측정 후 적용) ─────────────────────────────
+//
+// 대시보드/쿼리 소스:
+//   · UI: /superadmin/pipeline-telemetry
+//   · SQL: scripts/phase-5-telemetry-queries.sql (Q1~Q6)
+//   · 런북: docs/phase-5-production-rollout-checklist.md
+//
+// 판정 분기 (각 variant 별 refined n ≥ 30 확보 후 적용 — 그 이전은 관찰만):
+//
+//   [A] v2 승격 (v2 고정, v1 제거):
+//       v2.avgScoreDelta ≥ v1.avgScoreDelta + 2.0
+//       AND v2.rollbackRate ≤ v1.rollbackRate + 5%p
+//       AND v2.skipRate ≈ v1.skipRate (±5%p)
+//       → 코드: selectRefinementVariant() 를 "v2_axis_targeted" 상수 반환으로 단순화
+//
+//   [B] v1 고정 (v2 폐기):
+//       v2.avgScoreDelta < v1.avgScoreDelta
+//       OR v2.rollbackRate > 15%
+//       → 코드: v2 분기 제거, 1-variant 로 원복
+//
+//   [C] v3 설계 트리거 (프롬프트 엔지니어링 천장 재인식):
+//       max(v1.avgScoreDelta, v2.avgScoreDelta) < +8.0
+//       → Sprint 3 후속 브리프 작성. Cyclic 전환 Phase 4 로 승계 검토.
+//
+//   [D] 판정 보류 (계속 관찰):
+//       위 A/B/C 중 어느 것도 해당하지 않음 — n 이 더 쌓일 때까지 대기
+//
+// max_retry 1 → 2 승격:
+//   별도 판정. [A] 또는 [B] 확정 후 4주 운영 관찰 필요 (avgΔ 안정·rollback<5% 확인).
+//   이 코드 블록에서는 다루지 않음.
+//
+// 롤백 절차 (긴급):
+//   env off (ENABLE_DRAFT_REFINEMENT=false) → P9 runner 가 processed=0 으로 즉시 no-op.
+//   이미 retry_count=1 로 마킹된 레코드는 재처리 안 됨 (guard 영속).
 // ============================================
 
 export type RefinementVariant = "v1_baseline" | "v2_axis_targeted";
