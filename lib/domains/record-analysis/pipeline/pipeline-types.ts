@@ -344,14 +344,10 @@ export interface PipelineTaskResultMap {
   _executiveSummary: import("@/lib/domains/record-analysis/eval/executive-summary").ExecutiveSummary;
   /** Synthesis Phase 6 완료 후 자동 생성되는 4축 합격 진단 프로필 */
   _fourAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FourAxisDiagnosis;
-  /** Phase δ-3: 5축 합격 진단(4축 + 메인 탐구 정합성). mainInquiryAlignment=null 가능. */
-  _fiveAxisDiagnosis: import("@/lib/domains/admission/prediction/profile-diagnosis").FiveAxisDiagnosis;
   /** S1.5: Blueprint Phase LLM 산출물 전체 */
   _blueprintPhase: import("@/lib/domains/record-analysis/blueprint/types").BlueprintPhaseOutput;
   /** S3.5: Gap Tracker 산출물 전체 */
   _gapTracker: import("@/lib/domains/record-analysis/blueprint/types").GapTrackerOutput;
-  /** Journey Model 조합 스냅샷 (Blueprint + Analysis + Gap 통합 뷰) */
-  _journeyModel: import("@/lib/domains/record-analysis/blueprint/types").StudentJourneyModel;
 }
 
 // ============================================

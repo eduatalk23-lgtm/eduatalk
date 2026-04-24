@@ -638,19 +638,3 @@ export interface BlueprintToHyperedgeMapping {
 // 7. Pipeline 통합 — task_result 키
 // ============================================
 
-/**
- * Blueprint/Gap 관련 task_results 키 확장.
- * PipelineTaskResultMap에 추가할 엔트리.
- *
- * _blueprintPhase: BlueprintPhaseOutput
- * _journeyModel: StudentJourneyModel
- * _gapTracker: GapTrackerOutput
- */
-export interface BlueprintTaskResultExtensions {
-  /** Blueprint Phase LLM 산출물 전체 */
-  _blueprintPhase: BlueprintPhaseOutput;
-  /** 조합된 Journey Model 스냅샷 */
-  _journeyModel: StudentJourneyModel;
-  /** Gap Tracker 산출물 */
-  _gapTracker: GapTrackerOutput;
-}
