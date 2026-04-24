@@ -45,8 +45,15 @@ import {
 // ============================================
 
 /**
- * 선행 태스크가 실패했으면 해당 태스크를 failed로 마킹하고 true를 반환.
- * 호출부에서 true이면 태스크 실행을 건너뛴다.
+ * 선행 태스크가 실패했거나 이미 완료된 경우 true 반환.
+ * 선행 실패 시 ctx.tasks/ctx.errors 에만 마킹 (DB write 없음, sync).
+ *
+ * - 이미 completed: 즉시 true
+ * - 선행 failed: ctx 마킹 후 true
+ * - 실행 가능: false
+ *
+ * 병렬 큐 경로(Phase 4)에서는 이 sync 버전을 사용하여 판정만 일괄 수행한 뒤
+ * 최종 상태를 한 번만 persist. 직렬 경로에서는 {@link skipAndPersist} 사용.
  */
 function skipIfPrereqFailed(
   ctx: PipelineContext,
@@ -62,6 +69,33 @@ function skipIfPrereqFailed(
 
   ctx.tasks[taskKey] = "failed";
   ctx.errors[taskKey] = `선행 태스크 실패로 건너뜀: ${failed.join(", ")}`;
+  return true;
+}
+
+/**
+ * 직렬 Phase 의 표준 skip 헬퍼. 선행 실패 판정 + DB 상태 반영을 1회에 수행.
+ * 호출부는 `if (await skipAndPersist(ctx, taskKey)) return;` 으로 early-return.
+ *
+ * 반환 true 의 의미: "이 태스크는 실행하지 않는다" (already completed 또는 prereq failed).
+ * prereq failed 경우만 DB write 발생 — already completed 는 상태 변경 없음.
+ */
+async function skipAndPersist(
+  ctx: PipelineContext,
+  taskKey: GradePipelineTaskKey,
+): Promise<boolean> {
+  if (ctx.tasks[taskKey] === "completed") return true;
+
+  if (!skipIfPrereqFailed(ctx, taskKey)) return false;
+
+  await updatePipelineState(
+    ctx.supabase as SupabaseAdminClient,
+    ctx.pipelineId,
+    "running",
+    ctx.tasks,
+    ctx.previews,
+    ctx.results ?? {},
+    ctx.errors ?? {},
+  );
   return true;
 }
 
@@ -293,8 +327,7 @@ export async function executeGradePhase4(
   // - guides 호출 전에 직렬 실행하여 ctx.gradeThemes를 미리 채운다.
   // - 실패해도 후속 가이드는 themes 없이 진행 (graceful degradation).
   // - prereq 실패(ctx.tasks.competency_*)이면 skipIfPrereqFailed가 failed로 마킹.
-  const skipTheme = skipIfPrereqFailed(ctx, "cross_subject_theme_extraction");
-  if (!skipTheme && ctx.tasks["cross_subject_theme_extraction"] !== "completed") {
+  if (!skipIfPrereqFailed(ctx, "cross_subject_theme_extraction")) {
     await runTaskWithState(ctx, "cross_subject_theme_extraction", () =>
       runCrossSubjectThemeExtractionForGrade(ctx),
     );
@@ -332,8 +365,7 @@ export async function executeGradePhase4(
   // - 선행 없음(P1-P3와 독립). 학년 봉사 rows → community_caring 태깅 + recurringThemes.
   // - 실패해도 후속 가이드 계속 진행 (graceful). activity_tags(record_type='volunteer')만 기록.
   // - α1-3 VolunteerState 빌더가 activity_tags + volunteer 테이블에서 집계.
-  const skipVolunteer = skipIfPrereqFailed(ctx, "competency_volunteer");
-  if (!skipVolunteer && ctx.tasks["competency_volunteer"] !== "completed") {
+  if (!skipIfPrereqFailed(ctx, "competency_volunteer")) {
     await runTaskWithState(ctx, "competency_volunteer", () =>
       runCompetencyVolunteerForGrade(ctx),
     );
@@ -344,8 +376,7 @@ export async function executeGradePhase4(
   // - 선행 없음(P1-P3와 독립). 학년 수상 rows → leadership/career/inquiry 태깅 + recurringThemes.
   // - 실패해도 후속 가이드 계속 진행 (graceful). activity_tags(record_type='award')만 기록.
   // - α1-4-a collectAwardState 가 activity_tags + awards 테이블 + ctx.results 에서 집계.
-  const skipAwards = skipIfPrereqFailed(ctx, "competency_awards");
-  if (!skipAwards && ctx.tasks["competency_awards"] !== "completed") {
+  if (!skipIfPrereqFailed(ctx, "competency_awards")) {
     await runTaskWithState(ctx, "competency_awards", () =>
       runCompetencyAwardsForGrade(ctx),
     );
@@ -384,14 +415,7 @@ export async function executeGradePhase5(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  if (skipIfPrereqFailed(ctx, "changche_guide")) {
-    await updatePipelineState(
-      ctx.supabase as SupabaseAdminClient,
-      ctx.pipelineId, "running",
-      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-    );
-    return;
-  }
+  if (await skipAndPersist(ctx, "changche_guide")) return;
 
   await runTaskWithState(ctx, "changche_guide", () =>
     runChangcheGuideForGrade(ctx),
@@ -407,13 +431,7 @@ export async function executeGradePhase6(
 ): Promise<void> {
   if (await checkCancelled(ctx)) return;
 
-  if (skipIfPrereqFailed(ctx, "haengteuk_guide")) {
-    await updatePipelineState(
-      ctx.supabase as SupabaseAdminClient,
-      ctx.pipelineId, "running",
-      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-    );
-  } else {
+  if (!(await skipAndPersist(ctx, "haengteuk_guide"))) {
     await runTaskWithState(ctx, "haengteuk_guide", () =>
       runHaengteukGuideForGrade(ctx),
     );
@@ -471,12 +489,7 @@ export async function executeGradePhase7(
 
   // 청크 모드 (B6, B5 패턴 이식)
   if (chunkOpts?.chunkSize != null) {
-    if (skipIfPrereqFailed(ctx, "draft_generation")) {
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-      );
+    if (await skipAndPersist(ctx, "draft_generation")) {
       return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
     }
 
@@ -530,12 +543,7 @@ export async function executeGradePhase7(
   }
 
   // 단일 호출 (기존 동작 유지 — 호환성)
-  if (skipIfPrereqFailed(ctx, "draft_generation")) {
-    await updatePipelineState(
-      ctx.supabase as SupabaseAdminClient,
-      ctx.pipelineId, "running",
-      ctx.tasks, ctx.previews, ctx.results, ctx.errors,
-    );
+  if (await skipAndPersist(ctx, "draft_generation")) {
     return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
   }
 
@@ -570,13 +578,8 @@ export async function executeGradePhase8(
 
   // 청크 모드
   if (chunkOpts?.chunkSize != null) {
-    if (skipIfPrereqFailed(ctx, "draft_analysis")) {
-      // 선행 실패로 스킵 — P9 가 최종이므로 여기서는 상태만 업데이트
-      await updatePipelineState(
-        ctx.supabase as SupabaseAdminClient,
-        ctx.pipelineId, "running",
-        ctx.tasks, ctx.previews, ctx.results ?? {}, ctx.errors ?? {}, false,
-      );
+    if (await skipAndPersist(ctx, "draft_analysis")) {
+      // 선행 실패로 스킵 — P9 가 최종이므로 여기서는 상태만 반영
       return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
     }
 
@@ -630,7 +633,7 @@ export async function executeGradePhase8(
   }
 
   // 단일 호출 (기존 동작 유지 — 호환성)
-  if (!skipIfPrereqFailed(ctx, "draft_analysis")) {
+  if (!(await skipAndPersist(ctx, "draft_analysis"))) {
     await runTaskWithState(ctx, "draft_analysis", () =>
       runDraftAnalysisForGrade(ctx),
     );
