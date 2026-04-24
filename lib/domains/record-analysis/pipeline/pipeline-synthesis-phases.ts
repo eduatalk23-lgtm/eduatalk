@@ -236,6 +236,8 @@ async function refreshCoursePlanData(ctx: PipelineContext): Promise<void> {
 export async function executeSynthesisPhase1(
   ctx: PipelineContext,
 ): Promise<void> {
+  if (await checkCancelled(ctx)) return;
+
   // 통합 입력 빌더: 학년별 분석/설계 데이터를 1회 조합하여 ctx에 저장
   if (!ctx.unifiedInput) {
     try {

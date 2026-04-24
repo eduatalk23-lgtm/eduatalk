@@ -18,6 +18,7 @@ import {
   checkCancelled,
   updatePipelineState,
 } from "./pipeline-executor";
+import { mergeTaskResult } from "./pipeline-helpers";
 import {
   runCompetencySetekForGrade,
   runCompetencySetekChunkForGrade,
@@ -599,10 +600,7 @@ export async function executeGradePhase9(
 
       if (result.result) {
         ctx.results ??= {};
-        ctx.results["draft_refinement"] = {
-          ...(ctx.results["draft_refinement"] as Record<string, unknown> ?? {}),
-          ...result.result,
-        };
+        mergeTaskResult(ctx.results, "draft_refinement", result.result);
       }
 
       await updatePipelineState(

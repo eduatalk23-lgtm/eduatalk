@@ -40,6 +40,22 @@ export function setTaskResult<K extends keyof PipelineTaskResultMap>(
 }
 
 /**
+ * 타입 안전한 ctx.results 병합 헬퍼.
+ * 기존 값과 새 partial 을 shallow merge. 청크 누적, elapsedMs 부착 등에 사용.
+ *
+ * @example
+ *   mergeTaskResult(ctx.results, "competency_setek", { chunksProcessed: 3, elapsedMs: 12_000 });
+ */
+export function mergeTaskResult<K extends keyof PipelineTaskResultMap>(
+  results: PipelineTaskResults,
+  key: K,
+  partial: Partial<PipelineTaskResultMap[K]> & Record<string, unknown>,
+): void {
+  const prev = (results[key] as Record<string, unknown> | undefined) ?? {};
+  results[key] = { ...prev, ...partial } as PipelineTaskResultMap[K];
+}
+
+/**
  * 재실행할 태스크 + cascade 의존 태스크 셋 계산
  * rerunPipelineTasks에서 사용하는 순수 로직
  */
