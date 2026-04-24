@@ -117,7 +117,7 @@ vi.mock("../eval/university-profile-matcher", () => ({
 // 공통 최소 PipelineContext 팩토리
 // ============================================
 function makeCtx(overrides: Record<string, unknown> = {}) {
-  return {
+  const base = {
     pipelineId: "pipe-s-test",
     studentId: "student-1",
     tenantId: "tenant-1",
@@ -130,8 +130,17 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
     pipelineType: "synthesis" as const,
     unifiedInput: { hasAnyDesign: false, grades: {} },
     supabase: buildDefaultSupabase(),
+    belief: {} as Record<string, unknown>,
     ...overrides,
   };
+  // belief dual write 불변식 모사 (loadPipelineContext 역할)
+  const raw = base as Record<string, unknown>;
+  const beliefMirror: Record<string, unknown> = { ...(base.belief ?? {}) };
+  for (const k of ["resolvedRecords", "analysisContext", "gradeThemes", "blueprint", "qualityPatterns", "previousRunOutputs"]) {
+    if (raw[k] !== undefined) beliefMirror[k] = raw[k];
+  }
+  base.belief = beliefMirror;
+  return base;
 }
 
 /** 기본 supabase mock — 모든 체인에서 빈 배열/null 반환 */

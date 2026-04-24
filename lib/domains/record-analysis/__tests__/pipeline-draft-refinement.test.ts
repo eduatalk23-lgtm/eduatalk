@@ -246,6 +246,7 @@ describe("runDraftRefinementChunkForGrade — feature flag off 동작", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       supabase: {} as never,
     } as never;
 
@@ -276,6 +277,7 @@ describe("runDraftRefinementChunkForGrade — feature flag off 동작", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       supabase: {} as never,
     } as never;
 

@@ -170,11 +170,14 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "grade" as const,
       resolvedRecords: {
         1: { seteks: [], changche: [], haengteuk: null, hasAnyNeis: false },
       },
     };
+    // belief dual write 불변식 모사 (loadPipelineContext 역할)
+    (ctx.belief as Record<string, unknown>).resolvedRecords = ctx.resolvedRecords;
 
     const { runDraftGenerationForGrade } = await import("@/lib/domains/record-analysis/pipeline/pipeline-task-runners-draft");
     await runDraftGenerationForGrade(ctx as never);
@@ -256,11 +259,14 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "grade" as const,
       resolvedRecords: {
         2: { seteks: [], changche: [], haengteuk: null, hasAnyNeis: true },
       },
     };
+    // belief dual write 불변식 모사
+    (ctx.belief as Record<string, unknown>).resolvedRecords = ctx.resolvedRecords;
 
     const { runDraftGenerationForGrade } = await import("@/lib/domains/record-analysis/pipeline/pipeline-task-runners-draft");
     const result = await runDraftGenerationForGrade(ctx as never);
@@ -282,6 +288,7 @@ describe("P7 draft_generation — LLM 호출 인자 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "grade" as const,
     };
 
@@ -695,6 +702,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "synthesis" as const,
     };
 
@@ -747,6 +755,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "synthesis" as const,
     };
 
@@ -774,6 +783,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "synthesis" as const,
     };
 
@@ -804,6 +814,7 @@ describe("S3 ai_diagnosis — aggregateQualityPatterns 출력 구조", () => {
       previews: {},
       results: {},
       errors: {},
+      belief: {},
       pipelineType: "synthesis" as const,
     };
 

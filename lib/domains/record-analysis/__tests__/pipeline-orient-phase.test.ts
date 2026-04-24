@@ -10,7 +10,7 @@ import {
 import type { PipelineContext } from "../pipeline/pipeline-types";
 
 function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
-  return {
+  const base: PipelineContext = {
     pipelineId: "p1",
     studentId: "s1",
     tenantId: "t1",
@@ -25,6 +25,17 @@ function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
     belief: {},
     ...overrides,
   };
+  // belief dual write 불변식 모사 (loadPipelineContext 역할)
+  base.belief = {
+    ...base.belief,
+    ...(base.resolvedRecords ? { resolvedRecords: base.resolvedRecords } : {}),
+    ...(base.analysisContext ? { analysisContext: base.analysisContext } : {}),
+    ...(base.gradeThemes ? { gradeThemes: base.gradeThemes } : {}),
+    ...(base.blueprint ? { blueprint: base.blueprint } : {}),
+    ...(base.qualityPatterns ? { qualityPatterns: base.qualityPatterns } : {}),
+    ...(base.previousRunOutputs ? { previousRunOutputs: base.previousRunOutputs } : {}),
+  };
+  return base;
 }
 
 describe("runOrientPhase", () => {

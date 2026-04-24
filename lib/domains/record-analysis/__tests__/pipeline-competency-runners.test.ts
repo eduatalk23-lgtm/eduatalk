@@ -123,7 +123,7 @@ function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
     from: vi.fn().mockImplementation(() => makeChain()),
   };
 
-  return {
+  const base = {
     pipelineId: "pipe-1",
     studentId: "student-1",
     tenantId: "tenant-1",
@@ -149,6 +149,17 @@ function makeCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
     belief: {},
     ...overrides,
   } as unknown as PipelineContext;
+  // belief dual write 불변식 모사 (loadPipelineContext 역할)
+  base.belief = {
+    ...base.belief,
+    ...(base.resolvedRecords ? { resolvedRecords: base.resolvedRecords } : {}),
+    ...(base.analysisContext ? { analysisContext: base.analysisContext } : {}),
+    ...(base.gradeThemes ? { gradeThemes: base.gradeThemes } : {}),
+    ...(base.blueprint ? { blueprint: base.blueprint } : {}),
+    ...(base.qualityPatterns ? { qualityPatterns: base.qualityPatterns } : {}),
+    ...(base.previousRunOutputs ? { previousRunOutputs: base.previousRunOutputs } : {}),
+  };
+  return base;
 }
 
 /** 성공 LLM 응답 */
