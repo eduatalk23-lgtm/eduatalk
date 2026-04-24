@@ -335,11 +335,11 @@ async function processDraftItem(
 
   // Blueprint 섹션 — 설계 모드 P7 가안에 정합성 주입 (2026-04-16 D 결정 5)
   let blueprintContextSection = "";
-  if (ctx.gradeMode === "design" && ctx.blueprint) {
+  if (ctx.gradeMode === "design" && ctx.belief.blueprint) {
     const { buildBlueprintGuideSection } = await import(
       "@/lib/domains/record-analysis/llm/prompts/blueprintGuideSection"
     );
-    const section = buildBlueprintGuideSection(ctx.blueprint, [targetGrade]);
+    const section = buildBlueprintGuideSection(ctx.belief.blueprint, [targetGrade]);
     if (section) blueprintContextSection = `\n\n${section}\n`;
   }
 

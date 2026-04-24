@@ -281,7 +281,7 @@ export async function executeGradePhase4(
   // 설계 모드(design) 진입 시 1회만 로드, analysis 모드는 스킵.
   // 로드 실패는 graceful degradation — blueprint 없이도 가이드 생성은 계속.
   // α 후속 2 (2026-04-24): ctx.belief.blueprint dual write 추가.
-  if (ctx.gradeMode === "design" && !ctx.blueprint) {
+  if (ctx.gradeMode === "design" && !ctx.belief.blueprint) {
     const { loadBlueprintForStudent } = await import("../blueprint/loader");
     const loaded = await loadBlueprintForStudent(ctx.studentId, ctx.tenantId);
     if (loaded) {
