@@ -13,6 +13,12 @@
 import type { Violation, ValidationResult } from "./types";
 import { summarizeViolations } from "./types";
 import type { DiagnosisGenerationResult } from "../actions/generateDiagnosis";
+import {
+  GENERIC_SLOGAN_PATTERNS,
+  checkNotEmpty,
+  checkMinLength,
+  checkDuplicate,
+} from "./shared-rules";
 
 // ─────────────────────────────────────────────
 // 규칙 임계값
@@ -53,16 +59,7 @@ const WEAKNESS_POSITIVE_TOKENS = [
   "최상위",
 ];
 
-/**
- * 공허한 행동 지침 패턴 — improvement.action에서 감지 시 warning.
- * "더 열심히", "꾸준히 노력만" 같은 비실행 가능 문구.
- */
-const GENERIC_ACTION_PATTERNS = [
-  /^더\s*열심히/,
-  /^꾸준히\s*노력/,
-  /^성실히\s*임/,
-  /^최선을\s*다/,
-];
+// GENERIC_ACTION_PATTERNS은 shared-rules의 GENERIC_SLOGAN_PATTERNS(6종)으로 통합됨.
 
 // ─────────────────────────────────────────────
 // 규칙 체커
@@ -96,34 +93,10 @@ function checkStrengths(out: DiagnosisGenerationResult, vs: Violation[]) {
   const seen = new Set<string>();
   out.strengths.forEach((s, i) => {
     const trimmed = s.trim();
-    if (trimmed.length === 0) {
-      vs.push({
-        rule: "STRENGTHS_EMPTY",
-        severity: "error",
-        message: "강점 항목이 빈 문자열입니다",
-        fieldPath: `strengths[${i}]`,
-      });
-      return;
-    }
-    if (trimmed.length < STRENGTH_MIN_CHARS) {
-      vs.push({
-        rule: "STRENGTHS_TOO_SHORT",
-        severity: "warning",
-        message: `강점 항목이 너무 짧습니다 (최소 ${STRENGTH_MIN_CHARS}자)`,
-        fieldPath: `strengths[${i}]`,
-        actual: trimmed.length,
-        expected: STRENGTH_MIN_CHARS,
-      });
-    }
-    if (seen.has(trimmed)) {
-      vs.push({
-        rule: "STRENGTHS_DUPLICATE",
-        severity: "error",
-        message: "강점 항목이 중복됩니다",
-        fieldPath: `strengths[${i}]`,
-        actual: trimmed.slice(0, 40),
-      });
-    }
+    const fp = `strengths[${i}]`;
+    if (checkNotEmpty(trimmed, "STRENGTHS_EMPTY", fp, vs)) return;
+    checkMinLength(trimmed, STRENGTH_MIN_CHARS, "STRENGTHS_TOO_SHORT", fp, vs);
+    checkDuplicate(seen, trimmed, "STRENGTHS_DUPLICATE", fp, vs);
     seen.add(trimmed);
     for (const tok of STRENGTH_NEGATIVE_TOKENS) {
       if (trimmed.includes(tok)) {
@@ -131,7 +104,7 @@ function checkStrengths(out: DiagnosisGenerationResult, vs: Violation[]) {
           rule: "STRENGTHS_NEGATIVE_WORD",
           severity: "error",
           message: `강점 항목에 부정 표현("${tok}")이 포함되어 있습니다`,
-          fieldPath: `strengths[${i}]`,
+          fieldPath: fp,
           actual: trimmed.slice(0, 60),
         });
         break;
@@ -144,34 +117,10 @@ function checkWeaknesses(out: DiagnosisGenerationResult, vs: Violation[]) {
   const seen = new Set<string>();
   out.weaknesses.forEach((w, i) => {
     const trimmed = w.trim();
-    if (trimmed.length === 0) {
-      vs.push({
-        rule: "WEAKNESSES_EMPTY",
-        severity: "error",
-        message: "약점 항목이 빈 문자열입니다",
-        fieldPath: `weaknesses[${i}]`,
-      });
-      return;
-    }
-    if (trimmed.length < WEAKNESS_MIN_CHARS) {
-      vs.push({
-        rule: "WEAKNESSES_TOO_SHORT",
-        severity: "warning",
-        message: `약점 항목이 너무 짧습니다 (최소 ${WEAKNESS_MIN_CHARS}자)`,
-        fieldPath: `weaknesses[${i}]`,
-        actual: trimmed.length,
-        expected: WEAKNESS_MIN_CHARS,
-      });
-    }
-    if (seen.has(trimmed)) {
-      vs.push({
-        rule: "WEAKNESSES_DUPLICATE",
-        severity: "error",
-        message: "약점 항목이 중복됩니다",
-        fieldPath: `weaknesses[${i}]`,
-        actual: trimmed.slice(0, 40),
-      });
-    }
+    const fp = `weaknesses[${i}]`;
+    if (checkNotEmpty(trimmed, "WEAKNESSES_EMPTY", fp, vs)) return;
+    checkMinLength(trimmed, WEAKNESS_MIN_CHARS, "WEAKNESSES_TOO_SHORT", fp, vs);
+    checkDuplicate(seen, trimmed, "WEAKNESSES_DUPLICATE", fp, vs);
     seen.add(trimmed);
     for (const tok of WEAKNESS_POSITIVE_TOKENS) {
       if (trimmed.includes(tok)) {
@@ -179,7 +128,7 @@ function checkWeaknesses(out: DiagnosisGenerationResult, vs: Violation[]) {
           rule: "WEAKNESSES_POSITIVE_WORD",
           severity: "warning",
           message: `약점 항목에 강한 칭찬어("${tok}")가 포함되어 있습니다 — 의미 충돌 가능성`,
-          fieldPath: `weaknesses[${i}]`,
+          fieldPath: fp,
           actual: trimmed.slice(0, 60),
         });
         break;
@@ -218,7 +167,7 @@ function checkImprovements(out: DiagnosisGenerationResult, vs: Violation[]) {
         expected: IMPROVEMENT_ACTION_MIN_CHARS,
       });
     } else {
-      for (const pat of GENERIC_ACTION_PATTERNS) {
+      for (const pat of GENERIC_SLOGAN_PATTERNS) {
         if (pat.test(action)) {
           vs.push({
             rule: "IMPROVEMENT_ACTION_GENERIC",
