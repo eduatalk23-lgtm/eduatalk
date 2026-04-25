@@ -59,6 +59,20 @@ export function mergeTaskResult<K extends keyof PipelineTaskResultMap>(
  * 재실행할 태스크 + cascade 의존 태스크 셋 계산
  * rerunPipelineTasks에서 사용하는 순수 로직
  */
+/**
+ * 현재 학기 판정: 3~8월 = 1학기, 9~2월 = 2학기.
+ * KST 고정 — 시스템 TZ 무관하게 한국 기준 월로 판정.
+ */
+export function deriveCurrentSemester(date: Date = new Date()): 1 | 2 {
+  const kstMonth = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      month: "numeric",
+    }).format(date),
+  );
+  return kstMonth >= 3 && kstMonth <= 8 ? 1 : 2;
+}
+
 export function computeCascadeResetKeys(taskKeys: PipelineTaskKey[]): Set<PipelineTaskKey> {
   const toReset = new Set<PipelineTaskKey>(taskKeys);
   for (const key of taskKeys) {

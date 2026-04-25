@@ -13,7 +13,7 @@ import {
   type PipelineContext,
   type TaskRunnerOutput,
 } from "../pipeline-types";
-import { getTaskResult, setTaskResult } from "../pipeline-helpers";
+import { deriveCurrentSemester, getTaskResult, setTaskResult } from "../pipeline-helpers";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
@@ -113,7 +113,7 @@ export async function runGapTracking(
       source: (s.source ?? "ai") as "ai" | "ai_projected",
     })),
     currentGrade: ctx.studentGrade,
-    currentSemester: 1 as 1 | 2, // TODO: 실제 학기 판정
+    currentSemester: deriveCurrentSemester(),
   };
 
   const gapOutput = runGapTracker(gapInput);

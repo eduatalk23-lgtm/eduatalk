@@ -10,15 +10,10 @@
 
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type { PipelineContext, TaskRunnerOutput } from "../pipeline-types";
+import { deriveCurrentSemester } from "../pipeline-helpers";
 import { assertPastAnalyticsCtx } from "./phase-a1-past-storyline";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
-
-/** 현재 학기 판정: 3~8월 = 1학기, 9~2월 = 2학기 */
-function deriveCurrentSemester(date: Date = new Date()): 1 | 2 {
-  const m = date.getMonth() + 1;
-  return m >= 3 && m <= 8 ? 1 : 2;
-}
 
 export async function runPastStrategy(
   ctx: PipelineContext,
