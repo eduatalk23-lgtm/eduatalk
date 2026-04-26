@@ -222,6 +222,39 @@ export async function runTierPlanRefinement(
     // best-effort
   }
 
+  // Phase C A1: 직전 실행 gap_tracking.topBridges → S7 tier_plan 개정 시 미해결 격차 반영 (best-effort)
+  let s7PreviousRunOutputsSection: string | undefined;
+  try {
+    const prevRun = ctx.belief.previousRunOutputs;
+    if (prevRun?.runId) {
+      const { getPreviousRunResult } = await import("../pipeline-previous-run");
+      const prevGap = getPreviousRunResult<{
+        bridgeCount: number;
+        topBridges: Array<{
+          themeLabel: string;
+          urgency: string;
+          targetGrade: number | null;
+          sharedCompetencies: string[];
+        }>;
+      }>(prevRun, "gap_tracking");
+      const bridges = prevGap?.topBridges ?? [];
+      if (bridges.length > 0) {
+        const lines = bridges.map((b) => {
+          const grade = b.targetGrade ? `${b.targetGrade}학년` : "학년 미정";
+          const comps = b.sharedCompetencies.slice(0, 3).join(", ");
+          return `- [${b.urgency}] ${grade} "${b.themeLabel}" (역량: ${comps || "없음"})`;
+        });
+        s7PreviousRunOutputsSection = [
+          `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 미해결 격차`,
+          "아래 bridge 제안 중 아직 해결되지 않은 항목을 tier_plan 개정 시 우선 반영.",
+          ...lines,
+        ].join("\n");
+      }
+    }
+  } catch (s7PrevErr) {
+    logActionDebug(LOG_CTX, `직전 실행 gap 섹션 빌드 실패 (S7 계속): ${s7PrevErr}`);
+  }
+
   const suggestion = await extractTierPlanSuggestion({
     currentThemeLabel: active.theme_label,
     currentThemeKeywords: active.theme_keywords ?? [],
@@ -241,6 +274,7 @@ export async function runTierPlanRefinement(
     midPlanSynthesisSection,
     narrativeArcSection,
     hyperedgeSummarySection,
+    previousRunOutputsSection: s7PreviousRunOutputsSection,
   });
 
   if (!suggestion.success) {

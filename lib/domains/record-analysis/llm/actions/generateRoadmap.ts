@@ -28,6 +28,10 @@ export interface RoadmapExtraSections {
   midPlanSynthesisSection?: string;
   hakjongScoreSection?: string;
   strategySummarySection?: string;
+  /** Phase C A1: 직전 실행 미해결 격차 섹션 (previousRunOutputs 기반). 없으면 생략. */
+  previousRunOutputsSection?: string;
+  /** Phase C A2: 전 학년 반복 품질 패턴 섹션 (qualityPatterns 기반). 없으면 생략. */
+  qualityPatternsSection?: string;
 }
 
 export async function generateAiRoadmap(
@@ -210,6 +214,9 @@ export async function generateAiRoadmap(
       midPlanSynthesisSection: extraSections?.midPlanSynthesisSection,
       hakjongScoreSection: extraSections?.hakjongScoreSection,
       strategySummarySection: extraSections?.strategySummarySection,
+      // Phase C A1/A2: 직전 실행 격차 + 반복 품질 패턴 섹션
+      previousRunOutputsSection: extraSections?.previousRunOutputsSection,
+      qualityPatternsSection: extraSections?.qualityPatternsSection,
     };
 
     // analysis 모드 전용 데이터

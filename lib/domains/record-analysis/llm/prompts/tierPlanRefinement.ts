@@ -74,6 +74,12 @@ export interface TierPlanRefinementInput {
   narrativeArcSection?: string;
   /** Phase B G2: hyperedge(N-ary 수렴 테마) 요약 섹션. 없으면 생략. */
   hyperedgeSummarySection?: string;
+  /**
+   * Phase C A1: 직전 실행 미해결 격차 섹션 (previousRunOutputs 기반).
+   * undefined/"" 이면 섹션 생략. tier_plan 개정 시 직전 실행에서 미해결된
+   * 면접/로드맵 격차를 반영하도록 LLM 에 힌트 제공.
+   */
+  previousRunOutputsSection?: string;
 }
 
 export const TIER_PLAN_REFINEMENT_SYSTEM_PROMPT = `당신은 대입 컨설팅 전문가로, 학생의 **현 메인 탐구 3단 계획**을 학생의 **실제 학습 궤적**(Synthesis 결과)을 근거로 **개정**합니다.
@@ -217,6 +223,11 @@ export function buildTierPlanRefinementUserPrompt(
     sections.push(input.hyperedgeSummarySection, "");
   }
 
+  // Phase C A1: 직전 실행 미해결 격차 주입
+  if (input.previousRunOutputsSection && input.previousRunOutputsSection.trim().length > 0) {
+    sections.push(input.previousRunOutputsSection, "");
+  }
+
   sections.push(
     `위 정보를 바탕으로 **현 tier_plan 을 학생의 실제 학습 궤적에 맞춰 개정**한 main_exploration 을 JSON 으로 출력하세요.`,
     `격차가 미미하면 미세 보강만, 의미 있는 격차가 있으면 해당 tier 의 활동·질문을 재구성하세요.`,
@@ -225,6 +236,9 @@ export function buildTierPlanRefinementUserPrompt(
       : "",
     input.multiScenarioGap && input.multiScenarioGap.dominantScenario && input.multiScenarioGap.dominantScenario !== "baseline"
       ? `**dominantScenario=${input.multiScenarioGap.dominantScenario}**. 원칙 #7 에 따라 tier_plan 의 공세/현실화 방향을 선택하세요.`
+      : "",
+    input.previousRunOutputsSection && input.previousRunOutputsSection.trim().length > 0
+      ? `직전 실행 미해결 격차가 제공된 경우, 해당 격차를 보완하는 방향으로 적합한 tier 의 활동·질문을 우선 개정하세요.`
       : "",
   );
 

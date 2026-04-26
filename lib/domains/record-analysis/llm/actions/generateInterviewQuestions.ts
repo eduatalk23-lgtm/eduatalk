@@ -61,6 +61,10 @@ export async function generateInterviewQuestions(input: {
   strategySummarySection?: string;
   /** Phase B G2: hyperedge(N-ary 수렴 테마) 요약 섹션. 없으면 생략. */
   hyperedgeSummarySection?: string;
+  /** Phase C A1: 직전 실행 미해결 격차 섹션 (previousRunOutputs 기반). 없으면 생략. */
+  previousRunOutputsSection?: string;
+  /** Phase C A2: 전 학년 반복 품질 패턴 섹션 (qualityPatterns 기반). 없으면 생략. */
+  qualityPatternsSection?: string;
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -129,6 +133,14 @@ export async function generateInterviewQuestions(input: {
     }
     if (input.strategySummarySection) {
       userPrompt += `\n\n${input.strategySummarySection}`;
+    }
+    // Phase C A1: 직전 실행 미해결 격차 → 면접 질문에 반영
+    if (input.previousRunOutputsSection) {
+      userPrompt += `\n\n${input.previousRunOutputsSection}\n\n위 직전 실행 미해결 격차를 겨냥한 면접 질문을 1개 이상 포함하라.`;
+    }
+    // Phase C A2: 전 학년 반복 품질 패턴 → 면접 공격 각도 추가
+    if (input.qualityPatternsSection) {
+      userPrompt += `\n\n${input.qualityPatternsSection}\n\n위 반복 패턴 중 면접에서 집중 확인이 필요한 항목을 1개 이상 겨냥하라.`;
     }
 
     const result = await withRetry(

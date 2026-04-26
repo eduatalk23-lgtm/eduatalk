@@ -846,6 +846,10 @@ export interface RoadmapGenerationInput {
   hakjongScoreSection?: string;
   /** 격차 B: S5 합의 전략 요약 섹션. buildStrategySummarySection() 결과. */
   strategySummarySection?: string;
+  /** Phase C A1: 직전 실행 미해결 격차 섹션 (previousRunOutputs 기반). 없으면 생략. */
+  previousRunOutputsSection?: string;
+  /** Phase C A2: 전 학년 반복 품질 패턴 섹션 (qualityPatterns 기반). 없으면 생략. */
+  qualityPatternsSection?: string;
 }
 
 // ============================================

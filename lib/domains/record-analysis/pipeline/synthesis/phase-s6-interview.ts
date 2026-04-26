@@ -292,6 +292,56 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     logActionDebug(LOG_CTX, `hyperedge 조회 실패 (면접 생성 계속): ${heErr}`);
   }
 
+  // Phase C A1: 직전 실행 gap_tracking.topBridges → 면접 질문 미해결 격차 반영 (best-effort)
+  let interviewPreviousRunOutputsSection: string | undefined;
+  try {
+    const prevRun = ctx.belief.previousRunOutputs;
+    if (prevRun?.runId) {
+      const { getPreviousRunResult } = await import("../pipeline-previous-run");
+      const prevGap = getPreviousRunResult<{
+        bridgeCount: number;
+        topBridges: Array<{
+          themeLabel: string;
+          urgency: string;
+          targetGrade: number | null;
+          sharedCompetencies: string[];
+        }>;
+      }>(prevRun, "gap_tracking");
+      const bridges = prevGap?.topBridges ?? [];
+      if (bridges.length > 0) {
+        const lines = bridges.map((b) => {
+          const grade = b.targetGrade ? `${b.targetGrade}학년` : "학년 미정";
+          const comps = b.sharedCompetencies.slice(0, 3).join(", ");
+          return `- [${b.urgency}] ${grade} "${b.themeLabel}" (역량: ${comps || "없음"})`;
+        });
+        interviewPreviousRunOutputsSection = [
+          `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 미해결 격차`,
+          "아래 bridge 제안 중 아직 해결되지 않은 항목을 겨냥한 면접 질문을 우선 생성.",
+          ...lines,
+        ].join("\n");
+      }
+    }
+  } catch (iPrevErr) {
+    logActionDebug(LOG_CTX, `직전 실행 gap 섹션 빌드 실패 (면접 생성 계속): ${iPrevErr}`);
+  }
+
+  // Phase C A2: 전 학년 반복 품질 패턴 → 면접 공격 각도 추가 (best-effort)
+  let interviewQualityPatternsSection: string | undefined;
+  try {
+    const patterns = ctx.belief.qualityPatterns;
+    if (patterns && patterns.length > 0) {
+      const lines = patterns
+        .slice(0, 5)
+        .map((p) => `- ${p.pattern} (${p.count}회, 과목: ${p.subjects.join(", ")})`);
+      interviewQualityPatternsSection = [
+        `## 전 학년 반복 품질 패턴 (면접 집중 확인 대상)`,
+        ...lines,
+      ].join("\n");
+    }
+  } catch (iQualErr) {
+    logActionDebug(LOG_CTX, `qualityPatterns 섹션 빌드 실패 (면접 생성 계속): ${iQualErr}`);
+  }
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -309,6 +359,8 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     hakjongScoreSection,
     strategySummarySection,
     hyperedgeSummarySection,
+    previousRunOutputsSection: interviewPreviousRunOutputsSection,
+    qualityPatternsSection: interviewQualityPatternsSection,
   });
 
   if (!result.success) throw new Error(result.error);
@@ -425,10 +477,62 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
     logActionDebug(LOG_CTX, `roadmap strategies 조회 실패 (로드맵 생성 계속): ${rStratErr}`);
   }
 
+  // Phase C A1: 직전 실행 gap_tracking.topBridges → 로드맵 미해결 격차 반영 (best-effort)
+  let roadmapPreviousRunOutputsSection: string | undefined;
+  try {
+    const prevRun = ctx.belief.previousRunOutputs;
+    if (prevRun?.runId) {
+      const { getPreviousRunResult: getRoadmapPrevResult } = await import("../pipeline-previous-run");
+      const prevGap = getRoadmapPrevResult<{
+        bridgeCount: number;
+        topBridges: Array<{
+          themeLabel: string;
+          urgency: string;
+          targetGrade: number | null;
+          sharedCompetencies: string[];
+        }>;
+      }>(prevRun, "gap_tracking");
+      const bridges = prevGap?.topBridges ?? [];
+      if (bridges.length > 0) {
+        const lines = bridges.map((b) => {
+          const grade = b.targetGrade ? `${b.targetGrade}학년` : "학년 미정";
+          const comps = b.sharedCompetencies.slice(0, 3).join(", ");
+          return `- [${b.urgency}] ${grade} "${b.themeLabel}" (역량: ${comps || "없음"})`;
+        });
+        roadmapPreviousRunOutputsSection = [
+          `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 미해결 격차`,
+          "아래 bridge 제안 중 아직 해결되지 않은 항목을 보완하는 활동을 로드맵에 포함.",
+          ...lines,
+        ].join("\n");
+      }
+    }
+  } catch (rPrevErr) {
+    logActionDebug(LOG_CTX, `직전 실행 gap 섹션 빌드 실패 (로드맵 생성 계속): ${rPrevErr}`);
+  }
+
+  // Phase C A2: 전 학년 반복 품질 패턴 → 로드맵 패턴 개선 활동 추가 (best-effort)
+  let roadmapQualityPatternsSection: string | undefined;
+  try {
+    const rPatterns = ctx.belief.qualityPatterns;
+    if (rPatterns && rPatterns.length > 0) {
+      const lines = rPatterns
+        .slice(0, 5)
+        .map((p) => `- ${p.pattern} (${p.count}회, 과목: ${p.subjects.join(", ")})`);
+      roadmapQualityPatternsSection = [
+        `## 전 학년 반복 품질 패턴 (로드맵 개선 대상)`,
+        ...lines,
+      ].join("\n");
+    }
+  } catch (rQualErr) {
+    logActionDebug(LOG_CTX, `qualityPatterns 섹션 빌드 실패 (로드맵 생성 계속): ${rQualErr}`);
+  }
+
   const llmResult = await generateAiRoadmap(studentId, llmMode, {
     midPlanSynthesisSection: roadmapMidPlanSection,
     hakjongScoreSection: roadmapHakjongSection,
     strategySummarySection: roadmapStrategySection,
+    previousRunOutputsSection: roadmapPreviousRunOutputsSection,
+    qualityPatternsSection: roadmapQualityPatternsSection,
   });
   if (llmResult.success && llmResult.data) {
     // Cross-run: 다음 실행 storyline_generation 이 "과거 계획 대비 진척" 서사 힌트로 활용.

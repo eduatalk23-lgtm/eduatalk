@@ -209,6 +209,14 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   if (input.strategySummarySection) {
     prompt += `${input.strategySummarySection}\n\n`;
   }
+  // Phase C A1: 직전 실행 미해결 격차 섹션 주입
+  if (input.previousRunOutputsSection) {
+    prompt += `${input.previousRunOutputsSection}\n\n`;
+  }
+  // Phase C A2: 전 학년 반복 품질 패턴 섹션 주입
+  if (input.qualityPatternsSection) {
+    prompt += `${input.qualityPatternsSection}\n\n`;
+  }
 
   prompt += `위 정보를 종합하여 ${input.grade}학년부터 3학년까지의 학기별 활동 로드맵을 JSON으로 생성해주세요.`;
   if (input.mainExplorationSection) {
@@ -228,6 +236,12 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   }
   if (input.hakjongScoreSection) {
     prompt += ` 학종 3요소 통합 점수(약점 축 🔴)가 제공된 경우, 해당 약점 영역을 강화하는 활동(봉사·수상·창체 등)을 로드맵에 포함하세요.`;
+  }
+  if (input.previousRunOutputsSection) {
+    prompt += ` 직전 실행 미해결 격차가 제공된 경우, 해당 격차를 보완하는 활동을 로드맵에 1건 이상 반영하세요.`;
+  }
+  if (input.qualityPatternsSection) {
+    prompt += ` 반복 품질 패턴이 제공된 경우, 패턴 개선을 위한 활동(탐구 심화·참고문헌 강화 등)을 로드맵에 포함하세요.`;
   }
   return prompt;
 }
