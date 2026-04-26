@@ -434,14 +434,28 @@ export async function runDraftAnalysisChunkForGrade(
     if (!analyzedSet.has(r.id) && hasAnalyzableContent(r)) pending.push({ ...r, recordType: "haengteuk" });
   }
 
-  const totalUncached = pending.length;
+  // β+2 (2026-04-26): MidPlanner priority 로 P8 청크 경계 재정렬 (P9 패턴 답습).
+  // midPlan 없거나 override 비면 기존 순서 유지 (no-op).
+  const midPlanForP8 =
+    ctx.midPlan ??
+    ((ctx.results["_midPlan"] as { recordPriorityOverride?: Record<string, number> } | undefined) ?? undefined);
+  const priorityP8 = midPlanForP8?.recordPriorityOverride;
+  let orderedPending: typeof pending;
+  if (priorityP8 && Object.keys(priorityP8).length > 0) {
+    const { orderRecordsByPriority } = await import("./orient/priority-order");
+    orderedPending = orderRecordsByPriority(pending, priorityP8);
+  } else {
+    orderedPending = pending;
+  }
+
+  const totalUncached = orderedPending.length;
 
   // 처리할 게 없으면 즉시 finalize (이미 전부 완료된 상태)
   if (totalUncached === 0) {
     return finalizeDraftAnalysisChunked(ctx, targetGrade, targetSchoolYear);
   }
 
-  const thisChunk = pending.slice(0, chunkSize);
+  const thisChunk = orderedPending.slice(0, chunkSize);
   const hasMore = totalUncached > chunkSize;
 
   const { analyzeSetekWithHighlight } = await import("@/lib/domains/record-analysis/llm/actions/analyzeWithHighlight");

@@ -192,7 +192,13 @@ export function serializeBeliefForPlanner(
       const lines = top5.map((r) => {
         const subject = r.subjectName ? `(${r.subjectName})` : "";
         const issuesStr = r.issues.slice(0, 3).join(", ");
-        return `- id=${r.recordId.slice(0, 8)}… ${r.recordType}${subject} score=${r.overallScore} issues=[${issuesStr}]`;
+        const typeLabel =
+          r.recordType === "setek"
+            ? "세특"
+            : r.recordType === "changche"
+              ? "창체"
+              : "행특";
+        return `- id=${r.recordId.slice(0, 8)}… [${r.grade}학년] ${typeLabel}${subject} score=${r.overallScore} issues=[${issuesStr}]`;
       });
       sections.push(
         `## 문제 집중 레코드 Top-5 (overallScore 낮은 순)\n${lines.join("\n")}`,
