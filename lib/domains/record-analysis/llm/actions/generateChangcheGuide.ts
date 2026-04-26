@@ -47,6 +47,12 @@ export async function generateProspectiveChangcheGuide(
   targetSchoolYear?: number,
   /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
+  /** ctx.belief.profileCard — 학생 정체성 누적 프로필 카드. undefined/"" 시 섹션 생략 */
+  studentProfileCard?: string,
+  /** 세특 서사 완성도(8단계) 섹션 텍스트. buildNarrativeArcDiagnosisSection() 결과. undefined/"" 시 생략. */
+  narrativeArcSection?: string,
+  /** β+1: MidPipeline Planner 메타 판정 섹션. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
+  midPlanSection?: string,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 창체 방향 생성", { studentId });
@@ -98,6 +104,16 @@ export async function generateProspectiveChangcheGuide(
 
   const storylines = report.storylineData.storylines.map((sl) => `- ${sl.title} [${sl.keywords.slice(0, 3).join(", ")}]`).join("\n");
 
+  const profileCardSection = studentProfileCard
+    ? `## 학생 정체성 (학년 누적 프로필)\n다음은 이 학생의 학년 누적 정체성 요약입니다.\n**제안하는 가이드 방향이 이 정체성과 정합되어야 합니다.**\n\n${studentProfileCard}\n`
+    : "";
+
+  const narrativeArcSectionBlock = narrativeArcSection
+    ? `${narrativeArcSection}\n\n위 8단계 분석을 참고하여, 핵심 단계(①호기심 ②주제 ③탐구 ⑤결론)가 누락된 패턴을\n보완하는 방향으로 가이드를 작성하세요.\n`
+    : "";
+
+  const midPlanSectionBlock = midPlanSection ? `${midPlanSection}\n` : "";
+
   const userPrompt = `# 신입생 창체 방향 가이드 요청 (수강계획 기반)
 
 ## 학생 정보
@@ -120,6 +136,9 @@ ${(diagnosis?.weaknesses as string[] | undefined)?.length ? `## 보완 영역\n$
 ${setekGuideContext ? `${setekGuideContext}\n` : ""}
 ${edgePromptSection ? `${edgePromptSection}\n` : ""}
 ${gridSection}
+${profileCardSection}
+${narrativeArcSectionBlock}
+${midPlanSectionBlock}
 ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
 ## 지시사항
@@ -203,6 +222,12 @@ export async function generateChangcheGuide(
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
   /** 파이프라인에서 전달되는 ReportData (있으면 fetchReportData 호출 스킵) */
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  /** ctx.belief.profileCard — 학생 정체성 누적 프로필 카드. undefined/"" 시 섹션 생략 */
+  studentProfileCard?: string,
+  /** 세특 서사 완성도(8단계) 섹션 텍스트. buildNarrativeArcDiagnosisSection() 결과. undefined/"" 시 생략. */
+  narrativeArcSection?: string,
+  /** MidPlanner 메타 판정 섹션 텍스트. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
+  midPlanSection?: string,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -290,6 +315,9 @@ export async function generateChangcheGuide(
       setekGuideContext,
       analysisContext,
       gridContext,
+      studentProfileCard,
+      narrativeArcSection: narrativeArcSection || undefined,
+      midPlanSection: midPlanSection || undefined,
     };
 
     // AI SDK 호출

@@ -1,0 +1,732 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울대-경제학-0",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울대_경제학_000",
+    "schoolName": "가상 일반고 A",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "경제학부",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "1반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사",
+      "studentNumber": "20101"
+    },
+    {
+      "grade": 3,
+      "className": "1반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박교사",
+      "studentNumber": "30101"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 1일",
+      "schoolDays": 191
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병원 진료로 인한 병조퇴 1회",
+      "schoolDays": 190
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "특기사항 없음",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 수학경시대회 금상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 A",
+      "participants": "120명"
+    },
+    {
+      "grade": 1,
+      "awardName": "교내 사회탐구보고서 대회 우수상",
+      "awardDate": "2024-11-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 A",
+      "participants": "50팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 경제 토론대회 최우수상",
+      "awardDate": "2025-06-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 A",
+      "participants": "32팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 통계 활용 포스터 발표대회 대상",
+      "awardDate": "2025-10-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 A",
+      "participants": "45팀"
+    },
+    {
+      "grade": 3,
+      "awardName": "모범학생 표창장",
+      "awardDate": "2026-02-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 A",
+      "participants": "전교생 대상"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 융합주제탐구 학술제 최우수논문상",
+      "awardDate": "2026-07-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 A",
+      "participants": "30팀"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 내 '경제 뉴스 브리핑' 활동을 주도하여 매주 주요 경제 지표(물가상승률, 금리 등)의 의미와 사회적 영향을 친구들에게 설명하는 시간을 가졌습니다. 복잡한 개념을 쉬운 비유로 설명하는 능력이 뛰어나며, 이를 통해 학급 친구들의 경제 현상에 대한 이해도를 높이는 데 기여했습니다.",
+      "activityName": "학급 특색활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "1학년 학급 부회장으로 활동하며, 학급비 사용 내역을 투명하게 정리하여 정기적으로 공지하는 '학급 재정 매니저' 역할을 자처했습니다. 예산안 편성과 결산을 통해 공동체 자원을 효율적으로 관리하는 경험을 쌓고 책임감을 길렀습니다.",
+      "activityName": "학급 자치회",
+      "hours": 15
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "시사토론 동아리에서 '기본소득제 도입의 경제적 타당성'을 주제로 한 토론에 참여했습니다. 찬성 측 입론을 맡아, 관련 논문과 해외 사례를 근거로 재원 마련 방안과 기대 효과를 논리적으로 주장하여 청중의 이해를 도왔습니다. 단순한 찬반 논리를 넘어, 제도의 잠재적 부작용까지 분석하는 균형 잡힌 시각을 보여주었습니다.",
+      "activityName": "시사토론반",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 특강 '선배와의 대화' 시간에 한국은행에 재직 중인 선배의 강연을 듣고, 통화 정책이 실물 경제에 미치는 영향에 대해 깊은 인상을 받았습니다. 이후 '물가 안정을 위한 중앙은행의 역할'이라는 주제로 심화 보고서를 작성하며 거시 경제 정책 전문가라는 구체적인 진로 목표를 설정하게 되었습니다.",
+      "activityName": "진로 특강",
+      "hours": 10
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "수학 교과 멘토로서 학습에 어려움을 겪는 친구들에게 '개념 지도 그리기' 학습법을 전수했습니다. 특히 함수와 경제 모델(수요-공급 곡선)을 연결하여 설명함으로써 수학의 실용성을 깨닫게 하고 학습 동기를 부여하는 데 크게 기여했습니다. 멘토링 일지를 꾸준히 작성하며 자신의 교수법을 성찰하고 개선하는 모습을 보였습니다.",
+      "activityName": "학습 멘토링",
+      "hours": 25
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 총무부 차장으로 활동하며 학교 축제 예산안을 편성하고 집행했습니다. 한정된 예산으로 최대의 효용을 창출하기 위해 설문조사를 통해 학생들의 선호를 파악하고, 이를 바탕으로 부스별 예산을 차등 배분하는 합리적인 의사결정 과정을 주도했습니다. 이 경험을 통해 자원 배분의 원리를 체득했습니다.",
+      "activityName": "학생회 활동",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "경제탐구 동아리를 창설하고 부장으로 활동했습니다. '우리 동네 전통시장 활성화 방안'을 주제로 팀 프로젝트를 기획하고, 상인 및 이용객 대상 설문조사와 현장 관찰을 진행했습니다. 수집된 데이터를 바탕으로 '지역화폐 연계 마케팅'과 '청년 점포 유치'를 제안하는 정책 보고서를 작성하여 지역 구청에 제출하는 등 뛰어난 기획력과 실행력을 보여주었습니다.",
+      "activityName": "경제탐구반 (창설)",
+      "hours": 50
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학교 전공체험 프로그램에 참여하여 경제학부의 '계량경제학 입문' 강의를 수강했습니다. 회귀분석을 이용하여 광고비가 매출에 미치는 영향을 분석하는 실습에 흥미를 느끼고, 통계학이 경제 현상 분석의 핵심 도구임을 깨달았습니다. 이후 R 프로그래밍 언어를 독학하며 데이터 분석 역량을 키우기 시작했습니다.",
+      "activityName": "대학교 전공체험",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "교내 학술제 '사회과학 분과'의 운영 팀장을 맡아, 발표 주제 선정부터 자료집 제작, 행사 진행 전반을 총괄했습니다. 특히 발표자들에게 '논리적 오류 점검 리스트'를 제공하고, 동료 심사(peer review) 제도를 도입하여 발표의 질을 높이는 데 기획력을 발휘했습니다. 이를 통해 학술 교류의 장을 성공적으로 이끌었습니다.",
+      "activityName": "교내 학술제 기획",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "졸업앨범 편집위원으로 활동하며, 한정된 페이지 안에 다양한 학생 활동을 담기 위한 지면 배분 문제를 '기회비용' 개념을 적용하여 해결했습니다. 각 활동의 중요도와 학생들의 선호를 종합적으로 고려하여 최적의 배분안을 도출하고, 이를 바탕으로 친구들을 설득하여 합의를 이끌어내는 문제해결능력을 보여주었습니다.",
+      "activityName": "졸업앨범 편집위원회",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "경제탐구 동아리 활동을 심화하여, '청년 실업 문제 해결을 위한 정책 제언'을 주제로 소논문을 작성했습니다. 고용 관련 통계 데이터를 시계열 분석하여 문제의 심각성을 입증하고, 교육 제도 개혁과 스타트업 생태계 활성화를 연계한 독창적인 해결책을 제시했습니다. 이 논문으로 교내 학술제에서 최우수논문상을 수상했습니다.",
+      "activityName": "경제탐구반",
+      "hours": 40
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "KDI(한국개발연구원)에서 발간하는 경제전망 보고서를 정기적으로 구독하며, 경제 전문가들이 미래를 예측하는 방법론에 대해 학습했습니다. 특히 '인구구조 변화가 잠재성장률에 미치는 영향 분석' 보고서를 읽고, 거시경제의 장기적 흐름을 분석하는 정책 이코노미스트가 되겠다는 진로를 확고히 다졌습니다.",
+      "activityName": "진로 탐색 및 심화",
+      "hours": 20
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 20,
+      "description": "지역아동센터 초등학생 대상 수학 학습지도",
+      "hours": 20,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 40,
+      "description": "지역 도서관 '청소년 인문학 교실' 운영 보조 및 환경미화",
+      "hours": 20,
+      "location": "시립 중앙도서관"
+    },
+    {
+      "grade": 3,
+      "cumulativeHours": 50,
+      "description": "어르신 대상 스마트폰 활용 교육 봉사",
+      "hours": 10,
+      "location": "관내 노인복지회관"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "subjectType": "일반",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "일반",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "subjectType": "일반",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "subjectType": "일반",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.5,
+      "subjectType": "일반",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "일반",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "subjectType": "일반",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "subjectType": "일반",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "subjectType": "일반",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "일반",
+      "totalStudents": 178
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "subjectType": "일반",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "subjectType": "일반",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "일반",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "subjectType": "진로",
+      "totalStudents": 90
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "세계사",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "subjectType": "일반",
+      "totalStudents": 85
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.1,
+      "subjectType": "일반",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "일반",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "subjectType": "일반",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "경제",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "subjectType": "진로",
+      "totalStudents": 70
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정치와 법",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "subjectType": "일반",
+      "totalStudents": 95
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "일반",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "subjectType": "일반",
+      "totalStudents": 100
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.7,
+      "subjectType": "일반",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "일반",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "subjectType": "진로",
+      "totalStudents": 60
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "함수의 개념을 학습하며 그래프의 이동이 경제학의 수요-공급 곡선 이동 원리와 유사하다는 점에 착안, '수학적 모델링으로 분석한 최저임금제 효과' 보고서를 작성했습니다. 최저임금 인상을 수요 곡선의 평행이동으로 가정하고, 이로 인한 사회적 잉여의 변화를 그래프와 수식을 이용해 명료하게 증명해냈습니다. 수학적 도구를 사회 현상 분석에 적용하는 융합적 사고력이 돋보이며, 논리적 추론 능력이 뛰어난 학생입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "시장 경제의 장단점을 배우던 중, 소득 불평등 문제에 깊은 관심을 보였습니다. 토마 피케티의 '21세기 자본'을 읽고 '자본수익률(r)이 경제성장률(g)을 앞지를 때 불평등이 심화된다'는 핵심 주장을 요약, 분석하는 발표를 진행했습니다. 단순한 내용 요약에 그치지 않고, 한국의 부동산 자산 불평등 심화 현상을 근거로 피케티의 이론을 재해석하는 비판적 시각을 보여주어 교사와 학생들에게 깊은 인상을 남겼습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "매체 비평 단원에서 경제 기사에 나타난 프레임 효과를 분석하는 활동을 수행했습니다. 동일한 금리 인상 사건을 다룬 두 신문 기사의 제목과 사용 어휘를 비교하며, 긍정적·부정적 프레임이 독자의 경제 심리에 미치는 영향을 논리적으로 설명했습니다. 이를 통해 미디어의 정보를 비판적으로 수용하는 능력을 길렀으며, 객관적 사실과 주관적 해석을 구분하는 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "글로벌 경제 활동과 지역 변화 단원에서 자유무역협정(FTA)의 명암에 대해 탐구했습니다. 교과서 내용을 넘어 'FTA 체결 이후 국내 농축산업의 변화'를 주제로 심화 보고서를 작성, 통계청 데이터를 활용하여 특정 품목의 자급률 변화와 농가 소득 변화를 분석했습니다. 이를 통해 국제 무역이 지역 경제에 미치는 구체적인 영향을 실증적으로 탐구하는 자기주도적 학습 능력을 입증했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "수열의 합을 배우고 원리합계 개념을 경제학의 '연금의 미래가치' 계산에 적용했습니다. 복잡한 연금 상품의 수익률을 시그마(∑) 기호를 이용해 간결한 수식으로 표현하고, 이를 바탕으로 다양한 조건(이자율, 납입 기간)에 따른 미래가치 변화를 분석하는 보고서를 제출했습니다. 추상적인 수학 개념을 현실 문제 해결에 활용하는 응용력이 뛰어나며, 문제 해결을 위해 끈기 있게 파고드는 탐구 정신이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "content": "이산확률분포를 학습한 후, 주식 투자의 기대수익률과 위험(분산)을 계산하는 프로젝트를 수행했습니다. 특정 기업의 과거 주가 데이터를 수집하여 확률변수로 설정하고, 이를 바탕으로 기대수익률과 표준편차를 직접 계산했습니다. 이 과정을 통해 'High Risk, High Return'이라는 금융 격언을 수학적으로 증명해냈습니다. 통계적 지식을 활용하여 불확실한 미래를 예측하고 합리적인 의사결정을 시도하는 모습이 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "세계사",
+      "content": "대공황의 원인과 극복 과정을 학습하며, 당시의 경제 정책에 깊은 관심을 보였습니다. 케인스의 유효수요 이론과 루스벨트의 뉴딜 정책을 심도 있게 분석하고, 이를 2008년 글로벌 금융위기 당시 각국이 펼친 양적완화 정책과 비교하는 보고서를 작성했습니다. 역사적 사건을 통해 현재의 경제 위기 대응 방안을 성찰하는 통찰력을 보여주었으며, 시대를 관통하는 경제 원리를 파악하려는 학문적 자세가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "경제",
+      "content": "시장 실패의 대표적 사례인 '공유지의 비극'에 대해 학습한 후, 이를 해결하기 위한 제도적 방안에 대해 탐구했습니다. 엘리너 오스트롬의 '공유의 비극을 넘어'를 읽고, 정부의 개입이나 사유화만이 유일한 해법이 아니며, 공동체 기반의 자치적 규약이 효과적일 수 있다는 사실을 발표했습니다. 특히 교내 동아리 활동과 연계하여, 쇠락하는 지역 전통시장을 '공유자원'으로 보고 상인 공동체가 주도하는 활성화 방안을 제안하는 등 이론을 현실에 적용하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분과 적분의 개념을 학습하며 경제학의 한계(marginal) 개념과 소비자·생산자 잉여 개념을 완벽하게 이해했습니다. 수요함수와 공급함수가 주어졌을 때, 미분을 통해 한계수입과 한계비용을 계산하고, 정적분을 통해 총잉여가 극대화되는 균형점을 도출하는 과정을 수식으로 증명했습니다. 수학적 엄밀함을 바탕으로 경제 이론의 논리적 기반을 파고드는 지적 탐구심이 매우 뛰어난 학생입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "리처드 탈러와 캐스 선스타인의 '넛지'를 읽고, 인간의 비합리적 선택을 교정하는 부드러운 개입의 힘에 대해 깊이 탐구했습니다. 책에서 소개된 다양한 넛지 사례들을 분석하고, '교내 분리수거율을 높이기 위한 넛지 디자인'을 직접 고안하여 발표했습니다. 쓰레기통 주변에 발자국 모양 스티커를 붙여 동선을 유도하는 아이디어를 제시하며, 행동경제학 이론을 구체적인 정책 아이디어로 발전시키는 창의성을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "로피탈의 정리를 학습하며, 이를 경제학의 탄력성 개념을 설명하는 데 활용했습니다. 가격 변화율에 대한 수요량 변화율의 극한값으로서 점탄력성을 정의하고, 로그 미분법을 이용해 이를 간결하게 증명해내는 수학적 역량을 보여주었습니다. 어려운 수학 개념을 회피하지 않고 끝까지 파고들어 경제학적 의미를 발견해내는 집요함과 지적 성실성이 돋보이며, 수리경제학 분야에 큰 잠재력을 가지고 있습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "1년간 '지방 소멸 위기 대응을 위한 청년 인구 유입 정책 연구'라는 주제로 심층 탐구를 진행했습니다. 통계청 마이크로데이터를 활용하여 청년 인구의 수도권 유출 원인을 다중회귀분석으로 규명하고, 일본의 '지역부흥 협력대' 사례를 벤치마킹하여 한국 실정에 맞는 '지역 상생 청년 활동가' 제도를 정책 보고서 형태로 제안했습니다. 데이터 분석 능력, 문헌 연구 능력, 정책 대안 제시 능력을 종합적으로 보여준 뛰어난 연구 성과물입니다. (참고문헌: KDI 정책연구 '인구감소지역의 특징과 정책과제')"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "content": "사회 계층 이론을 학습하며, 교육이 계층 이동의 사다리 역할을 제대로 수행하고 있는지에 대한 문제의식을 가졌습니다. '부모의 소득 수준이 자녀의 사교육비 지출 및 대학 진학률에 미치는 영향'을 주제로 설문조사를 설계하고, 수집된 데이터를 교차 분석하여 상관관계를 도출했습니다. 이를 통해 교육 불평등의 현실을 실증적으로 분석하고, 교육 기회 균등을 위한 정책적 함의를 이끌어내는 사회과학적 탐구 역량을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "정책 건의문 작성 단원에서 '청년 1인 가구 주거 안정을 위한 금융 지원 정책'을 주제로 글을 작성했습니다. 현행 주거 정책의 문제점을 구체적인 통계 자료를 들어 지적하고, '소득 연동형 장기 저리 대출'이라는 독창적인 대안을 논리적으로 제시했습니다. 특히 예상되는 반론을 미리 언급하고 이를 재반박하는 구조를 사용하여 설득력을 높였으며, 정책 입안가로서의 소통 능력과 균형 잡힌 시각을 갖추었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "사회",
+      "bookDescription": "'21세기 자본(토마 피케티)'을 읽고 부의 불평등이 심화되는 구조적 원인에 대해 탐구함.",
+      "author": "토마 피케티",
+      "bookTitle": "21세기 자본"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'괴짜 경제학(스티븐 레빗)'을 읽고, 인센티브의 개념을 통해 인간 행동의 이면에 숨겨진 경제 원리를 파악함.",
+      "author": "스티븐 레빗",
+      "bookTitle": "괴짜 경제학"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "'수학, 인문으로 수를 읽다(이광연)'를 읽고 수학적 개념이 사회 현상을 설명하는 도구가 될 수 있음을 깨달음.",
+      "author": "이광연",
+      "bookTitle": "수학, 인문으로 수를 읽다"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "경제",
+      "bookDescription": "'넛지(리처드 탈러, 캐스 선스타인)'를 읽고, 인간의 비합리성을 인정하고 이를 활용하는 행동경제학적 정책 설계에 관심을 갖게 됨.",
+      "author": "리처드 탈러, 캐스 선스타인",
+      "bookTitle": "넛지"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회",
+      "bookDescription": "'국부론(애덤 스미스)'을 읽고, '보이지 않는 손'으로 대표되는 고전 경제학의 핵심 원리와 분업의 중요성을 이해함.",
+      "author": "애덤 스미스",
+      "bookTitle": "국부론"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "과학",
+      "bookDescription": "'생각에 관한 생각(대니얼 카너먼)'을 읽고, 빠른 직관(시스템1)과 느린 이성(시스템2)의 상호작용을 통해 인간의 판단과 선택 과정을 심도 있게 분석함.",
+      "author": "대니얼 카너먼",
+      "bookTitle": "생각에 관한 생각"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "'왜 국가는 실패하는가(대런 애쓰모글루, 제임스 로빈슨)'를 읽고, 국가의 흥망성쇠를 결정하는 핵심 요인이 포용적 경제·정치 제도에 있음을 깨닫고 제도경제학에 대한 시야를 넓힘.",
+      "author": "대런 애쓰모글루, 제임스 로빈슨",
+      "bookTitle": "왜 국가는 실패하는가"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "경제",
+      "bookDescription": "'맨큐의 경제학(그레고리 맨큐)'을 읽으며, 1, 2학년 때 단편적으로 학습했던 경제 개념들을 체계적으로 정리하고 거시와 미시를 아우르는 통합적 시각을 구축함.",
+      "author": "그레고리 맨큐",
+      "bookTitle": "맨큐의 경제학"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "'죽은 경제학자의 살아있는 아이디어(토드 부크홀츠)'를 읽고, 애덤 스미스부터 케인스까지 위대한 경제학자들의 핵심 사상을 현대적 관점에서 재해석하며 경제학의 큰 흐름을 파악함.",
+      "author": "토드 부크홀츠",
+      "bookTitle": "죽은 경제학자의 살아있는 아이디어"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 왕성하고 새로운 지식을 스펀지처럼 흡수하는 학생임. 특히 사회 현상의 이면에 있는 원리를 파고드는 탐구력이 돋보이며, '왜?'라는 질문을 끊임없이 던짐. 학급의 '경제 뉴스 브리핑' 활동을 주도하며 친구들의 눈높이에 맞춰 설명하는 등 지식 나눔에도 적극적임."
+    },
+    {
+      "grade": 2,
+      "content": "자신이 설립한 경제탐구 동아리를 성공적으로 이끌며 탁월한 리더십과 기획력을 보여줌. 이론 학습에 그치지 않고, 지역 사회 문제 해결을 위해 직접 발로 뛰며 데이터를 수집하고 분석하는 등 학문에 대한 열정과 실행력을 겸비함. 수학적 도구를 활용하여 사회 현상을 분석하는 융합적 사고가 뛰어남."
+    },
+    {
+      "grade": 3,
+      "content": "경제·금융 정책 전문가라는 뚜렷한 목표를 향해 꾸준히 정진하는 자기주도적 학습자임. 복잡한 사회 문제에 대해 데이터 기반의 실증적 분석을 시도하고, 합리적인 정책 대안을 제시하는 능력은 동급생 중 단연 최고 수준임. 공동체에 대한 깊은 애정과 책임감을 바탕으로 세상을 이롭게 만들 인재로 성장이 기대됨."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육1",
+      "achievementLevel": "A",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미술",
+      "achievementLevel": "A",
+      "creditHours": 2
+    }
+  ]
+}

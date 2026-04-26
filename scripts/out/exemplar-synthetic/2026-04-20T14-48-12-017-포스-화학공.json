@@ -1,0 +1,749 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/포스텍-화학공-17",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_포스텍_화학공_017",
+    "schoolName": "가상 과학고 R",
+    "enrollmentYear": 2023,
+    "curriculumRevision": "2015",
+    "graduationYear": 2025,
+    "schoolCategory": "과학고"
+  },
+  "admissions": [
+    {
+      "universityName": "포스텍",
+      "admissionYear": 2025,
+      "admissionRound": "student_record_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "화학공학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2023-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사",
+      "studentNumber": "10115"
+    },
+    {
+      "grade": 2,
+      "className": "2반",
+      "enrollmentDate": "2024-03-04",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사",
+      "studentNumber": "20218"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 1일",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 2,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "위염으로 인한 병결 2일, 병원 진료로 인한 병조퇴 1회",
+      "schoolDays": 191
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 수학경시대회 동상",
+      "awardDate": "2023-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 과학고 R",
+      "participants": "1학년 재학생 50명"
+    },
+    {
+      "grade": 1,
+      "awardName": "교내 과학탐구대회 은상",
+      "awardDate": "2023-11-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 과학고 R",
+      "participants": "팀(2인)"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 R&E 발표대회 최우수상(화학 부문)",
+      "awardDate": "2024-10-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 과학고 R",
+      "participants": "팀(3인)"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 화학탐구토론대회 금상",
+      "awardDate": "2024-06-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 과학고 R",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "모범학생 표창",
+      "awardDate": "2024-12-28",
+      "awardLevel": "교내",
+      "awardingBody": "가상 과학고 R",
+      "participants": "개인"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 부회장으로서 학급회의를 주도적으로 운영하고, '사이언스 스터디 그룹'을 조직하여 친구들과 심화 과학 주제에 대해 토론하며 학업 분위기 조성에 기여함. 특히 미적분학과 일반화학의 주요 개념을 정리한 학습 자료를 제작, 배포하여 학우들의 학습 효율 증진에 도움을 주었으며, 뛰어난 소통과 리더십 역량을 보여주었습니다.",
+      "activityName": "학급 자율활동 및 또래 멘토링",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "화학탐구반 '케미피아'의 일원으로 활동하며, '산화-환원 반응을 이용한 화학 전지 제작' 프로젝트를 수행함. 다니엘 전지의 원리를 학습하고, 다양한 과일을 이용한 과일 전지를 제작하여 전압을 측정하고 비교 분석함. 이를 통해 전기화학의 기본 원리에 대한 이해를 높이고, 변인 통제 및 데이터 분석 등 과학적 탐구의 기초를 다졌습니다.",
+      "activityName": "화학탐구반 '케미피아'",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "volunteer",
+      "content": "지역 아동센터에서 초등학생들을 대상으로 과학 원리를 쉽고 재미있게 설명해주는 '주니어 과학 멘토링' 봉사활동에 꾸준히 참여함. 특히 '간이 소화기 만들기', '밀도 탑 쌓기' 등 흥미로운 실험을 직접 설계하고 시연하며 아이들의 과학적 호기심을 자극하고, 나눔과 소통의 가치를 실천하는 모습을 보여주었습니다.",
+      "hours": 24
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "공학 계열 진로 탐색의 일환으로 POSTECH 화학공학과 교수님의 '미래 에너지와 신소재' 특강에 참여함. 이차전지, 연료전지, 태양전지 등 차세대 에너지 기술의 현황과 전망에 대한 설명을 듣고 깊은 감명을 받음. 이후 '에너지 소재 연구원'이라는 구체적인 진로 목표를 설정하고 관련 분야의 서적과 논문을 찾아보는 등 자기주도적인 진로 탐색 활동을 시작함.",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "교내 학술제 '사이언스 페어'의 기획위원으로 활동하며, 화학 분야의 발표 세션을 총괄함. 참가팀 모집부터 심사 기준 마련, 발표 순서 조율까지 책임감 있게 수행하여 행사를 성공적으로 이끎. 또한 R&E 활동에서 얻은 지식을 바탕으로 '효율적인 연구노트 작성법'에 대한 워크숍을 개최하여 후배들의 연구 역량 강화에 기여하는 등 뛰어난 기획력과 리더십을 발휘함.",
+      "activityName": "학술제 기획 및 R&E 멘토링",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "화학탐구반 부장으로서 '고체산화물 연료전지(SOFC)의 전해질 소재 탐구'를 주제로 한 심화 탐구를 이끎. YSZ(이트리아 안정화 지르코니아)의 산소 이온 전도 메커니즘을 문헌 연구를 통해 학습하고, 모의 실험을 설계하여 전해질 두께와 작동 온도에 따른 성능 변화를 예측하는 보고서를 작성함. 이를 통해 에너지 소재에 대한 심도 있는 이해와 연구 설계 능력을 보여주었습니다.",
+      "activityName": "화학탐구반 '케미피아'",
+      "hours": 42
+    },
+    {
+      "grade": 2,
+      "activityType": "volunteer",
+      "content": "과학 재능기부 동아리 '사이언스 브릿지'를 조직하여, 온라인 플랫폼을 통해 소외 지역 청소년들에게 비대면 과학 실험 교육을 제공함. 가정에서 쉽게 구할 수 있는 재료로 '나만의 손소독제 만들기', '전기분해로 글씨 쓰기' 등의 키트를 개발하고 동영상을 제작하여 배포함. 과학 지식의 사회적 환원에 대한 깊은 고민과 실천력을 보여주었습니다.",
+      "hours": 26
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "진로 심화 탐구의 일환으로 '이차전지 소재 기업 현직 연구원과의 만남' 프로그램에 참여하여, 양극재 및 음극재 개발의 최신 동향과 연구 현장의 어려움에 대해 생생한 조언을 들음. 이후 '전고체전지 상용화를 위한 고체 전해질 연구'라는 구체적인 연구 목표를 수립하고, 관련 대학 연구실의 논문을 분석하며 자신의 진로 계획을 구체화하는 등 진로에 대한 진지한 성찰과 열정을 보여주었습니다.",
+      "hours": 18
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 24,
+      "description": "지역 아동센터 과학 멘토링 (총 24시간)",
+      "location": "가상 아동센터"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 50,
+      "description": "온라인 과학 재능기부 봉사활동 (총 26시간)",
+      "location": "온라인"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "achievementLevel": "2",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93,
+      "stdDev": 8.5,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "수학",
+      "achievementLevel": "1",
+      "classAverage": 78.9,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 12.1,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "영어",
+      "achievementLevel": "2",
+      "classAverage": 88.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 7.3,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "achievementLevel": "1",
+      "classAverage": 82.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 10.2,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회",
+      "achievementLevel": "3",
+      "classAverage": 89.5,
+      "creditHours": 3,
+      "rankGrade": 3,
+      "rawScore": 90,
+      "stdDev": 6.8,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "과학탐구실험",
+      "achievementLevel": "A",
+      "classAverage": 89.8,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 5.5,
+      "subjectType": "일반선택",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "achievementLevel": "2",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 8.1,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "achievementLevel": "1",
+      "classAverage": 79.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 11.5,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "영어",
+      "achievementLevel": "2",
+      "classAverage": 87.4,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 7.9,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학",
+      "achievementLevel": "1",
+      "classAverage": 83.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 9.8,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회",
+      "achievementLevel": "3",
+      "classAverage": 88.9,
+      "creditHours": 3,
+      "rankGrade": 3,
+      "rawScore": 91,
+      "stdDev": 7.1,
+      "subjectType": "공통과목",
+      "totalStudents": 102
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "과학탐구실험",
+      "achievementLevel": "A",
+      "classAverage": 90.1,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 4.9,
+      "subjectType": "일반선택",
+      "totalStudents": 102
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1",
+      "classAverage": 75.4,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 13.5,
+      "subjectType": "일반선택",
+      "totalStudents": 98
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 78.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 11.9,
+      "subjectType": "일반선택",
+      "totalStudents": 75
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "achievementLevel": "2",
+      "classAverage": 77.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 12.4,
+      "subjectType": "일반선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "고급 화학",
+      "achievementLevel": "A",
+      "classAverage": 85.6,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 8,
+      "subjectType": "진로선택",
+      "totalStudents": 40
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "심화 수학Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 82.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 9.5,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "정보",
+      "achievementLevel": "2",
+      "classAverage": 88,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 6.5,
+      "subjectType": "일반선택",
+      "totalStudents": 98
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "기하",
+      "achievementLevel": "1",
+      "classAverage": 76.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 13.1,
+      "subjectType": "일반선택",
+      "totalStudents": 98
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학실험",
+      "achievementLevel": "A",
+      "classAverage": 91.2,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 4.5,
+      "subjectType": "진로선택",
+      "totalStudents": 40
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "고급 물리학",
+      "achievementLevel": "A",
+      "classAverage": 84.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93,
+      "stdDev": 8.8,
+      "subjectType": "진로선택",
+      "totalStudents": 45
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "고급 수학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 83.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9.1,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "R&E",
+      "achievementLevel": "A",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "전문교과",
+      "totalStudents": 98
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "심화 영어 독해 Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 89.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 96,
+      "stdDev": 5.8,
+      "subjectType": "진로선택",
+      "totalStudents": 98
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "content": "비판적 사고력이 뛰어나며 글의 논리적 구조를 정확히 파악하는 능력이 우수함. '과학 기술의 발전과 윤리적 딜레마'를 주제로 한 소논문 작성에서, 기술 발전에 따른 사회적 책임을 논리적으로 설파하여 높은 평가를 받음. 특히 과학 분야의 글쓰기에 필요한 객관성과 논리성을 갖추기 위해 노력하는 자세가 돋보이며, 발표 시 청중의 이해를 돕는 간결하고 명확한 어휘를 사용하는 능력이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "수학",
+      "content": "수학적 개념에 대한 이해가 깊고, 이를 응용하여 복잡한 문제를 해결하는 능력이 탁월함. 특히 함수 단원에서 배운 미분계수의 기하학적 의미를 화학 반응 속도론과 연결하여 순간 반응 속도의 개념을 이해하려는 노력이 인상적이었음. 스터디 그룹에서 학우들에게 문제 풀이의 다양한 접근법을 제시하며 수학적 사고의 확장을 돕는 등 협력적 문제해결 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "영어",
+      "content": "영어 독해 능력이 우수하여 과학 기술 관련 원문을 막힘없이 해석함. 'The Future of Energy'라는 TED 강연을 시청한 후, 신재생 에너지의 종류와 특징을 정리하고 자신의 생각을 담은 영문 에세이를 작성함. 특히 이차전지 기술의 중요성을 강조하며, 기술 용어와 전문적인 표현을 정확하게 사용하여 내용의 깊이를 더했다는 평가를 받았습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "content": "과학 전반에 대한 깊은 호기심과 탐구 정신이 돋보이는 학생임. 특히 '화학 변화' 단원에서 산화-환원 반응을 학습한 후, 리튬이온전지의 충방전 원리에 대해 추가적인 조사를 수행함. 양극과 음극에서의 리튬 이온 이동 메커니즘을 그림으로 도식화하여 학급 친구들에게 설명하며, 전기화학에 대한 남다른 관심과 심층적인 이해도를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회",
+      "content": "사회 현상을 다각적으로 분석하고 종합하는 능력이 뛰어남. '기술 발전과 사회 변화'를 주제로 한 프로젝트에서, 전기차 보급이 에너지 산업, 도시 환경, 개인의 삶에 미치는 영향을 다각도로 분석한 보고서를 제출함. 기술의 영향력을 사회적 맥락에서 이해하려는 통합적 사고력이 돋보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "과학탐구실험",
+      "content": "실험 설계 및 수행 능력이 뛰어나며, 결과 분석에 있어 논리적이고 꼼꼼한 태도를 보임. '산-염기 적정 실험'에서 지시약의 색 변화를 정확히 관찰하고,当量점을 찾는 과정에서 오차를 줄이기 위해 여러 번 반복 실험을 수행하는 등 과학자로서의 기본 소양을 갖춤. 실험 보고서에 오차의 원인을 분석하고 개선 방안을 제시하는 등 탐구에 대한 성찰적 태도가 인상적입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "content": "과학 보고서 및 논문 작성법에 대한 관심이 높아 '글쓰기' 시간에 관련 특강에 집중하며 실습에 적극적으로 참여함. 복잡한 과학 정보를 구조화하고 독자가 이해하기 쉽게 시각 자료를 활용하는 능력이 향상됨. 조별 토론에서 상대방의 의견을 경청하고 자신의 주장을 논리적으로 펼치는 등 합리적인 의사소통 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "content": "추상적인 수학 개념을 구체적인 현상에 적용하는 능력이 우수함. 통계 단원에서 배운 표준편차와 분포의 개념을 실험 데이터 분석에 활용하여 측정값의 신뢰도를 평가하는 방법을 스스로 학습함. 문제 풀이 과정에서 포기하지 않고 다양한 해결책을 모색하는 끈기와 집요함이 돋보이는 학생입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "영어",
+      "content": "영어 논문 초록을 읽고 핵심 내용을 요약하는 활동에서 두각을 나타냄. 'Nature', 'Science' 등 저명한 학술지의 기사를 꾸준히 읽으며 과학 분야의 최신 어휘와 표현을 익히기 위해 노력함. 영자신문반 활동을 통해 과학 기사를 작성하며, 복잡한 내용을 간결하고 정확한 영어로 전달하는 능력을 길렀습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학",
+      "content": "물리 영역의 '전기와 자기' 단원에서 전자기 유도 현상을 학습한 후, 이를 무선 충전 기술과 연관 지어 탐구 보고서를 작성함. 전자기 유도 법칙을 기반으로 무선 충전의 원리를 분석하고, 코일의 감은 수와 거리에 따른 충전 효율 변화를 예측하는 등 심화 학습 능력이 뛰어남. 물리적 원리를 공학적 응용과 연결하는 융합적 사고가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회",
+      "content": "시장경제와 국제 분업에 대한 이해를 바탕으로, '희토류 자원을 둘러싼 국제 관계'에 대해 조사하여 발표함. 특정 자원이 첨단 산업과 국제 정치에 미치는 영향을 분석하며, 자원 안보의 중요성을 역설함. 공학도로서 갖추어야 할 사회·경제적 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "과학탐구실험",
+      "content": "가설 설정 및 변인 통제 능력이 매우 우수함. '전기분해 실험'에서 전압과 전극의 종류가 생성물의 종류와 양에 미치는 영향을 탐구하는 실험을 주도적으로 설계함. 예상치 못한 결과가 나왔을 때, 조원들과 토의하며 실험 조건의 문제점을 찾아내고 재실험을 통해 유의미한 데이터를 얻어내는 등 문제해결능력과 리더십을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "미적분에 대한 깊이 있는 이해를 바탕으로 물리, 화학 현상을 수학적으로 모델링하는 데 뛰어난 재능을 보임. 특히 정적분을 활용하여 변하는 힘이 한 일을 계산하는 원리를 학습한 후, 이를 응용하여 이온 결합에서 두 이온 사이의 거리에 따른 퍼텐셜 에너지 그래프의 면적을 통해 결합 에너지를 구하는 아이디어를 제시함. 수학적 도구를 활용하여 과학 현상을 분석하는 융합적 사고력이 탁월합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅱ",
+      "content": "화학 평형과 반응 속도론에 대한 이해가 깊음. 르 샤틀리에 원리를 학습한 후, '하버-보슈 법에서 암모니아 수득률을 높이기 위한 최적 조건'을 온도, 압력, 촉매의 관점에서 논리적으로 분석하여 발표함. 특히 반응 속도와 평형의 상충 관계를 이해하고 공학적 절충점(trade-off)의 중요성을 설명하여 깊이 있는 통찰을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "content": "전자기학에 대한 학업 역량이 우수함. 축전기의 원리를 학습하고, '전기용량을 결정하는 요인'에 대한 탐구 보고서를 작성함. 판의 면적, 판 사이의 간격, 유전체의 종류가 전기용량에 미치는 영향을 수식을 통해 증명하고, 이를 실제 산업에서 고용량 커패시터를 제작하는 원리와 연결하여 설명하는 등 이론의 실제적 적용에 강점을 보였습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "고급 화학",
+      "content": "열역학 법칙에 대한 깊이 있는 이해를 바탕으로 깁스 자유에너지와 자발성의 관계를 탐구함. '리튬이온전지의 자발적 반응과 전압의 관계'를 주제로, ΔG = -nFE 식을 이용하여 표준 환원 전위 표로부터 전지의 기전력을 계산하고 반응의 자발성을 예측하는 보고서를 작성함. 문헌 연구(P. W. Atkins, 'Physical Chemistry')를 통해 비표준 상태에서의 전압 변화를 Nernst 식으로 설명하는 등 심화 탐구 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "심화 수학Ⅰ",
+      "content": "선형대수학의 행렬과 벡터 개념을 능숙하게 활용함. 행렬을 이용해 연립일차방정식을 푸는 과정을 학습한 후, 이를 키르히호프의 법칙을 이용한 복잡한 전기회로 분석에 적용할 수 있음을 깨닫고 관련 문제를 직접 만들어 해결하는 등 지적 호기심과 응용력이 뛰어남. 복잡한 시스템을 수학적으로 모델링하고 해결하는 과정을 즐기는 학생입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "정보",
+      "content": "Python을 활용한 프로그래밍 능력이 우수함. 과학 탐구 과정에서 발생하는 대량의 실험 데이터를 효율적으로 처리하기 위해 Pandas, Matplotlib 라이브러리를 스스로 학습함. 이를 활용하여 R&E 활동에서 얻은 전기화학 데이터를 그래프로 시각화하고 통계적으로 분석하는 코드를 작성하여 연구의 효율성을 크게 높이는 데 기여했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "기하",
+      "content": "공간벡터에 대한 이해도가 높고, 이를 3차원 구조 분석에 활용하는 능력이 뛰어남. 벡터의 내적과 외적을 학습한 후, 결정 구조학에서 원자 격자의 면지수(Miller Index)를 정하고 격자면 간의 각도를 계산하는 데 벡터가 유용하게 사용됨을 이해하고 관련 내용을 추가적으로 학습함. 추상적인 기하학 개념을 물질의 구조를 이해하는 도구로 활용하는 통찰력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학실험",
+      "content": "실험 설계 및 수행, 결과 분석의 전 과정에서 탁월한 연구 역량을 보여줌. 'CV(Cyclic Voltammetry)를 이용한 전기화학 분석' 실험에서, 페로센 용액의 산화-환원 거동을 분석하며 주사 속도(scan rate)에 따른 피크 변화를 관찰함. 결과 분석 과정에서 Randles-Sevcik 방정식을 이용하여 확산계수를 계산하고, 이론값과 비교하여 오차 원인을 분석하는 등 대학 수준의 연구 방법론에 대한 높은 이해도를 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "고급 물리학",
+      "content": "고체물리학에 대한 관심이 많고, 특히 에너지 밴드 이론에 대한 이해가 깊음. 반도체의 전기 전도 원리를 학습한 후, 리튬이온전지의 양극재(LiCoO2)와 음극재(Graphite)의 밴드 구조를 조사하고, 충방전 시 리튬 이온의 삽입/탈리에 따른 전자 에너지 레벨의 변화를定성적으로 분석하는 보고서를 작성함. 물리적 원리를 통해 재료의 특성을 이해하려는 과학적 탐구 자세가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "고급 수학Ⅱ",
+      "content": "미분방정식에 대한 뛰어난 이해를 바탕으로 물리 현상을 모델링하는 능력이 탁월함. 확산에 대한 Fick의 제2법칙이 편미분방정식으로 표현됨을 학습하고, 이를 전해질 내 이온의 농도 분포를 시간에 따라 예측하는 데 사용할 수 있음을 탐구함. 경계조건과 초기조건을 설정하여 간단한 1차원 확산 모델의 해를 구해보는 등 고등 수학 지식을 실제 공학 문제에 적용하려는 노력이 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "R&E",
+      "content": "‘페로브스카이트 구조의 고체전해질 LLZO(Li7La3Zr2O12)의 합성 및 이온전도도 특성 연구'를 주제로 R&E를 수행함. 고상반응법을 통해 Garnet 구조의 LLZO 분말을 합성하였으며, XRD 분석으로 단일상이 합성되었음을 확인함. 직접 제작한 펠렛의 임피던스를 측정(EIS)하고, Nyquist 선도를 분석하여 이온전도도를 계산함. 특히 Al 도핑을 통해 입방정(cubic) 상을 안정화하고 이온전도도를 향상시키는 과정을 문헌(J. Am. Ceram. Soc., Murugan et al.)을 참고하여 성공적으로 재현함. 연구 과정에서 난관에 부딪힐 때마다 끈기 있게 원인을 분석하고 해결하는 등 연구자로서의 성장 가능성을 뚜렷하게 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "심화 영어 독해 Ⅱ",
+      "content": "화학공학 분야의 영문 리뷰 논문을 읽고 핵심 내용을 발표하는 활동에서 두각을 나타냄. 'Progress and perspective of all-solid-state lithium batteries' (J. Power Sources, 2018) 논문을 읽고, 황화물계, 산화물계, 폴리머계 고체전해질의 장단점과 기술적 과제를 명확히 비교 분석하여 발표함. 전문 용어에 대한 정확한 이해를 바탕으로 논문의 논지를 명확하게 전달하여 학우들의 이해를 도왔습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'코스모스'를 읽고 칼 세이건이 과학적 사실을 대중에게 전달하는 탁월한 서사 방식에 감명을 받음. 복잡한 과학 지식을 시적 언어와 철학적 성찰로 풀어내는 능력이 과학자의 중요한 소양임을 깨닫고, 자신의 발표 및 보고서 작성 능력을 되돌아보는 계기로 삼음.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "'세상을 바꾼 17가지 방정식'을 통해 미적분, 푸리에 변환 등 추상적인 방정식이 통신, 금융, 의료 등 현실 세계의 문제를 해결하는 강력한 도구임을 확인함. 특히 열전도 방정식이 배터리 내부의 열 분포를 모델링하는 데 사용될 수 있음을 생각하며 수학의 응용 가능성에 매료됨.",
+      "author": "이언 스튜어트",
+      "bookTitle": "세상을 바꾼 17가지 방정식"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "과학 (화학)",
+      "bookDescription": "'사라진 스푼'을 읽고 주기율표의 각 원소가 가진 독특한 역사와 특성에 매료됨. 특히 리튬이 배터리 기술의 핵심 원소로 부상하게 된 과정을 흥미롭게 읽고, 원소의 근본적인 특성이 인류의 기술 발전에 미치는 영향에 대해 깊이 탐구하는 계기가 됨.",
+      "author": "샘 킨",
+      "bookTitle": "사라진 스푼"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "과학 (물리)",
+      "bookDescription": "'부분과 전체'를 읽고 불확정성 원리를 발견한 하이젠베르크의 과학적 탐구 과정과 철학적 고뇌에 깊은 인상을 받음. 과학 지식의 발전이 단순히 사실의 축적이 아니라, 끊임없는 질문과 토론, 세계관의 변화를 통해 이루어짐을 깨달음.",
+      "author": "베르너 하이젠베르크",
+      "bookTitle": "부분과 전체"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "화학",
+      "bookDescription": "'현대물리화학'을 통해 열역학, 양자화학, 반응속도론 등 화학의 근본 원리를 체계적으로 학습함. 특히 전기화학 파트에서 전극 반응과 이온 수송 현상을 깊이 있게 공부하며 R&E 주제인 고체전해질의 이온 전도 메커니즘을 이해하는 데 큰 도움을 받음.",
+      "author": "P.W. 앳킨스",
+      "bookTitle": "앳킨스의 물리화학 (Principles of Modern Chemistry)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "공학",
+      "bookDescription": "'지속가능성을 위한 배터리'를 읽고 다양한 종류의 이차전지 기술과 그 한계를 확인함. 특히 전고체전지가 안전성과 에너지 밀도 측면에서 차세대 배터리의 유력한 후보임을 배우고, 황화물계 및 산화물계 고체전해질의 연구 동향을 파악하며 자신의 진로 목표를 더욱 구체화함.",
+      "author": "랄프 F. 프로페타 외",
+      "bookTitle": "지속가능성을 위한 배터리 (Batteries for Sustainability)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "수학",
+      "bookDescription": "'미분방정식 입문'을 독학하며 상미분방정식과 편미분방정식의 풀이법을 익힘. 화학 반응 속도식이나 물질 전달 현상을 미분방정식으로 모델링하고 해석하는 과정에 흥미를 느끼고, 공학 문제 해결에 있어 수학이 필수적인 언어임을 재확인함.",
+      "author": "Dennis G. Zill",
+      "bookTitle": "A First Course in Differential Equations"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "진로",
+      "bookDescription": "'축적의 시간'을 읽고, 우리나라 산업 기술이 선진국을 따라잡기 위해 개념설계 역량과 시행착오를 축적하는 경험이 중요함을 깨달음. 소재 개발 분야 역시 단기적인 성과가 아닌, 장기적인 관점에서 기초 연구와 실험 데이터의 축적이 핵심 경쟁력임을 인식하고 연구자로서의 자세를 가다듬는 계기로 삼음.",
+      "author": "서울대학교 공과대학",
+      "bookTitle": "축적의 시간"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "강한 지적 호기심과 성실함을 바탕으로 과학고의 심도 있는 학습 과정을 빠르게 따라잡고 우수한 학업 성취를 이룬 학생임. 특히 화학과 수학 분야에서 남다른 재능과 열정을 보이며, 수업 시간에 배운 개념을 자신의 진로 분야인 에너지 소재와 연결하여 심화 탐구하는 자기주도적 학습 능력이 돋보입니다. 스터디 그룹을 조직하여 학우들의 학습을 돕고, 실험 시간에는 궂은일을 마다하지 않고 솔선수범하는 등 공동체 의식과 협업 능력 또한 뛰어납니다. 긍정적인 태도와 배려심으로 교우관계가 원만하며, 학급의 학업 분위기를 주도하는 모범적인 학생입니다."
+    },
+    {
+      "grade": 2,
+      "content": "에너지 소재 연구원이라는 뚜렷한 목표를 향해 심화된 탐구를 지속하며 학문적으로 크게 성장한 학생임. 1년간 진행된 R&E 활동에서 '고체전해질 합성'이라는 도전적인 과제를 주도적으로 이끌며, 수많은 문헌 연구와 반복 실험을 통해 유의미한 결과를 도출하는 등 예비 연구자로서의 끈기와 문제해결능력을 증명했습니다. 복잡한 수학 및 물리 이론을 화학 현상 분석에 접목하는 융합적 사고력이 뛰어나며, 자신의 지식을 Python 코딩이나 보고서 작성 등 다양한 형태로 표현하는 능력이 탁월합니다. 학술제 기획, 후배 멘토링 등 리더십을 발휘하는 활동에도 적극적으로 참여하여 공동체의 발전에 기여하는 등 지성과 인성을 겸비한 인재로 앞으로의 성장이 더욱 기대됩니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "P",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "P",
+      "creditHours": 2
+    }
+  ]
+}

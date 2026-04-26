@@ -1,0 +1,1104 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/한국외-영어통-35",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 90,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_한국외_영어통_035",
+    "schoolName": "가상 외고 JJ",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "외고"
+  },
+  "admissions": [
+    {
+      "universityName": "한국외국어대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "영어통번역학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "3반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사",
+      "studentNumber": "10315"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사",
+      "studentNumber": "20315"
+    },
+    {
+      "grade": 3,
+      "className": "3반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박교사",
+      "studentNumber": "30315"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "질병 결석 1일 (사유: 감기)",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "질병 조퇴 1일 (사유: 병원 진료)",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 영어 에세이 쓰기 대회 은상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 외고 JJ 교장",
+      "participants": "1, 2학년"
+    },
+    {
+      "grade": 1,
+      "awardName": "학력우수상 (1학기)",
+      "awardDate": "2024-08-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 외고 JJ 교장",
+      "participants": "1학년"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 영어 토론 대회 대상",
+      "awardDate": "2025-06-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 외고 JJ 교장",
+      "participants": "전교생"
+    },
+    {
+      "grade": 2,
+      "awardName": "스페인어 어휘 경시대회 금상",
+      "awardDate": "2025-11-05",
+      "awardLevel": "교내",
+      "awardingBody": "가상 외고 JJ 교장",
+      "participants": "2학년"
+    },
+    {
+      "grade": 3,
+      "awardName": "모의 UN 총회 최우수 대표단상",
+      "awardDate": "2026-05-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 외고 JJ 교장",
+      "participants": "2, 3학년"
+    },
+    {
+      "grade": 3,
+      "awardName": "자기주도학습 우수사례 공모전 최우수상",
+      "awardDate": "2026-07-01",
+      "awardLevel": "교내",
+      "awardingBody": "가상 외고 JJ 교장",
+      "participants": "전교생"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학교 주관 '글로벌 리더십 캠프'에 참여하여, '문화 다양성과 국제 협력'을 주제로 한 프로젝트를 기획하고 발표함. 다양한 문화권의 학생들과 협업하며 의사소통 능력과 갈등 해결 능력을 함양했으며, 결과 보고서에서 문화적 차이를 극복하는 소통 전략을 제시하여 우수한 평가를 받음.",
+      "activityName": "글로벌 리더십 캠프",
+      "hours": 16
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학급 부회장으로서 학급회의를 정기적으로 주관하고, '학급 문집 만들기' 프로젝트를 제안하여 급우들의 참여를 성공적으로 이끌어냄. 회의록을 꼼꼼히 작성하고 의견을 조율하는 과정에서 민주적 리더십과 책임감을 보여줌.",
+      "activityName": "학급 부회장",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "번역 동아리 'LINGUA'의 부원으로 활동하며 매주 영미 단편 소설과 시사 기사를 번역하는 스터디에 참여함. 특히, '직역과 의역의 균형'을 주제로 한 발표를 통해 원문의 뉘앙스를 살리는 번역의 중요성을 깨닫고, 동아리 번역 모음집 제작에 기여함.",
+      "activityName": "번역 동아리 'LINGUA'",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 특강 '국제회의 통역사와의 만남'에 참여하여 통역사의 역할과 자질, 직업 전망에 대한 이해를 높임. 특히 순차통역과 동시통역의 차이점에 대해 깊은 인상을 받고, 관련 분야의 학습 계획을 구체적으로 수립하는 계기로 삼음. 이후 '통역사 되기' 관련 도서를 읽고 보고서를 작성함.",
+      "activityName": "전문 직업인 초청 특강",
+      "hours": 8
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "교내 '인문학 아카데미'에 참여, '언어와 사고'를 주제로 한 강연을 듣고 심화 탐구를 진행함. 사피어-워프 가설을 바탕으로 언어가 인간의 세계관에 미치는 영향을 분석하고, 다중언어 사용자의 인지적 유연성에 대한 보고서를 작성하여 발표함. 논리적 사고와 깊이 있는 탐구 자세가 돋보임.",
+      "activityName": "인문학 아카데미",
+      "hours": 18
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 학술부 차장으로 활동하며 '교내 독서 토론 대회'의 기획과 운영을 주도함. 참가자 모집부터 논제 선정, 행사 진행까지 전 과정에 적극적으로 참여하여 행사를 성공적으로 이끎. 특히 참가자들의 의견을 수렴하여 토론 방식을 개선하는 등 문제 해결 능력을 발휘함.",
+      "activityName": "학생회 학술부",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "번역 동아리 'LINGUA'의 부장으로서 활동을 이끌며, '문학 작품 속 문화 번역'이라는 연간 프로젝트를 기획함. 한국 문학 작품(예: '소나기')을 영어로 번역하고, 원어민 교사에게 피드백을 받는 활동을 통해 문화적 특수성을 고려한 번역의 어려움과 중요성을 체감함. 동아리 블로그를 개설하여 활동 내용을 공유하고 부원들의 참여를 독려함.",
+      "activityName": "번역 동아리 'LINGUA' (부장)",
+      "hours": 42
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "'대학 전공 탐색의 날' 프로그램에서 한국외대 영어통번역학과 재학생 멘토와의 만남을 통해 구체적인 학습 과정과 졸업 후 진로에 대한 정보를 얻음. 통번역대학원 진학 준비 과정에 대한 질문을 통해 장기적인 목표를 설정하고, 2학년 교과 선택과 학습 전략에 이를 반영함.",
+      "activityName": "대학 전공 탐색의 날",
+      "hours": 10
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "자율적으로 '시사 토픽 번역 스터디' 그룹을 조직하여 매주 주요 외신 기사를 선정, 번역하고 토론하는 활동을 주도함. 정치, 경제, 사회 등 다양한 분야의 전문 용어를 익히고, 원문의 논리 구조와 배경지식을 파악하는 훈련을 통해 번역의 정확성과 속도를 향상시킴.",
+      "activityName": "시사 번역 스터디 그룹",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "졸업앨범 편집위원으로 활동하며 학생들의 프로필과 활동 사진을 정리하고, 영문 소개 문구를 작성하는 역할을 담당함. 학생들의 개성이 드러나도록 문구를 다듬고, 번역의 일관성을 유지하기 위해 가이드라인을 제작하는 등 세심함과 책임감 있는 태도를 보여줌.",
+      "activityName": "졸업앨범 편집위원회",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "번역 동아리 'LINGUA'의 멘토로서 신입 부원들의 번역 스터디를 지도하고, 2년간의 활동 경험을 바탕으로 번역 노하우를 전수함. 지역 박물관의 영문 안내 책자 번역 오류를 찾아내고 수정안을 제안하는 재능기부 프로젝트를 기획, 실행하여 이론을 실전에 적용하는 능력을 보여줌.",
+      "activityName": "번역 동아리 'LINGUA' (멘토)",
+      "hours": 38
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "자신의 진로 목표인 '국제회의 통역사'에 대한 심층 보고서 'AI 번역 시대, 인간 통역사의 역할과 미래'를 작성함. 관련 논문과 서적을 참고하여 AI 번역 기술의 한계와 인간 통역사만이 가질 수 있는 공감, 문화 이해, 순발력 등의 역량을 분석하고, 자신의 강점과 연결하여 미래 진로 계획을 구체적으로 제시함.",
+      "activityName": "진로 심화 탐구 보고서 작성",
+      "hours": 12
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-05-11",
+      "cumulativeHours": 8,
+      "description": "다문화가정 아동 대상 한글 및 기초 영어 교육 보조. 언어 장벽으로 어려움을 겪는 아동들과 소통하며 언어 교육의 중요성을 깨닫고, 눈높이에 맞는 설명 방식을 고민하는 계기가 됨.",
+      "hours": 4,
+      "location": "가상시 다문화가족지원센터"
+    },
+    {
+      "grade": 1,
+      "activityDate": "2024-10-26",
+      "cumulativeHours": 16,
+      "description": "교내 도서관 장서 정리 및 도서 추천 큐레이션 활동 참여. 영미 문학 코너를 담당하며 책의 내용을 요약하고 추천 이유를 작성하는 활동을 통해 독서의 즐거움을 공유함.",
+      "hours": 4,
+      "location": "교내 도서관"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-08-09",
+      "cumulativeHours": 32,
+      "description": "지역 박물관 외국인 관람객 대상 전시설명 영문 자료 번역 및 감수. 박물관 학예사와 협력하여 전문 용어를 학습하고, 문화적 배경을 설명하는 표현을 다듬으며 실무 번역 경험을 쌓음.",
+      "hours": 8,
+      "location": "가상시립박물관"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-11-15",
+      "cumulativeHours": 40,
+      "description": "국제교류재단 주최 '한국 문화 알리기' 행사 부스 운영 지원 및 통역 보조. 외국인 방문객에게 한국의 전통 놀이와 음식을 소개하며, 즉각적인 상황 대처 능력과 순발력 있는 통역의 중요성을 체험함.",
+      "hours": 8,
+      "location": "가상 국제교류센터"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-04-18",
+      "cumulativeHours": 52,
+      "description": "국제 비영리 단체(NGO)의 소식지를 영문으로 번역하는 재능기부 활동. 구호 활동의 시급성과 현장감을 살리는 번역을 위해 노력하며, 언어를 통해 사회에 기여하는 보람을 느낌.",
+      "hours": 6,
+      "location": "온라인"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 8.5,
+      "subjectType": "공통",
+      "totalStudents": 150
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "2",
+      "classAverage": 78.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.1,
+      "stdDev": 15.2,
+      "subjectType": "공통",
+      "totalStudents": 150
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "1",
+      "classAverage": 88.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 7.1,
+      "subjectType": "공통",
+      "totalStudents": 150
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "classAverage": 84,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 9.8,
+      "subjectType": "공통",
+      "totalStudents": 150
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "2",
+      "classAverage": 80.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 91,
+      "stdDev": 12.5,
+      "subjectType": "공통",
+      "totalStudents": 150
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1",
+      "classAverage": 86.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 9.1,
+      "subjectType": "공통",
+      "totalStudents": 150
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 8.2,
+      "subjectType": "공통",
+      "totalStudents": 148
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "2",
+      "classAverage": 79.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "stdDev": 14.8,
+      "subjectType": "공통",
+      "totalStudents": 148
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1",
+      "classAverage": 89.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "stdDev": 6.8,
+      "subjectType": "공통",
+      "totalStudents": 148
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1",
+      "classAverage": 85.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 9.5,
+      "subjectType": "공통",
+      "totalStudents": 148
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "2",
+      "classAverage": 81.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.3,
+      "stdDev": 11.9,
+      "subjectType": "공통",
+      "totalStudents": 148
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1",
+      "classAverage": 87,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 8.5,
+      "subjectType": "공통",
+      "totalStudents": 148
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 87.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.5,
+      "subjectType": "일반선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 75.5,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 90.5,
+      "stdDev": 16.1,
+      "subjectType": "일반선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "achievementLevel": "1",
+      "classAverage": 89.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 6.5,
+      "subjectType": "일반선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "세계사",
+      "achievementLevel": "1",
+      "classAverage": 86.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.2,
+      "stdDev": 8.9,
+      "subjectType": "일반선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "심화 영어Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96.5,
+      "stdDev": 7.2,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "스페인어Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 85,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9,
+      "subjectType": "일반선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "고전 읽기",
+      "achievementLevel": "1",
+      "classAverage": 88.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 7.1,
+      "subjectType": "일반선택",
+      "totalStudents": 142
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "2",
+      "classAverage": 76.8,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 91.2,
+      "stdDev": 15.5,
+      "subjectType": "일반선택",
+      "totalStudents": 142
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어권 문화",
+      "achievementLevel": "A",
+      "classAverage": 89.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 6.2,
+      "subjectType": "진로선택",
+      "totalStudents": 78
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "동아시아사",
+      "achievementLevel": "1",
+      "classAverage": 87.2,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 8.5,
+      "subjectType": "일반선택",
+      "totalStudents": 142
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "논리학",
+      "achievementLevel": "A",
+      "classAverage": 85,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 10.2,
+      "subjectType": "진로선택",
+      "totalStudents": 142
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "스페인어Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 8.8,
+      "subjectType": "일반선택",
+      "totalStudents": 142
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 89,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.7,
+      "stdDev": 6.9,
+      "subjectType": "일반선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "2",
+      "classAverage": 78,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "stdDev": 14.5,
+      "subjectType": "일반선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영미 문학 읽기",
+      "achievementLevel": "A",
+      "classAverage": 90.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 5.5,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1",
+      "classAverage": 86.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 8,
+      "subjectType": "일반선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 91.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 4.9,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "스페인어 회화Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 88.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 7.3,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제 탐구 보고서",
+      "achievementLevel": "A",
+      "classAverage": 92,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "stdDev": 4,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "classAverage": 89.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 6,
+      "subjectType": "진로선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "영어 발표와 토론",
+      "achievementLevel": "A",
+      "classAverage": 91.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 5.1,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제 관계와 국제기구",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 7.8,
+      "subjectType": "진로선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "스페인 문화",
+      "achievementLevel": "A",
+      "classAverage": 89.2,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 6.8,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 140
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "수업 태도가 매우 진지하며, 발표 시 자신의 의견을 논리적으로 전개하는 능력이 뛰어납니다. '매체 언어의 특성' 단원에서, 동일한 사건을 다룬 신문 기사와 SNS 게시물의 차이점을 비교 분석하여 발표했습니다. 특히 정보의 신뢰도와 전파 속도라는 기준을 설정하여 각 매체의 장단점을 체계적으로 설명하는 모습이 인상 깊었습니다. 이를 통해 비판적 매체 읽기 능력을 갖추었음을 증명했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "복잡한 문제에 직면했을 때, 포기하지 않고 다양한 해결 방법을 모색하는 끈기가 돋보이는 학생입니다. '나머지 정리' 단원의 고난도 문제를 해결하기 위해, 친구들과 스터디 그룹을 조직하여 각자 다른 풀이법을 공유하고 토론하는 과정을 주도했습니다. 이 과정을 통해 하나의 정답에 이르는 다양한 경로가 있음을 깨닫고 수학적 사고의 유연성을 길렀습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "영어에 대한 흥미와 재능이 뛰어나며, 특히 어휘와 문법의 정확성이 높습니다. '영어의 다양한 표현'을 배우는 과정에서, 같은 의미라도 뉘앙스에 따라 다른 단어를 선택해야 함을 이해하고, 이를 '한국어-영어 번역 시 유의점'이라는 주제로 확장하여 탐구 보고서를 작성했습니다. 예를 들어 '보다'라는 단어가 look, see, watch 등으로 다르게 번역되는 사례를 분석하며 번역의 섬세함에 대한 깊은 관심을 보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "사회 현상에 대한 깊은 통찰력과 비판적 사고 능력을 갖추었습니다. '문화 변동과 우리 사회' 단원에서 '다문화 사회의 바람직한 발전 방향'을 주제로 한 모둠 토론을 이끌었습니다. 문화 상대주의적 관점을 바탕으로, 소수 문화 보호 정책의 필요성을 구체적인 해외 사례를 들어 주장했으며, 토론 후 '용광로 모델'과 '샐러드 볼 모델'을 비교 분석하는 보고서를 제출하여 탐구의 깊이를 더했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "과학적 현상에 대한 지적 호기심이 왕성하며, 실험 설계 및 수행 능력이 우수합니다. '산화-환원 반응' 실험에서, 변인 통제의 중요성을 명확히 이해하고 실험 과정을 체계적으로 기록했습니다. 실험 후 '일상생활 속 산화-환원 반응의 활용 사례'를 추가로 조사하여 보고서에 첨부하는 등, 학습한 내용을 실생활과 연계하여 이해하려는 자기주도적 학습 태도가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "역사적 사실을 암기하는 데 그치지 않고, 그 이면에 담긴 의미를 파악하려는 노력을 꾸준히 합니다. '조선시대의 대외 관계'를 학습하며, 당시의 동아시아 정세 속에서 조선이 취했던 실리 외교의 양상을 분석했습니다. 특히 광해군의 중립 외교 정책을 현대적 관점에서 재평가하고, '강대국 사이에서의 균형 외교'라는 주제로 발표하여 현재적 시사점을 도출해내는 뛰어난 역사적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "문법 지식을 바탕으로 정확한 문장을 구사하는 능력이 탁월합니다. '문법 요소와 국어 생활' 단원에서 피동, 사동 표현의 오남용 사례를 수집하고, 올바른 표현으로 수정하는 활동을 진행했습니다. 특히 번역투 문장이 국어에 미치는 영향을 분석하고, 자연스러운 우리말 표현을 사용하기 위한 방안을 제안하는 보고서를 작성하며 언어에 대한 깊은 성찰을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "추상적인 수학 개념을 구체적인 사례에 적용하여 이해하는 능력이 뛰어납니다. '함수' 단원에서 '일대일 대응'의 개념을 배우고, 이를 '암호학'과 연결하여 탐구했습니다. 고전적인 치환 암호가 일대일 대응 함수의 원리를 이용한 것임을 밝히고, 함수의 성질을 이용하여 암호를 해독하는 과정을 설명하는 보고서를 작성하여 수학적 원리의 실용적 가치를 탐색하는 모습을 보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "유창한 영어 실력을 바탕으로 자신의 생각을 논리적으로 표현하는 능력이 돋보입니다. '환경 문제' 관련 지문을 읽고, '플라스틱 사용 저감을 위한 개인의 역할'을 주제로 영어 에세이를 작성했습니다. 서론-본론-결론의 구조에 맞춰 명확한 주제 문장을 제시하고, 구체적인 근거와 예시를 들어 자신의 주장을 설득력 있게 펼쳐나갔습니다. 특히, 어휘 선택과 문장 구조의 다양성 측면에서 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "국제 사회의 문제에 관심이 많고, 해결 방안을 모색하려는 적극적인 태도를 가졌습니다. '세계화와 평화' 단원에서 '국제 분쟁과 해결 노력'을 주제로 탐구 활동을 진행했습니다. 특히 UN과 같은 국제기구의 역할과 한계를 분석하고, 분쟁 지역의 평화 유지를 위한 비정부기구(NGO)의 활동 사례를 조사하여 발표했습니다. 이를 통해 국제 사회 문제 해결에 기여하고 싶다는 진로 의지를 구체화했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "생명 과학 분야에 대한 관심과 이해도가 높습니다. '생태계와 환경' 단원에서 '생물 다양성 보존의 중요성'에 대해 학습하고, 특정 지역의 생태계 파괴 사례를 조사하여 그 원인과 결과를 분석하는 보고서를 작성했습니다. 인간의 활동이 생태계에 미치는 영향을 과학적 데이터에 근거하여 설명하고, 지속 가능한 발전을 위한 대안을 제시하는 등 과학적 소양과 사회적 책무성을 함께 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "근현대사 속 인물들의 삶을 통해 시대적 과제를 이해하려는 탐구 자세가 돋보입니다. '일제강점기 민족 운동'을 배우며, 잘 알려지지 않은 여성 독립운동가들의 활동에 주목했습니다. 관련 자료를 추가로 찾아 읽고, '역사 속에 가려진 여성 독립운동가들의 재조명'이라는 주제로 발표하여, 다양한 관점에서 역사를 바라보는 균형 잡힌 시각을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "작품에 대한 깊이 있는 감상과 해석 능력이 탁월합니다. 윤동주의 시를 배우고, 그의 작품들이 여러 언어로 어떻게 번역되었는지 비교 분석하는 심화 탐구를 진행했습니다. 특히 '별 헤는 밤'의 '어머님'이라는 시어가 영어에서는 'Mother', 일본어에서는 '母上(하하우에)' 등으로 번역되는 것을 보고, 각 언어의 문화적 뉘앙스 차이가 번역에 미치는 영향을 고찰했습니다. 이를 통해 문학 번역의 어려움과 가치를 이해하는 계기가 되었다고 발표했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "논리적 추론 능력이 뛰어나며, 수학적 원리를 체계적으로 설명하는 데 능숙합니다. '수학적 귀납법'을 이용하여 명제를 증명하는 과정에서, 단계별 논리적 비약이 없도록 꼼꼼하게 서술하는 모습을 보였습니다. 이러한 논리적 사고력은 복잡한 문장의 구조를 분석하고 의미를 파악해야 하는 번역 과정에서도 중요한 역량이 될 것이라고 스스로 평가하며, 학문 간의 연결고리를 찾으려는 노력을 보여줍니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "content": "고난도의 영문 텍스트를 정확하게 독해하고, 핵심 내용을 요약하는 능력이 뛰어납니다. The New Yorker의 사설을 읽고, 작가의 숨겨진 의도와 비판적 시각을 파악하는 과제에서 탁월한 능력을 보였습니다. 또한, 원문의 어조와 스타일을 유지하며 핵심 내용을 한글로 요약하는 '글리스트닝(glistening)' 연습을 꾸준히 하여, 단순한 해석을 넘어 원문의 맛을 살리는 번역의 기초를 다졌습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "세계사",
+      "content": "역사적 사건의 인과 관계를 파악하고, 동시대 다른 지역의 역사와 비교하여 종합적으로 이해하는 능력이 우수합니다. '제국주의 시대의 열강'에 대해 학습하며, 각국의 식민지 정책이 피식민지 지역의 언어와 문화에 미친 영향을 탐구했습니다. 특히 영국의 언어 정책과 프랑스의 동화 정책을 비교 분석하고, 이것이 현대 포스트콜로니얼 문학에 어떻게 나타나는지에 대한 보고서를 작성하여 역사적 지식을 심화시켰습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "심화 영어Ⅰ",
+      "content": "원어민 수준의 유창한 영어 구사 능력을 바탕으로, 시사 문제에 대한 자신의 의견을 논리적으로 주장합니다. 'AI와 미래 직업'을 주제로 한 토론 수업에서, AI 번역 기술이 통번역사라는 직업을 대체할 수 없으며 오히려 보조 도구로서 시너지를 낼 것이라는 주장을 펼쳤습니다. 인간 통역사만이 가능한 문화적 중재와 창의적 의역의 중요성을 구체적인 사례를 들어 설득력 있게 발표하여 큰 호응을 얻었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "스페인어Ⅰ",
+      "content": "새로운 언어를 배우는 속도가 빠르고, 문법 구조를 체계적으로 이해하는 능력이 뛰어납니다. 영어와 스페인어의 유사점과 차이점에 주목하며 학습의 효율성을 높였습니다. 특히, 두 언어의 관사 사용법과 명사의 성(性) 개념을 비교 분석하는 노트를 작성하며 언어학적 탐구심을 보였습니다. 제2외국어 학습이 모국어와 제1외국어에 대한 이해를 심화시킨다는 것을 깨닫고, 다중언어 사용자의 강점에 대해 탐구하는 계기로 삼았습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "고전 읽기",
+      "content": "고전에 대한 깊은 이해를 바탕으로 현대적 의미를 재해석하는 능력이 돋보입니다. 플라톤의 '국가'를 읽고 '이상적인 국가'에 대한 토론을 진행하며, 철인 통치 개념을 현대 민주주의 사회의 '전문가 집단'과 비교 분석하는 독창적인 시각을 제시했습니다. 고전 텍스트의 논리 구조를 파악하고 핵심 주장을 추출하는 훈련을 통해, 모든 글의 근간이 되는 논리적 사고력을 길렀습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "함수의 그래프와 미분 계수의 기하학적 의미를 직관적으로 이해하고, 이를 문제 해결에 적극적으로 활용합니다. 복잡한 그래프의 개형을 추론하는 과정에서 논리적이고 단계적인 접근 방식을 보여주었으며, 오류를 발견했을 때 원인을 분석하고 해결하는 능력이 뛰어납니다. 이러한 체계적인 문제 해결 능력은 언어의 논리 구조를 분석하는 데도 긍정적인 영향을 미치고 있습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어권 문화",
+      "content": "영미권의 다양한 문화 현상에 대한 폭넓은 지식과 깊이 있는 이해를 보여주었습니다. '미국의 다문화주의와 정체성 정치'를 주제로 한 발표에서, 흑인, 히스패닉, 아시안 등 각 인종 그룹의 문화적 특성과 사회적 요구를 심도 있게 분석했습니다. 특히, 문화적 배경 지식이 번역의 질에 미치는 영향에 대해 탐구하며, '문화 번역가'로서 통번역사의 역할을 강조하는 보고서를 제출하여 깊은 인상을 남겼습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "동아시아사",
+      "content": "동아시아 3국의 교류와 갈등의 역사를 균형 잡힌 시각으로 이해하고 있습니다. '조선통신사'의 역할을 주제로 탐구하며, 외교 사절로서의 역할뿐만 아니라 문화 교류의 매개체로서의 중요성을 분석했습니다. 당시 통신사 일행 중 역관들의 활동에 주목하여, 외교 무대에서 통역의 역할이 얼마나 중요한지 구체적인 사료를 통해 발표하며 자신의 진로와 역사적 사실을 성공적으로 연결시켰습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "논리학",
+      "content": "명제 논리와 술어 논리의 기본 개념을 명확히 이해하고, 논리적 오류를 찾아내는 능력이 뛰어납니다. 신문 사설이나 광고 문구에 숨겨진 '성급한 일반화의 오류', '인신공격의 오류' 등을 분석하여 발표했습니다. 언어의 논리적 타당성을 검증하는 훈련을 통해, 보다 명확하고 논리적인 글쓰기 및 번역의 기초를 다졌으며, 이는 모든 학문의 기본이 되는 중요한 역량임을 스스로 깨달았습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "스페인어Ⅱ",
+      "content": "꾸준한 노력으로 스페인어 실력이 크게 향상되었으며, 특히 작문과 회화에 자신감을 보입니다. 스페인의 문화와 사회에 대한 글을 읽고, 자신의 의견을 스페인어로 작성하는 활동에 적극적으로 참여했습니다. 가브리엘 가르시아 마르케스의 단편 소설을 원서로 읽고, 주요 표현을 정리하여 친구들과 공유하는 등 자기주도적 학습 능력이 돋보이며, 제2외국어 능력 향상을 위한 구체적인 실천을 보여줍니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "상황과 목적에 맞는 담화 능력이 뛰어나며, 설득력 있는 글쓰기 능력을 갖추었습니다. '교내 캠페인 문구 작성' 프로젝트에서 'AI 번역을 넘어서는 우리말의 힘'이라는 슬로건을 제안하여 큰 호응을 얻었습니다. 작문 수행평가에서는 '번역가는 제2의 창작자인가'라는 논제를 설정하고, 찬반 양측의 논거를 균형 있게 제시한 후 자신의 종합적인 견해를 논리적으로 서술하여 비판적 사고력과 우수한 작문 실력을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "content": "데이터를 수집하고 분석하여 합리적인 결론을 도출하는 능력이 뛰어납니다. '언어 사용 빈도와 통계'라는 주제로 자율 탐구를 진행, 특정 소설에 나타난 단어의 빈도를 분석하고 이를 작가의 문체적 특징과 연결 짓는 시도를 했습니다. 통계적 기법을 인문학적 탐구에 적용하는 융합적 사고를 보여주었으며, 통계가 사회 현상뿐만 아니라 언어 현상을 분석하는 유용한 도구가 될 수 있음을 보고서에 명확히 기술했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영미 문학 읽기",
+      "content": "조지 오웰의 '1984'를 원서로 읽고, 작품 속 '신어(Newspeak)'가 언어를 통한 사고 통제의 도구로 사용되는 방식에 대해 심층 분석 보고서를 작성했습니다. 보고서에서 '번역'이 단순히 언어를 바꾸는 행위가 아니라, 사상과 문화를 전달하고 때로는 저항하는 행위가 될 수 있음을 주장하며, 번역가의 사회적 책임에 대해 고찰했습니다. 움베르토 에코의 '번역의 경험'을 참고문헌으로 활용하여 탐구의 깊이를 더했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "content": "사회·문화 현상을 기능론, 갈등론, 상징적 상호작용론 등 다양한 관점에서 분석하는 능력이 뛰어납니다. '정보 사회의 변화' 단원에서, SNS의 발달이 가져온 소통 방식의 변화를 상징적 상호작용론적 관점에서 분석했습니다. 특히, 온라인상의 '밈(meme)'과 신조어가 특정 집단의 정체성을 형성하고 전파되는 과정을 언어 사회학적 측면과 연결하여 발표함으로써 탐구의 독창성을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어Ⅱ",
+      "content": "국제회의나 학술 발표에서 사용되는 고급 영어를 이해하고 구사하는 능력이 탁월합니다. TED 강연을 시청하고, 발표자의 비언어적 표현(제스처, 억양)이 메시지 전달에 미치는 영향을 분석하는 과제를 수행했습니다. 이를 바탕으로 '효과적인 프레젠테이션을 위한 스피치 전략'을 영어로 발표하며, 장차 국제 무대에서 활동할 인재로서의 잠재력을 보였습니다. 청중의 이해를 돕기 위해 적절한 유머와 비유를 사용하는 여유도 돋보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "스페인어 회화Ⅰ",
+      "content": "일상적인 주제를 넘어 사회적, 문화적 주제에 대해 스페인어로 토론하는 능력을 갖추었습니다. '라틴 아메리카의 사회 문제'를 주제로 한 원어민 교사와의 토론에서, 풍부한 배경지식을 바탕으로 자신의 의견을 논리적으로 개진했습니다. 특히, 시사 용어를 적극적으로 사용하고 문법적 오류가 적은 완성도 높은 문장을 구사하여, 꾸준한 노력을 통해 뛰어난 어학 실력을 갖추게 되었음을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제 탐구 보고서",
+      "content": "자신의 진로와 관련하여 '기계 번역의 현황과 통번역사의 미래'라는 심도 있는 주제를 선정하고, 1학기 동안 체계적인 연구를 수행했습니다. 구글 번역과 DeepL 등 주요 번역기의 번역 품질을 문학, 비문학 텍스트 유형별로 비교 분석하고, 여전히 인간 번역가의 개입이 필수적인 영역(뉘앙스, 문화적 맥락, 창의성)을 구체적으로 제시했습니다. 관련 논문을 다수 참고하여 학술적 글쓰기의 형식을 갖춘 우수한 보고서를 완성했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "content": "국어의 의미론, 통사론 등 언어학적 지식을 바탕으로 텍스트를 심층적으로 분석하는 능력이 뛰어납니다. 중세 국어 자료를 강독하며, 현대 국어와 다른 문법적 특징들을 체계적으로 정리했습니다. 언어의 역사적 변화 과정을 추적하는 활동을 통해, 언어가 고정된 실체가 아니라 끊임없이 변화하는 유기체임을 이해하고, 이러한 통시적 관점이 번역 작업에도 중요한 통찰을 제공할 수 있음을 깨달았습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "영어 발표와 토론",
+      "content": "다양한 주제에 대해 즉흥적으로 자신의 의견을 영어로 구성하고 발표하는 순발력과 논리력이 뛰어납니다. '사형제 폐지'와 같은 민감한 주제의 토론에서, 감정적인 대응을 자제하고 객관적인 통계 자료와 법률적 근거를 제시하며 이성적으로 토론을 이끌었습니다. 상대방의 주장을 경청하고 반박하는 과정에서 뛰어난 커뮤니케이션 능력을 보여주었으며, 이는 국제회의 통역사가 갖춰야 할 중요한 자질입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제 관계와 국제기구",
+      "content": "복잡한 국제 정세의 흐름을 파악하고, 주요 국제 이슈에 대한 자신만의 관점을 정립했습니다. '유엔의 역할과 개혁 방안'에 대한 보고서를 작성하며, 안보리 상임이사국의 거부권 문제를 비판적으로 분석하고 대안을 모색했습니다. 국제회의 통역사는 단순한 언어 전달자를 넘어, 회의의 배경과 맥락을 이해하는 전문가가 되어야 함을 깨닫고, 국제 정치 및 경제에 대한 학습을 꾸준히 이어가겠다는 다짐을 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "스페인 문화",
+      "content": "스페인 및 중남미 지역의 문학과 예술, 역사에 대한 깊이 있는 탐구를 통해 해당 문화권에 대한 이해를 심화시켰습니다. 프리다 칼로의 작품을 분석하며, 그녀의 예술이 멕시코의 역사적, 정치적 상황과 어떻게 연결되는지 발표했습니다. 특정 문화권에 대한 깊은 이해가 해당 언어의 뉘앙스를 파악하고 수준 높은 번역을 하는 데 필수적임을 강조하며, 문화 전문가로서의 성장 가능성을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육",
+      "content": "팀 프로젝트형 체육 활동인 '플래그 풋볼' 수업에서, 팀의 전략을 수립하고 동료들의 참여를 독려하는 리더십을 발휘했습니다. 특히, 각 팀원의 장단점을 파악하여 적절한 역할을 부여하고, 경기 중에도 끊임없이 소통하며 팀의 승리를 이끌었습니다. 학업 스트레스를 건강하게 해소하고, 협동의 가치를 배우는 성숙한 태도를 보여주었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "시의 운율과 심상, 표현법을 분석하며 문학적 감수성을 기르고, 특히 '서시'의 번역본들을 찾아보며 원문의 감동을 다른 언어로 전달하는 것의 어려움과 중요성에 대해 고민함.",
+      "author": "윤동주",
+      "bookTitle": "하늘과 바람과 별과 시"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "영어",
+      "bookDescription": "단순한 동물 농장 이야기가 아닌, 스탈린 체제에 대한 정치적 풍자임을 이해하고, 전체주의 사회에서 언어가 어떻게 대중을 통제하는 수단으로 사용되는지 분석함. 번역의 중요성을 다시 한 번 느낌.",
+      "author": "George Orwell",
+      "bookTitle": "Animal Farm"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "사회",
+      "bookDescription": "다양한 정의의 개념을 접하며, 사회 문제에 대해 하나의 정답이 없음을 깨달음. 특히 공동체주의와 자유주의의 논쟁을 통해, 통역사가 가져야 할 중립적이고 균형 잡힌 시각의 중요성을 생각함.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "국어/문학",
+      "bookDescription": "작품 속 인물들의 섬세한 감정선과 시대적 배경을 이해하고, 이를 영어로 어떻게 표현할 수 있을지 고민함. '사랑손님과 어머니'의 '옥희' 시점을 살리는 번역의 어려움에 대해 탐구함.",
+      "author": "주요섭 외",
+      "bookTitle": "사랑손님과 어머니"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "언어가 인간의 사고를 규정한다는 '사피어-워프 가설'에 큰 흥미를 느낌. 영화 속 외계인의 언어를 배우며 주인공의 사고 체계가 바뀌는 모습을 보고, 언어와 세계관의 관계에 대해 깊이 탐구하는 계기가 됨.",
+      "author": "테드 창",
+      "bookTitle": "당신 인생의 이야기 (Stories of Your Life and Others)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회",
+      "bookDescription": "역사, 지리, 문화가 한 나라의 운명을 어떻게 결정하는지 배우며 국제 정세를 이해하는 거시적인 안목을 기름. 통역사가 되기 위해선 언어뿐만 아니라 해당 국가의 총체적인 배경지식이 필수적임을 깨달음.",
+      "author": "재레드 다이아몬드",
+      "bookTitle": "총, 균, 쇠"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "스페인어",
+      "bookDescription": "마술적 사실주의 기법을 통해 라틴 아메리카의 역사와 현실을 환상적으로 그려낸 작품을 읽으며, 문화적 특수성이 강한 문학 작품을 번역하는 것의 어려움과 매력을 동시에 느낌.",
+      "author": "가브리엘 가르시아 마르케스",
+      "bookTitle": "백년의 고독"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "진로",
+      "bookDescription": "최고의 통역사들이 말하는 직업의 세계를 엿보며, 통역사가 되기 위해 필요한 치열한 노력과 자기 관리, 그리고 언어 능력 외의 자질(순발력, 체력, 배경지식)에 대해 구체적으로 알게 됨.",
+      "author": "김은주",
+      "bookTitle": "1초의 승부사, 통역사"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "영어",
+      "bookDescription": "미국 사회의 인종차별 문제를 어린 아이의 순수한 시선으로 고발하는 작품을 읽고, 사회적 약자의 목소리를 대변하는 문학의 힘을 느낌. 작품의 시대적 배경과 법률 용어들을 조사하며 깊이 있게 감상함.",
+      "author": "Harper Lee",
+      "bookTitle": "To Kill a Mockingbird (앵무새 죽이기)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어",
+      "bookDescription": "언어의 사회적, 문화적 기능에 대해 배우고, 특히 '방언'과 '표준어'의 관계, 신조어의 생성과 소멸 등 언어 현상에 대한 사회언어학적 분석에 흥미를 느낌. 통번역에 있어서도 이러한 사회적 맥락 이해의 중요성을 깨달음.",
+      "author": "이상억",
+      "bookTitle": "언어 사회 그리고 문화"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "세계화 시대의 다양한 국제 분쟁 사례와 그 해결 과정을 보며, 국제 관계의 복잡성을 이해함. 외교 무대에서 정확하고 중립적인 통역이 얼마나 중요한 역할을 하는지 다시 한번 확인함.",
+      "author": "헨리 키신저",
+      "bookTitle": "외교 (Diplomacy)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로/언어학",
+      "bookDescription": "번역이 단순한 언어 변환이 아닌, 협상과 해석의 과정임을 배움. '충실성'과 '가독성' 사이에서 번역가가 겪는 딜레마를 이해하고, 다양한 번역 전략에 대해 학문적으로 접근하는 계기가 됨.",
+      "author": "움베르토 에코",
+      "bookTitle": "번역의 경험"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "스페인어",
+      "bookDescription": "스페인 내전의 비극을 배경으로, 파시즘에 저항하는 인간의 존엄성을 그려낸 작품. 작품의 정치적, 철학적 메시지를 이해하고 스페인 현대사에 대한 지식을 넓힘.",
+      "author": "어니스트 헤밍웨이",
+      "bookTitle": "누구를 위하여 종은 울리나 (For Whom the Bell Tolls)"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "언어적 재능과 인문학적 소양을 겸비한 학생으로, 지적 호기심이 왕성하고 자기주도적 학습 능력이 뛰어납니다. 학급 부회장으로서 책임감을 보여주었으며, 특히 영어와 국어 교과에서 두각을 나타내며 번역가의 꿈을 키워나가고 있습니다. 친구들의 학습을 돕는 따뜻한 마음을 가졌습니다."
+    },
+    {
+      "grade": 2,
+      "content": "자신의 진로 목표를 위해 구체적인 계획을 세우고 꾸준히 실천하는 열정적인 학생입니다. 번역 동아리 부장, 학생회 학술부 차장으로 활동하며 탁월한 리더십과 기획력을 보여주었습니다. 영어뿐만 아니라 제2외국어 학습에도 매진하며 글로벌 인재로서의 성장 가능성을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "content": "깊이 있는 탐구 능력과 비판적 사고력을 바탕으로 학문적 성숙을 이룬 학생입니다. AI 시대에 인간 번역가의 역할에 대해 진지하게 성찰하는 등, 자신의 진로에 대한 확고한 비전을 가지고 있습니다. 교우 관계가 원만하고, 궂은일에도 솔선수범하는 태도로 급우들에게 신뢰받는 리더입니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "content": "체력 증진 활동에 성실히 참여하고, 특히 배드민턴 복식 경기에서 파트너와 협력하는 능력이 우수함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "P",
+      "content": "서양 음악사 수업에 흥미를 보이며, 특히 바로크와 고전주의 음악의 특징을 비교 분석하는 감상문을 훌륭하게 작성함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미술",
+      "achievementLevel": "P",
+      "content": "현대 미술 감상 수업에서 자신만의 독창적인 시각으로 작품을 해석하고, 이를 조리 있게 발표하는 능력이 돋보임.",
+      "creditHours": 2
+    }
+  ]
+}

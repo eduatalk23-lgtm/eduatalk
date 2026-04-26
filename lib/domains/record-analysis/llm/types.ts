@@ -722,6 +722,26 @@ export interface SetekGuideInput {
   crossGradeDirections?: string;
   /** Phase β G7: 학생 격자 컨텍스트 (탐구 레벨 + 메인 탐구 tier_plan) */
   gridContext?: import("./actions/cell-guide-grid-context").CellGuideGridContext;
+  /**
+   * 학생 정체성 프로필 카드 텍스트 (interestConsistency narrative + crossGradeThemes 포함).
+   * P1-P3 역량 분석에서 사용하는 ctx.belief.profileCard 를 P4 가이드 생성 시에도 주입하여
+   * 학생 식별성이 반영된 가이드 방향을 생성할 수 있도록 한다.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  studentProfileCard?: string;
+  /**
+   * 세특 서사 완성도(8단계) 섹션 텍스트.
+   * buildNarrativeArcDiagnosisSection()이 생성한 마크다운 섹션을 전달.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  narrativeArcSection?: string;
+  /**
+   * β+1: MidPipeline Planner 메타 판정 섹션 (buildMidPlanGuideSection() 결과).
+   * 컨설턴트의 우선순위 판단(focusHypothesis/concernFlags/recordPriorityOverride)을
+   * 가이드 방향에 반영하기 위해 주입한다.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  midPlanSection?: string;
 }
 
 /** generateSetekGuide 액션의 출력 */
@@ -818,6 +838,26 @@ export interface ChangcheGuideInput {
   crossGradeDirections?: string;
   /** Phase β G7: 학생 격자 컨텍스트 */
   gridContext?: import("./actions/cell-guide-grid-context").CellGuideGridContext;
+  /**
+   * 학생 정체성 프로필 카드 텍스트 (interestConsistency narrative + crossGradeThemes 포함).
+   * P1-P3 역량 분석에서 사용하는 ctx.belief.profileCard 를 P5 가이드 생성 시에도 주입하여
+   * 학생 식별성이 반영된 가이드 방향을 생성할 수 있도록 한다.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  studentProfileCard?: string;
+  /**
+   * 세특 서사 완성도(8단계) 섹션 텍스트.
+   * buildNarrativeArcDiagnosisSection()이 생성한 마크다운 섹션을 전달.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  narrativeArcSection?: string;
+  /**
+   * β+1: MidPipeline Planner 메타 판정 섹션 (buildMidPlanGuideSection() 결과).
+   * 컨설턴트의 우선순위 판단(focusHypothesis/concernFlags/recordPriorityOverride)을
+   * 가이드 방향에 반영하기 위해 주입한다.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  midPlanSection?: string;
 }
 
 /** generateChangcheGuide 액션의 출력 */
@@ -864,6 +904,26 @@ export interface HaengteukGuideInput {
   crossGradeDirections?: string;
   /** Phase β G7: 학생 격자 컨텍스트 */
   gridContext?: import("./actions/cell-guide-grid-context").CellGuideGridContext;
+  /**
+   * 학생 정체성 프로필 카드 텍스트 (interestConsistency narrative + crossGradeThemes 포함).
+   * P1-P3 역량 분석에서 사용하는 ctx.belief.profileCard 를 P6 가이드 생성 시에도 주입하여
+   * 학생 식별성이 반영된 가이드 방향을 생성할 수 있도록 한다.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  studentProfileCard?: string;
+  /**
+   * 세특 서사 완성도(8단계) 섹션 텍스트.
+   * buildNarrativeArcDiagnosisSection()이 생성한 마크다운 섹션을 전달.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  narrativeArcSection?: string;
+  /**
+   * β+1: MidPipeline Planner 메타 판정 섹션 (buildMidPlanGuideSection() 결과).
+   * 컨설턴트의 우선순위 판단(focusHypothesis/concernFlags/recordPriorityOverride)을
+   * 가이드 방향에 반영하기 위해 주입한다.
+   * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  midPlanSection?: string;
 }
 
 /** generateHaengteukGuide 액션의 출력 */

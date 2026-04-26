@@ -1,0 +1,765 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/이화대-국어국-6",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_이화대_국어국_006",
+    "schoolName": "가상 일반고 G",
+    "enrollmentYear": 2022,
+    "curriculumRevision": "2015",
+    "graduationYear": 2025,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "이화여자대학교",
+      "admissionYear": 2025,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합(미래인재전형)",
+      "department": "국어국문학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2022-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10115"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2023-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박서연",
+      "studentNumber": "20314"
+    },
+    {
+      "grade": 3,
+      "className": "2반",
+      "enrollmentDate": "2024-03-04",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이수진",
+      "studentNumber": "30216"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결, 병원 진료 후 병조퇴",
+      "schoolDays": 191
+    },
+    {
+      "grade": 2,
+      "absenceSick": 2,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "급성 장염으로 인한 병결",
+      "schoolDays": 190
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 독서 감상문 대회 동상",
+      "awardDate": "2022-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "전교생 대상"
+    },
+    {
+      "grade": 1,
+      "awardName": "교과 우수상 (국어)",
+      "awardDate": "2023-02-10",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "해당 과목 수강생"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 시 창작 대회 은상",
+      "awardDate": "2023-06-15",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "참가 희망자"
+    },
+    {
+      "grade": 2,
+      "awardName": "인문학 탐구 보고서 대회 장려상",
+      "awardDate": "2023-11-22",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "참가 희망팀"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 문학 비평문 쓰기 대회 금상",
+      "awardDate": "2024-05-30",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "참가 희망자"
+    },
+    {
+      "grade": 3,
+      "awardName": "모범 학생 표창장",
+      "awardDate": "2024-07-18",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "전교생 대상"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 부회장으로서 학급회의를 주도적으로 운영하며 '칭찬 릴레이' 활동을 제안하여 긍정적인 학급 분위기 조성에 기여함. 학교 축제에서 '고전 문학 속 인물에게 편지쓰기' 부스를 기획하고 운영하며 친구들의 참여를 독려하고 문학에 대한 흥미를 높이는 데 이바지함. 이러한 활동을 통해 소통과 협력의 리더십을 함양함.",
+      "hours": 24
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "문예창작 동아리 '글땀'의 부원으로 활동하며 매주 시, 소설 등 다양한 장르의 글을 꾸준히 창작함. 특히 '나의 도시 관찰기'라는 주제로 단편소설을 창작하여 합평회에서 문체와 인물 묘사가 뛰어나다는 긍정적 평가를 받음. 동아리 문집 제작 과정에서 편집과 교정 작업에 적극적으로 참여하며 출판 과정에 대한 실무적 이해를 높임.",
+      "activityName": "문예창작 동아리 '글땀'",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 탐색의 날에 '출판 편집자' 직업인 특강에 참여하여 책 한 권이 만들어지는 과정과 편집자의 역할에 대해 깊이 이해함. 이후 '나는 편집자다'(남정미)를 읽고 서평을 작성하며 출판 기획 및 편집에 대한 구체적인 진로 계획을 세우기 시작함. 자신의 독서 기록을 바탕으로 '청소년을 위한 한국 단편소설선'이라는 가상의 출판 기획안을 작성하여 발표함.",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "volunteer",
+      "content": "교내 도서관에서 정기적으로 서가 정리 및 도서 대출/반납 보조 활동에 참여함(총 20시간).",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학급 문예부장으로서 '아침을 여는 시' 활동을 기획, 매일 아침 조회 시간 전 칠판에 시 한 편을 적어 학우들의 정서 함양에 기여함. 친구들의 작품을 모아 학급 문집을 제작하고, '우리 반 올해의 책'을 선정하는 토론을 주최하는 등 문학을 매개로 한 공동체 활동을 이끌며 기획력과 책임감을 보여줌.",
+      "hours": 22
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "문예창작 동아리 '글땀'의 회장으로 선출되어 활동을 총괄함. '문학 기행'을 기획하여 황순원 문학촌을 방문하고, 작가의 생애와 작품 세계에 대한 심도 있는 탐구 활동을 주도함. '현대시, 어떻게 읽을 것인가'라는 주제로 세미나를 개최하고 발제자로 참여하여 정지용과 백석의 시에 나타난 감각적 이미지와 향토성을 비교 분석하여 발표함.",
+      "activityName": "문예창작 동아리 '글땀'",
+      "hours": 42
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학교에서 주최하는 '인문학 특강'에 참여하여 '포스트모더니즘 문학과 대중문화'라는 주제의 강연을 듣고, 이후 관련 내용을 심화 탐구하여 보고서를 작성함. 국어국문학과에 재학 중인 선배와의 멘토링을 통해 학과 커리큘럼과 졸업 후 진로에 대한 구체적인 정보를 얻고, 한국 문학 연구에 대한 학업 의지를 더욱 공고히 함.",
+      "hours": 22
+    },
+    {
+      "grade": 2,
+      "activityType": "volunteer",
+      "content": "지역 아동 센터에서 초등학생을 대상으로 한 '책 읽어주기 및 독후 활동 지도' 봉사활동을 꾸준히 진행함(총 25시간).",
+      "hours": 25
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업앨범 편집위원으로 활동하며, '우리들의 순간들'이라는 콘셉트를 제안하고 학급별 특색 있는 페이지를 구성하는 데 주도적인 역할을 함. 친구들의 의견을 수렴하고 갈등을 중재하며, 사진 선정부터 문구 작성까지 꼼꼼하게 참여하여 완성도 높은 졸업앨범을 만드는 데 크게 기여함. 이를 통해 공동의 목표를 달성하는 협업 능력과 책임감을 기름.",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "문예창작 동아리 '글땀'에서 멘토 역할을 수행함. 1, 2학년 부원들의 습작을 첨삭해주고, 자신의 탐구 경험을 바탕으로 '문학 비평문 작성법'에 대한 특강을 진행함. 지난 3년간의 동아리 활동을 정리하는 '글땀 백서' 발간을 주도하며 자료 수집, 인터뷰, 편집 전반을 총괄하여 리더십과 기록물 관리 능력을 보여줌.",
+      "activityName": "문예창작 동아리 '글땀'",
+      "hours": 38
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "자신의 진로 희망과 교과 탐구 활동을 종합하여 '1930년대 모더니즘 시와 도시성의 상관관계 연구'라는 주제로 소논문을 작성하고 교내 학술제에서 발표함. 출판사 '문학동네'의 편집자가 쓴 칼럼과 인터뷰 기사를 스크랩하고 분석하며, 변화하는 출판 시장과 독자 트렌드에 대한 이해를 높이고 예비 출판인으로서의 전문성을 키우고자 노력함.",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "volunteer",
+      "content": "다문화 가정 아동에게 한글을 가르치는 멘토링 봉사활동에 참여함(총 15시간).",
+      "hours": 15
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2022-03-01~2023-02-28",
+      "cumulativeHours": 20,
+      "description": "교내 도서관 봉사: 서가 정리, 도서 분류 및 라벨링 작업, 대출 및 반납 업무 보조. 이용자들의 도서 검색을 돕고 쾌적한 독서 환경을 조성하는 데 기여함.",
+      "hours": 20,
+      "location": "교내 도서관"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2023-03-01~2024-02-29",
+      "cumulativeHours": 45,
+      "description": "지역 아동 센터 교육 봉사: 초등학생들에게 동화책을 읽어주고, 내용에 대한 질문과 토론을 이끌며 독후 활동(그림 그리기, 글쓰기)을 지도함. 아이들의 눈높이에 맞춰 소통하며 문학적 감수성과 표현력을 길러주는 데 보람을 느낌.",
+      "hours": 25,
+      "location": "○○구 지역 아동 센터"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2024-03-01~2024-07-31",
+      "cumulativeHours": 60,
+      "description": "다문화 가정 아동 한글 멘토링: 한글 자모음부터 기초적인 단어와 문장 읽기, 쓰기를 지도함. 한국 전래 동화를 함께 읽고 이야기 나누며 한국 문화에 대한 이해를 도움. 인내심을 갖고 꾸준히 소통하며 멘티의 한글 실력 향상을 이끌어냄.",
+      "hours": 15,
+      "location": "△△ 다문화가족지원센터"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "achievementLevel": "1",
+      "classAverage": 78.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 12.5,
+      "subjectType": "일반선택",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "수학",
+      "achievementLevel": "3",
+      "classAverage": 65.4,
+      "creditHours": 4,
+      "rankGrade": 3,
+      "rawScore": 85.1,
+      "stdDev": 18.2,
+      "subjectType": "일반선택",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "영어",
+      "achievementLevel": "2",
+      "classAverage": 75.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "stdDev": 15.3,
+      "subjectType": "일반선택",
+      "totalStudents": 251
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회",
+      "achievementLevel": "2",
+      "classAverage": 80.2,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 11.9,
+      "subjectType": "공통과목",
+      "totalStudents": 252
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "achievementLevel": "3",
+      "classAverage": 72.8,
+      "creditHours": 3,
+      "rankGrade": 3,
+      "rawScore": 88.1,
+      "stdDev": 16.1,
+      "subjectType": "공통과목",
+      "totalStudents": 252
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "achievementLevel": "1",
+      "classAverage": 79.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 11.8,
+      "subjectType": "일반선택",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "achievementLevel": "2",
+      "classAverage": 68.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 89.5,
+      "stdDev": 17.5,
+      "subjectType": "일반선택",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "영어",
+      "achievementLevel": "2",
+      "classAverage": 77.3,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.1,
+      "stdDev": 14.8,
+      "subjectType": "일반선택",
+      "totalStudents": 249
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사",
+      "achievementLevel": "1",
+      "classAverage": 82.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.6,
+      "stdDev": 10.5,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 75.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 13,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "3",
+      "classAverage": 63.1,
+      "creditHours": 3,
+      "rankGrade": 3,
+      "rawScore": 84,
+      "stdDev": 19.1,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 76.6,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 91.8,
+      "stdDev": 15.8,
+      "subjectType": "일반선택",
+      "totalStudents": 246
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생활과 윤리",
+      "achievementLevel": "2",
+      "classAverage": 81.2,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95.3,
+      "stdDev": 10.2,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "한문Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 85.4,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9.8,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 80.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "stdDev": 11.2,
+      "subjectType": "일반선택",
+      "totalStudents": 243
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "2",
+      "classAverage": 65.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 88.6,
+      "stdDev": 18,
+      "subjectType": "일반선택",
+      "totalStudents": 243
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "2",
+      "classAverage": 78.2,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "stdDev": 14.5,
+      "subjectType": "일반선택",
+      "totalStudents": 244
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1",
+      "classAverage": 79.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "stdDev": 12.1,
+      "subjectType": "일반선택",
+      "totalStudents": 148
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "classAverage": 88.9,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 94.2,
+      "stdDev": 8.5,
+      "subjectType": "진로선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 82.4,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 10.1,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "2",
+      "classAverage": 69.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 90.1,
+      "stdDev": 16.9,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어 독해Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 85,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95.7,
+      "stdDev": 9.2,
+      "subjectType": "진로선택",
+      "totalStudents": 102
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고전 읽기",
+      "achievementLevel": "A",
+      "classAverage": 90.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.4,
+      "stdDev": 7.5,
+      "subjectType": "진로선택",
+      "totalStudents": 75
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "윤리와 사상",
+      "achievementLevel": "2",
+      "classAverage": 78.5,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 94.6,
+      "stdDev": 13.2,
+      "subjectType": "일반선택",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "논술",
+      "achievementLevel": "A",
+      "classAverage": 84.1,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96.2,
+      "stdDev": 11.5,
+      "subjectType": "진로선택",
+      "totalStudents": 98
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "content": "매체 자료의 수용과 생산 단원에서, '유튜브 콘텐츠의 언어적 특성'을 주제로 탐구 보고서를 작성함. 자극적인 제목과 비속어 사용의 문제점을 지적하고, 청소년 언어생활에 미치는 영향을 분석하여 대안으로 '선한 댓글 달기 캠페인'을 제안하는 등 비판적 사고력과 문제 해결 능력을 보여줌. 특히 김소월의 '진달래꽃'을 패러디한 광고를 분석하며 전통 문학이 현대 매체에서 어떻게 변용되고 수용되는지에 대한 깊은 관심을 드러냄."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회",
+      "content": "문화 변동의 양상과 대응 단원에서 '대중문화의 세계화와 한국 문학의 위상'이라는 주제로 발표함. BTS의 노래 가사에 한국 시의 구절이 인용된 사례를 제시하며, K-POP의 인기가 한국 문학에 대한 관심으로 이어질 가능성을 탐색함. 문학 작품이 단순한 텍스트를 넘어 한 국가의 사회와 문화를 담는 그릇임을 이해하고, 이를 세계에 알리는 문화 콘텐츠 기획자의 꿈을 구체화하는 계기가 됨."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "content": "문법 요소의 탐구와 활용 단원에서 피동 표현에 대한 남다른 탐구심을 보임. '언론 기사 제목에 나타난 피동 표현의 효과'를 주제로 신문 기사 50건을 분석하여, 사건의 주체를 모호하게 만들거나 책임을 전가하는 효과가 있음을 밝혀냄. 이를 통해 문법 지식이 정확한 의사소통뿐만 아니라 사회 현상을 비판적으로 읽어내는 도구가 될 수 있음을 체득하고, 국어학에 대한 지적 호기심을 드러냄."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사",
+      "content": "일제강점기 민족 운동을 학습하며, 저항 시인인 이육사와 윤동주의 시를 역사적 맥락에서 분석하는 보고서를 제출함. 특히 이육사의 '광야'가 쓰인 시대적 배경과 시어의 상징성을 연결하여 시에 담긴 굳건한 독립 의지와 미래에 대한 희망을 설득력 있게 해석함. 역사적 사실과 문학 작품을 융합하여 이해하는 능력이 탁월하며, 이를 통해 시대의 아픔을 문학으로 승화시킨 작가 정신에 깊이 공감하는 모습을 보임."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "한국 현대소설 수업에서 염상섭의 '삼대'를 읽고, 조부-부-손자로 이어지는 세대 간의 가치관 갈등이 당대 사회상을 어떻게 반영하는지 심도 있게 분석하여 발표함. 여기서 더 나아가 '삼대'와 F. 스콧 피츠제럴드의 '위대한 개츠비'를 비교하며 1920-30년대 한미 양국의 근대화 과정에서 나타난 물질주의와 전통적 가치의 충돌 양상을 비교문학적 관점에서 고찰하는 보고서를 제출하여 문학 작품을 입체적으로 감상하는 능력을 보여줌."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생활과 윤리",
+      "content": "예술과 대중문화 윤리 단원에서 '문학 작품의 표절 문제와 창작 윤리'에 대해 탐구함. 신경숙 작가의 표절 논란을 계기로 문학계의 표절 기준과 법적, 윤리적 쟁점을 조사하고, 창작의 자유와 작가의 윤리적 책임 사이의 균형점을 모색하는 글을 작성함. 단순한 윤리적 딜레마를 넘어, 좋은 작품을 만들고 소개하는 출판 편집자로서 갖춰야 할 엄격한 직업윤리에 대해 성찰하는 기회로 삼음."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "한문Ⅰ",
+      "content": "한시(漢詩) 단원에서 정약용의 '보리타작(타맥행)'을 배우고, 시에 나타난 농민들의 건강한 노동과 생명력을 생생하게 묘사한 표현에 감명받음. 이를 계기로 조선 후기 실학자들의 문학에 관심을 갖고 박지원의 '열하일기'를 탐독하며, 이용후생의 정신과 당대 사회에 대한 날카로운 비판 의식을 읽어냄. 고전 속에 담긴 선조들의 지혜와 현실 참여 정신을 배우려는 자세가 돋보임."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "인문 분야 독서 활동으로 롤랑 바르트의 '저자의 죽음'을 읽고 '저자의 의도와 독자의 해석'이라는 주제로 에세이를 작성함. 작품 해석의 주권이 저자로부터 독자에게 넘어온다는 개념을 이해하고, 이를 바탕으로 교과서에 실린 황지우의 '너를 기다리는 동안'을 자신만의 시각으로 새롭게 해석하는 작업을 수행함. 텍스트 비평 이론을 실제 작품 분석에 적용하는 지적 탐구 능력이 우수함."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "content": "사회 계층과 불평등 단원에서 조세희의 소설 '난장이가 쏘아올린 작은 공'을 1970년대 도시 재개발 문제와 연관 지어 분석하는 보고서를 제출함. 소설 속 인물들의 삶을 통해 산업화 과정에서 소외된 계층의 아픔을 구체적으로 이해하고, 사회 구조적 모순이 개인의 삶에 미치는 영향을 통계 자료와 함께 제시하여 설득력을 높임. 문학 작품을 사회학적 상상력의 렌즈로 분석하는 융합적 사고가 돋보임."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "content": "국어의 변천 과정에 대해 학습하며, '신조어의 생성과 소멸 과정 연구'를 주제로 탐구 활동을 진행함. 최근 3년간 온라인 커뮤니티에서 유행한 신조어 100개를 수집하고, 음운 축약, 의미 변용 등 생성 원리를 분석함. 특히 '훈민정음' 창제 원리와 오늘날의 신조어 생성 방식의 공통점과 차이점을 비교하며 언어의 사회성과 역사성을 깊이 있게 이해함. 언어 현상을 능동적으로 탐구하고 지식을 확장하려는 의지가 강함."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "작문 원리 수업에서 '퇴고의 중요성'에 대해 배운 후, 자신의 습작 소설을 여러 차례 고쳐 쓰는 과정을 작문 포트폴리오로 제출함. 초고, 수정고, 최종고를 비교하며 문장의 호응 관계, 어휘의 적절성, 이야기의 개연성 등이 어떻게 개선되었는지 분석하는 성찰 일지를 첨부하여 작가적 성실성과 발전 과정을 뚜렷하게 보여줌. 글쓰기를 기능이 아닌 완성도를 높여가는 과정으로 이해하는 태도가 인상적임."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고전 읽기",
+      "content": "박지원의 '허생전'을 읽고, 허생이라는 인물이 보여준 비판 정신과 실천적 지식인의 면모에 대해 토론을 주도함. 여기서 나아가 '허생전'과 '홍길동전'에 나타난 이상 사회의 모습을 비교 분석하고, 두 작품이 당대 사회에 던지는 메시지의 공통점과 차이점을 논리적으로 발표함. 고전 작품을 현대적 관점에서 재해석하고 현재적 의미를 이끌어내는 능력이 탁월하며, 고전에 대한 깊은 애정을 바탕으로 한 진지한 탐구 자세가 돋보임."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어 독해Ⅰ",
+      "content": "버지니아 울프의 '자기만의 방' 원서를 읽고, 여성 작가에게 필요한 물리적, 정신적 독립의 중요성에 대해 깊이 공감함. 이를 한국 문학과 연결하여, 나혜석의 '경희'와 김원주의 '각성' 등 초기 페미니즘 소설을 찾아 읽고, 시대적 한계 속에서 자아를 찾고자 했던 여성 인물들의 목소리를 비교 분석하는 보고서를 영어로 작성함. 문학 작품을 통해 사회적, 젠더적 문제를 통찰하고, 다른 언어권의 문학과 비교하여 사유를 확장하는 능력이 우수함."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "논술",
+      "content": "제시문 기반 논술 작성 연습에서 '기술 발전이 인간 소외에 미치는 영향'이라는 논제에 대해 찰리 채플린의 영화 '모던 타임즈'와 조지 오웰의 소설 '1984'를 근거로 활용하여 설득력 있는 글을 작성함. 특히 문학 작품 속 서사를 구체적인 논거로 활용하여 추상적인 논지를 뒷받침하는 능력이 뛰어남. 다양한 분야의 지식을 융합하여 자신의 주장을 논리적으로 구조화하는 훈련을 꾸준히 하여 비판적 글쓰기 역량이 크게 향상됨."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'광장'(최인훈)을 읽고 남한과 북한이라는 이념의 대립 속에서 고뇌하는 주인공의 모습을 통해 분단 현실과 개인의 실존적 고뇌에 대해 깊이 사유함. 이후 '회색인'이라는 키워드로 독후감을 작성하며 자신의 정체성에 대해 성찰하는 계기로 삼음.",
+      "author": "최인훈",
+      "bookTitle": "광장"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합사회",
+      "bookDescription": "'사피엔스'(유발 하라리)를 읽고, 인류가 허구적 실재(종교, 국가, 화폐)를 믿는 능력을 통해 협력하고 문명을 건설했다는 주장에 큰 감명을 받음. 특히 문학 역시 인류의 상상력이 만들어낸 위대한 허구임을 깨닫고, 문학이 사회 통합과 가치관 형성에 기여하는 방식에 대해 탐구하고 싶다는 생각을 갖게 됨.",
+      "author": "유발 하라리",
+      "bookTitle": "사피엔스"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "문학",
+      "bookDescription": "'데미안'(헤르만 헤세)을 읽고, 기존의 세계를 깨고 진정한 자아를 찾아가는 주인공의 성장 과정에 깊이 몰입함. '새는 알에서 나오려고 투쟁한다'는 구절을 인용하며, 문학 작품을 읽는 행위가 자신의 내면을 탐색하고 성장하는 과정과 닮았음을 깨닫고, 문학의 치유적 기능에 대해 관심을 갖게 됨.",
+      "author": "헤르만 헤세",
+      "bookTitle": "데미안"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "'1984'(George Orwell)를 읽고, 전체주의 사회의 통제와 감시가 개인의 사유와 언어를 어떻게 파괴하는지 충격적으로 느낌. 특히 '신어(Newspeak)'의 개념을 통해 언어가 사고를 지배하는 방식을 이해하고, 문학이 인간 정신의 자유를 수호하는 중요한 보루임을 확인함.",
+      "author": "George Orwell",
+      "bookTitle": "1984"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "심화 국어",
+      "bookDescription": "'우리말의 수수께끼'(이규호)를 읽고 평소 무심코 사용하던 우리말 표현들의 어원과 역사적 배경에 대한 호기심을 해결함. '닭 잡아먹고 오리발 내민다'와 같은 속담의 유래를 탐구하며 언어가 당대 사람들의 생활상과 문화를 고스란히 담고 있는 화석과 같다는 점을 배우고, 국어학 탐구의 즐거움을 느낌.",
+      "author": "이규호",
+      "bookTitle": "우리말의 수수께끼"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "고전 읽기",
+      "bookDescription": "'열하일기, 웃음과 역설의 유쾌한 시공간'(고미숙)을 읽고, 박지원의 '열하일기'를 단순한 기행문이 아닌, 새로운 세계에 대한 지적 탐구와 문명 비판이 담긴 텍스트로 이해하게 됨. 고전을 현대적 시각으로 새롭게 해석하는 비평서에 매력을 느끼고, 좋은 비평이 독자의 시야를 어떻게 넓혀주는지 체험함.",
+      "author": "고미숙",
+      "bookTitle": "열하일기, 웃음과 역설의 유쾌한 시공간"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "논술",
+      "bookDescription": "'죽은 시인의 사회'(N.H. 클라인바움)를 읽고, 획일적인 교육 시스템 속에서 자신만의 목소리를 찾으려는 학생들의 모습에 깊이 공감함. '카르페 디엠'의 의미를 되새기며, 문학 교육이 단순한 지식 전달을 넘어 학생들의 삶을 변화시키는 힘이 있어야 함을 주장하는 교육 칼럼 형식의 글을 작성함.",
+      "author": "N.H. 클라인바움",
+      "bookTitle": "죽은 시인의 사회"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "밝고 긍정적인 성품으로 교우관계가 원만하며, 학급 부회장으로서 맡은 바 책임을 다하는 성실한 학생임. 특히 문학에 대한 남다른 애정을 바탕으로 교내 백일장, 독서 감상문 대회 등 관련 활동에 적극적으로 참여하여 자신의 재능을 계발하고자 노력함. 수업 시간에 집중력이 높고 발표에 적극적이며, 자신의 생각을 논리적으로 표현하는 능력이 우수함. 지적 호기심이 왕성하여 궁금한 점은 반드시 질문을 통해 해결하려는 탐구적인 자세를 지님."
+    },
+    {
+      "grade": 2,
+      "content": "문예 동아리 회장으로서 탁월한 리더십과 기획력을 발휘하여 동아리 활동을 성공적으로 이끌었음. 부원들의 의견을 경청하고 민주적으로 의사결정을 하며, 문학 기행 및 세미나 등 심도 있는 프로그램을 기획하여 구성원들의 만족도를 높임. 학업에 대한 열의가 강하고 자기주도적 학습 능력이 뛰어나며, 특히 국어 및 문학 교과에서 꾸준히 최상위권의 성적을 유지함. 교과 지식을 자신의 진로와 연관 지어 심화 탐구하는 역량이 인상적인 학생으로, 꾸준한 성장이 기대됨."
+    },
+    {
+      "grade": 3,
+      "content": "3년간 한국 문학 연구 및 출판 분야에 대한 뚜렷한 목표를 가지고 꾸준히 노력해 온 학생임. 심화된 교과 탐구와 소논문 작성 등을 통해 학문적 깊이를 더했으며, 후배들에게 자신의 지식과 경험을 나누어주는 멘토의 역할을 자처하는 등 이타적인 모습을 보여줌. 공동의 과제 해결 과정에서 궂은일을 마다하지 않고 헌신하며, 뛰어난 소통 능력으로 갈등을 예방하고 해결하는 성숙한 인성을 지님. 깊이 있는 사유와 따뜻한 마음을 겸비하여 어떤 공동체에서든 긍정적인 영향력을 발휘할 학생임."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "content": "음악의 역할과 가치 단원에서 음악이 영화나 문학 작품의 감동을 배가시키는 사례를 찾아 발표함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "A",
+      "content": "교내 문집 표지 디자인에 참여하여 문학적 감수성을 시각적으로 표현하는 능력을 보여줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "content": "배드민턴 경기의 규칙과 전략을 빠르게 습득하고 파트너와 협력하여 경기를 즐김.",
+      "creditHours": 2
+    }
+  ]
+}

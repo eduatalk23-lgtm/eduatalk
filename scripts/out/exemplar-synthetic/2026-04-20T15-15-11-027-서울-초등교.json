@@ -1,0 +1,1129 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울교-초등교-27",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울교_초등교_027",
+    "schoolName": "가상 일반고 BB",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울교육대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "초등교육과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10123"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이서연",
+      "studentNumber": "20323"
+    },
+    {
+      "grade": 3,
+      "className": "2반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박지훈",
+      "studentNumber": "30223"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "질병 결석 1일 (감기)",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 1,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "질병 지각 1일 (병원 진료)",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 국어 어휘력 경진대회 은상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 BB",
+      "participants": "1학년 재학생"
+    },
+    {
+      "grade": 1,
+      "awardName": "모범학생 표창장 (봉사 부문)",
+      "awardDate": "2024-12-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 BB",
+      "participants": "전교생"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 사회 탐구 보고서 대회 장려상",
+      "awardDate": "2025-06-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 BB",
+      "participants": "2학년 재학생"
+    },
+    {
+      "grade": 2,
+      "awardName": "수학 창의적 문제해결력 대회 동상",
+      "awardDate": "2025-11-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 BB",
+      "participants": "2학년 재학생"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 교육 토론 대회 최우수상",
+      "awardDate": "2026-05-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 BB",
+      "participants": "전교생"
+    },
+    {
+      "grade": 3,
+      "awardName": "졸업생 공로상",
+      "awardDate": "2027-01-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 BB",
+      "participants": "3학년 졸업생"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 특색 활동으로 '서로 존중하는 교실 문화 만들기' 프로젝트를 기획하고 주도적으로 참여함. 친구들의 의견을 경청하고 갈등 상황에서 중재자 역할을 훌륭히 수행하며, 학급의 긍정적인 분위기 형성에 기여했습니다. 특히 '칭찬 릴레이' 활동을 제안하여 학급 구성원 간의 유대감을 높이는 데 크게 이바지했습니다.",
+      "activityName": "학급 자치활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학생회 환경부 차장으로 활동하며 '잔반 줄이기 캠페인'과 '분리수거 교육'을 기획하고 실행함. 점심시간마다 각 학급의 잔반 양을 조사하여 그래프로 시각화하고, 이를 바탕으로 캠페인 효과를 분석하여 학생들의 참여를 독려하는 등 데이터 기반의 문제 해결 능력을 보여주었습니다.",
+      "activityName": "학생회 활동",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "또래상담 동아리 '어깨동무' 부원으로 활동하며 상담의 기본 원리와 기법을 학습하고, 역할극을 통해 공감적 경청과 효과적인 의사소통 방법을 체득함. '친구의 고민 들어주기' 캠페인을 통해 또래들의 학교생활 적응을 돕고, 상담 일지를 작성하며 인간관계에 대한 깊이 있는 성찰을 보여주었습니다.",
+      "activityName": "또래상담 동아리",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "초등교사 직업인 특강에 참여하여 예비 교사에게 필요한 역량과 교직의 보람에 대해 배우고, 현직 교사와의 질의응답을 통해 아동 발달에 대한 관심을 구체화함. '나의 교육관 정립하기' 활동에서 학습자의 눈높이에 맞는 교육의 중요성을 강조하는 보고서를 작성하여 진로에 대한 진지한 탐색 노력을 보여주었습니다.",
+      "activityName": "진로 특강 및 탐색 활동",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학급 문집 제작 위원으로 활동하며, '우리들의 성장 이야기'라는 주제를 제안하고 학급 친구들의 글과 사진을 모아 편집함. 친구들의 다양한 개성과 잠재력을 발견하고 이를 문집에 담아내려는 노력을 통해 공동체 의식과 포용력을 길렀으며, 뛰어난 기획력과 책임감을 보여주었습니다.",
+      "activityName": "학급 문집 제작 활동",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학급 회장으로서 학급회의를 민주적으로 운영하고, '스터디 그룹 활성화' 공약을 실천하여 학급의 전체적인 학습 분위기를 향상시킴. 특히 학습에 어려움을 겪는 친구들을 위해 직접 '또래 멘토링' 프로그램을 조직하고 운영하며 나눔과 배려의 리더십을 실천했습니다.",
+      "activityName": "학급 임원 활동",
+      "hours": 30
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "교육 봉사 동아리 '에듀-누리'의 부장으로 활동하며, 지역아동센터와 연계한 초등학생 대상 학습 멘토링 프로그램을 총괄 기획하고 운영함. '놀이와 학습을 결합한 교육'을 주제로 직접 교구를 제작하고 수업을 진행하며, 아동의 발달 단계에 맞는 교육 방법의 중요성을 체감하고 예비 교사로서의 자질을 함양했습니다.",
+      "activityName": "교육 봉사 동아리",
+      "hours": 40
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학교 전공 체험 프로그램에 참여하여 교육학과 및 심리학과 수업을 청강하고, 재학생 멘토와의 만남을 통해 진로 계획을 구체화함. 특히 '발달심리학 개론' 수업을 통해 아동의 인지 및 정서 발달 과정에 대한 학문적 호기심을 키웠고, 이를 자신의 진로인 초등 교육과 연결하여 심층적인 탐구로 이어가는 계기를 마련했습니다.",
+      "activityName": "대학 전공 탐색 활동",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업 앨범 제작 위원으로 활동하며 학급의 1년간의 활동을 기록하고 정리하는 역할을 맡음. 친구들과의 협업을 통해 창의적인 앨범 콘셉트를 제시하고, 사진 촬영 및 편집 과정에서 뛰어난 소통 능력을 발휘하여 모두가 만족하는 결과물을 만들어내는 데 핵심적인 역할을 수행했습니다.",
+      "activityName": "졸업 앨범 제작",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "3학년 학생 대표로서 후배들을 위한 '학습법 멘토링' 프로그램을 주도적으로 기획 및 운영함. 자신의 학습 경험과 과목별 공부 노하우를 체계적으로 정리하여 발표하고, 후배들의 질문에 성심성의껏 답변하며 선배로서의 긍정적인 역할 모델을 제시했습니다.",
+      "activityName": "선후배 멘토링 활동",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "교육 시사 토론 동아리 '혜윰'에서 'AI 디지털 교과서 도입의 명과 암'이라는 주제로 심층 토론을 주도함. 관련 논문과 기사를 분석하여 교육 현장에서의 실효성과 역기능에 대한 균형 잡힌 시각을 제시했으며, 미래 교육이 나아가야 할 방향에 대한 자신의 교육 철학을 논리적으로 주장하여 높은 평가를 받았습니다.",
+      "activityName": "교육 시사 토론 동아리",
+      "hours": 40
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "모의수업 시연 대회를 준비하며 '초등 3학년 사회-고장의 생활' 단원의 교수-학습 과정안을 직접 설계하고 수업을 시연함. 학생 참여 중심의 활동과 멀티미디어 자료를 효과적으로 활용하여 학습 목표를 성공적으로 달성했으며, 동료 및 교사 피드백을 통해 수업 기술을 성찰하고 개선하는 예비 교사로서의 진지한 태도를 보여주었습니다.",
+      "activityName": "모의수업 시연 및 진로 포트폴리오 작성",
+      "hours": 15
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01~2025-02-28",
+      "cumulativeHours": 25,
+      "description": "지역아동센터 초등학생 대상 학습 지도 및 정서 지원. 주 1회 방문하여 국어, 수학 등 기초 과목 학습을 돕고, 함께 보드게임을 하거나 책을 읽어주는 등 긍정적 관계 형성을 위해 노력함. 특히 학습에 흥미를 느끼지 못하는 아동에게 맞춤형 칭찬과 격려를 통해 학습 동기를 부여하는 경험을 함.",
+      "hours": 25,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01~2026-02-28",
+      "cumulativeHours": 55,
+      "description": "지역아동센터 초등학생 대상 학습 멘토링 심화 활동. 동아리 활동과 연계하여 '놀이 수학' 프로그램을 직접 기획하고 진행함. 아동의 눈높이에 맞는 교구를 제작하고, 경쟁이 아닌 협력을 통해 문제를 해결하도록 유도하며 교육적 보람을 느낌. 멘티 아동의 발달 과정을 꾸준히 관찰하고 기록하며 아동 이해의 폭을 넓힘.",
+      "hours": 30,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01~2026-07-31",
+      "cumulativeHours": 75,
+      "description": "다문화가정 아동 대상 한글 교육 봉사. 한글 학습에 어려움을 겪는 아동에게 1:1로 그림 카드와 동요를 활용하여 쉽고 재미있게 한글을 가르침. 문화적 차이를 이해하고 존중하는 태도를 바탕으로 아동과 깊은 유대감을 형성했으며, 교육을 통한 사회 통합의 중요성을 깨닫는 계기가 됨.",
+      "hours": 20,
+      "location": "글로벌 함께 센터"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1등급",
+      "classAverage": 78.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 15.2,
+      "subjectType": "공통과목",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "2등급",
+      "classAverage": 75.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94.5,
+      "stdDev": 18.9,
+      "subjectType": "공통과목",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "1등급",
+      "classAverage": 80.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 14.8,
+      "subjectType": "공통과목",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1등급",
+      "classAverage": 81.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 13.5,
+      "subjectType": "공통과목",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "2등급",
+      "classAverage": 76.8,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.1,
+      "stdDev": 16.2,
+      "subjectType": "공통과목",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1등급",
+      "classAverage": 82.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 12.9,
+      "subjectType": "공통과목",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1등급",
+      "classAverage": 79.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 14.5,
+      "subjectType": "공통과목",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1등급",
+      "classAverage": 76.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 17.8,
+      "subjectType": "공통과목",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "2등급",
+      "classAverage": 81.3,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95.2,
+      "stdDev": 15.1,
+      "subjectType": "공통과목",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1등급",
+      "classAverage": 82,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "stdDev": 13.1,
+      "subjectType": "공통과목",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1등급",
+      "classAverage": 77.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95.8,
+      "stdDev": 15.9,
+      "subjectType": "공통과목",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1등급",
+      "classAverage": 83.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.9,
+      "stdDev": 12.5,
+      "subjectType": "공통과목",
+      "totalStudents": 208
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1등급",
+      "classAverage": 80.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.9,
+      "stdDev": 13.8,
+      "subjectType": "일반선택",
+      "totalStudents": 205
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2등급",
+      "classAverage": 73.4,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.1,
+      "stdDev": 19.2,
+      "subjectType": "일반선택",
+      "totalStudents": 205
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1등급",
+      "classAverage": 79.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "stdDev": 15.4,
+      "subjectType": "일반선택",
+      "totalStudents": 205
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1등급",
+      "classAverage": 82.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.4,
+      "stdDev": 12.8,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생활과 윤리",
+      "achievementLevel": "1등급",
+      "classAverage": 83.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "stdDev": 11.9,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "classAverage": 85,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 10,
+      "subjectType": "일반선택",
+      "totalStudents": 205
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1등급",
+      "classAverage": 81.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 13.2,
+      "subjectType": "일반선택",
+      "totalStudents": 203
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1등급",
+      "classAverage": 74,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 94.8,
+      "stdDev": 18.5,
+      "subjectType": "일반선택",
+      "totalStudents": 203
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1등급",
+      "classAverage": 80.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.2,
+      "stdDev": 14.9,
+      "subjectType": "일반선택",
+      "totalStudents": 203
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "윤리와 사상",
+      "achievementLevel": "1등급",
+      "classAverage": 82.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 12.1,
+      "subjectType": "일반선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "세계지리",
+      "achievementLevel": "2등급",
+      "classAverage": 78.9,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "stdDev": 15.8,
+      "subjectType": "일반선택",
+      "totalStudents": 110
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9,
+      "subjectType": "일반선택",
+      "totalStudents": 203
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심리학",
+      "achievementLevel": "A",
+      "classAverage": 85.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 8.5,
+      "subjectType": "진로선택",
+      "totalStudents": 75
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "교육학",
+      "achievementLevel": "A",
+      "classAverage": 88.1,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.2,
+      "subjectType": "진로선택",
+      "totalStudents": 70
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 86.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.9,
+      "stdDev": 8.1,
+      "subjectType": "진로선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1등급",
+      "classAverage": 71.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95.5,
+      "stdDev": 19.8,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고전과 윤리",
+      "achievementLevel": "A",
+      "classAverage": 84.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.2,
+      "stdDev": 9.3,
+      "subjectType": "진로선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어권 문화",
+      "achievementLevel": "A",
+      "classAverage": 83.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95.8,
+      "stdDev": 10.5,
+      "subjectType": "진로선택",
+      "totalStudents": 130
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "achievementLevel": "P",
+      "classAverage": 88,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 92,
+      "stdDev": 5,
+      "subjectType": "융합선택",
+      "totalStudents": 198
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "실용 통계",
+      "achievementLevel": "P",
+      "classAverage": 85,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 90,
+      "stdDev": 6,
+      "subjectType": "융합선택",
+      "totalStudents": 198
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제 탐구 독서",
+      "achievementLevel": "P",
+      "classAverage": 90,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 4,
+      "subjectType": "융합선택",
+      "totalStudents": 198
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "P",
+      "classAverage": 91,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 3,
+      "subjectType": "융합선택",
+      "totalStudents": 198
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "P",
+      "classAverage": 92,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 2.5,
+      "subjectType": "융합선택",
+      "totalStudents": 198
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로와 직업",
+      "achievementLevel": "P",
+      "classAverage": 90,
+      "creditHours": 1,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 5,
+      "subjectType": "융합선택",
+      "totalStudents": 198
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "수업 시간에 배운 문법 개념을 실생활 언어 사용과 연결하여 이해하려는 노력이 돋보이는 학생임. '음운 변동의 규칙성'을 학습한 후, 친구들의 별명이나 신조어에서 나타나는 음운 변동 현상을 찾아 분석하는 보고서를 작성함. 이를 통해 추상적인 문법 규칙이 실제 언어생활에 어떻게 적용되는지 탐구하며 지식을 구체화하는 능력을 보여주었습니다. 발표 시 논리적인 설명으로 친구들의 이해를 도왔습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "다항식의 연산 단원에서 곱셈 공식의 기하학적 의미에 대해 깊은 호기심을 보임. 교과서의 평면적인 설명에 그치지 않고, 직접 종이접기와 입체 모형 제작을 통해 (a+b)³의 전개식을 시각적으로 증명해내는 창의성을 발휘함. 이 과정을 통해 수학적 개념을 구체적으로 시각화하고, 복잡한 원리를 직관적으로 이해하는 능력이 뛰어남을 입증했습니다. 모둠 활동에서 친구들에게 자신의 증명 과정을 명확하게 설명하며 학습에 도움을 주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "영어 독해 활동에서 단순히 내용을 해석하는 것을 넘어 작가의 의도와 글의 숨은 맥락을 파악하는 능력이 우수함. '환경 보호' 관련 지문을 읽고, 글에 나타난 통계 자료의 신뢰성을 검증하기 위해 추가 자료를 조사하고 비판적으로 분석하는 보고서를 작성함. 이를 통해 정보의 편향성을 인지하고 객관적인 시각을 유지하려는 학문적 태도를 보여주었으며, 영어로 자신의 의견을 논리적으로 표현하는 능력이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "'행복의 의미와 기준'을 탐구하는 프로젝트에서 아리스토텔레스의 '에우다이모니아' 개념에 관심을 갖고, 이를 현대 사회의 행복론과 비교 분석함. 특히 '행복은 심리적 만족감뿐만 아니라 개인의 잠재력 실현과도 관련이 있다'는 관점을 제시하며, 자신의 진로인 '교사'가 아동의 잠재력 실현을 돕는 조력자라는 점에서 직업적 의미를 성찰하는 모습을 보임. 깊이 있는 인문학적 소양과 진로에 대한 진지한 고민이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "생명 시스템 단원에서 '세포 내 정보의 흐름(Central Dogma)'에 대해 학습한 후, 유전 정보가 발현되는 과정의 정교함에 깊은 인상을 받음. 특히 RNA의 종류와 기능에 호기심을 갖고, siRNA를 이용한 유전자 치료 기술의 원리와 가능성에 대해 추가로 조사하여 발표함. 과학적 원리를 실생활 문제 해결과 연결하여 탐구하는 자세가 훌륭하며, 어려운 개념을 그림과 비유를 통해 쉽게 설명하는 전달력이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "조선시대 교육기관인 서원과 향교의 역할과 차이점에 대해 탐구하며, 당시의 교육이 현대 공교육에 주는 시사점을 분석하는 보고서를 작성함. 특히 서원의 교육이 단순한 지식 전달을 넘어 인격 수양과 공동체 윤리 함양을 중시했다는 점에 주목함. 이를 통해 미래 교사로서 지식 교육과 인성 교육의 균형이 중요함을 깨닫고, 자신의 교육관을 정립하는 계기로 삼는 등 역사적 사실을 현재적 관점에서 재해석하는 능력이 우수합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "매체 비평문 쓰기 활동에서 청소년 스마트폰 사용에 대한 다큐멘터리를 시청하고, 영상이 사용한 통계 자료와 인터뷰의 편향성을 지적하는 날카로운 분석을 보여줌. 제작자의 숨은 의도를 파악하고, 균형 잡힌 시각에서 문제에 접근하려는 비판적 사고력이 돋보임. '디지털 리터러시 교육의 필요성'을 주제로 대안을 제시하며, 미래 사회의 교사로서 갖추어야 할 역량에 대해 고민하는 모습을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "함수 단원, 특히 역함수의 개념을 학습하며 '일대일 대응' 조건의 중요성을 깊이 있게 탐구함. 단순히 문제를 푸는 것을 넘어, 실생활에서 함수의 개념이 어떻게 활용되는지 사례를 찾아 발표함. 자판기를 예로 들어 '돈을 넣으면 음료가 나오는' 관계는 함수이지만, '음료 버튼을 누르면 돈이 나오는' 역의 관계는 성립하지 않음을 설명하며, 수학적 개념을 구체적인 사례에 적용하여 이해하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "영자신문 기사 분석 활동에서 '문화적 차이로 인한 오해'를 다룬 기사를 읽고, 각 문화권의 독특한 관용 표현(idiom)에 관심을 가짐. 'break a leg'와 같은 표현이 한국 문화권에서 어떻게 오해될 수 있는지 분석하고, 문화 상대주의적 관점의 중요성을 강조하는 에세이를 작성함. 타 문화에 대한 높은 이해와 개방적인 태도를 보여주었으며, 자신의 생각을 명확하고 설득력 있는 영어로 표현하는 능력이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "시장 경제와 금융 단원에서 '합리적 소비'에 대해 학습한 후, 청소년의 비합리적 소비 실태와 원인을 분석하는 설문조사를 직접 설계하고 실시함. 조사 결과를 바탕으로 '청소년 금융 교육의 필요성과 교육과정 제안'이라는 주제의 보고서를 작성하여 문제 해결을 위한 구체적인 대안을 제시하는 역량을 보여줌. 사회 현상을 주도적으로 탐구하고 실천적 해결 방안을 모색하는 자기주도적 학습 태도가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "발전과 신재생에너지 단원에서 다양한 에너지원의 장단점을 학습한 후, 교실 내 에너지 효율을 높이기 위한 방안을 탐구함. 창문의 단열 상태, 조명의 종류, 전자기기 대기 전력 등을 직접 측정하고 분석하여 '교실 에너지 절약 실천 매뉴얼'을 제작하고 발표함. 과학적 지식을 실생활에 적용하여 문제를 해결하려는 의지가 강하며, 데이터 분석 및 시각화 능력이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "일제강점기 민족 운동을 학습하며, 여성 독립운동가들의 활동에 주목하여 추가적인 조사를 진행함. 교과서에 잘 드러나지 않는 여성 독립운동가들의 삶과 투쟁을 조명하고, 그들의 활동이 갖는 역사적 의의를 재평가하는 발표를 하여 학우들의 큰 호응을 얻음. 주체적인 관점에서 역사를 탐구하고, 소외된 인물들의 목소리를 복원하려는 따뜻한 역사 인식을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "김유정의 '동백꽃'을 배운 후, 작품에 나타난 해학의 미학에 깊은 관심을 보임. 1930년대 농촌의 어려운 현실 속에서도 웃음을 잃지 않는 인물들의 모습이 현재 우리에게 주는 의미를 탐구함. 특히 점순이의 행동에 나타난 심리를 프로이트의 방어기제 이론과 연결하여 분석하는 독창적인 해석을 제시함. 문학 작품을 심리학적 관점에서 깊이 있게 분석하고, 이를 통해 인간에 대한 이해를 심화시키는 능력이 탁월합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "지수함수와 로그함수의 관계를 학습하며, 두 함수가 y=x에 대해 대칭인 이유를 그래프를 통해 직관적으로 이해하는 것을 넘어, 대수적으로 증명해 보이며 개념의 본질을 파고드는 탐구 정신을 보여줌. 복잡한 계산 문제에서도 끈기 있게 해결책을 찾아내는 성실함과 문제 해결 능력이 돋보이며, 모르는 문제를 친구들에게 적극적으로 질문하고 함께 해결하려는 협력적 학습 태도를 갖추었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "content": "영어 토론 수업에서 '조기 유학의 장단점'을 주제로 찬성 측 입론을 맡음. 관련 기사와 연구 자료를 폭넓게 조사하여, 조기 유학이 언어 능력 향상과 문화적 시야 확대에 기여한다는 주장을 구체적인 근거를 들어 논리적으로 펼침. 유창한 영어 구사 능력과 더불어, 상대방의 반론을 경청하고 핵심을 파악하여 설득력 있게 재반박하는 등 뛰어난 토론 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "content": "사회 계층 현상을 학습한 후, '교육이 계층 이동의 사다리 역할을 하는가'에 대한 탐구 보고서를 작성함. 피에르 부르디외의 '아비투스'와 '문화 자본' 개념을 활용하여, 가정 배경이 학업 성취와 진학에 미치는 영향을 심층적으로 분석함. 교육 불평등 문제의 심각성을 지적하고, 교육 기회의 실질적 평등을 위한 정책적 대안을 제시하며 예비 교육자로서의 문제의식과 책임감을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생활과 윤리",
+      "content": "생명 윤리 단원에서 '인공임신중절'에 대한 찬반 논쟁을 다루며, 프로초이스와 프로라이프 양측의 논리를 깊이 있게 분석함. 단순히 윤리적 딜레마로 접근하는 것을 넘어, 여성의 자기결정권, 태아의 생명권, 사회적 책임 등 다양한 쟁점을 종합적으로 고찰하는 균형 잡힌 시각을 보여줌. 토론 과정에서 자신의 의견과 다른 주장도 존중하며 합리적인 해결책을 모색하려는 성숙한 토론 태도가 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "content": "배구 수업에서 팀의 세터 역할을 맡아 동료들의 특성을 파악하고 그에 맞는 안정적인 토스를 공급하며 팀의 공격력을 극대화함. 경기 중 동료들을 격려하고 전략을 논의하는 등 리더십을 발휘하여 팀을 승리로 이끄는 데 핵심적인 역할을 수행함. 스포츠 활동을 통해 리더십과 협동심을 기르는 훌륭한 인성을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화법과 작문",
+      "content": "건의문 쓰기 활동에서 '학교 도서관의 아동 도서 확충'을 건의함. 초등 교육에 대한 자신의 관심을 바탕으로, 현재 도서관의 아동 도서 보유 현황을 분석하고, 학생들의 발달 단계에 맞는 추천 도서 목록을 구체적으로 제시함. 자신의 주장을 뒷받침하기 위해 설문조사를 실시하고 통계 자료를 활용하는 등 논리적이고 설득력 있는 글쓰기 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분 단원에서 '평균값 정리'의 의미와 활용에 대해 깊이 있게 탐구함. 교과서의 증명을 따라가는 수준을 넘어, 롤의 정리와의 관계를 명확히 설명하고 평균값 정리가 적용되지 않는 반례를 직접 찾아 발표하며 개념에 대한 완벽한 이해를 보여줌. 추상적인 정리의 의미를 실생활의 '구간 단속 카메라' 원리에 비유하여 설명하는 등 수학적 사고력과 응용력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "영어 원서 읽기 활동에서 조지 오웰의 '동물농장'을 읽고, 작품에 나타난 전체주의 비판과 권력의 속성에 대해 심층적인 분석 보고서를 영어로 작성함. 작품의 사회적, 역사적 배경을 조사하여 이해의 깊이를 더했으며, 작품의 주제를 현대 사회의 정치 현상과 연결하여 비판적으로 성찰하는 능력을 보여줌. 수준 높은 어휘력과 논리적인 문장 구성 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "윤리와 사상",
+      "content": "공리주의 사상을 배우며 벤담과 밀의 사상을 비교 분석하고, '최대 다수의 최대 행복' 원리가 가진 한계점을 비판적으로 고찰함. 특히 소수자의 권리가 무시될 수 있는 위험성에 주목하며, 정의의 원칙이 왜 필요한지에 대해 탐구함. 롤스의 '정의론'을 추가로 학습하여 자신의 논리를 보강하는 등, 하나의 사상에 머무르지 않고 비판과 대안을 함께 모색하는 지적 탐구 능력이 우수합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "세계지리",
+      "content": "다양한 지역의 주민 생활을 배우며, 문화 상대주의적 관점을 기르는 데 그치지 않고 보편적 인권의 관점에서 일부 문화(여성 할례 등)를 비판적으로 성찰하는 보고서를 작성함. 지리적 현상을 인권, 윤리와 같은 인문학적 주제와 연결하여 통합적으로 사고하는 능력이 뛰어나며, 세계 시민으로서의 균형 잡힌 시각과 책임감을 갖추고 있습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "content": "음악사 수업에서 모차르트의 생애와 음악에 깊은 감명을 받고, 영화 '아마데우스'를 찾아본 후 감상문을 제출함. 천재 작곡가의 인간적인 고뇌와 음악 세계를 자신만의 시각으로 분석하고, 특히 '레퀴엠'에 담긴 감정을 풍부한 표현력으로 묘사하여 교사에게 깊은 인상을 줌. 예술 작품에 대한 높은 감수성과 이해력을 갖추었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심리학",
+      "content": "피아제의 인지발달단계 이론을 학습한 후, 구체적 조작기에 해당하는 초등학생의 사고 특성에 깊은 관심을 보임. '보존 개념' 실험을 직접 설계하여 동생과 사촌 동생(7세, 10세)을 대상으로 실험을 진행하고, 연령에 따른 인지 발달의 차이를 관찰 분석하는 보고서를 작성함. 이론 학습에 그치지 않고 실제적 탐구를 통해 지식을 체화했으며, 예비 초등교사로서 아동의 발달 특성을 이해하려는 진지한 노력이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "교육학",
+      "content": "다양한 교육 사상가들을 배우며 존 듀이의 '경험 중심 교육'에 깊이 공감하고, 이를 현대적으로 계승한 '프로젝트 기반 학습(PBL)'에 대해 심층 탐구함. '초등 사회과에서의 PBL 적용 방안'을 주제로 모의 수업 지도안을 작성하여 발표했으며, 학생의 흥미와 자발적 참여를 유도하는 창의적인 활동을 구성하여 높은 평가를 받음. 교육 이론을 실제 교육 현장에 적용하려는 실천적 의지와 구체적인 설계 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "'저출산과 초등 학령인구 감소' 문제를 주제로 선정하여, 통계청 자료 분석을 통해 문제의 심각성을 확인하고 일본, 프랑스 등의 해외 사례와 비교 분석함. 특히 '작은 학교 살리기'와 '마을 교육 공동체' 등 위기를 기회로 전환하려는 국내의 다양한 노력들을 조사하고, 미래 초등 교육이 나아가야 할 방향에 대한 정책 제안 보고서를 작성함. 사회 문제에 대한 깊이 있는 통찰력과 대안 제시 능력이 탁월합니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "content": "통계적 추정 단원에서 신뢰구간의 의미를 명확히 이해하기 위해 노력함. '표본을 100번 뽑았을 때 95개의 신뢰구간이 모평균을 포함한다'는 개념을 시뮬레이션 프로그램을 활용해 직접 확인하고, 신뢰도와 표본 크기가 신뢰구간의 길이에 미치는 영향을 분석하여 발표함. 추상적인 통계 개념을 구체적인 실험을 통해 시각적으로 이해하고, 데이터에 기반한 합리적 의사결정의 중요성을 깨닫는 계기가 되었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고전과 윤리",
+      "content": "플라톤의 '국가'를 읽고, 그가 제시한 이상적인 교육의 목표와 방법(철인 통치)에 대해 탐구함. 현대 민주주의 사회의 교육 이념과 비교하며 플라톤 교육론의 의의와 한계를 비판적으로 분석하는 에세이를 작성함. 특히 '교육을 통한 정의로운 국가 실현'이라는 플라톤의 문제의식에 공감하며, 교사의 사회적 책무에 대해 깊이 성찰하는 모습을 보여주었습니다. 고전에 대한 깊이 있는 이해와 현대적 적용 능력이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어권 문화",
+      "content": "미국의 다문화주의(Melting Pot vs Salad Bowl)에 대한 텍스트를 읽고, 다양한 문화가 공존하는 사회의 갈등과 통합 양상에 대해 탐구함. 우리나라의 다문화 정책과 비교하며, 초등 교육 현장에서 다문화 가정 학생들을 포용하고 문화적 다양성을 존중하는 교육의 중요성을 강조하는 발표를 진행함. 문화적 감수성과 포용력을 바탕으로 사회 통합에 기여하고자 하는 예비 교사로서의 태도를 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "content": "제시문 기반 논술 작성 연습에서 뛰어난 독해력과 분석력을 바탕으로 출제자의 의도를 정확히 파악함. 특히 상반된 관점의 제시문들을 비교 분석하고, 이를 종합하여 자신의 견해를 논리적으로 서술하는 능력이 우수함. 교사의 첨삭 내용을 꼼꼼히 확인하고 자신의 글을 반복적으로 수정하며 글의 완성도를 높여가는 성실하고 발전적인 태도를 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "실용 통계",
+      "content": "공공데이터포털의 '전국초중등학교위치표준데이터'를 활용하여, 자신이 거주하는 지역의 초등학교 분포와 학생 수 변화 추이를 분석하는 프로젝트를 수행함. GIS 프로그램을 활용하여 분석 결과를 지리 정보와 결합, 시각적으로 표현하는 등 데이터 분석 및 활용 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제 탐구 독서",
+      "content": "‘아동의 권리’를 주제로 정하여 유니세프 보고서, '어린이 해방 선언(방정환)', '죽은 시인의 사회(N.H. 클라인바움)' 등 다양한 분야의 자료를 읽고 탐구 보고서를 작성함. 시대와 지역에 따라 아동 인권 인식이 어떻게 변화했는지 분석하고, 현대 사회에서 아동의 놀 권리와 참여권 보장을 위한 학교의 역할을 제언하는 등 깊이 있는 탐구 역량을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "운동과 건강",
+      "content": "건강 관리 프로젝트에서 자신의 생활 습관과 체력 수준을 과학적으로 분석하고, 맞춤형 운동 계획을 수립하여 3개월간 꾸준히 실천함. 규칙적인 운동을 통해 체력과 집중력이 향상되는 경험을 기록하고 발표하며, 건강한 삶을 위한 자기 관리의 중요성을 체득했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악 감상과 비평",
+      "content": "‘음악을 통한 치유’를 주제로 한 감상 보고서에서 베토벤 교향곡 9번 '합창'이 주는 벅찬 환희와 인류애적 메시지를 분석하고, 음악이 개인의 정서에 미치는 긍정적 영향에 대해 서술함. 음악 감상을 통해 자신의 감정을 성찰하고 타인의 감정에 공감하는 능력을 길렀습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로와 직업",
+      "content": "3년간의 학교생활을 바탕으로 '나의 성장 포트폴리오'를 작성함. 자신의 진로 희망이 '초등 교사'로 구체화되는 과정을 교과 활동, 창체 활동, 독서, 봉사 등과 유기적으로 연결하여 설득력 있게 제시함. 자신의 강점과 약점을 객관적으로 분석하고, 대학 진학 후의 학업 계획과 미래 교사로서의 비전을 구체적으로 설계하는 등 진로에 대한 높은 성숙도를 보여주었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'왜 학교는 질문을 가르치지 않는가'를 읽고, 주입식 교육의 문제점과 질문하는 능력의 중요성을 깨달음. 미래 교사로서 학생들의 호기심을 자극하고 자유롭게 질문하는 교실 분위기를 만들고 싶다는 다짐을 함.",
+      "author": "김대식",
+      "bookTitle": "왜 학교는 질문을 가르치지 않는가"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합사회",
+      "bookDescription": "'미움받을 용기'를 읽고, 아들러 심리학의 목적론적 관점에 깊은 인상을 받음. 타인의 과제와 나의 과제를 분리하는 법을 배우고, 교육 봉사 활동에서 겪는 어려움을 극복하는 데 심리적 도움을 얻음.",
+      "author": "기시미 이치로, 고가 후미타케",
+      "bookTitle": "미움받을 용기"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "과학",
+      "bookDescription": "'이기적 유전자'를 읽고, 생명 현상을 유전자의 관점에서 바라보는 새로운 시각에 충격을 받음. 인간의 이타적 행동 또한 유전자의 전략일 수 있다는 주장을 통해 인간 본성에 대해 깊이 고찰하는 계기가 됨.",
+      "author": "리처드 도킨스",
+      "bookTitle": "이기적 유전자"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "진로",
+      "bookDescription": "'교사, 가르침을 말하다'를 읽고, 현직 초등 교사들의 생생한 경험담을 통해 교직의 어려움과 보람을 간접적으로 체험함. 학생들과의 래포 형성과 생활 지도의 중요성을 깨닫고 교사라는 꿈을 더욱 확고히 함.",
+      "author": "김현수 외",
+      "bookTitle": "교사, 가르침을 말하다"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "문학",
+      "bookDescription": "'데미안'을 읽고, 자기 자신을 찾아가는 주인공 '싱클레어'의 성장 과정에 깊이 공감함. '알을 깨고 나오는 새'의 비유를 통해 기존의 가치관을 넘어 진정한 자아를 찾아가는 고통과 환희에 대해 성찰함.",
+      "author": "헤르만 헤세",
+      "bookTitle": "데미안"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회",
+      "bookDescription": "'정의란 무엇인가'를 읽고, 공리주의, 자유지상주의, 공동체주의 등 다양한 정의론을 학습함. 사회적 딜레마 상황에서 어떤 가치를 우선해야 할지 고민하며, 사회 현상을 비판적으로 바라보는 능력을 기름.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "윤리",
+      "bookDescription": "루소의 '에밀'을 읽고, 자연주의 교육 사상에 대해 탐구함. 아동의 발달 단계를 존중하고, 주입식 교육이 아닌 스스로의 경험을 통해 배우게 해야 한다는 주장에 깊이 공감하며 자신의 교육관을 정립하는 데 큰 영향을 받음.",
+      "author": "장 자크 루소",
+      "bookTitle": "에밀"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "'The Giver'를 읽고, 모든 것이 통제된 유토피아적 사회의 문제점을 비판적으로 고찰함. 고통과 슬픔 없는 삶이 과연 행복한 삶인지에 대해 고민하고, 개인의 선택과 기억의 중요성을 깨닫는 계기가 됨.",
+      "author": "Lois Lowry",
+      "bookTitle": "The Giver (기억 전달자)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "진로",
+      "bookDescription": "비고츠키의 '생각과 언어'를 읽고, 사회문화적 상호작용이 아동의 인지 발달에 미치는 영향의 중요성을 깨달음. 특히 '근접발달영역(ZPD)' 개념을 통해 교사와 또래의 역할이 아동의 잠재력을 이끌어내는 데 얼마나 중요한지 학문적으로 이해함.",
+      "author": "레프 비고츠키",
+      "bookTitle": "생각과 언어"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "심리학",
+      "bookDescription": "'아동심리학'을 읽고, 태아기부터 청소년기까지의 신체, 인지, 사회, 정서 발달 과정을 체계적으로 학습함. 피아제, 비고츠키, 에릭슨 등 주요 발달 이론을 비교하며 이해의 폭을 넓혔고, 이를 실제 아동 관찰에 적용해봄.",
+      "author": "정옥분",
+      "bookTitle": "아동심리학"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "교육학",
+      "bookDescription": "'핀란드 교육 혁명'을 읽고, 경쟁이 아닌 협력, 표준화가 아닌 개별화를 중시하는 핀란드 교육의 성공 요인을 분석함. 우리나라 교육 현실에 대한 비판적 성찰과 함께 미래 교육이 나아가야 할 방향에 대한 아이디어를 얻음.",
+      "author": "파시 살베리",
+      "bookTitle": "핀란드 교육 혁명"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "'총, 균, 쇠'를 읽고, 인류 문명의 불평등이 인종적 차이가 아닌 지리적, 환경적 요인에서 비롯되었다는 주장을 접하며 역사와 사회를 바라보는 거시적인 안목을 기름. 문명 발달에 대한 결정론적 시각의 한계에 대해서도 고민함.",
+      "author": "재레드 다이아몬드",
+      "bookTitle": "총, 균, 쇠"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어",
+      "bookDescription": "'나의 문화유산답사기'를 읽고, 우리 국토와 문화유산에 담긴 아름다움과 역사적 의미를 느낌. 아는 만큼 보인다는 저자의 말에 공감하며, 역사 교육에서 현장 체험 학습의 중요성을 깨닫고 교사가 되면 학생들과 함께 답사를 가고 싶다는 생각을 함.",
+      "author": "유홍준",
+      "bookTitle": "나의 문화유산답사기"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "'죽은 시인의 사회'를 읽고, '키팅' 선생님을 통해 진정한 교육자의 역할에 대해 깊이 고민함. 학생들에게 입시 위주의 교육이 아닌, 자신의 삶을 주체적으로 살아갈 용기와 지혜를 주는 교사가 되고 싶다는 꿈을 다시 한 번 확인하는 계기가 됨.",
+      "author": "N.H. 클라인바움",
+      "bookTitle": "죽은 시인의 사회"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "수학",
+      "bookDescription": "'수학, 인문으로 수를 읽다'를 읽고, 수학이 단순한 계산이 아니라 세상을 이해하는 논리적 언어이자 인문학적 사유의 도구임을 깨달음. 수학의 역사와 철학에 대한 이해를 통해 수학에 대한 흥미와 시야를 넓힘.",
+      "author": "이광연",
+      "bookTitle": "수학, 인문으로 수를 읽다"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "밝고 긍정적인 성품으로 학급 분위기를 주도하며, 타인에 대한 공감 능력이 뛰어나 친구들 사이에서 신망이 두텁습니다. 특히 학습에 어려움을 겪는 친구에게 먼저 다가가 도움을 주는 등 따뜻한 마음을 가졌습니다. 지적 호기심이 왕성하여 수업 시간에 적극적으로 질문하고, 자기주도적으로 심화 탐구하는 자세가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "content": "학급 회장으로서 책임감과 리더십을 발휘하여 학급의 단합을 이끌었으며, 특히 '또래 멘토링'을 직접 조직하고 운영하며 나눔과 배려를 실천했습니다. 교육과 아동 심리에 대한 뚜렷한 목표 의식을 가지고 관련 교과 및 동아리 활동에 열정적으로 참여하며 자신의 진로를 구체화해나가는 모습이 인상적입니다. 지식의 깊이를 더하려는 학문적 성실함이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "content": "예비 교사로서의 성숙한 태도와 깊이 있는 통찰력을 갖춘 학생입니다. 교육 문제에 대한 날카로운 분석력과 실천적인 대안 제시 능력이 탁월하며, 토론과 발표에서 자신의 교육 철학을 논리적으로 펼쳐냅니다. 3년간 꾸준히 이어온 학습 멘토링 봉사활동을 통해 아동에 대한 깊은 이해와 애정을 보여주었으며, 따뜻한 인성과 뛰어난 역량을 겸비하여 장차 훌륭한 초등 교사로 성장할 것이라 기대됩니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "content": "모든 체육 활동에 적극적으로 참여하며, 특히 단체 활동에서 협동심과 배려심을 발휘함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "P",
+      "content": "창의적인 발상으로 주제를 표현하는 능력이 우수하며, 작품의 완성도가 높음.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "content": "배구 수업에서 뛰어난 순발력과 팀워크를 보여주며, 세터로서의 역할을 훌륭히 수행함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "P",
+      "content": "음악의 시대적 배경과 특징을 이해하고 감상하는 능력이 뛰어나며, 감상문 작성 능력이 우수함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "P",
+      "content": "자신의 체력 수준을 과학적으로 분석하고 꾸준한 운동 계획을 실천하여 자기 관리 능력을 보여줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "P",
+      "content": "음악이 정서에 미치는 영향을 깊이 있게 탐구하고, 자신의 감상을 논리적으로 표현하는 능력이 뛰어남.",
+      "creditHours": 2
+    }
+  ]
+}

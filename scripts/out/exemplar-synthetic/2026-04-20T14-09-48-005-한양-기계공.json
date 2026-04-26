@@ -1,0 +1,651 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/한양대-기계공-5",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_한양대_기계공_005",
+    "schoolName": "가상 일반고 F",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "한양대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "기계공학부",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "3반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사A",
+      "studentNumber": "10315"
+    },
+    {
+      "grade": 2,
+      "className": "2반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사B",
+      "studentNumber": "20215"
+    },
+    {
+      "grade": 3,
+      "className": "1반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박교사C",
+      "studentNumber": "30115"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병결 1일 (감기)",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병조퇴 1일 (치과 진료)",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 수학경시대회 동상",
+      "awardDate": "2024-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 F 교장",
+      "participants": "120명"
+    },
+    {
+      "grade": 1,
+      "awardName": "과학 탐구 보고서 발표대회 장려상",
+      "awardDate": "2024-11-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 F 교장",
+      "participants": "45팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 물리경시대회 은상",
+      "awardDate": "2025-07-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 F 교장",
+      "participants": "85명"
+    },
+    {
+      "grade": 2,
+      "awardName": "창의융합 발명 아이디어 공모전 우수상",
+      "awardDate": "2025-10-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 F 교장",
+      "participants": "38팀"
+    },
+    {
+      "grade": 3,
+      "awardName": "학업우수상 (물리학II, 기하)",
+      "awardDate": "2026-07-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 F 교장",
+      "participants": "해당 과목 수강생"
+    },
+    {
+      "grade": 3,
+      "awardName": "자기주도 탐구 프로젝트 발표대회 최우수상",
+      "awardDate": "2026-08-29",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 F 교장",
+      "participants": "25팀"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 특색 활동으로 '미래 기술과 사회 변화'를 주제로 한 토론에 참여하여, 자율주행 기술이 가져올 직업 윤리 및 사회 안전망의 변화에 대해 논리적으로 발표함. 특히 트롤리 딜레마를 공학적 관점에서 해석하고, 상황 판단 알고리즘의 중요성을 강조하여 깊은 인상을 남겼습니다. 이를 통해 기술 개발자의 사회적 책임에 대해 성찰하는 계기가 되었습니다.",
+      "activityName": "학급 자율활동",
+      "hours": 12
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학급 부회장으로서 '학급 비품 관리 시스템' 개선을 제안하고 실행함. QR코드를 활용하여 비품 대여 및 반납 기록을 자동화하는 아이디어를 내고, 구글 설문지와 연동하여 효율적인 관리 체계를 구축하는 데 기여했습니다. 문제 해결을 위해 주도적으로 아이디어를 내고 친구들을 설득하는 리더십을 보여주었습니다.",
+      "activityName": "학급 임원 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "로봇 공학 자율동아리 '로보티즌'의 창립 멤버로 참여함. 아두이노와 기본 센서(초음파, 적외선)의 작동 원리를 학습하고, C++ 기반 프로그래밍을 익혔습니다. 팀원들과 협력하여 라인트레이서 로봇을 제작하는 과정에서, 모터 드라이버의 PWM 제어를 통해 속도를 조절하고 센서 값의 오차를 보정하는 등 문제 해결 능력을 길렀습니다. 동아리 활동을 통해 기계공학 및 로보틱스에 대한 구체적인 진로 목표를 설정하게 되었습니다.",
+      "activityName": "자율동아리 '로보티즌'",
+      "hours": 50
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 탐색의 날에 '4차 산업혁명과 미래 직업'을 주제로 한 전문가 초청 강연에 참여함. 특히 로보틱스 엔지니어의 역할과 전망에 깊은 감명을 받아, 강연 후 '자율주행 자동차의 센서 기술'을 주제로 추가 조사를 진행하고 보고서를 작성함. 이를 통해 기계공학이 단순한 기계 제작을 넘어 인공지능, 전자공학 등 다양한 분야와 융합되는 학문임을 이해하게 되었습니다.",
+      "activityName": "진로 특강 및 탐색 활동",
+      "hours": 10
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "과학의 날 행사에서 '생활 속 물리 현상' 부스를 기획하고 운영함. 특히 '무게중심과 구조 안정성'을 주제로, 스파게티 면과 마시멜로를 이용해 가장 높은 탑을 쌓는 체험 활동을 주도하여 학생들의 큰 호응을 얻었습니다. 공학적 원리를 쉽고 재미있게 설명하는 의사소통 능력을 보여주었으며, 이 과정에서 트러스 구조의 원리를 구조 역학과 연결하여 심화 탐구로 이어가는 계기를 마련했습니다.",
+      "activityName": "과학의 날 부스 운영",
+      "hours": 12
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 학술부 차장으로 활동하며 '교내 과학 탐구토론대회'를 기획하고 진행함. 대회 주제 선정부터 홍보, 심사 기준 마련 등 전 과정에 주도적으로 참여했습니다. 특히 참가자들의 탐구 과정을 돕기 위해 '연구 방법론 및 논문 검색법'에 대한 안내 자료를 제작 및 배포하여 대회 수준을 높이는 데 기여했다는 평가를 받았습니다.",
+      "activityName": "학생회 학술부 활동",
+      "hours": 25
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "자율동아리 '로보티즌'의 프로젝트 팀장으로서 'SLAM 알고리즘을 이용한 자율주행 로봇 제작' 프로젝트를 이끎. ROS(Robot Operating System)와 파이썬을 학습하고, 라이다(LiDAR) 센서를 활용하여 실시간으로 주변 환경 지도를 생성하고 로봇의 위치를 추정하는 시스템을 구축했습니다. 특히 센서 데이터의 노이즈를 제거하기 위해 칼만 필터의 기본 원리를 적용해보는 등 이론을 실제 문제에 적용하려는 노력이 돋보였습니다. 이 경험을 통해 소프트웨어와 하드웨어의 통합적 사고 능력을 함양했습니다.",
+      "activityName": "자율동아리 '로보티즌'",
+      "hours": 60
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "한양대학교에서 주최한 '전공체험 프로그램'에 참여하여 기계공학부 연구실을 탐방하고 재학생 멘토들과의 만남을 가짐. 특히 '로봇 및 지능 시스템 연구실'에서 진행 중인 착용형 로봇 연구에 깊은 인상을 받고, 미래 연구 분야에 대한 구체적인 목표를 설정하는 계기가 되었습니다. 이후 '인간-로봇 상호작용(HRI) 기술의 현황과 미래'를 주제로 심화 보고서를 작성하여 제출했습니다.",
+      "activityName": "대학 연계 전공 탐색",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "3학년 학생들을 대상으로 'AI 윤리 및 공학도의 사회적 책무'라는 주제의 세미나를 자율적으로 조직하고 발표함. 자율주행 자동차의 사고 책임, 데이터 편향성 문제 등을 공학적, 철학적 관점에서 분석하고 해결 방안을 제시하는 토론을 이끌었습니다. 기술 개발의 방향성에 대해 깊이 고민하는 성숙한 태도를 보여주었습니다.",
+      "activityName": "주제 탐구 세미나",
+      "hours": 10
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "졸업준비위원회에서 활동하며, 졸업 앨범 및 영상 제작 과정에서 '자동 얼굴 인식 기반 사진 분류 프로그램'을 제안하고 프로토타입을 개발함. OpenCV 라이브러리를 활용하여 앨범 제작의 효율성을 높이는 방안을 제시하며, 자신의 공학적 지식을 공동체 문제 해결에 적용하는 실천적 자세를 보여주었습니다.",
+      "activityName": "졸업준비위원회 활동",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "자율동아리 '로보티즌'의 회장으로서 동아리 활동을 총괄함. 신입 부원들을 위한 아두이노 및 3D 모델링 스터디를 조직하고 멘토링을 제공함. 3년간의 활동을 집대성하여 '카메라와 라이다 센서 퓨전을 통한 실내 자율 배송 로봇'을 개발하고 교내 축제에서 시연함. EKF(확장 칼만 필터)를 적용하여 위치 추정 정확도를 개선한 과정을 상세히 기술한 최종 보고서를 작성하며, 리더십과 심화된 전공 탐구 역량을 동시에 증명했습니다.",
+      "activityName": "자율동아리 '로보티즌'",
+      "hours": 40
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "자신의 진로 계획과 학업 포트폴리오를 정리하며 '로보틱스 엔지니어가 되기 위한 자기주도 탐구 과정과 대학 진학 후 학업 계획'이라는 제목의 소논문을 작성함. 고교 3년간의 탐구 활동을 기계공학의 세부 분야(동역학, 제어공학, 설계)와 연결하고, 한양대학교 기계공학부의 커리큘럼과 연구실에 대한 분석을 바탕으로 구체적인 학업 로드맵을 제시하여 진로에 대한 확고한 의지와 준비성을 보여주었습니다.",
+      "activityName": "진로 포트폴리오 작성",
+      "hours": 10
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01~2025-02-28",
+      "cumulativeHours": 20,
+      "description": "교내 환경 정화 활동, 도서관 도서 정리 봉사 등",
+      "hours": 20,
+      "location": "교내"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01~2026-02-28",
+      "cumulativeHours": 40,
+      "description": "지역 아동센터 초등학생 대상 과학 원리 교육 봉사 (재능기부)",
+      "hours": 20,
+      "location": "행복나눔 아동센터"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01~2026-08-31",
+      "cumulativeHours": 50,
+      "description": "교내 과학실험실 기자재 정리 및 후배 실험 보조",
+      "hours": 10,
+      "location": "교내"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "2",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "stdDev": 10.5,
+      "totalStudents": 220
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1",
+      "classAverage": 75.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 15.2,
+      "totalStudents": 220
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "2",
+      "classAverage": 82.4,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.1,
+      "stdDev": 12.3,
+      "totalStudents": 220
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "2",
+      "classAverage": 80.5,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95.2,
+      "stdDev": 13.1,
+      "totalStudents": 220
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "2",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.4,
+      "stdDev": 11.2,
+      "totalStudents": 218
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "2",
+      "classAverage": 78.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94.5,
+      "stdDev": 14.8,
+      "totalStudents": 218
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1",
+      "classAverage": 81.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 12.5,
+      "totalStudents": 218
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "정보",
+      "achievementLevel": "1",
+      "classAverage": 88.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 8,
+      "totalStudents": 218
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "2",
+      "classAverage": 84,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 91,
+      "stdDev": 9.8,
+      "totalStudents": 210
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 72.5,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.8,
+      "stdDev": 16.1,
+      "totalStudents": 210
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 70.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 17.5,
+      "totalStudents": 155
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 71.3,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92,
+      "stdDev": 16.8,
+      "totalStudents": 160
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "2",
+      "classAverage": 85.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "stdDev": 9.5,
+      "totalStudents": 210
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 73.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 15.9,
+      "totalStudents": 210
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "기하",
+      "achievementLevel": "1",
+      "classAverage": 78.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 13,
+      "totalStudents": 110
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "프로그래밍",
+      "achievementLevel": "A",
+      "classAverage": 89,
+      "creditHours": 3,
+      "rawScore": 98,
+      "stdDev": 7.5,
+      "subjectType": "진로선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1",
+      "classAverage": 70.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.9,
+      "stdDev": 18.2,
+      "totalStudents": 180
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 68.9,
+      "creditHours": 4,
+      "rawScore": 96,
+      "stdDev": 19.5,
+      "subjectType": "진로선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "공학 일반",
+      "achievementLevel": "A",
+      "classAverage": 85.5,
+      "creditHours": 3,
+      "rawScore": 97.2,
+      "stdDev": 9.1,
+      "subjectType": "진로선택",
+      "totalStudents": 60
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "achievementLevel": "2",
+      "classAverage": 81.2,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 11.8,
+      "totalStudents": 180
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 수학Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 80.1,
+      "creditHours": 3,
+      "rawScore": 95.5,
+      "stdDev": 12.4,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "물리 파트의 '힘과 운동' 단원에서 뉴턴의 운동 법칙에 대한 높은 이해도를 보였습니다. 특히 '자율주행 자동차의 안전거리 확보'라는 주제로 탐구 활동을 진행, 등가속도 운동 공식을 실제 상황에 적용하여 속도별 제동거리를 계산하고 안전거리 모델을 제시했습니다. 이 과정에서 변인 통제의 중요성을 이해하고 논리적으로 실험을 설계하는 과학적 탐구 능력이 돋보였습니다. 교사의 관찰 결과, 해당 학생은 복잡한 현상을 물리 법칙으로 단순화하여 분석하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "함수 단원에서 정의역과 공역의 관계에 대한 깊은 이해를 바탕으로, 로봇 팔의 작업 영역(Workspace)을 함수로 표현해보려는 창의적인 시도를 하였습니다. 2D 평면에서 로봇 팔의 길이를 반지름으로 하는 원의 방정식으로 작업 가능 영역을 표현하고, 특정 지점에 도달하기 위한 관절 각도를 계산하는 과정을 발표했습니다. 수학적 개념을 공학적 문제 해결에 연결하는 융합적 사고력이 돋보이며, 추상적인 개념을 구체적인 모델로 시각화하는 능력이 우수합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "정보",
+      "content": "파이썬 프로그래밍 단원에서 뛰어난 학습 태도와 실력을 보여주었습니다. 조건문과 반복문을 활용하여 간단한 '장애물 회피 알고리즘'을 텍스트 기반으로 시뮬레이션하는 프로그램을 제작했습니다. 가상의 로봇이 센서 값(입력)에 따라 '전진', '좌회전', '우회전'을 결정하는 로직을 구현하며 알고리즘적 사고의 기초를 다졌습니다. 자신의 진로 희망인 로보틱스와 교과 내용을 연결하려는 자기주도적 학습 자세가 인상적인 학생입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "content": "역학적 에너지 보존 법칙을 학습한 후, 이를 응용하여 '로봇 그리퍼의 파지력과 에너지 효율성'에 대한 심화 탐구를 진행했습니다. 모터의 토크와 기어비를 고려하여 그리퍼가 물체를 드는 데 필요한 최소한의 에너지를 계산하고, 위치에너지 변화를 통해 실제 들어 올리는 데 사용된 유효 에너지를 분석하여 시스템의 효율을 도출했습니다. 이론 지식을 실제 공학 시스템 분석에 적용하는 능력이 탁월하며, 유려한 발표로 탐구 과정을 공유하여 학우들의 이해를 도왔습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "수열의 극한 단원에서 배운 무한등비급수의 개념을 프랙탈 구조에 적용하여 '코흐 곡선(Koch Snowflake)의 길이'를 계산하는 탐구 활동을 진행했습니다. 이후 이를 자율주행 로봇의 경로 계획 문제로 확장하여, 복잡한 공간을 프랙탈 구조로 분할하고 최단 경로를 찾는 아이디어를 제시했습니다. 추상적인 수학적 원리를 구체적인 문제 해결의 도구로 활용하는 능력이 뛰어나며, 하나의 지식에서 여러 갈래로 생각을 확장해나가는 창의적 사고가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "기하",
+      "content": "공간벡터 단원에서 학습한 벡터의 내적과 외적을 활용하여 '3D 스캐너의 포인트 클라우드 데이터 처리 원리'를 탐구했습니다. 각 점에서 법선 벡터(Normal Vector)를 계산하여 표면의 방향성을 파악하고, 이를 통해 3D 모델의 표면을 재구성하는 원리를 수학적으로 증명해냈습니다. 특히 이 과정을 통해 자율주행에 사용되는 라이다 센서의 원리를 깊이 이해하게 되었다고 발표하여, 지식을 적극적으로 확장하고 연결하는 지적 탐구심을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "프로그래밍",
+      "content": "객체지향 프로그래밍(OOP) 개념을 학습하고, 이를 활용하여 '자율주행 자동차 시뮬레이터'의 기본 클래스를 설계하는 프로젝트를 수행했습니다. '자동차', '센서', '도로' 등의 요소를 각각의 객체로 정의하고, 각 객체의 속성(속도, 위치)과 메서드(가속, 감속, 방향 전환)를 구현했습니다. 복잡한 시스템을 모듈화하여 설계하는 공학적 접근 방식을 훌륭하게 이해하고 적용했으며, 이를 통해 소프트웨어 설계 능력의 성장 가능성을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "정적분의 활용 단원에서 '구분구적법'의 원리를 깊이 탐구하고, 이를 '라이다(LiDAR) 센서 데이터 기반의 장애물 부피 추정' 문제에 적용하는 보고서를 작성했습니다. 불규칙한 형태의 장애물을 얇은 원판으로 무수히 많이 잘라 각 단면의 넓이를 적분하여 부피를 근사하는 알고리즘을 제시했습니다. 특히 오차를 줄이기 위해 적분 구간을 나누는 방법에 대해 심도 있게 고찰하는 등 대학 수준의 수학적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "content": "전자기장 단원에서 '홀 효과(Hall Effect)'에 대한 이론을 학습한 후, 이를 이용한 BLDC 모터의 제어 원리에 대해 심화 탐구 보고서를 제출했습니다. 홀 센서가 회전자의 자극 위치를 감지하여 컨트롤러에 전달하고, 컨트롤러가 코일의 전류 방향을 전환시켜 회전력을 발생시키는 과정을 상세히 분석했습니다. 『Fundamentals of Electric Circuits』(Sadiku)를 참고하여 등가회로를 분석하는 등, 고교 수준을 넘어선 깊이 있는 탐구 역량을 증명했습니다. 교사 관찰 결과, 이 학생은 복잡한 물리 현상의 핵심 원리를 파악하고 이를 공학 기술과 연결하는 데 매우 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "공학 일반",
+      "content": "‘공학 설계’ 프로젝트에서 '스마트팜을 위한 자율주행 방제 로봇'의 콘셉트 디자인을 발표했습니다. CAD 프로그램을 활용하여 3D 모델링을 진행하고, 주요 부품(구동부, 약품 탱크, 노즐)의 배치를 최적화하는 과정을 보여주었습니다. 특히, 로봇의 경로 계획을 위해 GPS와 IMU 센서를 결합하는 '센서 퓨전'의 필요성을 역설하고, 기본적인 시스템 아키텍처를 제시하여 공학 문제에 대한 시스템적 사고 능력을 보여주었습니다. 설계 과정에서 기술적 요소뿐만 아니라 경제성, 안정성까지 고려하는 종합적인 공학도의 자질을 갖추었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 수학Ⅰ",
+      "content": "행렬과 선형 변환 단원에서 배운 지식을 바탕으로 '로봇 팔의 순기구학(Forward Kinematics) 문제 해결'을 주제로 탐구했습니다. 각 관절의 각도 변수에 따라 로봇 팔 끝점(End-effector)의 위치와 방향을 계산하기 위해 동차 변환 행렬(Homogeneous Transformation Matrix)을 도입하고, 이를 행렬 곱으로 표현하는 과정을 유도했습니다. 이 탐구를 통해 로봇의 움직임을 수학적으로 정밀하게 기술하는 능력을 보여주었으며, 자신의 진로 분야에 필요한 고등 수학 지식을 자발적으로 학습하고 적용하는 열정을 증명했습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "과학",
+      "bookDescription": "'모든 순간의 물리학'을 읽고, 일상 현상 속에 숨겨진 물리 법칙에 흥미를 느낌. 특히 관성과 마찰력에 대한 설명을 읽고, 이를 로봇의 움직임 제어와 연결하여 생각해보는 계기가 되었음.",
+      "author": "카를로 로벨리",
+      "bookTitle": "모든 순간의 물리학"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학/공학",
+      "bookDescription": "'로봇 다빈치, 꿈의 수술을 완성하다'를 읽고, 의료 로봇 기술의 발전상과 기계공학이 인류에 기여하는 바에 깊은 감명을 받음. 정밀한 로봇 제어 기술의 중요성을 깨닫고 로보틱스 엔지니어의 꿈을 구체화함.",
+      "author": "김병수",
+      "bookTitle": "로봇 다빈치, 꿈의 수술을 완성하다"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "물리/공학",
+      "bookDescription": "'특수상대성이론과 일반상대성이론'을 읽고, GPS 시스템의 작동 원리에 시공간의 상대성이 적용된다는 사실에 지적 충격을 받음. 자율주행에 필수적인 정밀 측위 기술의 이면에 깊은 과학적 원리가 있음을 깨닫고 물리 탐구의 깊이를 더함.",
+      "author": "알베르트 아인슈타인",
+      "bookTitle": "특수상대성이론과 일반상대성이론"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "융합",
+      "bookDescription": "'축적의 시간'을 읽고, 개념 설계를 통한 고부가가치 산업의 중요성을 배움. 단순히 기존 기술을 모방하는 것을 넘어, 새로운 개념을 창조하는 공학자가 되겠다고 다짐하며, 동아리 활동에서 창의적인 로봇 설계에 도전하는 계기로 삼음.",
+      "author": "이정동",
+      "bookTitle": "축적의 시간"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "공학/수학",
+      "bookDescription": "'Introduction to Autonomous Robots' (영문 원서)의 일부 챕터를 발췌하여 읽고, 베이즈 필터와 칼만 필터의 기본 개념을 학습함. 불확실한 센서 데이터를 확률적으로 처리하여 로봇의 상태를 추정하는 원리를 이해하고, '물리학II' 및 '심화수학' 탐구 보고서 작성에 이론적 기반으로 활용함.",
+      "author": "Nikolaus Correll",
+      "bookTitle": "Introduction to Autonomous Robots"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "인문/사회",
+      "bookDescription": "'클라라와 태양'을 읽고, 인공지능 로봇과 인간의 관계에 대해 철학적으로 고찰함. 기술 개발자로서 가져야 할 윤리 의식과 사회적 책임에 대해 성찰하고, '인간 중심의 기술'을 개발하는 공학자가 되겠다는 목표를 세움.",
+      "author": "가즈오 이시구로",
+      "bookTitle": "클라라와 태양"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 왕성하고 논리적 사고력이 뛰어난 학생임. 특히 수학, 과학 교과에서 두각을 나타내며, 어려운 문제에 포기하지 않고 도전하는 끈기가 있습니다. 자율동아리를 직접 조직하여 로봇 공학에 대한 열정을 보여주는 등 자기주도적 학습 능력이 돋보입니다. 학급 부회장으로서 책임감 있는 모습을 보여주며 친구들 사이의 신뢰가 두텁습니다."
+    },
+    {
+      "grade": 2,
+      "content": "기계공학 및 로보틱스 분야에 대한 목표가 뚜렷하며, 교과 지식을 자신의 진로와 연결하여 심화 탐구하는 능력이 탁월합니다. 물리, 수학 등 교과에서 배운 이론을 동아리 프로젝트에 적용하여 실제 문제를 해결하는 과정에서 공학도로서의 잠재력을 증명했습니다. 학생회 활동을 통해 리더십과 협업 능력을 길렀으며, 항상 겸손한 자세로 배우고 나누는 모습이 귀감이 됩니다."
+    },
+    {
+      "grade": 3,
+      "content": "3년간 로보틱스라는 일관된 주제를 중심으로 지적 탐험을 멈추지 않은 학생임. 이제는 복잡한 공학 문제를 시스템적으로 분석하고, 수학과 물리학을 도구로 활용하여 창의적인 해결책을 설계하는 수준에 이르렀습니다. 동아리 회장으로서 리더십을 발휘하고 후배들에게 자신의 지식과 경험을 나누는 등 성숙한 인성을 갖추었습니다. 미래 대한민국을 이끌어갈 훌륭한 공학자로 성장할 것이라 확신합니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": []
+}

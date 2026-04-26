@@ -108,13 +108,36 @@ export async function runSetekGuide(
     sharedReport = await fetchReportOrThrow(studentId, "세특 방향", ctx);
   }
 
+  // narrative arc 8단계 분석 섹션 — setek/changche/haengteuk 가이드 공유 (학생당 1회 DB 조회)
+  // best-effort: 실패해도 가이드 정상 진행
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
+  } catch {
+    narrativeArcSection = undefined;
+  }
+
+  // MidPlan 메타 판정 섹션 (β+1 — 좌절 1 해결: MidPlan override → 가이드)
+  let midPlanSection: string | undefined;
+  try {
+    const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
+    const midPlan =
+      ctx.midPlan ??
+      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
+    midPlanSection = buildMidPlanGuideSection(midPlan);
+  } catch {
+    midPlanSection = undefined;
+  }
+
   // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
   if (hasNeisGrades) {
     const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const mergedAnalysisCtx = mergeGuideAnalysisContexts(
       ctx.neisGrades!.map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
     );
-    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx, sharedReport);
+    const profileCard = ctx.belief.profileCard || undefined;
+    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx, sharedReport, profileCard, narrativeArcSection, midPlanSection);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     if (guides) results.push(`NEIS ${guides.length}과목`);
@@ -125,13 +148,14 @@ export async function runSetekGuide(
     const { generateSetekDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
     const { userId: guideUserId } = await reqAuth();
+    const profileCard = ctx.belief.profileCard || undefined;
     const gradeResults = await Promise.allSettled(
       ctx.consultingGrades!.map(async (grade) => {
         const targetSchoolYear = currentYear - ctx.studentGrade + grade;
         const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[grade]);
         const result = await generateSetekDirection(
           studentId, tenantId, guideUserId,
-          sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+          sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection,
         );
         return { grade, result };
       }),
@@ -167,6 +191,27 @@ export async function runChangcheGuide(
   // report 1회 fetch — NEIS/consulting 양 경로 공유
   const report = await fetchReportOrThrow(studentId, "창체 방향", ctx);
 
+  // narrative arc 8단계 분석 섹션 (best-effort, 양 경로 공유)
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
+  } catch {
+    narrativeArcSection = undefined;
+  }
+
+  // MidPlan 메타 판정 섹션 (β+1 — 좌절 1 해결)
+  let midPlanSection: string | undefined;
+  try {
+    const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
+    const midPlan =
+      ctx.midPlan ??
+      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
+    midPlanSection = buildMidPlanGuideSection(midPlan);
+  } catch {
+    midPlanSection = undefined;
+  }
+
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
   if (!hasNeisData) {
@@ -187,9 +232,10 @@ export async function runChangcheGuide(
     const allGradesCtx = mergeGuideAnalysisContexts(
       (ctx.consultingGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
     );
+    const profileCard = ctx.belief.profileCard || undefined;
     const result = await generateChangcheDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      report, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx,
+      report, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx, profileCard, narrativeArcSection, midPlanSection,
     );
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
@@ -223,7 +269,8 @@ export async function runChangcheGuide(
   const mergedCtxChangche = mergeGuideAnalysisContexts(
     (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
   );
-  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche, report);
+  const profileCardChangche = ctx.belief.profileCard || undefined;
+  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche, report, profileCardChangche, narrativeArcSection, midPlanSection);
   if (!result.success) throw new Error(result.error);
   const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
   return guides ? `${guides.length}개 활동유형 방향 생성` : "창체 방향 생성 완료";
@@ -241,6 +288,29 @@ export async function runHaengteukGuide(
 
   // report 1회 fetch — NEIS/consulting 양 경로 공유
   const report = await fetchReportOrThrow(studentId, "행특 방향", ctx);
+
+  // narrative arc 8단계 분석 섹션 (best-effort, 양 경로 공유)
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
+  } catch {
+    narrativeArcSection = undefined;
+  }
+
+  // MidPlan 메타 판정 섹션 (β+1 — 좌절 1 해결)
+  let midPlanSection: string | undefined;
+  try {
+    const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
+    const midPlan =
+      ctx.midPlan ??
+      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
+    midPlanSection = buildMidPlanGuideSection(midPlan);
+  } catch {
+    midPlanSection = undefined;
+  }
+
+  const profileCardHaengteuk = ctx.belief.profileCard || undefined;
 
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
@@ -264,7 +334,7 @@ export async function runHaengteukGuide(
     );
     const result = await generateHaengteukDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      report, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH,
+      report, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH, profileCardHaengteuk, narrativeArcSection, midPlanSection,
     );
     if (!result.success) throw new Error(result.error);
     return "행특 방향 생성 완료 (예비)";
@@ -296,7 +366,7 @@ export async function runHaengteukGuide(
   const mergedCtxHaengteuk = mergeGuideAnalysisContexts(
     (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
   );
-  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk, report);
+  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk, report, profileCardHaengteuk, narrativeArcSection, midPlanSection);
   if (!result.success) throw new Error(result.error);
   return "행특 방향 생성 완료";
 }
@@ -382,13 +452,36 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   // report 1회 fetch — NEIS/consulting 양 경로 공유
   const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`, ctx);
 
+  const profileCard = ctx.belief.profileCard || undefined;
+
+  // narrative arc 8단계 분석 섹션 (best-effort)
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
+  } catch {
+    narrativeArcSection = undefined;
+  }
+
+  // MidPlan 메타 판정 섹션 (β+1 — 좌절 1 해결)
+  let midPlanSection: string | undefined;
+  try {
+    const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
+    const midPlan =
+      ctx.midPlan ??
+      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
+    midPlanSection = buildMidPlanGuideSection(midPlan);
+  } catch {
+    midPlanSection = undefined;
+  }
+
   if (gradeResolved.hasAnyNeis) {
     // NEIS 학년 → 분석형 세특 가이드
     // targetSchoolYear 전달 필수 — 미지정 시 generateSetekGuide가 calculateSchoolYear()(현재 학년도)로 저장해
     // 여러 학년의 보완 방향이 같은 row에 덮어써지는 버그 발생
     const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
-    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, gradeReport);
+    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, gradeReport, profileCard, narrativeArcSection, midPlanSection);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     return guides ? `${targetGrade}학년 NEIS 세특 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;
@@ -401,7 +494,7 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
   const result = await generateSetekDirection(
     studentId, tenantId, guideUserId,
-    gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx,
+    gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection,
   );
   if (!result.success) throw new Error(result.error);
   const guides = result.data?.guides ?? [];

@@ -48,6 +48,12 @@ export async function generateProspectiveHaengteukGuide(
   targetSchoolYear?: number,
   /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
+  /** ctx.belief.profileCard — 학생 정체성 누적 프로필 카드. undefined/"" 시 섹션 생략 */
+  studentProfileCard?: string,
+  /** 세특 서사 완성도(8단계) 섹션 텍스트. buildNarrativeArcDiagnosisSection() 결과. undefined/"" 시 생략. */
+  narrativeArcSection?: string,
+  /** MidPlanner 메타 판정 섹션 텍스트. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
+  midPlanSection?: string,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획+진로 기반 행특 방향 생성", { studentId });
@@ -101,6 +107,16 @@ export async function generateProspectiveHaengteukGuide(
     logActionWarn(LOG_CTX, "세특 가이드 조회 실패 (prospective 행특 방향 생성 중)", { studentId, error: String(e) });
   }
 
+  const profileCardSection = studentProfileCard
+    ? `## 학생 정체성 (학년 누적 프로필)\n다음은 이 학생의 학년 누적 정체성 요약입니다.\n**제안하는 가이드 방향이 이 정체성과 정합되어야 합니다.**\n\n${studentProfileCard}\n`
+    : "";
+
+  const narrativeArcSectionBlock = narrativeArcSection
+    ? `${narrativeArcSection}\n\n위 8단계 분석을 참고하여, 핵심 단계(①호기심 ②주제 ③탐구 ⑤결론)가 누락된 패턴을\n보완하는 방향으로 가이드를 작성하세요.\n`
+    : "";
+
+  const midPlanSectionBlock = midPlanSection ? `${midPlanSection}\n` : "";
+
   const userPrompt = `# 신입생 행특 방향 가이드 요청 (수강계획+진로 기반)
 
 ## 학생 정보
@@ -119,6 +135,9 @@ ${setekGuideContext ? `${setekGuideContext}\n` : ""}
 ${changcheGuideContext ? `${changcheGuideContext}\n` : ""}
 ${edgePromptSection ? `${edgePromptSection}\n` : ""}
 ${gridSection}
+${profileCardSection}
+${narrativeArcSectionBlock}
+${midPlanSectionBlock}
 ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
 ## 지시사항
@@ -197,6 +216,12 @@ export async function generateHaengteukGuide(
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
   /** 파이프라인에서 전달되는 ReportData (있으면 fetchReportData 호출 스킵) */
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  /** ctx.belief.profileCard — 학생 정체성 누적 프로필 카드. undefined/"" 시 섹션 생략 */
+  studentProfileCard?: string,
+  /** 세특 서사 완성도(8단계) 섹션 텍스트. buildNarrativeArcDiagnosisSection() 결과. undefined/"" 시 생략. */
+  narrativeArcSection?: string,
+  /** MidPlanner 메타 판정 섹션 텍스트. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
+  midPlanSection?: string,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -284,6 +309,9 @@ export async function generateHaengteukGuide(
       changcheGuideContext,
       analysisContext,
       gridContext,
+      studentProfileCard,
+      narrativeArcSection: narrativeArcSection || undefined,
+      midPlanSection: midPlanSection || undefined,
     };
 
     // AI SDK 호출

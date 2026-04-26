@@ -1,0 +1,1122 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울대-산업공-32",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 89,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울대_산업공_032",
+    "schoolName": "가상 일반고 GG",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "산업공학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10123"
+    },
+    {
+      "grade": 2,
+      "className": "2반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이서연",
+      "studentNumber": "20221"
+    },
+    {
+      "grade": 3,
+      "className": "1반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박지훈",
+      "studentNumber": "30119"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기로 인한 병결 1일",
+      "schoolDays": 191
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병원 진료로 인한 병조퇴 1회",
+      "schoolDays": 190
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "수학경시대회 은상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 GG",
+      "participants": "35명"
+    },
+    {
+      "grade": 1,
+      "awardName": "과학탐구대회 장려상",
+      "awardDate": "2024-11-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 GG",
+      "participants": "20팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "수학 역량 우수상",
+      "awardDate": "2025-12-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 GG",
+      "participants": "전교생"
+    },
+    {
+      "grade": 2,
+      "awardName": "융합과학탐구토론대회 금상",
+      "awardDate": "2025-09-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 GG",
+      "participants": "15팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "모범학생 표창장",
+      "awardDate": "2025-12-24",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 GG",
+      "participants": "학년별 5명"
+    },
+    {
+      "grade": 3,
+      "awardName": "수학 논술 대회 최우수상",
+      "awardDate": "2026-05-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 GG",
+      "participants": "25명"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 내 갈등 상황 발생 시, 양측의 의견을 경청하고 합리적인 중재안을 제시하여 원만하게 해결하는 등 뛰어난 소통과 문제 해결 능력을 보여주었습니다. '학급 효율 증진 프로젝트'를 자발적으로 기획하여, 학습 자료 공유 시스템 구축, 스터디 그룹 조직 등을 주도하며 학급 전체의 학습 분위기 조성에 기여했습니다.",
+      "activityName": "학급 자치활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학생회 총무부원으로 활동하며, 학생회 예산 집행 계획 수립 및 결산 보고 과정에서 투명성과 효율성을 높이는 데 기여했습니다. 특히 축제 예산안 작성 시, 과거 자료를 분석하여 불필요한 지출 항목을 줄이고 학생들의 선호도가 높은 프로그램에 예산을 재분배하는 최적화 방안을 제안하여 긍정적인 평가를 받았습니다.",
+      "activityName": "학생회 총무부",
+      "hours": 15
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "수학·과학 융합 동아리 '사이매틱스'의 부원으로, '생활 속 수학 원리 탐구' 프로젝트에 참여했습니다. 특히 '최단 경로 문제'에 관심을 갖고 교내 비상 대피로의 효율성을 분석하는 활동을 주도했습니다. 학교 도면을 그래프로 모델링하고 다익스트라 알고리즘을 적용하여 기존 대피로의 문제점을 발견하고 개선된 경로를 제안하는 보고서를 작성하여 논리적 사고력과 문제 해결 능력을 보여주었습니다.",
+      "activityName": "수학과학 융합 동아리",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 탐색의 날에 '데이터 과학자와 미래 사회' 특강에 참여하여 데이터 분석의 중요성과 다양한 활용 분야에 대한 이해를 높였습니다. 이후 '산업공학'이라는 분야에 대해 추가적으로 조사하며, 수학적 모델링과 데이터 분석을 통해 사회 시스템의 효율성을 높이는 학문이라는 점에 큰 흥미를 느끼고 관련 분야로 진로를 구체화하기 시작했습니다.",
+      "activityName": "진로 탐색 활동",
+      "hours": 10
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학급 부회장으로서 '주제 중심 스터디 그룹' 운영을 제안하고, 학생들이 자신의 진로와 관심사에 맞는 그룹을 조직하여 심화 탐구를 진행하도록 독려했습니다. 본인은 '수학·경제 융합 탐구' 그룹을 이끌며, 게임 이론, 선형 계획법 등 교과 내용을 실생활 문제에 적용하는 활동을 통해 학우들의 지적 성장을 이끌었습니다.",
+      "activityName": "학급 자치활동",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "전교 학생회 부회장으로 활동하며, '학교 급식 잔반 줄이기 캠페인'을 주도했습니다. 잔반 데이터를 수집 및 분석하여 요일별, 메뉴별 잔반 발생 패턴을 파악하고, 이를 바탕으로 학생들의 선호도를 고려한 식단 개선안과 배식량 조절 시스템을 제안하여 실제 잔반량을 15% 감소시키는 성과를 거두었습니다. 데이터 기반의 문제 해결 능력을 보여주었습니다.",
+      "activityName": "전교 학생회",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "수학·과학 융합 동아리 '사이매틱스'의 부장으로서 '물류 시스템 최적화 시뮬레이션' 프로젝트를 기획하고 이끌었습니다. AnyLogic 시뮬레이션 툴을 학습하여 가상의 물류 창고 모델을 구축하고, 재고 배치 방식(ABC 분석 기반)과 작업자 동선(TSP 알고리즘 활용)에 따른 효율성 변화를 비교 분석하는 연구를 수행했습니다. 연구 결과를 바탕으로 물류 처리 시간을 단축하는 최적의 운영 방안을 제시하는 논문을 작성하여 융합적 사고와 리더십을 증명했습니다.",
+      "activityName": "수학과학 융합 동아리",
+      "hours": 30
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학 연계 진로 체험 프로그램에 참여하여 산업공학과 연구실을 방문하고, '공급망 관리(SCM)와 인공지능'을 주제로 한 교수님의 강연을 들었습니다. SCM 분야의 최신 연구 동향과 AI 기술의 접목 사례에 깊은 감명을 받았으며, 특히 수요 예측 및 재고 최적화 문제에 관심을 갖게 되었습니다. 이를 계기로 자신의 진로 목표를 '데이터 기반의 공급망 최적화 전문가'로 확고히 했습니다.",
+      "activityName": "대학 연계 진로 체험",
+      "hours": 10
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "3학년 학습 멘토링 프로그램 '한울'의 대표 멘토로 활동하며, 후배들의 수학, 과학 학습을 도왔습니다. 특히 개념 이해에 어려움을 겪는 후배들을 위해 핵심 원리를 시각 자료와 실생활 예시로 설명하는 자신만의 교수법을 개발하여 참여 학생들의 학업 성취도를 높이는 데 크게 기여했습니다. 지식 나눔을 실천하며 책임감과 소통 능력을 보여주었습니다.",
+      "activityName": "학습 멘토링 프로그램",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "졸업준비위원회 위원으로 활동하며, 졸업 앨범 제작 과정의 비효율성을 개선했습니다. 기존의 수작업 방식 대신 온라인 설문조사와 클라우드 기반의 사진 공유 시스템을 도입하여 앨범 제작에 필요한 시간과 비용을 절감하는 방안을 제안하고 실행에 옮겼습니다. 과정 최적화에 대한 깊은 관심을 실천으로 옮기는 모습을 보여주었습니다.",
+      "activityName": "졸업준비위원회",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "시사 토론 동아리에서 '플랫폼 노동과 배달 산업의 미래'를 주제로 한 토론에 참여했습니다. 배달 라이더의 최적 경로 문제, AI 기반 배차 시스템의 공정성 문제 등을 산업공학적 관점에서 분석하고, '긱 이코노미 시대의 사회적 안전망'에 대한 대안을 제시하여 논리적이고 깊이 있는 분석 능력을 보여주었습니다. 사회 문제에 대한 공학적 해결책을 모색하는 태도가 돋보였습니다.",
+      "activityName": "시사 토론 동아리",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "진로 심화 탐구 활동으로 '스마트 팩토리와 디지털 트윈'에 대한 보고서를 작성했습니다. 관련 논문과 기술 보고서를 탐독하며, 가상 공간에 현실과 동일한 공장을 구현하여 생산 공정을 시뮬레이션하고 최적화하는 디지털 트윈 기술의 원리를 깊이 있게 이해했습니다. 이를 통해 4차 산업혁명 시대에 산업공학 전문가로서 기여하고 싶은 구체적인 비전을 제시했습니다.",
+      "activityName": "진로 심화 탐구",
+      "hours": 10
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01~2025-02-28",
+      "cumulativeHours": 20,
+      "description": "지역아동센터 학습 멘토링 (수학 과목 지도)",
+      "hours": 20,
+      "location": "가상 지역아동센터"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01~2026-02-28",
+      "cumulativeHours": 40,
+      "description": "교내 또래 멘토링 (수학, 과학 과목 후배 지도)",
+      "hours": 20,
+      "location": "가상 일반고 GG"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01~2026-07-31",
+      "cumulativeHours": 50,
+      "description": "온라인 학습 플랫폼 '지식 나눔' 활동 (수학 문제 풀이 영상 제작 및 배포)",
+      "hours": 10,
+      "location": "온라인"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 8.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1",
+      "classAverage": 78.9,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 12.1,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "2",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 9.2,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "classAverage": 83.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 10.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "1",
+      "classAverage": 80.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 11.8,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1",
+      "classAverage": 88.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.9,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "classAverage": 86.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8.1,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1",
+      "classAverage": 79.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 11.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1",
+      "classAverage": 85.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "2",
+      "classAverage": 84.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92,
+      "stdDev": 10.1,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1",
+      "classAverage": 81.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 11.2,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1",
+      "classAverage": 87.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 8.2,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 84.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1",
+      "classAverage": 75.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 13.5,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1",
+      "classAverage": 76.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 14.1,
+      "subjectType": "일반선택",
+      "totalStudents": 160
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 72.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 15.2,
+      "subjectType": "일반선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "경제",
+      "achievementLevel": "1",
+      "classAverage": 80.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 11.3,
+      "subjectType": "일반선택",
+      "totalStudents": 95
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육1",
+      "achievementLevel": "A",
+      "classAverage": 85,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 10,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 8.5,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어권 문화",
+      "achievementLevel": "1",
+      "classAverage": 83.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 10.8,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 74.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 91,
+      "stdDev": 14.8,
+      "subjectType": "일반선택",
+      "totalStudents": 75
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "기하",
+      "achievementLevel": "A",
+      "classAverage": 78.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 12.9,
+      "subjectType": "진로선택",
+      "totalStudents": 145
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "논술",
+      "achievementLevel": "1",
+      "classAverage": 88,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 7.5,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "classAverage": 89,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 6.5,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 87.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.8,
+      "subjectType": "일반선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화수학Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 80.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 11.9,
+      "subjectType": "진로선택",
+      "totalStudents": 60
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 75.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 14.2,
+      "subjectType": "진로선택",
+      "totalStudents": 45
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "인공지능 기초",
+      "achievementLevel": "A",
+      "classAverage": 82.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 10.1,
+      "subjectType": "융합선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 85.6,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9.3,
+      "subjectType": "진로선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8,
+      "subjectType": "일반선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "classAverage": 85,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9,
+      "subjectType": "진로선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화수학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 81.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 11.2,
+      "subjectType": "진로선택",
+      "totalStudents": 58
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "정보과학",
+      "achievementLevel": "A",
+      "classAverage": 83.4,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 9.8,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "융합과학 탐구",
+      "achievementLevel": "A",
+      "classAverage": 82.1,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 10.5,
+      "subjectType": "진로선택",
+      "totalStudents": 70
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로와 직업",
+      "achievementLevel": "P",
+      "classAverage": 88,
+      "creditHours": 1,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 5,
+      "subjectType": "진로선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "미술 창작",
+      "achievementLevel": "A",
+      "classAverage": 90.1,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 5.5,
+      "subjectType": "일반선택",
+      "totalStudents": 170
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "비판적 사고력이 뛰어나며 글의 논리적 구조를 정확하게 파악하는 능력이 우수합니다. '협상' 단원에서 모의 협상 활동 시, 상대방의 숨은 의도를 파악하고 핵심 쟁점을 분석하여 상호 이익이 되는 대안을 제시하는 등 뛰어난 전략적 의사소통 능력을 보여주었습니다. 발표 시 명확한 발음과 논리적인 내용 구성으로 청중의 이해를 돕는 능력이 탁월하며, 토론 활동에서 근거를 바탕으로 자신의 주장을 설득력 있게 펼치는 모습이 인상적이었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "수학적 개념에 대한 이해가 깊고 이를 응용하는 능력이 뛰어납니다. 특히 함수 단원에서 복잡한 합성함수와 역함수의 관계를 그래프를 통해 시각적으로 명쾌하게 설명하여 학우들의 이해를 도왔습니다. '수학 원리 탐구 보고서' 작성 시 '페이지랭크 알고리즘'의 기본 원리가 행렬의 곱셈과 연관되어 있음을 발견하고, 간단한 웹페이지 연결 모델을 만들어 특정 페이지의 중요도를 계산해보는 탐구를 수행하며 수학적 지식을 정보과학 분야로 확장하는 지적 호기심을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "어휘력이 풍부하고 정확한 문법 지식을 바탕으로 수준 높은 독해 능력을 갖추고 있습니다. TED 강연을 보고 요약하는 활동에서 'How AI can save our humanity'를 주제로 한 강연을 듣고, AI 기술의 발전이 인간의 고유한 가치를 어떻게 더 부각시킬 수 있는지에 대한 강연자의 주장을 논리적으로 분석하고 자신의 견해를 덧붙인 우수한 발표를 했습니다. 영어로 진행되는 토론에서도 자신의 의견을 자신감 있게 표현하는 의사소통 능력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "사회 현상을 다각적으로 분석하고 종합적으로 이해하는 능력이 뛰어납니다. '시장 경제와 금융' 단원을 학습하며, 자원의 희소성과 합리적 선택의 중요성에 대해 깊이 탐구했습니다. 이후 '공유 자원의 비극' 문제를 해결하기 위한 방안으로 '게임 이론'의 기본 개념을 적용하여, 참여자들의 협력을 유도하는 규칙 설계의 중요성을 분석하는 보고서를 작성했습니다. 이를 통해 사회 문제를 경제학적, 수학적 관점에서 접근하는 융합적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "과학적 탐구 능력과 논리적 사고력이 돋보이는 학생입니다. '역학적 시스템' 단원에서 배운 뉴턴의 운동 법칙에 깊은 관심을 보이며, '일상 속 마찰력의 최적화'라는 주제로 심화 탐구를 진행했습니다. 특히 스키나 스케이트와 같이 마찰력을 줄여야 하는 경우와, 타이어나 신발 밑창처럼 마찰력을 높여야 하는 경우의 원리를 물리적으로 분석하고, 각 상황에 맞는 최적의 표면 설계 방안을 제시하는 등 공학적 문제 해결의 가능성을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "역사적 사실에 대한 깊이 있는 이해를 바탕으로 시대적 상황을 종합적으로 파악하는 능력이 우수합니다. 특히 조선 후기 대동법 시행이 국가 재정 및 물류 시스템에 미친 영향에 대해 탐구하며, 조세 제도의 변화가 단순한 세금 징수 방식의 변화를 넘어 전국적인 상품 유통망의 발달과 상업의 발전을 촉진했음을 분석했습니다. 역사적 사건의 인과관계를 시스템적 관점에서 이해하려는 태도가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "문학 작품에 대한 깊이 있는 감상 능력을 바탕으로 작가의 의도와 시대적 배경을 종합적으로 해석하는 능력이 뛰어납니다. 매체 비평문 쓰기 활동에서, 특정 사회 이슈에 대한 신문사별 보도 태도를 비교 분석하고, 프레이밍 효과가 수용자에게 미치는 영향을 논리적으로 서술하여 우수한 평가를 받았습니다. 정보의 편향성을 인지하고 객관적 사실을 추출하려는 비판적 사고력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "뛰어난 논리적 사고력과 문제 해결 능력을 갖춘 학생입니다. 경우의 수 단원에서 순열과 조합의 개념을 완벽히 이해하고, 이를 활용하여 복잡한 문제 상황을 체계적으로 나누어 해결하는 능력이 탁월합니다. '최적의 좌석 배치 문제'를 조합론적 관점에서 분석하고, 특정 조건 하에서 가능한 모든 경우의 수를 계산하는 알고리즘을 구상해보는 등, 수학적 지식을 실생활 문제 해결에 적용하려는 노력을 꾸준히 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "다양한 주제의 영문 텍스트를 빠르게 이해하고 핵심 내용을 정확히 파악하는 능력이 우수합니다. '환경 문제와 지속 가능한 발전'에 관한 원서를 읽고, '순환 경제(Circular Economy)' 모델의 개념과 필요성에 대해 발표했습니다. 생산-소비-폐기로 이어지는 선형 경제 모델의 문제점을 지적하고, 자원의 재활용과 재사용을 극대화하는 순환 경제가 지속 가능한 사회를 위한 필수적인 대안임을 논리적으로 주장하여 깊은 인상을 남겼습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "글로벌 사회의 복잡한 쟁점들을 깊이 있게 이해하고, 다양한 관점을 존중하는 태도를 지녔습니다. '세계화와 상호의존' 단원을 학습한 후, 글로벌 공급망(Global Supply Chain)의 형성과 변화 과정에 대해 심화 탐구를 진행했습니다. 특히 특정 사건(예: 코로나19 팬데믹, 미중 무역분쟁)이 글로벌 공급망에 미치는 영향을 분석하고, 공급망의 회복탄력성(Resilience)을 높이기 위한 방안으로 공급처 다변화, 재고 관리 전략의 중요성을 탐구하며 시스템적 사고를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "산화-환원 반응에 대한 깊은 이해를 바탕으로, 이를 에너지 및 환경 문제와 연결하여 사고하는 능력이 뛰어납니다. 발전 원리를 학습한 후, '연료전지'의 작동 원리에 관심을 갖고 수소 연료전지의 효율성과 친환경성에 대한 보고서를 작성했습니다. 특히 전지의 효율을 결정하는 요인들을 분석하고, 전극 촉매의 활성도를 높이기 위한 나노 기술의 역할에 대해 탐구하며 과학 지식을 공학적 응용 분야로 확장하는 모습을 보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "역사적 자료를 비판적으로 분석하고 해석하는 능력이 뛰어납니다. 개항기 이후 근대 문물의 수용 과정을 탐구하며, 전신, 철도 등 새로운 기술의 도입이 사회 경제적으로 미친 파급 효과를 분석했습니다. 특히 경부선 철도 부설이 물자 수송 시간 단축과 지역 경제권 형성에 기여한 긍정적 측면과, 일제의 수탈 도구로 이용된 부정적 측면을 균형 있게 서술하며 역사적 사건을 입체적으로 이해하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "작품의 서사 구조를 분석하고 인물 간의 관계를 파악하는 능력이 탁월합니다. 특히 소설 '광장'을 읽고 주인공의 선택이 갖는 의미를 남북한의 이데올로기 대립이라는 시대적 상황과 연결하여 깊이 있게 분석하였습니다. 이러한 분석력을 바탕으로, 복잡한 시스템 내에서 개인이 겪는 딜레마와 의사결정 과정에 대한 통찰을 보여주었습니다. 문학 작품을 통해 인간과 사회 시스템의 상호작용을 이해하려는 태도가 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "미적분의 개념을 정확히 이해하고 이를 문제 해결에 논리적으로 적용하는 능력이 매우 우수합니다. 특히 정적분의 활용 단원에서 '구분구적법'의 원리를 이용하여 복잡한 형태의 입체 도형의 부피를 구하는 과정에 큰 흥미를 보였습니다. 나아가 최적화 문제에 관심을 갖고, '가장 적은 재료로 최대 부피의 상자 만들기'와 같은 문제를 미분을 이용하여 해결하는 과정을 통해, 최소의 비용으로 최대의 효율을 추구하는 산업공학적 사고의 기본 원리를 체득했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "content": "통계적 추론 능력이 뛰어나며, 데이터를 기반으로 합리적인 결론을 도출하는 과정을 즐깁니다. 조건부확률과 베이즈 정리를 학습한 후, 이를 활용하여 '공장의 불량품 검사 시스템의 신뢰도'를 분석하는 탐구를 진행했습니다. 검사 시스템이 불량품을 불량으로 판정할 확률과, 정상 제품을 불량으로 오판할 확률을 바탕으로, 검사 결과가 실제로 얼마나 믿을 수 있는지를 수학적으로 계산하고 그 의미를 해석하는 보고서를 작성하여 통계학의 실제적 유용성을 깊이 이해했음을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "content": "역학적 시스템에 대한 깊은 이해를 바탕으로 복잡한 현상을 단순한 모델로 만들어 분석하는 능력이 뛰어납니다. 여러 물체의 충돌과 운동량 보존 법칙을 학습한 후, 이를 '컨베이어 벨트 위의 물품 분류 시스템'에 적용해보는 사고 실험을 진행했습니다. 질량이 다른 물체들이 벨트 위에서 어떻게 운동하고, 특정 지점에서 분류되기 위한 최적의 속도와 충격량은 얼마인지 등을 계산하며 물리 법칙을 공학적 시스템 설계에 응용하는 탁월한 잠재력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "경제",
+      "content": "미시경제학의 기본 원리, 특히 수요-공급 법칙과 시장 균형에 대한 이해가 깊습니다. '생산자 이론'을 학습한 후, 기업의 이윤 극대화 원리를 산업공학의 '최적화' 관점과 연결하여 탐구했습니다. 한계수입과 한계비용이 일치하는 지점에서 생산량을 결정하는 원리가, 결국 최소의 투입으로 최대의 산출을 얻으려는 공학적 목표와 일치함을 파악하고, 이를 '스마트팜의 최적 생산량 결정 문제'에 적용하여 분석하는 보고서를 작성했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육1",
+      "content": "팀 프로젝트 수행 시 뛰어난 협동심과 리더십을 발휘합니다. 농구 경기에서 팀의 포인트 가드 역할을 맡아, 각 팀원의 장단점을 빠르게 파악하고 가장 효율적인 공격 패턴을 구상하여 경기를 조율하는 능력을 보여주었습니다. 복잡한 상황 속에서 최적의 해결책을 찾아 실행하는 전략적 사고가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "다양한 분야의 책을 읽으며 지식을 융합하고 자신만의 관점을 형성하는 능력이 우수합니다. 칼 포퍼의 '열린 사회와 그 적들'을 읽고 과학적 방법론의 핵심인 '반증 가능성'이 사회 정책 결정 과정에서도 어떻게 적용될 수 있는지에 대해 깊이 있는 비평문을 작성했습니다. 시행착오를 통해 더 나은 시스템을 만들어가는 과정의 중요성을 이해하는 등 지적 성숙도가 높습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어권 문화",
+      "content": "다양한 문화에 대한 개방적인 태도와 깊은 이해를 바탕으로, 문화적 차이가 비즈니스 환경에 미치는 영향에 대해 탐구했습니다. 특히 실리콘밸리의 혁신 문화와 수평적 조직 구조에 대한 다큐멘터리를 시청한 후, 이러한 문화가 빠른 의사결정과 창의성 발현에 어떻게 기여하는지를 분석하고, 한국의 기업 문화와 비교하여 장단점을 논하는 발표를 진행했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅰ",
+      "content": "화학 반응 속도론에 대한 이해가 깊습니다. 반응 속도에 영향을 미치는 요인(농도, 온도, 촉매)을 학습한 후, 이를 '화학 공정의 효율성 증대'라는 관점에서 탐구했습니다. 특히 하버-보슈법을 예시로 들어, 암모니아 생산 수율을 높이기 위해 온도와 압력을 최적의 조건으로 제어하고 효율적인 촉매를 개발하는 과정이 산업적으로 얼마나 중요한지를 분석하는 보고서를 작성하며 화학 지식을 공학적 문제 해결과 연결하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "기하",
+      "content": "공간지각능력과 논리적 추론 능력이 뛰어나며, 기하학적 개념을 벡터와 좌표를 이용하여 능숙하게 표현합니다. 공간벡터의 내적을 이용하여 두 평면이 이루는 각을 구하는 문제를 해결한 후, 이를 '로봇팔의 움직임 제어' 문제로 확장했습니다. 로봇팔의 각 관절을 벡터로 표현하고, 목표 지점에 도달하기 위한 각 관절의 회전 각도를 계산하는 과정을 시뮬레이션하며 기하학이 로보틱스 분야에서 어떻게 활용되는지 탐구하는 등 높은 학업 잠재력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "논술",
+      "content": "복잡한 사회 현상의 핵심을 파악하고 자신의 주장을 논리적으로 전개하는 능력이 탁월합니다. '기술 발전과 일자리의 미래'라는 논제에 대해, 기술이 기존 일자리를 대체하는 동시에 새로운 일자리를 창출하는 양면성을 분석하고, 미래 사회에 필요한 역량과 교육 시스템의 변화 방향에 대한 창의적인 대안을 제시하여 우수한 평가를 받았습니다. 문제의 본질을 꿰뚫는 분석력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "content": "다양한 악기가 조화를 이루어 하나의 곡을 완성하는 오케스트라 연주를 감상하고, 각 파트의 역할과 상호작용이 전체 하모니에 미치는 영향을 분석하는 감상문을 작성했습니다. 복잡한 시스템에서 각 구성 요소가 유기적으로 작용하여 최적의 결과를 만들어내는 원리를 음악을 통해 이해하는 등 융합적 사고력이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "설득을 목적으로 하는 글쓰기 능력이 뛰어납니다. 교내 캠페인 제안서 작성 활동에서 '효율적인 교내 동선 구축을 위한 일방통행 시스템 도입'을 제안했습니다. 혼잡 시간대의 학생 이동 데이터를 자체적으로 수집, 분석하여 문제점을 구체적으로 제시하고, 시뮬레이션을 통해 제안된 시스템의 기대효과를 시각적으로 보여주는 등 데이터 기반의 설득 전략을 효과적으로 구사하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화수학Ⅰ",
+      "content": "행렬과 선형변환에 대한 깊이 있는 이해를 바탕으로, 이를 연립일차방정식의 해를 구하는 것을 넘어 데이터 분석 및 최적화 문제에 적용하는 능력이 우수합니다. '그래프 이론과 인접 행렬'에 대해 학습한 후, 이를 응용하여 '최단 경로 탐색 문제'를 해결하는 다익스트라 알고리즘의 원리를 탐구했습니다. 참고문헌(Introduction to Algorithms, CLRS)을 스스로 찾아 읽으며 알고리즘의 시간 복잡도를 분석하고, 가중치가 있는 그래프 모델을 직접 만들어 최적 경로를 찾는 과정을 코드로 구현해보려는 시도를 하는 등 지적 탐구심이 매우 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "content": "전자기 유도 현상을 학습한 후, 이를 '무선 충전 기술'과 '교통카드 인식 시스템(RFID)'의 원리와 연결하여 탐구하는 보고서를 작성했습니다. 패러데이 법칙과 안테나의 공진 주파수 개념을 이용하여 데이터 송수신 및 에너지 전달 과정을 물리적으로 상세히 분석했습니다. 나아가, 여러 대의 기기를 동시에 효율적으로 충전하기 위한 최적의 코일 배치와 전력 분배 알고리즘에 대한 아이디어를 제시하며 심화된 물리 지식을 공학적 문제 해결에 접목하는 탁월한 역량을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "인공지능 기초",
+      "content": "머신러닝의 기본 원리를 빠르게 습득하고 이를 실제 데이터에 적용하는 능력이 뛰어납니다. '회귀 분석'을 학습한 후, '온라인 쇼핑몰의 일일 판매량 예측 모델'을 만드는 프로젝트를 수행했습니다. 요일, 날씨, 프로모션 여부 등을 변수로 사용하여 다중 선형 회귀 모델을 구축하고, 결정계수(R-squared)와 평균제곱오차(MSE)를 통해 모델의 성능을 평가했습니다. 변수 선택과 데이터 전처리 과정의 중요성을 이해하고, 더 정확한 예측을 위해 비선형 모델의 필요성을 스스로 제기하는 등 뛰어난 데이터 분석 역량을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "'배달 플랫폼의 확산에 따른 도시 문제'를 주제로 탐구 프로젝트를 진행했습니다. 배달 수요 증가로 인한 교통 혼잡, 소음, 쓰레기 문제 등을 데이터와 사례 중심으로 분석했습니다. 문제 해결을 위해 '공유 물류 거점(Micro Fulfillment Center)' 개념을 도입하고, 라이더들의 배달 동선을 최적화하는 '동적 라우팅 알고리즘'의 필요성을 제안했습니다. 사회 문제를 산업공학적 관점에서 분석하고 구체적인 시스템적 대안을 제시하는 문제 해결 능력이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "content": "자신의 신체 능력과 체력 수준을 과학적으로 분석하고, 목표 달성을 위한 체계적인 훈련 계획을 수립하여 꾸준히 실천했습니다. 심박수, 운동 시간, 휴식 시간 등의 데이터를 기록하고 분석하여 훈련의 강도와 프로그램을 스스로 조절하는 모습을 보였습니다. 목표 지향적 태도와 데이터 기반의 자기 관리 능력이 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "content": "고전과 현대의 다양한 텍스트를 비판적으로 수용하고, 이를 바탕으로 사회 현상에 대한 깊이 있는 성찰을 보여줍니다. 정약용의 '목민심서'를 읽고, 당시의 관리 시스템과 행정 효율화 방안을 오늘날의 공공 부문 비효율 문제와 비교 분석하는 보고서를 작성했습니다. 과거의 지혜를 현대적 문제 해결에 접목하려는 통찰력이 돋보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화수학Ⅱ",
+      "content": "미분방정식의 개념을 이해하고, 이를 물리적 현상 모델링에 적용하는 능력이 뛰어납니다. 특히 '대기 행렬 이론(Queuing Theory)'에 큰 관심을 보이며, M/M/1 모델을 학습하고 이를 '은행 창구의 고객 대기 시간' 문제에 적용하여 분석했습니다. 도착률과 서비스율의 변화에 따라 평균 대기 시간과 대기 행렬의 길이가 어떻게 변하는지를 미분방정식을 통해 설명하고, 최적의 창구 수를 결정하는 문제로 확장하여 탐구하는 등 대학 수준의 주제에 대한 높은 지적 호기심과 탐구 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "정보과학",
+      "content": "알고리즘 설계 능력이 뛰어나며, 문제의 특성에 맞는 효율적인 자료구조를 선택하여 활용할 줄 압니다. Python을 이용하여 '교내 도서관 도서 추천 시스템'을 개발하는 프로젝트를 진행했습니다. 사용자의 대출 기록을 바탕으로 협업 필터링 알고리즘을 구현하고, 코사인 유사도를 이용하여 비슷한 취향의 다른 사용자가 대출한 책을 추천하는 시스템을 구축했습니다. 알고리즘을 실제 문제에 적용하여 가치를 창출하는 공학적 역량이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "융합과학 탐구",
+      "content": "'에너지 효율 최적화'를 주제로 교내 건물의 에너지 사용 패턴을 분석하는 프로젝트를 수행했습니다. 시간대별, 공간별 전력 사용량 데이터를 수집하여 분석하고, 에너지 낭비가 심한 구역과 시간대를 특정했습니다. 해결 방안으로 IoT 센서를 활용한 자동 조명 및 냉난방 제어 시스템을 제안하고, 시스템 도입에 따른 예상 에너지 절감 효과를 정량적으로 계산하여 제시하는 등 과학적 데이터 분석과 공학적 해결책 제시 능력을 종합적으로 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로와 직업",
+      "content": "자신의 진로인 '산업공학자'로서 사회에 기여할 수 있는 구체적인 분야를 탐색하고, '지속가능한 공급망 관리(Sustainable SCM)'에 대한 비전을 설정했습니다. 기업의 경제적 이익뿐만 아니라 환경적, 사회적 책임을 고려하는 공급망을 설계하고 운영하는 전문가가 되겠다는 구체적인 목표와 이를 달성하기 위한 학업 계획을 체계적으로 수립하여 발표했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "미술 창작",
+      "content": "디자인의 기본 원리인 '사용자 중심 디자인(UCD)'에 대해 학습하고, '모두를 위한 유니버설 디자인'을 주제로 교내 시설물 개선 아이디어를 스케치하고 모형으로 제작했습니다. 사용자의 행동을 관찰하고 불편함을 찾아내어 이를 디자인으로 해결하는 과정에 큰 흥미를 보이며, 인간과 시스템의 상호작용을 최적화하려는 태도를 보여주었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'코스모스(칼 세이건)'를 읽고 과학적 사실을 문학적 감수성으로 풀어내는 방식에 감명받음. 복잡한 개념을 대중에게 쉽게 전달하는 능력의 중요성을 깨달음.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "'수학, 인문으로 수를 읽다(이광연)'를 읽고 수학이 인류 문명 발전에 미친 영향을 이해함. 특히 최단 경로 문제와 같은 수학적 원리가 실생활에 적용되는 사례를 통해 수학에 대한 흥미를 높임.",
+      "author": "이광연",
+      "bookTitle": "수학, 인문으로 수를 읽다"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "과학",
+      "bookDescription": "'정재승의 과학 콘서트(정재승)'를 읽고 복잡계 과학의 개념을 처음 접함. 교통 흐름, 주식 시장 등 복잡한 현상 속에 숨겨진 패턴과 규칙을 찾으려는 과학적 접근법에 매료됨.",
+      "author": "정재승",
+      "bookTitle": "정재승의 과학 콘서트"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "사회",
+      "bookDescription": "'사피엔스(유발 하라리)'를 읽고 인류가 허구를 믿는 능력을 통해 거대한 협력 시스템을 구축했음을 이해함. 사회 시스템의 작동 원리에 대한 거시적 통찰을 얻음.",
+      "author": "유발 하라리",
+      "bookTitle": "사피엔스"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "수학",
+      "bookDescription": "'알고리즘, 인생을 계산하다(브라이언 크리스천, 톰 그리피스)'를 읽고 최적 멈춤 문제, 탐색과 활용의 트레이드오프 등 컴퓨터 과학의 알고리즘을 일상생활의 의사결정 문제에 적용하는 방식에 깊은 인상을 받음. 최적화에 대한 관심을 심화함.",
+      "author": "브라이언 크리스천, 톰 그리피스",
+      "bookTitle": "알고리즘, 인생을 계산하다"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "과학",
+      "bookDescription": "'더 골(엘리 골드랫)'을 읽고 제약 이론(TOC)을 통해 전체 시스템의 효율을 결정하는 병목 현상을 이해함. 공장 생산 라인의 최적화 문제를 소설 형식으로 흥미롭게 배우며 산업공학에 대한 매력을 느낌.",
+      "author": "엘리 골드랫",
+      "bookTitle": "더 골(The Goal)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "경제",
+      "bookDescription": "'괴짜 경제학(스티븐 레빗, 스티븐 더브너)'를 읽고 데이터 분석을 통해 사회 현상의 숨겨진 인과관계를 밝혀내는 과정에 흥미를 느낌. 데이터 기반의 문제 해결 접근법의 중요성을 깨달음.",
+      "author": "스티븐 레빗, 스티븐 더브너",
+      "bookTitle": "괴짜 경제학"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "'Factfulness(한스 로슬링)' 원서를 읽고, 데이터에 기반하여 세계를 올바르게 이해하는 것의 중요성을 배움. 사람들이 흔히 가지는 편견과 오해를 데이터로 논파하는 과정이 인상 깊었음.",
+      "author": "한스 로슬링",
+      "bookTitle": "Factfulness"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "진로",
+      "bookDescription": "'축적의 시간(서울대 공대 26인 교수)'을 읽고 우리나라 산업의 기술 발전 과정과 개념설계 역량의 중요성을 이해함. 창의적인 문제 해결을 위한 기본기 축적의 필요성을 절감함.",
+      "author": "서울대학교 공과대학",
+      "bookTitle": "축적의 시간"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "수학",
+      "bookDescription": "'Introduction to Algorithms(CLRS)'의 그래프 알고리즘 부분을 발췌하여 읽고 다익스트라, 벨만-포드 등 다양한 최단 경로 알고리즘의 원리와 시간 복잡도를 비교 분석함. 알고리즘의 효율성에 대한 이해를 심화함.",
+      "author": "Thomas H. Cormen 외",
+      "bookTitle": "Introduction to Algorithms"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "과학",
+      "bookDescription": "'슈퍼인텔리전스(닉 보스트롬)'를 읽고 인공지능 발전의 잠재력과 통제 문제에 대해 고찰함. AI 기술을 사회에 긍정적으로 활용하기 위한 공학도의 윤리적 책임감을 느낌.",
+      "author": "닉 보스트롬",
+      "bookTitle": "슈퍼인텔리전스"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "'클라우스 슈밥의 제4차 산업혁명(클라우스 슈밥)'을 읽고, 인공지능, 빅데이터, IoT 등의 기술이 산업과 사회를 어떻게 변화시키는지 종합적으로 이해함. 산업공학도로서 4차 산업혁명 시대에 기여할 수 있는 역할을 고민함.",
+      "author": "클라우스 슈밥",
+      "bookTitle": "클라우스 슈밥의 제4차 산업혁명"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "정보",
+      "bookDescription": "'데이터 과학 입문(레이첼 슈트, 캐시 오닐)'을 읽고 데이터 수집, 처리, 모델링, 시각화에 이르는 데이터 분석의 전 과정을 이해함. 인공지능 기초 수업에서 배운 머신러닝 모델을 실제 문제에 적용하는 데 필요한 실무적 지식을 얻음.",
+      "author": "레이첼 슈트, 캐시 오닐",
+      "bookTitle": "데이터 과학 입문"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "'신호와 소음(네이트 실버)'을 읽고 예측 모델의 정확도를 높이기 위한 통계적 방법론과 데이터 해석 능력의 중요성을 배움. 불확실한 미래를 예측하고 최적의 의사결정을 내리는 분야에 대한 전문성을 키우고 싶다는 목표를 확고히 함.",
+      "author": "네이트 실버",
+      "bookTitle": "신호와 소음"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "수학, 과학 분야에 대한 학업 역량이 뛰어나고 지적 호기심이 왕성한 학생입니다. 복잡한 문제에 부딪혔을 때 포기하지 않고 다양한 해결 방안을 모색하며, 특히 시스템의 효율을 높이는 방법에 대한 관심이 많습니다. 학급 활동에 적극적으로 참여하며, 친구들의 의견을 경청하고 합리적으로 조율하는 소통 능력을 갖춰 교우 관계가 원만합니다."
+    },
+    {
+      "grade": 2,
+      "content": "자신의 진로인 산업공학 분야에 대한 뚜렷한 목표 의식을 갖고 심화된 탐구 활동을 꾸준히 수행하는 자기주도적 학생입니다. 특히 수학, 과학 동아리 부장으로서 물류 최적화 프로젝트를 성공적으로 이끌며 리더십과 문제 해결 능력을 증명했습니다. 데이터에 기반하여 현상을 분석하고 합리적인 대안을 제시하는 과학적 태도가 체화되어 있습니다."
+    },
+    {
+      "grade": 3,
+      "content": "시스템 전체를 조망하고 최적의 해결책을 찾으려는 산업공학도의 자질을 갖춘 인재입니다. 깊이 있는 학업 역량을 바탕으로 대기 행렬 이론, 머신러닝 등 대학 수준의 주제까지 탐구하는 지적 열정이 돋보입니다. 학습 멘토링 활동을 통해 지식을 나누고 함께 성장하는 따뜻한 리더십을 보여주었으며, 늘 겸손한 자세로 배우고 성찰하는 모습은 모든 학생의 귀감이 됩니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "content": "성실하게 모든 활동에 참여함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "P",
+      "content": "창의적인 아이디어를 시각적으로 표현하는 능력이 우수함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육1",
+      "achievementLevel": "A",
+      "content": "전략적 사고를 바탕으로 팀 경기를 이끄는 능력이 뛰어남.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "content": "다양한 음악을 감상하고 그 구조를 분석하는 능력이 돋보임.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "A",
+      "content": "과학적 원리를 기반으로 체계적인 운동 계획을 수립하고 실천함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "미술 창작",
+      "achievementLevel": "A",
+      "content": "사용자 중심의 문제 해결을 위한 디자인 사고력이 우수함.",
+      "creditHours": 2
+    }
+  ]
+}

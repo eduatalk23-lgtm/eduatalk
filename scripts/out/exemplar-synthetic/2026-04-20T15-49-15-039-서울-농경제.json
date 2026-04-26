@@ -1,0 +1,1106 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울대-농경제-39",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울대_농경제_039",
+    "schoolName": "가상 일반고 NN",
+    "enrollmentYear": 2022,
+    "curriculumRevision": "2015",
+    "graduationYear": 2025,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울대학교",
+      "admissionYear": 2025,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "농경제사회학부",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2022-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10115"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2023-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이수진",
+      "studentNumber": "20314"
+    },
+    {
+      "grade": 3,
+      "className": "5반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박서준",
+      "studentNumber": "30512"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 1일",
+      "schoolDays": 191
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병원 진료로 인한 병조퇴 1회",
+      "schoolDays": 190
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 189
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교과 우수상 (통합사회)",
+      "awardDate": "2022-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "1학년 전체"
+    },
+    {
+      "grade": 1,
+      "awardName": "교내 과학탐구토론대회 동상",
+      "awardDate": "2022-11-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "팀(3인)"
+    },
+    {
+      "grade": 2,
+      "awardName": "교과 우수상 (경제)",
+      "awardDate": "2023-07-21",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "2학년 선택자"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 사회과학 에세이 대회 금상",
+      "awardDate": "2023-09-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "전교생"
+    },
+    {
+      "grade": 2,
+      "awardName": "수학탐구보고서 발표대회 은상",
+      "awardDate": "2023-12-08",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "전교생"
+    },
+    {
+      "grade": 3,
+      "awardName": "교과 최우수상 (사회문제 탐구)",
+      "awardDate": "2024-07-19",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "3학년 선택자"
+    },
+    {
+      "grade": 3,
+      "awardName": "모범학생상",
+      "awardDate": "2024-07-19",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 NN 교장",
+      "participants": "3학년"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 부회장으로서 학급회의를 주도적으로 운영하며 '잔반 줄이기 캠페인'을 기획, 실천하였습니다. 음식물 쓰레기가 환경과 경제에 미치는 영향에 대한 자료를 제작하여 발표하고, 급식 만족도 설문조사를 실시하여 구체적인 개선 방안을 학교에 건의하는 등 문제 해결을 위한 실천적 태도가 돋보였습니다. 또한, 또래 상담 멘토로 활동하며 친구들의 고민을 경청하고 공감하며 긍정적인 교우 관계 형성에 기여하였습니다.",
+      "activityName": "학급 자치활동 및 또래상담",
+      "hours": 25
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "시사토론 동아리에서 '세계 식량 위기의 원인과 해결 방안'을 주제로 한 토론에 참여하였습니다. 기후 변화, 국제 분쟁 등 복합적인 원인을 분석하고, 푸드테크와 스마트팜 같은 기술적 대안과 공정무역과 같은 정책적 대안을 논리적으로 제시하였습니다. 특히 식량자급률과 식량안보의 상관관계를 통계자료에 근거하여 주장하는 모습이 인상적이었습니다. 이를 계기로 농업 문제의 경제학적 접근에 깊은 흥미를 갖게 되었습니다.",
+      "activityName": "시사토론 동아리 '세움'",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "volunteer",
+      "content": "지역 푸드뱅크에서 식품 분류 및 포장, 배분 활동에 꾸준히 참여하였습니다. 기부되는 식품의 종류와 양, 수혜자의 수요를 관찰하며 식품 유통 과정의 비효율성과 개선점에 대해 고민하는 계기가 되었습니다. 봉사활동 보고서에 '푸드뱅크 운영 효율화를 위한 데이터 기반 수요 예측 시스템 제안'이라는 소주제를 설정하여 탐구하는 등 나눔을 실천하며 사회 문제에 대한 깊이 있는 통찰력을 보여주었습니다.",
+      "activityName": "푸드뱅크 봉사활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 탐색의 날 프로그램에서 '데이터 과학자가 말하는 미래 사회' 특강에 참여하여 빅데이터가 다양한 산업 분야에서 활용되는 사례를 접했습니다. 이후 농업 분야에 데이터를 어떻게 적용할 수 있을지 탐구하며 '정밀 농업'과 '농산물 가격 예측 모델'에 대한 자료를 찾아보고 보고서를 작성하였습니다. 농업과 첨단 기술의 융합에 대한 구체적인 진로 목표를 설정하는 계기가 되었습니다.",
+      "activityName": "진로 특강 및 개별 탐구",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학급 회장으로 활동하며 '학급 농장' 프로젝트를 제안하고 운영하였습니다. 옥상 텃밭에 상추, 방울토마토 등 기르기 쉬운 작물을 심고, 조별로 재배 일지를 작성하게 하여 협동심과 책임감을 함양했습니다. 수확한 작물은 지역 사회복지관에 기부하여 나눔의 의미를 더했습니다. 이 과정을 통해 농업 생산의 어려움과 보람을 직접 체험하고, 도시 농업의 가능성과 공동체 활성화에 대한 긍정적 효과를 탐구하였습니다.",
+      "activityName": "학급 회장 및 '학급 농장' 프로젝트",
+      "hours": 25
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "'융합과학탐구반'에서 부장으로 활동하며 '대체육의 경제적, 환경적 가치 분석'을 주제로 1년간의 장기 탐구를 이끌었습니다. 식물성 단백질과 동물성 단백질 생산 과정의 탄소배출량, 용수 사용량 등 환경 데이터를 비교 분석하고, 대체육 시장의 성장 가능성을 경제학적 수요-공급 모델에 기반하여 예측하는 보고서를 작성하여 높은 평가를 받았습니다. 과학적 지식과 사회과학적 분석 방법을 융합하는 탁월한 능력을 보여주었습니다.",
+      "activityName": "융합과학탐구반",
+      "hours": 30
+    },
+    {
+      "grade": 2,
+      "activityType": "volunteer",
+      "content": "농촌 일손 돕기 봉사활동에 참여하여 포도 농장에서 순 따기, 봉지 씌우기 등의 작업을 도왔습니다. 농가 어르신과의 대화를 통해 농산물 가격 변동, 인력 부족, 기후 변화 등 농촌이 직면한 현실적인 어려움을 생생하게 이해하게 되었습니다. 활동 이후 '스마트팜 기술 도입을 통한 농촌 문제 해결 가능성 탐구' 보고서를 작성하여 농업 정책에 대한 관심을 심화시켰습니다.",
+      "activityName": "농촌 일손 돕기",
+      "hours": 24
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "서울대학교 농업생명과학대학에서 주최하는 '청소년 농생명 캠프'에 참가하여 농경제사회학부 교수님의 '식량 안보와 국제 농업' 특강을 듣고 깊은 감명을 받았습니다. 이후 관련 논문을 찾아 읽으며 국제 곡물 시장의 구조와 선물 거래 시스템에 대해 학습하고, 진로 희망을 농업정책 전문가로 더욱 구체화하였습니다. 멘토 교수님께 이메일로 질문하며 학문적 열의를 적극적으로 표현하는 모습을 보였습니다.",
+      "activityName": "대학 연계 진로 캠프 참가",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업앨범 편집위원으로 활동하며, '우리들의 성장 기록'이라는 주제로 지난 3년간의 학교생활을 담은 특별 페이지를 기획했습니다. 친구들의 활동 사진과 소감을 모아 편집하며 공동체의 추억을 의미 있게 정리하는 데 기여했습니다. 특히 통계 자료를 활용하여 '우리 학교 학생들이 가장 기억에 남는 활동' 인포그래픽을 제작하는 등 창의적인 아이디어를 발휘하였습니다.",
+      "activityName": "졸업앨범 편집위원",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "'융합과학탐구반'에서의 경험을 바탕으로, 후배들을 위한 스터디 그룹 '농생명 아카데미'를 자율적으로 조직하여 이끌었습니다. 1, 2학년 때 탐구했던 '대체육 시장 분석', '스마트팜의 경제성' 등의 주제를 후배들의 눈높이에 맞춰 발표하고 토론을 주도했습니다. 지식을 나누고 함께 성장하는 리더십을 보여주었으며, 농생명 분야에 대한 자신의 이해를 더욱 공고히 하는 계기가 되었습니다.",
+      "activityName": "자율 스터디 '농생명 아카데미' 조직 및 운영",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "volunteer",
+      "content": "지역 아동센터에서 학습 멘토링 봉사활동을 꾸준히 진행하였습니다. 특히 다문화 가정 아동에게 수학과 과학의 기본 개념을 가르치며, 어려운 내용을 시각 자료와 비유를 통해 쉽게 설명하는 등 뛰어난 소통 능력을 보여주었습니다. 사회적 약자에 대한 따뜻한 시선과 책임감을 바탕으로 나눔을 실천하는 모습이 다른 학생들에게 귀감이 되었습니다.",
+      "activityName": "지역 아동센터 학습 멘토링",
+      "hours": 16
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "자신의 진로 계획을 구체화하기 위해 '농업정책 및 푸드테크 분야의 미래 전망'이라는 주제로 포트폴리오를 작성하였습니다. 관련 국내외 정책 보고서, 기업 분석 자료, 학술 논문 등을 체계적으로 정리하고, 자신의 강점과 학업 계획을 연결하여 '지속가능한 농업 시스템을 설계하는 정책 전문가'라는 비전을 제시하였습니다. 자기 성찰과 진로에 대한 진지한 고민이 돋보였습니다.",
+      "activityName": "진로 포트폴리오 작성",
+      "hours": 10
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 20,
+      "hours": 20,
+      "location": "지역 푸드뱅크"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 44,
+      "hours": 24,
+      "location": "OO 농촌마을"
+    },
+    {
+      "grade": 3,
+      "cumulativeHours": 60,
+      "hours": 16,
+      "location": "XX 아동센터"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 8.5,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "수학",
+      "achievementLevel": "2",
+      "classAverage": 78.9,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94.2,
+      "stdDev": 12.1,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "영어",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 9.2,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사",
+      "achievementLevel": "1",
+      "classAverage": 88.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 7.5,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회",
+      "achievementLevel": "1",
+      "classAverage": 89.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.8,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "achievementLevel": "2",
+      "classAverage": 82.4,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95.1,
+      "stdDev": 10.3,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "achievementLevel": "2",
+      "classAverage": 84.5,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 9.1,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "achievementLevel": "1",
+      "classAverage": 79.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 11.5,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "영어",
+      "achievementLevel": "1",
+      "classAverage": 87.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "stdDev": 8,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사",
+      "achievementLevel": "1",
+      "classAverage": 89.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.1,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회",
+      "achievementLevel": "1",
+      "classAverage": 90.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.5,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "과학탐구실험",
+      "achievementLevel": "1",
+      "classAverage": 83.3,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96.2,
+      "stdDev": 9.9,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 88.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.7,
+      "stdDev": 7.4,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 75.6,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.3,
+      "stdDev": 13.2,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 85.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "stdDev": 9.5,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "경제",
+      "achievementLevel": "1",
+      "classAverage": 80.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 11.8,
+      "subjectType": "일반선택",
+      "totalStudents": 110
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 81.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "stdDev": 10.9,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "1",
+      "classAverage": 91.2,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 5.4,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 89,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.9,
+      "stdDev": 7,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 76.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 95.8,
+      "stdDev": 12.8,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 86.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.3,
+      "stdDev": 8.8,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1",
+      "classAverage": 87.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 7.9,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1",
+      "classAverage": 78.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 11.1,
+      "subjectType": "일반선택",
+      "totalStudents": 201
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "한문Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 82.1,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "stdDev": 10.4,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 90.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "stdDev": 6.1,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "2",
+      "classAverage": 73.5,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.1,
+      "stdDev": 14.5,
+      "subjectType": "일반선택",
+      "totalStudents": 130
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "achievementLevel": "1",
+      "classAverage": 88.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 7.7,
+      "subjectType": "일반선택",
+      "totalStudents": 240
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 89.8,
+      "creditHours": 3,
+      "rawScore": 97.2,
+      "stdDev": 6.9,
+      "subjectType": "진로선택",
+      "totalStudents": 95
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "생명과학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 80.1,
+      "creditHours": 3,
+      "rawScore": 95.3,
+      "stdDev": 12.3,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "A",
+      "classAverage": 92.5,
+      "creditHours": 2,
+      "rawScore": 98,
+      "stdDev": 4.5,
+      "subjectType": "진로선택",
+      "totalStudents": 240
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "classAverage": 91,
+      "creditHours": 3,
+      "rawScore": 96,
+      "stdDev": 5.5,
+      "subjectType": "진로선택",
+      "totalStudents": 100
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "경제 수학",
+      "achievementLevel": "A",
+      "classAverage": 85,
+      "creditHours": 3,
+      "rawScore": 95,
+      "stdDev": 9,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "영미 문학 읽기",
+      "achievementLevel": "A",
+      "classAverage": 89.5,
+      "creditHours": 3,
+      "rawScore": 97,
+      "stdDev": 6.5,
+      "subjectType": "진로선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제 관계와 국제기구",
+      "achievementLevel": "A",
+      "classAverage": 90.5,
+      "creditHours": 2,
+      "rawScore": 98,
+      "stdDev": 5,
+      "subjectType": "진로선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "융합과학 탐구",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 2,
+      "rawScore": 96.5,
+      "stdDev": 7,
+      "subjectType": "진로선택",
+      "totalStudents": 75
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육 탐구",
+      "achievementLevel": "A",
+      "classAverage": 92,
+      "creditHours": 2,
+      "rawScore": 99,
+      "stdDev": 4,
+      "subjectType": "진로선택",
+      "totalStudents": 240
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "content": "문학 작품에 대한 깊이 있는 해석 능력이 뛰어납니다. 특히 박완서의 '나목'을 읽고, 전쟁이 한 개인의 삶과 예술에 미치는 영향을 다각적으로 분석하여 발표했습니다. 자신의 생각을 논리적으로 구조화하여 전달하는 능력이 우수하며, 친구들의 다양한 해석을 경청하고 종합하여 토론을 심화시키는 역할을 하였습니다. 어휘력이 풍부하고 문장 구사력이 뛰어나 작문 과제에서 항상 높은 완성도를 보여줍니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "수학",
+      "content": "복잡한 수식의 원리를 파악하고 응용하는 능력이 탁월합니다. 특히 함수 단원에서 그래프의 개형을 추론하고 변수 간의 관계를 시각적으로 이해하는 데 강점을 보입니다. 문제 풀이 과정에서 자신만의 효율적인 방법을 찾으려 노력하고, 풀리지 않는 문제는 끝까지 파고드는 학업적 끈기가 인상적입니다. 수학적 개념을 실생활 문제에 적용해보려는 시도를 즐겨하며, 수학 학습에 대한 흥미와 자신감이 높습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "영어",
+      "content": "수업 시간에 원어민의 발음을 정확히 듣고 따라 하며, 자신의 의견을 영어로 표현하는 데 적극적입니다. 'Environmental Issues' 관련 지문을 읽고, 플라스틱 오염 문제의 심각성과 해결을 위한 국제적 노력에 대해 유창한 영어로 발표하여 큰 호응을 얻었습니다. 영자 신문반 활동을 통해 시사적인 글을 꾸준히 읽으며 독해력과 어휘력을 향상시키고 있으며, 이를 바탕으로 사회 문제에 대한 비판적 시각을 길러나가고 있습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사",
+      "content": "역사적 사건의 인과관계를 구조적으로 파악하는 능력이 우수합니다. 조선시대의 대동법 시행이 조세 제도의 변화를 넘어 사회, 경제 전반에 미친 파급 효과를 심도 있게 분석하는 보고서를 작성하였습니다. 역사적 사실에 대한 암기를 넘어 그 이면에 담긴 의미를 탐구하려는 자세가 돋보이며, 역사 드라마나 다큐멘터리를 보고 자신의 생각을 정리하는 등 주도적인 학습 태도를 보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회",
+      "content": "사회 현상을 통합적 관점에서 분석하는 능력이 뛰어납니다. '시장 경제와 금융' 단원을 학습하며, 자원의 희소성이라는 기본 개념에서 출발하여 세계 식량 문제로 탐구를 확장했습니다. 애그플레이션(Agflation) 현상의 원인을 수요-공급 측면에서 분석하고, 식량 안보의 중요성을 경제적, 윤리적, 지리적 관점에서 종합적으로 고찰하는 보고서를 작성하여 사회 문제에 대한 깊은 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "content": "과학적 현상에 대한 지적 호기심이 왕성하고 탐구 설계 능력이 우수합니다. '생물다양성과 유지' 단원에서 유전적 다양성의 중요성을 학습한 후, 특정 품종의 대량 재배가 식량 안보에 미칠 수 있는 위험성에 대해 탐구했습니다. 아일랜드 대기근의 원인이 된 감자 품종의 단일화를 사례로 들어, 유전적 다양성 확보가 미래 농업의 지속가능성에 필수적임을 논리적으로 주장하여 깊은 인상을 남겼습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "content": "매체 자료를 비판적으로 수용하고 해석하는 능력이 돋보입니다. 뉴스 기사의 프레임 효과에 대해 학습한 후, 동일한 사안(예: GMO 식품)을 다루는 서로 다른 입장의 기사들을 비교 분석하여 각 기사에 숨겨진 의도와 관점을 파악하는 과제를 훌륭하게 수행했습니다. 정보의 홍수 속에서 객관적인 사실과 주관적인 의견을 분별해내는 미디어 리터러시 역량을 갖추고 있습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "content": "도형의 방정식 단원에서 점과 직선 사이의 거리 공식을 유도하는 다양한 방법을 탐구하고, 각 방법의 장단점을 비교 분석하여 발표했습니다. 공식 암기에 그치지 않고 그 원리를 끝까지 파고드는 탐구 정신이 돋보입니다. 또한, 모둠 활동에서 어려움을 겪는 친구에게 자신의 풀이 과정을 차근차근 설명해주며 함께 문제를 해결해나가는 등 협력적인 학습 태도를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "영어",
+      "content": "영어 어휘의 미묘한 뉘앙스 차이를 잘 파악하고 문맥에 맞게 활용하는 능력이 뛰어납니다. 'TED-Ed' 영상을 활용한 수업에서, 'How to make filthy water drinkable' 영상을 시청하고 물 부족 문제의 해결책으로 제시된 라이프스트로(LifeStraw)의 작동 원리와 사회적 영향에 대해 영어로 요약 발표하였습니다. 과학 기술과 사회 문제에 대한 관심을 영어 학습과 성공적으로 연결시켰습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사",
+      "content": "근현대사 수업에서 일제강점기 토지조사사업이 한국 농촌 사회에 미친 영향을 심도 있게 탐구했습니다. 사업의 명분과 실제 결과를 사료를 통해 비교 분석하고, 이로 인해 소작농이 증가하고 농민의 삶이 피폐해지는 과정을 구체적인 통계 자료를 근거로 제시하였습니다. 역사적 사건이 현재 우리의 삶에 미치는 영향을 성찰하는 성숙한 역사 인식을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회",
+      "content": "문화 상대주의와 보편 윤리의 관계에 대해 깊이 있게 고찰하였습니다. '개고기 식용 문화'를 사례로 들어, 특정 문화를 존중해야 한다는 문화 상대주의적 입장과 생명 존중이라는 보편 윤리 사이의 갈등을 분석하고, 두 가치가 조화를 이룰 수 있는 방안에 대해 자신의 생각을 논리적으로 서술하였습니다. 복잡한 사회 쟁점에 대해 균형 잡힌 시각을 유지하려는 노력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "과학탐구실험",
+      "content": "산 염기 적정 실험에서 뛰어난 실험 수행 능력을 보여주었습니다. 오차를 줄이기 위한 변인 통제를 철저히 하고, 정확한 농도의 표준 용액을 만들기 위해 세심한 노력을 기울였습니다. 실험 보고서에 오차의 원인을 분석하고 개선 방안을 제시하는 등 과학적 탐구의 전 과정을 충실히 수행했습니다. 특히 실험 결과를 바탕으로 생활 속 중화반응의 사례를 농업 분야(산성 토양의 석회질 비료 사용)와 연결하여 설명하는 등 지식의 확장성이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "농촌을 배경으로 한 문학 작품을 통해 당대의 사회상을 깊이 있게 이해하는 능력이 탁월합니다. 신경림의 '농무', 이문구의 '관촌수필' 등을 읽고, 산업화 과정에서 소외된 농촌의 현실과 농민들의 애환을 섬세하게 분석하는 감상문을 작성했습니다. 문학 작품을 사회·역사적 맥락 속에서 입체적으로 해석하고, 이를 자신의 진로 관심사인 농업 문제와 연결하여 사유하는 통합적 사고력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "지수, 로그 함수의 개념을 명확히 이해하고 실생활 문제에 적용하는 능력이 우수합니다. '인구 증가 모델'과 같이 지수함수를 활용하는 다양한 현상에 관심을 보였으며, 특히 미생물 배양이나 방사성 동위원소 붕괴 모델을 학습하며 생명과학 분야와의 연관성을 발견하고 흥미를 보였습니다. 어려운 개념도 시각적인 그래프로 표현하여 직관적으로 이해하려는 노력을 꾸준히 하는 학생입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "content": "사회적 이슈를 다룬 심층적인 영어 기사를 읽고 자신의 의견을 논리적으로 개진하는 능력이 뛰어납니다. 'The Economist' 지의 'The future of food' 특집 기사를 읽고, 미래 식량 문제 해결을 위한 대안으로 제시된 곤충 식용, 배양육, 수직 농장 등의 장단점을 비교 분석하여 영어로 발표했습니다. 풍부한 어휘와 정확한 문법을 사용하여 복잡한 내용을 명료하게 전달하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "경제",
+      "content": "경제학의 핵심 원리를 현실 문제에 적용하여 분석하는 능력이 뛰어납니다. '시장 실패' 단원을 학습한 후, '농산물 시장의 가격 불안정성'을 대표적인 시장 실패 사례로 선정하여 탐구 보고서를 작성했습니다. 풍년의 역설, 파종 시점과 수확 시점의 시차로 인한 공급의 비탄력성 등 농산물 시장의 특수성을 경제학적 모델을 통해 명쾌하게 분석하여 교사에게 깊은 인상을 주었습니다. 정부의 농산물 가격 안정 정책의 필요성과 그 한계에 대해서도 깊이 있게 고찰하는 등 높은 학업 역량을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "content": "생명 현상의 원리에 대한 깊이 있는 이해를 바탕으로 탐구 활동을 주도적으로 수행합니다. '생태계와 상호작용' 단원에서 군집 내 개체들의 상호작용을 학습한 후, '질소고정세균과 콩과식물의 공생 관계가 농업 생산성에 미치는 영향'에 대해 심화 탐구했습니다. 뿌리혹박테리아의 질소 고정 과정이 화학 비료 사용을 줄이고 지속가능한 농업에 기여할 수 있음을 과학적 원리에 근거하여 설명하고, 이를 윤작 농법과 연결하여 발표하는 등 융합적 사고 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "content": "자신의 신체 능력과 건강 상태를 과학적으로 분석하고 체계적인 운동 계획을 수립하여 꾸준히 실천하는 자기관리 능력이 뛰어납니다. 특히 체력 증진을 위한 영양 섭취의 중요성을 이해하고, 탄수화물, 단백질, 지방의 역할과 균형 잡힌 식단 구성에 대해 탐구 보고서를 작성했습니다. 교과 지식을 실생활에 적극적으로 적용하고 꾸준히 실천하는 태도가 모범적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "다양한 분야의 책을 편식 없이 읽으며 비판적 사고력을 기르는 학생입니다. 특히 칼 세이건의 '코스모스'를 읽고 과학적 사실을 인문학적 성찰과 연결하는 저자의 통찰력에 깊은 감명을 받았으며, 과학이 인류의 세계관을 어떻게 확장해왔는지에 대한 서평을 작성했습니다. 한 가지 주제에 대해 여러 관점의 책을 찾아 읽으며 입체적으로 이해하려는 탐구 자세가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미적분의 개념을 정확히 이해하고 문제 해결에 능숙하게 활용합니다. 특히 정적분의 활용 단원에서, 두 곡선으로 둘러싸인 도형의 넓이를 구하는 원리를 학습한 후, 경제학의 '소비자 잉여'와 '생산자 잉여' 개념이 정적분을 통해 계산될 수 있음을 발견하고 큰 흥미를 보였습니다. 추상적인 수학 개념을 구체적인 사회과학적 모델과 연결하여 이해하려는 지적 유연성과 확장적 사고력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "복잡하고 긴 문장의 구조를 정확하게 파악하는 독해 능력이 우수합니다. 수행평가로 진행된 영문 에세이 작성에서 'The Importance of Agricultural Subsidies'라는 주제를 선정, 찬반 양론을 균형 있게 다루면서도 농가 소득 안정과 식량 안보 확보라는 측면에서 보조금의 필요성을 논리적으로 주장하는 글을 작성하여 높은 평가를 받았습니다. 자신의 진로와 관련된 주제를 영어로 심도 있게 탐구하는 학문적 열의가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "content": "사회 계층 현상을 분석하는 다양한 관점을 명확히 이해하고 있습니다. '불평등의 대물림'을 주제로 한 발표에서, 교육, 소득, 자산의 불평등이 농촌과 도시 지역 간에 어떻게 다르게 나타나는지를 통계 자료를 활용하여 시각적으로 제시했습니다. 문제 현상 분석에 그치지 않고, 농촌 지역의 교육 및 문화 인프라 확충과 같은 정책적 대안을 함께 제시하는 등 문제 해결 지향적인 태도를 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "content": "통계적 추론 능력이 뛰어나며 데이터에 기반한 합리적 의사결정의 중요성을 깊이 이해하고 있습니다. '기후 변화 데이터와 농작물 수확량의 상관관계 분석'을 주제로 한 통계 탐구 프로젝트를 수행했습니다. 지난 20년간의 지역별 평균 기온, 강수량 데이터와 쌀 생산량 데이터를 수집하여 산점도를 그리고, 상관계수를 계산하여 둘 사이의 유의미한 관계를 통계적으로 입증해냈습니다. R 프로그램을 독학하여 데이터 분석에 활용하는 등 자기주도적 학습 능력과 학업에 대한 열정이 매우 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "한문Ⅰ",
+      "content": "한자의 어원을 탐구하고 이를 통해 단어의 의미를 깊이 있게 이해하는 능력이 뛰어납니다. '農者天下之大本(농자천하지대본)'이라는 문구를 배우고, 농업이 국가 경제와 사회 안정의 근간이었던 전통 사회의 가치관에 대해 탐구하였습니다. 한문 지식을 바탕으로 우리 문화의 뿌리를 이해하고, 현대 사회의 문제와 연결하여 성찰하는 인문학적 소양을 갖추고 있습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "설득력 있는 글쓰기 능력이 탁월합니다. '로컬푸드 활성화 방안'을 주제로 한 정책 건의문 작성 과제에서, 로컬푸드가 생산자, 소비자, 그리고 지역 공동체에 미치는 긍정적 효과를 구체적인 사례와 통계 자료를 들어 논리적으로 주장했습니다. 예상되는 반론을 미리 언급하고 이를 재반박하는 등 비판적 사고력과 논증적 글쓰기 능력을 유감없이 발휘하였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "변화율과 최적화 문제에 대한 깊은 이해를 보여줍니다. 로지스틱 성장 모델(Logistic model)의 미분방정식을 학습하며, 환경 저항이 있는 실제 생물 개체군의 성장 패턴을 수학적으로 모델링하는 과정에 큰 흥미를 보였습니다. 이를 농업 해충의 개체 수 변화 예측이나 어업 자원의 지속가능한 수확량(MSY) 관리 등 자원 경제학 분야에 적용할 수 있음을 이해하고 관련 자료를 추가로 탐구하는 등 지적 확장성이 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "content": "다양한 주제의 학술적 텍스트를 비판적으로 읽고 분석하는 능력이 뛰어납니다. 'Food Deserts'에 관한 영문 아티클을 읽고, 저소득층 지역의 신선식품 접근성 문제가 단순히 지리적 문제를 넘어 사회 구조적 불평등과 연결되어 있음을 파악했습니다. 이 문제 해결을 위해 '도시 농업'과 '공동체 지원 농업(CSA)'을 대안으로 제시하는 내용의 영문 에세이를 작성하여 심도 있는 이해와 창의적인 문제 해결 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "탁월한 연구 역량을 바탕으로 사회 문제에 대한 심층적인 탐구를 수행했습니다. '국제 곡물 가격 변동성이 국내 축산 농가에 미치는 영향 및 정책적 대응 방안 연구'라는 주제로 소논문을 작성했습니다. 관련 연구(KREI 보고서 등)를 참고문헌으로 활용하여 사료 가격 상승이 생산비 증가로 이어지는 과정을 실증적으로 분석하고, 사료 구매자금 지원, 조사료 생산 기반 확충, 곡물 수입선 다변화 등 구체적이고 현실적인 정책 대안을 제시하여 연구의 깊이와 완성도를 높였습니다. 사회과학 연구자로서의 성장 가능성을 뚜렷하게 보여준 탐구였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "생명과학Ⅱ",
+      "content": "유전 공학 기술의 원리를 깊이 있게 이해하고, 그 사회적 함의에 대해 균형 잡힌 시각을 가지고 있습니다. 크리스퍼 유전자 가위(CRISPR-Cas9) 기술을 학습한 후, 이 기술을 활용한 가뭄 저항성 작물이나 질병 저항성 가축 개발의 가능성을 탐구했습니다. 기술의 긍정적 측면뿐만 아니라, 생태계 교란 가능성이나 유전자 변형 생물체(GMO)에 대한 사회적 수용성 문제 등 윤리적, 사회적 쟁점까지 종합적으로 고찰하는 보고서를 작성하여 과학 기술과 사회를 연결하는 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "음악 감상과 비평",
+      "content": "음악을 통해 시대정신과 사회상을 읽어내는 능력이 뛰어납니다. 베토벤 교향곡 3번 '영웅'을 감상하고, 프랑스 혁명이라는 시대적 배경 속에서 작곡가가 작품을 통해 자유, 평등, 박애의 이상을 어떻게 표현하고자 했는지 분석하는 감상문을 제출했습니다. 음악을 단순한 즐거움을 넘어 역사와 사회를 이해하는 창으로 활용하는 인문학적 소양과 통합적 사고가 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "content": "고전과 현대를 아우르는 폭넓은 독서 경험을 바탕으로 주제에 대한 깊이 있는 글쓰기를 선보입니다. 정약용의 '목민심서'를 현재의 농업 정책과 연결하여 '현대판 목민관이 갖춰야 할 농정 철학'에 대한 에세이를 작성하며, 애민 정신과 실사구시의 자세가 오늘날에도 여전히 유효함을 역설했습니다. 인문학적 소양과 현실 문제에 대한 고민이 잘 드러납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "경제 수학",
+      "content": "수학적 모델링을 통해 경제 현상을 분석하고 예측하는 데 뛰어난 재능을 보입니다. '게임 이론'을 학습하고, 농산물 시장에서 농부들의 생산량 결정 문제를 '죄수의 딜레마' 상황으로 모델링하여 분석했습니다. 개별 농부의 합리적인 선택(생산량 증대)이 시장 전체적으로는 가격 하락이라는 비합리적인 결과를 낳는 과정을 명쾌하게 설명하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "영미 문학 읽기",
+      "content": "존 스타인벡의 '분노의 포도'를 원서로 읽고, 1930년대 미국 대공황 시기 농민들의 고통과 자본주의의 비정함을 깊이 있게 분석했습니다. 작품에 나타난 환경 파괴, 빈부 격차, 이주 노동자 문제 등이 현대 사회에도 여전히 유효한 문제임을 지적하며, 문학을 통해 사회 구조적 문제를 성찰하는 비판적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제 관계와 국제기구",
+      "content": "세계식량계획(WFP), 국제농업개발기금(IFAD) 등 식량 및 농업 관련 국제기구의 역할과 한계에 대해 탐구했습니다. 기후 변화, 분쟁 등으로 심화되는 세계 식량 위기 속에서 국제 공조의 중요성을 이해하고, 각 기구의 활동 사례를 조사하여 발표했습니다. 국제 사회 문제에 대한 높은 관심과 글로벌 시티즌으로서의 자질을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "융합과학 탐구",
+      "content": "사물인터넷(IoT) 기술이 농업에 적용되는 '스마트팜'에 대한 프로젝트를 수행했습니다. 센서를 통해 수집된 토양, 온도, 습도 등의 데이터를 분석하여 최적의 생육 환경을 자동으로 제어하는 원리를 탐구하고, 이를 통해 물과 에너지 사용을 줄이는 친환경적 효과를 분석했습니다. 과학 기술과 농업의 융합을 통해 미래 식량 문제 해결에 기여하려는 의지가 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육 탐구",
+      "content": "스포츠와 경제의 연관성에 대해 탐구했습니다. 프로 스포츠 구단의 마케팅 전략, 스포츠 이벤트의 경제적 파급 효과 등을 조사하고, 스포츠 산업이 고부가가치를 창출하는 현대 사회의 중요한 산업 분야임을 이해했습니다. 체육 활동을 인문사회학적 탐구의 대상으로 삼는 넓은 시야와 탐구 능력을 보여주었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'총, 균, 쇠'(재레드 다이아몬드)를 읽고, 지리적, 환경적 요인이 인류 문명의 발전에 미친 결정적 영향을 이해함. 특히 작물화, 가축화의 차이가 대륙 간 불평등의 기원이 되었다는 주장을 통해 농업의 중요성을 역사적 관점에서 재인식하게 됨.",
+      "author": "재레드 다이아몬드",
+      "bookTitle": "총, 균, 쇠"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합사회",
+      "bookDescription": "'왜 세계의 절반은 굶주리는가?'(장 지글러)를 읽고, 기아 문제가 식량 부족이 아닌 분배의 불평등과 사회 구조적 문제임을 깨닫고 깊은 충격을 받음. 식량 안보와 농업 정책에 대한 진로 탐색의 직접적인 계기가 됨.",
+      "author": "장 지글러",
+      "bookTitle": "왜 세계의 절반은 굶주리는가?"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합과학",
+      "bookDescription": "'침묵의 봄'(레이첼 카슨)을 읽고, 살충제 남용이 생태계에 미치는 파괴적인 영향에 대해 경각심을 갖게 됨. 환경을 고려하는 지속가능한 농업의 필요성을 절감하고, 친환경 농법에 대해 추가적으로 탐구함.",
+      "author": "레이첼 카슨",
+      "bookTitle": "침묵의 봄"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "경제",
+      "bookDescription": "'죽은 경제학자의 살아있는 아이디어'(토드 부크홀츠)를 읽고, 애덤 스미스부터 케인스까지 주요 경제학자들의 핵심 사상을 쉽고 재미있게 이해함. 특히 맬서스의 인구론을 비판적으로 검토하며 기술 발전이 식량 생산량에 미치는 변수를 고려하게 됨.",
+      "author": "토드 부크홀츠",
+      "bookTitle": "죽은 경제학자의 살아있는 아이디어"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "생명과학",
+      "bookDescription": "'이기적 유전자'(리처드 도킨스)를 읽고, 생명 현상을 유전자의 관점에서 바라보는 새로운 시각을 접함. 생물의 행동과 진화를 설명하는 강력한 이론을 통해 생명과학에 대한 지적 깊이를 더함.",
+      "author": "리처드 도킨스",
+      "bookTitle": "이기적 유전자"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "확률과 통계",
+      "bookDescription": "'신호와 소음'(네이트 실버)을 읽고, 빅데이터 시대에 통계적 사고와 예측 모델의 중요성을 깨달음. 데이터에서 의미 있는 신호를 찾아내고 불확실성을 줄여나가는 과정에 매료되어, 통계학을 농산물 가격 예측이나 기후 변화 분석에 활용하고 싶다는 목표를 갖게 됨.",
+      "author": "네이트 실버",
+      "bookTitle": "신호와 소음"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회·문화",
+      "bookDescription": "'정의란 무엇인가'(마이클 샌델)를 읽고, 공리주의, 자유지상주의 등 다양한 정의론을 접하며 복잡한 사회 쟁점을 분석하는 철학적 틀을 배움. 농산물 가격 안정 정책이나 농업 보조금 지급과 같은 이슈를 분배 정의의 관점에서 고찰해보는 계기가 됨.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "'The Sixth Extinction: An Unnatural History'(Elizabeth Kolbert)를 읽고, 인간 활동으로 인한 대멸종의 위기를 과학적 근거를 통해 이해함. 생물다양성 감소가 식량 안보에 미칠 영향에 대해 고민하고, 환경 문제에 대한 국제적 논의를 따라가기 위해 영어 능력의 중요성을 느낌.",
+      "author": "Elizabeth Kolbert",
+      "bookTitle": "The Sixth Extinction: An Unnatural History"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회문제 탐구",
+      "bookDescription": "'오래된 미래'(헬레나 노르베리 호지)를 읽고, 세계화와 현대화가 라다크라는 작은 공동체의 전통 농업과 문화를 어떻게 변화시켰는지 확인함. 지역 중심의 자립 경제와 공동체 문화의 가치를 되새기며, 로컬푸드와 지속가능한 발전에 대한 탐구를 심화함.",
+      "author": "헬레나 노르베리 호지",
+      "bookTitle": "오래된 미래"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "생명과학Ⅱ",
+      "bookDescription": "'만들어진 질병'(안드레아스 소메르)을 읽고, 공장식 축산 시스템의 문제점과 항생제 내성 문제의 심각성을 알게 됨. 동물복지와 인수공통전염병, 그리고 지속가능한 축산 시스템에 대한 대안을 고민하는 계기가 됨.",
+      "author": "안드레아스 소메르",
+      "bookTitle": "만들어진 질병"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "미적분",
+      "bookDescription": "'페르마의 마지막 정리'(사이먼 싱)를 읽고, 하나의 수학 문제가 해결되기까지 수많은 수학자들이 쏟아부은 열정과 노력을 느낌. 수학적 증명의 논리적 아름다움과 학문적 집요함에 깊은 감명을 받음.",
+      "author": "사이먼 싱",
+      "bookTitle": "페르마의 마지막 정리"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "화법과 작문",
+      "bookDescription": "'축적의 시간'(서울대 공대 26인 교수)을 읽고, 개념설계 역량과 시행착오 경험의 축적이 국가 산업 발전에 얼마나 중요한지 이해함. 이를 농업 분야에 적용하여, 단기 성과보다는 장기적인 관점의 농업 R&D 투자와 데이터 축적의 필요성을 주장하는 글을 씀.",
+      "author": "서울대학교 공과대학",
+      "bookTitle": "축적의 시간"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "경제 수학",
+      "bookDescription": "'넛지'(리처드 탈러, 캐스 선스타인)를 읽고, 인간의 비합리적인 선택을 이해하고 부드러운 개입을 통해 더 나은 선택을 유도하는 행동경제학에 매료됨. 이를 농민들의 친환경 농법 채택이나 소비자들의 건강한 식습관 형성을 유도하는 정책 설계에 활용할 수 있을 것이라 생각함.",
+      "author": "리처드 탈러, 캐스 선스타인",
+      "bookTitle": "넛지"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로활동",
+      "bookDescription": "'농업, 세상의 모든 지식'(정철의)을 읽고, 농업의 역사를 시작으로 스마트팜, 푸드테크, 농업 정책에 이르기까지 농업 분야 전반에 대한 종합적인 지식을 쌓음. 자신의 진로 분야에 대한 이해를 체계화하고 구체적인 학업 계획을 세우는 데 큰 도움을 받음.",
+      "author": "정철의",
+      "bookTitle": "농업, 세상의 모든 지식"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어",
+      "bookDescription": "'코스모스'(칼 세이건)를 읽고, 과학적 사실을 인문학적 감수성과 통찰로 풀어내는 방식에 깊은 감명을 받음. 우주적 관점에서 생명의 소중함과 인류 문명을 성찰하며 과학과 인문학의 융합적 사고의 중요성을 깨달음.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 왕성하고 학업에 대한 열의가 높은 학생입니다. 수업 시간에 항상 바른 자세로 경청하며, 핵심 내용을 놓치지 않고 필기하는 습관이 몸에 배어 있습니다. 특히 사회, 과학 등 여러 교과를 넘나들며 지식을 연결하려는 시도가 돋보입니다. 통합사회 시간에 배운 시장 경제 원리를 통합과학의 생태계 문제와 연결하여 '탄소배출권 거래제'에 대해 질문하는 등 융합적 사고의 가능성을 보여주었습니다. 학급 부회장으로서 책임감이 강하고, 친구들의 의견을 경청하고 합리적으로 조율하는 능력이 뛰어나 교우 관계가 원만합니다. 공동의 목표를 위해 기꺼이 헌신하며 긍정적인 학습 분위기를 조성하는 데 기여하는 등 앞으로의 성장이 더욱 기대되는 학생입니다."
+    },
+    {
+      "grade": 2,
+      "content": "자신의 진로 분야에 대한 뚜렷한 목표 의식을 바탕으로 심도 있는 탐구 활동을 자기주도적으로 수행하는 학생입니다. 1학년 때부터 보여준 농업 분야에 대한 관심을 경제, 생명과학, 통계 등 다양한 교과목과 연결하여 구체화하고 심화시키는 지적 성장 과정이 매우 인상적입니다. '융합과학탐구반' 동아리 부장으로서 '대체육의 가치 분석'이라는 장기 프로젝트를 성공적으로 이끌며 탁월한 리더십과 연구 역량을 보여주었습니다. 특히 통계 프로그램을 독학하여 기후 데이터와 농작물 수확량의 상관관계를 분석하는 보고서를 작성하는 등, 지적 호기심을 실제 탐구로 실현해내는 능력이 탁월합니다. 학급 회장으로서 '학급 농장'을 운영하며 이론적 탐구를 실천으로 옮기고 공동체에 기여하는 등 지성과 인성을 겸비한 인재입니다."
+    },
+    {
+      "grade": 3,
+      "content": "3년간 '지속가능한 농업 시스템을 설계하는 정책 전문가'라는 일관된 꿈을 향해 꾸준히 정진해 온 학생입니다. 경제학적 분석력, 생명과학에 대한 이해, 데이터 활용 능력이라는 세 가지 핵심 역량을 균형 있게 발전시켜 왔습니다. 특히 '사회문제 탐구' 시간에 수행한 '국제 곡물가 변동이 국내 축산 농가에 미치는 영향'에 대한 소논문은 실제 정책 보고서를 방불케 할 만큼 깊이와 완성도가 높았으며, 문제의 본질을 파악하고 합리적인 대안을 제시하는 예비 정책 전문가로서의 자질을 유감없이 보여주었습니다. 학문적 깊이뿐만 아니라, 후배들을 위해 스터디 그룹을 조직하여 자신의 지식을 나누고 동반 성장을 이끄는 따뜻한 리더십을 갖추고 있습니다. 명확한 비전과 뛰어난 역량, 그리고 따뜻한 인성을 바탕으로 우리 사회의 식량 안보 문제 해결에 크게 기여할 인재라고 확신하여 추천합니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "content": "기본 운동 능력이 우수하고 모든 활동에 적극적으로 참여함. 특히 농구 경기에서 팀의 전술을 이해하고 동료들과 협력하여 경기를 풀어가는 능력이 돋보임.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "A",
+      "content": "다양한 재료를 활용하여 자신의 생각을 창의적으로 표현하는 능력이 뛰어남. '환경'을 주제로 한 포스터 제작에서 뛰어난 구성과 색채 감각을 보여줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "A",
+      "content": "체력 관리의 중요성을 이해하고 자기주도적으로 운동 계획을 세워 실천함. 건강한 생활 습관을 유지하려는 의지가 강하고, 친구들에게 긍정적인 영향을 줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "A",
+      "content": "음악의 형식과 시대적 배경을 깊이 있게 이해하고 자신의 감상을 논리적으로 표현함. 바로크 시대 음악과 현대 미니멀리즘 음악을 비교 분석하는 보고서가 인상적임.",
+      "creditHours": 2
+    }
+  ]
+}

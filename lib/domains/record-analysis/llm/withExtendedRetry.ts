@@ -56,22 +56,34 @@ export interface WithExtendedRetryOptions {
   supabase: SupabaseAdminClient;
   /** 로그/디버깅용 라벨. 예: "bootstrap.main_exploration_seed" */
   label?: string;
+  /**
+   * 단일 재시도 대기 상한 (ms). 이 값보다 큰 delay는 스킵된다.
+   * 미지정 시 EXTENDED_DELAYS_MS 전체(최대 15분) 사용.
+   * BT1 task 단위 route(300s 제한)에서는 ~60_000(1분) 이하 권장.
+   */
+  maxDelayMs?: number;
 }
 
 /**
  * 장시간 rate limit 회복을 허용하는 재시도 래퍼.
  *
- * 사용처: `ensureBootstrap` → `generateMainExplorationSeed` 등 Phase 0 LLM 호출.
+ * 사용처: Bootstrap BT1 `runMainExplorationSeed` → `generateMainExplorationSeed` 등 Phase 0 LLM 호출.
  *   Synthesis/Grade 의 짧은 LLM 호출은 기존 `withRetry` 유지 (15분 대기가 UX 악영향).
+ *   task 단위 route(300s) 에서는 maxDelayMs 를 전달해 대기 상한을 줄일 것.
  */
 export async function withExtendedRetry<T>(
   fn: () => Promise<T>,
   options: WithExtendedRetryOptions,
 ): Promise<T> {
-  const { pipelineId, supabase, label = "LLM" } = options;
+  const { pipelineId, supabase, label = "LLM", maxDelayMs } = options;
+
+  // maxDelayMs 가 지정된 경우 해당 값 이하의 delay 만 사용
+  const eligibleDelays = maxDelayMs !== undefined
+    ? EXTENDED_DELAYS_MS.filter((d) => d <= maxDelayMs)
+    : [...EXTENDED_DELAYS_MS];
 
   let lastError: unknown;
-  for (let attempt = 0; attempt <= EXTENDED_DELAYS_MS.length; attempt++) {
+  for (let attempt = 0; attempt <= eligibleDelays.length; attempt++) {
     try {
       return await fn();
     } catch (error) {
@@ -82,12 +94,12 @@ export async function withExtendedRetry<T>(
         throw error;
       }
 
-      if (attempt >= EXTENDED_DELAYS_MS.length) break; // 최종 시도 실패
+      if (attempt >= eligibleDelays.length) break; // 최종 시도 실패
 
-      const delayMs = EXTENDED_DELAYS_MS[attempt];
+      const delayMs = eligibleDelays[attempt];
       logActionWarn(
         { domain: "record-analysis", action: "llm-extended-retry" },
-        `[${label}] 재시도 ${attempt + 1}/${EXTENDED_DELAYS_MS.length} — ${Math.round(delayMs / 1000)}s 대기 (heartbeat 유지)`,
+        `[${label}] 재시도 ${attempt + 1}/${eligibleDelays.length} — ${Math.round(delayMs / 1000)}s 대기 (heartbeat 유지)`,
         { pipelineId },
       );
       await sleepWithHeartbeat(delayMs, pipelineId, supabase);

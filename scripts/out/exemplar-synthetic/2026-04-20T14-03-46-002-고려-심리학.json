@@ -1,0 +1,674 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/고려대-심리학-2",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_고려대_심리학_002",
+    "schoolName": "가상 일반고 C",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "고려대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "심리학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사",
+      "studentNumber": "20301"
+    },
+    {
+      "grade": 3,
+      "className": "5반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박교사",
+      "studentNumber": "30501"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 및 병조퇴 각 1회",
+      "schoolDays": 191
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "치과 진료로 인한 병조퇴 1회",
+      "schoolDays": 190
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 189
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 사회 탐구 보고서 대회 (동상)",
+      "awardDate": "2024-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 C 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 1,
+      "awardName": "또래 상담 우수 활동상 (우수상)",
+      "awardDate": "2024-12-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 C 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 융합 과학 탐구 대회 (은상)",
+      "awardDate": "2025-09-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 C 교장",
+      "participants": "팀(3명)"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 인문학 독서 토론 대회 (장려상)",
+      "awardDate": "2025-11-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 C 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "자기주도학습 우수상",
+      "awardDate": "2026-07-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 C 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 심리학 소논문 대회 (최우수상)",
+      "awardDate": "2026-10-30",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 C 교장",
+      "participants": "개인"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "'청소년 정신건강의 이해' 특강에 참여하여, 학업 스트레스가 뇌 기능에 미치는 영향에 대한 설명을 듣고 깊은 인상을 받았습니다. 이후 스트레스 관리 기법인 마음챙김 명상(Mindfulness)을 학습하고 학급 친구들에게 긍정적 효과를 공유하는 등 배움을 실천하는 자세를 보였습니다.",
+      "activityName": "전문가 초청 특강 및 심화 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학급 부회장으로서 '긍정 언어 사용 캠페인'을 주도하여 학급 분위기 개선에 기여했습니다. 특히 친구들의 감정 변화를 세심하게 관찰하고, 갈등 상황에서 중재자 역할을 자처하며 소통과 공감의 중요성을 실천하는 모습을 보여주었습니다.",
+      "activityName": "학급 임원 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "또래상담 동아리 부원으로 활동하며 상담의 기본 원리(경청, 공감, 수용)를 익혔습니다. '친구 관계 스트레스'를 주제로 교내 캠페인을 기획하고, 관련 심리 검사(K-PRC)를 간이 형식으로 소개하는 자료를 제작하여 배포하는 등 청소년 문제 해결에 적극적으로 참여했습니다.",
+      "activityName": "또래상담부 '공감 한 스푼'",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "심리학 관련 직업(임상심리사, 상담심리사, 발달심리전문가)을 탐색하고, 각 직업에 요구되는 역량과 자격 과정을 조사하여 보고서를 작성했습니다. 특히 아동 발달에 대한 관심으로 'EBS 다큐프라임-아이의 사생활'을 시청하고, 애착 이론이 아동의 사회성 발달에 미치는 영향에 대해 탐구하며 진로를 구체화했습니다.",
+      "activityName": "진로 탐색 및 심화 탐구",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "생명윤리 포럼에 참여하여 '유전자 편집 기술의 윤리적 쟁점'에 대한 토론을 진행했습니다. 심리적 특질에 대한 유전적 결정론이 가져올 사회적 차별 가능성을 지적하고, 환경의 중요성을 강조하는 발언으로 깊이 있는 사고를 보여주었습니다. 이는 이후 생명과학과 윤리학을 융합적으로 탐구하는 계기가 되었습니다.",
+      "activityName": "교내 생명윤리 포럼",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학급 회장으로서 '학습 멘토링' 프로그램을 기획 및 운영했습니다. 과목별 강점을 가진 친구들과 도움이 필요한 친구들을 연결해주고, 진행 상황을 주기적으로 점검하며 공동체 의식 함양에 기여했습니다. 이 과정에서 리더십과 책임감을 길렀습니다.",
+      "activityName": "학급 자치회 주관 학습 멘토링 운영",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "심리탐구반 부장으로서 '방관자 효과'를 주제로 사회심리 실험을 설계하고 수행했습니다. 복도에 도움이 필요한 상황을 연출하고, 주변 학생들의 반응을 관찰, 분석하여 보고서를 작성했습니다. 실험 설계 과정에서 변인 통제의 중요성을 깨닫고, 통계 프로그램을 활용하여 결과를 분석하는 등 과학적 탐구 역량을 보여주었습니다.",
+      "activityName": "심리탐구반 '프로이트의 의자'",
+      "hours": 32
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학교 전공체험 프로그램에 참여하여 심리학과 실험실을 견학하고, fMRI와 같은 연구 장비의 원리에 대해 학습했습니다. 현직 임상심리사와의 멘토링을 통해 아동 심리치료 현장의 실제와 고충을 듣고, 아동의 회복탄력성에 기여하는 전문가가 되겠다는 목표를 확고히 했습니다.",
+      "activityName": "대학 연계 전공 체험 및 직업인 멘토링",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "1, 2학년 대상 '나의 진로 탐구 이야기' 발표자로 선정되어, 심리학으로 진로를 정하게 된 계기와 탐구 과정을 공유했습니다. 특히 교과목 학습을 어떻게 진로와 연결했는지 구체적인 사례(윤리와 사상-실존주의 치료, 확률과 통계-심리 연구)를 중심으로 발표하여 후배들에게 큰 호응을 얻었습니다.",
+      "activityName": "진로 탐색 사례 발표회",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "졸업앨범 편집위원으로 활동하며, 학급별 특색 페이지를 기획했습니다. 친구들의 의견을 수렴하고, 설문조사를 통해 선호하는 디자인을 결정하는 등 민주적인 의사결정 과정을 이끌며 프로젝트를 성공적으로 완수했습니다.",
+      "activityName": "졸업앨범 편집위원회 활동",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "심리탐구반 활동을 마무리하며, '청소년기 자아정체감과 SNS 이용 행태의 상관관계 연구'라는 주제로 1년간의 탐구를 집대성한 소논문을 작성했습니다. 에릭슨의 심리사회적 발달 이론을 바탕으로 가설을 설정하고, 설문지를 제작, 배포하여 수집된 데이터를 통계적으로 분석하는 등 학술적 글쓰기 능력과 연구 역량을 종합적으로 보여주었습니다.",
+      "activityName": "심리탐구반 '프로이트의 의자'",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "관심 분야인 '아동 발달'과 관련된 심리학 논문을 정기적으로 검색하고 읽는 스터디를 자율적으로 조직했습니다. 'Developmental Psychology'와 같은 해외 학술지에 실린 논문의 초록을 읽고 주요 연구 동향을 파악하며, 대학 진학 후 연구하고 싶은 주제(예: 다문화가정 아동의 언어 발달과 사회성)를 구체화했습니다.",
+      "activityName": "심리학 논문 강독 스터디",
+      "hours": 20
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 24,
+      "description": "지역아동센터 학습 지도 및 정서 교감 활동",
+      "hours": 24,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 48,
+      "description": "청소년상담복지센터 주관 캠페인 지원 및 행정 보조",
+      "hours": 24,
+      "location": "가상시 청소년상담복지센터"
+    },
+    {
+      "grade": 3,
+      "cumulativeHours": 60,
+      "description": "도서관 유아 자료실 환경 미화 및 동화책 읽어주기 봉사",
+      "hours": 12,
+      "location": "가상시립도서관"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "2",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.1,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "2",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 95.4,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 91,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "subjectType": "일반선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생활과 윤리",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "2",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.2,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "윤리와 사상",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "subjectType": "일반선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "subjectType": "일반선택",
+      "totalStudents": 160
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "subjectType": "일반선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rawScore": 95.5,
+      "subjectType": "진로선택",
+      "totalStudents": 60
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "생명과학Ⅱ",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rawScore": 94,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심리학",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rawScore": 99,
+      "subjectType": "진로선택",
+      "totalStudents": 40
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rawScore": 98,
+      "subjectType": "진로선택",
+      "totalStudents": 70
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "문학 작품 속 인물의 심리를 파악하는 데 탁월한 능력을 보였습니다. 특히 '소설가 구보씨의 일일'을 읽고, 주인공이 겪는 내적 갈등과 불안 심리를 '자아분열'과 '소외'라는 개념을 사용하여 분석하는 보고서를 작성했습니다. 군중 속에서 고독을 느끼는 현대인의 심리를 날카롭게 통찰하고, 이를 자신의 경험과 연결하여 성찰하는 모습에서 깊은 사고력이 돋보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "사회 현상을 심리학적 관점에서 해석하려는 노력이 돋보입니다. '문화 변동과 우리 삶' 단원에서, 대중 매체가 청소년의 가치관 형성에 미치는 영향을 탐구했습니다. 아이돌 팬덤 문화를 '사회적 정체성 이론'으로 분석하고, 긍정적 측면과 부정적 측면을 균형 있게 다룬 발표를 통해 학생들의 큰 공감을 얻었습니다. 질문에 논리적으로 답변하며 자신의 주장을 설득력 있게 전달하는 능력이 우수합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "생명 현상에 대한 지적 호기심이 왕성한 학생입니다. '자극과 반응' 단원에서 뉴런의 정보 전달 과정을 학습한 후, 신경전달물질인 도파민과 세로토닌이 인간의 감정과 행동에 미치는 영향에 대해 추가적으로 조사하여 발표했습니다. 특히 우울증이 세로토닌의 불균형과 관련이 있다는 사실에 흥미를 느끼고, 관련 치료제의 작용 원리를 탐구하며 심리학에 대한 관심을 생명과학 분야로 확장시키는 융합적 사고를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "수학적 개념을 논리적으로 이해하고 응용하는 능력이 뛰어납니다. 경우의 수 단원에서 조건부 확률을 학습하고, 이를 베이즈 정리와 연결하여 심리학 실험에서의 통계적 추론 원리를 이해하고자 노력했습니다. 질병 진단 키트의 정확도를 예시로 들어 민감도와 특이도의 개념을 설명하고, 실제 심리검사의 신뢰도 및 타당도 평가에도 유사한 통계적 원리가 적용됨을 발표하여 교사에게 깊은 인상을 주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "작품에 대한 깊이 있는 감상과 비평 능력을 갖추었습니다. 카프카의 '변신'을 읽고, 주인공 그레고르가 벌레로 변한 사건을 '가족 내에서의 소외와 역할 상실'이라는 상징적 의미로 해석했습니다. 프로이트의 방어기제 이론을 적용하여 가족 구성원들의 행동(부정, 합리화 등)을 분석하고, 이를 통해 인간 내면의 복잡한 심리를 이해하려는 노력이 돋보였습니다. 자신의 해석을 담은 서평을 작성하여 학급 친구들과 공유하며 깊이 있는 토론을 이끌었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "content": "신경계와 호르몬에 대한 이해가 깊고, 이를 심리학적 현상과 연결하는 능력이 탁월합니다. 스트레스 반응 시 나타나는 코르티솔 호르몬의 분비 과정과 이것이 해마의 기억 능력에 미치는 영향에 대해 탐구 보고서를 작성했습니다. 'Why Zebras Don't Get Ulcers(로버트 M. 사폴스키)'를 참고문헌으로 활용하여, 만성 스트레스가 정신 건강에 미치는 생물학적 기제를 논리적으로 설명하는 등 높은 수준의 학업 역량을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생활과 윤리",
+      "content": "윤리적 딜레마 상황에 대한 분석력과 판단력이 뛰어납니다. '생명 윤리' 단원에서 안락사 문제를 다루며, 환자의 자기결정권 존중과 생명 존엄성의 가치가 충돌하는 상황을 심도 있게 고찰했습니다. 특히 말기 환자의 심리적 고통을 완화하기 위한 호스피스 완화 의료의 필요성을 주장하고, 심리적 지지가 인간의 존엄한 죽음에 미치는 영향에 대해 발표하며 주제에 대한 깊은 이해를 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "content": "통계적 원리를 실제 데이터 분석에 적용하는 능력이 매우 우수합니다. '통계적 추정' 단원을 학습한 후, '청소년의 스마트폰 사용 시간과 학업 스트레스 간의 상관관계'를 주제로 프로젝트를 수행했습니다. 직접 설문지를 제작하여 데이터를 수집하고, SPSS를 활용하여 상관분석과 t-검정을 실시, 유의미한 결과를 도출해냈습니다. 연구 가설 설정부터 데이터 분석, 결론 도출까지의 전 과정을 주도적으로 수행하며 연구자로서의 잠재력을 입증했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "윤리와 사상",
+      "content": "동서양 사상에 대한 깊이 있는 이해를 바탕으로 인간 존재에 대한 근원적인 질문을 던지는 학생입니다. 실존주의 철학을 배우고, 사르트르의 '실존은 본질에 앞선다'는 명제가 심리치료에 주는 함의를 탐구했습니다. 특히 빅터 프랭클의 로고테라피가 실존주의에 기반하여 삶의 의미를 찾는 과정을 돕는다는 점에 착안하여, '의미의 발견을 통한 심리적 위기 극복'이라는 주제로 심화 보고서를 작성하여 사상과 현실 문제의 연결고리를 찾아내는 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "content": "사회·문화 현상을 기능론, 갈등론, 상징적 상호작용론 등 다양한 이론적 관점으로 분석하는 능력이 뛰어납니다. '일탈 행동 이론'을 학습하며, 머튼의 아노미 이론과 베커의 낙인 이론을 비교 분석했습니다. 특히 청소년 비행 문제를 낙인 이론의 관점에서 해석하며, 사회적 낙인이 청소년의 자아정체감에 미치는 부정적 영향을 지적하고, 긍정적 상호작용과 지지적 환경의 중요성을 역설하는 발표를 진행하여 큰 호응을 얻었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심리학",
+      "content": "심리학 전반에 대한 높은 학업 성취도와 깊이 있는 탐구 능력을 보여주는 학생입니다. 지적 호기심을 바탕으로 '애착 이론이 초기 성인기의 대인관계 패턴에 미치는 영향'에 대해 심층 탐구를 진행했습니다. 볼비(J. Bowlby)와 에인스워스(M. Ainsworth)의 연구를 시작으로, 바솔로뮤(K. Bartholomew)의 성인 애착 4범주 모델까지 학습을 확장했습니다. 'Psychological Review'에 실린 관련 논문을 참고하여, 불안정 애착을 형성한 아동이 성인이 되어 겪는 어려움을 분석하고, 이를 극복하기 위한 인지행동치료적 개입의 효과에 대한 보고서를 작성하여 전공에 대한 강한 열정과 학문적 깊이를 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "생명과학Ⅱ",
+      "content": "유전자의 발현과 조절 기작에 대한 이해를 바탕으로 복잡한 생명 현상을 탐구하는 능력이 우수합니다. 후성유전학(Epigenetics)에 관심을 갖고, 환경적 요인(스트레스, 영양 등)이 DNA 메틸화나 히스톤 변형을 통해 유전자 발현을 어떻게 조절하는지 학습했습니다. 이를 아동기 트라우마가 성인기 정신질환 발병률을 높이는 현상과 연결하여, '초기 경험의 생물학적 각인'이라는 주제로 발표했습니다. 심리학적 현상의 생물학적 기제를 탐구하려는 융합적 사고방식이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 국어",
+      "content": "고난도의 텍스트에 대한 비판적 독해 능력이 뛰어납니다. 미셸 푸코의 '감시와 처벌'을 읽고, 근대 사회의 규율 권력이 인간의 신체와 정신을 어떻게 통제하는지 분석했습니다. 특히 판옵티콘의 원리가 현대 사회의 SNS, CCTV 등을 통해 어떻게 변주되고 내면화되는지를 고찰하며, 보이지 않는 시선이 개인의 심리에 미치는 영향에 대해 날카로운 문제의식을 담은 비평문을 작성했습니다. 인문학적 소양을 바탕으로 사회와 인간을 깊이 있게 성찰하는 자세가 인상적입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "사회문제에 대한 깊은 관심과 해결을 위한 대안을 모색하는 실천적 태도를 갖추었습니다. '현대 사회의 정신건강 문제'를 주제로 선정하여, 코로나19 팬데믹 이후 급증한 청소년 우울, 불안 문제의 실태를 조사했습니다. 통계청 자료와 관련 논문을 분석하여 원인을 다각도로 분석하고, 학교 기반의 정신건강 증진 프로그램(예: 회복탄력성 교육, 또래 지지 그룹 활성화)을 구체적으로 설계하여 정책 제안 보고서를 작성하는 등 탁월한 문제해결능력을 보여주었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'이방인'(알베르 카뮈)을 읽고, 부조리한 세상 속에서 자신의 감정에 솔직하게 살아가는 뫼르소의 모습을 통해 인간 실존의 의미에 대해 고찰함.",
+      "author": "알베르 카뮈",
+      "bookTitle": "이방인"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합사회",
+      "bookDescription": "'미움받을 용기'(기시미 이치로, 고가 후미타케)를 읽고, 아들러 심리학의 목적론적 관점과 과제 분리의 개념을 이해하고, 타인의 시선에서 자유로워지는 삶의 태도에 대해 성찰함.",
+      "author": "기시미 이치로, 고가 후미타케",
+      "bookTitle": "미움받을 용기"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합과학",
+      "bookDescription": "'이기적 유전자'(리처드 도킨스)를 읽고, 생명 현상을 유전자의 관점에서 바라보는 새로운 시각을 접하고, 인간의 이타적 행동 또한 유전자의 전략으로 설명될 수 있음을 이해함.",
+      "author": "리처드 도킨스",
+      "bookTitle": "이기적 유전자"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "윤리와 사상",
+      "bookDescription": "'죽음의 수용소에서'(빅터 프랭클)를 읽고, 극한의 상황 속에서도 삶의 의미를 찾으려는 인간의 의지를 통해 로고테라피의 핵심 사상을 깊이 이해하고, 고통의 의미에 대해 고찰함.",
+      "author": "빅터 프랭클",
+      "bookTitle": "죽음의 수용소에서"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "생명과학",
+      "bookDescription": "'아내를 모자로 착각한 남자'(올리버 색스)를 읽고, 다양한 신경학적 증례를 통해 뇌의 특정 부위 손상이 인간의 인지, 정서, 정체성에 어떤 영향을 미치는지 구체적으로 학습하며 뇌과학에 대한 흥미를 심화함.",
+      "author": "올리버 색스",
+      "bookTitle": "아내를 모자로 착각한 남자"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "확률과 통계",
+      "bookDescription": "'벌거벗은 통계학'(찰스 윌런)을 읽고, 상관관계와 인과관계의 차이, 통계적 유의성의 함정 등 통계학의 핵심 개념을 실제 사례를 통해 쉽게 이해하고, 통계 리터러시의 중요성을 깨달음.",
+      "author": "찰스 윌런",
+      "bookTitle": "벌거벗은 통계학"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "심리학",
+      "bookDescription": "'양육 가설'(주디스 리치 해리스)을 읽고, 아동 발달에 부모의 양육보다 또래 집단이 더 큰 영향을 미친다는 도발적인 주장을 비판적으로 검토하며, 유전과 환경의 상호작용에 대해 심도 있게 고민함.",
+      "author": "주디스 리치 해리스",
+      "bookTitle": "양육 가설"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회문제 탐구",
+      "bookDescription": "'우울할 땐 뇌과학'(앨릭스 코브)을 읽고, 우울증의 신경학적 기제를 이해하고, 운동, 수면, 마음챙김 등 구체적인 실천법이 뇌 회로를 어떻게 긍정적으로 변화시킬 수 있는지 과학적 근거를 바탕으로 탐구함.",
+      "author": "앨릭스 코브",
+      "bookTitle": "우울할 땐 뇌과학"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "따뜻한 공감 능력과 배려심을 바탕으로 친구 관계가 원만한 학생입니다. 특히 고민을 가진 친구의 이야기를 진지하게 들어주고 위로하는 모습이 자주 관찰되었습니다. 지적 호기심이 많아 수업 중 질문이 많고, 배운 내용을 자신의 진로와 연결하여 심화 탐구하려는 자기주도적 학습 태도를 갖추었습니다."
+    },
+    {
+      "grade": 2,
+      "content": "학급 회장으로서 책임감과 리더십을 보여주었으며, 특히 학급 내 갈등 상황에서 합리적인 대안을 제시하여 문제를 해결하는 능력이 돋보입니다. 지식의 폭을 넓히기 위해 다양한 분야의 독서를 즐기며, 특히 철학과 과학을 융합하여 인간 본질에 대해 탐구하려는 진지한 자세가 인상적인 학생입니다."
+    },
+    {
+      "grade": 3,
+      "content": "뚜렷한 목표 의식을 가지고 자신의 학업과 탐구 활동을 주도적으로 설계하고 실천하는 학생입니다. 심리학 분야에 대한 깊은 이해와 열정을 바탕으로 학문적 성장을 거듭했으며, 자신의 지식과 경험을 후배 및 친구들과 나누는 데 주저하지 않는 나눔의 리더십을 보여주었습니다. 공동체의 정신 건강에 기여하고자 하는 따뜻한 인재입니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "음악",
+      "achievementLevel": "A"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "A"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A"
+    }
+  ]
+}

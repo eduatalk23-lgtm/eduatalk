@@ -90,13 +90,22 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += "\n\n";
   }
 
-  // 진단 개선 전략 (AI 시드)
+  // 진단이 식별한 약점 (S3 구조화 출력 — 전략 정합성 보장)
   if (input.diagnosisImprovements && input.diagnosisImprovements.length > 0) {
-    prompt += `## AI 진단 개선 전략 (참고 — 이를 구체화하여 보완전략에 반영)\n\n`;
-    for (const imp of input.diagnosisImprovements) {
-      prompt += `- [${imp.priority}] ${imp.area}: ${imp.gap} → ${imp.action} (기대: ${imp.outcome})\n`;
+    // priority 순서: critical > high > medium > low
+    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const sorted = [...input.diagnosisImprovements].sort(
+      (a, b) => (priorityOrder[a.priority.toLowerCase()] ?? 9) - (priorityOrder[b.priority.toLowerCase()] ?? 9),
+    );
+    prompt += `## 진단이 식별한 약점\n`;
+    prompt += `다음 약점들은 종합 진단(S3)에서 식별되었습니다.\n`;
+    prompt += `**제안하는 전략은 가능한 한 이 약점들을 직접 보완해야 합니다.**\n\n`;
+    for (const imp of sorted) {
+      const priority = imp.priority.toUpperCase();
+      const detail = imp.gap ? `: ${imp.gap} → ${imp.action}` : `: ${imp.action}`;
+      prompt += `- [${priority}] ${imp.area}${detail}\n`;
     }
-    prompt += "\n";
+    prompt += `\n진단 약점 외에 추가로 발견한 패턴이 있다면 별도 섹션에 제안하세요.\n\n`;
   }
 
   // 미이수 추천 과목

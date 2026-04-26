@@ -1,0 +1,1099 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울대-조선해-36",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 89,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울대_조선해_036",
+    "schoolName": "가상 일반고 KK",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "조선해양공학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "3반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10315"
+    },
+    {
+      "grade": 2,
+      "className": "1반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이수진",
+      "studentNumber": "20115"
+    },
+    {
+      "grade": 3,
+      "className": "1반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박서준",
+      "studentNumber": "30115"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기로 인한 병결 1일",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병원 방문으로 인한 병조퇴 1회",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 수학경시대회 동상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "120명"
+    },
+    {
+      "grade": 1,
+      "awardName": "과학 탐구 보고서 발표대회 장려상",
+      "awardDate": "2024-11-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "35팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 물리경시대회 금상",
+      "awardDate": "2025-05-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "65명"
+    },
+    {
+      "grade": 2,
+      "awardName": "창의적 공학설계 경진대회 최우수상",
+      "awardDate": "2025-10-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "28팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "학업 우수상(물리학I)",
+      "awardDate": "2026-02-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "180명"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 융합과학탐구 프로젝트 발표대회 대상",
+      "awardDate": "2026-07-21",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "25팀"
+    },
+    {
+      "grade": 3,
+      "awardName": "모범 학생 표창장",
+      "awardDate": "2026-12-28",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 KK 교장",
+      "participants": "10명"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 특색 활동으로 '지속가능발전목표(SDGs) 실천 주간'을 기획, 특히 '14번 목표: 해양 생태계 보전'과 관련하여 플라스틱 쓰레기 문제의 심각성을 알리는 카드뉴스를 제작하여 학급 SNS에 게시하는 등 주도적인 역할을 수행했습니다. 해양 오염 문제에 대한 과학적 해결 방안에 대한 깊은 관심을 보이는 계기가 되었습니다.",
+      "activityName": "학급 특색 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학급 부회장으로서 학급 회의를 민주적으로 운영하고, '스터디 그룹 활성화' 안건을 제안하여 과목별 또래 튜터링 제도를 성공적으로 정착시켰습니다. 특히 수학, 과학 과목에서 어려움을 겪는 친구들을 위한 도움 자료를 직접 제작하고 배포하는 등 공동체 역량 강화에 기여했습니다.",
+      "activityName": "학급 임원 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "과학 토론 동아리에서 '해상풍력발전의 환경적 득과 실'을 주제로 토론에 참여했습니다. 찬성 측 입장에서 해상풍력의 원리, 에너지 효율성을 과학적 근거를 들어 주장했으며, 반대 측의 소음 및 해양 생태계 파괴 우려에 대해서는 부유식 해상풍력, 저주파 소음 저감 기술 등의 대안을 제시하며 논리적으로 토론을 이끌었습니다.",
+      "activityName": "과학 토론 동아리",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 특강 '미래를 바꾸는 공학 기술'에 참여하여 조선해양공학 분야 현직자의 강연을 듣고 깊은 감명을 받았습니다. 이후 '친환경 선박 기술의 종류와 미래'를 주제로 개별 보고서를 작성하여 제출했으며, LNG, 수소, 암모니아 등 차세대 선박 연료의 특징과 상용화 가능성을 비교 분석하는 탐구 활동으로 진로에 대한 구체적인 로드맵을 설계했습니다.",
+      "activityName": "진로 특강 및 심화 탐구",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "과학의 날 행사에서 '부력과 선박의 안정성'을 주제로 한 체험 부스를 기획하고 운영했습니다. 다양한 모양의 선박 모형을 제작하고, 무게 중심과 메타센터의 개념을 쉽게 설명하는 시각 자료를 만들어 참여 학생들의 높은 호응을 얻었습니다. 복잡한 과학 원리를 대중적으로 설명하는 의사소통 능력이 돋보였습니다.",
+      "activityName": "과학의 날 부스 운영",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 학술부 차장으로 활동하며 '교내 과학경시대회' 운영을 총괄했습니다. 대회 규정 정비, 문제 출제 방향 협의, 감독 및 채점 보조 등 전 과정에 책임감 있게 참여하여 대회가 원활하게 진행되는 데 핵심적인 역할을 수행했습니다. 특히 참가자 편의를 위한 온라인 사전 설명회를 기획하여 긍정적인 평가를 받았습니다.",
+      "activityName": "학생회 학술부 활동",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "물리 탐구 동아리의 부장으로서 '파스칼의 원리를 이용한 선박 리프트 설계' 프로젝트를 이끌었습니다. 아두이노와 유압 실린더를 이용하여 소형 선박 모형을 들어 올리는 장치를 직접 설계하고 3D 프린터로 제작했습니다. 이론적 지식을 실제 공학적 문제 해결에 적용하는 과정에서 탁월한 리더십과 문제해결능력을 보여주었습니다.",
+      "activityName": "물리 탐구 동아리",
+      "hours": 30
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학 연계 R&E 프로그램에 참여하여 'CFD를 활용한 선박 저항 성능 해석 기초 연구'를 수행했습니다. OpenFOAM 소프트웨어를 학습하고, Wigley 선체를 모델링하여 유동 해석을 진행하며 전산유체역학의 기본 원리를 체득했습니다. 비록 기초적인 수준이었으나, 실제 연구 과정을 경험하며 조선해양공학자로서의 꿈을 더욱 확고히 했습니다.",
+      "activityName": "대학 연계 R&E 프로그램",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업앨범 편집위원으로 활동하며, 학급별 특성과 개성을 살린 페이지 디자인을 제안했습니다. 특히 이공계열 진학 희망 학생들을 위한 '우리의 꿈과 미래 기술'이라는 특별 페이지를 기획하여, 각자의 진로와 관련된 탐구 활동 사진과 다짐을 담아내어 친구들로부터 큰 공감을 얻었습니다.",
+      "activityName": "졸업앨범 편집위원",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "3학년 또래 튜터링 '물리학 멘토'로 활동하며 후배들의 학습을 도왔습니다. 역학, 전자기학 등 핵심 개념을 자신만의 방식으로 재구성한 유인물을 제작하여 배포하고, 일대일 질의응답을 통해 후배들의 눈높이에 맞춰 설명해주었습니다. 지식을 나누는 과정에서 자신의 이해를 더욱 공고히 하는 계기가 되었습니다.",
+      "activityName": "또래 튜터링 멘토",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "물리 탐구 동아리에서 '자율운항선박의 충돌 회피 알고리즘'에 대한 시뮬레이션 연구를 진행했습니다. Python의 Pygame 라이브러리를 활용하여 가상의 해상 환경과 선박을 구현하고, A* 알고리즘을 변형하여 장애물 회피 경로를 탐색하는 프로그램을 개발했습니다. 융합적 사고와 프로그래밍 역량을 바탕으로 뛰어난 연구 성과를 보여주었습니다.",
+      "activityName": "물리 탐구 동아리",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "진로 탐색의 일환으로 '해양플랜트 산업의 현재와 미래'에 대한 소논문을 작성했습니다. FPSO, TLP 등 다양한 해양플랜트의 종류와 기능을 조사하고, 심해 자원 개발의 기술적 과제와 경제성, 환경적 영향까지 종합적으로 분석했습니다. 참고문헌 분석 및 데이터 해석 능력이 우수하며, 거시적인 안목으로 산업을 이해하려는 노력이 돋보였습니다.",
+      "activityName": "진로 소논문 작성",
+      "hours": 20
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01~2025-02-28",
+      "cumulativeHours": 20,
+      "description": "지역 하천 환경 정화 및 생태계 교란 식물 제거 활동에 꾸준히 참여함.",
+      "hours": 20,
+      "location": "가상천 환경보호센터"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01~2026-02-28",
+      "cumulativeHours": 40,
+      "description": "과학관 체험 부스 운영 보조 및 관람객 안내 봉사. 어린이들에게 과학 원리를 쉽게 설명해주며 재능을 기부함.",
+      "hours": 20,
+      "location": "가상시립과학관"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01~2026-07-31",
+      "cumulativeHours": 50,
+      "description": "온라인 학습 멘토링 프로그램에 참여하여 교육 소외 지역 청소년에게 수학, 과학 과목 학습을 지원함.",
+      "hours": 10,
+      "location": "비대면 온라인"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1등급",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.5,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1등급",
+      "classAverage": 78.9,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 12.3,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "2등급",
+      "classAverage": 82.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93,
+      "stdDev": 9.8,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "2등급",
+      "classAverage": 88.4,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 6.5,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "1등급",
+      "classAverage": 80.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 11.2,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1등급",
+      "classAverage": 89,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 5.4,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "2등급",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 7.1,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1등급",
+      "classAverage": 79.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 11.9,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1등급",
+      "classAverage": 83.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9.2,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "2등급",
+      "classAverage": 87.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 96,
+      "stdDev": 6.8,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1등급",
+      "classAverage": 81.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 10.8,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1등급",
+      "classAverage": 90.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 4.9,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "2등급",
+      "classAverage": 84,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 8,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "1등급",
+      "classAverage": 75.6,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 13.1,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "2등급",
+      "classAverage": 80.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93,
+      "stdDev": 10.5,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "achievementLevel": "1등급",
+      "classAverage": 72.4,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 14.5,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "achievementLevel": "2등급",
+      "classAverage": 74.8,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 13.8,
+      "subjectType": "일반선택",
+      "totalStudents": 160
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "기하",
+      "achievementLevel": "A",
+      "classAverage": 78.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 12,
+      "subjectType": "진로선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1등급",
+      "classAverage": 85.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.8,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1등급",
+      "classAverage": 76.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 12.8,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1등급",
+      "classAverage": 81.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9.9,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "물리학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 70.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 15.2,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "지구과학Ⅰ",
+      "achievementLevel": "2등급",
+      "classAverage": 79.8,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 11.5,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정보",
+      "achievementLevel": "A",
+      "classAverage": 88.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 8.1,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "A",
+      "classAverage": 82.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9.1,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1등급",
+      "classAverage": 73.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 14.8,
+      "subjectType": "일반선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 수학Ⅰ",
+      "achievementLevel": "A",
+      "classAverage": 75.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 13.4,
+      "subjectType": "진로선택",
+      "totalStudents": 70
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학 실험",
+      "achievementLevel": "A",
+      "classAverage": 80.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 10.2,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "공학 일반",
+      "achievementLevel": "A",
+      "classAverage": 85.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8.5,
+      "subjectType": "진로선택",
+      "totalStudents": 60
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 88.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 7.2,
+      "subjectType": "진로선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로 영어",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "진로선택"
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 수학Ⅱ",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "subjectType": "진로선택"
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "융합과학 탐구",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "진로선택"
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "achievementLevel": "A",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "subjectType": "진로선택"
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "subjectType": "일반선택"
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "subjectType": "일반선택"
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "비판적 사고력이 뛰어나며, '매체 자료 분석' 단원에서 선박 사고 관련 뉴스 기사의 프레임 효과를 분석하는 보고서를 작성했습니다. 동일한 사건을 다루는 두 언론사의 보도 어휘와 영상 자료 사용 방식의 차이점을 분석하여, 수용자가 뉴스를 편향적으로 인식하게 되는 과정을 논리적으로 설명했습니다. 이처럼 복잡한 정보를 구조화하고 핵심을 파악하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "도형의 방정식 단원에서 높은 성취를 보였으며, 특히 원과 직선의 위치 관계를 탐구하는 과정에서 뛰어난 분석력을 발휘했습니다. 교과서 개념을 넘어 '아폴로니우스의 원'을 심화 탐구하고, 이를 GPS 위성과 선박의 위치 측정 원리에 비유하여 설명하는 보고서를 제출했습니다. 추상적인 수학 개념을 실제 현상에 연결하여 이해하려는 노력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "수업 참여도가 높고 유창한 발표 능력을 갖추었습니다. 'Technology for a Better Future'를 주제로 한 발표에서, 해양 플라스틱 쓰레기 수거를 위한 'The Ocean Cleanup' 프로젝트의 기술적 원리와 현황을 담은 영어 발표를 성공적으로 수행했습니다. TED 강연 영상과 기술 보고서를 참고 자료로 활용하여 내용의 깊이를 더했으며, 논리 정연한 발표로 청중의 이해를 도왔습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "교통 통신의 발달과 공간 변화 단원에 깊은 흥미를 보이며, '컨테이너 발명이 세계 경제에 미친 영향'을 주제로 탐구 보고서를 작성했습니다. 규격화된 운송 시스템이 어떻게 물류 비용을 절감하고 글로벌 무역을 폭발적으로 성장시켰는지 경제적, 지리적 관점에서 다각적으로 분석했습니다. 사회 현상을 시스템적으로 이해하는 통찰력이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "과학적 호기심이 왕성하며, 특히 역학적 시스템 단원에서 두각을 나타냈습니다. '선박의 부력과 안정성'에 대한 지적 호기심을 바탕으로, 물체의 무게와 잠긴 부피에 따른 부력의 변화를 실험으로 확인하고, 무게중심과 부력중심의 관계가 선박의 복원력에 미치는 영향을 분석하는 보고서를 제출했습니다. 과학적 원리를 실생활에 적용하여 탐구하려는 자세가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "역사적 사건의 인과관계를 파악하는 능력이 우수합니다. 고려 시대 해상 무역을 배우며, 벽란도를 중심으로 한 송나라와의 교역이 고려의 경제와 문화에 미친 영향을 심도 있게 분석했습니다. 당시의 선박 기술과 항해술에 대한 추가 조사를 통해 역사적 사실을 입체적으로 이해하려는 노력을 보였습니다. 자기주도적 학습 능력이 뛰어난 학생입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "작문 능력이 뛰어나고 논리적 글쓰기에 강점을 보입니다. '과학 기술의 발전과 윤리적 딜레마'를 주제로 한 논술형 평가에서, 자율운항선박의 사고 발생 시 책임 소재 문제를 법적, 윤리적 관점에서 심층적으로 다루었습니다. 트롤리 딜레마와 비교하며 기술 발전이 야기하는 새로운 사회적 합의의 필요성을 설득력 있게 주장하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "함수 단원에서 두각을 나타냈으며, 특히 삼각함수를 활용하여 주기적인 현상을 모델링하는 데 뛰어난 재능을 보였습니다. 파도의 움직임을 사인 함수로 근사하고, 진폭과 주기의 변화에 따른 그래프의 개형 변화를 탐구했습니다. 이를 바탕으로 '선박의 횡동요(Rolling) 주기와 파도의 주기가 일치할 때 위험한 이유'를 수학적으로 설명하는 보고서를 제출하여 깊이 있는 이해를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "심도 있는 영어 텍스트 분석 능력을 갖추었습니다. 'The Perfect Storm'의 원서를 읽고, 기상 현상에 대한 과학적 묘사와 선원들의 심리 변화를 분석하는 에세이를 작성했습니다. 특히 저기압 발달 과정과 파고의 급격한 상승 등 전문 용어를 정확히 이해하고, 이를 통해 자연의 힘 앞에 선 인간의 모습을 인문학적 성찰로 연결하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "환경 문제와 지속 가능한 발전에 대한 이해가 깊습니다. '지구 온난화와 해수면 상승' 단원과 관련하여, 국제해사기구(IMO)의 선박 온실가스 배출 규제(MARPOL) 강화 동향을 조사하고 발표했습니다. 탄소세 부과, 저탄소·무탄소 연료 전환 등의 국제적 노력이 해운 산업에 미치는 영향을 분석하며, 기술적 해결과 국제적 협력의 중요성을 강조했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "산화-환원 반응에 대한 깊은 이해를 바탕으로 심화 탐구를 수행했습니다. '선박의 부식(녹) 방지 원리'를 주제로, 갈바닉 부식의 원리를 탐구하고 희생양극법과 외부전원법의 차이점을 비교 분석했습니다. 아연, 마그네슘 등 다양한 금속의 반응성을 고려하여 가장 효율적인 희생양극 재료를 제안하는 등 화학 지식을 공학적 문제 해결에 연결하는 능력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "조선 시대 과학 기술에 대한 관심이 높습니다. 세종 시대의 과학 발전을 배우며 장영실의 업적에 주목, 특히 수운의 중요성을 인식하고 강을 오가는 선박의 효율을 높이기 위해 개발된 '갑조'의 구조와 원리를 탐구했습니다. 과거의 기술 발전을 통해 현대 공학의 뿌리를 찾으려는 통합적 사고 방식이 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "작품에 대한 깊이 있는 해석 능력이 돋보입니다. 헤밍웨이의 '노인과 바다'를 읽고, 주인공 산티아고가 거대한 자연(바다와 물고기)과 벌이는 사투를 인간의 존엄성과 의지를 상징하는 서사로 분석했습니다. 망망대해라는 극한의 공간이 인물의 내면을 어떻게 비추는지, 그리고 자연에 대한 경외와 투쟁의 이중적 태도를 섬세하게 포착해내는 감상문을 작성하여 제출했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "수열 단원에서 등차, 등비수열의 합 공식을 증명하고 이를 다양한 문제에 능숙하게 적용합니다. '선박 건조 과정에서의 블록 대조립 공법'이 수열 개념과 유사하다는 것에 착안, 블록 수 증가에 따른 공정 시간 단축 효과를 수열 모델로 표현하여 예측하는 탐구 활동을 진행했습니다. 수학적 모델링을 통해 실제 공학적 프로세스를 이해하려는 시도가 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "content": "역학적 에너지 보존 법칙과 유체 역학에 대한 이해가 매우 뛰어납니다. 베르누이 방정식을 학습한 후, 이를 선박의 구상선수(Bulbous Bow)가 조파 저항을 줄이는 원리에 적용하여 탐구 보고서를 작성했습니다. 구상선수가 만들어내는 파동과 선수 파동의 간섭 효과를 그림으로 명료하게 설명하고, 이로 인한 에너지 절감 효과를 정성적으로 분석하는 등 물리 지식을 공학 기술에 접목하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "content": "화학 반응에서의 양적 관계를 정확히 계산하고 분석하는 능력이 우수합니다. 'LNG를 연료로 사용하는 선박의 친환경성'을 주제로 탐구 발표를 진행했습니다. 기존 벙커C유와 LNG의 연소 반응식을 각각 작성하고, 동일한 에너지를 얻기 위해 배출되는 SOx, NOx, CO2의 양을 정량적으로 비교 분석하여 LNG 추진 선박의 환경적 이점을 논리적으로 증명했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "기하",
+      "content": "공간도형과 공간좌표에 대한 감각이 탁월합니다. 3차원 공간에서 벡터와 내적을 이용하여 두 평면이 이루는 각을 구하는 문제를 해결하는 과정에서 뛰어난 이해를 보였습니다. 이를 선박의 횡경사각(Heeling angle) 계산과 안정성 문제와 연결하여, 선체의 기울어진 단면과 수면이 이루는 각도를 기하학적으로 모델링하고 분석하는 심화 탐구를 수행했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "content": "논리적이고 비판적인 독해 능력을 갖추었습니다. 국제해사기구(IMO) 홈페이지의 기술 문서를 읽고 '선박평형수 처리장치(BWMS)의 종류와 작동 원리'에 대해 영어로 요약하고 자신의 의견을 덧붙이는 과제를 훌륭하게 수행했습니다. UV, 전기분해, 오존 등 다양한 방식의 장단점을 비교하며, 생태계 보호라는 공학적 목표 달성을 위한 기술적 접근법을 분석하는 능력이 돋보였습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "다양한 분야의 독서를 통해 융합적 사고의 기반을 다집니다. 마크 레빈슨의 '더 박스'를 읽고, 컨테이너라는 단순한 상자가 어떻게 세계 물류 혁명을 일으키고 현대 자본주의 시스템을 완성했는지 분석하는 서평을 작성했습니다. 기술 표준화가 산업과 사회에 미치는 파급력을 이해하고, 이를 조선해양 분야의 다른 기술(예: LNG 화물창 기술)에도 적용하여 고찰하는 확장적 사고력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분법을 활용하여 함수의 극대, 극소를 찾고 그래프의 개형을 파악하는 능력이 뛰어납니다. '최적화 문제'에 깊은 관심을 보여, 제한된 넓이의 철판으로 최대 부피의 유조선 탱크를 설계하는 가상 문제를 설정하고 미분을 활용하여 최적의 가로, 세로, 높이 비율을 찾는 탐구 보고서를 작성했습니다. 수학적 지식을 실제 문제 해결에 적용하려는 의지가 강합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "물리학Ⅱ",
+      "content": "열역학 법칙에 대한 깊이 있는 이해를 바탕으로 선박 엔진의 효율에 대해 탐구했습니다. 디젤 엔진의 작동 원리를 오토 사이클과 비교 분석하고, 열효율을 높이기 위한 기술적 방안(터보차저, 폐열 회수 장치 등)을 조사하여 발표했습니다. 특히 카르노 기관의 이론적 최대 효율과 실제 엔진 효율의 차이를 분석하며, 에너지 손실의 원인을 공학적 관점에서 고찰하는 모습이 인상 깊었습니다. (성취도 A 비율 25.8%)"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "지구과학Ⅰ",
+      "content": "대기와 해양의 상호작용에 대한 이해가 높습니다. 엘니뇨와 라니냐 현상이 해수면 온도 및 해류의 변화에 미치는 영향을 학습하고, 이것이 전 세계 해상 물류 경로와 운항 일정에 어떤 변수를 초래할 수 있는지 탐구했습니다. 기후 변화가 해운 산업에 미치는 영향을 거시적 관점에서 분석하고, 빅데이터 기반의 최적 항로 설정 기술의 필요성을 제언했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정보",
+      "content": "알고리즘적 사고 능력이 우수하며, 파이썬 프로그래밍에 능숙합니다. '데이터 분석과 시각화' 단원에서, 공공데이터포털의 국내 항만별 물동량 데이터를 수집하고 Pandas 라이브러리를 이용해 전처리 및 분석을 수행했습니다. 이후 Matplotlib을 활용하여 항만별, 품목별 물동량 추이를 시각화하고, 부산항이 동북아 허브 항만으로서 갖는 위상을 데이터 기반으로 증명하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "영문 기술 기사 및 논문에 대한 이해도가 높습니다. 'Scientific American' 지의 'Could Ammonia Be the Fuel of the Future for Shipping?' 기사를 읽고, 암모니아 연료 선박의 장점(탄소 무배출)과 단점(독성, 낮은 에너지 밀도, 기술적 과제)을 비교 분석하는 발표를 진행했습니다. 전문적인 기술 용어를 정확히 이해하고, 자신의 진로와 관련된 최신 기술 동향을 주도적으로 학습하는 자세가 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "정적분의 개념을 완벽히 이해하고 있으며, 특히 구분구적법을 활용하여 입체의 부피를 구하는 데 뛰어난 능력을 보였습니다. 이를 선박의 배수량 계산 원리에 적용, 불규칙한 선체 형상을 여러 개의 얇은 단면으로 나누어 각 단면의 넓이를 적분함으로써 전체 부피를 근사하는 과정을 수학적으로 모델링했습니다. 심프슨 법칙(Simpson's rule)까지 추가적으로 학습하여 탐구의 깊이를 더했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 수학Ⅰ",
+      "content": "복소평면과 극형식에 대한 높은 이해를 바탕으로, 이를 유체 역학에서의 '포텐셜 유동' 해석에 연결하는 독창적인 탐구를 수행했습니다. 복소함수를 이용하여 실린더 주위의 유동을 해석하는 기초적인 예를 학습하고, 이를 통해 양력이 발생하는 원리를 수학적으로 이해하려는 노력을 보였습니다. 어려운 개념에 대한 도전 정신과 학문 간의 연관성을 찾으려는 융합적 사고가 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학 실험",
+      "content": "실험 설계 및 데이터 분석 능력이 탁월합니다. '파동의 간섭과 회절' 실험에서, 수면파 투영 장치를 이용하여 파의 전파를 관찰하고, 슬릿의 간격과 파장에 따른 간섭 무늬의 변화를 정량적으로 측정했습니다. 실험 과정에서 발생하는 오차의 원인을 분석하고, 이를 줄이기 위해 영상 분석 프로그램을 활용하여 파장의 길이를 정밀하게 측정하는 개선 방안을 제시하는 등 탐구자로서의 역량이 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "공학 일반",
+      "content": "공학 설계 프로세스에 대한 이해를 바탕으로 창의적인 문제 해결 능력을 보여주었습니다. '해양 에너지 활용 방안'을 주제로 한 프로젝트에서, 파력 발전, 조력 발전, 해수 온도차 발전의 원리를 비교 분석하고, 국내 해안 환경에 가장 적합한 방식으로 부유식 진동수주형(OWC) 파력발전 장치 모델을 제안했습니다. 3D 모델링 프로그램을 이용해 개념 설계를 시각화하고, 기대효과와 기술적 한계를 명확히 제시하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "우리 사회의 복잡한 문제에 대해 깊이 있게 성찰하는 자세를 갖추었습니다. '세계화의 그림자: 편의치적선 문제와 해운업의 노동 인권'을 주제로 연구 보고서를 작성했습니다. 편의치적 제도가 해운사의 세금 회피 및 값싼 노동력 착취의 수단으로 이용되는 실태를 조사하고, 국제기구와 각국 정부의 규제 노력, 그리고 소비자로서의 윤리적 책임에 대해 논리적으로 서술했습니다. 공학도가 갖추어야 할 사회적 책임감을 고민하는 모습이 인상적입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "설득력 있는 말하기와 글쓰기 능력을 갖춘 학생입니다. '미래 사회의 변화'를 주제로 한 발표에서 '수소 사회와 해상 수소 운송의 중요성'을 역설했습니다. 액화수소, 암모니아, LOHC 등 다양한 해상 수소 운송 방식의 기술적 특성과 경제성을 비교 분석하고, 미래 에너지 공급망에서 조선해양공학의 역할을 강조하여 청중의 큰 공감을 얻었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로 영어",
+      "content": "진로 분야의 영문 자료를 비판적으로 독해하고 활용하는 능력이 우수합니다. 'Journal of Marine Science and Engineering'에 실린 논문 'A Review on Autonomous Ship: A Perspective of Key Technologies, Applications and Challenges'를 읽고, 자율운항선박의 기술 수준(Level 1~4)과 인공지능, IoT, 센서 기술의 융합 방식을 분석하여 요약 발표했습니다. 미래 기술에 대한 높은 관심과 정보 습득 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 수학Ⅱ",
+      "content": "선형대수학과 행렬에 대한 깊은 이해를 바탕으로, 이를 유한요소법(FEM)의 기본 원리에 연결하여 탐구했습니다. 복잡한 구조물(예: 선체)을 작은 요소(element)들로 나누고, 각 요소의 거동을 행렬 방정식으로 표현하여 전체 구조물의 변형과 응력을 계산하는 원리를 학습했습니다. 이를 통해 현대 공학 시뮬레이션의 수학적 기반을 이해하는 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "융합과학 탐구",
+      "content": "주도적인 연구 설계 및 수행 능력이 탁월합니다. '친환경 선박 연료로서 암모니아의 가능성과 과제'를 주제로 1년간의 융합 탐구 프로젝트를 수행했습니다. (물리)암모니아 엔진의 열역학적 효율성, (화학)암모니아 분해 및 연소 과정에서의 NOx 발생 문제, (생명과학)암모니아의 독성 및 해양 생태계 영향, (정보)최적 운송 루트 시뮬레이션을 종합적으로 탐구하여 소논문을 완성했습니다. 학문 간의 경계를 넘나드는 융합적 인재로서의 성장 가능성을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "content": "제시문의 핵심 논지를 정확히 파악하고 자신의 견해를 논리적으로 전개하는 능력이 우수합니다. '기술 발전은 인류를 행복하게 하는가'라는 논제에 대해, 기술의 양면성을 인정하면서도 '인간 중심의 기술 개발'과 '사회적 합의를 통한 윤리 기준 정립'이 중요하다는 견해를 밝혔습니다. 특히 해양플랜트 개발과 심해 생태계 보존의 갈등을 예로 들며, 공학적 해결책과 사회적 가치가 조화를 이루어야 함을 설득력 있게 주장했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육",
+      "content": "팀 스포츠 활동에 적극적으로 참여하며, 특히 농구 경기에서 동료들과의 협력 플레이를 통해 팀의 공격을 조율하는 능력이 돋보입니다. 꾸준한 체력 관리로 건강한 신체를 유지하고 있으며, 학업 스트레스를 운동으로 해소하는 긍정적인 생활 태도를 지니고 있습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악",
+      "content": "음악 감상 수업에서 클래식과 현대 음악을 넘나드는 폭넓은 관심을 보여주었습니다. 특히 드뷔시의 '바다(La Mer)'를 듣고, 오케스트라의 각 악기가 어떻게 파도의 움직임과 바다의 다양한 풍경을 묘사하는지 자신만의 감상을 풍부한 표현으로 발표하여 깊은 인상을 남겼습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어/수학",
+      "bookDescription": "수학적 개념이 실생활과 과학 기술에 어떻게 적용되는지 탐구함. 특히 부력과 배수량의 원리를 수학적으로 이해하는 데 도움을 받음.",
+      "author": "김민형",
+      "bookTitle": "수학이 필요한 순간"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "과학",
+      "bookDescription": "부력, 유체 압력 등 선박과 관련된 물리 법칙에 대한 흥미를 느낌. 과학적 원리를 통해 현상을 설명하는 과정에 매료됨.",
+      "author": "리처드 파인만",
+      "bookTitle": "파인만의 여섯 가지 물리 이야기"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "사회/영어",
+      "bookDescription": "컨테이너라는 표준화된 상자가 세계 무역과 경제 지도를 어떻게 바꾸었는지 이해함. 기술 혁신이 사회에 미치는 거대한 영향력을 깨닫고, 조선해양 분야의 역할에 대해 고민하게 됨.",
+      "author": "마크 레빈슨",
+      "bookTitle": "더 박스(The Box)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "수학",
+      "bookDescription": "미적분학의 역사와 핵심 개념을 통해 수학적 사고의 깊이를 더함. 선박의 곡선 설계나 부피 계산에 미적분이 어떻게 활용될 수 있을지 생각해보는 계기가 됨.",
+      "author": "스티븐 스트로가츠",
+      "bookTitle": "미적분의 힘"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "물리학",
+      "bookDescription": "유체역학의 기본 원리인 베르누이 방정식, 나비에-스토크스 방정식 등을 접하며 선박의 저항과 추진 원리에 대한 이론적 토대를 다짐. CFD 해석에 대한 흥미를 가짐.",
+      "author": "송재준",
+      "bookTitle": "쉽게 배우는 유체역학"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "공학/진로",
+      "bookDescription": "선박의 종류, 구조, 설계, 건조 과정 등 조선해양공학 전반에 대한 체계적인 지식을 얻음. 진로에 대한 구체적인 그림을 그리는 데 결정적인 역할을 함.",
+      "author": "대한조선학회",
+      "bookTitle": "미래를 여는 조선해양공학"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "화학/환경",
+      "bookDescription": "해양 오염의 심각성과 다양한 해결책을 접함. 특히 선박의 평형수 문제, 방오 도료의 환경 호르몬 문제 등을 알게 되면서 친환경 선박 기술의 필요성을 절감함.",
+      "author": "칼럼 로버츠",
+      "bookTitle": "우리가 놓치고 있는 바다의 진실"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "인문",
+      "bookDescription": "경도 측정을 위한 인류의 끈질긴 노력을 통해, 정확한 항해 기술의 발전이 인류 역사에 얼마나 중요한 역할을 했는지 깨달음. 공학적 문제 해결의 사회적, 역사적 의미를 성찰함.",
+      "author": "데이바 소벨",
+      "bookTitle": "경도(Longitude)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "물리학",
+      "bookDescription": "파동, 열, 전자기 등 물리학의 심화 개념을 탐구함. 특히 선박의 소음·진동 문제, 엔진의 열효율, 레이더와 같은 항해 장비의 원리를 이해하는 데 큰 도움을 받음.",
+      "author": "할리데이, 레스닉, 워커",
+      "bookTitle": "일반물리학"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "공학/진로",
+      "bookDescription": "선박의 안정성(복원성)에 대한 핵심 개념인 무게중심, 부력중심, 메타센터의 관계를 심도 있게 학습함. 선박 설계의 가장 중요한 요소 중 하나를 깊이 이해하게 됨.",
+      "author": "D. R. Derrett",
+      "bookTitle": "Ship Stability for Masters and Mates"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "융합과학",
+      "bookDescription": "자율주행차, 인공지능, 빅데이터 등 4차 산업혁명 기술이 어떻게 융합되는지 이해함. 이를 자율운항선박 기술에 적용하여, 미래 선박의 모습과 필요한 핵심 기술에 대해 고찰함.",
+      "author": "클라우스 슈바프",
+      "bookTitle": "4차 산업혁명"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "환경/사회",
+      "bookDescription": "수소 경제의 도래와 그 가능성을 학습하고, 수소의 생산, 저장, 운송, 활용 전반에 대한 이해를 넓힘. 특히 액화수소 운반선과 같은 해상 수소 운송 기술의 중요성을 인식함.",
+      "author": "제러미 리프킨",
+      "bookTitle": "수소 혁명"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "컴퓨터/정보",
+      "bookDescription": "데이터 과학의 기본 개념과 실제 분석 사례를 접하며, 빅데이터가 산업 현장에서 어떻게 활용되는지 학습함. 선박 운항 데이터, 기상 데이터 등을 활용한 최적 항로 추천, 예방 정비 시스템 등을 구상해봄.",
+      "author": "레이첼 슈트, 캐시 오닐",
+      "bookTitle": "데이터 과학이란 무엇인가"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어/인문",
+      "bookDescription": "과학 기술의 발전이 가져올 사회, 윤리적 문제에 대해 깊이 성찰함. 자율운항선박의 사고 책임, 해양플랜트 개발과 환경 보존 등 공학도로서 마주할 딜레마에 대해 미리 고민해보는 계기가 됨.",
+      "author": "유발 하라리",
+      "bookTitle": "호모 데우스: 미래의 역사"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "FPSO, 드릴십 등 해양플랜트의 종류와 기능, 그리고 심해 자원 개발의 최전선에 대한 지식을 얻음. 극한 환경을 극복하는 공학 기술의 집약체로서 해양플랜트 분야에 큰 매력을 느낌.",
+      "author": "한국해양과학기술원",
+      "bookTitle": "미래를 채굴하는 바다, 해양플랜트"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 강하고 탐구심이 뛰어난 학생으로, 특히 수학과 과학 분야에 두각을 나타냅니다. 수업 중 의문이 생기면 집요하게 파고들어 해결하며, 자신의 지식을 친구들과 나누는 것을 즐깁니다. 학급 부회장으로서 책임감 있는 모습과 긍정적인 태도로 학급의 면학 분위기 조성에 기여했습니다."
+    },
+    {
+      "grade": 2,
+      "content": "물리학에 대한 깊은 열정과 재능을 바탕으로 자기주도적 학습 능력이 크게 성장했습니다. 복잡한 물리 현상을 수학적 모델로 표현하고, 이를 공학적 문제 해결에 적용하는 융합적 사고력이 돋보입니다. 물리 탐구 동아리 부장으로서 리더십을 발휘하고, 고난도 R&E 과제를 끝까지 수행하는 끈기와 성실함을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "content": "조선해양공학자라는 뚜렷한 목표를 향해 꾸준히 정진해 온 학생입니다. 심화 교과 학습과 심도 있는 진로 탐구를 통해 전문성을 키웠으며, 기술의 사회적, 윤리적 책임까지 성찰하는 성숙한 모습을 보여줍니다. 탁월한 학업 역량과 따뜻한 인성을 겸비하여 장차 우리나라 해양 기술 발전에 크게 기여할 인재로 기대됩니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육1",
+      "achievementLevel": "P",
+      "content": "체력 증진 활동에 성실히 참여하고, 특히 순발력과 민첩성이 뛰어남.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "P",
+      "content": "디자인과 생활 단원에서, 기능성과 심미성을 모두 고려한 제품 디자인에 재능을 보임.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "P",
+      "content": "팀 프로젝트에서 협동심을 발휘하며 동료들의 참여를 이끌어내는 능력이 돋보임.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악 연주",
+      "achievementLevel": "P",
+      "content": "수행평가에서 악보의 리듬과 화성을 분석하고 이를 바탕으로 안정적인 연주를 선보임.",
+      "creditHours": 2
+    }
+  ]
+}

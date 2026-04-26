@@ -1,0 +1,1085 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/성균관-경영학-21",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 90,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_성균관_경영학_021",
+    "schoolName": "가상 일반고 V",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "성균관대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "경영학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김가상",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이가상",
+      "studentNumber": "20301"
+    },
+    {
+      "grade": 3,
+      "className": "2반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박가상",
+      "studentNumber": "30201"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 1일",
+      "schoolDays": 191
+    },
+    {
+      "grade": 2,
+      "absenceSick": 2,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "장염으로 인한 병결 2일, 병원 진료로 인한 병조퇴 1회",
+      "schoolDays": 190
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 독서 감상문 대회 동상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "전교생 대상"
+    },
+    {
+      "grade": 1,
+      "awardName": "수학 구조물 경진대회 장려상",
+      "awardDate": "2024-11-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "1학년 희망자"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 경제 에세이 대회 은상",
+      "awardDate": "2025-06-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "1, 2학년 희망자"
+    },
+    {
+      "grade": 2,
+      "awardName": "통계 활용 포스터 발표대회 우수상",
+      "awardDate": "2025-10-30",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "팀(3인)"
+    },
+    {
+      "grade": 2,
+      "awardName": "모범 학생 표창",
+      "awardDate": "2025-12-24",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "학급 추천"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 창업 아이디어 경진대회 대상",
+      "awardDate": "2026-05-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "팀(2인)"
+    },
+    {
+      "grade": 3,
+      "awardName": "사회문제 탐구 보고서 대회 최우수상",
+      "awardDate": "2026-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 V 교장",
+      "participants": "개인"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 특색 활동으로 '미디어 리터러시 함양 프로젝트'에 참여하여, 가짜 뉴스의 사회적 비용과 필터 버블 현상에 대해 조사하고 발표했습니다. 정보의 비대칭성과 확증 편향이 시장에 미치는 영향을 경제학적 관점에서 분석하여 친구들의 이해를 도왔으며, 비판적 정보 수용의 중요성을 알리는 캠페인을 주도하는 등 공동체 의식을 함양했습니다.",
+      "activityName": "학급 특색 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학급 부회장으로서 학급 회의를 효율적으로 운영하고, '학급 마니또 활동'과 '온라인 칭찬 릴레이' 등 친구들의 소속감과 유대감을 높일 수 있는 활동을 기획하고 성공적으로 이끌었습니다. 특히 학급 규칙을 정할 때 반 친구들의 의견을 민주적으로 수렴하고 갈등을 중재하는 능력이 돋보였습니다.",
+      "activityName": "학급 부회장",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "시사토론 동아리 부원으로서 '기본소득제 도입의 타당성'을 주제로 한 토론에 참여했습니다. 경제적 효율성과 사회적 형평성 측면에서 찬반 논리를 심도 있게 분석하고, 관련 통계 자료를 근거로 자신의 주장을 논리적으로 펼치는 능력이 우수합니다. 토론 준비 과정에서 팀원들과 협력하여 자료를 수집하고 예상 반론을 준비하는 등 적극적인 자세를 보였습니다.",
+      "activityName": "시사토론 동아리 '논객'",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 탐색의 날 프로그램에서 '선배와의 대화' 시간에 경영학과 출신 마케터를 만나 직무에 대한 현실적인 정보를 얻었습니다. 이후 '마케터'라는 직업에 대한 구체적인 호기심을 갖고 '마케팅 불변의 법칙'을 읽으며 마케팅의 기본 원리를 학습하고, 성공적인 브랜드 캠페인 사례를 분석하여 보고서로 제출하는 등 자기주도적인 진로 탐색 역량을 보여주었습니다.",
+      "activityName": "진로 탐색 활동",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학교 축제에서 '교내 경제 퀴즈쇼' 부스를 기획하고 운영했습니다. 경제 상식 퀴즈, 환율 변동 게임 등을 직접 개발하여 학생들이 경제에 흥미를 느낄 수 있도록 도왔습니다. 부스 운영을 통해 얻은 수익금 전액을 교내 장학금으로 기부하는 과정을 주도하며 나눔의 가치를 실천하고 리더십을 발휘했습니다.",
+      "activityName": "학교 축제 부스 운영",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 기획부 차장으로 활동하며 '등굣길 인사 캠페인'과 '학교 시설 개선 제안함' 운영을 담당했습니다. 특히 학생들의 건의사항을 수집하고 데이터로 정리하여 학생회 회의에 보고함으로써, 실제 급식실 대기 줄 개선과 도서관 좌석 예약 시스템 도입에 기여하는 등 문제 해결 능력을 보여주었습니다.",
+      "activityName": "학생회 기획부 차장",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "창업 동아리 '유레카'의 부장으로서 '지역 사회 소상공인 온라인 홍보 지원 프로젝트'를 이끌었습니다. 네이버 스마트플레이스 등록, 인스타그램 채널 개설 및 콘텐츠 제작 등 디지털 마케팅 지식을 실제 현장에 적용해보는 경험을 했습니다. 이 과정에서 팀원들의 역할을 분배하고 일정을 관리하는 탁월한 리더십과 책임감을 보여주었습니다.",
+      "activityName": "창업 동아리 '유레카'",
+      "hours": 32
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "교내 '빅데이터 분석 기초' 강좌에 참여하여 데이터 수집, 정제, 시각화의 기본 과정을 학습했습니다. 공공데이터포털의 상권분석 데이터를 활용하여 '코로나19 이후 교내 주변 상권 변화 분석'이라는 주제로 미니 프로젝트를 수행하고, R을 이용한 데이터 시각화 결과를 발표하여 우수한 평가를 받았습니다. 이를 통해 데이터 기반 의사결정의 중요성을 체감했습니다.",
+      "activityName": "진로 심화 탐구",
+      "hours": 18
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업앨범 편집위원으로 활동하며 앨범의 전체 콘셉트 기획과 페이지 디자인에 참여했습니다. 특히 졸업생들의 3년간의 활동을 인포그래픽으로 제작하여 앨범에 수록하자는 아이디어를 제안하고, 설문조사를 통해 데이터를 수집, 분석하여 시각화하는 작업을 주도함으로써 정보 디자인 역량을 보여주었습니다.",
+      "activityName": "졸업앨범 편집위원회",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "학생회 기획부장으로서 후배들을 위한 '진로 진학 멘토링' 프로그램을 기획했습니다. 졸업생과 재학생을 연결하는 온라인 플랫폼을 구축하고, 멘토-멘티 매칭 시스템을 설계하는 등 체계적인 프로그램 운영을 위해 노력했습니다. 후배들의 진로 설계에 실질적인 도움을 주며 공동체에 기여하는 리더십을 발휘했습니다.",
+      "activityName": "학생회 기획부장",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "창업 동아리 부장으로서 교내 창업 아이디어 경진대회에 'AI 기반 개인 맞춤형 여행 코스 추천 앱' 아이템으로 참가하여 대상을 수상했습니다. 시장 분석, 비즈니스 모델 수립, 프로토타입 기획 등 창업의 전 과정을 주도적으로 수행했으며, 특히 잠재 고객의 '페인 포인트'를 정확히 파악하고 해결책을 제시하는 능력이 돋보였습니다.",
+      "activityName": "창업 동아리 '유레카'",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "자신의 진로 목표인 '디지털 브랜딩 전문가'와 관련하여 포트폴리오를 제작했습니다. 1, 2학년 때 수행했던 마케팅 관련 탐구 보고서, 통계 분석 프로젝트, 창업 아이디어 기획서 등을 체계적으로 정리하고, 각 활동의 의미와 자신의 성장을 성찰하는 글을 덧붙여 자신의 역량과 잠재력을 시각적으로 표현하는 능력을 보여주었습니다.",
+      "activityName": "개인 포트폴리오 제작",
+      "hours": 15
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 15,
+      "description": "지역 아동센터 학습 보조 및 환경 미화",
+      "hours": 15,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 35,
+      "description": "유기동물 보호소 견사 청소 및 배식 보조, 캠페인 활동",
+      "hours": 20,
+      "location": "생명사랑 유기동물보호소"
+    },
+    {
+      "grade": 3,
+      "cumulativeHours": 45,
+      "description": "온라인 학습 멘토링 (초등학생 대상)",
+      "hours": 10,
+      "location": "비대면"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "classAverage": 82.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 10.5,
+      "subjectType": "공통과목",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "2",
+      "classAverage": 75.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "stdDev": 15.2,
+      "subjectType": "공통과목",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "2",
+      "classAverage": 80.4,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94.1,
+      "stdDev": 12.8,
+      "subjectType": "공통과목",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 9.8,
+      "subjectType": "공통과목",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "2",
+      "classAverage": 78.9,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 91.5,
+      "stdDev": 14.5,
+      "subjectType": "공통과목",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "2",
+      "classAverage": 81.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.3,
+      "stdDev": 11.9,
+      "subjectType": "공통과목",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "classAverage": 83.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "stdDev": 11.2,
+      "subjectType": "공통과목",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "2",
+      "classAverage": 76.8,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 91.8,
+      "stdDev": 14.8,
+      "subjectType": "공통과목",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1",
+      "classAverage": 81.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96.4,
+      "stdDev": 13.1,
+      "subjectType": "공통과목",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1",
+      "classAverage": 84.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 10.1,
+      "subjectType": "공통과목",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "3",
+      "classAverage": 79.2,
+      "creditHours": 3,
+      "rankGrade": 3,
+      "rawScore": 88,
+      "stdDev": 13.9,
+      "subjectType": "공통과목",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1",
+      "classAverage": 82.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 11.5,
+      "subjectType": "공통과목",
+      "totalStudents": 178
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 84.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 9.5,
+      "subjectType": "일반선택",
+      "totalStudents": 155
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 72.3,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 90.5,
+      "stdDev": 16.1,
+      "subjectType": "일반선택",
+      "totalStudents": 155
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 80.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.2,
+      "stdDev": 12.4,
+      "subjectType": "일반선택",
+      "totalStudents": 155
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "경제",
+      "achievementLevel": "1",
+      "classAverage": 79.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "stdDev": 11.8,
+      "subjectType": "일반선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "achievementLevel": "2",
+      "classAverage": 81.4,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "stdDev": 10.7,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 85.6,
+      "creditHours": 2,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 8.2,
+      "subjectType": "진로선택",
+      "totalStudents": 65
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 83.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 9.1,
+      "subjectType": "일반선택",
+      "totalStudents": 152
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 73.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 93.8,
+      "stdDev": 15.8,
+      "subjectType": "일반선택",
+      "totalStudents": 152
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "2",
+      "classAverage": 81.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 11.9,
+      "subjectType": "일반선택",
+      "totalStudents": 152
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정치와 법",
+      "achievementLevel": "2",
+      "classAverage": 80.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.4,
+      "stdDev": 11.2,
+      "subjectType": "일반선택",
+      "totalStudents": 75
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1",
+      "classAverage": 75.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.7,
+      "stdDev": 14.3,
+      "subjectType": "일반선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "경제 수학",
+      "achievementLevel": "A",
+      "classAverage": 82.1,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9.9,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "stdDev": 8.5,
+      "subjectType": "일반선택",
+      "totalStudents": 110
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "2",
+      "classAverage": 70.8,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 89.5,
+      "stdDev": 17.2,
+      "subjectType": "일반선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어",
+      "achievementLevel": "A",
+      "classAverage": 86.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 7.8,
+      "subjectType": "진로선택",
+      "totalStudents": 70
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "국제 경제",
+      "achievementLevel": "A",
+      "classAverage": 83.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 9.2,
+      "subjectType": "진로선택",
+      "totalStudents": 45
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "경영과 금융",
+      "achievementLevel": "A",
+      "classAverage": 88.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 6.5,
+      "subjectType": "융합선택",
+      "totalStudents": 40
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "정보",
+      "achievementLevel": "A",
+      "classAverage": 89.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 5.9,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 7,
+      "subjectType": "진로선택",
+      "totalStudents": 110
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "기하",
+      "achievementLevel": "B",
+      "classAverage": 75,
+      "creditHours": 3,
+      "rankGrade": 3,
+      "rawScore": 85,
+      "stdDev": 15,
+      "subjectType": "진로선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "여행지리",
+      "achievementLevel": "A",
+      "classAverage": 89,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 6,
+      "subjectType": "진로선택",
+      "totalStudents": 100
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "스포츠 생활",
+      "achievementLevel": "A",
+      "classAverage": 90,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 5,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "A",
+      "classAverage": 91,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 4.5,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "achievementLevel": "A",
+      "classAverage": 87.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 94.5,
+      "stdDev": 7.5,
+      "subjectType": "진로선택",
+      "totalStudents": 95
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "광고 언어의 특성에 대한 수업에서 높은 관심을 보였습니다. 특히 특정 스마트폰 광고의 카피가 소비자의 감성을 자극하는 원리를 수사법과 연결하여 분석하고, 타겟 고객층의 심리를 어떻게 파고드는지 발표하여 훌륭한 평가를 받았습니다. 이를 계기로 '설득의 심리학'(로버트 치알디니)을 읽고, 상호성의 원칙이 마케팅에 적용된 사례를 추가로 조사하여 보고서로 제출하는 등 지적 탐구심이 뛰어납니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "함수 단원에서 변수 간의 관계를 파악하고 이를 그래프로 시각화하는 능력이 탁월합니다. '우리 주변의 함수 관계'를 주제로 한 탐구 활동에서, 편의점의 시간대별 방문객 수와 매출액의 관계를 일차함수 모델로 가정하고, 실제 데이터를 수집하여 자신만의 모델을 만들어보는 시도를 했습니다. 비록 단순화된 모델이었지만, 수학적 개념을 실생활 문제에 적용하려는 창의적인 발상과 논리적 사고 과정이 돋보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "영어 에세이 작성 능력과 발표력이 뛰어납니다. 'The Impact of Social Media on Teenagers'라는 주제의 발표에서, SNS의 긍정적, 부정적 영향을 균형 잡힌 시각에서 제시하고 관련 어휘를 적절히 사용했습니다. 특히 SNS가 청소년의 소비 패턴에 미치는 영향을 설문조사하고, 그 결과를 영어 그래프로 시각화하여 발표함으로써 청중의 이해를 효과적으로 도왔습니다. 꾸준한 노력으로 어휘력과 작문 실력이 향상되고 있습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "시장 경제의 원리를 배우면서 가격 결정 과정에 깊은 흥미를 보였습니다. '한정판 운동화의 리셀(resell) 가격 형성 원리'를 수요와 공급 법칙, 희소성의 가치와 연결하여 분석하는 보고서를 작성했습니다. 시장 참여자들의 심리와 정보 비대칭성이 가격에 미치는 영향을 심도 있게 고찰했으며, 이를 통해 시장 경제의 역동성을 깊이 이해하는 계기가 되었습니다. 토론 수업에서 항상 논리적 근거를 바탕으로 자기 의견을 개진하는 태도가 인상적입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "생태계와 환경 단원에서, 환경 문제가 경제 활동에 미치는 영향에 대해 탐구했습니다. '탄소 배출권 거래제'의 원리를 조사하고, 이 제도가 기업의 생산 비용과 장기적인 경쟁력에 어떤 영향을 미치는지 분석하여 발표했습니다. 과학적 지식을 사회, 경제적 맥락에서 이해하려는 통합적 사고 능력이 돋보이며, 복잡한 현상의 인과관계를 체계적으로 설명하는 능력이 우수합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "개항기 이후의 경제적 변화에 대해 학습하며, 당시 상인들의 활동에 큰 관심을 보였습니다. 특히 객주, 보부상 등 전통 상인들이 근대적 상회사로 변화해가는 과정을 조사하고, 이들이 변화하는 시장 환경에 어떻게 적응하고 생존했는지 발표했습니다. 역사적 사실을 현재의 기업 환경과 비교하며 통찰력을 얻으려는 시도가 인상적이며, 사료를 비판적으로 분석하고 해석하는 능력을 갖추었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "매체 언어 비평 단원에서, 특정 기업의 유튜브 채널 콘텐츠를 분석하여 '브랜드 스토리텔링 전략'에 대한 보고서를 작성했습니다. 제품의 기능적 장점을 직접적으로 홍보하기보다, 브랜드의 철학과 가치를 담은 이야기를 통해 소비자와의 유대감을 형성하는 전략을 깊이 있게 분석했습니다. 이는 학생의 진로인 브랜딩과 마케팅에 대한 높은 관심과 이해도를 보여주는 활동입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "경우의 수 단원에서 순열과 조합의 개념을 명확히 이해하고 이를 다양한 문제 상황에 적용하는 능력이 뛰어납니다. 모둠별 프로젝트로 '효율적인 광고 배너 조합 찾기' 활동을 제안했습니다. 웹사이트의 특정 위치에 노출될 3개의 광고를 10개의 광고 후보군 중에서 선택하고 배열하는 경우의 수를 계산하고, 각 배너의 클릭률 데이터를 가상으로 설정하여 최적의 조합을 찾는 과정을 시뮬레이션 해 보았습니다. 수학적 원리를 창의적으로 활용하는 문제해결력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "TED 강연을 듣고 자신의 생각을 발표하는 활동에서 'The puzzle of motivation'(Daniel Pink)을 주제로 선정했습니다. 강연의 핵심 내용인 '내재적 동기'의 중요성을 요약하고, 이것이 기업의 성과 관리와 보상 시스템에 주는 시사점을 자신의 언어로 명확하게 설명했습니다. 특히, 강연 내용을 자신의 진로인 경영 분야와 연결하여 심화 탐구하려는 노력이 돋보였으며, 유창한 발표 태도로 청중의 호응을 얻었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "문화 변동 파트에서 'K-Pop의 세계화와 문화 혼종 현상'을 주제로 탐구 보고서를 작성했습니다. K-Pop이 다양한 문화 요소를 수용하고 재창조하여 새로운 문화 콘텐츠로 성공한 과정을 분석하고, 이것이 한국의 국가 브랜딩에 미친 긍정적 효과를 구체적 사례를 들어 설명했습니다. 사회 현상을 다각적으로 분석하고 종합적인 결론을 도출하는 능력이 우수합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "과학탐구실험 과정에서 변인 통제의 중요성을 명확히 이해하고 실험을 설계하는 능력이 뛰어납니다. '음료의 종류에 따른 얼음이 녹는 속도 비교' 실험에서, 음료의 종류(독립 변인) 외에 얼음의 크기, 음료의 양, 초기 온도 등 결과에 영향을 줄 수 있는 다른 요인(통제 변인)들을 엄격하게 관리하며 실험을 진행했습니다. 과학적 방법론에 대한 높은 이해를 바탕으로 논리적이고 체계적인 탐구 활동을 수행하는 점이 인상적입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "현대사 파트의 경제 성장 과정을 학습하며, 1970년대 기업들의 성장 전략에 대해 심화 탐구했습니다. 특정 기업의 사례를 중심으로 당시 정부의 수출 주도 정책 속에서 기업이 어떻게 기회를 포착하고 위기를 극복했는지 조사하여 발표했습니다. 과거의 경제 정책과 기업가 정신이 현재 한국 경제에 미친 영향을 비판적으로 성찰하는 등 역사적 사건을 현재적 관점에서 재해석하는 능력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "김유정의 '봄봄'을 읽고, 작품 속 인물들의 희화화를 통한 비판 정신에 대해 깊이 있게 분석했습니다. 특히 '나'와 '장인'의 갈등을 계약 관계의 불공정성이라는 현대적 관점에서 재해석하고, 이를 노동 문제와 연결하여 감상문을 작성함으로써 문학 작품을 사회적 맥락에서 이해하는 능력을 보여주었습니다. 문학 작품에 대한 깊이 있는 해석과 창의적인 감상 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "지수함수와 로그함수의 그래프를 이해하고 실생활에 활용하는 능력이 뛰어납니다. '감가상각'이라는 경제 개념을 지수함수 모델로 설명하는 탐구 활동을 수행했습니다. 특정 자동차 모델의 연식에 따른 중고 가격 데이터를 조사하고, 이를 바탕으로 감가상각률을 계산하여 가격 예측 함수 모델을 제시했습니다. 수학적 개념을 경제 현상 분석에 접목시키는 융합적 사고력이 우수합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "content": "다양한 주제의 영문 기사를 읽고 요약, 비평하는 활동에 적극적으로 참여합니다. 'The Economist'지의 'How Gen Z shops' 기사를 읽고, Z세대의 소비 특징인 '가치 소비', '온라인 경험 중시' 등을 분석하여 발표했습니다. 기사의 내용을 자신의 진로인 디지털 마케팅과 연결하여, Z세대를 타겟으로 하는 기업들이 어떤 브랜딩 전략을 구사해야 할지에 대한 자신의 의견을 논리적으로 제시하여 좋은 평가를 받았습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "경제",
+      "content": "수업 시간에 배운 미시경제 이론에 깊은 흥미를 느끼고, '구독 경제 모델의 성공 요인 분석'을 주제로 심화 탐구를 진행했습니다. 넷플릭스, 쿠팡 로켓와우 등의 사례를 통해 구독 경제가 소비자에게는 어떤 효용을, 기업에게는 어떤 이점을 제공하는지 게임 이론과 행동경제학적 관점에서 분석했습니다. 특히 '락인 효과(Lock-in effect)'와 '습관 형성'이 지속적인 수익 창출에 미치는 영향을 심도 있게 분석한 점이 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "content": "사회 계층 이론을 학습한 후, '사회 이동 가능성에 대한 세대별 인식 차이'를 주제로 설문 조사를 설계하고 수행했습니다. 10대, 20대와 40대, 50대를 대상으로 설문을 진행하고, 수집된 데이터를 교차 분석하여 세대별로 사회 이동에 대한 기대와 인식이 다름을 통계적으로 보여주었습니다. 연구 문제를 설정하고, 가설을 검증하기 위해 양적 연구 방법을 직접 수행해보는 등 사회과학도로서의 탐구 역량을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "디지털 시대의 사회 문제에 관심을 갖고 '유튜브의 추천 알고리즘이 여론 형성에 미치는 영향'을 주제로 탐구 보고서를 작성했습니다. 알고리즘으로 인한 '필터 버블'과 '에코 챔버' 현상이 정치적 양극화를 심화시키는 과정을 논리적으로 분석했습니다. '생각의 재구성'(캐스 선스타인)을 참고 문헌으로 활용하여 자신의 주장을 뒷받침했으며, 문제 해결을 위해 미디어 리터러시 교육 강화와 알고리즘 투명성 확보를 대안으로 제시하는 등 비판적 사고력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "비판적 사고와 논리적 글쓰기 능력 향상에 대한 의지가 강합니다. '코스모스'(칼 세이건)를 읽고 과학적 사실과 인문학적 성찰이 결합된 글쓰기 방식에 깊은 감명을 받아, '과학 기술의 발전이 인간의 삶에 미치는 영향'을 주제로 서평을 작성했습니다. 책의 내용을 자신의 언어로 재구성하고, 이를 바탕으로 자신의 생각을 논리적으로 전개하는 능력이 우수하며, 다양한 분야의 독서를 통해 통합적 사고의 기반을 다지고 있습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분 단원에서 '함수의 증가와 감소, 극대와 극소' 개념을 학습하고, 이를 기업의 이윤 극대화 문제에 적용해보는 탐구 활동을 수행했습니다. 상품의 가격(x)에 따른 판매량과 총수입, 총비용 함수를 가상으로 설정하고, 미분을 이용하여 이윤이 극대화되는 최적의 가격을 도출하는 과정을 보고서로 작성했습니다. 추상적인 수학 개념을 구체적인 문제 해결에 활용하는 응용력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "영문 비즈니스 기사 분석에 강점을 보입니다. 하버드 비즈니스 리뷰의 'What Is a Brand?' 아티클을 읽고, 브랜드가 단순한 로고나 이름이 아닌, 소비자의 마음속에 형성되는 '인식의 총합'이라는 개념을 깊이 이해했습니다. 이를 바탕으로 자신이 좋아하는 브랜드의 성공 요인을 '브랜드 아이덴티티', '브랜드 이미지', '고객 경험' 측면에서 분석하는 영어 발표를 진행하여 뛰어난 주제 이해도와 발표 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정치와 법",
+      "content": "기업 활동과 관련된 법규에 관심을 갖고, '공정거래법상 '부당한 공동행위(담합)'의 규제'에 대해 심화 학습했습니다. 관련 판례를 찾아보고, 담합이 시장의 경쟁을 저해하고 소비자 후생을 감소시키는 과정을 분석했습니다. 법의 원리를 경제 현상과 연결하여 이해하려는 노력이 돋보이며, 복잡한 법률 용어와 조문을 끈기 있게 탐구하는 학습 태도가 우수합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "content": "통계적 추정 단원에서 배운 신뢰구간의 개념을 활용하여 '우리 학교 학생들의 하루 평균 스마트폰 사용 시간 추정' 프로젝트를 수행했습니다. 표본을 무작위로 추출하고, 표본평균과 표준편차를 구해 95% 신뢰수준의 신뢰구간을 계산하는 과정을 통해 통계의 유용성을 체감했습니다. R 프로그램을 활용하여 데이터를 분석하고 시각화하는 등 데이터 분석의 기초 역량을 보여주었으며, 진로와 연계된 탁월한 탐구 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "경제 수학",
+      "content": "수열의 합과 미분 개념을 경제학에 적용하는 데 뛰어난 역량을 보였습니다. '연금의 현재가치 계산' 문제를 등비급수를 이용하여 해결하고, '한계비용(Marginal Cost)'과 '한계수입(Marginal Revenue)'을 비용함수와 수입함수의 미분으로 이해하여 이윤 극대화 조건을 수학적으로 증명해냈습니다. '맨큐의 경제학'을 참고하여 경제 개념에 대한 이해를 심화하고, 이를 수학적으로 모델링하는 과정에서 학문적 성장을 이루었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "설득을 목적으로 하는 글쓰기에 대한 이해가 깊습니다. '교내 비건 메뉴 도입 제안서'를 작성하는 프로젝트에서, 예상 독자인 학교장과 영양사를 분석하고 그들의 관심사를 고려하여 설득 전략을 구성했습니다. 건강, 환경, 학생 복지 등 다양한 측면에서 비건 메뉴 도입의 필요성을 논리적으로 주장하고, 예상되는 문제점에 대한 해결 방안까지 제시하는 등 뛰어난 작문 능력과 문제 해결 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "정적분의 개념을 학습하고, 이를 사회과학 분야에 적용해보는 '로렌츠 곡선과 지니 계수' 탐구 활동을 진행했습니다. 소득분배의 불평등 정도를 나타내는 지니 계수가 로렌츠 곡선과 완전균등선 사이의 넓이를 이용해 계산된다는 사실을 이해하고, 실제 국가별 소득분배 데이터를 활용하여 지니 계수를 근사적으로 계산해보았습니다. 수학적 도구를 활용하여 사회 현상을 계량적으로 분석하는 융합적 탐구 역량이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어",
+      "content": "세계적인 기업들의 연차 보고서(Annual Report)를 영어로 읽고 분석하는 활동에 높은 성취를 보였습니다. 파타고니아의 보고서를 읽고, 기업의 재무적 성과뿐만 아니라 환경적, 사회적 책임(ESG)을 강조하는 브랜딩 전략을 분석했습니다. 보고서에 사용된 전문 용어와 데이터들을 정확히 해석하고, 이를 바탕으로 기업의 비전과 경영 철학을 파악하는 능력이 탁월합니다. 진로에 대한 확고한 목표를 바탕으로 심화 학습을 꾸준히 진행하고 있습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "국제 경제",
+      "content": "환율 변동의 영향에 대해 학습한 후, '최근 원/달러 환율 상승이 국내 수출입 기업에 미치는 영향'을 주제로 심층 분석 보고서를 작성했습니다. 자동차 산업과 항공 산업을 사례로 들어, 환율 상승이 각 산업의 수익성에 미치는 긍정적, 부정적 영향을 구체적인 데이터를 근거로 설명했습니다. '국제금융론'(폴 크루그먼)을 참고하여 이론적 깊이를 더했으며, 복잡한 거시 경제 변수들의 상호작용을 체계적으로 이해하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "경영과 금융",
+      "content": "기업가 정신과 창업에 대한 수업 내용을 바탕으로, '퍼스널 브랜딩을 활용한 1인 창업 아이템'을 기획하여 발표했습니다. 자신의 강점과 진로 희망을 결합하여 '대학생 및 취준생을 위한 자기소개서 컨설팅 및 포트폴리오 제작 서비스'라는 구체적인 비즈니스 모델을 제시했습니다. STP(시장 세분화, 타겟팅, 포지셔닝) 전략을 적용하여 목표 고객을 명확히 하고, 차별화된 마케팅 전략을 제안하는 등 경영학적 원리에 대한 높은 이해와 창의적인 기획력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "정보",
+      "content": "데이터베이스 단원에서 배운 지식을 활용하여 '교내 동아리 관리 시스템'을 설계했습니다. 학생 정보, 동아리 정보, 활동 내역 등을 테이블로 구조화하고, 각 테이블 간의 관계(Relationship)를 설정하여 ERD(개체-관계 다이어그램)로 표현했습니다. 정규화 과정을 통해 데이터의 중복을 최소화하고 무결성을 높이는 등 효율적인 데이터베이스 설계 능력을 보여주었습니다. 이는 향후 데이터 기반 마케팅을 수행하는 데 필요한 핵심 역량을 갖추고 있음을 보여줍니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "content": "고전과 윤리 과목과 융합하여 '정약용의 목민심서에 나타난 리더십과 현대 경영자의 역할'이라는 주제로 소논문을 작성했습니다. 목민심서에 나타난 애민 정신, 공정성, 실용주의 등을 현대 기업의 ESG 경영, 윤리 경영과 연결하여 분석했습니다. 인문고전에서 현대적 경영의 지혜를 발견해내는 통찰력과 융합적 사고력이 돋보이며, 후배들에게 자신의 탐구 과정을 발표하며 지식을 공유하는 모습을 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "기하",
+      "content": "공간도형과 공간좌표 단원의 학습 내용을 3D 모델링과 연결하는 창의적인 시도를 보였습니다. 3D 프린팅의 원리를 학습한 후, 간단한 제품(스마트폰 거치대)을 디자인하는 과정에서 벡터의 내적과 외적을 활용하여 부품 간의 각도와 결합 방식을 계산했습니다. 추상적인 기하학 개념을 실제 사물의 설계에 적용해보려는 공학적 사고와 응용력이 돋보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "여행지리",
+      "content": "관광 마케팅에 관심을 갖고, 'MZ세대를 유치하기 위한 지방 소도시의 브랜딩 전략'을 주제로 보고서를 작성했습니다. 강원도 양양군이 '서핑의 성지'로 성공적으로 브랜딩된 사례를 분석하고, 다른 소도시에 적용할 수 있는 로컬 브랜딩 전략을 제안했습니다. 지역의 고유한 문화 자원을 활용한 스토리텔링과 SNS를 통한 바이럴 마케팅의 중요성을 강조하는 등 진로와 연계된 깊이 있는 탐구를 수행했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "스포츠 생활",
+      "content": "팀 스포츠 활동에서 뛰어난 리더십과 협동심을 보여주었습니다. 농구 경기에서 팀의 주장을 맡아, 팀원들의 개인 기량과 성향을 파악하여 최적의 포지션을 배정하고, 경기 중 끊임없이 소통하며 팀의 사기를 높였습니다. 승패를 떠나 공정한 경쟁과 팀워크의 가치를 중요하게 생각하며, 공동의 목표를 위해 헌신하는 태도가 모범적입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악 감상과 비평",
+      "content": "음악이 광고나 영화에서 감정과 분위기를 형성하는 역할에 대해 탐구했습니다. 특정 영화의 OST가 영상의 서사를 어떻게 강화하는지 분석하고, 특히 배경음악의 템포, 조성, 악기 구성이 관객의 심리에 미치는 영향을 구체적으로 설명했습니다. 예술적 감수성과 분석적 사고를 결합하여 현상을 이해하는 능력이 우수합니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "content": "다양한 사회적 쟁점에 대한 자신의 견해를 논리적으로 개진하는 능력이 뛰어납니다. '플랫폼 노동자의 법적 지위'에 대한 논제를 받고, 노동권 보호의 필요성과 플랫폼 산업의 혁신성 유지라는 두 가지 가치를 모두 고려하는 균형 잡힌 해결 방안을 제시했습니다. 복잡한 문제의 핵심을 정확히 파악하고, 다각적인 관점에서 해결책을 모색하는 비판적 사고력과 종합적 문제 해결 능력을 갖추었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'왜 나는 이 사람의 말이 끌리는가'를 읽고, 설득력 있는 말하기의 핵심이 논리가 아닌 공감과 신뢰에 있음을 이해하고, 실제 토론에서 상대방의 의견을 경청하고 존중하는 태도를 실천하려 노력함.",
+      "author": "데일 카네기",
+      "bookTitle": "데일 카네기 인간관계론"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "'수학, 인문으로 수를 읽다'를 읽고, 수학이 단순히 계산의 학문이 아니라 세상을 이해하는 논리적 사고의 틀임을 깨닫고, 수학적 원리가 건축, 미술 등 다양한 분야에 적용된 사례를 통해 수학에 대한 흥미를 높임.",
+      "author": "이광연",
+      "bookTitle": "수학, 인문으로 수를 읽다"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "사회",
+      "bookDescription": "'죽은 경제학자의 살아있는 아이디어'를 읽고, 애덤 스미스부터 케인스까지 주요 경제학자들의 핵심 사상을 시대적 배경과 함께 이해함. 특히 보이지 않는 손의 원리와 시장 실패 개념을 통해 시장 경제의 작동 원리에 대한 기초를 다짐.",
+      "author": "토드 부크홀츠",
+      "bookTitle": "죽은 경제학자의 살아있는 아이디어"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "진로",
+      "bookDescription": "'마케팅 불변의 법칙'을 읽고, 시대가 변해도 변하지 않는 마케팅의 핵심 원리들을 학습함. 특히 '리더십의 법칙'과 '인식의 법칙'을 통해 시장 선점과 브랜드 포지셔닝의 중요성을 깨닫고 디지털 마케터라는 진로 목표를 구체화함.",
+      "author": "알 리스, 잭 트라우트",
+      "bookTitle": "마케팅 불변의 법칙"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "국어",
+      "bookDescription": "'역사의 역사'를 읽고, 헤로도토스부터 현대의 역사학자까지 역사를 서술하는 방식의 변화를 탐구함. 이를 통해 역사란 객관적 사실의 기록이 아니라 역사가의 해석이 담긴 '텍스트'임을 이해하고, 비판적 자료 읽기 능력을 기름.",
+      "author": "유시민",
+      "bookTitle": "역사의 역사"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "'The Tipping Point'를 읽고, 작은 아이디어가 사회 전체로 확산되는 현상(티핑 포인트)의 세 가지 법칙(소수의 법칙, 고착성, 상황의 힘)을 이해함. 이를 디지털 시대의 바이럴 마케팅 현상에 적용하여 분석하는 보고서를 작성함.",
+      "author": "Malcolm Gladwell",
+      "bookTitle": "The Tipping Point"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "경제",
+      "bookDescription": "'넛지'를 읽고, 사람들이 비합리적인 선택을 하는 경향이 있으며, 부드러운 개입(넛지)을 통해 더 나은 선택을 유도할 수 있다는 행동경제학의 기본 개념을 학습함. 이를 공공정책 및 마케팅 전략에 적용하는 방안에 대해 고찰함.",
+      "author": "리처드 탈러, 캐스 선스타인",
+      "bookTitle": "넛지"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "수학(통계)",
+      "bookDescription": "'데이터 스토리텔링'을 읽고, 데이터 분석의 최종 목표는 단순히 차트를 나열하는 것이 아니라, 데이터를 통해 의미 있는 스토리를 전달하고 설득하는 것임을 배움. 확률과 통계 시간에 수행한 프로젝트 결과를 효과적으로 발표하는 데 활용함.",
+      "author": "콜 누스바우머 내플릭",
+      "bookTitle": "데이터 스토리텔링"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회",
+      "bookDescription": "'공정하다는 착각'을 읽고, 능력주의 사회의 문제점을 비판적으로 고찰함. 성공이 개인의 노력과 능력만으로 결정된다는 믿음이 오만과 편견을 낳고 공동체 의식을 약화시킬 수 있음을 깨닫고, 기업의 사회적 책임에 대해 고민하는 계기가 됨.",
+      "author": "마이클 샌델",
+      "bookTitle": "공정하다는 착각"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로(경영)",
+      "bookDescription": "'디스 이즈 마케팅'을 읽고, 현대 마케팅이 고객의 문제를 해결하고 더 나은 변화를 만드는 과정임을 이해함. 스팸처럼 방해하는 마케팅이 아닌, 고객이 스스로 찾고 싶어하는 마케팅의 중요성을 깨닫고, 진정성 있는 브랜드 구축에 대해 고민함.",
+      "author": "세스 고딘",
+      "bookTitle": "디스 이즈 마케팅"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "영어",
+      "bookDescription": "'Factfulness'를 읽고, 데이터와 사실에 기반하여 세상을 이해하는 것의 중요성을 배움. 사람들이 세상에 대해 갖고 있는 막연한 편견과 오해를 통계 자료를 통해 바로잡는 과정이 인상적이었으며, 데이터 리터러시 능력을 함양함.",
+      "author": "Hans Rosling",
+      "bookTitle": "Factfulness (팩트풀니스)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "경제",
+      "bookDescription": "'축적의 시간'을 읽고, 한국 산업이 선진국을 빠르게 추격하는 방식에서 벗어나, 시행착오를 통해 개념설계 역량을 축적해야 한다는 주장에 깊이 공감함. 혁신적인 비즈니스 모델을 만들기 위한 창의적 사고와 장기적 안목의 중요성을 배움.",
+      "author": "서울대학교 공과대학",
+      "bookTitle": "축적의 시간"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "융합",
+      "bookDescription": "'정의란 무엇인가'를 읽고, 공리주의, 자유지상주의, 공동체주의 등 다양한 정의론을 학습하고, 실제 사회적 딜레마에 각 이론을 적용하며 자신의 가치관을 성찰함. 기업 경영에서 발생할 수 있는 윤리적 문제에 대해 고민하는 계기가 됨.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "정보/과학",
+      "bookDescription": "'알고리즘, 인생을 계산하다'를 읽고, 컴퓨터 과학의 알고리즘적 사고방식이 최적의 배우자 찾기, 집 구하기 등 일상의 다양한 문제 해결에 어떻게 적용될 수 있는지 탐구함. 데이터 기반의 합리적 의사결정 방법에 대한 통찰을 얻음.",
+      "author": "브라이언 크리스천, 톰 그리피스",
+      "bookTitle": "알고리즘, 인생을 계산하다"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어",
+      "bookDescription": "'총, 균, 쇠'를 읽고, 인류 문명의 불평등이 인종적 차이가 아닌 지리적, 환경적 요인에서 비롯되었음을 방대한 증거를 통해 배우며 거시적 안목을 기름. 복잡한 사회 현상의 원인을 다각적으로 분석하는 통합적 사고력을 함양함.",
+      "author": "재레드 다이아몬드",
+      "bookTitle": "총, 균, 쇠"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 왕성하고, 배움에 대한 열정이 가득한 학생입니다. 특히 사회 현상을 경제학적 관점에서 분석하고 이해하려는 노력이 돋보이며, 수업 중 발표나 토론에 적극적으로 참여하여 학급의 학업 분위기를 주도합니다. 학급 부회장으로서 책임감을 갖고 친구들의 의견을 경청하며, 갈등 상황에서 합리적인 대안을 제시하여 문제를 해결하는 등 공동체 발전에 기여하는 바가 큽니다."
+    },
+    {
+      "grade": 2,
+      "content": "자신의 진로 목표인 '디지털 마케팅' 분야에 대한 뚜렷한 주관과 심화된 탐구 능력을 보여주는 학생입니다. 경제, 통계 등 교과 지식을 실제 문제 해결에 적용하는 융합적 사고력이 뛰어나며, 창업 동아리 부장, 학생회 차장 등 다양한 리더 역할을 성공적으로 수행했습니다. 특히 데이터 분석에 흥미를 느끼고 관련 역량을 키우기 위해 자기주도적으로 학습하는 모습이 인상적입니다. 늘 긍정적인 태도로 주변 친구들에게 좋은 영향을 줍니다."
+    },
+    {
+      "grade": 3,
+      "content": "3년간의 꾸준한 탐구를 통해 경영학도로서의 자질과 역량을 균형 있게 성장시킨 학생입니다. 뛰어난 기획력과 실행력을 바탕으로 교내 창업경진대회에서 대상을 수상하는 등 구체적인 성과를 창출했습니다. 자신의 지식과 경험을 후배들과 나누는 멘토링 활동에 앞장서는 등 따뜻한 인성과 리더십을 겸비했습니다. 명확한 목표의식과 성실한 탐구 자세를 바탕으로 더 크게 성장할 잠재력이 기대됩니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": []
+}

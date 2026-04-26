@@ -41,6 +41,12 @@ export async function generateSetekGuide(
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
   /** 파이프라인에서 전달되는 ReportData (있으면 fetchReportData 호출 스킵) */
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  /** 학생 정체성 프로필 카드 (ctx.belief.profileCard). undefined/"" 시 프롬프트에서 생략. */
+  studentProfileCard?: string,
+  /** 세특 서사 완성도(8단계) 섹션 텍스트. buildNarrativeArcDiagnosisSection() 결과. undefined/"" 시 생략. */
+  narrativeArcSection?: string,
+  /** β+1: MidPipeline Planner 메타 판정 섹션. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
+  midPlanSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -98,7 +104,7 @@ export async function generateSetekGuide(
 
     // Phase R2: 기록 없으면 prospective 모드로 전환
     if (!hasAnyData) {
-      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext);
+      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection);
     }
 
     // 역량 진단 데이터 변환 (컨설턴트 진단 우선, 없으면 AI 진단)
@@ -136,6 +142,9 @@ export async function generateSetekGuide(
       edgePromptSection,
       analysisContext,
       gridContext,
+      studentProfileCard: studentProfileCard || undefined,
+      narrativeArcSection: narrativeArcSection || undefined,
+      midPlanSection: midPlanSection || undefined,
     };
 
     // AI SDK 호출
@@ -231,6 +240,12 @@ export async function generateProspectiveSetekGuide(
   targetSchoolYear?: number,
   /** 파이프라인에서 전달되는 학년별 analysisContext (있으면 report 기반 빌드를 스킵) */
   pipelineAnalysisContext?: import("../types").GuideAnalysisContext,
+  /** 학생 정체성 프로필 카드 (ctx.belief.profileCard). undefined/"" 시 프롬프트에서 생략. */
+  studentProfileCard?: string,
+  /** 세특 서사 완성도(8단계) 섹션 텍스트. buildNarrativeArcDiagnosisSection() 결과. undefined/"" 시 생략. */
+  narrativeArcSection?: string,
+  /** β+1: MidPipeline Planner 메타 판정 섹션. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
+  midPlanSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
@@ -301,6 +316,9 @@ export async function generateProspectiveSetekGuide(
     analysisContext,
     crossGradeDirections,
     gridContext,
+    studentProfileCard: studentProfileCard || undefined,
+    narrativeArcSection: narrativeArcSection || undefined,
+    midPlanSection: midPlanSection || undefined,
   };
 
   const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768 });

@@ -2,6 +2,12 @@
 // Bootstrap Pipeline HTTP Route (Auto-Bootstrap Phase 2, 2026-04-18)
 // POST /api/admin/pipeline/bootstrap/phase-1
 // 단일 Phase: BT0(target_major_validation) → BT1(main_exploration_seed) → BT2(course_plan_recommend)
+//
+// @deprecated (I1, 2026-04-26)
+//   BT0→BT1→BT2 순차 실행이 BT1 LLM 호출로 Vercel 300s 초과.
+//   task 단위 route 로 분리: /api/admin/pipeline/bootstrap/task/bt{0,1,2}
+//   클라이언트(usePipelineExecution)는 신규 route 를 사용한다.
+//   이 route 는 외부 호출처 없으므로 삭제 가능하나 안전하게 유지.
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";

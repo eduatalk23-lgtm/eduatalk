@@ -1,0 +1,640 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/연세대-화학공-1",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_연세대_화학공_001",
+    "schoolName": "가상 자사고 B",
+    "enrollmentYear": 2022,
+    "curriculumRevision": "2015",
+    "graduationYear": 2025,
+    "schoolCategory": "자사고"
+  },
+  "admissions": [
+    {
+      "universityName": "연세대학교",
+      "admissionYear": 2025,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "화학공학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2022-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사A",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2023-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사B",
+      "studentNumber": "20301"
+    },
+    {
+      "grade": 3,
+      "className": "2반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박교사C",
+      "studentNumber": "30201"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "질병 결석 1일(감기)",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 수학경시대회 동상",
+      "awardDate": "2022-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 자사고 B 교장",
+      "participants": "120명"
+    },
+    {
+      "grade": 1,
+      "awardName": "과학탐구보고서 대회 장려상",
+      "awardDate": "2022-11-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 자사고 B 교장",
+      "participants": "45팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 화학탐구대회 금상",
+      "awardDate": "2023-09-21",
+      "awardLevel": "교내",
+      "awardingBody": "가상 자사고 B 교장",
+      "participants": "35팀"
+    },
+    {
+      "grade": 2,
+      "awardName": "학업우수상(수학, 과학)",
+      "awardDate": "2024-02-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 자사고 B 교장",
+      "participants": "전교생 대상"
+    },
+    {
+      "grade": 3,
+      "awardName": "자기주도학습 우수사례 공모전 최우수상",
+      "awardDate": "2024-06-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 자사고 B 교장",
+      "participants": "30명"
+    },
+    {
+      "grade": 3,
+      "awardName": "모범학생 표창",
+      "awardDate": "2025-02-05",
+      "awardLevel": "교내",
+      "awardingBody": "가상 자사고 B 교장",
+      "participants": "학년당 5명"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 부회장으로서 학급회의를 주도적으로 운영하며, '플라스틱 사용 줄이기 캠페인'을 기획하여 학급 구성원들의 환경보호 인식을 제고하는 데 기여했습니다. 특히 과학의 날 행사에서 '지구를 살리는 화학' 부스를 기획, 운영하며 탄소 포집 기술의 원리를 알기 쉽게 설명하는 등 과학 지식을 활용한 리더십을 발휘했습니다.",
+      "activityName": "학급 자율활동 및 학교 행사 참여",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "과학탐구반 '사이플러스'의 일원으로 활동하며 '효소 촉매를 이용한 바이오디젤 생산 효율성 연구'를 수행했습니다. 폐식용유의 전처리 과정에서 글리세롤 제거의 중요성을 인지하고, 다양한 종류의 리파아제를 변수로 설정하여 수득률을 비교 분석하는 실험을 설계했습니다. 이를 통해 촉매의 활성과 반응 조건의 최적화가 중요함을 체득했습니다.",
+      "activityName": "과학탐구반 '사이플러스'",
+      "hours": 50
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "화학공학 분야 진로 탐색을 위해 '미래 에너지 기술 특강'에 참여하여 수소 에너지, 태양광 에너지의 현재와 미래에 대한 깊이 있는 지식을 습득했습니다. 이후 '친환경 촉매 개발 연구원'이라는 구체적인 진로 목표를 설정하고, 관련 대학의 학과 커리큘럼과 연구실 정보를 조사하여 보고서를 작성하는 등 진로에 대한 구체적인 계획을 세웠습니다.",
+      "activityName": "진로 특강 및 진로 탐색 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "volunteer",
+      "content": "지역아동센터에서 주 1회 초등학생 대상 과학 교실 멘토로 활동하며, 생활 속 과학 원리를 주제로 실험을 지도했습니다. 특히 '간이 정수기 만들기' 활동을 통해 물의 정화 과정을 설명하며 환경의 중요성을 강조하는 등 나눔과 봉사를 실천했습니다. (총 40시간)",
+      "activityName": "지역아동센터 학습 멘토링",
+      "hours": 40
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학생회 학술부 차장으로 활동하며 '교내 과학탐구 페스티벌'을 성공적으로 기획 및 운영했습니다. 특히 '탄소중립 2050'을 주제로 한 특별 세션을 제안하여, 신재생에너지와 탄소 포집 기술에 대한 학생들의 관심을 높였습니다. 이 과정에서 동료들과의 협업 능력과 책임감 있는 태도를 보여주었습니다.",
+      "activityName": "학생회 학술부 활동",
+      "hours": 30
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "화학심화탐구반 '케미피아'의 부장으로서 '광촉매를 이용한 이산화탄소 전환 연구'라는 장기 프로젝트를 이끌었습니다. 이산화티타늄(TiO2) 나노 입자를 합성하고, 다양한 조촉매(Co, Ni)를 첨가하여 광촉매 효율을 비교 분석하는 실험을 주도했습니다. 실험 과정에서 SEM 분석의 필요성을 제기하고 외부 기관 협조를 구하는 등 문제 해결 능력을 보여주었습니다.",
+      "activityName": "화학심화탐구반 '케미피아'",
+      "hours": 52
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "연세대학교 화공생명공학과에서 주최하는 'Y-ECHO' 프로그램에 참여하여, '금속-유기 골격체(MOF)를 이용한 기체 저장 기술'에 대한 교수님의 강연을 듣고 큰 감명을 받았습니다. 이후 MOF의 구조와 특성에 대해 심도 있게 조사하고, 이를 활용한 이산화탄소 포집 및 저장 기술의 발전 가능성에 대한 보고서를 작성하여 진로에 대한 심층적인 탐구를 진행했습니다.",
+      "activityName": "대학 연계 진로 체험 프로그램 참여",
+      "hours": 22
+    },
+    {
+      "grade": 2,
+      "activityType": "volunteer",
+      "content": "과학관 전시해설 도우미로 꾸준히 활동하며, 특히 '화학의 세계' 관람객들에게 촉매의 원리와 산업적 응용 사례를 설명하는 역할을 맡았습니다. 어린이들의 눈높이에 맞춰 어려운 과학 원리를 설명하기 위해 다양한 비유와 시각 자료를 활용하는 노력을 기울였습니다. (총 45시간)",
+      "activityName": "과학관 전시해설 봉사",
+      "hours": 45
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업 준비 위원회에서 학술 자료집 발간을 담당하여, 3년간의 교내 우수 탐구활동 보고서를 취합하고 편집하는 역할을 수행했습니다. 후배들에게 과학 탐구활동의 방향성을 제시하고 지식을 공유하는 데 기여하며 공동체 의식을 함양했습니다.",
+      "activityName": "졸업 준비 위원회 활동",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "화학심화탐구반 활동을 마무리하며 'TiO2 기반 광촉매의 CO2 전환 효율 증진을 위한 귀금속 담지 효과 분석'이라는 주제로 소논문을 작성하고 교내 학술제에서 발표했습니다. 2학년 때의 연구를 심화시켜, 백금(Pt) 나노입자를 광촉매 표면에 담지하는 실험을 설계하고, 기체 크로마토그래피를 이용해 생성물(메탄, 메탄올)의 수율 변화를 정량적으로 분석하며 연구의 완성도를 높였습니다.",
+      "activityName": "화학심화탐구반 '케미피아'",
+      "hours": 48
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "'지속가능한 사회를 위한 화학공학자의 역할'이라는 주제로 진로 포트폴리오를 작성했습니다. 탄소중립 기술, 친환경 플라스틱, 수소 생산 기술 등 세부 분야를 나누어 국내외 연구 동향과 기술적 과제를 분석하고, 본인이 기여하고 싶은 분야로 '인공광합성 기반 CO2 전환 촉매 시스템 개발'을 구체적으로 제시하며 진로에 대한 확고한 비전을 보여주었습니다.",
+      "activityName": "진로 포트폴리오 작성 및 발표",
+      "hours": 20
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 40,
+      "description": "지역아동센터 학습 멘토링 (40시간)",
+      "location": "교외"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 85,
+      "description": "과학관 전시해설 봉사 (45시간)",
+      "location": "교외"
+    },
+    {
+      "grade": 3,
+      "cumulativeHours": 105,
+      "description": "지역아동센터 학습 멘토링 지속 (20시간)",
+      "location": "교외"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "국어",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.5,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "수학",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "영어",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.1,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "국어",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "영어",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "과학탐구실험",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96.5,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 91.5,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.6,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.8,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.9,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 94.3,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.1,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.1,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅰ",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "물리학Ⅰ",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "생명과학Ⅰ",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.4,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화학Ⅱ",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "물리학Ⅱ",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95.2,
+      "subjectType": "일반"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고급 화학",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "subjectType": "진로"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "융합과학탐구",
+      "achievementLevel": "A",
+      "creditHours": 2,
+      "subjectType": "진로"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어 독해와 작문",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.7,
+      "subjectType": "일반"
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학",
+      "content": "지구온난화와 탄소 순환에 대한 수업에서 남다른 집중력을 보였습니다. 온실 효과의 화학적 원리에 대해 추가 질문하며 지적 호기심을 드러냈고, '탄소 포집 및 저장(CCS) 기술의 현황과 미래'라는 주제로 자율 탐구 보고서를 작성했습니다. 화학적 흡착법과 물리적 흡착법의 원리를 비교 분석하고, 각각의 장단점을 명확히 제시하는 등 과학적 사고력이 돋보였습니다. 교내 과학탐구보고서 대회에서 해당 주제로 발표하며 탄소중립의 중요성을 역설하는 모습이 인상적이었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "수학",
+      "content": "함수 단원에서 변화율과 관련된 현상을 수학적으로 모델링하는 데 뛰어난 재능을 보였습니다. 특히 화학 반응 속도에 관심을 갖고, 반응물의 농도 변화를 시간의 함수로 표현하는 활동을 시도했습니다. 1차 반응과 2차 반응의 농도-시간 그래프를 직접 그려보고, 반감기의 개념을 미분적 관점에서 이해하려는 노력이 돋보였습니다. 복잡한 과학적 현상을 수학적 언어로 번역하고 분석하는 능력이 우수하여 향후 공학 분야에서 크게 성장할 잠재력을 지녔습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "과학탐구실험",
+      "content": "산화-환원 반응을 이용한 화학 전지 제작 실험에서 주도적인 역할을 수행했습니다. 다니엘 전지의 원리를 정확히 이해하고, 전극의 종류와 전해질의 농도가 기전력에 미치는 영향을 탐구하는 확장 실험을 제안했습니다. 특히 염다리의 역할에 대해 깊이 탐구하며, 이온의 이동이 전기적 중성을 유지하는 핵심 원리임을 명확하게 설명하여 친구들의 이해를 도왔습니다. 실험 결과를 바탕으로 '더 높은 기전력을 얻기 위한 전지 설계 방안'을 제시하는 등 창의적 문제해결력이 돋보였습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "content": "화학 반응 속도론 단원에서 촉매의 역할에 대해 학습한 후, '암모니아 합성법의 변천사를 통해 본 촉매 기술의 발전'이라는 주제로 심화 탐구를 진행했습니다. 하버-보슈법이 인류에 미친 영향과 함께 높은 에너지 소모와 탄소 배출 문제를 지적하고, 이를 해결하기 위한 차세대 암모니아 합성 촉매(광촉매, 전기촉매 등) 연구 동향을 조사하여 발표했습니다. 이론적 지식을 현실 문제와 연결하고 대안을 모색하는 탐구 자세가 돋보이며, 화학공학도로서의 성장 가능성을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "content": "열역학 법칙에 대한 이해가 뛰어나며, 이를 화학 반응의 에너지 변화와 연관 지어 사고하는 능력이 우수합니다. 엔탈피, 엔트로피, 깁스 자유에너지의 개념을 명확히 이해하고, 화학 반응의 자발성을 판단하는 데 이를 능숙하게 적용했습니다. 특히 자발적인 흡열 반응의 예시로 소금의 용해를 들며, 엔트로피 증가가 반응을 이끄는 원동력임을 논리적으로 설명하여 급우들의 찬사를 받았습니다. 물리적 원리를 바탕으로 화학 현상을 깊이 있게 해석하는 융합적 사고력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅰ",
+      "content": "동적 평형 상태에 대한 깊은 이해를 바탕으로 '르 샤틀리에 원리를 이용한 이산화탄소 포집 공정 최적화 방안'을 탐구했습니다. 가상의 CO2-아민 흡수 반응 시스템을 설정하고, 온도와 압력 변화에 따른 평형 이동 방향을 예측하여 최적의 포집 및 재생 조건을 도출하는 보고서를 작성했습니다. 화학 평형의 원리를 실제 공정에 적용하여 문제를 해결하려는 시도가 인상적이며, 공학적 문제 해결의 기본 소양을 갖추고 있음을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분 단원에서 함수의 그래프를 분석하고 변화를 예측하는 능력이 탁월합니다. 화학 반응에서 생성물의 농도 변화 그래프를 보고 반응 속도식을 추론하는 활동을 수행했습니다. 그래프의 접선의 기울기가 순간 반응 속도를 의미함을 이해하고, 변곡점을 통해 반응 속도가 최대가 되는 지점을 찾아내는 등 미분의 개념을 화학적 현상 분석에 창의적으로 적용했습니다. 수학적 도구를 활용하여 과학 문제를 해결하는 능력이 매우 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화학Ⅱ",
+      "content": "반응 속도와 촉매에 대한 탁월한 이해를 바탕으로, '인공광합성을 위한 CO2 환원 광촉매 연구'라는 주제로 심화 탐구를 수행했습니다. 관련 논문(예: 'Journal of Catalysis'의 TiO2 관련 리뷰 논문)을 탐독하며 반도체 광촉매의 밴드갭 이론과 전자-정공 쌍의 거동을 학습했습니다. 이후, TiO2의 넓은 밴드갭 에너지 문제를 해결하기 위해 가시광 감응성을 높일 수 있는 양자점(Quantum Dot) 감응법, 귀금속 담지법 등의 전략을 비교 분석하고, 코발트 기반 조촉매를 이용한 시스템을 독창적으로 제안하는 보고서를 작성하여 높은 수준의 학업 역량을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "정적분의 활용에 대한 높은 이해도를 보이며, 이를 실제 공학 문제 해결에 적용하는 능력이 탁월합니다. '촉매 반응기 내 유체의 체류 시간 분포(RTD) 해석'이라는 주제에 관심을 갖고, 미소 부피 요소를 설정하여 전체 부피를 적분으로 구하는 아이디어를 적용했습니다. 특히 이상적인 플러그 흐름 반응기(PFR)와 연속 교반 탱크 반응기(CSTR)의 체류 시간 분포 함수를 직접 유도하고 그래프로 그려내며 두 반응기의 특성을 수학적으로 비교 분석했습니다. 복잡한 공학 시스템을 미적분학을 이용해 모델링하고 해석하는 모습에서 예비 화학공학도로서의 뛰어난 자질을 엿볼 수 있었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고급 화학",
+      "content": "진로와 연계하여 '금속-유기 골격체(MOF)를 이용한 선택적 기체 분리'를 주제로 자기주도적 탐구를 수행했습니다. MOF의 구조적 특성인 높은 비표면적과 기공 크기 조절 가능성에 주목하고, 'UiO-66'과 'ZIF-8' 등 대표적인 MOF의 합성법과 구조를 비교 분석했습니다. 특히 '분자체 효과(molecular sieving effect)'와 '화학적 친화도'가 기체 선택성에 미치는 영향을 깊이 있게 탐구하고, CO2/N2 혼합 기체 분리 공정에 MOF를 적용했을 때의 에너지 효율 개선 효과를 정량적으로 예측하는 보고서를 작성하여 전공에 대한 깊은 관심과 뛰어난 탐구 역량을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "융합과학탐구",
+      "content": "'지속가능한 에너지 시스템 설계'라는 과제에서 화학, 물리, 생명과학 지식을 융합하는 능력을 보여주었습니다. 학생은 '바이오매스와 태양광을 결합한 하이브리드 수소 생산 시스템'을 제안했습니다. 바이오매스의 가스화를 통해 합성가스(CO, H2)를 생산하고, 이후 수성가스 전환 반응(WGS)의 효율을 높이기 위해 광촉매를 적용하는 아이디어를 제시했습니다. 각 단계의 화학 반응식과 에너지 수지를 계산하여 시스템의 전체 효율을 예측하는 등 과학적 지식을 통합하여 창의적인 해결책을 제시하는 능력이 돋보였습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "과학/환경",
+      "bookDescription": "'사라져 가는 것들의 안부를 묻다'를 읽고 생물 다양성 감소의 심각성과 화학 물질 오염의 연관성에 대해 고찰함. 이후 환경 문제 해결에 기여하는 화학자의 역할에 대해 고민하는 계기가 됨.",
+      "author": "수잔나 칼라한",
+      "bookTitle": "사라져 가는 것들의 안부를 묻다"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학/과학",
+      "bookDescription": "'코스모스'를 읽고 우주와 생명의 기원에 대한 과학적 탐구 과정에 감명을 받음. 특히 복잡한 자연 현상을 지배하는 단순한 물리 법칙에 매료되어, 과학의 근본 원리를 탐구하는 자세를 배움.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "화학",
+      "bookDescription": "'사라진 스푼'을 읽고 주기율표의 각 원소들이 인류의 역사와 문화에 미친 영향을 흥미롭게 탐구함. 특히 촉매로 사용되는 전이 금속들의 특성에 관심을 갖고, 희토류 원소의 산업적 중요성에 대해 추가적으로 조사하는 등 지식을 확장함.",
+      "author": "샘 킨",
+      "bookTitle": "사라진 스푼"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "물리/화학",
+      "bookDescription": "'물리화학의 첫걸음'을 읽고 열역학, 양자화학, 반응속도론 등 화학의 근간을 이루는 물리적 원리에 대한 이해를 심화함. 특히 양자화학 파트를 통해 원자와 분자의 세계를 확률적으로 기술하는 방식에 깊은 인상을 받고, 오비탈과 화학 결합에 대한 이해의 폭을 넓힘.",
+      "author": "Peter Atkins",
+      "bookTitle": "물리화학의 첫걸음(Atkins' Physical Chemistry)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "화학공학",
+      "bookDescription": "'세상을 바꾼 17가지 화학 이야기'를 읽고, 화학 반응이 인류 문명의 발전에 결정적인 역할을 했음을 확인함. 특히 암모니아 합성, 플라스틱 발명 등의 사례를 통해 화학공학이 사회에 미치는 막대한 영향력을 깨닫고, 친환경적인 화학 공정을 개발하는 화학공학자가 되겠다는 꿈을 확고히 함.",
+      "author": "페니 르 쿠터, 제이 버레슨",
+      "bookTitle": "세상을 바꾼 17가지 화학 이야기"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로/융합",
+      "bookDescription": "'축적의 시간'을 읽고 우리나라 산업 기술 발전의 역사와 개념설계 역량의 중요성에 대해 깊이 공감함. 단순한 지식 습득을 넘어, 시행착오를 통해 독자적인 기술과 경험을 축적하는 과정의 중요성을 깨닫고, 미래의 연구자로서 갖춰야 할 자세에 대해 성찰함.",
+      "author": "서울대학교 공과대학",
+      "bookTitle": "축적의 시간"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "밝고 긍정적인 성품으로 학급의 화합을 이끄는 학생입니다. 새로운 지식에 대한 호기심이 왕성하며, 특히 과학 분야에 대한 탐구심이 강하여 수업 시간에 깊이 있는 질문을 자주 합니다. 자율학습 시간을 활용하여 관심 분야의 서적을 꾸준히 읽고, 친구들과 스터디 그룹을 조직하여 서로의 지식을 공유하며 함께 성장하는 모습을 보여주었습니다. 학급 부회장으로서 책임감을 갖고 학급의 대소사를 챙기는 등 공동체 의식 또한 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "content": "지적 성실성과 탐구 역량이 한 단계 성장한 학생입니다. 화학심화탐구반 부장으로서 '광촉매'라는 어려운 주제의 장기 프로젝트를 성공적으로 이끌며 탁월한 리더십과 문제해결력을 보여주었습니다. 실험 과정에서 난관에 부딪혔을 때, 관련 논문을 찾아 읽고 대안을 제시하는 등 자기주도적 학습 능력이 뛰어납니다. 학업 성취가 높음에도 겸손한 자세로 친구들의 질문을 꼼꼼히 설명해주는 등 배려심이 깊어 교우 관계가 원만합니다. 자신의 진로인 '친환경 에너지·촉매 연구'에 대한 확신을 갖고 꾸준히 노력하는 모습이 기특합니다."
+    },
+    {
+      "grade": 3,
+      "content": "명확한 목표 의식과 뛰어난 실행력을 겸비한 인재입니다. 3년간 화학공학 분야, 특히 친환경 촉매 연구라는 일관된 진로를 위해 심도 있는 탐구 활동을 꾸준히 수행하며 전공에 대한 깊은 이해와 열정을 보여주었습니다. 특히 고급 화학, 미적분 등 심화 과목에서 최상위권 성적을 유지하며, 배운 지식을 융합하여 '인공광합성', 'MOF' 등 새로운 주제로 확장해나가는 지적 성장세가 돋보입니다. 학업 멘토로서 후배들에게 자신의 학습 경험과 지식을 아낌없이 나누는 등 따뜻한 리더십을 갖추었으며, 과학 기술 발전에 기여하고자 하는 이타적인 가치관을 지니고 있어 미래가 더욱 기대되는 학생입니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P"
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "P"
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "P"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "P"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "스포츠 생활",
+      "achievementLevel": "A"
+    }
+  ]
+}

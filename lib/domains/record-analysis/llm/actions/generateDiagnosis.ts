@@ -93,6 +93,11 @@ export async function generateAiDiagnosis(
    * buildMainExplorationSection()이 생성한 섹션을 전달. 없으면 생략.
    */
   mainExplorationSection?: string,
+  /**
+   * S2 narrative_arc_extraction 산출물 기반 8단계 서사 완성도 섹션 (마크다운 문자열).
+   * buildNarrativeArcDiagnosisSection()이 생성한 섹션을 전달. 없으면 생략.
+   */
+  narrativeArcSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -189,6 +194,7 @@ export async function generateAiDiagnosis(
       crossSubjectThemesSection,
       coursePlanSection,
       mainExplorationSection,
+      narrativeArcSection,
       isProspective,
     });
 

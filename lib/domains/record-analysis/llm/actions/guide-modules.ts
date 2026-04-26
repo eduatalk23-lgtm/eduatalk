@@ -28,10 +28,13 @@ export async function analyzeSetekGuide(
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  studentProfileCard?: string,
+  narrativeArcSection?: string,
+  midPlanSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { generateSetekGuide } = await import("./generateSetekGuide");
   return withRetry(
-    () => generateSetekGuide(studentId, targetGrades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, cachedReport),
+    () => generateSetekGuide(studentId, targetGrades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, cachedReport, studentProfileCard, narrativeArcSection, midPlanSection),
     { label: "analyzeSetekGuide" },
   );
 }
@@ -44,10 +47,13 @@ export async function analyzeChangcheGuide(
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  studentProfileCard?: string,
+  narrativeArcSection?: string,
+  midPlanSection?: string,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   const { generateChangcheGuide } = await import("./generateChangcheGuide");
   return withRetry(
-    () => generateChangcheGuide(studentId, targetGrades, edgePromptSection, setekGuideContext, targetSchoolYear, pipelineAnalysisContext, cachedReport),
+    () => generateChangcheGuide(studentId, targetGrades, edgePromptSection, setekGuideContext, targetSchoolYear, pipelineAnalysisContext, cachedReport, studentProfileCard, narrativeArcSection, midPlanSection),
     { label: "analyzeChangcheGuide" },
   );
 }
@@ -60,10 +66,13 @@ export async function analyzeHaengteukGuide(
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  studentProfileCard?: string,
+  narrativeArcSection?: string,
+  midPlanSection?: string,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   const { generateHaengteukGuide } = await import("./generateHaengteukGuide");
   return withRetry(
-    () => generateHaengteukGuide(studentId, targetGrades, edgePromptSection, changcheGuideContext, targetSchoolYear, pipelineAnalysisContext, cachedReport),
+    () => generateHaengteukGuide(studentId, targetGrades, edgePromptSection, changcheGuideContext, targetSchoolYear, pipelineAnalysisContext, cachedReport, studentProfileCard, narrativeArcSection, midPlanSection),
     { label: "analyzeHaengteukGuide" },
   );
 }
@@ -80,10 +89,13 @@ export async function generateSetekDirection(
   edgePromptSection?: string,
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
+  studentProfileCard?: string,
+  narrativeArcSection?: string,
+  midPlanSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { generateProspectiveSetekGuide } = await import("./generateSetekGuide");
   return withRetry(
-    () => generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext),
+    () => generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection, midPlanSection),
     { label: "generateSetekDirection" },
   );
 }
@@ -98,10 +110,13 @@ export async function generateChangcheDirection(
   setekGuideContext?: string,
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
+  studentProfileCard?: string,
+  narrativeArcSection?: string,
+  midPlanSection?: string,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   const { generateProspectiveChangcheGuide } = await import("./generateChangcheGuide");
   return withRetry(
-    () => generateProspectiveChangcheGuide(studentId, tenantId, userId, report, coursePlanData, edgePromptSection, setekGuideContext, targetSchoolYear, pipelineAnalysisContext),
+    () => generateProspectiveChangcheGuide(studentId, tenantId, userId, report, coursePlanData, edgePromptSection, setekGuideContext, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection, midPlanSection),
     { label: "generateChangcheDirection" },
   );
 }
@@ -116,10 +131,13 @@ export async function generateHaengteukDirection(
   changcheGuideContext?: string,
   targetSchoolYear?: number,
   pipelineAnalysisContext?: GuideAnalysisContext,
+  studentProfileCard?: string,
+  narrativeArcSection?: string,
+  midPlanSection?: string,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   const { generateProspectiveHaengteukGuide } = await import("./generateHaengteukGuide");
   return withRetry(
-    () => generateProspectiveHaengteukGuide(studentId, tenantId, userId, report, coursePlanData, edgePromptSection, changcheGuideContext, targetSchoolYear, pipelineAnalysisContext),
+    () => generateProspectiveHaengteukGuide(studentId, tenantId, userId, report, coursePlanData, edgePromptSection, changcheGuideContext, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection, midPlanSection),
     { label: "generateHaengteukDirection" },
   );
 }

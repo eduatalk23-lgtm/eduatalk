@@ -1,0 +1,1048 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울대-사회학-18",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울대_사회학_018",
+    "schoolName": "가상 일반고 S",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "사회학과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10118"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이수진",
+      "studentNumber": "20318"
+    },
+    {
+      "grade": 3,
+      "className": "2반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박서연",
+      "studentNumber": "30218"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "질병으로 인한 결석 및 조퇴 각 1회",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 2,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "독감으로 인한 질병 결석 2회",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 1,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병원 진료로 인한 질병 지각 1회",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 토론대회 동상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 1,
+      "awardName": "수학경시대회 장려상",
+      "awardDate": "2024-12-10",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "사회과학 탐구 보고서 대회 금상",
+      "awardDate": "2025-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "팀(3명)"
+    },
+    {
+      "grade": 2,
+      "awardName": "통계 활용 포스터 발표대회 은상",
+      "awardDate": "2025-11-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "모범학생 표창장",
+      "awardDate": "2026-02-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "교과우수상 (사회문제 탐구)",
+      "awardDate": "2026-07-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "자기주도학습 우수사례 공모전 최우수상",
+      "awardDate": "2026-08-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 S 교장",
+      "participants": "개인"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "'디지털 시민성 함양 교육'에 참여하여, 가짜뉴스의 사회적 파급력과 확증 편향의 위험성에 대해 깊이 인식함. 이후 '정보 리터러시 캠페인'을 기획, 정보의 교차 검증 방법과 비판적 수용 태도의 중요성을 학급 친구들에게 알리는 등 지식 나눔을 실천하는 모습이 돋보였습니다.",
+      "activityName": "학급 특색 활동 및 정보 윤리 교육",
+      "hours": 24
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학급 부회장으로서 '학급 소통의 날'을 정기적으로 운영할 것을 제안하고 실행함. 익명 건의함을 설치하여 학급원들의 의견을 수렴하고, 이를 바탕으로 학습 환경 개선 및 교우 관계 증진을 위한 안건을 상정하는 등 민주적 의사소통 과정을 주도하며 공동체 발전에 기여했습니다.",
+      "activityName": "학급 자치회",
+      "hours": 10
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "시사토론 동아리에서 '기본소득제 도입의 타당성'을 주제로 한 토론에 참여함. 관련 논문과 통계 자료를 분석하여 제도의 장단점을 논리적으로 제시했으며, 특히 소득 불평등 완화 효과와 재원 마련의 현실적 어려움을 균형 있게 다루어 깊이 있는 사고력을 보여주었습니다.",
+      "activityName": "시사토론 동아리 '아고라'",
+      "hours": 32
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "사회학자 직업 탐구 활동에서 C. 라이트 밀스의 '사회학적 상상력' 개념을 접하고, 개인의 문제가 사회 구조와 어떻게 연결되는지 탐색하는 과정에 큰 흥미를 보임. '우리 동네 사회 문제 지도 만들기' 프로젝트를 통해 1인 가구 증가와 상권 변화의 연관성을 분석하며 사회 현상에 대한 탐구 역량을 길렀습니다.",
+      "activityName": "진로 탐색 및 직업인 특강",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학교 축제에서 '데이터로 보는 우리 학교' 부스를 기획하고 운영함. 학교생활 만족도, 사교육 실태 등에 대한 설문조사를 직접 설계, 실시하고 통계 프로그램을 활용해 분석 결과를 시각화하여 발표함. 데이터를 통해 현상을 객관적으로 진단하고 문제 해결의 근거를 제시하는 과학적 탐구 태도를 보여주었습니다.",
+      "activityName": "학교 축제 부스 운영",
+      "hours": 22
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 총무부원으로 활동하며 학생회비 예산 편성 및 결산 과정에 참여함. 각 부서의 필요와 전체 학생의 복지를 고려하여 합리적인 예산 배분 원칙을 수립하고, 집행 내역을 투명하게 공개하는 시스템을 제안하여 학생 자치의 책임성과 신뢰성을 높이는 데 기여했습니다.",
+      "activityName": "학생회 활동",
+      "hours": 12
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "사회과학 탐구 동아리를 창설하고 부장으로 활동함. '교육 불평등은 어떻게 대물림되는가?'를 주제로 장기 탐구 프로젝트를 이끎. 부르디외의 '아비투스'와 '문화자본' 개념을 이론적 틀로 삼아, 부모의 사회경제적 지위가 자녀의 학업 성취 및 진학에 미치는 영향을 설문과 심층 인터뷰를 통해 분석하고 심도 있는 보고서를 작성했습니다.",
+      "activityName": "사회과학 탐구 동아리 '소시오'",
+      "hours": 34
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "'대학 전공 탐색의 날' 행사에서 사회학과 커리큘럼을 분석하고, 특히 '사회조사방법론'과 '사회통계' 과목에 깊은 관심을 보임. 사회 현상을 과학적으로 분석하는 연구자가 되겠다는 구체적인 목표를 설정하고, 이를 위해 필요한 통계적 역량과 비판적 사고력을 기르기 위한 학습 계획을 수립하는 등 자기주도적 진로 설계 능력이 돋보입니다.",
+      "activityName": "대학 전공 박람회 및 진로 설계",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업앨범 편집위원으로 활동하며, 단순한 사진 나열이 아닌 '숫자와 키워드로 돌아보는 우리의 3년'이라는 컨셉을 제안함. 3년간의 학교 행사, 급식 메뉴 선호도, 동아리 활동 통계 등을 인포그래픽으로 제작하여 포함시키는 등 창의적인 아이디어와 데이터 활용 능력을 발휘하여 구성원들의 큰 호응을 얻었습니다.",
+      "activityName": "졸업 준비 활동",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "후배들을 위한 '진로 멘토링' 프로그램을 자치적으로 기획하고 멘토로 참여함. 자신의 학생부종합전형 준비 경험과 사회과학 분야의 학습 노하우를 공유하며 후배들의 진로 고민에 실질적인 조언을 제공함. 특히 탐구 주제 선정 방법과 보고서 작성 과정을 체계적으로 안내하여 선한 영향력을 실천했습니다.",
+      "activityName": "후배 대상 멘토링 활동",
+      "hours": 10
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "사회과학 탐구 동아리에서 '세대 갈등의 원인과 해소 방안'에 대한 정책 제안서를 작성함. 잉글하트의 '탈물질주의' 이론을 바탕으로 세대 간 가치관 차이를 분석하고, 세대 통합을 위한 구체적인 정책 아이디어(리버스 멘토링, 세대 공감 공론장 등)를 제시하여 사회 문제 해결에 대한 적극적인 의지와 깊이 있는 통찰력을 보여주었습니다.",
+      "activityName": "사회과학 탐구 동아리 '소시오'",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "관심 분야인 '불평등' 관련 국내외 학술 데이터베이스(KCI, Google Scholar) 활용법을 스스로 학습하고, 관련 최신 연구 동향을 정리하여 '나만의 진로 포트폴리오'를 작성함. 이를 통해 자신의 진로 목표를 사회정책 전문가로 더욱 구체화하고, 대학 진학 후 학업 계획을 명확하게 설계하는 등 성숙한 모습을 보였습니다.",
+      "activityName": "진로 포트폴리오 작성",
+      "hours": 18
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "cumulativeHours": 20,
+      "description": "지역아동센터 학습 멘토링 (주 1회, 2시간)",
+      "hours": 20,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 2,
+      "cumulativeHours": 44,
+      "description": "지역아동센터 학습 멘토링 및 독서 지도 (주 1회, 2시간)",
+      "hours": 24,
+      "location": "행복나눔 지역아동센터"
+    },
+    {
+      "grade": 3,
+      "cumulativeHours": 60,
+      "description": "지역아동센터 학습 멘토링 및 진로 상담 보조 (주 1회, 2시간)",
+      "hours": 16,
+      "location": "행복나눔 지역아동센터"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "2등급",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93.4,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "2등급",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.8,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "subjectType": "공통과목",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "subjectType": "공통과목",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "2등급",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "subjectType": "공통과목",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96.5,
+      "subjectType": "공통과목",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "subjectType": "공통과목",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95.2,
+      "subjectType": "공통과목",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "공통과목",
+      "totalStudents": 248
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.1,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.2,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "subjectType": "일반선택",
+      "totalStudents": 190
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "윤리와 사상",
+      "achievementLevel": "2등급",
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.5,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.4,
+      "subjectType": "일반선택",
+      "totalStudents": 242
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "2등급",
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 92.1,
+      "subjectType": "일반선택",
+      "totalStudents": 242
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "subjectType": "일반선택",
+      "totalStudents": 242
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정치와 법",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.9,
+      "subjectType": "일반선택",
+      "totalStudents": 110
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "동아시아사",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "subjectType": "일반선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정보",
+      "achievementLevel": "A",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "subjectType": "일반선택",
+      "totalStudents": 242
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "subjectType": "일반선택",
+      "totalStudents": 240
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1등급",
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96.7,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95.4,
+      "subjectType": "진로선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "subjectType": "진로선택",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "경제",
+      "achievementLevel": "1등급",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.5,
+      "subjectType": "일반선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어권 문화",
+      "achievementLevel": "A",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 94.8,
+      "subjectType": "진로선택",
+      "totalStudents": 130
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "고전과 윤리",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "subjectType": "진로선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "실용 통계",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "subjectType": "진로선택",
+      "totalStudents": 110
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "현대 세계의 변화",
+      "achievementLevel": "A",
+      "creditHours": 3,
+      "rankGrade": 1,
+      "subjectType": "진로선택",
+      "totalStudents": 100
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양과목",
+      "totalStudents": 240
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "인공지능 기초",
+      "achievementLevel": "A",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "진로선택",
+      "totalStudents": 95
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육 탐구",
+      "achievementLevel": "A",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "진로선택",
+      "totalStudents": 120
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "글에 드러난 필자의 관점과 사회·문화적 이념을 비판적으로 분석하는 능력이 뛰어납니다. '매체 비평문 쓰기' 활동에서 특정 사건에 대한 신문사별 보도 태도를 비교 분석하고, 프레임 이론을 적용하여 사실의 전달 방식이 수용자의 인식에 미치는 영향을 논리적으로 설명했습니다. 이처럼 주어진 텍스트의 이면을 파악하려는 집요한 탐구 정신과 비판적 사고력이 돋보이는 학생입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "복잡한 문제 상황을 수학적으로 모델링하고 해결하는 능력이 우수합니다. 특히 나머지 정리의 원리를 다차식으로 확장하여 적용하는 과정에서 높은 수준의 논리적 사고력을 보여주었습니다. 또한 '우리 주변의 수학적 원리' 탐구에서 도시의 구획 정리와 프랙탈 구조의 연관성에 대해 조사하고 발표하여 수학적 개념을 실생활에 연결하는 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "다양한 주제의 영문 텍스트를 깊이 있게 이해하고 자신의 의견을 논리적으로 표현하는 능력을 갖추었습니다. '환경 문제 해결을 위한 아이디어'를 주제로 한 에세이 작성에서, 플라스틱 폐기물 문제의 심각성을 구체적인 통계 자료를 인용하여 설명하고, 생산-소비-폐기 전 과정에 걸친 해결 방안을 체계적으로 제시하여 설득력을 높였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "사회 불평등 현상에 대한 지적 호기심이 왕성하며, 이를 다각적으로 분석하려는 태도가 돋보입니다. '사회 계층 이동의 가능성'에 대한 발표에서, 기회 불평등과 결과 불평등의 개념을 명확히 구분하고, 교육이 계층 이동의 사다리 역할을 하는 동시에 기존 계층을 재생산하는 이중적 기능을 수행함을 관련 통계 자료를 근거로 주장했습니다. 현상을 깊이 있게 탐구하고 자신만의 시각으로 재해석하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "과학적 현상에 대한 탐구심이 강하고, 실험 설계 및 데이터 분석 능력이 뛰어납니다. '산염기 중화 반응' 실험에서, 지시약의 색 변화만으로 종말점을 판단하는 것의 한계를 지적하고 pH 미터를 활용한 정밀 측정을 제안했습니다. 실험을 통해 얻은 데이터로 적정 곡선을 직접 그려보고, 이를 이론값과 비교 분석하여 오차의 원인을 논리적으로 규명하는 등 과학적 탐구의 전 과정을 충실히 수행했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "역사적 사건의 원인과 결과를 구조적으로 파악하는 능력이 우수합니다. 신라의 삼국통일 과정을 학습하며, 당시의 국제 정세와 각국의 정치·군사적 역학 관계를 종합적으로 분석하여 통일의 역사적 의의와 한계를 균형 잡힌 시각으로 서술했습니다. 역사적 사실을 암기하는 데 그치지 않고 현재적 관점에서 그 의미를 재해석하려는 노력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "고전 문학 작품에 대한 깊이 있는 감상과 현대적 해석 능력이 뛰어납니다. 허균의 '홍길동전'을 읽고, 작품에 나타난 사회 개혁 사상과 율도국이라는 이상 사회의 의미를 분석하는 보고서를 작성했습니다. 특히 율도국이 가진 이상적 측면과 봉건적 한계를 동시에 지적하며, 작품을 비판적으로 수용하고 자신만의 관점으로 재창조하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "함수의 개념을 정확히 이해하고 그래프를 활용하여 문제 해결 전략을 수립하는 능력이 탁월합니다. 여러 가지 부등식의 영역을 좌표평면에 나타내고, 그 교집합에 속하는 격자점의 개수를 구하는 복잡한 문제를 논리적 단계에 따라 체계적으로 해결했습니다. 추상적인 수학 개념을 시각화하고 이를 문제 해결에 적극적으로 활용하는 유연한 사고가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "사회적 이슈에 대한 TED 강연을 듣고 자신의 견해를 논리적으로 발표하는 능력이 우수합니다. '필터 버블' 현상을 다룬 강연을 듣고, 개인화된 정보 추천 알고리즘이 민주주의에 미치는 잠재적 위험성을 분석하고, 이를 극복하기 위한 의식적인 노력이 필요함을 유창한 영어로 설득력 있게 발표하여 청중의 공감을 얻었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "시장 경제의 작동 원리와 한계에 대해 깊이 있게 이해하고 있습니다. '시장 실패와 정부의 역할'을 주제로 한 보고서에서, 외부효과와 공공재의 사례를 구체적으로 조사하고, 이를 해결하기 위한 정부의 정책 수단(조세, 보조금, 규제 등)을 분석했습니다. 특히 정책의 효율성과 형평성 측면을 함께 고려해야 함을 강조하며 균형 잡힌 시각을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "생태계의 상호작용과 물질 순환에 대한 이해가 깊습니다. '우리 학교 생태 지도 만들기' 프로젝트에서 교내 식물 군집과 토양의 특성을 조사하고, 이들이 주변 환경과 맺는 관계를 분석했습니다. 관찰 결과를 바탕으로 생물 다양성 보존을 위한 구체적인 방안을 제안하는 등 과학 지식을 실천적 행동으로 연결하는 능력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "조선 후기 사회 변동에 대한 관심이 높으며, 특히 신분제 동요와 새로운 사상의 등장에 주목했습니다. 실학사상의 형성 배경과 특징을 학습하며, 정약용의 '경세유표', '목민심서' 등을 탐구하고, 당시 사회 문제를 해결하려는 지식인의 고뇌와 개혁 의지를 깊이 있게 이해했습니다. 이를 통해 역사적 변화의 동력을 사회 내부의 모순과 그에 대한 대응에서 찾는 구조적 시각을 길렀습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "작품의 서사 구조를 분석하고 인물의 행동 동기를 심층적으로 파악하는 능력이 뛰어납니다. 카뮈의 '이방인'을 읽고, 주인공 뫼르소가 느끼는 부조리 감정과 사회의 위선적인 통념을 날카롭게 분석하는 비평문을 작성했습니다. 문학 작품을 통해 인간 실존의 문제를 성찰하고, 사회와 개인의 관계에 대해 질문을 던지는 진지한 탐구 자세가 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "수열의 규칙성을 발견하고 일반항을 추론하는 귀납적 사고력이 뛰어납니다. 복잡한 점화식으로 정의된 수열의 항들을 나열하며 규칙을 찾고, 수학적 귀납법을 이용해 자신의 추론이 옳음을 엄밀하게 증명해냈습니다. 문제 해결 과정에서 끈기 있게 다양한 시도를 하는 탐구 정신과 논리적 엄밀성을 추구하는 태도가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "확률과 통계",
+      "content": "통계적 추정의 원리를 깊이 있게 이해하고 이를 사회 현상 분석에 적용하려는 의지가 강합니다. '신문 기사에 나타난 통계 오류 찾기' 활동에서, 표본의 대표성 문제, 의도적인 설문 문항 설계 등 여론조사 결과가 왜곡될 수 있는 요인들을 분석하고 비판했습니다. 이후 '신뢰도 95%의 의미'에 대해 심화 탐구하며, 통계 자료를 비판적으로 해석하는 과학적 소양을 길렀습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "content": "복잡한 구조의 영문 기사를 정확하게 독해하고 핵심 내용을 요약하는 능력이 뛰어납니다. 'The Economist' 지의 교육 불평등 관련 기사를 읽고, 국가별 교육 정책과 학업 성취도의 상관관계를 분석한 뒤, 사회경제적 배경이 교육 결과에 미치는 영향에 대한 자신의 생각을 영어로 논리정연하게 서술하여 우수한 평가를 받았습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "사회·문화",
+      "content": "사회 계층화 현상을 설명하는 기능론과 갈등론적 관점을 명확히 이해하고, 두 이론을 비교 분석하는 능력이 탁월합니다. '우리 사회의 불평등은 정당한가'를 주제로 한 소논문에서, 데이비스와 무어의 기능주의 이론과 마르크스의 계급 이론을 소개하고, 한국 사회의 입시 경쟁과 부동산 문제를 각 관점에서 분석하여 현실 설명력이 높은 이론이 무엇인지 논했습니다. 사회 현상을 이론적 틀로 분석하는 사회과학적 상상력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "윤리와 사상",
+      "content": "존 롤스의 '정의론'을 학습하며 정의의 원칙에 대한 깊이 있는 탐구를 진행했습니다. 특히 '무지의 베일'이라는 사고 실험의 전제 조건과 그로부터 도출되는 '차등의 원칙'의 함의를 분석했습니다. 이를 자신의 진로 희망인 사회 불평등 문제와 연결, 최소 수혜자에게 최대 이익이 돌아가도록 사회 제도를 설계해야 한다는 롤스의 주장을 현실 정책에 어떻게 적용할 수 있을지 고민하는 등 높은 수준의 철학적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "한스 로슬링의 '팩트풀니스'를 읽고, 데이터에 기반한 사실 중심의 세계 이해가 왜 중요한지를 깨닫고, 세상에 대한 막연한 비관론을 경계해야 한다는 서평을 작성했습니다. 특히 책에서 제시된 10가지 사실왜곡 본능을 자신의 편견과 연결지어 성찰하고, 사회 현상을 바라볼 때 감정이나 이념이 아닌 데이터를 근거로 판단하는 태도를 기르겠다고 다짐하는 등 지적 성장을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분과 적분의 관계를 역연산으로 이해하고, 정적분을 활용하여 넓이와 부피를 구하는 문제 해결 능력이 우수합니다. 특히 두 곡선으로 둘러싸인 도형의 넓이를 구할 때, 정적분의 기하학적 의미를 이용하여 효율적인 계산 방법을 스스로 고안해내는 등 창의적인 문제 해결력이 돋보입니다. 수학적 원리에 대한 깊이 있는 이해를 바탕으로 응용력이 뛰어난 학생입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "조지 오웰의 '1984' 영문판을 읽고, 전체주의 사회의 통제 메커니즘과 언어가 사고에 미치는 영향에 대한 심층 분석 보고서를 작성했습니다. 'Newspeak'의 원리를 분석하며, 언어가 현실을 규정하고 비판적 사고를 억제하는 도구로 어떻게 사용될 수 있는지 날카롭게 지적하여 영어 능력뿐만 아니라 인문학적 소양까지 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정치와 법",
+      "content": "기본권의 종류와 제한의 한계를 명확히 이해하고, 구체적인 사례에 적용하는 능력이 뛰어납니다. '집회의 자유'와 '공공질서 유지'라는 두 기본권이 충돌하는 상황을 가정하여, 헌법 제37조 2항의 과잉금지 원칙에 따라 기본권 제한의 정당성을 판단하는 모의재판 활동을 주도했습니다. 법 원리를 현실 사례에 적용하여 합리적인 결론을 도출하는 논리적 사고력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "동아시아사",
+      "content": "동아시아 각국의 근대화 과정을 비교사적 관점에서 분석하는 능력이 뛰어납니다. 일본의 메이지 유신과 중국의 양무운동을 비교하며, 개혁의 추진 주체, 목표, 방식의 차이가 이후 양국의 역사에 어떤 다른 결과를 가져왔는지 심도 있게 분석했습니다. 개별 국가의 역사를 넘어 동아시아 전체의 상호작용 속에서 역사를 이해하려는 넓은 시야를 갖추었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "정보",
+      "content": "데이터를 효율적으로 처리하고 시각화하는 프로그래밍 능력을 갖추었습니다. 공공데이터포털의 '지역별 범죄 발생 현황' 데이터를 파이썬을 이용해 분석하고, 지역별, 범죄 유형별 발생 빈도를 히트맵과 막대그래프로 시각화하는 프로젝트를 수행했습니다. 코딩 기술을 사회 데이터 분석에 접목하여 유의미한 정보를 추출해내는 융합적 사고력이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "설득을 목적으로 하는 글쓰기 능력이 탁월하며, 논리적 구조와 수사적 표현을 효과적으로 사용합니다. '교내 유휴 공간 활용 방안'에 대한 건의문을 작성하며, 설문조사를 통해 학생들의 요구를 파악하고, 이를 근거로 스터디 카페 조성을 제안했습니다. 예상되는 반론을 미리 언급하고 재반박하는 등 체계적인 논증 구조를 통해 설득력을 극대화하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "다양한 함수의 미분법을 능숙하게 활용하며, 특히 함수의 그래프 개형을 추론하는 능력이 뛰어납니다. 변곡점의 개념을 학습한 후, 이를 사회학의 '수확 체감의 법칙'이나 '티핑 포인트' 개념과 연결하여 설명하는 등 수학적 개념을 사회 현상에 융합적으로 적용해보려는 시도가 인상적입니다. 지적 호기심이 강하고 지식을 확장하려는 노력이 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 국어",
+      "content": "피에르 부르디외의 '구별짓기' 관련 비평문을 읽고, '문화자본'과 '아비투스'가 어떻게 사회적 불평등을 재생산하는지에 대한 심화 탐구 보고서를 작성했습니다. 원문의 난해한 개념들을 자신만의 언어로 쉽게 풀어내고, 한국 사회의 사교육, 명품 소비 현상 등을 구체적인 사례로 분석하여 이론의 현실 적용 능력을 보여주었습니다. 수준 높은 사회과학 텍스트를 소화하고 비판적으로 성찰하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "연구 주제 선정부터 가설 설정, 자료 수집 및 분석, 결론 도출에 이르는 사회과학 연구의 전 과정을 자기주도적으로 수행하는 역량이 뛰어납니다. '코로나19 이후 청소년의 디지털 미디어 이용 시간 변화가 교우 관계에 미친 영향'을 주제로 연구를 진행, 직접 설계한 설문지를 통해 데이터를 수집하고 SPSS를 활용하여 상관관계 분석과 T-검정을 실시했습니다. 통계적 유의성을 검증하여 결론의 객관성을 확보하는 등 예비 사회학자로서의 성장 가능성을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "경제",
+      "content": "소득 불평등을 측정하는 지표인 로렌츠 곡선과 지니 계수의 원리를 완벽하게 이해하고, 이를 이용해 가상 국가의 소득 분배 상태를 분석하는 과제를 훌륭히 수행했습니다. 나아가 불평등 완화를 위한 정책(누진세, 사회보장제도)이 로렌츠 곡선에 미치는 영향을 그래프로 모델링하여 발표하는 등 경제 현상을 수리적으로 분석하고 정책 효과를 예측하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어권 문화",
+      "content": "미국의 'Affirmative Action (소수자 우대 정책)'을 둘러싼 찬반 논쟁을 다룬 다큐멘터리를 시청하고, '기회의 평등'과 '결과의 평등'이라는 가치가 어떻게 충돌하는지 분석하는 에세이를 작성했습니다. 정책의 역사적 배경과 사회적 맥락을 깊이 있게 이해하고, 양측의 주장을 균형 있게 서술하며 자신의 입장을 논리적으로 옹호하는 비판적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "고전과 윤리",
+      "content": "플라톤의 '국가'를 읽고, 철인 통치와 국가의 정의에 대한 현대적 의미를 탐구했습니다. 이상적인 국가를 향한 플라톤의 제안을 비판적으로 검토하며, 민주주의 사회에서 엘리트의 역할과 시민의 덕성은 무엇이어야 하는지에 대한 토론을 이끌었습니다. 고전 텍스트를 통해 현대 사회의 문제를 성찰하는 깊이 있는 자세를 갖추었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "실용 통계",
+      "content": "회귀 분석의 원리를 학습하고, 이를 활용하여 '학업 스트레스와 스마트폰 사용 시간의 상관관계'를 분석하는 프로젝트를 수행했습니다. 독립변수와 종속변수를 설정하고, 수집한 데이터로 산점도를 그려 선형 관계를 확인한 뒤, 최소제곱법을 이용해 회귀직선을 구하고 결정계수(R-squared)를 통해 모델의 설명력을 평가하는 등 통계적 모델링의 전 과정을 훌륭하게 이해하고 적용했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "현대 세계의 변화",
+      "content": "세계화가 소득 불평등에 미치는 영향에 대해 탐구하며, 스톨퍼-사뮤엘슨 정리와 같은 무역 이론을 바탕으로 선진국과 개발도상국 노동 시장의 변화를 분석했습니다. 세계화의 긍정적 측면과 더불어 국가 간, 국가 내 불평등을 심화시키는 이중적 효과를 지적하며, 국제적 차원의 재분배 정책의 필요성을 주장하는 등 넓은 시야와 깊이 있는 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "content": "제시문의 핵심 논지를 정확히 파악하고, 이를 바탕으로 자신의 견해를 논리적으로 전개하는 능력이 뛰어납니다. 다양한 사회적 딜레마 상황(죄수의 딜레마, 공유지의 비극 등)을 담은 제시문을 분석하고, 개인의 합리적 선택이 어떻게 집단의 비합리적인 결과로 이어지는지를 설명하며, 이를 해결하기 위한 제도적, 윤리적 방안을 구체적으로 제시했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "인공지능 기초",
+      "content": "머신러닝의 지도학습과 비지도학습의 차이를 명확히 이해하고, 분류와 군집 알고리즘의 원리를 학습했습니다. 특히 K-평균 군집화 알고리즘을 활용하여 고객 데이터를 유사한 특성을 가진 그룹으로 분류하는 실습에서, 데이터 전처리의 중요성과 초기 중심점 설정에 따른 결과 변화를 직접 확인하며 데이터 분석의 미묘함과 복잡성을 체득했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육 탐구",
+      "content": "스포츠가 사회 통합과 갈등에 미치는 이중적 영향에 대해 탐구했습니다. 월드컵이나 올림픽이 국민적 통합에 기여하는 사례와, 특정 스포츠가 계급이나 인종에 따라 배타적으로 향유되며 사회적 위화감을 조성하는 사례를 비교 분석했습니다. 스포츠를 단순한 신체 활동이 아닌 사회학적 분석의 대상으로 삼는 독창적인 시각이 돋보입니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "사회",
+      "bookDescription": "(C. 라이트 밀스) 개인의 문제를 사회 구조적 문제와 연결하는 '사회학적 상상력'의 개념에 깊은 감명을 받음. 사회 현상의 이면을 통찰하는 분석적 시각을 기르는 계기가 됨.",
+      "author": "C. 라이트 밀스",
+      "bookTitle": "사회학적 상상력"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "(유시민) 논리적 글쓰기의 기본 원칙과 토론의 자세를 배움. 주장과 근거를 명확히 제시하는 훈련을 통해 자신의 생각을 효과적으로 전달하는 능력을 향상시킴.",
+      "author": "유시민",
+      "bookTitle": "유시민의 글쓰기 특강"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "(오가미 마사시) 수학적 증명의 아름다움과 논리의 중요성을 깨달음. 페르마의 마지막 정리를 증명하기 위한 수학자들의 노력을 통해 학문적 열정과 끈기를 배움.",
+      "author": "사이먼 싱",
+      "bookTitle": "페르마의 마지막 정리"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합사회",
+      "bookDescription": "(마이클 샌델) 공리주의, 자유지상주의, 공동체주의 등 다양한 정의론을 접하며, 우리 사회의 여러 논쟁(소수자 우대 정책, 시장의 도덕성 등)을 철학적으로 성찰하는 계기가 됨.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회",
+      "bookDescription": "(한스 로슬링) 데이터와 통계를 기반으로 세상을 정확하게 이해하는 것의 중요성을 깨달음. 사회 문제에 대한 막연한 편견을 버리고 사실에 근거하여 판단하는 태도를 갖추게 됨.",
+      "author": "한스 로슬링",
+      "bookTitle": "팩트풀니스"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회",
+      "bookDescription": "(피에르 부르디외) '아비투스'와 '문화자본' 개념을 통해, 취향과 같은 개인적 영역이 어떻게 사회적 계급을 구별하고 불평등을 재생산하는지 이해함. 사회구조의 보이지 않는 힘을 인식하게 됨.",
+      "author": "피에르 부르디외",
+      "bookTitle": "구별짓기: 문화와 취향의 사회학"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "윤리",
+      "bookDescription": "(존 롤스) '무지의 베일'과 '차등의 원칙'을 통해 사회 제도의 공정성을 판단하는 기준을 학습함. 사회적 약자를 우선적으로 배려하는 정의로운 사회의 모습에 대해 깊이 고민함.",
+      "author": "존 롤스",
+      "bookTitle": "정의론"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "문학",
+      "bookDescription": "(올더스 헉슬리) 과학기술의 발달이 인간의 자유와 존엄성을 어떻게 위협할 수 있는지 성찰함. 안락한 통제 사회의 위험성에 대해 비판적으로 사고하는 계기가 됨.",
+      "author": "올더스 헉슬리",
+      "bookTitle": "멋진 신세계"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "수학",
+      "bookDescription": "(대럴 허프) 통계가 현실을 왜곡하는 다양한 방법들을 배우며, 통계 자료를 비판적으로 수용하는 '통계 리터러시'의 중요성을 절감함. 사회조사방법론에 대한 관심이 증대됨.",
+      "author": "대럴 허프",
+      "bookTitle": "새빨간 거짓말, 통계"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "(George Orwell) Totalitarianism, surveillance, and thought control are explored, prompting reflection on the relationship between language and power, and the importance of individual freedom. (원서로 읽음)",
+      "author": "George Orwell",
+      "bookTitle": "Nineteen Eighty-Four"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "(지그문트 바우만) 현대 사회의 불확실성과 유동성을 '액체 근대'라는 개념으로 이해함. 개인화된 사회에서 공동체와 연대의 의미를 다시 생각해보는 계기가 됨.",
+      "author": "지그문트 바우만",
+      "bookTitle": "액체 근대"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "(에밀 뒤르켐) 사회적 사실, 아노미 등 사회학의 핵심 개념을 접함. 특히 근대 사회의 분업이 새로운 사회적 연대를 창출할 수 있다는 주장을 통해 사회 통합의 메커니즘을 고민함.",
+      "author": "에밀 뒤르켐",
+      "bookTitle": "사회분업론"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "경제",
+      "bookDescription": "(토마 피케티) 지난 200년간의 데이터를 통해 부의 불평등이 심화되는 경향(r>g)을 분석한 것을 보고 충격을 받음. 데이터 기반의 거시적 사회 분석에 대한 흥미가 커짐.",
+      "author": "토마 피케티",
+      "bookTitle": "21세기 자본"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "과학",
+      "bookDescription": "(리처드 도킨스) 유전자의 관점에서 생물의 행동과 진화를 설명하는 독특한 시각을 접하며, 사회 현상 분석에도 다양한 관점이 존재할 수 있음을 깨달음. 사회생물학 논쟁에 대해 찾아보는 계기가 됨.",
+      "author": "리처드 도킨스",
+      "bookTitle": "이기적 유전자"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "(얼 바비) 사회조사방법론의 교과서로, 연구 설계, 측정, 표본추출, 분석 등 사회과학 연구의 전 과정을 체계적으로 이해하는 데 큰 도움을 받음. 대학 진학 후 심도 있게 공부하고 싶은 분야임을 확신함.",
+      "author": "얼 바비",
+      "bookTitle": "The Practice of Social Research"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 왕성하고, 현상의 이면을 탐구하려는 진지한 자세를 지닌 학생입니다. 학급 부회장으로서 책임감을 갖고 구성원의 의견을 경청하며, 토론 시 논리적 근거를 바탕으로 자신의 주장을 설득력 있게 제시하는 등 리더십과 의사소통 능력을 고루 갖추었습니다. (278/900 bytes)"
+    },
+    {
+      "grade": 2,
+      "content": "사회 문제에 대한 깊은 관심과 뛰어난 분석력을 바탕으로 자기주도적 탐구 역량을 보여줍니다. 사회과학 동아리를 창설하여 친구들과 협력하며 의미 있는 연구를 수행했고, 통계 분석 능력을 키우며 사회 현상을 과학적으로 접근하려는 노력이 돋보입니다. 타인에 대한 공감 능력이 뛰어나며, 학습 멘토로서 꾸준히 봉사하는 따뜻한 마음을 지녔습니다. (298/900 bytes)"
+    },
+    {
+      "grade": 3,
+      "content": "사회정책 전문가라는 뚜렷한 목표를 향해 꾸준히 정진하는 학생입니다. 높은 수준의 사회과학 서적을 섭렵하고, 실제 데이터를 분석하며 자신의 학문적 역량을 심화시켰습니다. 학업에 대한 열정과 성실함이 타의 모범이 되며, 공동체의 문제 해결에 적극적으로 참여하고 후배들을 돕는 선한 영향력을 지닌 인재입니다. (295/900 bytes)"
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "content": "체력과 운동 신경이 좋으며, 모든 활동에 적극적으로 참여합니다. 특히 팀 스포츠에서 동료들과 협력하며 경기를 즐기는 모습이 보기 좋습니다.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "content": "음악 감상 수업에서 곡의 형식과 특징을 잘 파악하며, 자신의 감상을 논리적으로 표현하는 능력이 우수합니다.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "content": "규칙을 정확히 숙지하고 페어플레이 정신으로 경기에 임합니다. 팀의 전략을 이해하고 자신의 역할을 충실히 수행하는 모습이 인상적입니다.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "A",
+      "content": "미술사조를 학습하며 작품에 담긴 사회적 배경과 작가의 의도를 파악하려는 노력을 보였습니다. 감상문 작성을 통해 자신의 생각을 창의적으로 표현합니다.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "A",
+      "content": "자신의 체력 수준을 객관적으로 분석하고, 건강 증진을 위한 장기적인 운동 계획을 과학적으로 수립하여 꾸준히 실천하는 자기관리 능력이 뛰어납니다.",
+      "creditHours": 2
+    }
+  ]
+}

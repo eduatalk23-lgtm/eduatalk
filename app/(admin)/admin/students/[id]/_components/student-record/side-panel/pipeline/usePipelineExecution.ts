@@ -300,7 +300,8 @@ export function usePipelineExecution({
   };
 
   // ─── Bootstrap Phase 실행 (개별 셀 클릭) ──────────────────────────────────
-  // 3 task (BT0/BT1/BT2) 가 단일 phase-1 route 로 순차 실행됨.
+  // BT0→BT1→BT2 를 각 task 단위 route 로 순차 호출 (I1, 2026-04-26).
+  // BT0 실패 시 BT1/BT2 는 cascade 차단. BT1 rate limit 미회복 시 pending 유지.
 
   const runBootstrapPhase = async () => {
     if (fetchingRef.current) return;
@@ -325,18 +326,39 @@ export function usePipelineExecution({
         invalidate();
       }
 
-      for (let retry = 0; retry <= 2; retry++) {
-        try {
-          const res = await fetch("/api/admin/pipeline/bootstrap/phase-1", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pipelineId: pid }),
+      const tasks = [
+        "/api/admin/pipeline/bootstrap/task/bt0",
+        "/api/admin/pipeline/bootstrap/task/bt1",
+        "/api/admin/pipeline/bootstrap/task/bt2",
+      ] as const;
+
+      for (const taskUrl of tasks) {
+        for (let retry = 0; retry <= 2; retry++) {
+          try {
+            const res = await fetch(taskUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pipelineId: pid }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            break;
+          } catch {
+            if (retry >= 2) break;
+            await new Promise((r) => setTimeout(r, 3000));
+          }
+        }
+
+        // BT0 실패 시 cascade 차단
+        if (taskUrl.endsWith("/bt0")) {
+          await queryClient.refetchQueries({
+            queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          break;
-        } catch {
-          if (retry >= 2) break;
-          await new Promise((r) => setTimeout(r, 3000));
+          const status = queryClient.getQueryData<GradeAwarePipelineStatus>(
+            gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+          );
+          if (status?.bootstrapPipeline?.tasks?.["target_major_validation"] === "failed") {
+            break;
+          }
         }
       }
     } catch (e) {
@@ -412,9 +434,10 @@ export function usePipelineExecution({
     // 이미 완료된 학년이면 스킵 (refetch 이후 진짜 상태 기반)
     if (cachedGrade?.status === "completed") return "completed";
 
-    // 설계 모드만 Phase 7/8 실행. 분석 모드는 Phase 6까지.
+    // 설계 모드만 Phase 7/8/9 실행. 분석 모드는 Phase 6까지.
+    // P9(draft_refinement): ENABLE_DRAFT_REFINEMENT 플래그가 off이면 server-side에서 no-op(skip) 처리.
     const mode = cachedGrade?.mode ?? "analysis";
-    const maxPhase = mode === "design" ? 8 : 6;
+    const maxPhase = mode === "design" ? 9 : 6;
 
     for (let phase = 1; phase <= maxPhase; phase++) {
       if (isAborted()) return "aborted";
@@ -434,8 +457,8 @@ export function usePipelineExecution({
       setRunningStartMs(Date.now());
 
       const MAX_RETRIES = 2;
-      // 청크 지원 phase: P1~P3 (역량 분석 배치) + P7 (가안 생성 배치, B6 2026-04-15) + P8 (가안 분석 배치, 트랙 A 2026-04-14)
-      const isChunkedPhase = phase <= 3 || phase === 7 || phase === 8;
+      // 청크 지원 phase: P1~P3 (역량 분석 배치) + P7 (가안 생성 배치, B6 2026-04-15) + P8 (가안 분석 배치, 트랙 A 2026-04-14) + P9 (재생성 배치, Phase 5)
+      const isChunkedPhase = phase <= 3 || phase === 7 || phase === 8 || phase === 9;
       if (isChunkedPhase) {
         let hasMore = true;
         let retries = 0;
@@ -520,6 +543,8 @@ export function usePipelineExecution({
   }
 
   // ─── 내부 헬퍼: Bootstrap Phase 0 실행 ──────────────────────────────────
+  // BT0→BT1→BT2 task 단위 route 순차 호출 (I1, 2026-04-26).
+  // BT0 실패 시 BT1/BT2 cascade 차단. 클라이언트가 task 상태로 판단.
 
   async function executeBootstrapPhaseForFullRun(
     pipelineId: string,
@@ -528,26 +553,46 @@ export function usePipelineExecution({
   ): Promise<"completed" | "aborted"> {
     setRunningCell("boot-1");
     setRunningStartMs(Date.now());
-    for (let retry = 0; retry <= 2; retry++) {
-      if (isAborted()) return "aborted";
-      try {
-        await fetchPhase(
-          "/api/admin/pipeline/bootstrap/phase-1",
-          { pipelineId },
-          signal,
-        );
-        invalidate();
-        return "completed";
-      } catch (e) {
-        if ((e as Error)?.name === "AbortError") return "aborted";
-        if (retry >= 2) break;
+
+    const tasks = [
+      "/api/admin/pipeline/bootstrap/task/bt0",
+      "/api/admin/pipeline/bootstrap/task/bt1",
+      "/api/admin/pipeline/bootstrap/task/bt2",
+    ] as const;
+
+    for (const taskUrl of tasks) {
+      for (let retry = 0; retry <= 2; retry++) {
+        if (isAborted()) return "aborted";
         try {
-          await abortableSleep(3000, signal);
-        } catch {
-          return "aborted";
+          await fetchPhase(taskUrl, { pipelineId }, signal);
+          break;
+        } catch (e) {
+          if ((e as Error)?.name === "AbortError") return "aborted";
+          if (retry >= 2) break;
+          try {
+            await abortableSleep(3000, signal);
+          } catch {
+            return "aborted";
+          }
+        }
+      }
+
+      // BT0 완료 후 cascade 차단 여부 확인
+      if (taskUrl.endsWith("/bt0")) {
+        await queryClient.refetchQueries({
+          queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+        });
+        const status = queryClient.getQueryData<GradeAwarePipelineStatus>(
+          gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+        );
+        if (status?.bootstrapPipeline?.tasks?.["target_major_validation"] === "failed") {
+          invalidate();
+          return "completed";
         }
       }
     }
+
+    invalidate();
     return "completed";
   }
 
@@ -648,6 +693,22 @@ export function usePipelineExecution({
           isAborted,
         );
         if (result === "aborted") return;
+
+        // Bootstrap 완료 후 BT1(main_exploration_seed) 실패 여부 확인.
+        // 실패 시 Blueprint/Design Grade 단계가 메인 탐구 없이 실행되면 silent 빈 결과가 생성되므로 차단.
+        await queryClient.refetchQueries({
+          queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+        });
+        const bootStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
+          gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+        );
+        const bt1Status = bootStatus?.bootstrapPipeline?.tasks?.["main_exploration_seed"];
+        if (bt1Status === "failed") {
+          showError(
+            "메인 탐구 설정(BT1) 실패 — 전공 정보를 확인한 후 Bootstrap을 재실행하거나 메인 탐구를 직접 설정해주세요.",
+          );
+          return;
+        }
       }
 
       // ── 2. Grade(analysis) 학년별 실행 ──
@@ -695,13 +756,18 @@ export function usePipelineExecution({
         const designStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
           gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
         );
-        for (const grade of full.route.consultingGrades) {
+        // gradeProspective 배열은 consultingGrades 순서와 동일하게 매핑된 pipelineId 목록.
+        const prospectiveIds = full.pipelineIds.gradeProspective ?? [];
+        for (let i = 0; i < full.route.consultingGrades.length; i++) {
+          const grade = full.route.consultingGrades[i];
           if (isAborted()) return;
           const cachedGrade = designStatus?.gradePipelines?.[grade];
-          if (!cachedGrade) continue;
+          // 캐시 미스 시: refetch 타이밍 문제일 수 있으므로 gradeProspective에서 직접 pipelineId 사용.
+          const pipelineId = cachedGrade?.pipelineId ?? prospectiveIds[i];
+          if (!pipelineId) continue;
           const result = await executeGradePhasesForPipeline(
             grade,
-            cachedGrade.pipelineId,
+            pipelineId,
             cachedGrade,
             ctrl.signal,
             isAborted,

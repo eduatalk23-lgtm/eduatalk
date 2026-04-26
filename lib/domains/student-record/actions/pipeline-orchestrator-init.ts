@@ -143,6 +143,33 @@ export async function runSynthesisPipeline(
       );
     }
 
+    // past_analytics / blueprint 완료 여부 소프트 검증 (soft warning — hard 차단은 하지 않음).
+    // 두 파이프라인은 선택적(NEIS 학년·설계 학년 유무에 따라 생성 안 될 수 있음)이므로,
+    // 존재하는 경우에 한해 완료 여부를 확인하고 미완료면 에러 반환.
+    const { data: auxPipelines } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("id, status, pipeline_type")
+      .eq("student_id", studentId)
+      .in("pipeline_type", ["past_analytics", "blueprint"])
+      .order("created_at", { ascending: false });
+
+    const seenTypes = new Set<string>();
+    const latestAux = (auxPipelines ?? []).filter((p) => {
+      const type = p.pipeline_type as string;
+      if (seenTypes.has(type)) return false;
+      seenTypes.add(type);
+      return true;
+    });
+    const incompleteAux = latestAux.filter((p) => p.status !== "completed");
+    if (incompleteAux.length > 0) {
+      const labels = incompleteAux.map((p) =>
+        p.pipeline_type === "past_analytics" ? "기간별 분석(Past Analytics)" : "청사진(Blueprint)",
+      );
+      return createErrorResponse(
+        `${labels.join(", ")} 파이프라인이 완료되지 않았습니다. 전체 시퀀스를 순서대로 실행해주세요.`,
+      );
+    }
+
     // grade 파이프라인 ID 목록 (synthesis context용)
     const gradePipelineIds = grades.map((p) => p.id as string);
 

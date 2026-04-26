@@ -1,0 +1,1113 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/한양대-의예과-24",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 90,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_한양대_의예과_024",
+    "schoolName": "가상 일반고 Y",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "한양대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "의예과",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김민준",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "1반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이수진",
+      "studentNumber": "20101"
+    },
+    {
+      "grade": 3,
+      "className": "1반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박서준",
+      "studentNumber": "30101"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병결 1일 (감기)",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 2,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병결 2일, 병조퇴 1일 (장염)",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 과학탐구대회 금상",
+      "awardDate": "2024-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 Y 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 1,
+      "awardName": "교내 수학경시대회 은상",
+      "awardDate": "2024-11-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 Y 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 과학실험보고서 대회 최우수상",
+      "awardDate": "2025-06-25",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 Y 교장",
+      "participants": "팀(2명)"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 융합주제탐구발표대회 금상",
+      "awardDate": "2025-10-30",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 Y 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "모범학생 표창장",
+      "awardDate": "2026-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 Y 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "교내 학력우수상 (수학/과학)",
+      "awardDate": "2026-12-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 Y 교장",
+      "participants": "개인"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 부회장으로 활동하며 학급회의를 주도적으로 운영하고, '학급 칭찬 게시판' 아이디어를 제안하여 긍정적인 학급 분위기를 조성하는 데 기여함. 특히, 과학실험 준비물 관리 시스템을 개선하여 친구들의 실험 참여 편의성을 높이는 등 실질적인 문제 해결 능력을 보여주었음.",
+      "activityName": "학급 자율활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학생회 과학부 차장으로 활동하며 '우리 학교 과학 페스티벌' 기획 및 운영에 참여함. 특히 '생활 속 과학 원리 찾기' 부스를 담당하여, 일상적인 현상을 과학적으로 설명하는 체험 활동을 구성하여 학생들의 큰 호응을 얻었음.",
+      "activityName": "학생회 자치활동",
+      "hours": 24
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "생명과학 탐구반에 참여하여 '항생제 내성균의 위험성과 대안'을 주제로 1년간 탐구 활동을 진행함. 다양한 논문과 서적을 참고하여 항생제 오남용 실태를 조사하고, 박테리오파지를 이용한 대안 치료법의 가능성을 제시하는 보고서를 작성하여 우수한 평가를 받음.",
+      "activityName": "생명과학 탐구반",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "의사 직업 탐구의 일환으로 관련 다큐멘터리 시청 및 서적을 탐독하고, '미래의 외과의사'를 주제로 진로 포트폴리오를 작성함. 특히 의학 분야의 3D 프린팅 기술 활용 사례를 조사하며 의료 기술에 대한 흥미를 구체화함.",
+      "activityName": "진로 탐색 활동",
+      "hours": 16
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "학급 회장으로서 '스터디 그룹 활성화 프로젝트'를 추진함. 과목별로 어려움을 겪는 친구들과 상위권 학생들을 연결하는 멘토-멘티 프로그램을 조직하고, 학습 자료 공유 플랫폼을 만들어 학급 전체의 학업 성취도 향상에 크게 기여함. 뛰어난 리더십과 포용력을 보여줌.",
+      "activityName": "학급 자율활동",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 과학부 부장으로서 '과학 분야 진로 멘토링' 행사를 기획함. 대학생 멘토들을 섭외하고, 후배들의 진로 희망을 사전에 조사하여 맞춤형 멘토링이 이루어지도록 세심하게 준비하는 등 탁월한 기획력과 책임감을 보여주었음.",
+      "activityName": "학생회 자치활동",
+      "hours": 24
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "의생명 로보틱스 연구반을 창설하고 초대 부장으로 활동함. 아두이노와 3D 프린터를 활용하여 '자동 약물 투여 장치' 프로토타입을 제작하는 프로젝트를 주도함. 코딩을 통한 정밀 제어와 기구학적 움직임을 구현하는 과정에서 공학적 문제 해결 능력을 함양했으며, 팀원들의 역할을 조율하는 리더십을 발휘함.",
+      "activityName": "의생명 로보틱스 연구반 (창설)",
+      "hours": 40
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "대학교에서 주최하는 '의공학 캠프'에 참여하여 수술 로봇 '다빈치'의 작동 원리에 대한 강의를 듣고 시뮬레이션을 체험함. 이를 계기로 최소 침습 수술의 원리와 수술 로봇의 정밀 제어 기술에 대한 심도 있는 탐구를 시작했으며, 진로를 외과, 특히 로봇 수술 분야로 구체화함.",
+      "activityName": "진로 심화 활동",
+      "hours": 16
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업앨범 편집위원으로 활동하며 '우리들의 성장 이야기'라는 테마를 제안함. 1, 2학년 때의 활동 사진과 현재의 모습을 비교하는 페이지를 구성하여 친구들과 선생님들로부터 큰 공감을 얻음. 공동체 활동에 대한 애정과 협업 능력이 돋보임.",
+      "activityName": "학급 자율활동",
+      "hours": 18
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "학생회 자문위원으로서 1, 2학년 학생회 임원들에게 행사 기획 및 예산 운영 노하우를 전수하는 멘토 역할을 수행함. 특히 작년 '과학 페스티벌'의 피드백을 체계적으로 정리하여 전달함으로써 행사의 연속성과 발전에 기여함.",
+      "activityName": "학생회 자치활동",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "의생명 로보틱스 연구반에서 '복강경 수술기구의 움직임 개선을 위한 연구'를 주제로 심화 탐구를 진행함. 인체공학적 설계를 적용한 수술기구 그립(grip) 모델을 3D 모델링 및 프린팅으로 제작하고, 기존 기구와의 사용 편의성을 비교 분석하는 논문을 작성하여 교내 학술지에 게재함. 공학적 지식을 의학적 문제 해결에 적용하는 융합적 사고 능력이 뛰어남.",
+      "activityName": "의생명 로보틱스 연구반",
+      "hours": 38
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "'의료 윤리와 인공지능'을 주제로 소논문을 작성함. 수술 로봇의 의료사고 발생 시 책임 소재, 인공지능 기반 진단의 윤리적 딜레마 등에 대해 탐구하며 미래 의사로서 갖추어야 할 기술적 전문성뿐만 아니라 높은 수준의 윤리 의식의 중요성을 성찰함.",
+      "activityName": "진로 최종 설계",
+      "hours": 14
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01 - 2025-02-28",
+      "cumulativeHours": 30,
+      "description": "지역 요양병원에서 어르신들의 식사 보조, 말벗 되어드리기, 병실 환경미화 등의 활동을 꾸준히 수행함. 특히 거동이 불편한 어르신들을 부축하며 환자의 어려움을 공감하고 소통하는 자세를 배움.",
+      "hours": 30,
+      "location": "A 요양병원"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01 - 2026-02-28",
+      "cumulativeHours": 62,
+      "description": "B 종합병원 소아청소년과 병동에서 주말 봉사활동에 참여함. 환아들을 위한 동화책 읽어주기, 학습 보조 활동을 진행하며, 아픈 아이들과 보호자들의 심리적 안정을 돕는 역할의 중요성을 깨달음. 의료진과 소통하며 병원 시스템에 대한 이해를 높임.",
+      "hours": 32,
+      "location": "B 종합병원"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01 - 2026-07-31",
+      "cumulativeHours": 78,
+      "description": "교내 또래 멘토링 프로그램에서 수학, 과학 과목 학습에 어려움을 겪는 후배들을 대상으로 꾸준히 학습 지도를 함. 지식을 나누는 봉사를 통해 나눔의 가치를 실천하고, 효과적인 소통 능력을 기름.",
+      "hours": 16,
+      "location": "교내"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 8.5,
+      "subjectType": "공통",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1",
+      "classAverage": 78.9,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 12.3,
+      "subjectType": "공통",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "1",
+      "classAverage": 82.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 10.1,
+      "subjectType": "공통",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "1",
+      "classAverage": 79.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 11.5,
+      "subjectType": "공통",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "classAverage": 88,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.2,
+      "stdDev": 7.2,
+      "subjectType": "공통",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1",
+      "classAverage": 86.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "stdDev": 8,
+      "subjectType": "공통",
+      "totalStudents": 210
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 7.9,
+      "subjectType": "공통",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1",
+      "classAverage": 79.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 11.8,
+      "subjectType": "공통",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1",
+      "classAverage": 83.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 9.8,
+      "subjectType": "공통",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1",
+      "classAverage": 80.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.6,
+      "stdDev": 10.9,
+      "subjectType": "공통",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "2",
+      "classAverage": 87.5,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 94.5,
+      "stdDev": 6.8,
+      "subjectType": "공통",
+      "totalStudents": 208
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1",
+      "classAverage": 87,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.9,
+      "stdDev": 7.5,
+      "subjectType": "공통",
+      "totalStudents": 208
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 84.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 8.2,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 75.6,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.1,
+      "stdDev": 13.5,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 72.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 15.2,
+      "subjectType": "일반선택",
+      "totalStudents": 95
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 74.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 14.1,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 76.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 13.8,
+      "subjectType": "일반선택",
+      "totalStudents": 165
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "논술",
+      "achievementLevel": "A",
+      "classAverage": 82.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9.1,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 85,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.3,
+      "stdDev": 7.8,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 76.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.9,
+      "stdDev": 13.1,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "achievementLevel": "1",
+      "classAverage": 77.3,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 12.9,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "물리학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 71.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 16,
+      "subjectType": "진로선택",
+      "totalStudents": 70
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 73.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 14.5,
+      "subjectType": "일반선택",
+      "totalStudents": 130
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "생명과학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 75,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "stdDev": 13.5,
+      "subjectType": "일반선택",
+      "totalStudents": 155
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "1",
+      "classAverage": 72.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.5,
+      "stdDev": 15.8,
+      "subjectType": "일반선택",
+      "totalStudents": 160
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "기하",
+      "achievementLevel": "1",
+      "classAverage": 74.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.7,
+      "stdDev": 14.2,
+      "subjectType": "진로선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고급 생명과학",
+      "achievementLevel": "A",
+      "classAverage": 85.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8.5,
+      "subjectType": "진로선택",
+      "totalStudents": 60
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고급 화학",
+      "achievementLevel": "A",
+      "classAverage": 86.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.5,
+      "stdDev": 8.1,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "정보과학",
+      "achievementLevel": "A",
+      "classAverage": 88.2,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.2,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어권 문화",
+      "achievementLevel": "1",
+      "classAverage": 89,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 6.5,
+      "subjectType": "진로선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "achievementLevel": "A",
+      "classAverage": 88,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 7,
+      "subjectType": "진로선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "과학과제 연구",
+      "achievementLevel": "A",
+      "classAverage": 90.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 5.5,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 87.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 7.8,
+      "subjectType": "진로선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "운동과 건강",
+      "achievementLevel": "P",
+      "classAverage": 85,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 8,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "P",
+      "classAverage": 89,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 6,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로와 직업",
+      "achievementLevel": "P",
+      "classAverage": 91,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 5,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "글의 구조를 논리적으로 분석하는 능력이 탁월하며, 특히 설명문의 정보 전달 방식을 파악하여 핵심 내용을 요약하는 능력이 뛰어납니다. '의학 기사의 사실과 과장'을 주제로 한 비판적 읽기 활동에서, 전문 용어와 통계 자료의 사용이 독자에게 미치는 영향을 분석하고, 대중의 과학적 이해력 증진을 위한 글쓰기 방안을 제안하여 깊이 있는 사고를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "복잡한 다항식의 연산과 인수분해에서 뛰어난 정확성과 속도를 보여주며, 나머지 정리를 활용하여 고차방정식의 해를 구하는 과정에서 논리적 추론 능력을 발휘했습니다. 특히 수업 중 다룬 문제를 다양한 방법으로 접근하여 풀어보고, 각 풀이법의 장단점을 비교 분석하여 친구들에게 설명해주는 등 수학적 지식의 공유와 소통에 적극적인 모습을 보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "의학 관련 영문 기사를 읽고 핵심 어휘와 문장 구조를 분석하는 과제에서 높은 성취를 보였습니다. 'The Future of Robotic Surgery'라는 아티클을 읽고, 수술 로봇의 장점과 기술적 한계, 그리고 윤리적 쟁점에 대해 요약 발표하며 자신의 진로와 연관된 주제에 대한 깊은 관심과 뛰어난 정보 수집 능력을 보여주었습니다. 발표 시 정확한 발음과 논리적인 전개로 호응을 얻었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "생명 시스템의 기본 단위인 세포의 구조와 기능에 대한 이해가 매우 깊습니다. 특히 세포막을 통한 물질 이동 원리를 학습한 후, '삼투 현상을 이용한 약물 전달 시스템(DDS)의 가능성'에 대해 자발적으로 추가 탐구를 진행했습니다. 리포솜과 같은 인공 세포막 구조를 활용하는 방안을 조사하고, 이를 통해 특정 세포에만 약물을 전달하는 기술의 원리를 이해하고자 노력하는 등 지적 호기심과 자기주도적 학습 능력이 돋보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "정의와 인권의 보편적 가치에 대한 이해를 바탕으로, '의료 접근성의 불평등 문제'에 대해 발표했습니다. 지역별, 소득별 의료 서비스 격차 실태를 통계 자료를 통해 제시하고, 공공의료 확충과 원격의료 도입의 필요성을 주장하며 사회 문제에 대한 깊이 있는 통찰력과 해결 방안을 모색하는 태도를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "조선시대 의학서 '동의보감'에 대한 탐구 활동에서, 당시의 질병관과 인체관을 현대 의학적 관점과 비교 분석하는 보고서를 작성했습니다. 단순한 역사적 사실 암기를 넘어, 역사적 자료를 통해 현재의 사회·문화적 맥락을 이해하려는 시도가 인상적이며, 역사적 사고력이 뛰어난 학생입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "문법 단원에서 피동 표현과 사동 표현의 의미 차이를 정확히 이해하고, 실제 문장에서 오용된 사례를 찾아 바로잡는 활동에서 뛰어난 언어 감각을 보여주었습니다. 작문 시간에는 '인공지능 시대의 인간의 역할'이라는 논제로 설득력 있는 주장을 논리적으로 전개하는 글을 작성하여 문장 구성 능력과 비판적 사고력을 인정받았습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "함수의 개념을 정확히 이해하고 있으며, 특히 합성함수와 역함수의 그래프를 해석하는 능력이 우수합니다. 여러 함수의 그래프를 좌표평면에 그리고 그 관계를 분석하는 과정에서, 변수 간의 관계를 시각적으로 파악하고 규칙성을 발견하는 탐구 능력을 보여주었습니다. 문제 해결 후 다른 풀이법을 항상 고민하는 수학적 탐구 자세가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "다양한 주제의 텍스트에 대한 이해도가 높으며, 특히 시사적인 내용의 글을 읽고 자신의 의견을 논리적으로 표현하는 능력이 뛰어납니다. '세계 보건 문제와 국제 협력'을 주제로 한 영어 토론에서, 풍부한 배경지식을 바탕으로 감염병 대응을 위한 국제기구의 역할 강화 필요성을 주장하여 토론을 주도했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "산화-환원 반응의 원리를 학습한 후, 우리 몸속에서 일어나는 세포 호흡 과정이 정교한 산화-환원 반응임을 연결하여 이해하는 등 통합적 사고력이 뛰어납니다. '활성산소와 항산화 물질의 역할'에 대해 추가 조사를 진행하고, 노화와 질병의 관점에서 항산화 작용의 중요성을 설명하는 보고서를 제출하여 과학적 탐구 역량을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "시장 경제 원리를 학습하며, 외부효과와 공공재의 개념을 의료 시장에 적용하여 분석하는 독창성을 보였습니다. '전염병 예방 접종의 긍정적 외부효과'를 예로 들며, 개인의 의료 선택이 사회 전체에 미치는 영향을 분석하고 시장 실패를 보완하기 위한 정부의 역할에 대해 심도 있게 고찰했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "일제강점기 보건의료 체계의 변화에 대해 탐구하며, 서양 의학의 도입이 가져온 긍정적 측면과 함께 기존 의료 체계를 파괴한 부정적 측면을 균형 있게 서술했습니다. 역사적 사건을 단편적으로 보지 않고, 사회 구조적 변화와 연관 지어 다각적으로 해석하는 능력이 우수합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "카프카의 '변신'을 읽고, 주인공 그레고르가 겪는 소외와 부조리함을 현대 사회의 경쟁 속에서 고립되는 개인의 모습과 연결하여 해석하는 감상문을 작성했습니다. 문학 작품을 통해 인간 존재와 사회에 대한 깊이 있는 성찰을 이끌어내는 능력이 탁월하며, 타인의 고통에 공감하는 따뜻한 시선을 지닌 학생입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "지수함수와 로그함수의 관계를 그래프를 통해 직관적으로 이해하고, 이를 활용하여 실생활 문제(방사성 동위원소의 반감기 계산 등)를 해결하는 능력이 뛰어납니다. 특히 복잡한 로그 방정식을 풀 때, 밑 변환 공식을 적재적소에 활용하여 식을 간단히 정리하는 문제 해결 전략이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "물리학Ⅰ",
+      "content": "역학적 에너지 보존 법칙에 대한 이해가 깊으며, 이를 응용한 문제 해결 능력이 우수합니다. '롤러코스터의 운동 분석' 프로젝트에서, 위치에너지와 운동에너지의 전환 과정을 수학적으로 모델링하고, 마찰에 의한 에너지 손실까지 고려하여 실제 운동과 유사한 결과를 도출해냈습니다. 이 과정에서 얻은 영감을 바탕으로, 최소 침습 수술기구의 관절 움직임을 역학적으로 분석하고 싶다는 탐구 계획을 밝히는 등 융합적 사고가 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "content": "화학 결합의 종류와 특성에 대한 이해를 바탕으로, 분자의 구조가 물질의 성질을 어떻게 결정하는지 설명하는 능력이 뛰어납니다. '단백질의 3차원 구조와 기능'에 대해 발표하며, 아미노산 서열에 따라 결정되는 다양한 화학 결합(이황화 결합, 수소 결합 등)이 단백질의 고유한 입체 구조와 생물학적 기능을 결정한다는 점을 명확히 설명하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "content": "신경계 단원에서 뉴런의 흥분 전도와 전달 과정에 대해 깊이 탐구했습니다. 특히 시냅스에서 신경전달물질의 역할에 흥미를 느끼고, '파킨슨병과 도파민의 관계'에 대한 보고서를 작성했습니다. 관련 논문을 찾아 읽으며 도파민 생성 뉴런의 사멸이 운동 기능에 미치는 영향을 분석하고, L-도파 요법의 원리와 한계를 조사하는 등 전공 분야에 대한 높은 학업 열의를 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "논술",
+      "content": "'안락사의 윤리적 쟁점'을 주제로 한 논술문 작성에서, 찬반 양측의 논리를 심도 있게 분석하고 생명권의 절대성과 자기결정권 존중이라는 가치가 충돌하는 지점을 명확히 짚어냈습니다. 의학적 사실과 철학적 고찰을 균형 있게 제시하며, 사회적 합의 과정의 중요성을 강조하는 성숙한 견해를 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "리처드 도킨스의 '이기적 유전자'를 읽고, 유전자의 관점에서 생명 현상을 바라보는 새로운 시각에 깊은 인상을 받았다고 발표했습니다. 특히 개체의 이타적 행동이 유전자의 보존이라는 이기적 목적을 위해 어떻게 설명될 수 있는지 논리적으로 분석하며, 책의 핵심 주장을 정확히 파악하고 비판적으로 수용하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미분계수의 기하학적 의미를 완벽하게 이해하고, 이를 활용하여 함수의 접선 및 극대·극소를 구하는 데 능숙합니다. '최적화 문제 해결' 프로젝트에서, 주어진 조건 하에 부피가 최대가 되는 상자의 크기를 미분을 이용하여 구하는 과정을 명확하게 제시했습니다. 수학적 원리를 실제 문제 해결에 적용하는 응용력이 뛰어납니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "확률과 통계",
+      "content": "조건부확률과 베이즈 정리에 대한 이해가 깊습니다. '질병 진단 키트의 정확도 분석'이라는 주제 탐구에서, 민감도와 특이도 개념을 이용하여 질병의 유병률에 따라 양성 예측도가 어떻게 변하는지를 베이즈 정리를 통해 수학적으로 증명해냈습니다. 통계적 지식을 의학 데이터 해석에 적용하는 능력을 보여주며 융합적 탐구 역량을 드러냈습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "물리학Ⅱ",
+      "content": "전자기 유도 법칙을 학습한 후, MRI(자기공명영상)의 기본 원리에 대해 심화 탐구를 진행했습니다. 강한 자기장 속에서 인체 내 수소 원자핵이 특정 주파수의 전자기파에 공명하는 현상과, 이 신호를 컴퓨터로 재구성하여 영상을 얻는 과정을 물리적 원리에 기반하여 명확하게 설명하는 보고서를 작성했습니다. 물리학 지식을 첨단 의료기기에 연결하는 통찰력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅱ",
+      "content": "화학 반응 속도론에 대한 높은 이해를 바탕으로, 효소(enzyme)가 반응 속도에 미치는 영향에 대해 탐구했습니다. 효소가 활성화 에너지를 낮춰 반응 속도를 증가시키는 촉매 역할을 한다는 것을 그래프와 함께 설명하고, 온도와 pH가 효소의 활성에 미치는 영향을 실험 결과와 연관 지어 분석하는 등 심화된 학업 역량을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "생명과학Ⅱ",
+      "content": "유전자 발현의 조절 과정, 특히 Lac 오페론 모델을 완벽하게 이해하고 이를 다른 유전자 조절 기작과 비교 분석하는 능력이 탁월합니다. 여기서 더 나아가 'CRISPR-Cas9 유전자 가위 기술의 원리와 윤리적 과제'에 대해 심화 탐구 보고서를 작성했습니다. (참고문헌: Jennifer Doudna, 'A Crack in Creation') 이 기술이 유전 질환 치료에 제공할 수 있는 가능성과, 생식세포 편집에 대한 사회적 합의의 필요성을 깊이 있게 고찰하여 과학기술과 사회에 대한 균형 잡힌 시각을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "정적분의 개념을 구분구적법을 통해 완벽히 이해하고 있으며, 이를 활용하여 회전체의 부피 등 복잡한 입체의 부피를 구하는 데 뛰어난 능력을 보입니다. 특히 'CT 스캔의 단층 영상 재구성 원리'에 정적분 개념이 어떻게 활용되는지 탐구하고, 여러 각도에서 촬영한 2차원 단면 정보들을 적분하여 3차원 입체 영상을 만드는 과정을 수학적으로 설명하는 발표를 진행하여 수학적 지식의 응용력을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "기하",
+      "content": "공간벡터에 대한 이해가 깊어, 두 직선 또는 평면이 이루는 각, 점과 평면 사이의 거리 등을 능숙하게 계산합니다. 동아리 활동과 연계하여, 3차원 공간에서 로봇팔의 움직임을 벡터 연산을 이용하여 모델링하는 탐구를 진행했습니다. 로봇팔의 각 관절의 회전을 행렬 변환으로 표현하고, 최종 목표 지점에 도달하기 위한 각 관절의 벡터 값을 계산하는 과정을 통해 기하학적 지식을 공학 문제에 적용하는 융합적 사고를 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고급 생명과학",
+      "content": "면역학 단원에서 B세포와 T세포의 분화 및 항체 생성 과정에 대한 심도 있는 이해를 보여주었습니다. 이를 바탕으로 'CAR-T 세포 치료제의 원리와 전망'에 대해 연구 보고서를 작성했습니다. (참고문헌: Nature Reviews Drug Discovery, 'CAR-T cell therapy: current limitations and potential strategies') 환자의 T세포를 유전적으로 조작하여 암세포를 효과적으로 공격하게 만드는 과정을 명확히 설명하고, 사이토카인 방출 증후군과 같은 부작용과 이를 극복하기 위한 연구 동향까지 조사하여 전공 적합성과 높은 학업 수준을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "고급 화학",
+      "content": "분광학적 분석법(IR, NMR)의 원리를 학습하고, 미지 시료의 분자 구조를 해석하는 실험에서 뛰어난 분석 능력을 보여주었습니다. 특히 NMR 스펙트럼의 화학적 이동(chemical shift)과 갈라짐(splitting) 패턴을 분석하여 작용기의 종류와 위치를 정확하게 추론해냈습니다. 이러한 분석 기법이 신약 개발 과정에서 화합물의 구조를 규명하는 데 핵심적인 역할을 한다는 점을 이해하고, 자신의 진로와 연관지어 학습하는 태도가 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "정보과학",
+      "content": "Python을 이용한 프로그래밍 능력이 우수하며, 특히 데이터 처리 및 시각화에 강점을 보입니다. 공공 데이터를 활용하여 '국내 심혈관 질환 발병률과 위험 요인 분석' 프로젝트를 수행했습니다. Pandas 라이브러리로 데이터를 정제하고, Matplotlib를 이용해 연령, 지역, 생활 습관 등 다양한 변수와 발병률의 상관관계를 시각화하여 설득력 있게 제시했습니다. 데이터 기반의 문제 해결 능력이 뛰어납니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "영어권 문화",
+      "content": "미국의 의료 시스템을 주제로 탐구하며, 민간 보험 중심 시스템의 특징과 장단점을 영국의 NHS(국가보건서비스)와 비교 분석하는 발표를 진행했습니다. 관련 다큐멘터리와 기사를 깊이 있게 분석하여, 의료 접근성, 비용, 서비스의 질 등 다양한 측면에서 두 시스템을 비교하고, 각국의 역사적, 문화적 배경이 의료 시스템에 미친 영향을 설명하여 뛰어난 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 국어",
+      "content": "의학 전문 서적 및 논문을 비판적으로 읽고 그 내용을 정확하게 요약, 재구성하는 능력이 탁월합니다. '과학적 글쓰기' 단원에서, 복잡한 의학 실험 과정을 일반 대중이 이해하기 쉽게 설명하는 글을 작성하는 과제를 훌륭히 수행했습니다. 전문성과 대중성 사이의 균형을 맞추는 능력이 돋보이며, 미래의 의사로서 갖추어야 할 소통 역량을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "과학과제 연구",
+      "content": "1년간 '미세 유체 칩을 이용한 혈액 분석 기술의 효율성 증진 방안'에 대해 연구를 수행했습니다. 관련 논문을 분석하여 기존 기술의 한계를 파악하고, 칩 내부 채널의 기하학적 구조를 변경하여 혈구와 혈장을 분리하는 효율을 높이는 시뮬레이션 모델을 제안했습니다. 창의적인 문제 해결 능력과 끈기 있는 탐구 자세가 돋보이며, 자기주도적 연구 수행 능력을 증명했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "사회문제 탐구",
+      "content": "'원격의료 도입에 따른 사회적 갈등과 해결 방안'을 주제로 설문조사와 문헌 연구를 병행하여 탐구 보고서를 작성했습니다. 의료계, 산업계, 환자 단체의 입장을 심층적으로 분석하고, 각 집단의 이해관계를 조정하기 위한 정책적 대안을 제시했습니다. 사회 문제의 복잡성을 이해하고 합리적인 해결책을 모색하는 성숙한 사고가 돋보입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "운동과 건강",
+      "content": "신체 활동이 정신 건강에 미치는 긍정적 영향, 특히 스트레스 해소와 우울감 완화 기전에 대해 탐구했습니다. 운동 시 분비되는 엔도르핀, 세로토닌 등의 신경전달물질의 역할을 과학적으로 분석하고, 자신의 학업 스트레스 관리법으로 꾸준한 조깅을 실천하며 그 효과를 직접 체험하고 기록하는 등 이론과 실천을 겸비한 태도를 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악 감상과 비평",
+      "content": "음악이 환자의 심리적 안정에 미치는 영향에 대해 관심을 갖고 '음악 치료'를 주제로 탐구 보고서를 작성했습니다. 바로크 시대 음악의 규칙적인 박자와 리듬이 심박수 안정에 도움을 준다는 연구 결과를 소개하고, 병원 환경에 적합한 음악을 직접 선곡하여 발표하는 등 예술을 과학적 탐구와 연결하는 창의성을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "진로와 직업",
+      "content": "자신의 진로 희망인 '로봇 수술 외과 의사'가 되기 위한 구체적인 학업 및 경력 계획을 설계했습니다. 의예과-의학과-전공의-전문의 과정과 함께, 의공학 대학원 진학 또는 관련 연구소와의 협력 등 융합 연구 역량을 기르기 위한 장기적인 로드맵을 제시하며, 자신의 미래에 대한 확고한 비전과 치밀한 준비성을 보여주었습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "'총, 균, 쇠'(재레드 다이아몬드)를 읽고, 지리적·환경적 요인이 인류 문명의 발달 격차에 미친 영향을 이해함. 이를 통해 질병의 확산 또한 문명 교류의 중요한 매개였음을 파악하고, 거시적 관점에서 역사를 분석하는 시각을 기름.",
+      "author": "재레드 다이아몬드",
+      "bookTitle": "총, 균, 쇠"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "'수학의 눈으로 본 인체'(크리스토프 드뢰서)를 읽고, 심장 박동의 프랙탈 구조, 혈관의 분포 등 인체 곳곳에 숨겨진 수학적 원리를 발견함. 생명 현상을 수학적으로 모델링하는 것에 대한 흥미를 느낌.",
+      "author": "크리스토프 드뢰서",
+      "bookTitle": "수학의 눈으로 본 인체"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "과학",
+      "bookDescription": "'코스모스'(칼 세이건)를 읽고, 광대한 우주 속에서 생명의 존재가 갖는 의미를 성찰함. 과학적 사실을 인문학적 감성으로 풀어내는 저자의 통찰을 통해 과학자의 사회적 소통 역할의 중요성을 깨달음.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "진로",
+      "bookDescription": "'의사, 인간을 만나다'(가네다 신)를 읽고, 질병뿐만 아니라 환자의 삶 전체를 이해하려는 의사의 태도에 깊은 감명을 받음. 미래 의사로서 갖추어야 할 공감 능력과 인문학적 소양의 필요성을 절감함.",
+      "author": "가네다 신",
+      "bookTitle": "의사, 인간을 만나다"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "국어",
+      "bookDescription": "'멋진 신세계'(올더스 헉슬리)를 읽고, 과학기술의 발달이 인간의 존엄성과 자유를 어떻게 위협할 수 있는지 고찰함. 특히 유전 공학과 약물 통제가 만들어내는 디스토피아적 미래를 보며, 과학기술의 윤리적 통제 필요성에 대해 깊이 고민함.",
+      "author": "올더스 헉슬리",
+      "bookTitle": "멋진 신세계"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "수학",
+      "bookDescription": "'알고리즘, 인생을 계산하다'(브라이언 크리스천)를 읽고, 최적 멈춤 문제, 탐색과 활용의 트레이드오프 등 컴퓨터 과학의 알고리즘이 인간의 의사결정 과정에 어떻게 적용될 수 있는지 탐구함. 진단 및 치료법 선택 과정의 합리적 의사결정 모델에 대해 관심을 갖게 됨.",
+      "author": "브라이언 크리스천",
+      "bookTitle": "알고리즘, 인생을 계산하다"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "'When Breath Becomes Air'(Paul Kalanithi)를 읽고, 유망한 신경외과 의사에서 말기 암 환자가 된 저자의 삶과 죽음에 대한 깊은 성찰에 큰 울림을 받음. 의사이자 환자로서의 경험을 통해 깨닫게 된 삶의 가치와 의사의 역할에 대해 다시 생각하는 계기가 됨.",
+      "author": "Paul Kalanithi",
+      "bookTitle": "When Breath Becomes Air (숨결이 바람 될 때)"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "과학(물리)",
+      "bookDescription": "'엘러건트 유니버스'(브라이언 그린)를 읽고, 끈 이론과 다차원 우주 등 현대 물리학의 최전선에 있는 이론들을 접하며 지적 호기심을 느낌. 눈에 보이지 않는 세계를 수학적 모델과 논리로 탐구하는 물리학의 방법론에 매료됨.",
+      "author": "브라이언 그린",
+      "bookTitle": "엘러건트 유니버스"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "과학(생명)",
+      "bookDescription": "'이기적 유전자'(리처드 도킨스)를 읽고, 유전자의 관점에서 생명 현상을 해석하는 혁신적인 시각을 배움. 생물의 모든 행동이 유전자의 생존과 번식을 위한 전략이라는 주장을 비판적으로 검토하며 생명의 본질에 대해 깊이 탐구함.",
+      "author": "리처드 도킨스",
+      "bookTitle": "이기적 유전자"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "진로",
+      "bookDescription": "'수술, 마지막 선택'(아툴 가완디)를 읽고, 수술 현장의 긴박함과 외과의사가 겪는 딜레마, 그리고 실수를 통해 성장하는 과정을 생생하게 느낌. 외과의사에게 요구되는 냉철한 판단력, 정교한 기술, 그리고 인간적 고뇌를 이해하며 진로에 대한 확신을 다짐.",
+      "author": "아툴 가완디",
+      "bookTitle": "수술, 마지막 선택 (원제: Complications)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어",
+      "bookDescription": "'정의란 무엇인가'(마이클 샌델)를 읽고, 공리주의, 자유지상주의, 공동체주의 등 다양한 정의론을 학습함. 이를 의료 자원 분배 문제에 적용하여, 한정된 의료 자원을 어떻게 배분하는 것이 정의로운지에 대해 고찰하는 계기가 됨.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "과학(생명)",
+      "bookDescription": "'크랙'(제니퍼 다우드나)을 읽고, CRISPR 유전자 가위 기술의 발견 과정과 그 잠재력, 그리고 인류에게 던지는 윤리적 질문들을 생생하게 접함. 과학자로서의 연구 윤리와 사회적 책임감을 깊이 생각하게 됨.",
+      "author": "제니퍼 다우드나",
+      "bookTitle": "크랙 (A Crack in Creation)"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "과학(융합)",
+      "bookDescription": "'사피엔스'(유발 하라리)를 읽고, 인지혁명, 농업혁명, 과학혁명을 거치며 인류가 어떻게 지구의 정복자가 되었는지 통찰함. 특히 과학혁명 이후 인류가 얻게 된 막강한 힘과 그에 따르는 책임을 의학적 관점에서 성찰함.",
+      "author": "유발 하라리",
+      "bookTitle": "사피엔스"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회",
+      "bookDescription": "'죽음의 수용소에서'(빅터 프랭클)를 읽고, 극한의 상황에서도 삶의 의미를 찾으려는 인간의 의지에 깊은 감명을 받음. 환자의 육체적 고통뿐만 아니라 정신적, 실존적 고통까지 돌보는 전인적 치료의 중요성을 깨달음.",
+      "author": "빅터 프랭클",
+      "bookTitle": "죽음의 수용소에서"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "'로봇 시대, 인간의 일'(구본권)을 읽고, 인공지능과 로봇 기술이 미래의 직업 세계, 특히 의료 분야에 미칠 변화를 예측해봄. 수술 로봇이 외과의사의 역할을 대체하는 것이 아니라, 의사의 능력을 확장하고 보조하는 파트너가 될 것이라는 관점에서 자신의 진로를 구체적으로 설계함.",
+      "author": "구본권",
+      "bookTitle": "로봇 시대, 인간의 일"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 왕성하고 자기주도적 학습 능력이 뛰어난 학생임. 특히 과학 분야에 대한 깊은 관심으로 수업 내용과 연관된 추가 탐구를 꾸준히 수행함. 학급 부회장으로서 책임감을 갖고 학급의 문제 해결에 앞장서며, 친구들의 의견을 경청하고 합리적으로 조율하는 소통 능력을 보여줌. 따뜻한 마음으로 친구들을 돕는 등 공동체 의식이 투철함."
+    },
+    {
+      "grade": 2,
+      "content": "명확한 목표를 설정하고 이를 달성하기 위해 꾸준히 노력하는 성실한 학생임. 학업에 대한 열정이 뛰어나 심화된 내용을 탐구하고 자신의 것으로 만드는 능력이 탁월함. 의생명 로보틱스 동아리를 직접 창설하고 부장으로 활동하며 뛰어난 리더십과 문제 해결 능력을 보여줌. 타인에 대한 공감 능력을 바탕으로 봉사활동에 진심으로 참여하는 모습이 인상적임."
+    },
+    {
+      "grade": 3,
+      "content": "학업 역량과 인성을 겸비한 모범적인 학생임. 생명과학과 공학을 융합하여 의학적 문제를 해결하려는 뚜렷한 진로 목표를 갖고 있으며, 이를 위해 심도 있는 탐구 활동을 지속함. 지식을 나누는 데 기쁨을 느껴 또래 멘토링에 적극 참여하며, 후배들에게 훌륭한 본보기가 됨. 예비 의료인으로서 갖춰야 할 깊이 있는 학문적 탐구 능력과 따뜻한 윤리 의식을 균형 있게 발전시켜 온 인재임."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "content": "기본 운동 능력이 우수하고 모든 활동에 적극적으로 참여함. 특히 팀 스포츠에서 뛰어난 협응력과 동료애를 보여줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "A",
+      "content": "음악 이론에 대한 이해가 빠르고, 특히 음악 감상 활동에서 작품의 형식과 특징을 잘 파악하여 표현함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "미술",
+      "achievementLevel": "A",
+      "content": "창의적인 아이디어를 시각적으로 표현하는 능력이 돋보이며, 특히 디자인과 관련된 과제에서 뛰어난 완성도를 보여줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "체육",
+      "achievementLevel": "A",
+      "content": "체력과 지구력이 뛰어나며, 꾸준한 자기 관리를 통해 건강한 생활을 실천하는 모습이 모범적임.",
+      "creditHours": 2
+    }
+  ]
+}

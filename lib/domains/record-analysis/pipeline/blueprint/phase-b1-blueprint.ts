@@ -53,7 +53,11 @@ export async function runBlueprintGeneration(
   );
   const active = await listActiveMainExplorations(studentId, tenantId);
   if (active.length === 0) {
-    return "활성 메인 탐구 없음 — Blueprint 생성 불가 (메인 탐구 설정 필요)";
+    // Bootstrap(BT1)이 실행된 후에도 활성 메인 탐구가 없으면 실질적 오류.
+    // silent completed 대신 failed 마킹 → 사용자에게 명시적 실패 노출.
+    // (오케스트레이터가 BT1 실패 시 이미 차단하지만, BT1이 completed이어도
+    //  사용자가 메인 탐구를 수동 삭제하는 경우를 포함해 이중 방어 적용.)
+    throw new Error("활성 메인 탐구 없음 — 메인 탐구를 설정한 후 Blueprint를 재실행해주세요");
   }
 
   // ── Cross-run 연속성 힌트 로드 ────────────────────

@@ -181,6 +181,27 @@ export function buildUserPrompt(input: SetekGuideInput): string {
     if (gridSection) prompt += gridSection;
   }
 
+  // 학생 정체성 프로필 카드 (P0 Layer 0 결과 — interestConsistency + crossGradeThemes)
+  // 빈 문자열("") 또는 undefined 시 생략
+  if (input.studentProfileCard) {
+    prompt += `## 학생 정체성 (학년 누적 프로필)\n`;
+    prompt += `다음은 이 학생의 학년 누적 정체성 요약입니다.\n`;
+    prompt += `**제안하는 가이드 방향이 이 정체성과 정합되어야 합니다.**\n\n`;
+    prompt += `${input.studentProfileCard}\n\n`;
+  }
+
+  // 세특 서사 완성도(8단계) 섹션 — studentProfileCard 다음에 주입
+  if (input.narrativeArcSection) {
+    prompt += `${input.narrativeArcSection}\n\n`;
+    prompt += `위 8단계 분석을 참고하여, 핵심 단계(①호기심 ②주제 ③탐구 ⑤결론)가 누락된 패턴을\n`;
+    prompt += `보완하는 방향으로 가이드를 작성하세요.\n\n`;
+  }
+
+  // β+1: MidPipeline Planner 메타 판정 섹션 — 컨설턴트 우선순위 반영
+  if (input.midPlanSection) {
+    prompt += `${input.midPlanSection}\n\n`;
+  }
+
   // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
   if (input.analysisContext) {
     const { qualityIssues, weakCompetencies, warningPatterns } = input.analysisContext;

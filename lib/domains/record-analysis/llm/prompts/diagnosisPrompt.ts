@@ -286,6 +286,11 @@ export function buildDiagnosisUserPrompt(params: {
   coursePlanSection: string;
   /** Phase δ-6 (G11): 활성 메인 탐구 섹션. tier 정합성 평가 기준. */
   mainExplorationSection?: string;
+  /**
+   * S2 narrative_arc_extraction 산출물 기반 8단계 서사 완성도 섹션.
+   * buildNarrativeArcDiagnosisSection()이 생성한 섹션을 전달. 없으면 생략.
+   */
+  narrativeArcSection?: string;
   /** B1: NEIS 데이터 없는 설계 모드 → prospective 프레임 활성화 */
   isProspective?: boolean;
 }): string {
@@ -293,7 +298,7 @@ export function buildDiagnosisUserPrompt(params: {
     studentInfo, activityTags, gradesSummary, tagsSummary,
     trendSection, adequacySection, gapSection,
     edgeSummarySection, qualityPatternSection, crossSubjectThemesSection, coursePlanSection,
-    mainExplorationSection, isProspective,
+    mainExplorationSection, narrativeArcSection, isProspective,
   } = params;
 
   const prospectiveBanner = isProspective
@@ -328,6 +333,6 @@ ${gradesSummary}
 ## 활동 태그 (총 ${activityTags.length}건)
 ${tagsSummary}
 ${trendSection}${adequacySection}${gapSection}
-${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${crossSubjectThemesSection ? `\n${crossSubjectThemesSection}\n` : ""}${mainExplorationSection ? `\n${mainExplorationSection}\n` : ""}${coursePlanSection}
-위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요. 학년별 과목 교차 테마가 제공된 경우 다학년 반복·심화 테마를 강점 증거로 구체 인용하고, 단일 진로 수렴 시 진로과잉도배 약점으로 명시하세요. 메인 탐구가 제공된 경우, 학생의 활동·역량이 메인 탐구 tier_plan(기초/발전/심화) 과 정합하는지 평가하여 강점 또는 약점에 반드시 반영하세요.`;
+${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}${qualityPatternSection ? `\n${qualityPatternSection}\n` : ""}${crossSubjectThemesSection ? `\n${crossSubjectThemesSection}\n` : ""}${narrativeArcSection ? `\n${narrativeArcSection}\n` : ""}${mainExplorationSection ? `\n${mainExplorationSection}\n` : ""}${coursePlanSection}
+위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요. 세특 품질 패턴 분석이 제공된 경우 반복 감지된 패턴을 약점 및 개선 전략에 반드시 반영하세요. 학년별 과목 교차 테마가 제공된 경우 다학년 반복·심화 테마를 강점 증거로 구체 인용하고, 단일 진로 수렴 시 진로과잉도배 약점으로 명시하세요. 세특 서사 완성도(8단계 분석)가 제공된 경우 핵심 4단계(①호기심 ②주제 ③탐구 ⑤결론) 충족률과 누락 패턴을 약점 또는 개선 전략에 반드시 반영하세요. 메인 탐구가 제공된 경우, 학생의 활동·역량이 메인 탐구 tier_plan(기초/발전/심화) 과 정합하는지 평가하여 강점 또는 약점에 반드시 반영하세요.`;
 }

@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { apiSuccess, handleApiError } from "@/lib/api";
-import { ensureBootstrap, BootstrapError } from "@/lib/domains/record-analysis/pipeline/bootstrap";
+import { runBootstrapPipeline } from "@/lib/domains/student-record/actions/pipeline-orchestrator-init";
 
 /**
- * Phase 1 Auto-Bootstrap 수동 실행.
+ * Auto-Bootstrap 수동 큐잉 (ops 전용).
  *
  * POST /api/admin/students/[studentId]/bootstrap
  *
- * 내부 동작: target_major 검증 + main_exploration/course_plan 자동 생성(없을 때만).
- * `runFullOrchestration` 이 진입 시 자동 호출하므로 일반 경로에서는 호출 불필요.
- * seed/ops/테스트 스크립트용.
+ * pipelineType="bootstrap" row 를 INSERT 하고 BT0/BT1/BT2 태스크를 pending 으로 큐잉한다.
+ * 실제 phase 실행은 클라이언트가 `/api/admin/pipeline/bootstrap/phase-1` 로 주도.
+ * `runFullOrchestration` 진입 시 자동 큐잉되므로 일반 경로에서는 호출 불필요 — seed/ops 스크립트용.
  */
 export async function POST(
   _req: NextRequest,
@@ -21,15 +21,15 @@ export async function POST(
     const { studentId } = await context.params;
     const tenantId = auth.tenantId!;
 
-    const result = await ensureBootstrap(studentId, tenantId);
-    return apiSuccess(result);
-  } catch (err) {
-    if (err instanceof BootstrapError) {
+    const result = await runBootstrapPipeline(studentId, tenantId);
+    if (!result.success || !result.data) {
       return Response.json(
-        { ok: false, error: err.message, step: err.step },
+        { ok: false, error: result.success ? "pipelineId 누락" : result.error },
         { status: 400 },
       );
     }
+    return apiSuccess({ pipelineId: result.data.pipelineId });
+  } catch (err) {
     return handleApiError(err);
   }
 }

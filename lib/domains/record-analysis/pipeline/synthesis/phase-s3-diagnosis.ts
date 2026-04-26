@@ -213,6 +213,17 @@ export async function runAiDiagnosis(
   const { fetchActiveMainExplorationSection, buildBlueprintContextSection } = await import("./helpers");
   const mainExplorationSection = await fetchActiveMainExplorationSection(studentId, tenantId);
 
+  // narrative_arc 8단계 서사 완성도 섹션 (best-effort: 실패 시 undefined → 진단 계속)
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import(
+      "@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section"
+    );
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, supabase);
+  } catch (narErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcDiagnosisSection" }, narErr, { pipelineId });
+  }
+
   // Blueprint-Axis: blueprint 설계 기준 섹션 (best-effort)
   const blueprintSection = buildBlueprintContextSection(ctx);
   if (blueprintSection) {
@@ -278,7 +289,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

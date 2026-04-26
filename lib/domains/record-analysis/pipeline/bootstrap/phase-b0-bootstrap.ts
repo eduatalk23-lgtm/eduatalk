@@ -2,7 +2,7 @@
 // Bootstrap Pipeline Phase B0 — 3 Runner 분해
 // (Auto-Bootstrap Phase 2, 2026-04-18)
 //
-// 기존 pipeline/bootstrap.ts 의 ensureBootstrap 내부 로직을 3 runner로 분해.
+// pipelineType="bootstrap" 의 BT0/BT1/BT2 3 runner 구현.
 // 각 runner 는 TaskRunnerOutput 반환 — runTaskWithState 와 연동.
 //
 // BT0: target_major_validation — 표준 키 검증 (실패 시 cascade 차단)
@@ -20,7 +20,7 @@ import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { generateMainExplorationSeed } from "../../llm/actions/generateMainExplorationSeed";
 import { withExtendedRetry } from "../../llm/withExtendedRetry";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
-import { BootstrapError } from "./ensure-bootstrap";
+import { BootstrapError } from "./bootstrap-error";
 import { buildRecordSummaryForSeed } from "./build-record-summary";
 
 const LOG_CTX = { domain: "record-analysis", action: "bootstrap.phase-b0" };
@@ -152,10 +152,10 @@ export async function runMainExplorationSeed(
     });
   }
 
-  // Phase 3: 장시간 rate limit 회복 허용 (누적 ~21분, heartbeat 30초 간격).
-  //   Gemini Free Tier 분/일 할당량 고갈 시 짧은 withRetry (10s) 로는 복구 불가.
-  //   Bootstrap 은 파이프라인 시작점 → 여기서 실패하면 하위 cascade 전부 차단되므로
-  //   긴 대기를 감수하고 회복을 기다리는 선택이 사용자 UX 에 우위.
+  // BT1 task 단위 route(300s Vercel 한도) 에서 실행되므로 대기 상한을 60s로 제한.
+  //   [1s, 10s, 60s] 3회 재시도, 누적 ~71s + LLM 호출 시간. rate limit 미회복 시
+  //   task=pending 으로 남아 클라이언트가 재호출 시 idempotent 재시도 가능.
+  //   기존 단일 phase-1 route 맥락에서는 maxDelayMs 없이 전체 21분 정책 유지.
   const seed = await withExtendedRetry(
     () => generateMainExplorationSeed({
       targetMajor,
@@ -168,6 +168,7 @@ export async function runMainExplorationSeed(
       pipelineId: ctx.pipelineId,
       supabase: ctx.supabase as SupabaseAdminClient,
       label: "bootstrap.main_exploration_seed",
+      maxDelayMs: 60_000,
     },
   );
 
@@ -179,8 +180,14 @@ export async function runMainExplorationSeed(
   }
 
   const schoolYear = calculateSchoolYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const semester: 1 | 2 = currentMonth >= 3 && currentMonth <= 8 ? 1 : 2;
+  // KST 기준 월로 학기 판정 (UTC 사용 시 02/28 22:00 KST ≈ 02/28 13:00 UTC 경계 오판).
+  const kstMonth = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      month: "numeric",
+    }).format(new Date()),
+  );
+  const semester: 1 | 2 = kstMonth >= 3 && kstMonth <= 8 ? 1 : 2;
 
   try {
     await createMainExploration({
@@ -237,10 +244,12 @@ export async function runCoursePlanRecommend(
   assertBootstrapCtx(ctx);
   const { studentId, tenantId, supabase } = ctx;
 
+  // tenant_id 명시: admin client 경로(RLS 우회)에서 cross-tenant row 카운트 방지.
   const { count: planCount } = await supabase
     .from("student_course_plans")
     .select("id", { count: "exact", head: true })
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
 
   if ((planCount ?? 0) > 0) {
     logActionDebug(LOG_CTX, "course_plan 이미 존재 — skip", {

@@ -1,0 +1,1086 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/서울대-정치외-10",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 91,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_서울대_정치외_010",
+    "schoolName": "가상 일반고 K",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "서울대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합전형",
+      "department": "정치외교학부",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김교사",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이교사",
+      "studentNumber": "20301"
+    },
+    {
+      "grade": 3,
+      "className": "2반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박교사",
+      "studentNumber": "30201"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 1일",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "병원 진료로 인한 병조퇴 1회",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 영어 말하기 대회 대상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 1,
+      "awardName": "사회탐구 보고서 대회 우수상",
+      "awardDate": "2024-11-20",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "모범학생 표창",
+      "awardDate": "2025-06-10",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "제1회 교내 모의유엔 총회 최우수 대표상",
+      "awardDate": "2025-09-25",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 정책 제안 에세이 대회 금상",
+      "awardDate": "2025-12-05",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "졸업생 대표 공로상",
+      "awardDate": "2027-02-10",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "인문학 탐구 프로젝트 발표대회 최우수상",
+      "awardDate": "2026-07-18",
+      "awardLevel": "교내",
+      "awardingBody": "학교장",
+      "participants": "팀(4인)"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 회의에서 '교실 내 디지털 기기 사용 규칙'을 주제로 한 토론을 주도하여 합리적인 규칙 제정에 기여함. 또한, 학교 폭력 예방 교육에 적극적으로 참여하고, '방관자도 가해자'라는 주제의 캠페인 아이디어를 제안하여 긍정적인 또래 문화를 조성하는 데 앞장서는 모습을 보였습니다.",
+      "activityName": "학급 자치활동 및 학교 교육 참여",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "1학년 학급 부회장으로 활동하며 학급 내 갈등 중재 및 소통 창구 역할을 충실히 수행함. 특히 '칭찬 릴레이' 활동을 제안하고 운영하여 학급 구성원 간의 유대감을 증진시키고 긍정적인 학급 분위기를 형성하는 데 핵심적인 역할을 했습니다.",
+      "activityName": "학급 부회장",
+      "hours": 0
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "시사토론 및 모의유엔 동아리(K-MUN)의 신입 부원으로, '국제 난민 문제와 해결 방안'을 주제로 한 첫 모의유엔 회의에 시리아 대표로 참가함. 철저한 자료 조사를 바탕으로 난민 수용에 대한 자국의 입장을 논리적으로 주장하였으며, 다른 국가 대표들과의 협상을 통해 실효성 있는 결의안 초안을 작성하는 데 기여했습니다.",
+      "activityName": "시사토론 및 모의유엔(K-MUN)",
+      "hours": 40
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 탐색의 날에 열린 '외교관과의 대화' 프로그램에 참여하여 다자외교와 공공외교의 중요성에 대한 이해를 넓힘. 이후 '소프트파워가 한국 외교에 미치는 영향'이라는 주제로 소논문을 작성하여 발표하며, K-POP과 같은 문화적 자산을 활용한 외교 전략의 필요성을 주장하는 등 진로에 대한 구체적인 탐색 과정을 보여주었습니다.",
+      "activityName": "진로 탐색 및 설계",
+      "hours": 15
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "후배들을 위한 멘토-멘티 프로그램을 기획하고, 자신의 학습 경험과 학교생활 적응 노하우를 공유하는 멘토로 활동함. 특히 학습 부진을 겪는 후배에게 자신만의 '개념 노트 정리법'을 전수하고 꾸준히 격려하여 후배의 성적 향상을 이끌어내는 등 나눔과 배려의 리더십을 실천했습니다.",
+      "activityName": "멘토-멘티 프로그램 기획 및 참여",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생회 정책부 차장으로 활동하며 '학생 참여 예산제'를 제안하고, 설문조사를 통해 학생들의 의견을 수렴하여 학교 측에 전달함. 그 결과, 노후된 휴게 공간 개선 예산이 반영되는 성과를 이끌어내며 학생 자치 활성화에 실질적으로 기여했습니다.",
+      "activityName": "학생회 정책부 차장",
+      "hours": 0
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "시사토론 및 모의유엔 동아리(K-MUN)의 부장으로서 제1회 교내 모의유엔 총회를 성공적으로 기획하고 개최함. '기후변화 대응을 위한 국제 협력'을 의제로 선정하고, 의제 배경 가이드북 제작, 국가별 입장 정리 자료 배포 등 체계적인 준비 과정으로 참가자들의 높은 만족도를 이끌어냈습니다. 본인은 미국 대표를 맡아 파리 기후 협약의 한계와 개선점을 날카롭게 지적하며 논의를 주도했습니다.",
+      "activityName": "시사토론 및 모의유엔(K-MUN) 부장",
+      "hours": 40
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "국제관계 전문가를 희망하는 친구들과 '국제정세 스터디 그룹'을 자율적으로 조직하여 매주 'Foreign Affairs'와 같은 전문 저널의 아티클을 읽고 토론함. 특히 '미중 기술 패권 경쟁과 글로벌 공급망 재편'을 주제로 심층 분석 보고서를 작성하며, 국제정치의 복잡성을 구조적으로 이해하려는 노력을 보였습니다.",
+      "activityName": "자율 스터디 그룹 조직 및 운영",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "학교 축제에서 '세계를 향한 K-고의 창'이라는 이름의 부스를 기획하고 운영함. 각국의 외교 현안을 다룬 퀴즈, 모의유엔 의사규칙 체험 코너 등을 통해 학우들의 국제 문제에 대한 관심을 높이는 데 기여했으며, 부스 운영 수익금 전액을 국제 구호 단체에 기부하며 세계시민의식을 실천했습니다.",
+      "activityName": "학교 축제 부스 기획 및 운영",
+      "hours": 15
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "3학년 학생 대표로서 수험생들의 면학 분위기 조성을 위한 캠페인을 주도하고, '소음 없는 복도 만들기', '점심시간 후 10분 명상' 등의 아이디어를 실천하여 학업 스트레스 관리 및 집중력 향상에 긍정적인 영향을 미쳤습니다.",
+      "activityName": "3학년 학생 대표",
+      "hours": 0
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "시사토론 및 모의유엔 동아리(K-MUN)의 고문 역할을 맡아 신입 부원들의 의사규칙 교육과 자료 조사 방법론 멘토링을 담당함. 자신의 3년간의 활동 경험을 바탕으로 '성공적인 모의유엔 참가를 위한 가이드' 책자를 제작하여 동아리의 지적 자산으로 남기는 등 공동체의 발전을 위해 헌신하는 모습을 보였습니다.",
+      "activityName": "시사토론 및 모의유엔(K-MUN) 고문",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "자신의 3년간의 탐구 활동과 진로 고민을 '국제관계 전문가의 꿈, 그 여정을 그리다'라는 제목의 포트폴리오로 정리함. 특히 모의유엔 활동, 보고서 작성, 독서 활동 등을 '국제 분쟁 해결', '공공외교', '인권' 등의 핵심 역량과 연결하여 체계적으로 분석하며, 자신의 성장 과정을 성찰하고 미래의 학업 계획을 구체화하는 깊이 있는 사고를 보여주었습니다.",
+      "activityName": "자기 성장 포트폴리오 제작",
+      "hours": 10
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01~2025-02-28",
+      "cumulativeHours": 20,
+      "description": "지역 아동센터 영어 동화책 읽어주기 및 학습 보조 활동",
+      "hours": 20,
+      "location": "행복나눔 아동센터"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01~2026-02-28",
+      "cumulativeHours": 40,
+      "description": "유네스코 주관 다문화 가정 자녀 멘토링 및 한국 문화 소개",
+      "hours": 20,
+      "location": "유네스코 한국위원회"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01~2026-08-31",
+      "cumulativeHours": 52,
+      "description": "교내 환경 정화 및 분리수거 캠페인 활동 주도",
+      "hours": 12,
+      "location": "교내"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "classAverage": 85.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 7.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "1",
+      "classAverage": 82.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 9.2,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "1",
+      "classAverage": 88.4,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.8,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "1",
+      "classAverage": 86.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 7.1,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "1",
+      "classAverage": 80.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 8.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "1",
+      "classAverage": 89,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 5.5,
+      "subjectType": "공통",
+      "totalStudents": 180
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 7.2,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "1",
+      "classAverage": 83.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 8.9,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "1",
+      "classAverage": 89.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.5,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1",
+      "classAverage": 87.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.9,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1",
+      "classAverage": 81.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8.1,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1",
+      "classAverage": 90.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 5.1,
+      "subjectType": "공통",
+      "totalStudents": 178
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "1",
+      "classAverage": 85.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 8,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 80.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 10.1,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 87.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 7.3,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "정치와 법",
+      "achievementLevel": "1",
+      "classAverage": 88.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.7,
+      "subjectType": "일반선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "세계사",
+      "achievementLevel": "1",
+      "classAverage": 89.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 5.9,
+      "subjectType": "일반선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "중국어Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 90.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.2,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 86.8,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 7.5,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 81.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 9.8,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 88.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 7,
+      "subjectType": "일반선택",
+      "totalStudents": 175
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "achievementLevel": "1",
+      "classAverage": 87.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 6.8,
+      "subjectType": "일반선택",
+      "totalStudents": 90
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "동아시아사",
+      "achievementLevel": "1",
+      "classAverage": 88.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.1,
+      "subjectType": "일반선택",
+      "totalStudents": 85
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "중국어Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 89.8,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 6.5,
+      "subjectType": "일반선택",
+      "totalStudents": 115
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 88.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 6.5,
+      "subjectType": "일반선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어 독해",
+      "achievementLevel": "A",
+      "classAverage": 85.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8.2,
+      "subjectType": "일반선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "국제 정치",
+      "achievementLevel": "A",
+      "classAverage": 89.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 5.5,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "국제법",
+      "achievementLevel": "A",
+      "classAverage": 90.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 4.8,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "A",
+      "classAverage": 87.8,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 6.8,
+      "subjectType": "진로선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "논술",
+      "achievementLevel": "A",
+      "classAverage": 86.5,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 95,
+      "stdDev": 7.2,
+      "subjectType": "진로선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "P",
+      "classAverage": 0,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 0,
+      "stdDev": 0,
+      "subjectType": "일반선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 영어 독해",
+      "achievementLevel": "P",
+      "classAverage": 0,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 0,
+      "stdDev": 0,
+      "subjectType": "일반선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제 정치",
+      "achievementLevel": "P",
+      "classAverage": 0,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 0,
+      "stdDev": 0,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제법",
+      "achievementLevel": "P",
+      "classAverage": 0,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 0,
+      "stdDev": 0,
+      "subjectType": "진로선택",
+      "totalStudents": 55
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "사회문제 탐구",
+      "achievementLevel": "P",
+      "classAverage": 0,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 0,
+      "stdDev": 0,
+      "subjectType": "진로선택",
+      "totalStudents": 170
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "achievementLevel": "P",
+      "classAverage": 0,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 0,
+      "stdDev": 0,
+      "subjectType": "진로선택",
+      "totalStudents": 170
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "매체 자료의 비판적 수용 능력이 뛰어난 학생임. '가짜뉴스와 미디어 리터러시'를 주제로 한 발표에서, 특정 국제 분쟁에 대한 국내외 언론 보도를 비교 분석하여 동일한 사건이 각국의 정치적 입장에 따라 어떻게 다르게 프레이밍되는지 실증적으로 보여주었습니다. 발표 후에는 사실 확인(fact-checking)의 중요성과 편향된 정보에 대응하는 시민의 자세를 역설하여 큰 공감을 얻었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "수학적 개념을 실생활 문제 해결에 적용하는 능력이 우수함. '수학으로 세상읽기' 프로젝트에서 '갈등 해결을 위한 게임 이론의 적용'이라는 주제를 선정, 죄수의 딜레마 모델을 학교 내 갈등 상황에 적용하여 최적의 해결책이 '협력'임을 수학적으로 증명해냈습니다. 복잡한 문제를 단순한 모델로 치환하고 논리적으로 해결책을 도출하는 과정이 인상 깊었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "수준 높은 어휘력과 유창성을 바탕으로 자신의 의견을 논리적으로 표현하는 능력이 탁월함. '세계 시민의 역할'에 대한 에세이 작성 과제에서, 반기문 전 UN 사무총장의 연설문을 분석하고 '지속가능발전목표(SDGs)'를 실현하기 위한 개인적, 국가적 노력을 구체적으로 제시하였습니다. 특히 공공외교(public diplomacy)의 중요성을 강조하며 문화 교류를 통한 국제 이해 증진 방안을 제안하는 모습이 돋보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "지적 호기심이 왕성하며 탐구 주제를 심화시키는 능력이 뛰어남. '펠로폰네소스 전쟁' 수업 중 투키디데스의 '역사의 교훈'에 깊은 흥미를 보이며, 이를 현대 국제정치에 적용하는 탐구로 확장시켰습니다. '투키디데스 함정(Thucydides's Trap) 이론으로 본 미중 관계 분석' 보고서를 통해, 그레이엄 앨리슨의 저서를 참고하여 미중 간의 구조적 갈등 요인을 분석하고 전쟁을 피하기 위한 외교적 해법을 모색하는 등 뛰어난 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "과학적 탐구 방법론에 대한 이해가 깊고, 이를 사회 현상 분석에 융합하려는 시도가 돋보임. '생태계와 환경' 단원 학습 후, '공유지의 비극' 모델을 지구 온난화 문제에 적용하여 개별 국가의 합리적 선택이 어떻게 전 지구적 위기로 이어지는지 분석하는 보고서를 제출하였습니다. 과학적 모델을 사회과학적 문제 분석의 틀로 활용하는 융합적 사고 능력이 우수합니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "역사적 사실을 현재적 관점에서 재해석하는 능력이 탁월함. '조선시대의 외교 정책'을 주제로 한 발표에서, 광해군의 중립외교와 인조의 친명배금 정책이 가져온 결과를 비교 분석하며, 당시의 국제 정세 속에서 실리 외교의 중요성을 강조하였습니다. 역사적 사건을 통해 오늘날 한국의 외교가 나아갈 방향에 대한 깊이 있는 성찰을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "문학 작품에 대한 깊이 있는 감상과 비평 능력을 갖춤. 조지 오웰의 '1984'를 읽고, 작품 속 전체주의 사회의 언어 통제 방식(Newspeak)이 대중의 사고를 어떻게 제약하는지 분석하는 서평을 작성하였습니다. 이를 현대 사회의 정치적 프레임과 연결 지어, 언어가 권력 유지의 도구로 사용되는 양상을 비판적으로 성찰하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "논리적 추론 능력이 뛰어나며 명제와 증명 단원에서 특히 두각을 나타냄. '수학적 귀납법을 이용한 국제관계 모델의 타당성 검증'이라는 독창적인 아이디어를 제시, '도미노 이론'과 같은 특정 국제정치 이론이 전제하는 논리적 비약을 수학적 증명 과정을 통해 비판적으로 검토해보려는 시도를 보였습니다. 수학적 엄밀함을 다른 학문 분야에 적용하려는 자세가 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "다양한 주제의 영문 텍스트를 빠르고 정확하게 이해하며, 비판적으로 분석하는 능력이 우수함. 'The Economist'지의 기사를 활용한 수업에서, '브렉시트가 유럽 연합의 미래에 미치는 영향'에 대한 기사를 요약, 분석하고, 기사에 드러난 필자의 관점과 잠재적 편향성을 지적하는 등 높은 수준의 비판적 읽기 능력을 선보였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "시장 경제와 불평등 문제에 대한 관심이 높음. '자본주의와 경제 불평등' 단원 학습 후, 토마 피케티의 '21세기 자본'의 핵심 주장을 요약하고, 소득 불평등 심화 현상이 민주주의의 안정성에 미치는 영향에 대해 탐구 보고서를 작성하였습니다. 경제 현상을 사회·정치적 맥락 속에서 종합적으로 이해하려는 노력이 돋보입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "과학 기술의 발전이 사회에 미치는 영향에 대한 성찰이 깊음. '정보통신과 신소재' 단원과 관련하여, SNS와 빅데이터 기술이 현대 민주주의 선거 과정에 미치는 영향을 '케임브리지 애널리티카 스캔들'을 중심으로 분석하고, 기술의 발전에 따른 새로운 사회 윤리와 법적 규제의 필요성을 역설하는 발표를 진행하여 큰 호응을 얻었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "역사적 사건의 인과관계를 구조적으로 파악하는 능력이 뛰어남. '일제강점기 독립운동'에 대한 학습을 바탕으로, 3.1 운동이 이후 대한민국 임시정부 수립과 외교 중심의 독립운동 노선에 어떤 영향을 주었는지 체계적으로 분석하였습니다. 특히 파리 강화 회의에 파견된 김규식의 활동에 주목하며, 초기 독립운동에서 외교가 차지했던 중요성을 재조명하는 등 깊이 있는 탐구 자세를 보였습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "작품의 사회·역사적 배경을 이해하고 이를 바탕으로 깊이 있는 해석을 이끌어내는 능력이 탁월함. 카프카의 '변신'을 읽고, 주인공의 소외를 개인의 실존적 문제로만 보지 않고, 당시 급격한 산업화와 관료주의 사회 속에서 개인이 겪는 비인간화 현상으로 확대 해석하는 보고서를 제출함. 문학을 통해 인간과 사회의 근원적 문제를 탐구하는 인문학적 소양을 갖추었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "그래프와 함수에 대한 이해도가 높고, 이를 활용하여 사회 현상의 변화 추이를 분석하는 데 흥미를 보임. '지수함수와 로그함수' 단원 학습 후, 감염병 확산 모델(SIR 모델)의 초기 단계가 지수함수 그래프와 유사하다는 점에 착안하여, 감염병 확산 방지를 위한 '사회적 거리두기' 정책의 효과를 그래프의 기울기 변화로 설명하는 발표를 진행함. 수학적 도구를 활용한 문제 해결 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "content": "정치, 사회 분야의 고급 어휘 구사 능력이 뛰어나며 토론 수업에서 두각을 나타냄. '표현의 자유는 어디까지 허용되어야 하는가'를 주제로 한 영어 토론에서, '혐오 발언(hate speech)'에 대한 법적 규제가 표현의 자유를 침해하는지, 아니면 사회적 약자 보호를 위해 필수적인지에 대한 찬반 논리를 명확하게 제시하며 토론을 이끌었습니다. 논리적 사고력과 유창한 영어 구사 능력이 인상적입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "정치와 법",
+      "content": "국제법에 대한 지적 호기심이 왕성하며, 이를 자신의 진로와 연결하여 심화 탐구함. '국제법의 법원(法源)' 단원 학습 후, 국제사법재판소(ICJ)의 독도 관련 판례는 없지만, '실효적 지배'가 영유권 분쟁에서 중요한 국제법적 원칙임을 학습하고, '독도 영유권에 대한 한국의 실효적 지배 강화 방안 연구' 보고서를 작성함. 외교적 노력과 병행할 수 있는 구체적인 정책 대안을 제시하는 등 뛰어난 문제 해결 능력을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "세계사",
+      "content": "역사적 사건을 비교사적 관점에서 분석하는 능력이 우수함. '베스트팔렌 조약'과 '빈 체제'를 비교 분석하는 과제에서, 두 체제가 각각 근대 국가 주권 개념의 확립과 세력 균형 원리를 통한 유럽 질서 재편이라는 역사적 의의를 가짐을 명확히 설명함. 나아가 이러한 역사적 경험이 현대 UN 중심의 다자주의 체제 형성에 어떤 영향을 미쳤는지 연결하여 설명하는 등 거시적 안목을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "중국어Ⅰ",
+      "content": "언어 학습 능력이 뛰어나며, 배운 언어를 활용해 해당 국가의 문화를 이해하려는 적극적인 태도를 보임. 중국의 주요 외교 정책인 '일대일로(一带一路)'에 대한 기사를 원문으로 읽고, 핵심 내용을 요약 발표함. 경제적 협력의 이면에 있는 지정학적 영향력 확대라는 정치적 목표를 분석하며, 중국의 대외 전략을 다각적으로 이해하려는 노력을 보여주었습니다. (진로연계)"
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "비판적 독서 능력을 바탕으로 저자의 주장을 재구성하고 자신만의 대안을 제시하는 능력이 탁월함. 재레드 다이아몬드의 '총, 균, 쇠'를 읽고, 환경결정론적 시각이 갖는 한계를 지적하며, '제도'와 '문화'라는 변수가 인류 문명의 발전에 미친 영향을 보완하여 설명해야 한다는 내용의 서평을 작성함. 수동적인 지식 수용을 넘어 능동적으로 지식을 재창조하는 탐구 자세를 갖추었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미적분 개념에 대한 깊이 있는 이해를 바탕으로 변화율과 최적화 문제에 강점을 보임. '미분을 이용한 최적화 문제' 프로젝트에서, 한정된 외교 자원(예산, 인력)을 여러 국가에 어떻게 배분해야 국익을 극대화할 수 있는지를 설명하는 함수 모델을 설계하고, 미분을 통해 최적의 배분 지점을 찾는 과정을 발표함. 추상적인 수학 개념을 구체적인 문제 상황에 창의적으로 적용하는 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "영문 학술 자료에 대한 이해도가 높고, 이를 바탕으로 심화된 글쓰기 능력을 보여줌. '글로벌 리더십'을 주제로 한 프로젝트에서, 조지프 나이의 '소프트 파워' 개념을 소개하는 영문 에세이를 작성함. 군사력이나 경제력 같은 '하드 파워'와 대비되는 소프트 파워의 중요성을 구체적인 사례(K-POP의 세계적 인기 등)를 들어 설득력 있게 설명하였으며, 간결하고 명확한 학술적 글쓰기 스타일이 돋보였습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "사회·문화",
+      "content": "사회 현상을 기능론, 갈등론 등 다양한 이론적 관점에서 분석하는 능력이 뛰어남. '문화 변동' 단원 학습 후, 'K-POP의 세계화 현상을 어떻게 볼 것인가'를 주제로 한 토론에서, 기능론적 관점에서는 문화 교류와 상호 이해 증진의 긍정적 측면을, 갈등론적 관점에서는 문화 제국주의의 변형된 형태일 수 있다는 비판적 측면을 균형 있게 제시하며 논의의 깊이를 더했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "동아시아사",
+      "content": "동아시아 국제 관계사의 흐름을 정확히 꿰뚫고 있으며, 현재의 갈등 구조를 역사적 맥락에서 이해함. '청일전쟁과 러일전쟁'이 동아시아의 국제 질서를 어떻게 재편했는지 학습한 후, 이러한 세력 전이의 역사가 현재의 미중 갈등 및 동아시아 영유권 분쟁에 주는 함의를 분석하는 보고서를 작성함. 과거와 현재를 넘나들며 역사적 통찰력을 보여주는 모습이 인상적이었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "중국어Ⅱ",
+      "content": "고급 수준의 중국어 구사 능력을 바탕으로 시사적인 주제에 대한 토론이 가능함. '양안관계(两岸关系)'를 주제로 한 발표에서, 중국과 대만 언론의 관련 보도를 비교 분석하며 양측의 입장 차이와 논리의 근거를 설명함. 특히 '하나의 중국' 원칙과 '92공식(九二共识)'과 같은 핵심 개념을 정확히 이해하고 설명하여 학우들의 이해를 도왔습니다. (진로연계)"
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "설득과 협상을 위한 화법에 대한 이해가 깊음. '협상 전략 보고서' 작성 과제에서, 이란 핵 합의(JCPOA) 과정을 분석하며, 각 참여국(미국, 이란, EU 등)의 이해관계와 협상 전략을 정리함. 특히 '다자간 협상'의 복잡성과 단계적 접근법의 중요성을 강조하며, 성공적인 협상을 위한 커뮤니케이션 전략을 체계적으로 분석하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "심화 영어 독해",
+      "content": "국제관계 분야의 영문 학술 논문을 비판적으로 읽고 분석하는 능력을 갖춤. 존 미어샤이머의 'The Tragedy of Great Power Politics'의 일부를 발췌하여 읽고, 국제정치를 비관적으로 바라보는 '공격적 현실주의'의 핵심 논리를 요약 정리함. 이후 자유주의적 관점(로버트 코헤인 등)의 반론을 스스로 찾아보고, 두 이론의 장단점을 비교 분석하는 심화 탐구 보고서를 제출하여 지적 탐구심을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "국제 정치",
+      "content": "국제정치학의 주요 이론을 깊이 이해하고, 이를 실제 국제 현안 분석에 탁월하게 적용함. '현실주의와 자유주의 이론을 통해 본 러시아-우크라이나 전쟁 분석'이라는 주제로 학기말 보고서를 작성함. 미어샤이머의 현실주의 시각(NATO의 동진이 러시아를 자극했다는 주장)과 자유주의 시각(민주주의와 독재체제의 대립, 국제법 위반)을 모두 균형 있게 다루고, 참고문헌(Foreign Affairs, 국제정치논총 등)을 명시하며 학술적 글쓰기의 기본을 충실히 따랐습니다. 전쟁의 장기화 원인을 구조적, 행위자적 차원에서 다각도로 분석한 점이 매우 우수합니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "국제법",
+      "content": "국제법의 실제 적용 사례에 대한 탐구 능력이 돋보임. '국제해양법' 수업에서 남중국해 분쟁에 대한 2016년 상설중재재판소(PCA)의 판결을 심층 분석함. 판결의 주요 내용과 법적 근거를 정리하고, 중국이 판결을 거부하는 이유를 국제정치적 맥락에서 분석하였습니다. '법의 지배'가 힘의 논리가 지배하는 국제정치에서 작동하기 위한 조건을 고찰하는 등 깊이 있는 탐구 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "사회문제 탐구",
+      "content": "탐구 주제를 선정하고, 연구를 설계하며, 결론을 도출하는 전 과정에서 자기주도적 학습 능력이 뛰어남. '기후 변화가 국제 안보에 미치는 영향'을 주제로 탐구 프로젝트를 진행함. 기후 변화로 인한 자원 부족, 해수면 상승, 대규모 난민 발생 등이 어떻게 국가 간 분쟁의 새로운 원인이 되는지를 시리아 내전, 아프리카 사헬 지대 분쟁 등의 사례를 통해 실증적으로 분석하였습니다. 연구의 결론으로 '기후 안보(Climate Security)'라는 새로운 안보 개념의 필요성을 주장하여 높은 평가를 받았습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "논술",
+      "content": "복잡한 제시문을 정확하게 독해하고, 이를 바탕으로 자신의 논지를 설득력 있게 전개하는 능력이 우수함. '세계화의 빛과 그림자'를 주제로 한 모의 논술에서, 세계화가 경제 성장과 문화 교류에 기여한 긍정적 측면(빛)과, 국가 간·계층 간 불평등을 심화시킨 부정적 측면(그림자)을 균형 있게 서술함. 특히 신자유주의적 세계화의 대안으로 '포용적 세계화'를 제시하며, 국제적 연대와 사회 안전망 강화를 해결책으로 제시하는 등 문제 해결 지향적 사고를 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "화법과 작문",
+      "content": "1학기 동안 연마한 협상과 설득의 원리를 바탕으로 학급 내 다양한 의견을 조율하고 합의를 이끌어내는 데 꾸준히 기여하는 등 배움을 실천하는 모습을 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "심화 영어 독해",
+      "content": "1학기에 이어 국제정치 관련 영문 아티클을 꾸준히 읽고 스크랩하며 자신의 관점을 정리하는 활동을 지속함. 특히 졸업을 앞두고 'The Post-American World'(파리드 자카리아)를 원서로 읽으며 다극화 시대의 국제 질서에 대한 이해를 넓혔습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제 정치",
+      "content": "1학기 연구 주제였던 '러시아-우크라이나 전쟁'에 대한 후속 탐구를 진행하며, 전쟁이 장기화됨에 따라 변화하는 국제 정세와 외교적 노력들을 꾸준히 추적하고 분석하는 성실한 모습을 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "국제법",
+      "content": "자신이 3년간 탐구했던 국제 분쟁 사례(남중국해, 독도 등)들을 국제법적 관점에서 재정리하고, '국제법의 이상과 현실'이라는 주제로 성찰적 에세이를 작성하며 학업을 마무리하는 모습을 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "사회문제 탐구",
+      "content": "자신이 진행했던 '기후 안보' 연구를 바탕으로, 교내 캠페인에 사용할 홍보 자료를 제작하고 후배들에게 자신의 탐구 경험을 공유하는 등 지식 나눔을 실천했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "논술",
+      "content": "대학별 논술 기출문제를 풀어보고 친구들과 토론하며 자신의 논리를 더욱 정교하게 다듬는 노력을 꾸준히 지속함. 특히 반론을 예상하고 이를 재반박하는 훈련을 통해 비판적 사고력을 심화시켰습니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어/사회",
+      "bookDescription": "'총, 균, 쇠'(재레드 다이아몬드)를 읽고, 문명의 발달이 인종적 우월성이 아닌 환경적 요인에 의해 결정되었음을 학습함. 이를 통해 국제 관계에서 나타나는 국가 간 격차의 원인을 역사적, 지리적 맥락에서 이해하게 됨.",
+      "author": "재레드 다이아몬드",
+      "bookTitle": "총, 균, 쇠"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "영어/진로",
+      "bookDescription": "'소프트 파워'(조지프 나이)를 읽고, 군사력이나 경제력과 같은 하드 파워뿐만 아니라 문화, 가치, 정책이 지닌 매력을 통한 소프트 파워가 21세기 외교의 핵심임을 이해함. 한국의 소프트 파워 증진 방안에 대해 고민하게 됨.",
+      "author": "조지프 나이",
+      "bookTitle": "소프트 파워"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "사회",
+      "bookDescription": "'역사란 무엇인가'(E.H. 카)를 읽고, 역사는 '과거와 현재의 끊임없는 대화'라는 말을 통해 역사적 사실은 역사가의 해석을 통해 의미를 갖게 됨을 깨달음. 국제 분쟁을 바라볼 때 다양한 국가의 역사적 관점을 고려해야 함을 배움.",
+      "author": "E.H. 카",
+      "bookTitle": "역사란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "사회/진로",
+      "bookDescription": "'20년의 위기'(E.H. 카)를 읽고, 1차 세계대전 이후 이상주의적 국제정치관의 실패와 현실주의적 세력 정치의 등장을 학습함. 국제정치의 냉혹한 현실과 이상주의적 목표 사이의 긴장 관계를 이해하게 됨.",
+      "author": "E.H. 카",
+      "bookTitle": "20년의 위기"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어/사회",
+      "bookDescription": "'국가는 왜 실패하는가'(대런 애쓰모글루, 제임스 A. 로빈슨)를 읽고, 국가의 흥망성쇠를 결정하는 핵심 요인이 지리나 문화가 아닌 '포용적 정치·경제 제도'임을 확인함. 민주적이고 개방적인 제도가 국가 발전에 미치는 중요성을 깨달음.",
+      "author": "대런 애쓰모글루, 제임스 A. 로빈슨",
+      "bookTitle": "국가는 왜 실패하는가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "국어/사회",
+      "bookDescription": "'정의란 무엇인가'(마이클 샌델)를 읽고, 공리주의, 자유지상주의, 공동체주의 등 다양한 정의론을 학습하며 국제 원조, 소수집단 우대 정책 등 현실의 딜레마에 대해 토론함. 절대적인 정의는 없으며, 사회적 합의 과정이 중요함을 인식함.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "과학",
+      "bookDescription": "'팩트풀니스'(한스 로슬링)를 읽고, 데이터와 통계를 기반으로 세상을 올바르게 인식하는 방법을 배움. 국제 문제에 대한 막연한 편견에서 벗어나, 사실에 근거하여 현상을 분석하고 판단하는 태도를 기르는 계기가 됨.",
+      "author": "한스 로슬링",
+      "bookTitle": "팩트풀니스"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회/진로",
+      "bookDescription": "'강대국 국제정치의 비극'(존 미어샤이머)을 읽고, 국제정치에 대한 '공격적 현실주의' 이론을 심도 있게 학습함. 국가들이 안보를 위해 끊임없이 패권을 추구할 수밖에 없는 무정부 상태의 국제 체제 논리를 이해하고, 이에 대한 비판적 관점을 고민함.",
+      "author": "존 미어샤이머",
+      "bookTitle": "강대국 국제정치의 비극"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "사회/진로",
+      "bookDescription": "'국제 분쟁의 이해'(조지프 나이, 데이비드 웰치)를 읽고, 1, 2차 세계대전부터 냉전, 탈냉전기 분쟁까지 주요 국제 분쟁의 원인과 전개 과정을 구조적, 국가적, 개인적 차원에서 분석하는 틀을 익힘. 학기 중 진행한 탐구 활동의 이론적 토대를 다지는 데 큰 도움이 됨.",
+      "author": "조지프 나이, 데이비드 웰치",
+      "bookTitle": "국제 분쟁의 이해"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "국어",
+      "bookDescription": "'코스모스'(칼 세이건)를 읽고, 광활한 우주 속 지구와 인류의 존재를 성찰하며, '창백한 푸른 점' 위에서 벌어지는 갈등과 대립이 얼마나 무의미한지를 느낌. 인류애와 평화에 대한 감수성을 기르고, 과학적 사고와 인문학적 성찰의 융합을 경험함.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "지적 호기심이 뛰어나고 자기주도적 학습 능력이 돋보이는 학생임. 국제 이슈에 대한 관심이 높아 교내 모의유엔 동아리에서 핵심 부원으로 활동하며 논리적 사고와 소통 능력을 길렀습니다. 학급 부회장으로서 책임감을 갖고 공동체의 문제 해결에 앞장서는 등 리더십과 봉사 정신을 두루 갖추었습니다."
+    },
+    {
+      "grade": 2,
+      "content": "국제관계 전문가라는 뚜렷한 목표를 향해 꾸준히 정진하는 학생임. 모의유엔 동아리 부장으로서 교내 총회를 성공적으로 이끌며 탁월한 기획력과 리더십을 증명했습니다. 심화된 학업 탐구와 폭넓은 독서를 통해 자신의 지적 세계를 확장하고, 이를 바탕으로 동료들과 토론하며 함께 성장하는 성숙한 모습을 보입니다."
+    },
+    {
+      "grade": 3,
+      "content": "3년간의 깊이 있는 탐구와 성찰을 통해 국제정치 분야의 예비 학자로서의 역량을 유감없이 보여준 학생임. 복잡한 국제 현안을 이론적 틀로 분석하고 자신만의 대안을 제시하는 지적 성숙함을 갖추었습니다. 뛰어난 지성뿐 아니라 따뜻한 인성과 공동체에 대한 헌신으로 주변 학생들에게 귀감이 되었습니다."
+    }
+  ],
+  "careerAspirations": [],
+  "certifications": [],
+  "peArtGrades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "체육1",
+      "achievementLevel": "A",
+      "content": "농구 수업에서 팀의 포인트 가드 역할을 맡아 뛰어난 경기 운영 능력과 동료와의 협동심을 보여줌.",
+      "creditHours": 2
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "A",
+      "content": "'사회적 메시지를 담은 포스터 디자인' 프로젝트에서 환경 문제를 주제로 한 독창적인 작품을 제작하여 창의성과 표현력을 인정받음.",
+      "creditHours": 2
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "체육2",
+      "achievementLevel": "A",
+      "content": "배드민턴 복식 경기에서 파트너와 훌륭한 팀워크를 보이며, 전략적인 플레이로 경기를 주도함.",
+      "creditHours": 2
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "음악 감상과 비평",
+      "achievementLevel": "A",
+      "content": "베토벤 교향곡 9번 '합창'을 듣고, 프랑스 혁명의 '자유, 평등, 박애' 정신이 음악으로 승화된 과정을 분석하는 깊이 있는 감상문을 제출함.",
+      "creditHours": 2
+    }
+  ]
+}

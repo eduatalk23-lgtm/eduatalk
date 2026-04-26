@@ -1,0 +1,1078 @@
+{
+  "metadata": {
+    "sourceFilePath": "synthetic://vertex/고려대-환경생-37",
+    "sourceFileFormat": "pdf",
+    "parseQualityScore": 89,
+    "parseErrors": [],
+    "parsedBy": "synthetic:vertex:gemini-2.5-pro"
+  },
+  "studentInfo": {
+    "name": "합성_고려대_환경생_037",
+    "schoolName": "가상 일반고 LL",
+    "enrollmentYear": 2024,
+    "curriculumRevision": "2022",
+    "graduationYear": 2027,
+    "schoolCategory": "일반고"
+  },
+  "admissions": [
+    {
+      "universityName": "고려대학교",
+      "admissionYear": 2027,
+      "admissionRound": "early_comprehensive",
+      "admissionType": "학생부종합",
+      "department": "환경생태공학부",
+      "isPrimary": true
+    }
+  ],
+  "enrollment": [
+    {
+      "grade": 1,
+      "className": "1반",
+      "enrollmentDate": "2024-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "김가현",
+      "studentNumber": "10101"
+    },
+    {
+      "grade": 2,
+      "className": "3반",
+      "enrollmentDate": "2025-03-03",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "이나윤",
+      "studentNumber": "20301"
+    },
+    {
+      "grade": 3,
+      "className": "3반",
+      "enrollmentDate": "2026-03-02",
+      "enrollmentStatus": "재학",
+      "homeroomTeacher": "박다은",
+      "studentNumber": "30301"
+    }
+  ],
+  "attendance": [
+    {
+      "grade": 1,
+      "absenceSick": 1,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 1,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "감기 몸살로 인한 병결 및 병원 진료로 인한 병조퇴",
+      "schoolDays": 192
+    },
+    {
+      "grade": 2,
+      "absenceSick": 2,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "독감으로 인한 병결",
+      "schoolDays": 191
+    },
+    {
+      "grade": 3,
+      "absenceSick": 0,
+      "absenceUnauthorized": 0,
+      "absenceOther": 0,
+      "latenessSick": 0,
+      "latenessUnauthorized": 0,
+      "latenessOther": 0,
+      "earlyLeaveSick": 0,
+      "earlyLeaveUnauthorized": 0,
+      "earlyLeaveOther": 0,
+      "classAbsenceSick": 0,
+      "classAbsenceUnauthorized": 0,
+      "classAbsenceOther": 0,
+      "notes": "개근",
+      "schoolDays": 190
+    }
+  ],
+  "awards": [
+    {
+      "grade": 1,
+      "awardName": "교내 과학 탐구 보고서 대회 은상",
+      "awardDate": "2024-07-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 1,
+      "awardName": "학업 우수상 (국어)",
+      "awardDate": "2024-12-28",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 환경 글짓기 대회 대상",
+      "awardDate": "2025-06-05",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "모범 학생 표창",
+      "awardDate": "2025-07-20",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 2,
+      "awardName": "교내 융합과학 토론대회 금상",
+      "awardDate": "2025-11-22",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "팀(3인)"
+    },
+    {
+      "grade": 3,
+      "awardName": "학업 최우수상 (생명과학II, 지구과학II)",
+      "awardDate": "2026-07-18",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "개인"
+    },
+    {
+      "grade": 3,
+      "awardName": "졸업생 공로상",
+      "awardDate": "2027-01-15",
+      "awardLevel": "교내",
+      "awardingBody": "가상 일반고 LL 교장",
+      "participants": "개인"
+    }
+  ],
+  "creativeActivities": [
+    {
+      "grade": 1,
+      "activityType": "autonomy",
+      "content": "학급 환경부장으로서 '잔반 제로 캠페인'을 기획하고 주도적으로 운영함. 음식물 쓰레기 배출량 변화를 그래프로 시각화하여 게시하고, 잔반을 남기지 않은 학생에게 칭찬 스티커를 부여하는 등 구체적인 실천 방안을 제시하여 학급 친구들의 참여를 성공적으로 이끌어냈습니다. 이를 통해 전월 대비 음식물 쓰레기 양을 20% 감축하는 성과를 거두며 공동체 문제 해결에 기여하는 리더십을 보여주었습니다.",
+      "activityName": "학급 환경부장 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "self_governance",
+      "content": "학생자치회 환경부원으로 활동하며 '교내 재활용품 분리배출 개선 프로젝트'에 참여함. 기존 분리수거함의 문제점을 분석하고, 품목별 배출 요령을 그림으로 도식화한 안내문을 제작하여 부착하는 아이디어를 제안했습니다. 이 아이디어가 채택되어 교내 전체 분리수거함에 적용되었으며, 재활용품의 오염률을 낮추는 데 실질적으로 기여하며 주인의식을 갖고 학교 환경 개선에 참여하는 태도를 보였습니다.",
+      "activityName": "학생자치회 환경부 활동",
+      "hours": 20
+    },
+    {
+      "grade": 1,
+      "activityType": "club",
+      "content": "과학탐구반 '사이언스퀘어' 부원으로 활동하며 교내 화단의 식물 군집을 조사하고 생태 지도를 제작하는 프로젝트에 참여함. 식물도감을 활용하여 각 식물의 종을 동정하고, 계절별 변화를 사진으로 기록하여 데이터베이스를 구축했습니다. 이 과정에서 특정 외래종 식물이 토착 식물의 성장을 저해하는 것을 발견하고, 이를 보고서로 작성하여 생물 다양성 보존의 중요성을 깊이 인식하는 계기가 되었습니다.",
+      "activityName": "과학탐구반 '사이언스퀘어'",
+      "hours": 30
+    },
+    {
+      "grade": 1,
+      "activityType": "career",
+      "content": "진로 특강 '환경공학자와의 만남'에 참여하여 수질오염 정화 기술, 폐기물 에너지화 등 구체적인 연구 분야에 대한 설명을 듣고 깊은 감명을 받음. 이후 '환경생태공학'이라는 진로 분야를 구체화하고, 관련 대학의 학과 정보를 탐색하며 자신의 흥미와 적성을 연결하는 노력을 시작했습니다. 특히 기후변화가 생태계에 미치는 영향에 대한 질의를 통해 탐구에 대한 강한 의지를 보여주었습니다.",
+      "activityName": "진로 특강 및 탐색 활동",
+      "hours": 10
+    },
+    {
+      "grade": 2,
+      "activityType": "autonomy",
+      "content": "교내 과학의 날 부스 운영을 총괄 기획함. '탄소 발자국 줄이기'를 주제로 일상생활 속 탄소 배출량을 계산해보는 체험 활동과 업사이클링 화분 만들기 키트를 제공하는 부스를 운영하여 학생들의 큰 호응을 얻었습니다. 팀원들의 의견을 조율하고 역할을 분배하는 과정에서 뛰어난 소통 능력과 리더십을 발휘하였으며, 과학 지식을 대중과 공유하는 활동에 보람을 느끼는 모습을 보였습니다.",
+      "activityName": "과학의 날 부스 운영",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "self_governance",
+      "content": "학생자치회 부회장으로서 '에너지 절약 주간'을 제안하고 실행함. 각 학급의 에너지 사용량을 실시간으로 모니터링하여 게시하고, 점심시간 소등 및 냉난방기 적정 온도 유지 캠페인을 주도했습니다. 활동 결과 전년 동기 대비 학교 전체 전력 사용량을 15% 절감하는 가시적인 성과를 이끌어내며, 정책 제안과 실행을 통해 공동체의 긍정적 변화를 만들어내는 역량을 증명했습니다.",
+      "activityName": "학생자치회 부회장 활동",
+      "hours": 20
+    },
+    {
+      "grade": 2,
+      "activityType": "club",
+      "content": "환경탐사반 '에코가디언'의 창립 멤버이자 부장으로서 활동을 이끎. '학교 주변 하천의 수질 및 생태계 모니터링'을 연간 프로젝트로 설정하고, 정기적으로 간이 수질 측정 키트를 이용해 pH, DO, BOD 등을 측정하고 데이터를 축적했습니다. 수질 측정 결과를 바탕으로 하천 오염의 원인을 인근 생활하수 유입으로 추정하고, 이를 개선하기 위한 방안을 담은 정책 제안서를 지역 구청에 제출하는 등 탐구 결과를 사회적 실천으로 연결하는 적극성을 보였습니다.",
+      "activityName": "환경탐사반 '에코가디언'",
+      "hours": 30
+    },
+    {
+      "grade": 2,
+      "activityType": "career",
+      "content": "자신의 진로 희망과 관련하여 '생태복원 전문가'의 역할과 전망에 대해 심층적으로 탐구함. 국립생태원, 환경부 등의 공식 홈페이지와 관련 논문을 찾아보며 훼손된 생태계를 복원하는 구체적인 기술(예: 식생 복원, 토양 정화)과 정책적 노력에 대해 학습했습니다. 탐구 내용을 바탕으로 '도시 하천 생태계 복원 방안 연구'라는 주제의 소논문을 작성하며 진로에 대한 전문적인 지식을 심화시켰습니다.",
+      "activityName": "진로 심화 탐구 활동",
+      "hours": 10
+    },
+    {
+      "grade": 3,
+      "activityType": "autonomy",
+      "content": "졸업 준비 위원회의 일원으로 '친환경 졸업 앨범' 제작을 제안하고 실행에 옮김. 재생용지 사용, QR코드를 활용한 동영상 앨범 대체 등 구체적인 아이디어를 제시하여 자원 낭비를 최소화하는 데 기여했습니다. 친구들에게 제안의 취지를 설명하고 설득하는 과정을 통해 환경보호의 가치를 공유하고 공동체의 동의를 이끌어내는 의사소통 능력을 보여주었습니다.",
+      "activityName": "친환경 졸업 앨범 제작",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "self_governance",
+      "content": "학생자치회 주관으로 열린 '후배들을 위한 진로 멘토링' 프로그램에서 자연계열 멘토로 참여함. 1, 2학년 동안 자신의 진로를 탐색하고 심화시켜 온 과정을 구체적인 사례와 함께 발표하여 후배들에게 큰 동기 부여를 했습니다. 특히 생기부 관리 노하우와 과목별 탐구 주제 선정 방법을 공유하며, 자신이 받은 긍정적 영향을 다시 공동체에 환원하고자 하는 성숙한 태도를 보였습니다.",
+      "activityName": "진로 멘토링 활동",
+      "hours": 20
+    },
+    {
+      "grade": 3,
+      "activityType": "club",
+      "content": "환경탐사반 '에코가디언' 부장으로서 2년간 축적한 하천 모니터링 데이터를 분석하여 '지난 2년간의 하천 생태 변화와 수질 개선 방안에 대한 최종 보고서'를 발간하고 교내 축제에서 발표함. 데이터 시각화 자료를 활용하여 변화 추이를 명확하게 제시하고, 지속 가능한 하천 관리를 위한 정책적 제언과 시민 참여의 중요성을 강조하여 청중들로부터 큰 박수를 받았습니다. 후배 부원들에게 연구 방법론을 전수하며 동아리의 지속적인 발전에 기여했습니다.",
+      "activityName": "환경탐사반 '에코가디언'",
+      "hours": 30
+    },
+    {
+      "grade": 3,
+      "activityType": "career",
+      "content": "기후변화와 생태계의 상호작용에 대한 깊은 관심을 바탕으로 '탄소 중립 사회로의 전환을 위한 기술적, 정책적 과제'에 대해 최종적인 진로 보고서를 작성함. IPCC(기후변화에 관한 정부 간 협의체) 6차 보고서를 직접 읽고 분석하며, 과학적 데이터가 어떻게 정책 결정의 근거가 되는지 탐구했습니다. 이를 통해 과학 지식을 바탕으로 사회 문제 해결에 기여하는 '환경생태공학자'가 되겠다는 구체적인 목표와 학업 계획을 수립하였습니다.",
+      "activityName": "진로 최종 보고서 작성",
+      "hours": 10
+    }
+  ],
+  "volunteerRecords": [
+    {
+      "grade": 1,
+      "activityDate": "2024-03-01~2025-02-28",
+      "cumulativeHours": 20,
+      "description": "지역 환경단체 주관 '우리 동네 하천 가꾸기' 활동에 매월 1회 정기적으로 참여하여 하천변 쓰레기 수거 및 생태 교란 식물(가시박 등) 제거 활동에 성실히 임함.",
+      "hours": 20,
+      "location": "○○구 환경운동연합"
+    },
+    {
+      "grade": 2,
+      "activityDate": "2025-03-01~2026-02-28",
+      "cumulativeHours": 45,
+      "description": "작년에 이어 '우리 동네 하천 가꾸기' 활동에 지속적으로 참여하였으며, 여름방학 기간에는 국립공원과 연계하여 진행된 '어린이 생태 교실' 프로그램에서 보조 교사로 활동하며 참가자들에게 숲 해설 및 자연물 놀이를 안내하는 등 봉사활동의 폭을 넓힘.",
+      "hours": 25,
+      "location": "○○구 환경운동연합, △△ 국립공원"
+    },
+    {
+      "grade": 3,
+      "activityDate": "2026-03-01~2026-07-31",
+      "cumulativeHours": 55,
+      "description": "3학년이 되어서도 꾸준히 매월 1회 하천 정화 활동에 참여하여 봉사의 생활화를 실천함. 새로 가입한 봉사자들에게 활동 요령을 안내하고 솔선수범하는 모습을 보여 귀감이 됨.",
+      "hours": 10,
+      "location": "○○구 환경운동연합"
+    }
+  ],
+  "grades": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "achievementLevel": "1",
+      "classAverage": 82.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 15.2,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "achievementLevel": "2",
+      "classAverage": 75.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94.2,
+      "stdDev": 18.9,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "achievementLevel": "1",
+      "classAverage": 80.4,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 16.3,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "achievementLevel": "2",
+      "classAverage": 85.2,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 95,
+      "stdDev": 12.1,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "achievementLevel": "1",
+      "classAverage": 78.9,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 17.5,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "achievementLevel": "2",
+      "classAverage": 81.1,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 96.3,
+      "stdDev": 14.8,
+      "subjectType": "공통",
+      "totalStudents": 250
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "achievementLevel": "1",
+      "classAverage": 83.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99.2,
+      "stdDev": 14.5,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "achievementLevel": "2",
+      "classAverage": 76.8,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 95.5,
+      "stdDev": 18.2,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "achievementLevel": "2",
+      "classAverage": 81.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 94,
+      "stdDev": 16.8,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "achievementLevel": "1",
+      "classAverage": 84.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.1,
+      "stdDev": 13,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "achievementLevel": "1",
+      "classAverage": 79.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.8,
+      "stdDev": 16.9,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "achievementLevel": "1",
+      "classAverage": 82.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 97.8,
+      "stdDev": 14.1,
+      "subjectType": "공통",
+      "totalStudents": 248
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "achievementLevel": "2",
+      "classAverage": 85,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 93,
+      "stdDev": 11.5,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 72.1,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 91,
+      "stdDev": 20.1,
+      "subjectType": "일반선택",
+      "totalStudents": 150
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 80.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 15.4,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 75.4,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 18,
+      "subjectType": "일반선택",
+      "totalStudents": 140
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "지구과학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 78.2,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 16.5,
+      "subjectType": "일반선택",
+      "totalStudents": 160
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 74.8,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 92.1,
+      "stdDev": 19.2,
+      "subjectType": "일반선택",
+      "totalStudents": 135
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "achievementLevel": "1",
+      "classAverage": 86.1,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.2,
+      "stdDev": 10.9,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 73.5,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 96,
+      "stdDev": 19.8,
+      "subjectType": "일반선택",
+      "totalStudents": 148
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "achievementLevel": "1",
+      "classAverage": 81.3,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 98.5,
+      "stdDev": 14.8,
+      "subjectType": "일반선택",
+      "totalStudents": 245
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "생명과학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 76.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 100,
+      "stdDev": 17.5,
+      "subjectType": "일반선택",
+      "totalStudents": 138
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "지구과학Ⅰ",
+      "achievementLevel": "1",
+      "classAverage": 79,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 99.3,
+      "stdDev": 15.9,
+      "subjectType": "일반선택",
+      "totalStudents": 155
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅰ",
+      "achievementLevel": "2",
+      "classAverage": 75.3,
+      "creditHours": 3,
+      "rankGrade": 2,
+      "rawScore": 93.4,
+      "stdDev": 18.8,
+      "subjectType": "일반선택",
+      "totalStudents": 132
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "achievementLevel": "1",
+      "classAverage": 88.2,
+      "creditHours": 4,
+      "rankGrade": 1,
+      "rawScore": 99,
+      "stdDev": 9.5,
+      "subjectType": "일반선택",
+      "totalStudents": 180
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "achievementLevel": "2",
+      "classAverage": 70.2,
+      "creditHours": 4,
+      "rankGrade": 2,
+      "rawScore": 90.5,
+      "stdDev": 22.1,
+      "subjectType": "일반선택",
+      "totalStudents": 120
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "생명과학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 78.5,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 95.2,
+      "stdDev": 15,
+      "subjectType": "진로선택",
+      "totalStudents": 80
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "지구과학Ⅱ",
+      "achievementLevel": "A",
+      "classAverage": 80.1,
+      "creditHours": 3,
+      "rankGrade": 1,
+      "rawScore": 96.8,
+      "stdDev": 14.2,
+      "subjectType": "진로선택",
+      "totalStudents": 95
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "환경",
+      "achievementLevel": "A",
+      "classAverage": 85.6,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 98,
+      "stdDev": 10.3,
+      "subjectType": "진로선택",
+      "totalStudents": 130
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "융합과학탐구",
+      "achievementLevel": "A",
+      "classAverage": 89,
+      "creditHours": 2,
+      "rankGrade": 1,
+      "rawScore": 97,
+      "stdDev": 8.8,
+      "subjectType": "진로선택",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제탐구(과학)",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제탐구(인문)",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "미술",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 105
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "기술가정",
+      "achievementLevel": "P",
+      "creditHours": 2,
+      "rankGrade": 1,
+      "subjectType": "교양",
+      "totalStudents": 105
+    }
+  ],
+  "seteks": [
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통국어1",
+      "content": "매체 자료의 특성을 이해하고 비판적으로 수용하는 능력이 뛰어납니다. '환경 문제 관련 뉴스 보도의 프레임 분석'을 주제로 한 발표에서, 동일한 사안을 다루는 여러 언론사의 보도 방식을 비교하며 숨겨진 의도와 맥락을 정확히 짚어내는 모습을 보였습니다. 특히 통계 자료의 시각화 방식이 대중의 인식에 미치는 영향을 논리적으로 설명하여 교사와 학생들로부터 높은 평가를 받았습니다. 이를 통해 미디어 리터러시 역량과 비판적 사고력을 증명하였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통수학1",
+      "content": "수학적 개념을 실생활 문제에 적용하여 해결하는 능력이 우수합니다. 이차함수 단원에서 '대기오염물질 확산 모델의 단순화'를 주제로 탐구 보고서를 작성했습니다. 오염원으로부터의 거리에 따른 농도 변화를 이차함수로 모델링하고, 꼭짓점을 최대오염농도 지점으로 해석하는 창의적인 접근을 보였습니다. 복잡한 현상을 수학적으로 단순화하고 분석하는 과정을 통해 수학적 모델링의 유용성을 깊이 이해하고 문제 해결 능력을 신장시켰습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "공통영어1",
+      "content": "영어 독해 및 작문 능력이 탁월하며, 시사 문제에 대한 관심이 높습니다. 'The Effects of Microplastics on Marine Ecosystems'라는 주제로 영어 에세이를 작성하고 발표했습니다. 관련 영문 기사와 논문을 찾아 읽고 핵심 어휘와 표현을 정확하게 사용하였으며, 해양 생태계 파괴의 심각성을 논리적으로 주장하였습니다. 발표 후 질의응답에서도 자신의 의견을 유창한 영어로 자신감 있게 표현하여 글로벌 이슈에 대한 소통 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합사회1",
+      "content": "사회 현상을 통합적 관점에서 분석하는 능력이 돋보입니다. '기후 변화로 인한 불평등 문제'를 주제로 한 프로젝트에서, 기후 변화가 특정 지역과 사회적 약자에게 더 큰 피해를 준다는 사실을 지리적, 윤리적, 사회적 관점에서 다각적으로 분석했습니다. 특히 선진국과 개발도상국 간의 '기후 정의' 문제를 제기하며, 문제 해결을 위한 국제적 협력의 필요성을 설득력 있게 주장하여 탐구의 깊이를 더했습니다. 교사의 관찰 결과, 토론 시 상대방의 의견을 경청하고 합리적인 대안을 제시하는 등 성숙한 토론 태도를 갖추고 있습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "통합과학1",
+      "content": "과학적 탐구 능력과 지적 호기심이 왕성한 학생입니다. '산성비가 식물 성장에 미치는 영향'을 주제로 한 실험을 설계하고 수행했습니다. pH가 다른 용액을 만들어 콩나물에 꾸준히 공급하며 성장 길이와 상태 변화를 정밀하게 측정하고 기록했습니다. 실험 과정에서 발생할 수 있는 변인을 통제하려는 노력이 돋보였으며, 실험 결과를 그래프와 표로 명확하게 정리하여 보고서를 작성했습니다. 이 활동을 통해 과학적 사실을 직접 확인하고 환경오염의 심각성을 체감하는 의미 있는 경험을 하였습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 1,
+      "subjectName": "한국사1",
+      "content": "역사적 사실을 현재의 관점에서 재해석하는 통찰력이 뛰어납니다. 조선시대의 둔전(屯田)과 구휼 정책에 대해 학습한 후, 이를 현대의 식량 안보 및 기후 위기 대응과 연결하여 보고서를 작성했습니다. 과거의 지혜를 통해 현재의 문제를 해결할 수 있는 실마리를 찾으려는 시도가 인상적이었으며, 역사적 지식이 단지 암기 대상이 아니라 현재와 미래를 비추는 거울임을 깊이 이해하고 있는 학생입니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통국어2",
+      "content": "작품의 사회·문화적 배경을 깊이 있게 이해하고 자신의 삶과 연결하여 성찰하는 능력이 우수합니다. 박경리의 '토지'를 읽고, 작품 속에 나타난 인간과 자연의 관계, 생명 존중 사상에 대해 분석하는 감상문을 작성했습니다. 특히 급격한 산업화 속에서 파괴되어 가는 자연의 모습을 비판적으로 성찰하고, 지속 가능한 발전을 위한 문학의 역할에 대해 고찰하는 등 인문학적 사유의 깊이를 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통수학2",
+      "content": "논리적 추론 능력과 문제 해결 전략이 뛰어납니다. 경우의 수와 확률 단원에서 '몬테카를로 방법'에 흥미를 느끼고, 이를 이용하여 원주율의 근삿값을 구하는 과정을 프로그래밍 언어(파이썬)로 직접 구현해보는 탐구를 진행했습니다. 난수를 생성하여 원 안에 점이 찍힐 확률을 계산하는 과정을 통해, 수학적 원리가 어떻게 컴퓨터 시뮬레이션에 활용되는지 이해하고, 수학과 정보과학의 융합적 사고를 경험했습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "공통영어2",
+      "content": "효과적인 정보 전달을 위한 발표 능력과 영어 구사력이 뛰어납니다. TED 강연을 분석하고 자신의 관심사를 주제로 발표하는 활동에서, 환경운동가 그레타 툰베리의 연설을 분석하고 'The Power of a Single Voice'라는 제목으로 발표를 진행했습니다. 청중의 공감을 이끌어내는 수사적 장치와 비언어적 표현을 분석하고, 이를 자신의 발표에 적용하여 기후 행동의 시급성을 감동적으로 전달하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합사회2",
+      "content": "시장 경제와 환경 문제의 관계를 깊이 있게 탐구했습니다. '탄소 배출권 거래제'의 원리를 학습한 후, 이 제도가 실제로 탄소 감축에 미치는 효과와 한계에 대해 조사하여 보고서를 작성했습니다. 유럽연합(EU-ETS)의 사례를 분석하며 성공 요인과 문제점을 도출하고, 우리나라의 탄소 중립 목표 달성을 위한 제도 개선 방안을 제안하는 등 정책적 대안을 모색하는 비판적 사고력을 보여주었습니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "통합과학2",
+      "content": "생태계와 환경 단원에 대한 이해가 깊고, 시스템적 사고 능력이 뛰어납니다. '생태계의 물질 순환과 에너지 흐름'에 대해 학습한 후, 특정 생물종의 멸종이 생태계 전체에 미치는 연쇄적 영향을 다이어그램으로 표현하는 활동을 수행했습니다. 핵심종(Keystone species)의 개념을 완벽히 이해하고, 꿀벌의 실종이 인류의 식량 위기로 이어질 수 있음을 논리적으로 설명하며 생태계의 유기적 연결성을 강조했습니다. 이러한 탐구는 생명과학에 대한 학생의 깊은 관심을 잘 보여줍니다."
+    },
+    {
+      "grade": 1,
+      "semester": 2,
+      "subjectName": "한국사2",
+      "content": "근현대사 속 환경 문제의 기원을 탐구하는 비판적 시각을 지니고 있습니다. 일제강점기 자원 수탈과 해방 이후 산업화 과정에서 발생한 환경 파괴 사례(예: 산림 남벌, 공해 문제)를 조사하고, 이러한 역사적 경험이 현재의 환경 문제에 어떤 영향을 미쳤는지 분석하는 보고서를 작성했습니다. 개발 논리에 가려졌던 환경의 가치를 역사적 관점에서 재조명하려는 시도가 돋보였습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "문학",
+      "content": "생태주의 문학 작품에 깊은 관심을 보이며, 문학을 통해 인간과 자연의 관계를 성찰하는 태도가 돋보입니다. 최성각의 소설 '풀숲을 쳐다보는 몇 가지 방식'을 읽고, 인간 중심적 사고에서 벗어나 자연을 있는 그대로 존중하는 태도의 중요성에 대한 서평을 작성했습니다. 문학적 감수성을 바탕으로 환경 문제에 대한 윤리적 해결 방안을 모색하는 등 자신의 진로와 교과 내용을 융합하는 능력이 탁월합니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "수학Ⅰ",
+      "content": "지수로그함수를 이용한 현상 모델링에 뛰어난 재능을 보입니다. 방사성 동위원소의 반감기를 학습한 후, 이를 응용하여 특정 오염물질이 자연적으로 정화되는 데 걸리는 시간을 예측하는 수학적 모델을 제시했습니다. 초기 오염도와 반감기라는 변수를 고려하여 시간에 따른 농도 변화를 로그함수로 표현하고, 목표 정화 수준에 도달하는 기간을 계산해내는 과정을 통해 수학적 지식을 실제 환경 문제 분석에 적용하는 역량을 입증했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "영어Ⅰ",
+      "content": "다양한 주제의 영문 아티클을 비판적으로 독해하고 자신의 생각을 논리적으로 표현하는 능력이 우수합니다. 'Renewable Energy' 관련 원서를 읽고 토론하는 스터디 그룹을 자발적으로 조직하여 활동을 이끌었습니다. 태양광, 풍력 등 각 에너지원의 장단점과 기술적 한계에 대해 조사하고, 각국의 에너지 정책을 비교 분석한 내용을 바탕으로 'The Future of Sustainable Energy'라는 주제의 영어 프레젠테이션을 성공적으로 수행했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "생명과학Ⅰ",
+      "content": "생태계와 상호작용 단원에 대한 학업 성취가 매우 뛰어나며, 이론적 지식을 구체적인 탐구 활동으로 심화시키는 능력이 탁월합니다. '방형구법을 이용한 식물 군집 조사' 실험에서, 교내 여러 지점의 식물 군집을 조사하고 각 지점의 우점종, 밀도, 빈도, 피도를 계산하여 중요치를 산출했습니다. 특히 일조량, 토양 수분 등 환경 요인과 식물 군집의 분포 사이의 상관관계를 분석하고, '천이'의 개념과 연결하여 교내 생태계의 변화를 예측하는 보고서를 작성하여 과학적 탐구 능력의 깊이를 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "지구과학Ⅰ",
+      "content": "지구 온난화와 대기 대순환에 대한 깊은 이해를 바탕으로 심화 탐구를 수행했습니다. '엘니뇨와 라니냐가 한반도 기후에 미치는 영향'을 주제로 보고서를 작성하며, 관련 기상 데이터와 논문을 분석하여 엘니뇨 발생 연도의 여름철 강수량 및 겨울철 기온 변화의 상관관계를 통계적으로 입증하고자 노력했습니다. 현상을 설명하는 데 그치지 않고, 과학적 데이터를 근거로 미래 기후 변화를 예측하려는 시도에서 탐구에 대한 진지한 자세와 발전 가능성을 엿볼 수 있었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 1,
+      "subjectName": "화학Ⅰ",
+      "content": "산과 염기, 중화 반응에 대한 개념을 명확하게 이해하고 있으며, 이를 환경 문제와 연결하여 사고하는 능력이 뛰어납니다. '대기 중 이산화탄소 증가가 해양 산성화에 미치는 영향'에 대해 탐구하고, 탄산(H2CO3)이 생성되어 해양 생물의 생존을 위협하는 화학적 과정을 단계별로 명확하게 설명하는 발표를 진행했습니다. 또한 산성 토양을 중화시키기 위해 석회 가루(탄산칼슘)를 사용하는 원리를 화학 반응식으로 설명하며 화학 지식의 실용적 가치를 잘 이해하고 있음을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "독서",
+      "content": "비판적 독서와 글쓰기 능력이 탁월합니다. 유발 하라리의 '사피엔스'를 읽고, 인류가 농업혁명 이후 생태계에 미친 영향을 중심으로 서평을 작성했습니다. 인류의 성공이 다른 생물종의 희생을 대가로 이루어졌다는 저자의 관점을 비판적으로 수용하며, '지구의 정복자'가 아닌 '책임 있는 관리자'로서 인류의 역할 변화가 필요함을 역설했습니다. 깊이 있는 독서를 통해 자신의 가치관을 성찰하고 논리적으로 표현하는 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "수학Ⅱ",
+      "content": "미적분 개념에 대한 이해가 깊고, 변화율과 관련된 문제 해결에 강점을 보입니다. '지구 온난화에 따른 해수면 상승 속도 분석'을 주제로 한 수학 과제 탐구에서, 특정 기간의 해수면 높이 데이터를 다항함수로 근사하고, 미분을 통해 특정 시점에서의 순간 상승 속도와 가속도를 계산했습니다. 복잡한 실제 데이터를 수학적으로 모델링하고, 미적분의 개념을 활용하여 변화의 추이를 분석하고 예측하는 뛰어난 수학적 역량을 보여주었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "영어Ⅱ",
+      "content": "고급 수준의 영어 텍스트를 이해하고 분석하는 능력이 뛰어납니다. 레이첼 카슨의 '침묵의 봄(Silent Spring)' 영문판 일부를 발췌하여 읽고, DDT 사용의 위험성을 고발하는 저자의 논리 전개 방식과 수사적 표현을 분석하는 보고서를 작성했습니다. 과학적 사실을 대중에게 효과적으로 전달하기 위한 문학적 장치의 중요성을 이해하고, 이를 통해 환경 문제에 대한 사회적 공감대를 형성하는 과정을 깊이 있게 탐구했습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "생명과학Ⅰ",
+      "content": "유전 파트에서 멘델의 유전 법칙을 넘어 비멘델 유전에 대한 높은 관심을 보였습니다. 특히 환경이 유전자 발현에 영향을 미치는 '후성유전학'에 매료되어, '어미 쥐의 양육 방식이 새끼 쥐의 스트레스 반응 유전자 발현에 미치는 영향'에 대한 과학 기사를 찾아 읽고 정리하여 발표했습니다. 유전자가 모든 것을 결정하는 것이 아니라 환경과의 상호작용을 통해 생명 현상이 나타난다는 것을 이해하고, 이를 생태학적 관점으로 확장하려는 시도가 인상적이었습니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "지구과학Ⅰ",
+      "content": "판 구조론과 지질학적 사건에 대한 이해를 바탕으로 한반도의 지질 환경에 대해 심층적으로 탐구했습니다. '한반도 지질 명소를 통해 본 지질학적 역사'를 주제로, 강원도 고생대 지층, 제주도 화산 지형, 경상 분지 백악기 퇴적층 등을 조사하고 각 지역의 형성 과정을 판 구조론적 관점에서 설명하는 보고서를 작성했습니다. 교과서 지식을 실제 사례에 적용하고 종합하여 자신만의 지식 체계를 구축하는 자기주도적 학습 능력이 돋보입니다."
+    },
+    {
+      "grade": 2,
+      "semester": 2,
+      "subjectName": "화학Ⅰ",
+      "content": "산화-환원 반응에 대한 깊은 이해를 바탕으로, 이를 이용한 환경 기술에 대해 탐구했습니다. '미생물을 이용한 폐수 처리 기술의 화학적 원리'에 관심을 갖고, 미생물이 유기 오염물질을 분해하는 과정이 산화-환원 반응임을 이해하고 이를 화학 반응식으로 표현했습니다. 또한 연료 전지의 원리를 학습한 후, 수소 연료 전지가 환경에 미치는 긍정적 영향과 기술적 과제에 대해 조사하여 발표하는 등 화학 지식을 미래 기술과 연결하는 융합적 사고를 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "화법과 작문",
+      "content": "논리적이고 설득력 있는 글쓰기 능력을 갖추었습니다. '기후 위기 대응을 위한 청소년의 역할'을 주제로 한 논설문에서, 명확한 주장과 타당한 근거를 제시하며 자신의 의견을 전개했습니다. 특히 감정에 호소하기보다 통계 자료, 전문가 인터뷰 등 객관적인 데이터를 활용하여 주장의 신뢰성을 높였으며, 개인적 실천을 넘어 정책적 변화를 촉구하는 등 문제의 본질을 깊이 있게 파악하고 있음을 보여주었습니다. 동료 학생들의 작문 과정에서 건설적인 피드백을 제공하며 협력적 학습 태도를 보였습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "미적분",
+      "content": "정적분의 활용에 대한 높은 이해를 바탕으로 복잡한 문제에 도전하는 탐구 정신이 뛰어납니다. '로렌츠 곡선과 지니 계수'를 학습한 후, 이를 응용하여 '환경 쿠즈네츠 곡선(EKC)' 가설을 수학적으로 탐구했습니다. 경제 성장과 환경오염 사이의 관계를 나타내는 그래프와 x축 사이의 넓이를 정적분으로 계산하여 불평등도를 측정하는 방식을 고안하고, 특정 국가의 데이터를 대입하여 가설의 유효성을 검증해보려는 시도를 통해 수학적 도구를 사회과학적 현상 분석에 활용하는 융합적 사고력을 길렀습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "생명과학Ⅱ",
+      "content": "생물의 진화와 다양성 단원에서 뛰어난 학업 역량을 보였습니다. '생물다양성 보존을 위한 유전학적 접근'이라는 주제로 심화 탐구를 진행했습니다. 멸종위기종의 개체 수 감소가 유전적 다양성 감소로 이어지는 '유전적 부동' 현상을 깊이 이해하고, 야생동물 복원을 위한 최소 생존 군집(MVP) 규모 산출의 중요성을 탐구했습니다. 특히 서울대 수의학과 이항 교수님의 '호랑이의 생태와 보전' 관련 논문을 참고하여, 과학적 연구가 어떻게 실제 보전 정책으로 이어지는지 분석하며 이론과 실제를 연결하는 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "지구과학Ⅱ",
+      "content": "대기와 해양의 상호작용에 대한 깊이 있는 이해를 바탕으로 심화된 탐구 활동을 수행했습니다. '지구 온난화가 심해 순환(열염 순환)에 미치는 영향'을 주제로 개인 연구를 진행하며, 극지방의 빙하가 녹으면서 해수의 염분이 낮아져 심층수 형성이 약화될 수 있다는 가설을 설정했습니다. NASA 및 NOAA에서 제공하는 관련 데이터를 분석하고, '네이처'지에 실린 'Observation-based state estimate of the Atlantic Meridional Overturning Circulation' 논문을 인용하여 자신의 주장을 뒷받침하는 등, 대학 수준의 학술 자료를 활용하여 논리적으로 탐구를 전개하는 우수한 연구 역량을 입증했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "환경",
+      "content": "환경 문제 전반에 대한 높은 관심과 문제 해결 의지를 보여주는 과목의 에이스입니다. '지속가능한 발전을 위한 적정기술'을 주제로 한 프로젝트에서, 수질이 오염된 지역의 주민들을 위해 '라이프 스트로'의 원리를 탐구하고, 이를 응용하여 숯, 모래, 자갈 등 주변에서 쉽게 구할 수 있는 재료로 간이 정수 장치를 직접 설계하고 제작했습니다. 제작한 장치의 정수 효과를 탁도계를 이용하여 정량적으로 측정하고, 개선 방안을 보고서로 제출하는 등 공학적 문제 해결 과정을 충실히 수행하며 환경생태공학도로서의 잠재력을 유감없이 발휘했습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 1,
+      "subjectName": "융합과학탐구",
+      "content": "과학의 여러 분야를 융합하여 창의적인 아이디어를 도출하는 능력이 뛰어납니다. '미세조류를 이용한 탄소 저감 및 바이오연료 생산'이라는 주제로 1학기 동안 장기 프로젝트를 수행했습니다. 생명과학의 광합성 원리, 화학의 유기물 분석, 환경공학의 탄소 포집 기술을 융합하여 탐구를 설계했습니다. 클로렐라를 직접 배양하며 이산화탄소 농도에 따른 성장 속도 변화를 측정하고, 수확한 바이오매스로부터 지질을 추출하는 실험을 진행했습니다. 비록 실험 결과가 이론값과 차이를 보였지만, 오차의 원인을 분석하고 재탐구를 계획하는 과정을 통해 과학자로서의 끈기와 정직한 태도를 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제탐구(과학)",
+      "content": "‘도시 생태계 복원을 위한 생물 서식 공간(Biotope) 조성 방안 연구’를 주제로 탐구를 진행함. 교내 자투리 공간을 대상으로 선정하여 해당 지역의 토양, 일조량 등 환경 조건을 분석하고, 지역 생태계에 적합한 자생 식물 목록을 작성했습니다. 곤충 호텔, 새 먹이대 등 인공 구조물을 함께 설계하여 생물 다양성 증진을 위한 구체적인 계획안을 제시하는 등, 3년간 쌓아온 생태학적 지식을 실제 공간에 적용하는 통합적 설계 능력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "주제탐구(인문)",
+      "content": "‘환경 문제 해결을 위한 세대 간 인식 차이 및 소통 방안 연구’를 주제로 설문조사와 심층 인터뷰를 진행함. 기성세대와 청소년 세대가 기후 위기의 심각성에 대해서는 공감하지만, 해결 방식(개인적 실천 vs 사회 시스템 변화)에서 차이를 보인다는 점을 통계적으로 분석했습니다. 세대 간 갈등을 넘어 상호 이해와 협력을 이끌어내기 위한 ‘세대 연대 기후 행동’의 필요성을 제안하는 등 인문사회학적 통찰력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "체육",
+      "content": "건강한 체력과 협동 정신을 갖춘 학생임. 체육 활동에 항상 적극적으로 참여하며, 특히 팀 기반 스포츠에서 동료들을 격려하고 전략을 논의하는 등 뛰어난 팀워크를 보여줍니다. 꾸준한 활동을 통해 자신의 건강을 관리하는 성실한 태도를 지니고 있습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "음악",
+      "content": "음악에 대한 감수성이 풍부하고, 음악을 통해 자신의 감정을 표현하는 능력이 우수합니다. 특히 환경 다큐멘터리의 배경 음악을 감상하고, 음악이 영상의 메시지 전달에 미치는 영향에 대해 분석하는 등 자신의 관심 분야와 예술을 연결하여 감상하는 태도가 인상적입니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "미술",
+      "content": "‘환경’을 주제로 한 미술 창작 활동에서 독창적인 아이디어를 보여줌. 폐플라스틱, 헌 옷 등 버려지는 재료를 활용하여 ‘고통받는 지구’를 형상화한 설치 미술 작품을 제작하여, 환경 문제에 대한 경각심을 시각적으로 강렬하게 전달하는 예술적 표현력을 보여주었습니다."
+    },
+    {
+      "grade": 3,
+      "semester": 2,
+      "subjectName": "기술가정",
+      "content": "지속가능한 삶의 방식에 대한 이해가 깊습니다. ‘제로 웨이스트’를 실천하기 위해 가정 내에서 발생하는 쓰레기를 분석하고, 재사용 및 재활용 방안을 구체적으로 계획하여 실천하는 모습을 보였습니다. 기술적 지식을 활용하여 일상생활의 문제를 해결하려는 태도가 돋보입니다."
+    }
+  ],
+  "reading": [
+    {
+      "grade": 1,
+      "subjectArea": "국어",
+      "bookDescription": "환경 문제에 대한 사회적 무관심을 날카롭게 비판하는 저자의 시선에 공감하며, 문학이 사회 변화에 기여할 수 있는 힘에 대해 생각해보는 계기가 됨.",
+      "author": "레이첼 카슨",
+      "bookTitle": "침묵의 봄"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "수학",
+      "bookDescription": "수학이 단지 숫자의 학문이 아니라 세상을 이해하는 논리적 언어임을 깨닫게 됨. 특히 통계 파트를 통해 데이터 속에서 의미 있는 패턴을 발견하는 과정에 흥미를 느낌.",
+      "author": "칼 세이건",
+      "bookTitle": "코스모스"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합과학",
+      "bookDescription": "지구 온난화로 인한 생태계의 변화와 인류의 미래를 과학적 데이터에 근거하여 생생하게 그려냄. 기후 변화의 심각성을 체감하고, 행동의 필요성을 절실히 느낌.",
+      "author": "팀 플래너리",
+      "bookTitle": "기후를 만드는 사람들"
+    },
+    {
+      "grade": 1,
+      "subjectArea": "통합사회",
+      "bookDescription": "정의의 문제를 다양한 관점에서 고찰하며, 환경 문제에도 '정의'의 잣대가 필요함을 깨달음. 기후 변화의 책임과 피해가 불공평하게 분배되는 '기후 부정의' 문제에 관심을 갖게 됨.",
+      "author": "마이클 샌델",
+      "bookTitle": "정의란 무엇인가"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "생명과학",
+      "bookDescription": "유전자와 생태계의 관계, 이타적 행동의 진화적 배경 등 생명 현상을 깊이 있게 이해하게 됨. 특히 개체가 아닌 유전자의 관점에서 생태계를 바라보는 새로운 시각을 얻음.",
+      "author": "리처드 도킨스",
+      "bookTitle": "이기적 유전자"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "지구과학",
+      "bookDescription": "지구 온도가 1도씩 오를 때마다 벌어질 재앙을 구체적으로 묘사하여 기후 위기의 시급성을 피부로 느끼게 함. 과학적 예측이 미래를 바꾸는 강력한 경고가 될 수 있음을 배움.",
+      "author": "마크 라이너스",
+      "bookTitle": "6도의 멸종"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "화학",
+      "bookDescription": "일상 속 모든 것이 화학 물질로 이루어져 있음을 깨닫고, 화학 지식이 환경 문제를 이해하고 해결하는 데 필수적인 도구임을 알게 됨.",
+      "author": "데버라 Blum",
+      "bookTitle": "독이 되는 음식"
+    },
+    {
+      "grade": 2,
+      "subjectArea": "영어",
+      "bookDescription": "인류의 역사를 거시적인 관점에서 조망하며, 농업혁명과 과학혁명이 생태계에 미친 영향을 비판적으로 고찰함. 인류의 미래와 지속가능성에 대해 깊이 고민하게 됨.",
+      "author": "유발 하라리",
+      "bookTitle": "Sapiens: A Brief History of Humankind"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "생명과학Ⅱ",
+      "bookDescription": "생명과학의 최신 연구 동향과 함께 연구 과정에서 겪는 어려움과 보람을 생생하게 전달함. 과학자로서의 윤리와 사회적 책임에 대해 생각해보는 계기가 됨.",
+      "author": "제니퍼 다우드나, 새뮤얼 스턴버그",
+      "bookTitle": "크리스퍼가 온다"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "지구과학Ⅱ",
+      "bookDescription": "인류세라는 새로운 지질학적 시대 개념을 통해 인간이 지구 시스템에 얼마나 막대한 영향을 미치고 있는지 실감함. 지구의 한계를 인식하고 책임감 있는 행동의 필요성을 느낌.",
+      "author": "엘리자베스 콜버트",
+      "bookTitle": "여섯 번째 대멸종"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "환경",
+      "bookDescription": "플라스틱 문제의 심각성과 함께, 개인의 실천이 어떻게 사회적 변화로 이어질 수 있는지 보여주는 구체적인 사례를 통해 희망을 얻음. 진로인 환경생태공학 분야에서 사회에 기여하고 싶다는 다짐을 함.",
+      "author": "산드라 크라우트바슐",
+      "bookTitle": "우리는 플라스틱 없이 살기로 했다"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "융합과학",
+      "bookDescription": "복잡계 과학의 관점에서 기후, 생태계, 사회가 어떻게 서로 연결되어 있는지 이해하게 됨. 작은 변화가 예측 불가능한 큰 결과를 낳을 수 있다는 '나비 효과'를 통해 시스템 전체를 보는 시각을 기름.",
+      "author": "에드워드 O. 윌슨",
+      "bookTitle": "통섭"
+    },
+    {
+      "grade": 3,
+      "subjectArea": "진로",
+      "bookDescription": "에너지 전환이 단순한 기술의 문제가 아니라 정치, 경제, 사회 시스템의 대대적인 변화를 요구하는 복잡한 과정임을 이해함. 에너지 정책 결정 과정에 과학적 전문성이 어떻게 기여할 수 있는지 탐구함.",
+      "author": "바츨라프 스밀",
+      "bookTitle": "에너지와 문명"
+    }
+  ],
+  "haengteuk": [
+    {
+      "grade": 1,
+      "content": "성실하고 책임감이 강하며 지적 호기심이 왕성한 학생입니다. 특히 환경 문제에 대한 관심이 높아, 교내 환경 정화 활동에 솔선수범하고 관련 주제에 대한 탐구 활동을 꾸준히 수행합니다. 학급 친구들에게 긍정적인 영향을 주며 공동체 의식이 투철하여 앞으로의 성장이 더욱 기대되는 학생입니다."
+    },
+    {
+      "grade": 2,
+      "content": "환경 문제에 대한 깊이 있는 이해와 뜨거운 열정을 실천으로 옮기는 학생입니다. 교내 환경 동아리를 창설하여 부장으로서 리더십을 발휘하고, 하천 모니터링과 같은 장기 프로젝트를 성공적으로 이끌었습니다. 과학적 탐구 능력과 사회 문제 해결 의지를 겸비하여 동료들에게 신뢰받는 리더로 성장했습니다."
+    },
+    {
+      "grade": 3,
+      "content": "3년간 '환경생태'라는 자신의 진로를 향해 꾸준히 정진해 온 자기주도적인 인재입니다. 심화 교과에 적극적으로 참여하여 높은 학업 성취를 이루었고, 과학적 지식을 바탕으로 사회 문제에 대한 정책적 대안까지 모색하는 융합적 사고력을 보여주었습니다. 따뜻한 마음과 이성적인 분석력을 갖추어 어떤 공동체에서든 빛을 발할 학생입니다."
+    }
+  ],
+  "careerAspirations": [
+    {
+      "grade": 1,
+      "parentAspiration": "교사",
+      "reason": "환경 문제에 관심이 많고, 과학 과목을 좋아하여 관련 분야 전문가가 되기를 희망함.",
+      "specialSkillsHobbies": "독서, 글쓰기",
+      "studentAspiration": "환경과학자"
+    },
+    {
+      "grade": 2,
+      "parentAspiration": "연구원",
+      "reason": "환경 문제를 분석하고 이론을 세우는 것을 넘어, 훼손된 생태계를 직접 복원하는 실질적인 활동에 매력을 느낌.",
+      "specialSkillsHobbies": "등산, 사진 촬영(자연 풍경)",
+      "studentAspiration": "생태복원전문가"
+    },
+    {
+      "grade": 3,
+      "parentAspiration": "연구원",
+      "reason": "과학기술적 해결책뿐만 아니라 사회 시스템과 정책의 변화가 기후 위기 대응의 핵심임을 깨닫고, 과학과 사회를 잇는 전문가가 되고자 함.",
+      "specialSkillsHobbies": "토론, 데이터 분석",
+      "studentAspiration": "기후변화 대응 정책 전문가"
+    }
+  ],
+  "certifications": [],
+  "peArtGrades": []
+}
