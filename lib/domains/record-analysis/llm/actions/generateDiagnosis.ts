@@ -98,6 +98,11 @@ export async function generateAiDiagnosis(
    * buildNarrativeArcDiagnosisSection()이 생성한 섹션을 전달. 없으면 생략.
    */
   narrativeArcSection?: string,
+  /**
+   * β 격차 1: MidPipeline Planner 메타 판정 섹션 (buildMidPlanSynthesisSection() 결과).
+   * focusHypothesis / concernFlags 를 진단 방향에 반영하기 위해 주입한다. 없으면 생략.
+   */
+  midPlanSynthesisSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -195,6 +200,7 @@ export async function generateAiDiagnosis(
       coursePlanSection,
       mainExplorationSection,
       narrativeArcSection,
+      midPlanSynthesisSection,
       isProspective,
     });
 

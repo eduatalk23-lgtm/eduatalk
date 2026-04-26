@@ -274,6 +274,18 @@ export async function runAiDiagnosis(
     }
   }
 
+  // β 격차 1: MidPlan 핵심 탐구 축 가설 → 진단 프롬프트 주입 (best-effort)
+  let midPlanSynthesisSection: string | undefined;
+  try {
+    const midPlan = ctx.midPlan ?? (ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | null | undefined);
+    if (midPlan) {
+      const { buildMidPlanSynthesisSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
+      midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlan);
+    }
+  } catch (mpErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.midPlanSynthesisSection.diagnosis" }, mpErr, { pipelineId });
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -289,7 +301,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

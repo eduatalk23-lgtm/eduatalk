@@ -620,6 +620,12 @@ export interface SuggestStrategiesInput {
   hyperedgeSummarySection?: string;
   /** Phase δ-6 (G11): 활성 메인 탐구 섹션. tier_plan 빈 셀 우선 채움 안내 포함. */
   mainExplorationSection?: string;
+  /**
+   * β 격차 1: MidPipeline Planner 메타 판정 섹션 (buildMidPlanSynthesisSection() 결과).
+   * focusHypothesis / concernFlags 를 전략 방향에 반영하기 위해 주입한다.
+   * undefined 이면 섹션 자체 생략 (no-op).
+   */
+  midPlanSynthesisSection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */
