@@ -56,8 +56,17 @@ export interface BeliefState {
    * H1 cross-subject theme 추출 결과 (학년 단위, P3.5 1회 실행).
    * P4~P6 가이드 프롬프트에 dominantThemes 로 주입.
    * targetGrade 변경 시 학년 단위로 교체. undefined = 미실행/실패(graceful).
+   * Grade Pipeline 단일 학년 전용. Synthesis 에서는 gradeThemesByGrade 를 사용.
    */
   gradeThemes?: import("../llm/types").GradeThemeExtractionResult;
+
+  /**
+   * Synthesis 전용: 전 학년 cross-subject theme 집계 (학년별 dict).
+   * loadSynthesisCumulativeBelief 에서 aggregateGradeThemes() 호출로 시딩.
+   * S3/S5/S6/S7 프롬프트에 buildGradeThemesByGradeSection() 으로 변환해 주입.
+   * undefined = 시딩 미수행/실패(graceful).
+   */
+  gradeThemesByGrade?: import("./synthesis/helpers").GradeThemesByGrade;
 
   /**
    * Blueprint 설계 산출물 캐시 (설계 모드 Grade Pipeline 전용).

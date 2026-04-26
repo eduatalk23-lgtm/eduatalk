@@ -415,6 +415,17 @@ export async function aggregateGradeThemes(
 }
 
 /**
+ * GradeThemesByGrade → Synthesis S3/S5/S6/S7 프롬프트 주입용 마크다운 섹션.
+ * belief.gradeThemesByGrade 에서 읽어 buildCrossSubjectThemesDiagnosisSection 과 동일 형식으로 렌더.
+ * 데이터 없으면 빈 문자열 — 호출부에서 graceful omit.
+ * Phase D2: Synthesis belief 시딩 후 S3/S5/S6/S7 의 gradeThemes fallback 대체.
+ */
+export function buildGradeThemesByGradeSection(byGrade: GradeThemesByGrade | undefined): string {
+  if (!byGrade) return "";
+  return buildCrossSubjectThemesDiagnosisSection(byGrade);
+}
+
+/**
  * aggregateGradeThemes 결과 → 진단 프롬프트 주입용 마크다운 섹션.
  *
  * 출력 구성:

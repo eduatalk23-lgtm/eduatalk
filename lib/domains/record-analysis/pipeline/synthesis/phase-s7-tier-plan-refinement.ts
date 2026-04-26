@@ -222,11 +222,19 @@ export async function runTierPlanRefinement(
     // best-effort
   }
 
-  // Phase C A3: 학년 지배 교과 교차 테마 → S7 tier_plan 정합 (best-effort)
+  // Phase C A3 / Phase D2: 학년 지배 교과 교차 테마 → S7 tier_plan 정합 (best-effort).
+  // Synthesis: belief.gradeThemesByGrade 우선 → buildGradeThemesByGradeSection.
+  // Grade 파이프라인 / 시딩 실패: belief.gradeThemes → buildGradeThemesSection 폴백.
   let s7GradeThemesSection: string | undefined;
   try {
-    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
-    s7GradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    if (ctx.belief.gradeThemesByGrade) {
+      const { buildGradeThemesByGradeSection } = await import("./helpers");
+      const built = buildGradeThemesByGradeSection(ctx.belief.gradeThemesByGrade);
+      if (built) s7GradeThemesSection = built;
+    } else {
+      const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+      s7GradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    }
   } catch {
     // best-effort: 실패해도 S7 계속 진행
   }

@@ -342,11 +342,19 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     logActionDebug(LOG_CTX, `qualityPatterns 섹션 빌드 실패 (면접 생성 계속): ${iQualErr}`);
   }
 
-  // Phase C A3: 학년 지배 교과 교차 테마 → 면접 서사 정합성 질문 (best-effort)
+  // Phase C A3 / Phase D2: 학년 지배 교과 교차 테마 → 면접 서사 정합성 질문 (best-effort).
+  // Synthesis: belief.gradeThemesByGrade 우선 → buildGradeThemesByGradeSection.
+  // Grade 파이프라인 / 시딩 실패: belief.gradeThemes → buildGradeThemesSection 폴백.
   let interviewGradeThemesSection: string | undefined;
   try {
-    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
-    interviewGradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    if (ctx.belief.gradeThemesByGrade) {
+      const { buildGradeThemesByGradeSection } = await import("./helpers");
+      const built = buildGradeThemesByGradeSection(ctx.belief.gradeThemesByGrade);
+      if (built) interviewGradeThemesSection = built;
+    } else {
+      const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+      interviewGradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    }
   } catch (iGtErr) {
     logActionDebug(LOG_CTX, `gradeThemes 섹션 빌드 실패 (면접 생성 계속): ${iGtErr}`);
   }
@@ -556,11 +564,19 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
     logActionDebug(LOG_CTX, `qualityPatterns 섹션 빌드 실패 (로드맵 생성 계속): ${rQualErr}`);
   }
 
-  // Phase C A3: 학년 지배 교과 교차 테마 → 로드맵 학기별 배치에 반영 (best-effort)
+  // Phase C A3 / Phase D2: 학년 지배 교과 교차 테마 → 로드맵 학기별 배치에 반영 (best-effort).
+  // Synthesis: belief.gradeThemesByGrade 우선 → buildGradeThemesByGradeSection.
+  // Grade 파이프라인 / 시딩 실패: belief.gradeThemes → buildGradeThemesSection 폴백.
   let roadmapGradeThemesSection: string | undefined;
   try {
-    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
-    roadmapGradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    if (ctx.belief.gradeThemesByGrade) {
+      const { buildGradeThemesByGradeSection } = await import("./helpers");
+      const built = buildGradeThemesByGradeSection(ctx.belief.gradeThemesByGrade);
+      if (built) roadmapGradeThemesSection = built;
+    } else {
+      const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+      roadmapGradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    }
   } catch (rGtErr) {
     logActionDebug(LOG_CTX, `gradeThemes 섹션 빌드 실패 (로드맵 생성 계속): ${rGtErr}`);
   }

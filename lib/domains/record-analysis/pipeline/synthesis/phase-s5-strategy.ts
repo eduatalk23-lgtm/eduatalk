@@ -465,11 +465,19 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     logActionError({ ...LOG_CTX, action: "pipeline.hakjongScoreSection.strategy" }, hkErr, { pipelineId });
   }
 
-  // Phase B G3: 학년 지배 교과 교차 테마 → 전략 프롬프트 주입
+  // Phase B G3 / Phase D2: 학년 지배 교과 교차 테마 → 전략 프롬프트 주입.
+  // Synthesis: belief.gradeThemesByGrade (Phase D2 시딩) 우선 → buildGradeThemesByGradeSection.
+  // Grade 파이프라인(단일 학년): belief.gradeThemes → buildGradeThemesSection 폴백.
   let gradeThemesSection: string | undefined;
   try {
-    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
-    gradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    if (ctx.belief.gradeThemesByGrade) {
+      const { buildGradeThemesByGradeSection } = await import("./helpers");
+      const built = buildGradeThemesByGradeSection(ctx.belief.gradeThemesByGrade);
+      if (built) gradeThemesSection = built;
+    } else {
+      const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+      gradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+    }
   } catch (gtErr) {
     logActionError({ ...LOG_CTX, action: "pipeline.gradeThemesSection.strategy" }, gtErr, { pipelineId });
   }

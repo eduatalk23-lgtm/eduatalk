@@ -723,6 +723,23 @@ export async function loadPipelineContext(
     pipelineId,
   );
 
+  // Phase D (2026-04-26): Synthesis belief 누적 시딩 — profileCard / gradeThemesByGrade / midPlan.
+  // Grade Pipeline 에서는 P1-P3 runner 가 각 belief 필드를 직접 write 하므로 여기서 제외.
+  let synthesisCumulativeBelief: {
+    profileCard?: string;
+    gradeThemesByGrade?: import("./synthesis/helpers").GradeThemesByGrade;
+    midPlan?: import("./orient/mid-pipeline-planner").MidPlan | null;
+  } = {};
+  if (pipelineType === "synthesis") {
+    const { loadSynthesisCumulativeBelief } = await import("./pipeline-synthesis-belief");
+    synthesisCumulativeBelief = await loadSynthesisCumulativeBelief(
+      admin,
+      studentId,
+      tenantId,
+      pipelineId,
+    );
+  }
+
   return {
     pipelineId,
     studentId,
@@ -745,14 +762,28 @@ export async function loadPipelineContext(
     targetGrade,
     gradeMode,
     unifiedInput,
-    // BeliefState — 파이프라인 공용 상태. profileCard 는 P1-P3 runner 가 write.
+    // Phase D: midPlan 을 Synthesis belief 시딩에서 ctx.midPlan 으로 승격 (option B: 최신 학년 단일).
+    // resolveMidPlan(ctx) 가 ctx.midPlan → ctx.results["_midPlan"] 순으로 해소하므로 무수정 호환.
+    ...(synthesisCumulativeBelief.midPlan != null
+      ? { midPlan: synthesisCumulativeBelief.midPlan }
+      : {}),
+    // BeliefState — 파이프라인 공용 상태. profileCard 는 Grade P1-P3 runner 가 write.
     // task_results 복원본: qualityPatterns(ai_diagnosis) + previousRunOutputs(loadPreviousRunOutputs)
     //  + analysisContext(_analysisContext) + DB 신규 계산본 resolvedRecords.
+    // Phase D 추가: Synthesis 전용 profileCard/gradeThemesByGrade 시딩.
     belief: {
       ...(qualityPatterns ? { qualityPatterns } : {}),
       previousRunOutputs,
       ...(persistedAnalysisContext ? { analysisContext: persistedAnalysisContext } : {}),
       resolvedRecords,
+      // Phase D1: profileCard (DB student_record_profile_cards 최신 학년)
+      ...(synthesisCumulativeBelief.profileCard != null
+        ? { profileCard: synthesisCumulativeBelief.profileCard }
+        : {}),
+      // Phase D2: gradeThemesByGrade (aggregateGradeThemes 전 학년 집계)
+      ...(synthesisCumulativeBelief.gradeThemesByGrade
+        ? { gradeThemesByGrade: synthesisCumulativeBelief.gradeThemesByGrade }
+        : {}),
     },
   };
 }
