@@ -65,6 +65,12 @@ export async function generateInterviewQuestions(input: {
   previousRunOutputsSection?: string;
   /** Phase C A2: 전 학년 반복 품질 패턴 섹션 (qualityPatterns 기반). 없으면 생략. */
   qualityPatternsSection?: string;
+  /** Phase C A3: 이번 실행 학년 지배 교과 교차 테마 섹션 (buildGradeThemesSection() 결과). 없으면 생략. */
+  gradeThemesSection?: string;
+  /** Phase C A4: 세특 8단계 서사 완성도 섹션 (buildNarrativeArcDiagnosisSection() 결과). 없으면 생략. */
+  narrativeArcSection?: string;
+  /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
+  profileCardSection?: string;
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -141,6 +147,18 @@ export async function generateInterviewQuestions(input: {
     // Phase C A2: 전 학년 반복 품질 패턴 → 면접 공격 각도 추가
     if (input.qualityPatternsSection) {
       userPrompt += `\n\n${input.qualityPatternsSection}\n\n위 반복 패턴 중 면접에서 집중 확인이 필요한 항목을 1개 이상 겨냥하라.`;
+    }
+    // Phase C A3: 학년 지배 교과 교차 테마 → 서사 정합성 질문에 반영
+    if (input.gradeThemesSection) {
+      userPrompt += `\n\n${input.gradeThemesSection}\n\n위 교과 교차 테마가 실제 기록에서 어떻게 구현되었는지 확인하는 질문을 1개 이상 포함하라.`;
+    }
+    // Phase C A4: 세특 8단계 서사 완성도 → 부족 단계 겨냥 질문
+    if (input.narrativeArcSection) {
+      userPrompt += `\n\n${input.narrativeArcSection}\n\n위 서사 완성도에서 부족한 단계(탐구 결론·성장 서술 등)를 직접 묻는 질문을 1개 이상 포함하라.`;
+    }
+    // Phase C A6: 학생 정체성 프로필 카드 → 지속성·강점 근거 질문
+    if (input.profileCardSection) {
+      userPrompt += `\n\n${input.profileCardSection}\n\n위 학생 프로필에서 드러나는 관심 일관성·강점을 검증하는 면접 질문을 1개 이상 포함하라.`;
     }
 
     const result = await withRetry(

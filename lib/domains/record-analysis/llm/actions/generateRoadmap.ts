@@ -32,6 +32,14 @@ export interface RoadmapExtraSections {
   previousRunOutputsSection?: string;
   /** Phase C A2: 전 학년 반복 품질 패턴 섹션 (qualityPatterns 기반). 없으면 생략. */
   qualityPatternsSection?: string;
+  /** Phase C A3: 이번 실행 학년 지배 교과 교차 테마 섹션 (buildGradeThemesSection() 결과). 없으면 생략. */
+  gradeThemesSection?: string;
+  /** Phase C A4: 세특 8단계 서사 완성도 섹션 (buildNarrativeArcDiagnosisSection() 결과). 없으면 생략. */
+  narrativeArcSection?: string;
+  /** Phase C A5: hyperedge(N-ary 수렴 테마) 요약 섹션. 없으면 생략. */
+  hyperedgeSummarySection?: string;
+  /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
+  profileCardSection?: string;
 }
 
 export async function generateAiRoadmap(
@@ -217,6 +225,11 @@ export async function generateAiRoadmap(
       // Phase C A1/A2: 직전 실행 격차 + 반복 품질 패턴 섹션
       previousRunOutputsSection: extraSections?.previousRunOutputsSection,
       qualityPatternsSection: extraSections?.qualityPatternsSection,
+      // Phase C A3~A6: gradeThemes / narrativeArc / hyperedge / profileCard
+      gradeThemesSection: extraSections?.gradeThemesSection,
+      narrativeArcSection: extraSections?.narrativeArcSection,
+      hyperedgeSummarySection: extraSections?.hyperedgeSummarySection,
+      profileCardSection: extraSections?.profileCardSection,
     };
 
     // analysis 모드 전용 데이터

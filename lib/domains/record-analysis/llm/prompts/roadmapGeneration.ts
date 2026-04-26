@@ -217,6 +217,22 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   if (input.qualityPatternsSection) {
     prompt += `${input.qualityPatternsSection}\n\n`;
   }
+  // Phase C A3: 학년 지배 교과 교차 테마 섹션 주입
+  if (input.gradeThemesSection) {
+    prompt += `${input.gradeThemesSection}\n\n`;
+  }
+  // Phase C A4: 세특 8단계 서사 완성도 섹션 주입
+  if (input.narrativeArcSection) {
+    prompt += `${input.narrativeArcSection}\n\n`;
+  }
+  // Phase C A5: hyperedge(N-ary 수렴 테마) 섹션 주입 — S5/S6-interview 와 달리 roadmap 만 누락이던 격차
+  if (input.hyperedgeSummarySection) {
+    prompt += `${input.hyperedgeSummarySection}\n\n`;
+  }
+  // Phase C A6: 학생 정체성 프로필 카드 섹션 주입
+  if (input.profileCardSection) {
+    prompt += `${input.profileCardSection}\n\n`;
+  }
 
   prompt += `위 정보를 종합하여 ${input.grade}학년부터 3학년까지의 학기별 활동 로드맵을 JSON으로 생성해주세요.`;
   if (input.mainExplorationSection) {
@@ -242,6 +258,18 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   }
   if (input.qualityPatternsSection) {
     prompt += ` 반복 품질 패턴이 제공된 경우, 패턴 개선을 위한 활동(탐구 심화·참고문헌 강화 등)을 로드맵에 포함하세요.`;
+  }
+  if (input.gradeThemesSection) {
+    prompt += ` 학년 지배 교과 교차 테마가 제공된 경우, 해당 테마를 심화·확장하는 활동을 로드맵 학기별 배치에 반영하세요.`;
+  }
+  if (input.narrativeArcSection) {
+    prompt += ` 세특 서사 완성도(8단계)가 제공된 경우, 부족한 단계(탐구 결론·성장 서술 등)를 보완하는 활동을 로드맵에 포함하세요.`;
+  }
+  if (input.hyperedgeSummarySection) {
+    prompt += ` 통합 테마(N-ary 수렴)가 제공된 경우, 가장 강한 연결 축의 탐구를 심화하는 학기 활동을 1건 이상 포함하세요.`;
+  }
+  if (input.profileCardSection) {
+    prompt += ` 학생 프로필 카드가 제공된 경우, 지속적 관심 축과 강점 역량을 중심으로 활동 방향을 정렬하세요.`;
   }
   return prompt;
 }

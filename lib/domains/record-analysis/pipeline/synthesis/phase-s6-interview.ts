@@ -342,6 +342,32 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     logActionDebug(LOG_CTX, `qualityPatterns 섹션 빌드 실패 (면접 생성 계속): ${iQualErr}`);
   }
 
+  // Phase C A3: 학년 지배 교과 교차 테마 → 면접 서사 정합성 질문 (best-effort)
+  let interviewGradeThemesSection: string | undefined;
+  try {
+    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+    interviewGradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+  } catch (iGtErr) {
+    logActionDebug(LOG_CTX, `gradeThemes 섹션 빌드 실패 (면접 생성 계속): ${iGtErr}`);
+  }
+
+  // Phase C A4: 세특 8단계 서사 완성도 → 부족 단계 겨냥 면접 질문 (best-effort)
+  let interviewNarrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import(
+      "@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section"
+    );
+    interviewNarrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, supabase) ?? undefined;
+  } catch (iNaErr) {
+    logActionDebug(LOG_CTX, `narrativeArc 섹션 빌드 실패 (면접 생성 계속): ${iNaErr}`);
+  }
+
+  // Phase C A6: 학생 정체성 프로필 카드 → 관심 일관성·강점 검증 면접 질문 (best-effort)
+  const interviewProfileCardSection: string | undefined =
+    ctx.belief.profileCard && ctx.belief.profileCard.trim().length > 0
+      ? ctx.belief.profileCard
+      : undefined;
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -361,6 +387,9 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     hyperedgeSummarySection,
     previousRunOutputsSection: interviewPreviousRunOutputsSection,
     qualityPatternsSection: interviewQualityPatternsSection,
+    gradeThemesSection: interviewGradeThemesSection,
+    narrativeArcSection: interviewNarrativeArcSection,
+    profileCardSection: interviewProfileCardSection,
   });
 
   if (!result.success) throw new Error(result.error);
@@ -527,12 +556,55 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
     logActionDebug(LOG_CTX, `qualityPatterns 섹션 빌드 실패 (로드맵 생성 계속): ${rQualErr}`);
   }
 
+  // Phase C A3: 학년 지배 교과 교차 테마 → 로드맵 학기별 배치에 반영 (best-effort)
+  let roadmapGradeThemesSection: string | undefined;
+  try {
+    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+    roadmapGradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+  } catch (rGtErr) {
+    logActionDebug(LOG_CTX, `gradeThemes 섹션 빌드 실패 (로드맵 생성 계속): ${rGtErr}`);
+  }
+
+  // Phase C A4: 세특 8단계 서사 완성도 → 부족 단계 보완 활동 로드맵 추가 (best-effort)
+  let roadmapNarrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import(
+      "@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section"
+    );
+    roadmapNarrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, supabase) ?? undefined;
+  } catch (rNaErr) {
+    logActionDebug(LOG_CTX, `narrativeArc 섹션 빌드 실패 (로드맵 생성 계속): ${rNaErr}`);
+  }
+
+  // Phase C A5: hyperedge(N-ary 수렴 테마) → 로드맵 통합 테마 심화 활동 (best-effort)
+  let roadmapHyperedgeSummarySection: string | undefined;
+  try {
+    const { findHyperedges: findRoadmapHyperedges } = await import("@/lib/domains/student-record/repository/hyperedge-repository");
+    const { buildHyperedgeSummarySection: buildRoadmapHyperedgeSection } = await import("./helpers");
+    const roadmapHyperedges = await findRoadmapHyperedges(studentId, tenantId, { contexts: ["analysis"] });
+    if (roadmapHyperedges.length > 0) {
+      roadmapHyperedgeSummarySection = buildRoadmapHyperedgeSection(roadmapHyperedges) ?? undefined;
+    }
+  } catch (rHeErr) {
+    logActionDebug(LOG_CTX, `hyperedge 조회 실패 (로드맵 생성 계속): ${rHeErr}`);
+  }
+
+  // Phase C A6: 학생 정체성 프로필 카드 → 로드맵 활동 방향 정렬 (best-effort)
+  const roadmapProfileCardSection: string | undefined =
+    ctx.belief.profileCard && ctx.belief.profileCard.trim().length > 0
+      ? ctx.belief.profileCard
+      : undefined;
+
   const llmResult = await generateAiRoadmap(studentId, llmMode, {
     midPlanSynthesisSection: roadmapMidPlanSection,
     hakjongScoreSection: roadmapHakjongSection,
     strategySummarySection: roadmapStrategySection,
     previousRunOutputsSection: roadmapPreviousRunOutputsSection,
     qualityPatternsSection: roadmapQualityPatternsSection,
+    gradeThemesSection: roadmapGradeThemesSection,
+    narrativeArcSection: roadmapNarrativeArcSection,
+    hyperedgeSummarySection: roadmapHyperedgeSummarySection,
+    profileCardSection: roadmapProfileCardSection,
   });
   if (llmResult.success && llmResult.data) {
     // Cross-run: 다음 실행 storyline_generation 이 "과거 계획 대비 진척" 서사 힌트로 활용.
