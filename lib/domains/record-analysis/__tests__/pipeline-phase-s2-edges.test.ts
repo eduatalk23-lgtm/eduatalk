@@ -403,10 +403,8 @@ describe("applyContinuityRanking — 6 보너스 단위 테스트", () => {
     supabase: PipelineContext["supabase"],
     majorRecommendedSubjectIds?: Set<string>,
   ) {
-    // Sub-task 2 분리 후 phase-s2-guide-ranking.ts로 이동 예정.
-    // 현재는 phase-s2-edges.ts의 re-export를 통해 접근.
     const { applyContinuityRanking } = await import(
-      "@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges"
+      "@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-ranking"
     );
     return applyContinuityRanking(
       guides,
@@ -758,10 +756,8 @@ describe("insertAssignments — 슬롯 분기 테스트", () => {
     ctx: PipelineContext,
     ranked: ReturnType<typeof makeRanked>[],
   ) {
-    // Sub-task 2 분리 후 phase-s2-guide-ranking.ts로 이동 예정.
-    // 현재는 phase-s2-edges.ts의 re-export를 통해 접근.
     const { insertAssignments } = await import(
-      "@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges"
+      "@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-ranking"
     );
     return insertAssignments(ctx, ranked);
   }
