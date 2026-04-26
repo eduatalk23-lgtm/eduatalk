@@ -626,6 +626,12 @@ export interface SuggestStrategiesInput {
    * undefined 이면 섹션 자체 생략 (no-op).
    */
   midPlanSynthesisSection?: string;
+  /**
+   * 격차 4: 설계 모드 AI 가안 품질 섹션 (buildProjectedQualitySection() 결과).
+   * P8 draft_analysis 가 저장한 source='ai_projected' content_quality 5축 점수 + 이슈 집계.
+   * 설계 모드 학년이 없거나 P8 미실행이면 undefined (no-op).
+   */
+  projectedQualitySection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */

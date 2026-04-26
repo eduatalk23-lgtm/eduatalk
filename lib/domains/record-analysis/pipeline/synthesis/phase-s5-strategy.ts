@@ -430,6 +430,21 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     logActionError({ ...LOG_CTX, action: "pipeline.midPlanSynthesisSection.strategy" }, mpErr, { pipelineId });
   }
 
+  // 격차 4: 설계 모드 AI 가안 품질(source='ai_projected') → 전략 프롬프트 주입 (best-effort)
+  // collectSubjectDirectionScores() 는 source='ai' 만 읽으므로 별도 섹션으로 병행 주입한다.
+  let projectedQualitySection: string | undefined;
+  if (ctx.consultingGrades && ctx.consultingGrades.length > 0) {
+    try {
+      const { fetchProjectedQualitySummary, buildProjectedQualitySection } = await import(
+        "@/lib/domains/record-analysis/llm/projected-quality-section"
+      );
+      const projQuality = await fetchProjectedQualitySummary(ctx.supabase, studentId, tenantId);
+      projectedQualitySection = buildProjectedQualitySection(projQuality) ?? undefined;
+    } catch (pqErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.projectedQualitySection.strategy" }, pqErr, { pipelineId });
+    }
+  }
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -445,6 +460,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     qualityPatterns: ctx.belief.qualityPatterns,
     mainExplorationSection: mainExplorationSection || undefined,
     midPlanSynthesisSection,
+    projectedQualitySection,
   });
   if (!result.success) throw new Error(result.error);
 

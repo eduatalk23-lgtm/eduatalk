@@ -286,6 +286,24 @@ export async function runAiDiagnosis(
     logActionError({ ...LOG_CTX, action: "pipeline.midPlanSynthesisSection.diagnosis" }, mpErr, { pipelineId });
   }
 
+  // 격차 4: 설계 모드 AI 가안 품질(source='ai_projected') → 진단 프롬프트 주입 (best-effort)
+  if (ctx.consultingGrades && ctx.consultingGrades.length > 0) {
+    try {
+      const { fetchProjectedQualitySummary, buildProjectedQualitySection } = await import(
+        "@/lib/domains/record-analysis/llm/projected-quality-section"
+      );
+      const projQuality = await fetchProjectedQualitySummary(supabase, studentId, tenantId);
+      const projQualitySection = buildProjectedQualitySection(projQuality);
+      if (projQualitySection) {
+        diagQualityPatternSection = diagQualityPatternSection
+          ? `${diagQualityPatternSection}\n\n${projQualitySection}`
+          : projQualitySection;
+      }
+    } catch (pqErr) {
+      logActionError({ ...LOG_CTX, action: "pipeline.projectedQualitySection.diagnosis" }, pqErr, { pipelineId });
+    }
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
