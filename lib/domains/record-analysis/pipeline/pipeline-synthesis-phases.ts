@@ -19,6 +19,7 @@ import {
   checkCancelled,
   updatePipelineState,
 } from "./pipeline-executor";
+import { startPhaseDeadline, enforcePhaseDeadline } from "./pipeline-route-helpers";
 import {
   runStorylineGeneration,
   runEdgeComputation,
@@ -275,9 +276,16 @@ export async function executeSynthesisPhase1(
 export async function executeSynthesisPhase2(
   ctx: PipelineContext,
 ): Promise<void> {
+  // Phase 2 누적 예산 가드 — task 사이에 enforcePhaseDeadline 호출.
+  // 잔여 예산 < 30s 이면 다음 task 진입 보류 → 다음 polling cycle 에서 재개.
+  // (edge ~30s + hyperedge ~60s + guide_matching LLM ~120s + haengteuk ~30s = 최악 240s,
+  //  rate-limit 재시도 더해지면 300s 초과 가능 → stuck 방지.)
+  const deadline = startPhaseDeadline("synthesis.phase-2");
+
   if (await checkCancelled(ctx)) return;
 
   if (!skipIfSynthPrereqFailed(ctx, "edge_computation")) {
+    if (!enforcePhaseDeadline(deadline, "edge_computation", ctx.pipelineId)) return;
     await runTaskWithState(ctx, "edge_computation", () =>
       runEdgeComputation(ctx),
     );
@@ -289,6 +297,7 @@ export async function executeSynthesisPhase2(
     ctx.tasks.edge_computation === "completed" &&
     !skipIfSynthPrereqFailed(ctx, "hyperedge_computation")
   ) {
+    if (!enforcePhaseDeadline(deadline, "hyperedge_computation", ctx.pipelineId)) return;
     await runTaskWithState(ctx, "hyperedge_computation", () =>
       runHyperedgeComputation(ctx),
     );
@@ -297,6 +306,7 @@ export async function executeSynthesisPhase2(
   if (await checkCancelled(ctx)) return;
 
   // guide_matching은 선행 없음 — 항상 실행
+  if (!enforcePhaseDeadline(deadline, "guide_matching", ctx.pipelineId)) return;
   await runTaskWithState(ctx, "guide_matching", () =>
     runGuideMatching(ctx),
   );
@@ -307,6 +317,7 @@ export async function executeSynthesisPhase2(
     ctx.tasks.guide_matching === "completed" &&
     !skipIfSynthPrereqFailed(ctx, "haengteuk_linking")
   ) {
+    if (!enforcePhaseDeadline(deadline, "haengteuk_linking", ctx.pipelineId)) return;
     await runTaskWithState(ctx, "haengteuk_linking", () =>
       runHaengteukGuideLinking(ctx),
     );
