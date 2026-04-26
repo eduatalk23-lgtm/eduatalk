@@ -108,6 +108,12 @@ export async function generateAiDiagnosis(
    * α2 Reward 엔진이 계산한 학업/진로/공동체 0~100 점수. 없으면 생략.
    */
   hakjongScoreSection?: string,
+  /** Phase B G3: gradeThemes 섹션 (buildGradeThemesSection() 결과). 없으면 생략. */
+  gradeThemesSection?: string,
+  /** Phase B G2: hyperedge 요약 섹션 (buildHyperedgeSummarySection() 결과). 없으면 생략. */
+  hyperedgeSummarySection?: string,
+  /** Phase B G5: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
+  profileCardSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -207,6 +213,9 @@ export async function generateAiDiagnosis(
       narrativeArcSection,
       midPlanSynthesisSection,
       hakjongScoreSection,
+      gradeThemesSection,
+      hyperedgeSummarySection,
+      profileCardSection,
       isProspective,
     });
 

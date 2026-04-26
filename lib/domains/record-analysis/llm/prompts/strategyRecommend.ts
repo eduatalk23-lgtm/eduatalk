@@ -160,6 +160,21 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += `${input.hakjongScoreSection}\n\n`;
   }
 
+  // Phase B G3: 학년 지배 교과 교차 테마
+  if (input.gradeThemesSection) {
+    prompt += `${input.gradeThemesSection}\n\n`;
+  }
+
+  // Phase B G1: 세특 8단계 서사 완성도
+  if (input.narrativeArcSection) {
+    prompt += `${input.narrativeArcSection}\n\n`;
+  }
+
+  // Phase B G5: 학생 정체성 프로필 카드
+  if (input.profileCardSection) {
+    prompt += `${input.profileCardSection}\n\n`;
+  }
+
   prompt += `위 진단 결과를 바탕으로 구체적인 보완전략을 JSON으로 제안해주세요. "AI 진단 개선 전략"이 있다면 이를 기반으로 구체적 활동/일정/방법을 보강하세요. 루브릭 질문별 약점이 있다면 해당 질문을 보완하는 구체적 활동을 포함하세요. 최신 대입 트렌드를 반영하여 실현 가능한 활동을 제안하세요. 미이수 과목이 있다면 해당 과목 이수를 우선적으로 포함하세요. 대학 계열 적합도 분석이 제공된 경우, 적합 계열의 갭(gap) 역량 보완을 전략에 반영하세요. 배정 가이드가 제공된 경우, 가이드의 탐구 방향과 정합하는 보완전략을 우선 제안하세요. 메인 탐구 tier_plan 이 제공된 경우, 빈 tier 셀을 우선적으로 채우는 활동을 보완전략에 1개 이상 포함하세요. **"정합성 분석 (Gap Tracker)" Bridge 행동 제안이 제공된 경우, 각 Bridge 제안별 실현 전략을 최소 1건 포함하세요 (urgency high 우선).** 컨설턴트 메타 판정(핵심 탐구 축 가설)이 제공된 경우, 해당 가설을 검증·심화하는 보강 방향을 전략에 반드시 포함하고, 우려 플래그가 있으면 해당 영역의 전략을 우선순위 높게 배치하세요.`;
 
   return prompt;

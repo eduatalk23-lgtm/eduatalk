@@ -324,6 +324,35 @@ export async function runAiDiagnosis(
     logActionError({ ...LOG_CTX, action: "pipeline.hakjongScoreSection.diagnosis" }, hkErr, { pipelineId });
   }
 
+  // Phase B G3: 학년 지배 교과 교차 테마 → 진단 프롬프트 주입 (ctx.belief.gradeThemes)
+  let gradeThemesSection: string | undefined;
+  try {
+    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+    gradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+  } catch (gtErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.gradeThemesSection.diagnosis" }, gtErr, { pipelineId });
+  }
+
+  // Phase B G2: hyperedge(N-ary 수렴 테마) → 진단 프롬프트 주입 (best-effort)
+  let hyperedgeSummarySection: string | undefined;
+  try {
+    const { findHyperedges } = await import("@/lib/domains/student-record/repository/hyperedge-repository");
+    const { buildHyperedgeSummarySection } = await import("./helpers");
+    const hyperedges = await findHyperedges(studentId, tenantId, { contexts: ["analysis"] });
+    if (hyperedges.length > 0) {
+      const built = buildHyperedgeSummarySection(hyperedges);
+      if (built) hyperedgeSummarySection = built;
+    }
+  } catch (heErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.hyperedgeSummarySection.diagnosis" }, heErr, { pipelineId });
+  }
+
+  // Phase B G5: 학생 정체성 프로필 카드 (ctx.belief.profileCard) → 진단 프롬프트 주입
+  const profileCardSection: string | undefined =
+    ctx.belief.profileCard && ctx.belief.profileCard.trim().length > 0
+      ? ctx.belief.profileCard
+      : undefined;
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -339,7 +368,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, hakjongScoreSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

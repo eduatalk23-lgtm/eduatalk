@@ -638,6 +638,23 @@ export interface SuggestStrategiesInput {
    * 스냅샷 없거나 미계산 시 undefined (no-op).
    */
   hakjongScoreSection?: string;
+  /**
+   * Phase B G3: 이번 실행 학년 지배 교과 교차 테마 섹션 (buildGradeThemesSection() 결과).
+   * P3.5 cross_subject_theme_extraction 이 ctx.belief.gradeThemes 에 저장한 결과.
+   * gradeThemes 없거나 dominantThemeIds 비어있으면 undefined (no-op).
+   */
+  gradeThemesSection?: string;
+  /**
+   * Phase B G1: 세특 서사 완성도(8단계) 섹션 (buildNarrativeArcDiagnosisSection() 결과).
+   * S2 narrative_arc_extraction 산출물 기반. 없으면 undefined (no-op).
+   */
+  narrativeArcSection?: string;
+  /**
+   * Phase B G5: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard).
+   * P1-P3 역량 분석에서 빌드된 이전 학년 역량/품질 누적 카드.
+   * undefined 또는 "" 이면 섹션 생략 (no-op).
+   */
+  profileCardSection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */

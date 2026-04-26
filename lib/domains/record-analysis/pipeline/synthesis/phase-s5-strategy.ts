@@ -465,6 +465,32 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     logActionError({ ...LOG_CTX, action: "pipeline.hakjongScoreSection.strategy" }, hkErr, { pipelineId });
   }
 
+  // Phase B G3: 학년 지배 교과 교차 테마 → 전략 프롬프트 주입
+  let gradeThemesSection: string | undefined;
+  try {
+    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+    gradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+  } catch (gtErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.gradeThemesSection.strategy" }, gtErr, { pipelineId });
+  }
+
+  // Phase B G1: 세특 8단계 서사 완성도 → 전략 프롬프트 주입
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import(
+      "@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section"
+    );
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase) ?? undefined;
+  } catch (naErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcSection.strategy" }, naErr, { pipelineId });
+  }
+
+  // Phase B G5: 학생 정체성 프로필 카드 → 전략 프롬프트 주입
+  const profileCardSection: string | undefined =
+    ctx.belief.profileCard && ctx.belief.profileCard.trim().length > 0
+      ? ctx.belief.profileCard
+      : undefined;
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -482,6 +508,9 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     midPlanSynthesisSection,
     projectedQualitySection,
     hakjongScoreSection,
+    gradeThemesSection,
+    narrativeArcSection,
+    profileCardSection,
   });
   if (!result.success) throw new Error(result.error);
 
