@@ -1,6 +1,11 @@
 import * as Sentry from "@sentry/nextjs";
 import { logActionWarn } from "@/lib/logging/actionLogger";
 import { classifyLlmError, type LlmErrorCategory } from "./error-classifier";
+import { extractRetryAfterMs } from "./retry-after-parser";
+
+// withRetry 내 단일 대기 상한 — 응답 헤더가 비현실적으로 큰 값(예: 1시간) 을 반환해도
+// UX 보호 차원에서 60초로 캡. 더 긴 대기가 필요하면 withExtendedRetry 사용.
+const RETRY_HINT_MAX_MS = 60_000;
 
 // ============================================
 // 에러 분류 기반 적응형 재시도 래퍼
@@ -83,10 +88,20 @@ export async function withRetry<T>(
         const effectiveMax = explicitMaxRetries ?? strategy.maxRetries;
         if (attempt >= effectiveMax) break;
 
-        const delay = strategy.delays[Math.min(attempt, strategy.delays.length - 1)] ?? 10000;
+        const baseDelay = strategy.delays[Math.min(attempt, strategy.delays.length - 1)] ?? 10000;
+        // rate_limit 카테고리만 응답 헤더 힌트 사용. 다른 카테고리는 헤더 신뢰성 낮음.
+        let delay = baseDelay;
+        let delaySource = "fixed";
+        if (category === "rate_limit") {
+          const hint = extractRetryAfterMs(error);
+          if (hint !== null) {
+            delay = Math.min(Math.max(hint, baseDelay), RETRY_HINT_MAX_MS);
+            delaySource = "retry-after-hint";
+          }
+        }
         logActionWarn(
           { domain: "record-analysis", action: "llm-retry" },
-          `[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기)`,
+          `[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기, ${delaySource})`,
         );
         await new Promise<void>((r) => setTimeout(r, delay));
       } else {

@@ -18,7 +18,8 @@
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { touchPipelineHeartbeat } from "../pipeline/pipeline-executor";
 import { logActionWarn } from "@/lib/logging/actionLogger";
-import { isLlmClientError } from "./error-classifier";
+import { classifyLlmError, isLlmClientError } from "./error-classifier";
+import { extractRetryAfterMs } from "./retry-after-parser";
 
 const EXTENDED_DELAYS_MS = [
   1_000,           // 1 초
@@ -96,10 +97,22 @@ export async function withExtendedRetry<T>(
 
       if (attempt >= eligibleDelays.length) break; // 최종 시도 실패
 
-      const delayMs = eligibleDelays[attempt];
+      const baseDelay = eligibleDelays[attempt];
+      // rate_limit 응답에 정확한 회복 힌트가 있으면 그 값 사용 (단, base 이상 + maxDelayMs 이하).
+      // 헤더 힌트가 짧으면 baseDelay 만큼은 기다려서 thundering herd 방지.
+      let delayMs = baseDelay;
+      let delaySource = "fixed";
+      if (classifyLlmError(error) === "rate_limit") {
+        const hint = extractRetryAfterMs(error);
+        if (hint !== null) {
+          const cap = maxDelayMs ?? Number.POSITIVE_INFINITY;
+          delayMs = Math.min(Math.max(hint, baseDelay), cap);
+          delaySource = "retry-after-hint";
+        }
+      }
       logActionWarn(
         { domain: "record-analysis", action: "llm-extended-retry" },
-        `[${label}] 재시도 ${attempt + 1}/${eligibleDelays.length} — ${Math.round(delayMs / 1000)}s 대기 (heartbeat 유지)`,
+        `[${label}] 재시도 ${attempt + 1}/${eligibleDelays.length} — ${Math.round(delayMs / 1000)}s 대기 (heartbeat 유지, ${delaySource})`,
         { pipelineId },
       );
       await sleepWithHeartbeat(delayMs, pipelineId, supabase);
