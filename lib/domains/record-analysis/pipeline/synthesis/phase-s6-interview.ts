@@ -279,6 +279,19 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     logActionDebug(LOG_CTX, `strategies 조회 실패 (면접 생성 계속): ${stratErr}`);
   }
 
+  // Phase B G2: hyperedge → 면접 질문 (best-effort)
+  let hyperedgeSummarySection: string | undefined;
+  try {
+    const { findHyperedges } = await import("@/lib/domains/student-record/repository/hyperedge-repository");
+    const { buildHyperedgeSummarySection } = await import("./helpers");
+    const hyperedges = await findHyperedges(studentId, tenantId, { contexts: ["analysis"] });
+    if (hyperedges.length > 0) {
+      hyperedgeSummarySection = buildHyperedgeSummarySection(hyperedges) ?? undefined;
+    }
+  } catch (heErr) {
+    logActionDebug(LOG_CTX, `hyperedge 조회 실패 (면접 생성 계속): ${heErr}`);
+  }
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -295,6 +308,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     midPlanSynthesisSection,
     hakjongScoreSection,
     strategySummarySection,
+    hyperedgeSummarySection,
   });
 
   if (!result.success) throw new Error(result.error);

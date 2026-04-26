@@ -70,6 +70,10 @@ export interface TierPlanRefinementInput {
    * tier_plan 개정 방향이 핵심 탐구 축 가설과 정합되도록 LLM 에 힌트 제공.
    */
   midPlanSynthesisSection?: string;
+  /** Phase B G1: 세특 8단계 서사 완성도 섹션. 없으면 생략. */
+  narrativeArcSection?: string;
+  /** Phase B G2: hyperedge(N-ary 수렴 테마) 요약 섹션. 없으면 생략. */
+  hyperedgeSummarySection?: string;
 }
 
 export const TIER_PLAN_REFINEMENT_SYSTEM_PROMPT = `당신은 대입 컨설팅 전문가로, 학생의 **현 메인 탐구 3단 계획**을 학생의 **실제 학습 궤적**(Synthesis 결과)을 근거로 **개정**합니다.
@@ -201,6 +205,16 @@ export function buildTierPlanRefinementUserPrompt(
   // 격차 C (2026-04-26): MidPlan focusHypothesis 섹션 주입
   if (input.midPlanSynthesisSection && input.midPlanSynthesisSection.trim().length > 0) {
     sections.push(input.midPlanSynthesisSection, "");
+  }
+
+  // Phase B G1: narrativeArc 8단계 서사 완성도 주입
+  if (input.narrativeArcSection && input.narrativeArcSection.trim().length > 0) {
+    sections.push(input.narrativeArcSection, "");
+  }
+
+  // Phase B G2: hyperedge(N-ary 수렴 테마) 주입
+  if (input.hyperedgeSummarySection && input.hyperedgeSummarySection.trim().length > 0) {
+    sections.push(input.hyperedgeSummarySection, "");
   }
 
   sections.push(

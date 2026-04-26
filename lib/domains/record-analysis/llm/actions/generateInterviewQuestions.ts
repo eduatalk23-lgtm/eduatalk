@@ -59,6 +59,8 @@ export async function generateInterviewQuestions(input: {
   hakjongScoreSection?: string;
   /** 격차 A: S5 합의 전략 요약 섹션. buildStrategySummarySection() 결과. */
   strategySummarySection?: string;
+  /** Phase B G2: hyperedge(N-ary 수렴 테마) 요약 섹션. 없으면 생략. */
+  hyperedgeSummarySection?: string;
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -121,6 +123,9 @@ export async function generateInterviewQuestions(input: {
     }
     if (input.hakjongScoreSection) {
       userPrompt += `\n\n${input.hakjongScoreSection}\n\n위 약점 축(🔴 표시)에 해당하는 활동·기록의 부족 여부를 확인하는 질문을 1개 이상 포함하라.`;
+    }
+    if (input.hyperedgeSummarySection) {
+      userPrompt += `\n\n${input.hyperedgeSummarySection}\n\n위 통합 테마(N-ary 수렴)에서 가장 강한 연결 축의 주제를 심화하는 질문을 1개 이상 포함하라.`;
     }
     if (input.strategySummarySection) {
       userPrompt += `\n\n${input.strategySummarySection}`;

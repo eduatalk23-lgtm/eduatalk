@@ -198,6 +198,30 @@ export async function runTierPlanRefinement(
     // best-effort: 실패해도 S7 계속 진행
   }
 
+  // Phase B G1: narrativeArc → S7 (best-effort)
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import(
+      "@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section"
+    );
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, supabase) ?? undefined;
+  } catch {
+    // best-effort
+  }
+
+  // Phase B G2: hyperedge → S7 (best-effort)
+  let hyperedgeSummarySection: string | undefined;
+  try {
+    const { findHyperedges } = await import("@/lib/domains/student-record/repository/hyperedge-repository");
+    const { buildHyperedgeSummarySection } = await import("./helpers");
+    const hyperedges = await findHyperedges(studentId, tenantId, { contexts: ["analysis"] });
+    if (hyperedges.length > 0) {
+      hyperedgeSummarySection = buildHyperedgeSummarySection(hyperedges) ?? undefined;
+    }
+  } catch {
+    // best-effort
+  }
+
   const suggestion = await extractTierPlanSuggestion({
     currentThemeLabel: active.theme_label,
     currentThemeKeywords: active.theme_keywords ?? [],
@@ -215,6 +239,8 @@ export async function runTierPlanRefinement(
     hakjongScore: snapshotCtx.hakjongScore,
     hakjongScoreV2Pre: snapshotCtx.hakjongScoreV2Pre,
     midPlanSynthesisSection,
+    narrativeArcSection,
+    hyperedgeSummarySection,
   });
 
   if (!suggestion.success) {
