@@ -1011,7 +1011,7 @@ describe("runGuideMatching", () => {
     mockAutoRecommend.mockResolvedValue({ success: true, data: [] });
 
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     const result = await runGuideMatching(ctx);
 
     expect(previewOf(result)).toMatch(/0건 가이드 배정/);
@@ -1031,7 +1031,7 @@ describe("runGuideMatching", () => {
     }) as PipelineContext["supabase"];
 
     const ctx = makeCtx({ neisGrades: [1], supabase });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     const result = await runGuideMatching(ctx);
 
     // 신규 배정 없음 — 0건
@@ -1072,7 +1072,7 @@ describe("runGuideMatching", () => {
       neisGrades: [1],
       supabase: { from: fromMock } as unknown as PipelineContext["supabase"],
     });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     const result = await runGuideMatching(ctx);
 
     // 추천 2건 중 신규 1건 → 배정 시도
@@ -1105,7 +1105,7 @@ describe("runGuideMatching", () => {
         ],
       } as never,
     });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     const result = await runGuideMatching(ctx);
 
     // guide-A + guide-B = 2건 추천 → (기존 배정 없으면) 2건 배정 시도
@@ -1131,7 +1131,7 @@ describe("runGuideMatching", () => {
         ),
       } as never,
     });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     await runGuideMatching(ctx);
 
     // 분류 기반 1회 + 과목 최대 5회 = 총 6회
@@ -1169,7 +1169,7 @@ describe("runGuideMatching", () => {
         plans: [{ plan_status: "confirmed", subject: { name: "수학I" } }],
       } as never,
     });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     await runGuideMatching(ctx);
 
     // insertMock이 호출되면 guide-X 1건 (중복 아님)
@@ -1186,7 +1186,7 @@ describe("runGuideMatching", () => {
     mockAutoRecommend.mockResolvedValue({ success: false, data: null });
 
     const ctx = makeCtx({ neisGrades: [1] });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     const result = await runGuideMatching(ctx);
 
     expect(previewOf(result)).toMatch(/0건 가이드 배정/);
@@ -1207,7 +1207,7 @@ describe("runGuideMatching", () => {
         ],
       } as never,
     });
-    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges");
+    const { runGuideMatching } = await import("@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-guide-match");
     await runGuideMatching(ctx);
 
     // 분류 기반 1회 + confirmed(수학I) 1회 + recommended(화학I) 1회 = 3회

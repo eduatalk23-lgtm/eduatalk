@@ -10,7 +10,8 @@ export { runStorylineGeneration } from "./phase-s1-storyline";
 // 기존 import 경로 호환은 `../blueprint` 및 `pipeline-task-runners` aggregator가 제공.
 
 // S2
-export { runEdgeComputation, runGuideMatching } from "./phase-s2-edges";
+export { runEdgeComputation } from "./phase-s2-edges";
+export { runGuideMatching } from "./phase-s2-guide-match";
 export { runHaengteukGuideLinking } from "./phase-s2-haengteuk-linking";
 export { runHyperedgeComputation } from "./phase-s2-hyperedges";
 export { runNarrativeArcExtraction } from "./phase-s2-narrative-arc";
