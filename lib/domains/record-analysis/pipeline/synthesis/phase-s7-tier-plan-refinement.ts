@@ -183,6 +183,25 @@ export async function runTierPlanRefinement(
   //   snapshot 부재/파싱 실패 시 모든 필드 null — S7 은 기존과 동일 동작.
   const snapshotCtx = await loadLatestSnapshotContext(studentId, tenantId, supabase);
 
+  // ── 격차 C (2026-04-26): MidPlan focusHypothesis → S7 tier_plan 정합
+  //   buildMidPlanSynthesisSection 으로 변환 후 extractTierPlanSuggestion 에 주입.
+  //   midPlan 부재 또는 변환 실패 시 undefined (no-op) — S7 기존 동작 보존.
+  let midPlanSynthesisSection: string | undefined;
+  try {
+    const { buildMidPlanSynthesisSection } = await import(
+      "@/lib/domains/record-analysis/llm/mid-plan-guide-section"
+    );
+    const midPlan =
+      ctx.midPlan ??
+      (ctx.results["_midPlan"] as
+        | Parameters<typeof buildMidPlanSynthesisSection>[0]
+        | undefined);
+    const built = buildMidPlanSynthesisSection(midPlan);
+    if (built) midPlanSynthesisSection = built;
+  } catch {
+    // best-effort: 실패해도 S7 계속 진행
+  }
+
   const suggestion = await extractTierPlanSuggestion({
     currentThemeLabel: active.theme_label,
     currentThemeKeywords: active.theme_keywords ?? [],
@@ -199,6 +218,7 @@ export async function runTierPlanRefinement(
     multiScenarioGap: snapshotCtx.multiScenarioGap,
     hakjongScore: snapshotCtx.hakjongScore,
     hakjongScoreV2Pre: snapshotCtx.hakjongScoreV2Pre,
+    midPlanSynthesisSection,
   });
 
   if (!suggestion.success) {

@@ -760,6 +760,12 @@ export interface SetekGuideInput {
    * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
    */
   midPlanSection?: string;
+  /**
+   * 격차 D (2026-04-26): 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
+   * 가이드가 약점 축(공동체 45점 등)을 우선 보강하는 방향으로 생성되도록 주입.
+   * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  hakjongScoreSection?: string;
 }
 
 /** generateSetekGuide 액션의 출력 */
@@ -882,6 +888,12 @@ export interface ChangcheGuideInput {
    * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
    */
   midPlanSection?: string;
+  /**
+   * 격차 D (2026-04-26): 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
+   * 가이드가 약점 축(공동체 45점 등)을 우선 보강하는 방향으로 생성되도록 주입.
+   * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  hakjongScoreSection?: string;
 }
 
 /** generateChangcheGuide 액션의 출력 */
@@ -948,6 +960,12 @@ export interface HaengteukGuideInput {
    * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
    */
   midPlanSection?: string;
+  /**
+   * 격차 D (2026-04-26): 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
+   * 가이드가 약점 축(공동체 45점 등)을 우선 보강하는 방향으로 생성되도록 주입.
+   * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  hakjongScoreSection?: string;
 }
 
 /** generateHaengteukGuide 액션의 출력 */

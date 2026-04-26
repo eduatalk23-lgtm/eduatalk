@@ -124,6 +124,10 @@ export async function generateSetekGuide(
       supabase,
     );
 
+    // 격차 D: hakjongScore 약점 축 → 가이드 방향 보강 힌트 (best-effort)
+    const { loadHakjongScoreSection } = await import("../load-hakjong-score-section");
+    const hakjongScoreSection = await loadHakjongScoreSection(studentId, tenantId, supabase);
+
     const input: SetekGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -145,6 +149,7 @@ export async function generateSetekGuide(
       studentProfileCard: studentProfileCard || undefined,
       narrativeArcSection: narrativeArcSection || undefined,
       midPlanSection: midPlanSection || undefined,
+      hakjongScoreSection,
     };
 
     // AI SDK 호출
@@ -290,6 +295,10 @@ export async function generateProspectiveSetekGuide(
     supabase,
   );
 
+  // 격차 D: hakjongScore 약점 축 (best-effort)
+  const { loadHakjongScoreSection: loadHakjongP } = await import("../load-hakjong-score-section");
+  const hakjongScoreSectionP = await loadHakjongP(studentId, tenantId, supabase);
+
   const input: SetekGuideInput = {
     mode: "prospective",
     studentName: report.student.name ?? "학생",
@@ -319,6 +328,7 @@ export async function generateProspectiveSetekGuide(
     studentProfileCard: studentProfileCard || undefined,
     narrativeArcSection: narrativeArcSection || undefined,
     midPlanSection: midPlanSection || undefined,
+    hakjongScoreSection: hakjongScoreSectionP,
   };
 
   const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768, retryLabel: "setekGuide" });

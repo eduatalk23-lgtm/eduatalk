@@ -290,6 +290,10 @@ export async function generateHaengteukGuide(
       supabase,
     );
 
+    // 격차 D: hakjongScore 약점 축 (best-effort)
+    const { loadHakjongScoreSection } = await import("../load-hakjong-score-section");
+    const hakjongScoreSection = await loadHakjongScoreSection(studentId, tenantId, supabase);
+
     const input: HaengteukGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -312,6 +316,7 @@ export async function generateHaengteukGuide(
       studentProfileCard,
       narrativeArcSection: narrativeArcSection || undefined,
       midPlanSection: midPlanSection || undefined,
+      hakjongScoreSection,
     };
 
     // AI SDK 호출

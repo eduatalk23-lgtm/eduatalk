@@ -176,6 +176,11 @@ export function buildUserPrompt(input: ChangcheGuideInput): string {
     prompt += `${input.midPlanSection}\n\n`;
   }
 
+  // 격차 D (2026-04-26): 학종 3요소 통합 점수 — 약점 축 우선 보강 방향 유도
+  if (input.hakjongScoreSection) {
+    prompt += `${input.hakjongScoreSection}\n\n`;
+  }
+
   // D→B단계: 역량 분석 맥락 (Phase 1-3 결과 주입)
   if (input.analysisContext) {
     const { qualityIssues, weakCompetencies, warningPatterns } = input.analysisContext;
