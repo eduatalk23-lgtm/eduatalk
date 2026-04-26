@@ -16,7 +16,22 @@ record-analysis/
 │   ├── pipeline-task-runners*.ts # 태스크별 실행 로직 (7파일)
 │   ├── pipeline-slot-generator.ts # 슬롯 생성
 │   ├── pipeline-helpers.ts       # 공통 헬퍼
-│   └── synthesis/                # S1-S6 Synthesis Phase (7파일)
+│   └── synthesis/                # S1-S7 Synthesis Phase (15파일)
+│       ├── phase-s1-storyline.ts          # 307줄
+│       ├── phase-s2-edges.ts              # 148줄 — runEdgeComputation
+│       ├── phase-s2-guide-match.ts        # 822줄 — runGuideMatching + 탐구 설계 (Phase A/B)
+│       ├── phase-s2-guide-ranking.ts      # 760줄 — ranking + assignment (6 보너스)
+│       ├── phase-s2-haengteuk-linking.ts  # 387줄
+│       ├── phase-s2-hyperedges.ts         # 792줄
+│       ├── phase-s2-narrative-arc.ts      # 335줄
+│       ├── phase-s3-diagnosis.ts          # 481줄
+│       ├── phase-s3p5-gap-tracker.ts      # 205줄
+│       ├── phase-s4-bypass.ts             #  87줄
+│       ├── phase-s5-strategy.ts           # 478줄
+│       ├── phase-s6-interview.ts          # 432줄
+│       ├── phase-s7-tier-plan-refinement.ts # 401줄
+│       ├── helpers.ts                     # 524줄 — 공통 헬퍼
+│       └── index.ts                       # 35줄 — re-export 배럴
 ├── llm/                   # LLM 액션, 프롬프트, 유틸리티
 │   ├── actions/           # 18개 서버 액션 (generate*, analyze*, suggest*, detect*)
 │   ├── prompts/           # 13개 프롬프트 빌더 (narrativeContext 포함)
