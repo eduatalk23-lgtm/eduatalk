@@ -6,6 +6,7 @@ import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { generateTextWithRateLimit } from "../ai-client";
+import { withRetry } from "../retry";
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import type { DiagnosisTabData } from "@/lib/domains/student-record/types";
 
@@ -99,16 +100,21 @@ export async function callGuideAI<T>(
   systemPrompt: string,
   userPrompt: string,
   parseResponse: (content: string) => T,
-  options?: { maxTokens?: number; temperature?: number },
+  options?: { maxTokens?: number; temperature?: number; retryLabel?: string },
 ): Promise<T | null> {
-  const result = await generateTextWithRateLimit({
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
-    modelTier: "standard",
-    temperature: options?.temperature ?? 0.3,
-    maxTokens: options?.maxTokens ?? 16384,
-    responseFormat: "json",
-  });
+  // setek/changche/haengteuk Guide 3종이 공유. 적응형 백오프 + 429 Retry-After 힌트 활용.
+  const result = await withRetry(
+    () =>
+      generateTextWithRateLimit({
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        modelTier: "standard",
+        temperature: options?.temperature ?? 0.3,
+        maxTokens: options?.maxTokens ?? 16384,
+        responseFormat: "json",
+      }),
+    { label: options?.retryLabel ?? "guide" },
+  );
 
   if (!result.content) return null;
   return parseResponse(result.content);

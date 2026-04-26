@@ -148,7 +148,7 @@ export async function generateSetekGuide(
     };
 
     // AI SDK 호출
-    const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768 });
+    const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768, retryLabel: "setekGuide" });
     if (!parsed) {
       return { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." };
     }
@@ -321,7 +321,7 @@ export async function generateProspectiveSetekGuide(
     midPlanSection: midPlanSection || undefined,
   };
 
-  const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768 });
+  const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768, retryLabel: "setekGuide" });
   if (!parsed) {
     return { success: false, error: "AI 응답이 비어있습니다." };
   }

@@ -149,7 +149,7 @@ ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n
 - 진로 적합성이 드러나도록 방향을 설계합니다
 - prompt_version: "changche_guide_v1_prospective"`;
 
-  const parsed = await callGuideAI(SYSTEM_PROMPT, userPrompt, parseResponse, { maxTokens: 16384 });
+  const parsed = await callGuideAI(SYSTEM_PROMPT, userPrompt, parseResponse, { maxTokens: 16384, retryLabel: "changcheGuide" });
   if (!parsed) {
     return { success: false, error: "AI 응답이 비어있습니다." };
   }
@@ -323,7 +323,7 @@ export async function generateChangcheGuide(
     // AI SDK 호출
     const userPrompt = buildUserPrompt(input);
 
-    const parsed = await callGuideAI(SYSTEM_PROMPT, userPrompt, parseResponse, { maxTokens: 16384 });
+    const parsed = await callGuideAI(SYSTEM_PROMPT, userPrompt, parseResponse, { maxTokens: 16384, retryLabel: "changcheGuide" });
     if (!parsed) {
       return { success: false, error: "AI 응답이 비어있습니다. 다시 시도해주세요." };
     }
