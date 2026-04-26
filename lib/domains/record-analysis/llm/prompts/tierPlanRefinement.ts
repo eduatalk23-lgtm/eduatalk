@@ -80,6 +80,10 @@ export interface TierPlanRefinementInput {
    * 면접/로드맵 격차를 반영하도록 LLM 에 힌트 제공.
    */
   previousRunOutputsSection?: string;
+  /** Phase C A3: 학년 지배 교과 교차 테마 섹션 (buildGradeThemesSection() 결과). 없으면 생략. */
+  gradeThemesSection?: string;
+  /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
+  profileCardSection?: string;
 }
 
 export const TIER_PLAN_REFINEMENT_SYSTEM_PROMPT = `당신은 대입 컨설팅 전문가로, 학생의 **현 메인 탐구 3단 계획**을 학생의 **실제 학습 궤적**(Synthesis 결과)을 근거로 **개정**합니다.
@@ -226,6 +230,16 @@ export function buildTierPlanRefinementUserPrompt(
   // Phase C A1: 직전 실행 미해결 격차 주입
   if (input.previousRunOutputsSection && input.previousRunOutputsSection.trim().length > 0) {
     sections.push(input.previousRunOutputsSection, "");
+  }
+
+  // Phase C A3: 학년 지배 교과 교차 테마 주입
+  if (input.gradeThemesSection && input.gradeThemesSection.trim().length > 0) {
+    sections.push(input.gradeThemesSection, "");
+  }
+
+  // Phase C A6: 학생 정체성 프로필 카드 주입
+  if (input.profileCardSection && input.profileCardSection.trim().length > 0) {
+    sections.push(input.profileCardSection, "");
   }
 
   sections.push(

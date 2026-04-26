@@ -222,6 +222,21 @@ export async function runTierPlanRefinement(
     // best-effort
   }
 
+  // Phase C A3: 학년 지배 교과 교차 테마 → S7 tier_plan 정합 (best-effort)
+  let s7GradeThemesSection: string | undefined;
+  try {
+    const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
+    s7GradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+  } catch {
+    // best-effort: 실패해도 S7 계속 진행
+  }
+
+  // Phase C A6: 학생 정체성 프로필 카드 → S7 tier_plan 정합 (best-effort)
+  const s7ProfileCardSection: string | undefined =
+    ctx.belief.profileCard && ctx.belief.profileCard.trim().length > 0
+      ? ctx.belief.profileCard
+      : undefined;
+
   // Phase C A1: 직전 실행 gap_tracking.topBridges → S7 tier_plan 개정 시 미해결 격차 반영 (best-effort)
   let s7PreviousRunOutputsSection: string | undefined;
   try {
@@ -275,6 +290,8 @@ export async function runTierPlanRefinement(
     narrativeArcSection,
     hyperedgeSummarySection,
     previousRunOutputsSection: s7PreviousRunOutputsSection,
+    gradeThemesSection: s7GradeThemesSection,
+    profileCardSection: s7ProfileCardSection,
   });
 
   if (!suggestion.success) {
