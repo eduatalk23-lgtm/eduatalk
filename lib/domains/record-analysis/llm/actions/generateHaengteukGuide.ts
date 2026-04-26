@@ -117,6 +117,11 @@ export async function generateProspectiveHaengteukGuide(
 
   const midPlanSectionBlock = midPlanSection ? `${midPlanSection}\n` : "";
 
+  // 격차 D (prospective): hakjongScore 약점 축 → 가이드 방향 보강 힌트
+  const { loadHakjongScoreSection: loadHakjongP } = await import("../load-hakjong-score-section");
+  const hakjongScoreSection = await loadHakjongP(studentId, tenantId, supabase);
+  const hakjongScoreSectionBlock = hakjongScoreSection ? `${hakjongScoreSection}\n` : "";
+
   const userPrompt = `# 신입생 행특 방향 가이드 요청 (수강계획+진로 기반)
 
 ## 학생 정보
@@ -138,6 +143,7 @@ ${gridSection}
 ${profileCardSection}
 ${narrativeArcSectionBlock}
 ${midPlanSectionBlock}
+${hakjongScoreSectionBlock}
 ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
 ## 지시사항
