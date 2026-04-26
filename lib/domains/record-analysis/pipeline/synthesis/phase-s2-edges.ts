@@ -651,7 +651,7 @@ async function fetchClubHistory(
   return history;
 }
 
-async function applyContinuityRanking(
+export async function applyContinuityRanking(
   guides: Array<{ id: string; title: string; guide_type: string | null; match_reason: string }>,
   clubHistory: ClubHistoryEntry[],
   studentGrade: number,
@@ -1388,7 +1388,7 @@ async function createDesignShell(
 // 배정 INSERT (D3 창체 slot auto-link 포함)
 // ============================================
 
-async function insertAssignments(
+export async function insertAssignments(
   ctx: PipelineContext,
   ranked: RankedGuide[],
 ): Promise<{ count: number; skippedOrphan: number; skippedOrphanGuides: Array<{ id: string; title: string }>; skippedSlotOverflow: number }> {

@@ -351,6 +351,652 @@ describe("runEdgeComputation", () => {
   });
 });
 
+// ─── applyContinuityRanking 보너스 단위 테스트 ─────────────────────────────
+//
+// applyContinuityRanking은 Sub-task 2 분리 후
+// phase-s2-guide-ranking.ts에서 export됨.
+// 6개 보너스 × (적용/미적용) 케이스 + 클러스터 다양성 페널티.
+//
+// 모킹 전략:
+//   - supabase 6개 테이블을 makeSupabaseMock으로 제어
+//   - club-lineage: computeClubContinuityScore 실제 함수 (mock 없음)
+//   - blueprint/loader: 동적 import — vi.mock으로 차단
+
+vi.mock("@/lib/domains/record-analysis/blueprint/loader", () => ({
+  loadBlueprintForStudent: vi.fn().mockResolvedValue(null),
+}));
+
+describe("applyContinuityRanking — 6 보너스 단위 테스트", () => {
+  /** 최소 가이드 픽스처 */
+  function makeGuideInput(
+    id: string,
+    title: string,
+    guide_type: string | null = null,
+    match_reason = "classification",
+  ) {
+    return { id, title, guide_type, match_reason };
+  }
+
+  /** 6개 테이블 기본 응답이 모두 빈 배열인 supabase mock */
+  function makeRankingSupabase(
+    overrides: Record<string, unknown> = {},
+  ) {
+    return makeSupabaseMock({
+      student_record_hyperedges: { data: [], error: null },
+      student_record_narrative_arc: { data: [], error: null },
+      student_record_storylines: { data: [], error: null },
+      exploration_guide_career_mappings: { data: [], error: null },
+      exploration_guides: { data: [], error: null },
+      exploration_guide_assignments: { data: [], error: null },
+      exploration_guide_sequels: { data: [], error: null },
+      student_record_topic_trajectories: { data: [], error: null },
+      exploration_guide_subject_mappings: { data: null, error: null },
+      student_main_explorations: { data: [], error: null },
+      subjects: { data: [], error: null },
+      ...overrides,
+    }) as PipelineContext["supabase"];
+  }
+
+  /** applyContinuityRanking을 동적 import 후 호출하는 헬퍼 */
+  async function callRanking(
+    guides: Array<{ id: string; title: string; guide_type: string | null; match_reason: string }>,
+    supabase: PipelineContext["supabase"],
+    majorRecommendedSubjectIds?: Set<string>,
+  ) {
+    // Sub-task 2 분리 후 phase-s2-guide-ranking.ts로 이동 예정.
+    // 현재는 phase-s2-edges.ts의 re-export를 통해 접근.
+    const { applyContinuityRanking } = await import(
+      "@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges"
+    );
+    return applyContinuityRanking(
+      guides,
+      [],           // clubHistory — 빈 배열로 연속성 점수 중립화
+      2,            // studentGrade
+      supabase,
+      "student-1",
+      "tenant-1",
+      majorRecommendedSubjectIds,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // ── A. hyperedgeBonus ──────────────────────────────────────────────────
+
+  it("hyperedgeBonus: guide title에 hyperedge 토큰 포함 시 finalScore에 1.15 배수 반영", async () => {
+    const supabase = makeRankingSupabase({
+      student_record_hyperedges: {
+        data: [{ theme_label: "유전공학" }],
+        error: null,
+      },
+    });
+
+    // "유전공학" 토큰이 title에 포함 → hyperedgeBonus=1.15
+    const withToken = makeGuideInput("g-match", "유전공학 탐구 실험");
+    // 토큰 없음 → hyperedgeBonus=1.0
+    const withoutToken = makeGuideInput("g-no", "물리학 실험");
+
+    const ranked = await callRanking([withToken, withoutToken], supabase);
+
+    const hit = ranked.find((r) => r.id === "g-match");
+    const miss = ranked.find((r) => r.id === "g-no");
+    expect(hit?.hyperedgeBonus).toBe(1.15);
+    expect(miss?.hyperedgeBonus).toBe(1.0);
+  });
+
+  it("hyperedgeBonus: hyperedge 없으면 모두 1.0", async () => {
+    const supabase = makeRankingSupabase();
+    const ranked = await callRanking(
+      [makeGuideInput("g-1", "생명과학 탐구")],
+      supabase,
+    );
+    expect(ranked[0].hyperedgeBonus).toBe(1.0);
+  });
+
+  // ── B. narrativeArcBonus ──────────────────────────────────────────────
+
+  it("narrativeArcBonus: weakStageGuideTypes 매핑 시 guide_type 일치하면 1.1", async () => {
+    // 전체 2개 레코드 중 "참고문헌" 단계가 0건 → weak → "reading" guide_type에 1.1
+    const supabase = makeRankingSupabase({
+      student_record_narrative_arc: {
+        data: [
+          {
+            curiosity_present: true,
+            topic_selection_present: true,
+            inquiry_content_present: true,
+            references_present: false,  // weak
+            conclusion_present: true,
+            teacher_observation_present: true,
+            growth_narrative_present: true,
+            reinquiry_present: true,
+          },
+          {
+            curiosity_present: true,
+            topic_selection_present: true,
+            inquiry_content_present: true,
+            references_present: false,  // weak (2/2 레코드 모두 false → cnt=0 < threshold=1)
+            conclusion_present: true,
+            teacher_observation_present: true,
+            growth_narrative_present: true,
+            reinquiry_present: true,
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const matched = makeGuideInput("g-reading", "독서 가이드", "reading");
+    const notMatched = makeGuideInput("g-other", "일반 가이드", "reflection_program");
+
+    const ranked = await callRanking([matched, notMatched], supabase);
+
+    const hit = ranked.find((r) => r.id === "g-reading");
+    const miss = ranked.find((r) => r.id === "g-other");
+    expect(hit?.narrativeArcBonus).toBe(1.1);
+    // "참고문헌" weak stage에 매핑되지 않는 "reflection_program"은 1.0
+    // (reflection_program은 "성장서사" 또는 "교사관찰"에 매핑)
+    expect(miss?.narrativeArcBonus).toBe(1.0);
+  });
+
+  it("narrativeArcBonus: narrative_arc 데이터 없으면 모두 1.0", async () => {
+    const supabase = makeRankingSupabase();
+    const ranked = await callRanking(
+      [makeGuideInput("g-1", "실험 가이드", "experiment")],
+      supabase,
+    );
+    expect(ranked[0].narrativeArcBonus).toBe(1.0);
+  });
+
+  // ── C. storylineBonus ─────────────────────────────────────────────────
+
+  it("storylineBonus: storyline 키워드 매칭 시 1.2", async () => {
+    const supabase = makeRankingSupabase({
+      student_record_storylines: {
+        data: [{ keywords: ["양자역학", "반도체"], title: null, grade_1_theme: null, grade_2_theme: null, grade_3_theme: null }],
+        error: null,
+      },
+    });
+
+    const matched = makeGuideInput("g-q", "양자역학 탐구 실험");
+    const notMatched = makeGuideInput("g-n", "생물학 실험");
+
+    const ranked = await callRanking([matched, notMatched], supabase);
+
+    const hit = ranked.find((r) => r.id === "g-q");
+    const miss = ranked.find((r) => r.id === "g-n");
+    expect(hit?.storylineBonus).toBe(1.2);
+    expect(miss?.storylineBonus).toBe(1.0);
+  });
+
+  it("storylineBonus: storyline 없으면 모두 1.0", async () => {
+    const supabase = makeRankingSupabase();
+    const ranked = await callRanking(
+      [makeGuideInput("g-1", "화학 반응 탐구")],
+      supabase,
+    );
+    expect(ranked[0].storylineBonus).toBe(1.0);
+  });
+
+  // ── D. sequelBonus ────────────────────────────────────────────────────
+
+  it("sequelBonus: isSequel=true + hasTrajectory=true 시 1.5", async () => {
+    const GUIDE_PREV = "guide-prev";   // 이미 배정된 선행 가이드
+    const GUIDE_NEXT = "guide-next";   // 후보 (sequel)
+    const CLUSTER_ID = "cluster-abc";
+
+    const supabase = makeRankingSupabase({
+      // 이미 배정된 가이드
+      exploration_guide_assignments: {
+        data: [{ guide_id: GUIDE_PREV }],
+        error: null,
+      },
+      // GUIDE_NEXT가 GUIDE_PREV의 sequel
+      exploration_guide_sequels: {
+        data: [{ from_guide_id: GUIDE_PREV, to_guide_id: GUIDE_NEXT, confidence: 0.8 }],
+        error: null,
+      },
+      // GUIDE_NEXT의 클러스터 + 이미 탐구한 궤적
+      exploration_guides: {
+        data: [{ id: GUIDE_NEXT, difficulty_level: "intermediate", topic_cluster_id: CLUSTER_ID }],
+        error: null,
+      },
+      student_record_topic_trajectories: {
+        data: [{ topic_cluster_id: CLUSTER_ID, evidence: {} }],
+        error: null,
+      },
+    });
+
+    const ranked = await callRanking(
+      [makeGuideInput(GUIDE_NEXT, "후속 탐구 가이드")],
+      supabase,
+    );
+
+    expect(ranked[0].sequelBonus).toBe(1.5);
+  });
+
+  it("sequelBonus: isSequel=true + hasTrajectory=false 시 1.3", async () => {
+    const GUIDE_PREV = "guide-prev2";
+    const GUIDE_NEXT = "guide-next2";
+    const CLUSTER_ID = "cluster-xyz";
+
+    const supabase = makeRankingSupabase({
+      exploration_guide_assignments: {
+        data: [{ guide_id: GUIDE_PREV }],
+        error: null,
+      },
+      exploration_guide_sequels: {
+        data: [{ from_guide_id: GUIDE_PREV, to_guide_id: GUIDE_NEXT, confidence: 0.5 }],
+        error: null,
+      },
+      exploration_guides: {
+        data: [{ id: GUIDE_NEXT, difficulty_level: "intermediate", topic_cluster_id: CLUSTER_ID }],
+        error: null,
+      },
+      // 궤적 없음 → hasTrajectory=false
+    });
+
+    const ranked = await callRanking(
+      [makeGuideInput(GUIDE_NEXT, "후속 가이드 A")],
+      supabase,
+    );
+
+    expect(ranked[0].sequelBonus).toBe(1.3);
+  });
+
+  it("sequelBonus: sequel 아닐 때 1.0", async () => {
+    const supabase = makeRankingSupabase();
+    const ranked = await callRanking(
+      [makeGuideInput("g-plain", "일반 가이드")],
+      supabase,
+    );
+    expect(ranked[0].sequelBonus).toBe(1.0);
+  });
+
+  // ── E. majorBonus ─────────────────────────────────────────────────────
+
+  it("majorBonus: majorMatchGuides 포함 시 1.2", async () => {
+    const GUIDE_MAJOR = "guide-major";
+    const SUBJECT_ID = "subj-math1";
+
+    const supabase = makeRankingSupabase({
+      exploration_guide_subject_mappings: {
+        data: [{ guide_id: GUIDE_MAJOR, subject_id: SUBJECT_ID }],
+        error: null,
+      },
+    });
+
+    const ranked = await callRanking(
+      [makeGuideInput(GUIDE_MAJOR, "전공 권장 가이드")],
+      supabase,
+      new Set([SUBJECT_ID]),  // majorRecommendedSubjectIds에 SUBJECT_ID 포함
+    );
+
+    expect(ranked[0].majorBonus).toBe(1.2);
+  });
+
+  it("majorBonus: majorRecommendedSubjectIds 없으면 1.0", async () => {
+    const supabase = makeRankingSupabase();
+    const ranked = await callRanking(
+      [makeGuideInput("g-1", "일반 가이드")],
+      supabase,
+      undefined,  // majorRecommendedSubjectIds 없음
+    );
+    expect(ranked[0].majorBonus).toBe(1.0);
+  });
+
+  // ── F. 클러스터 다양성 페널티 ─────────────────────────────────────────
+
+  it("클러스터 다양성 페널티: 같은 클러스터에서 4번째 가이드는 0.7배 감점", async () => {
+    const CLUSTER = "cluster-001";
+
+    // 4개 가이드 모두 같은 클러스터
+    const guides = ["g1", "g2", "g3", "g4"].map((id) =>
+      makeGuideInput(id, `가이드 ${id}`, null, "classification"),
+    );
+
+    const supabase = makeRankingSupabase({
+      exploration_guides: {
+        data: guides.map((g) => ({
+          id: g.id,
+          difficulty_level: "intermediate",
+          topic_cluster_id: CLUSTER,
+        })),
+        error: null,
+      },
+    });
+
+    const ranked = await callRanking(guides, supabase);
+
+    // 상위 3개는 페널티 없음, 4번째는 0.7배
+    // 모든 가이드의 baseScore=1, continuityScore=default, 나머지 보너스=1.0이므로
+    // 4번째 finalScore가 3번째보다 낮아야 함 (0.7배)
+    expect(ranked).toHaveLength(4);
+    const fourth = ranked[3];
+    const third = ranked[2];
+    // 4번째 finalScore = 3번째 finalScore × 0.7 (± 부동소수점 오차)
+    expect(fourth.finalScore).toBeCloseTo(third.finalScore * 0.7, 5);
+  });
+
+  it("클러스터 다양성 페널티: 3번째까지는 페널티 없음", async () => {
+    const CLUSTER = "cluster-002";
+    const guides = ["g1", "g2", "g3"].map((id) =>
+      makeGuideInput(id, `가이드 ${id}`, null, "classification"),
+    );
+
+    const supabase = makeRankingSupabase({
+      exploration_guides: {
+        data: guides.map((g) => ({
+          id: g.id,
+          difficulty_level: "intermediate",
+          topic_cluster_id: CLUSTER,
+        })),
+        error: null,
+      },
+    });
+
+    const ranked = await callRanking(guides, supabase);
+
+    // 3건 모두 finalScore 동일 (페널티 없음)
+    const scores = ranked.map((r) => r.finalScore);
+    expect(scores[0]).toBeCloseTo(scores[1], 5);
+    expect(scores[1]).toBeCloseTo(scores[2], 5);
+  });
+});
+
+// ─── insertAssignments 슬롯 분기 테스트 ───────────────────────────────────
+//
+// insertAssignments는 Sub-task 2 분리 후 phase-s2-guide-ranking.ts에서 export됨.
+// 세특/창체 슬롯 연결, MAX_GUIDES_PER_SLOT, orphan skip 분기를 검증.
+
+vi.mock("@/lib/domains/guide/actions/area-resolver", () => ({
+  resolveGuideTargetArea: vi.fn(),
+  collectStudentSubjectPool: vi.fn().mockResolvedValue(new Set<string>()),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn().mockImplementation(() => {
+    // insertAssignments 내부에서 adminForAreaResolver 가드만 통과시킴
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
+    chain.in = vi.fn().mockReturnValue(chain);
+    chain.insert = vi.fn().mockResolvedValue({ error: null });
+    chain.then = (resolve: (v: unknown) => void) =>
+      Promise.resolve({ data: [], error: null }).then(resolve);
+    return { from: vi.fn().mockReturnValue(chain) };
+  }),
+}));
+
+import * as areaResolverModule from "@/lib/domains/guide/actions/area-resolver";
+
+describe("insertAssignments — 슬롯 분기 테스트", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (areaResolverModule.collectStudentSubjectPool as ReturnType<typeof vi.fn>).mockResolvedValue(new Set<string>());
+  });
+
+  /** 최소 RankedGuide */
+  function makeRanked(id: string, override?: Partial<{ finalScore: number }>) {
+    return {
+      id,
+      title: `가이드-${id}`,
+      guide_type: null,
+      match_reason: "classification",
+      baseScore: 1,
+      continuityScore: 1.0,
+      difficultyScore: 1.0,
+      sequelBonus: 1.0,
+      majorBonus: 1.0,
+      finalScore: override?.finalScore ?? 1.0,
+    };
+  }
+
+  async function callInsert(
+    ctx: PipelineContext,
+    ranked: ReturnType<typeof makeRanked>[],
+  ) {
+    // Sub-task 2 분리 후 phase-s2-guide-ranking.ts로 이동 예정.
+    // 현재는 phase-s2-edges.ts의 re-export를 통해 접근.
+    const { insertAssignments } = await import(
+      "@/lib/domains/record-analysis/pipeline/synthesis/phase-s2-edges"
+    );
+    return insertAssignments(ctx, ranked);
+  }
+
+  it("세특 슬롯 연결 시 linked_record_type=setek, linked_record_id 세팅", async () => {
+    const GUIDE_ID = "g-setek";
+    const SETEK_ID = "setek-row-1";
+    const SUBJECT_ID = "subj-001";
+
+    let capturedInsertRows: unknown[] | null = null;
+
+    const fromMock = vi.fn().mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn().mockReturnValue(chain);
+      chain.eq = vi.fn().mockReturnValue(chain);
+      chain.is = vi.fn().mockReturnValue(chain);
+      chain.in = vi.fn().mockReturnValue(chain);
+      chain.gte = vi.fn().mockReturnValue(chain);
+      chain.lte = vi.fn().mockReturnValue(chain);
+      chain.order = vi.fn().mockReturnValue(chain);
+      chain.limit = vi.fn().mockReturnValue(chain);
+      chain.returns = vi.fn().mockReturnValue(chain);
+      chain.update = vi.fn().mockReturnValue(chain);
+      chain.delete = vi.fn().mockReturnValue(chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      chain.insert = vi.fn().mockImplementation((rows: unknown[], _opts?: unknown) => {
+        capturedInsertRows = rows as unknown[];
+        return Promise.resolve({ error: null, count: (rows as unknown[]).length });
+      });
+      chain.then = (resolve: (v: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "exploration_guide_assignments") {
+          // 기존 배정 없음
+          data = [];
+        } else if (table === "student_record_seteks") {
+          data = [{ id: SETEK_ID, subject_id: SUBJECT_ID, school_year: 2026, grade: 2 }];
+        } else if (table === "student_record_changche") {
+          data = [];
+        } else if (table === "student_record_storylines") {
+          data = [];
+        }
+        return Promise.resolve({ data, error: null }).then(resolve);
+      };
+      return chain;
+    });
+
+    (areaResolverModule.resolveGuideTargetArea as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Map([[GUIDE_ID, { targetSubjectId: SUBJECT_ID, targetActivityType: null }]]),
+    );
+
+    const ctx = makeCtx({
+      supabase: { from: fromMock } as unknown as PipelineContext["supabase"],
+      consultingGrades: [2],
+    });
+
+    await callInsert(ctx, [makeRanked(GUIDE_ID)]);
+
+    expect(capturedInsertRows).not.toBeNull();
+    const row = (capturedInsertRows as Array<{
+      linked_record_type: string | null;
+      linked_record_id: string | null;
+    }>)[0];
+    expect(row.linked_record_type).toBe("setek");
+    expect(row.linked_record_id).toBe(SETEK_ID);
+  });
+
+  it("창체 슬롯 연결 시 linked_record_type=changche", async () => {
+    const GUIDE_ID = "g-changche";
+    const CHANGCHE_ID = "changche-row-1";
+    const ACTIVITY = "club";
+
+    let capturedInsertRows: unknown[] | null = null;
+
+    const fromMock = vi.fn().mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn().mockReturnValue(chain);
+      chain.eq = vi.fn().mockReturnValue(chain);
+      chain.is = vi.fn().mockReturnValue(chain);
+      chain.in = vi.fn().mockReturnValue(chain);
+      chain.gte = vi.fn().mockReturnValue(chain);
+      chain.lte = vi.fn().mockReturnValue(chain);
+      chain.order = vi.fn().mockReturnValue(chain);
+      chain.limit = vi.fn().mockReturnValue(chain);
+      chain.returns = vi.fn().mockReturnValue(chain);
+      chain.update = vi.fn().mockReturnValue(chain);
+      chain.delete = vi.fn().mockReturnValue(chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      chain.insert = vi.fn().mockImplementation((rows: unknown[], _opts?: unknown) => {
+        capturedInsertRows = rows as unknown[];
+        return Promise.resolve({ error: null, count: (rows as unknown[]).length });
+      });
+      chain.then = (resolve: (v: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "exploration_guide_assignments") {
+          data = [];
+        } else if (table === "student_record_seteks") {
+          data = [];
+        } else if (table === "student_record_changche") {
+          data = [{ id: CHANGCHE_ID, activity_type: ACTIVITY, grade: 2, school_year: 2026 }];
+        } else if (table === "student_record_storylines") {
+          data = [];
+        }
+        return Promise.resolve({ data, error: null }).then(resolve);
+      };
+      return chain;
+    });
+
+    (areaResolverModule.resolveGuideTargetArea as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Map([[GUIDE_ID, { targetSubjectId: null, targetActivityType: ACTIVITY }]]),
+    );
+
+    const ctx = makeCtx({
+      supabase: { from: fromMock } as unknown as PipelineContext["supabase"],
+      consultingGrades: [2],
+    });
+
+    await callInsert(ctx, [makeRanked(GUIDE_ID)]);
+
+    expect(capturedInsertRows).not.toBeNull();
+    const row = (capturedInsertRows as Array<{
+      linked_record_type: string | null;
+      linked_record_id: string | null;
+    }>)[0];
+    expect(row.linked_record_type).toBe("changche");
+    expect(row.linked_record_id).toBe(CHANGCHE_ID);
+  });
+
+  it("MAX_GUIDES_PER_SLOT=3 초과 시 4번째 가이드는 skip", async () => {
+    const SUBJECT_ID = "subj-overflow";
+    const SETEK_ID = "setek-overflow";
+    // 4개 가이드 모두 같은 subject 슬롯으로 매핑
+    const guides = ["ov1", "ov2", "ov3", "ov4"].map((id) => makeRanked(id, { finalScore: 4 - parseInt(id.replace("ov", "")) }));
+
+    let capturedInsertRows: unknown[] | null = null;
+
+    const fromMock = vi.fn().mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn().mockReturnValue(chain);
+      chain.eq = vi.fn().mockReturnValue(chain);
+      chain.is = vi.fn().mockReturnValue(chain);
+      chain.in = vi.fn().mockReturnValue(chain);
+      chain.gte = vi.fn().mockReturnValue(chain);
+      chain.lte = vi.fn().mockReturnValue(chain);
+      chain.order = vi.fn().mockReturnValue(chain);
+      chain.limit = vi.fn().mockReturnValue(chain);
+      chain.returns = vi.fn().mockReturnValue(chain);
+      chain.update = vi.fn().mockReturnValue(chain);
+      chain.delete = vi.fn().mockReturnValue(chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      chain.insert = vi.fn().mockImplementation((rows: unknown[], _opts?: unknown) => {
+        capturedInsertRows = rows as unknown[];
+        return Promise.resolve({ error: null, count: (rows as unknown[]).length });
+      });
+      chain.then = (resolve: (v: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "exploration_guide_assignments") data = [];
+        else if (table === "student_record_seteks") {
+          data = [{ id: SETEK_ID, subject_id: SUBJECT_ID, school_year: 2026, grade: 2 }];
+        } else if (table === "student_record_changche") data = [];
+        else if (table === "student_record_storylines") data = [];
+        return Promise.resolve({ data, error: null }).then(resolve);
+      };
+      return chain;
+    });
+
+    (areaResolverModule.resolveGuideTargetArea as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Map(guides.map((g) => [g.id, { targetSubjectId: SUBJECT_ID, targetActivityType: null }])),
+    );
+
+    const ctx = makeCtx({
+      supabase: { from: fromMock } as unknown as PipelineContext["supabase"],
+      consultingGrades: [2],
+    });
+
+    const result = await callInsert(ctx, guides);
+
+    // 3건 배정, 1건 skip
+    expect(capturedInsertRows).toHaveLength(3);
+    expect(result.skippedSlotOverflow).toBe(1);
+  });
+
+  it("orphan(targetSubjectId/ActivityType 모두 null) 시 skip", async () => {
+    const GUIDE_ID = "g-orphan";
+    let insertCalled = false;
+
+    const fromMock = vi.fn().mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn().mockReturnValue(chain);
+      chain.eq = vi.fn().mockReturnValue(chain);
+      chain.is = vi.fn().mockReturnValue(chain);
+      chain.in = vi.fn().mockReturnValue(chain);
+      chain.gte = vi.fn().mockReturnValue(chain);
+      chain.lte = vi.fn().mockReturnValue(chain);
+      chain.order = vi.fn().mockReturnValue(chain);
+      chain.limit = vi.fn().mockReturnValue(chain);
+      chain.returns = vi.fn().mockReturnValue(chain);
+      chain.update = vi.fn().mockReturnValue(chain);
+      chain.delete = vi.fn().mockReturnValue(chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      chain.insert = vi.fn().mockImplementation((_rows: unknown[], _opts?: unknown) => {
+        insertCalled = true;
+        return Promise.resolve({ error: null, count: 0 });
+      });
+      chain.then = (resolve: (v: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "exploration_guide_assignments") data = [];
+        else if (table === "student_record_seteks") data = [];
+        else if (table === "student_record_changche") data = [];
+        else if (table === "student_record_storylines") data = [];
+        return Promise.resolve({ data, error: null }).then(resolve);
+      };
+      return chain;
+    });
+
+    // area-resolver가 null, null 반환 → orphan
+    (areaResolverModule.resolveGuideTargetArea as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Map([[GUIDE_ID, { targetSubjectId: null, targetActivityType: null }]]),
+    );
+
+    const ctx = makeCtx({
+      supabase: { from: fromMock } as unknown as PipelineContext["supabase"],
+      consultingGrades: [2],
+    });
+
+    const result = await callInsert(ctx, [makeRanked(GUIDE_ID)]);
+
+    expect(insertCalled).toBe(false);
+    expect(result.count).toBe(0);
+    expect(result.skippedOrphan).toBe(1);
+    expect(result.skippedOrphanGuides).toContainEqual(
+      expect.objectContaining({ id: GUIDE_ID }),
+    );
+  });
+});
+
 // ─── runGuideMatching 테스트 ──────────────────────────────────────────────
 
 describe("runGuideMatching", () => {
