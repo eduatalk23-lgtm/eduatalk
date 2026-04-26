@@ -201,6 +201,13 @@ export async function runStorylineGeneration(ctx: PipelineContext): Promise<Task
     }
   }
 
+  // gradeThemes 주입 (이번 실행 P3.5 추출 결과 — 첫 실행 시 no-op, 기존 prevStoryline 경로와 병행)
+  const { buildGradeThemesSection } = await import("../../llm/grade-themes-section");
+  const gradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
+  if (gradeThemesSection) {
+    coursePlanExtra = coursePlanExtra ? `${coursePlanExtra}\n\n${gradeThemesSection}` : gradeThemesSection;
+  }
+
   const { detectInquiryLinks } = await import("../../llm/actions/detectInquiryLinks");
   const result = await detectInquiryLinks(records, coursePlanExtra);
   if (!result.success) throw new Error(result.error);
