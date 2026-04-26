@@ -9,7 +9,7 @@
 // G4: runHaengteukGuideForGrade
 // ============================================
 
-import { logActionWarn } from "@/lib/logging/actionLogger";
+import { logActionWarn, logActionError } from "@/lib/logging/actionLogger";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import {
   assertGradeCtx,
@@ -22,6 +22,7 @@ import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosi
 import * as guideRepo from "@/lib/domains/student-record/repository/guide-repository";
 import { ACTIVITY_TYPE_LABELS } from "@/lib/domains/student-record/constants";
 import { toGuideAnalysisContext, mergeGuideAnalysisContexts } from "./pipeline-task-runners-shared";
+import { resolveMidPlan } from "./orient/resolve-mid-plan";
 
 // M4: 가이드 배정 컨텍스트 캐시 — Phase 4-6 간 DB 재조회 방지
 type GuideContextKey = "guide" | "summary" | "strategy";
@@ -114,7 +115,8 @@ export async function runSetekGuide(
   try {
     const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
     narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
-  } catch {
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcSection.setekGuide" }, err, { pipelineId: ctx.pipelineId });
     narrativeArcSection = undefined;
   }
 
@@ -122,11 +124,9 @@ export async function runSetekGuide(
   let midPlanSection: string | undefined;
   try {
     const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
-    const midPlan =
-      ctx.midPlan ??
-      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
-    midPlanSection = buildMidPlanGuideSection(midPlan);
-  } catch {
+    midPlanSection = buildMidPlanGuideSection(resolveMidPlan(ctx));
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.midPlanSection.setekGuide" }, err, { pipelineId: ctx.pipelineId });
     midPlanSection = undefined;
   }
 
@@ -196,7 +196,8 @@ export async function runChangcheGuide(
   try {
     const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
     narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
-  } catch {
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcSection.changcheGuide" }, err, { pipelineId: ctx.pipelineId });
     narrativeArcSection = undefined;
   }
 
@@ -204,11 +205,9 @@ export async function runChangcheGuide(
   let midPlanSection: string | undefined;
   try {
     const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
-    const midPlan =
-      ctx.midPlan ??
-      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
-    midPlanSection = buildMidPlanGuideSection(midPlan);
-  } catch {
+    midPlanSection = buildMidPlanGuideSection(resolveMidPlan(ctx));
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.midPlanSection.changcheGuide" }, err, { pipelineId: ctx.pipelineId });
     midPlanSection = undefined;
   }
 
@@ -294,7 +293,8 @@ export async function runHaengteukGuide(
   try {
     const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
     narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
-  } catch {
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcSection.haengteukGuide" }, err, { pipelineId: ctx.pipelineId });
     narrativeArcSection = undefined;
   }
 
@@ -302,11 +302,9 @@ export async function runHaengteukGuide(
   let midPlanSection: string | undefined;
   try {
     const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
-    const midPlan =
-      ctx.midPlan ??
-      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
-    midPlanSection = buildMidPlanGuideSection(midPlan);
-  } catch {
+    midPlanSection = buildMidPlanGuideSection(resolveMidPlan(ctx));
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.midPlanSection.haengteukGuide" }, err, { pipelineId: ctx.pipelineId });
     midPlanSection = undefined;
   }
 
@@ -459,7 +457,8 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   try {
     const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
     narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
-  } catch {
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcSection.setekGuideForGrade" }, err, { pipelineId: ctx.pipelineId });
     narrativeArcSection = undefined;
   }
 
@@ -467,11 +466,9 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   let midPlanSection: string | undefined;
   try {
     const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
-    const midPlan =
-      ctx.midPlan ??
-      ((ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | undefined) ?? null);
-    midPlanSection = buildMidPlanGuideSection(midPlan);
-  } catch {
+    midPlanSection = buildMidPlanGuideSection(resolveMidPlan(ctx));
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.midPlanSection.setekGuideForGrade" }, err, { pipelineId: ctx.pipelineId });
     midPlanSection = undefined;
   }
 

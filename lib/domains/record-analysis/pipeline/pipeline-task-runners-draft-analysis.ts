@@ -14,6 +14,7 @@ import { touchPipelineHeartbeat, type TaskRunnerOutput } from "./pipeline-execut
 import { logActionError } from "@/lib/logging/actionLogger";
 import { resolveEffectiveContent } from "./pipeline-data-resolver";
 import { fetchSubjectNames } from "./pipeline-task-runners-draft-generation";
+import { resolveMidPlan } from "./orient/resolve-mid-plan";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -436,9 +437,7 @@ export async function runDraftAnalysisChunkForGrade(
 
   // β+2 (2026-04-26): MidPlanner priority 로 P8 청크 경계 재정렬 (P9 패턴 답습).
   // midPlan 없거나 override 비면 기존 순서 유지 (no-op).
-  const midPlanForP8 =
-    ctx.midPlan ??
-    ((ctx.results["_midPlan"] as { recordPriorityOverride?: Record<string, number> } | undefined) ?? undefined);
+  const midPlanForP8 = resolveMidPlan(ctx);
   const priorityP8 = midPlanForP8?.recordPriorityOverride;
   let orderedPending: typeof pending;
   if (priorityP8 && Object.keys(priorityP8).length > 0) {

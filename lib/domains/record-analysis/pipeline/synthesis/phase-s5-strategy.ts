@@ -20,6 +20,8 @@ import {
   competencyGradeToScore,
 } from "./helpers";
 import { findHyperedges } from "@/lib/domains/student-record/repository/hyperedge-repository";
+import { resolveMidPlan } from "../orient/resolve-mid-plan";
+import { parseSnapshotHakjongScore } from "./snapshot-helpers";
 
 // M4: 가이드 배정 컨텍스트 캐시 — Phase 간 DB 재조회 방지
 type GuideContextKey = "guide" | "summary" | "strategy";
@@ -421,7 +423,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
   // β 격차 1: MidPlan 핵심 탐구 축 가설 → 전략 프롬프트 주입 (best-effort)
   let midPlanSynthesisSection: string | undefined;
   try {
-    const midPlan = ctx.midPlan ?? (results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | null | undefined);
+    const midPlan = resolveMidPlan(ctx);
     if (midPlan) {
       const { buildMidPlanSynthesisSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
       midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlan);
@@ -456,8 +458,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     );
     const snap = await findLatestSnapshot(studentId, tenantId, ctx.supabase);
     if (snap?.snapshot_data) {
-      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
-      const built = buildHakjongScoreSection(state.hakjongScore ?? null);
+      const built = buildHakjongScoreSection(parseSnapshotHakjongScore(snap.snapshot_data) ?? null);
       if (built) hakjongScoreSection = built;
     }
   } catch (hkErr) {

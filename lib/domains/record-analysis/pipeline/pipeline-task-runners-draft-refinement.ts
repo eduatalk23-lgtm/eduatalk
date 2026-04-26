@@ -18,6 +18,7 @@ import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { generateTextWithRateLimit } from "../llm/ai-client";
 import { withRetry } from "../llm/retry";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { resolveMidPlan } from "./orient/resolve-mid-plan";
 import {
   SETEK_DRAFT_SYSTEM_PROMPT,
   CHANGCHE_DRAFT_SYSTEM_PROMPT,
@@ -416,9 +417,7 @@ export async function runDraftRefinementChunkForGrade(
 
   // β+1 (2026-04-24): MidPlanner priority 로 청크 경계 재정렬.
   // Phase 분할로 P3.5 와 P9 가 별 HTTP 요청일 수 있어 ctx.midPlan 부재 시 task_results 에서 복원.
-  const midPlan =
-    ctx.midPlan ??
-    ((ctx.results["_midPlan"] as { recordPriorityOverride?: Record<string, number> } | undefined) ?? undefined);
+  const midPlan = resolveMidPlan(ctx);
   const priority = midPlan?.recordPriorityOverride;
   let pending: QualityRow[];
   if (priority && Object.keys(priority).length > 0) {

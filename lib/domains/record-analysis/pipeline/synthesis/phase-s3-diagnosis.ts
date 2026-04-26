@@ -22,6 +22,8 @@ import {
   aggregateGradeThemes,
   buildCrossSubjectThemesDiagnosisSection,
 } from "./helpers";
+import { resolveMidPlan } from "../orient/resolve-mid-plan";
+import { parseSnapshotHakjongScore } from "./snapshot-helpers";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
@@ -277,7 +279,7 @@ export async function runAiDiagnosis(
   // β 격차 1: MidPlan 핵심 탐구 축 가설 → 진단 프롬프트 주입 (best-effort)
   let midPlanSynthesisSection: string | undefined;
   try {
-    const midPlan = ctx.midPlan ?? (ctx.results["_midPlan"] as import("../orient/mid-pipeline-planner").MidPlan | null | undefined);
+    const midPlan = resolveMidPlan(ctx);
     if (midPlan) {
       const { buildMidPlanSynthesisSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
       midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlan);
@@ -315,8 +317,7 @@ export async function runAiDiagnosis(
     );
     const snap = await findLatestSnapshot(studentId, tenantId, supabase);
     if (snap?.snapshot_data) {
-      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
-      const built = buildHakjongScoreSection(state.hakjongScore ?? null);
+      const built = buildHakjongScoreSection(parseSnapshotHakjongScore(snap.snapshot_data) ?? null);
       if (built) hakjongScoreSection = built;
     }
   } catch (hkErr) {

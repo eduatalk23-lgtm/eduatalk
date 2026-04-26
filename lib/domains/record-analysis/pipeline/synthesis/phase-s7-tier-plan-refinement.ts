@@ -191,12 +191,8 @@ export async function runTierPlanRefinement(
     const { buildMidPlanSynthesisSection } = await import(
       "@/lib/domains/record-analysis/llm/mid-plan-guide-section"
     );
-    const midPlan =
-      ctx.midPlan ??
-      (ctx.results["_midPlan"] as
-        | Parameters<typeof buildMidPlanSynthesisSection>[0]
-        | undefined);
-    const built = buildMidPlanSynthesisSection(midPlan);
+    const { resolveMidPlan } = await import("../orient/resolve-mid-plan");
+    const built = buildMidPlanSynthesisSection(resolveMidPlan(ctx));
     if (built) midPlanSynthesisSection = built;
   } catch {
     // best-effort: 실패해도 S7 계속 진행

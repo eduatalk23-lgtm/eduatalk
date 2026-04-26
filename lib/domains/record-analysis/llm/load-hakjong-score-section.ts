@@ -12,7 +12,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { findLatestSnapshot } from "@/lib/domains/student-record/repository/student-state-repository";
 import { buildHakjongScoreSection } from "./hakjong-score-section";
-import type { HakjongScore } from "@/lib/domains/student-record/types/student-state";
+import { parseSnapshotHakjongScore } from "../pipeline/synthesis/snapshot-helpers";
 
 /**
  * 학생의 최신 student_state_snapshot 에서 hakjongScore 를 로드해
@@ -31,9 +31,7 @@ export async function loadHakjongScoreSection(
       tenantId,
       supabase as Parameters<typeof findLatestSnapshot>[2],
     );
-    if (!snap?.snapshot_data) return undefined;
-    const state = snap.snapshot_data as unknown as { hakjongScore?: HakjongScore | null };
-    return buildHakjongScoreSection(state.hakjongScore ?? null);
+    return buildHakjongScoreSection(parseSnapshotHakjongScore(snap?.snapshot_data) ?? null);
   } catch {
     return undefined;
   }

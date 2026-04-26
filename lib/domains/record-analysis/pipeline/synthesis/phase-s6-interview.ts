@@ -245,20 +245,18 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
   const { buildMidPlanSynthesisSection } = await import("../../llm/mid-plan-guide-section");
   const { buildHakjongScoreSection } = await import("../../llm/hakjong-score-section");
   const { buildStrategySummarySection } = await import("../../llm/strategy-summary-section");
+  const { resolveMidPlan } = await import("../orient/resolve-mid-plan");
+  const { parseSnapshotHakjongScore } = await import("./snapshot-helpers");
 
-  // midPlan: ctx.midPlan 우선, 없으면 task_results["_midPlan"] 폴백
-  const midPlanRaw = ctx.midPlan ?? (results["_midPlan"] as Parameters<typeof buildMidPlanSynthesisSection>[0] | undefined);
-  const midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlanRaw);
+  // midPlan: resolveMidPlan 헬퍼 (S2 — ctx.midPlan ?? ctx.results["_midPlan"])
+  const midPlanSynthesisSection = buildMidPlanSynthesisSection(resolveMidPlan(ctx));
 
-  // hakjongScore: findLatestSnapshot → snapshot_data 경유 (S3/S5 동일 패턴)
+  // hakjongScore: findLatestSnapshot → parseSnapshotHakjongScore (S3 헬퍼)
   let hakjongScoreSection: string | undefined;
   try {
     const { findLatestSnapshot } = await import("@/lib/domains/student-record/repository/student-state-repository");
     const snap = await findLatestSnapshot(studentId, tenantId, supabase as Parameters<typeof findLatestSnapshot>[2]);
-    if (snap?.snapshot_data) {
-      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
-      hakjongScoreSection = buildHakjongScoreSection(state.hakjongScore ?? null);
-    }
+    hakjongScoreSection = buildHakjongScoreSection(parseSnapshotHakjongScore(snap?.snapshot_data) ?? null);
   } catch (snapErr) {
     logActionDebug(LOG_CTX, `hakjongScore snapshot 조회 실패 (면접 생성 계속): ${snapErr}`);
   }
@@ -382,18 +380,16 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
   const { buildMidPlanSynthesisSection: buildMPSection } = await import("../../llm/mid-plan-guide-section");
   const { buildHakjongScoreSection: buildHJSection } = await import("../../llm/hakjong-score-section");
   const { buildStrategySummarySection: buildStSection } = await import("../../llm/strategy-summary-section");
+  const { resolveMidPlan: resolveMP } = await import("../orient/resolve-mid-plan");
+  const { parseSnapshotHakjongScore: parseHJ } = await import("./snapshot-helpers");
 
-  const roadmapMidPlan = ctx.midPlan ?? (ctx.results["_midPlan"] as Parameters<typeof buildMPSection>[0] | undefined);
-  const roadmapMidPlanSection = buildMPSection(roadmapMidPlan);
+  const roadmapMidPlanSection = buildMPSection(resolveMP(ctx));
 
   let roadmapHakjongSection: string | undefined;
   try {
     const { findLatestSnapshot } = await import("@/lib/domains/student-record/repository/student-state-repository");
     const snap = await findLatestSnapshot(studentId, tenantId, supabase as Parameters<typeof findLatestSnapshot>[2]);
-    if (snap?.snapshot_data) {
-      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
-      roadmapHakjongSection = buildHJSection(state.hakjongScore ?? null);
-    }
+    roadmapHakjongSection = buildHJSection(parseHJ(snap?.snapshot_data) ?? null);
   } catch (rSnapErr) {
     logActionDebug(LOG_CTX, `roadmap hakjongScore 조회 실패 (로드맵 생성 계속): ${rSnapErr}`);
   }
