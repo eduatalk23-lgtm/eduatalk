@@ -42,6 +42,72 @@ const ENABLE_AI_GENERATION = process.env.PHASE2_AI_GUIDE_GENERATION !== "0";
 // ============================================
 const MAX_TOTAL_ASSIGNMENTS = 24;
 
+// ============================================
+// Sub-task 4 (2026-04-26): GuideMatchingState 타입
+//
+// `ctx.previews` JSON 박제 패턴을 타입 안전 state 객체로 격상.
+// 단계별(diagnosis/phaseA/phaseB/merged/assignment) 상태를 명시적으로 보유 →
+// Phase A 실패 시 `phaseA.error` 보존하고 Phase B 계속 (현 동작 유지) +
+// 향후 단계별 재시도 진입 발판 확보.
+// 기존 ctx.previews 키 호환성 유지: 동일 시점·동일 키로 직렬화.
+// ============================================
+interface DesignOutcome {
+  title: string;
+  poolMatch: boolean;
+  poolMatchTitle?: string;
+  shellCreated?: boolean;
+  shellError?: string;
+}
+
+interface GuideMatchingState {
+  diagnosis: {
+    enableAiGeneration: boolean;
+    canDesign: boolean;
+    consultingGrades: number[] | null;
+    hasAnyDesign: boolean | null;
+    hasUnifiedInput: boolean;
+    storylineCount: number | null;
+  };
+  phaseA: {
+    attempted: boolean;
+    designs: ExplorationDesignItem[];
+    overallStrategy: string | null;
+    designOutcomes: DesignOutcome[];
+    error?: string;
+  };
+  phaseB: {
+    ranked: RankedGuide[];
+  };
+  merged: {
+    candidateCount: number;
+    capped: RankedGuide[];
+    overflowCount: number;
+  };
+  assignment: {
+    inserted: number;
+    skippedOrphan: number;
+    skippedOrphanGuides: Array<{ id: string; title: string }>;
+    skippedSlotOverflow: number;
+  };
+}
+
+function createInitialState(): GuideMatchingState {
+  return {
+    diagnosis: {
+      enableAiGeneration: ENABLE_AI_GENERATION,
+      canDesign: false,
+      consultingGrades: null,
+      hasAnyDesign: null,
+      hasUnifiedInput: false,
+      storylineCount: null,
+    },
+    phaseA: { attempted: false, designs: [], overallStrategy: null, designOutcomes: [] },
+    phaseB: { ranked: [] },
+    merged: { candidateCount: 0, capped: [], overflowCount: 0 },
+    assignment: { inserted: 0, skippedOrphan: 0, skippedOrphanGuides: [], skippedSlotOverflow: 0 },
+  };
+}
+
 export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunnerOutput> {
   assertSynthesisCtx(ctx);
   const { supabase, studentId, tenantId, studentGrade, snapshot } = ctx;
@@ -106,26 +172,27 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     }
   }
 
-  let ranked: RankedGuide[] = [];
+  const state = createInitialState();
 
   // ── Phase A: AI 탐구 설계 (설계 학년 + 스토리라인 존재 시) ──
   const canDesign = ENABLE_AI_GENERATION && shouldTriggerAiGeneration(ctx, 0);
 
   // P2 진단(2026-04-14): Phase A가 왜 안/도는지 task_previews 에 박제.
-  ctx.previews["d6_diagnosis"] = JSON.stringify({
-    enableAiGeneration: ENABLE_AI_GENERATION,
-    canDesign,
-    consultingGrades: ctx.consultingGrades ?? null,
-    hasAnyDesign: ctx.unifiedInput?.hasAnyDesign ?? null,
-    hasUnifiedInput: !!ctx.unifiedInput,
-    storylineCount:
-      (ctx.results?.storyline_generation as { storylineCount?: number } | undefined)?.storylineCount ?? null,
-  });
+  state.diagnosis.canDesign = canDesign;
+  state.diagnosis.consultingGrades = ctx.consultingGrades ?? null;
+  state.diagnosis.hasAnyDesign = ctx.unifiedInput?.hasAnyDesign ?? null;
+  state.diagnosis.hasUnifiedInput = !!ctx.unifiedInput;
+  state.diagnosis.storylineCount =
+    (ctx.results?.storyline_generation as { storylineCount?: number } | undefined)?.storylineCount ?? null;
+  ctx.previews["d6_diagnosis"] = JSON.stringify(state.diagnosis);
 
   if (canDesign) {
+    state.phaseA.attempted = true;
     try {
       // AI가 학생 맥락을 분석하여 필요한 탐구 N건을 설계
       const { designs, overallStrategy } = await runExplorationDesign(ctx);
+      state.phaseA.designs = designs;
+      state.phaseA.overallStrategy = overallStrategy ?? null;
 
       // P2 진단: Phase A 결과 박제
       ctx.previews["d6_phase_a_result"] = JSON.stringify({
@@ -140,15 +207,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
         })),
       });
 
-      // P2 진단: 각 design의 풀 매칭 / 셸 생성 결과 박제
-      const designOutcomes: Array<{
-        title: string;
-        poolMatch: boolean;
-        poolMatchTitle?: string;
-        shellCreated?: boolean;
-        shellError?: string;
-      }> = [];
-
+      // P2 진단: 각 design의 풀 매칭 / 셸 생성 결과 박제 (state.phaseA.designOutcomes 로 누적)
       for (const design of designs) {
         // 설계 결과의 키워드/제목으로 풀 매칭 시도
         const poolMatch = await matchDesignToPool(
@@ -158,12 +217,12 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
 
         if (poolMatch) {
           // 풀에 맞는 가이드 있음 → 기존 가이드 사용
-          ranked.push({
+          state.phaseB.ranked.push({
             ...poolMatch,
             match_reason: "ai_design_pool_match",
             baseScore: 3, // AI 설계 + 풀 매칭 = 최고 적합도
           });
-          designOutcomes.push({
+          state.phaseA.designOutcomes.push({
             title: design.title?.slice(0, 60) ?? "",
             poolMatch: true,
             poolMatchTitle: poolMatch.title?.slice(0, 60),
@@ -176,7 +235,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
           try {
             const shell = await createDesignShell(design, ctx);
             if (shell) {
-              ranked.push(shell);
+              state.phaseB.ranked.push(shell);
               shellCreated = true;
               logActionDebug(LOG_CTX, `D6: 설계 "${design.title}" → 셸 생성`, { studentId });
             } else {
@@ -197,7 +256,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
               shellError = String(shellErr);
             }
           }
-          designOutcomes.push({
+          state.phaseA.designOutcomes.push({
             title: design.title?.slice(0, 60) ?? "",
             poolMatch: false,
             shellCreated,
@@ -205,13 +264,14 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
           });
         }
       }
-      ctx.previews["d6_design_outcomes"] = JSON.stringify(designOutcomes);
+      ctx.previews["d6_design_outcomes"] = JSON.stringify(state.phaseA.designOutcomes);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // P2 진단: AI 설계 실패 박제
+      state.phaseA.error = msg.slice(0, 500);
+      // P2 진단: AI 설계 실패 박제 (Phase B 는 계속 진행 → 단계별 격리)
       ctx.previews["d6_phase_a_result"] = JSON.stringify({
         attempted: true,
-        error: msg.slice(0, 500),
+        error: state.phaseA.error,
       });
       logActionWarn(
         LOG_CTX,
@@ -229,11 +289,11 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   //   상용 MVP 기준선은 "AI 맞춤 설계 + 풀 보충 모두 제공"이 합리적이라
   //   Phase A 결과와 Phase B 보충을 항상 합집합으로 합산.
   //   (성능: Phase B는 DB만 사용, LLM 호출 없음 → 안전)
-  if (true) {
+  {
     type RecommendedGuide = { id: string; title: string; guide_type: string | null; match_reason: string };
     const guideMap = new Map<string, RecommendedGuide>();
-    // 이미 ranked에 있는 가이드 제외
-    const rankedIds = new Set(ranked.map((r) => r.id));
+    // 이미 Phase A 결과 (state.phaseB.ranked) 에 있는 가이드 제외
+    const rankedIds = new Set(state.phaseB.ranked.map((r) => r.id));
 
     // (1) classification 매칭
     const classResult = await autoRecommendGuidesAction({ studentId, classificationId, careerFieldHint, limit: 10 });
@@ -290,7 +350,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       tenantId,
       majorRecommendedSubjectIds,
     );
-    ranked.push(...poolRanked);
+    state.phaseB.ranked.push(...poolRanked);
   }
 
   // ── Phase A + Phase B 합집합 정렬 + 전체 상한 ──
@@ -298,32 +358,28 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   // Phase A (AI 설계)와 Phase B (풀 보충)가 합집합으로 쌓여 있으므로
   // finalScore 기준 글로벌 정렬 후 상위 MAX_TOTAL_ASSIGNMENTS 건만 insert.
   // 이전: 정렬·상한 없이 전부 insertAssignments 로 전달.
-  const candidateCount = ranked.length;
-  ranked.sort((a, b) => b.finalScore - a.finalScore);
-  const capped = ranked.slice(0, MAX_TOTAL_ASSIGNMENTS);
-  const overflowCount = Math.max(0, candidateCount - capped.length);
+  state.merged.candidateCount = state.phaseB.ranked.length;
+  state.phaseB.ranked.sort((a, b) => b.finalScore - a.finalScore);
+  state.merged.capped = state.phaseB.ranked.slice(0, MAX_TOTAL_ASSIGNMENTS);
+  state.merged.overflowCount = Math.max(0, state.merged.candidateCount - state.merged.capped.length);
 
-  if (overflowCount > 0) {
+  if (state.merged.overflowCount > 0) {
     ctx.previews["guide_matching_cap"] = JSON.stringify({
-      candidateCount,
-      cappedCount: capped.length,
-      overflowCount,
+      candidateCount: state.merged.candidateCount,
+      cappedCount: state.merged.capped.length,
+      overflowCount: state.merged.overflowCount,
       maxTotal: MAX_TOTAL_ASSIGNMENTS,
       maxPerSlot: MAX_GUIDES_PER_SLOT,
     });
   }
 
   // ── 배정 INSERT ──
-  let assigned = 0;
-  let skippedOrphan = 0;
-  let skippedOrphanGuides: Array<{ id: string; title: string }> = [];
-  let skippedSlotOverflow = 0;
-  if (capped.length > 0) {
-    const r = await insertAssignments(ctx, capped);
-    assigned = r.count;
-    skippedOrphan = r.skippedOrphan;
-    skippedOrphanGuides = r.skippedOrphanGuides;
-    skippedSlotOverflow = r.skippedSlotOverflow;
+  if (state.merged.capped.length > 0) {
+    const r = await insertAssignments(ctx, state.merged.capped);
+    state.assignment.inserted = r.count;
+    state.assignment.skippedOrphan = r.skippedOrphan;
+    state.assignment.skippedOrphanGuides = r.skippedOrphanGuides;
+    state.assignment.skippedSlotOverflow = r.skippedSlotOverflow;
   }
 
   // ── D7: 결과 메시지 ──
@@ -332,21 +388,21 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     ? ` / ${clubHistory.length}건 동아리 이력 반영`
     : "";
 
-  const orphanHint = skippedOrphan > 0
-    ? ` / ${skippedOrphan}건 미배정(과목 풀 불일치: ${skippedOrphanGuides.map((g) => g.title).slice(0, 3).join(", ")}${skippedOrphan > 3 ? " 외" : ""})`
+  const orphanHint = state.assignment.skippedOrphan > 0
+    ? ` / ${state.assignment.skippedOrphan}건 미배정(과목 풀 불일치: ${state.assignment.skippedOrphanGuides.map((g) => g.title).slice(0, 3).join(", ")}${state.assignment.skippedOrphan > 3 ? " 외" : ""})`
     : "";
-  const slotCapHint = skippedSlotOverflow > 0
-    ? ` / ${skippedSlotOverflow}건 슬롯 상한(${MAX_GUIDES_PER_SLOT}개) 제외`
+  const slotCapHint = state.assignment.skippedSlotOverflow > 0
+    ? ` / ${state.assignment.skippedSlotOverflow}건 슬롯 상한(${MAX_GUIDES_PER_SLOT}개) 제외`
     : "";
-  const totalCapHint = overflowCount > 0
-    ? ` / ${overflowCount}건 전체 상한(${MAX_TOTAL_ASSIGNMENTS}개) 제외`
+  const totalCapHint = state.merged.overflowCount > 0
+    ? ` / ${state.merged.overflowCount}건 전체 상한(${MAX_TOTAL_ASSIGNMENTS}개) 제외`
     : "";
 
   // H4: 고아 가이드 세부 정보를 previews에 저장 (UI 표시용)
-  if (skippedOrphanGuides.length > 0) {
+  if (state.assignment.skippedOrphanGuides.length > 0) {
     ctx.previews["guide_matching_orphans"] = JSON.stringify({
-      count: skippedOrphan,
-      guides: skippedOrphanGuides.slice(0, 10).map((g) => ({ id: g.id, title: g.title })),
+      count: state.assignment.skippedOrphan,
+      guides: state.assignment.skippedOrphanGuides.slice(0, 10).map((g) => ({ id: g.id, title: g.title })),
     });
   }
 
@@ -373,10 +429,10 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   }
 
   return {
-    preview: `${assigned}건 가이드 배정 (${candidateCount}건 후보${continuityHint}${orphanHint}${slotCapHint}${totalCapHint})${aiHint}`,
+    preview: `${state.assignment.inserted}건 가이드 배정 (${state.merged.candidateCount}건 후보${continuityHint}${orphanHint}${slotCapHint}${totalCapHint})${aiHint}`,
     result: {
-      assignedCount: assigned,
-      candidateCount,
+      assignedCount: state.assignment.inserted,
+      candidateCount: state.merged.candidateCount,
       ...(priorHighLinkAssignmentIds ? { priorHighLinkAssignmentIds } : {}),
     },
   };
