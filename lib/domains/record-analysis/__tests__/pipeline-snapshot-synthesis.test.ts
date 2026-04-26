@@ -53,7 +53,7 @@ vi.mock("@/lib/domains/student-record/repository/competency-repository", () => (
   findCompetencyScores: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/edge-summary", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/edge-summary", () => ({
   buildEdgePromptSection: vi.fn().mockReturnValue("## 연결 섹션"),
 }));
 

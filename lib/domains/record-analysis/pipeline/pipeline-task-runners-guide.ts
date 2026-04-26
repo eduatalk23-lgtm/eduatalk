@@ -92,7 +92,7 @@ export async function runSetekGuide(
   // 공통 컨텍스트 준비
   let guideEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
   }
   const guideContextSection = await getCachedGuideContext(ctx, studentId, "guide");
@@ -246,7 +246,7 @@ export async function runChangcheGuide(
   // Phase E2: 엣지 데이터 → 창체 가이드 프롬프트에 투입
   let guideEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
   }
 
@@ -343,7 +343,7 @@ export async function runHaengteukGuide(
   // Phase E2: 엣지 데이터 → 행특 가이드 프롬프트에 투입
   let guideEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
   }
 

@@ -581,7 +581,7 @@ describe("P8 draft_analysis — 태그 수집 구조 (analyzeSetekWithHighlight 
 
 describe("S3 ai_diagnosis — buildEdgePromptSection 출력 구조", () => {
   it("diagnosis 컨텍스트에서 엣지 섹션 포함", async () => {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
 
     const edges = [
       {
@@ -621,13 +621,13 @@ describe("S3 ai_diagnosis — buildEdgePromptSection 출력 구조", () => {
   });
 
   it("빈 엣지 배열이면 빈 문자열 반환", async () => {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     const section = buildEdgePromptSection([], "diagnosis");
     expect(section).toBe("");
   });
 
   it("guide 컨텍스트에서 다른 지시문 포함", async () => {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     const edges = [
       {
         edge_type: "TEMPORAL_GROWTH",

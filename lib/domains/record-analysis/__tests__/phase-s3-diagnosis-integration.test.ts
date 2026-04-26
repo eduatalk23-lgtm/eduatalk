@@ -39,7 +39,7 @@ vi.mock("@/lib/domains/record-analysis/llm/actions/generateDiagnosis", () => ({
   generateAiDiagnosis: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/student-record/edge-summary", () => ({
+vi.mock("@/lib/domains/record-analysis/llm/edge-summary", () => ({
   buildEdgePromptSection: vi.fn().mockReturnValue("## 엣지 섹션"),
 }));
 

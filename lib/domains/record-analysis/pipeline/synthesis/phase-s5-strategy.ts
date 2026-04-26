@@ -61,7 +61,7 @@ export async function runActivitySummary(
   // Phase E2: 엣지 데이터 → 요약서 프롬프트에 투입
   let summaryEdgeSection: string | undefined;
   if (computedEdges.length > 0) {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     summaryEdgeSection = buildEdgePromptSection(computedEdges, "summary");
   }
   // Phase 6: 가이드 배정 컨텍스트 → 요약서 프롬프트에 투입 (M4: ctx 캐시 활용)

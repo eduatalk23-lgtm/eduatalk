@@ -29,7 +29,7 @@ import type { RecordSummary } from "@/lib/domains/record-analysis/llm/prompts/in
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES, ADMISSION_TYPE_HINTS } from "@/lib/domains/student-record/constants";
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import { determineGradeSystem } from "@/lib/domains/student-record/grade-normalizer";
-import { buildEdgeSummary } from "@/lib/domains/student-record/edge-summary";
+import { buildEdgeSummary } from "@/lib/domains/record-analysis/llm/edge-summary";
 import type { PipelineTaskKey } from "@/lib/domains/record-analysis/pipeline";
 import { generateSetekDraftAction } from "@/lib/domains/record-analysis/llm/actions/generateSetekDraft";
 import { upsertDiagnosis } from "@/lib/domains/student-record/repository/diagnosis-repository";

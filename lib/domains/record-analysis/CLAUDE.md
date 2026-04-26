@@ -41,7 +41,7 @@ record-analysis/
 │   ├── extractJson.ts     # LLM 응답 JSON 파서
 │   ├── types.ts           # LLM 입출력 타입
 │   ├── error-handler.ts   # 에러 래퍼
-│   └── edge-summary.ts    # Edge 요약 빌더
+│   └── edge-summary.ts    # Edge 요약 빌더 (단일 진실) — buildEdgeSummaryForPrompt / buildEdgeSummary / buildEdgePromptSection
 ├── eval/                  # 평가 모듈 (5파일, 규칙 기반, LLM 호출 없음)
 │   ├── executive-summary.ts       # B3: A1~B1 결과 통합 → 한 페이지 요약
 │   ├── golden-dataset.ts          # 50샘플 골든셋 + 회귀 검증 기준

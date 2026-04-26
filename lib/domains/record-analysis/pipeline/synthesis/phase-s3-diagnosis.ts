@@ -65,7 +65,7 @@ export async function runAiDiagnosis(
   let diagnosisEdgeSection: string | undefined;
   const edgeComputationFailed = tasks.edge_computation === "failed";
   if (computedEdges.length > 0) {
-    const { buildEdgePromptSection } = await import("@/lib/domains/student-record/edge-summary");
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
     diagnosisEdgeSection = buildEdgePromptSection(computedEdges, "diagnosis");
   } else if (edgeComputationFailed) {
     logActionDebug(LOG_CTX, "엣지 계산 실패 → 진단에 연결 분석 미포함", { pipelineId });
