@@ -445,6 +445,25 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     }
   }
 
+  // 격차 6: 학종 3요소 통합 점수(hakjongScore) → 전략 프롬프트 주입 (best-effort)
+  let hakjongScoreSection: string | undefined;
+  try {
+    const { findLatestSnapshot } = await import(
+      "@/lib/domains/student-record/repository/student-state-repository"
+    );
+    const { buildHakjongScoreSection } = await import(
+      "@/lib/domains/record-analysis/llm/hakjong-score-section"
+    );
+    const snap = await findLatestSnapshot(studentId, tenantId, ctx.supabase);
+    if (snap?.snapshot_data) {
+      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
+      const built = buildHakjongScoreSection(state.hakjongScore ?? null);
+      if (built) hakjongScoreSection = built;
+    }
+  } catch (hkErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.hakjongScoreSection.strategy" }, hkErr, { pipelineId });
+  }
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -461,6 +480,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     mainExplorationSection: mainExplorationSection || undefined,
     midPlanSynthesisSection,
     projectedQualitySection,
+    hakjongScoreSection,
   });
   if (!result.success) throw new Error(result.error);
 

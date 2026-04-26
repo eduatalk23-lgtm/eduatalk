@@ -304,6 +304,25 @@ export async function runAiDiagnosis(
     }
   }
 
+  // 격차 6: 학종 3요소 통합 점수(hakjongScore) → 진단 프롬프트 주입 (best-effort)
+  let hakjongScoreSection: string | undefined;
+  try {
+    const { findLatestSnapshot } = await import(
+      "@/lib/domains/student-record/repository/student-state-repository"
+    );
+    const { buildHakjongScoreSection } = await import(
+      "@/lib/domains/record-analysis/llm/hakjong-score-section"
+    );
+    const snap = await findLatestSnapshot(studentId, tenantId, supabase);
+    if (snap?.snapshot_data) {
+      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
+      const built = buildHakjongScoreSection(state.hakjongScore ?? null);
+      if (built) hakjongScoreSection = built;
+    }
+  } catch (hkErr) {
+    logActionError({ ...LOG_CTX, action: "pipeline.hakjongScoreSection.diagnosis" }, hkErr, { pipelineId });
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -319,7 +338,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, hakjongScoreSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

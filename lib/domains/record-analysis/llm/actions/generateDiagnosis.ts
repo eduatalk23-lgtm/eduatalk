@@ -103,6 +103,11 @@ export async function generateAiDiagnosis(
    * focusHypothesis / concernFlags 를 진단 방향에 반영하기 위해 주입한다. 없으면 생략.
    */
   midPlanSynthesisSection?: string,
+  /**
+   * 격차 6: 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
+   * α2 Reward 엔진이 계산한 학업/진로/공동체 0~100 점수. 없으면 생략.
+   */
+  hakjongScoreSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -201,6 +206,7 @@ export async function generateAiDiagnosis(
       mainExplorationSection,
       narrativeArcSection,
       midPlanSynthesisSection,
+      hakjongScoreSection,
       isProspective,
     });
 

@@ -632,6 +632,12 @@ export interface SuggestStrategiesInput {
    * 설계 모드 학년이 없거나 P8 미실행이면 undefined (no-op).
    */
   projectedQualitySection?: string;
+  /**
+   * 격차 6: 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
+   * α2 Reward 엔진이 계산한 학업/진로/공동체 0~100 점수.
+   * 스냅샷 없거나 미계산 시 undefined (no-op).
+   */
+  hakjongScoreSection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */
