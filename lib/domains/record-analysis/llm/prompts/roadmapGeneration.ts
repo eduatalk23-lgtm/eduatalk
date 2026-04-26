@@ -199,6 +199,17 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
     prompt += `${input.bridgeSection}\n\n`;
   }
 
+  // 격차 B: MidPlan / HakjongScore / S5 전략 섹션 주입 (best-effort — 없으면 생략)
+  if (input.midPlanSynthesisSection) {
+    prompt += `${input.midPlanSynthesisSection}\n\n`;
+  }
+  if (input.hakjongScoreSection) {
+    prompt += `${input.hakjongScoreSection}\n\n`;
+  }
+  if (input.strategySummarySection) {
+    prompt += `${input.strategySummarySection}\n\n`;
+  }
+
   prompt += `위 정보를 종합하여 ${input.grade}학년부터 3학년까지의 학기별 활동 로드맵을 JSON으로 생성해주세요.`;
   if (input.mainExplorationSection) {
     prompt += ` 메인 탐구 tier_plan 이 제공된 경우, 학기별 missions 가 tier 진행(기초→발전→심화)을 따르도록 정렬하고 빈 tier 셀을 우선 채우는 미션을 학기 1개 이상 포함하세요.`;
@@ -208,6 +219,15 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   }
   if (input.bridgeSection) {
     prompt += ` Bridge 제안(urgency high/medium)이 제공된 경우, 각 bridge 를 구체 학기 활동으로 1건 이상 변환하여 로드맵에 포함하세요.`;
+  }
+  if (input.strategySummarySection) {
+    prompt += ` S5 합의 전략이 제공된 경우, 각 전략 영역(target_area)의 보완 활동을 로드맵에 1건 이상 반드시 포함하세요.`;
+  }
+  if (input.midPlanSynthesisSection) {
+    prompt += ` 핵심 탐구 축 가설이 제공된 경우, 로드맵 전반에 해당 축 방향의 활동을 우선 배치하세요.`;
+  }
+  if (input.hakjongScoreSection) {
+    prompt += ` 학종 3요소 통합 점수(약점 축 🔴)가 제공된 경우, 해당 약점 영역을 강화하는 활동(봉사·수상·창체 등)을 로드맵에 포함하세요.`;
   }
   return prompt;
 }

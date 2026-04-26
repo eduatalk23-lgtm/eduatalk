@@ -817,6 +817,12 @@ export interface RoadmapGenerationInput {
   blueprintSection?: string;
   /** C3(2026-04-16): Gap Tracker bridge 섹션. 시급한 bridge 제안을 학기 활동으로 변환. */
   bridgeSection?: string;
+  /** 격차 B: MidPlan focusHypothesis + concernFlags. buildMidPlanSynthesisSection() 결과. */
+  midPlanSynthesisSection?: string;
+  /** 격차 B: 학종 3요소 통합 점수 섹션. buildHakjongScoreSection() 결과. */
+  hakjongScoreSection?: string;
+  /** 격차 B: S5 합의 전략 요약 섹션. buildStrategySummarySection() 결과. */
+  strategySummarySection?: string;
 }
 
 // ============================================

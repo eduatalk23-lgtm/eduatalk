@@ -801,9 +801,12 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
         "diagnosticWeaknesses": undefined,
         "existingQuestions": undefined,
         "grade": 1,
+        "hakjongScoreSection": undefined,
         "mainExplorationSection": undefined,
+        "midPlanSynthesisSection": undefined,
         "qualityIssues": undefined,
         "recordType": "setek",
+        "strategySummarySection": undefined,
         "subjectName": "수학I",
         "weakCompetencies": undefined,
       }

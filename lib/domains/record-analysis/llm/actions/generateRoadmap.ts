@@ -23,9 +23,17 @@ import type { ActionResponse } from "@/lib/types/actionResponse";
 
 const LOG_CTX = { domain: "record-analysis", action: "generateRoadmap" };
 
+/** 격차 B: 외부에서 미리 로드된 컨텍스트 섹션 주입용 옵션 (optional) */
+export interface RoadmapExtraSections {
+  midPlanSynthesisSection?: string;
+  hakjongScoreSection?: string;
+  strategySummarySection?: string;
+}
+
 export async function generateAiRoadmap(
   studentId: string,
   forceMode?: "planning" | "analysis",
+  extraSections?: RoadmapExtraSections,
 ): Promise<ActionResponse<RoadmapGenerationOutput>> {
   try {
     const { tenantId: rawTenantId } = await requireAdminOrConsultant();
@@ -198,6 +206,10 @@ export async function generateAiRoadmap(
       mainExplorationSection,
       blueprintSection,
       bridgeSection,
+      // 격차 B: 외부 주입 섹션 (phase-s6-interview.ts에서 best-effort 로드 후 전달)
+      midPlanSynthesisSection: extraSections?.midPlanSynthesisSection,
+      hakjongScoreSection: extraSections?.hakjongScoreSection,
+      strategySummarySection: extraSections?.strategySummarySection,
     };
 
     // analysis 모드 전용 데이터

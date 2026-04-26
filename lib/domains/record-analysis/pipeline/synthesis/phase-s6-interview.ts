@@ -241,6 +241,46 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     .filter(Boolean)
     .join("\n\n") || undefined;
 
+  // 격차 A: midPlan / hakjongScore / S5 strategy 섹션 로드 (best-effort)
+  const { buildMidPlanSynthesisSection } = await import("../../llm/mid-plan-guide-section");
+  const { buildHakjongScoreSection } = await import("../../llm/hakjong-score-section");
+  const { buildStrategySummarySection } = await import("../../llm/strategy-summary-section");
+
+  // midPlan: ctx.midPlan 우선, 없으면 task_results["_midPlan"] 폴백
+  const midPlanRaw = ctx.midPlan ?? (results["_midPlan"] as Parameters<typeof buildMidPlanSynthesisSection>[0] | undefined);
+  const midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlanRaw);
+
+  // hakjongScore: findLatestSnapshot → snapshot_data 경유 (S3/S5 동일 패턴)
+  let hakjongScoreSection: string | undefined;
+  try {
+    const { findLatestSnapshot } = await import("@/lib/domains/student-record/repository/student-state-repository");
+    const snap = await findLatestSnapshot(studentId, tenantId, supabase as Parameters<typeof findLatestSnapshot>[2]);
+    if (snap?.snapshot_data) {
+      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
+      hakjongScoreSection = buildHakjongScoreSection(state.hakjongScore ?? null);
+    }
+  } catch (snapErr) {
+    logActionDebug(LOG_CTX, `hakjongScore snapshot 조회 실패 (면접 생성 계속): ${snapErr}`);
+  }
+
+  // S5 strategies: priority high 위주 5건 직렬화
+  let strategySummarySection: string | undefined;
+  try {
+    const { calculateSchoolYear: getYear } = await import("@/lib/utils/schoolYear");
+    const { data: strategyRows } = await supabase
+      .from("student_record_strategies")
+      .select("priority, target_area, strategy_content")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", getYear())
+      .in("priority", ["critical", "high", "medium"])
+      .order("priority")
+      .limit(10);
+    strategySummarySection = buildStrategySummarySection(strategyRows ?? []);
+  } catch (stratErr) {
+    logActionDebug(LOG_CTX, `strategies 조회 실패 (면접 생성 계속): ${stratErr}`);
+  }
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -254,6 +294,9 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     qualityIssues: qualityIssues.length > 0 ? qualityIssues : undefined,
     appliedUniversities,
     mainExplorationSection: combinedMainExploration,
+    midPlanSynthesisSection,
+    hakjongScoreSection,
+    strategySummarySection,
   });
 
   if (!result.success) throw new Error(result.error);
@@ -328,14 +371,55 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
 
 export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRunnerOutput> {
   assertSynthesisCtx(ctx);
-  const { studentId, tenantId, pipelineId, studentGrade } = ctx;
+  const { supabase, studentId, tenantId, pipelineId, studentGrade } = ctx;
 
   // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)
   const { generateAiRoadmap } = await import("../../llm/actions/generateRoadmap");
   // NEIS 기반 모드 판정: neisGrades가 있으면 실 데이터 분석 모드, 없으면 수강계획 기반 계획 모드
   const llmMode = (ctx.neisGrades && ctx.neisGrades.length > 0) ? "analysis" : "planning";
 
-  const llmResult = await generateAiRoadmap(studentId, llmMode);
+  // 격차 B: midPlan / hakjongScore / S5 strategy 섹션 로드 (best-effort — interview와 동일 패턴)
+  const { buildMidPlanSynthesisSection: buildMPSection } = await import("../../llm/mid-plan-guide-section");
+  const { buildHakjongScoreSection: buildHJSection } = await import("../../llm/hakjong-score-section");
+  const { buildStrategySummarySection: buildStSection } = await import("../../llm/strategy-summary-section");
+
+  const roadmapMidPlan = ctx.midPlan ?? (ctx.results["_midPlan"] as Parameters<typeof buildMPSection>[0] | undefined);
+  const roadmapMidPlanSection = buildMPSection(roadmapMidPlan);
+
+  let roadmapHakjongSection: string | undefined;
+  try {
+    const { findLatestSnapshot } = await import("@/lib/domains/student-record/repository/student-state-repository");
+    const snap = await findLatestSnapshot(studentId, tenantId, supabase as Parameters<typeof findLatestSnapshot>[2]);
+    if (snap?.snapshot_data) {
+      const state = snap.snapshot_data as unknown as { hakjongScore?: import("@/lib/domains/student-record/types/student-state").HakjongScore | null };
+      roadmapHakjongSection = buildHJSection(state.hakjongScore ?? null);
+    }
+  } catch (rSnapErr) {
+    logActionDebug(LOG_CTX, `roadmap hakjongScore 조회 실패 (로드맵 생성 계속): ${rSnapErr}`);
+  }
+
+  let roadmapStrategySection: string | undefined;
+  try {
+    const { calculateSchoolYear: getRYear } = await import("@/lib/utils/schoolYear");
+    const { data: rStrategyRows } = await supabase
+      .from("student_record_strategies")
+      .select("priority, target_area, strategy_content")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", getRYear())
+      .in("priority", ["critical", "high", "medium"])
+      .order("priority")
+      .limit(10);
+    roadmapStrategySection = buildStSection(rStrategyRows ?? []);
+  } catch (rStratErr) {
+    logActionDebug(LOG_CTX, `roadmap strategies 조회 실패 (로드맵 생성 계속): ${rStratErr}`);
+  }
+
+  const llmResult = await generateAiRoadmap(studentId, llmMode, {
+    midPlanSynthesisSection: roadmapMidPlanSection,
+    hakjongScoreSection: roadmapHakjongSection,
+    strategySummarySection: roadmapStrategySection,
+  });
   if (llmResult.success && llmResult.data) {
     // Cross-run: 다음 실행 storyline_generation 이 "과거 계획 대비 진척" 서사 힌트로 활용.
     const items = llmResult.data.items.map((it) => ({
