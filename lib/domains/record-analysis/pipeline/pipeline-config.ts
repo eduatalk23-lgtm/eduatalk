@@ -153,9 +153,12 @@ export const GRADE_TASK_DEPENDENTS: Partial<Record<_GradeKey, _GradeKey[]>> = {
   // 따라서 setek_guide/changche_guide/haengteuk_guide의 prereq에는 추가하지 않는다.
   // competency_volunteer: 선행 없음([]) — P1~P3와 독립. 실패해도 가이드는 계속 진행 (graceful).
   // competency_awards: 선행 없음([]) — P1~P3와 독립. 실패해도 가이드는 계속 진행 (graceful).
-  // derive_main_theme (M1-c W1): competency_* 후행 (analysisContext 충족). cross_subject_theme_extraction graceful 의존
-  //   (gradeThemes 있으면 키워드 보강, 없어도 진로만으로 도출 가능). 가이드 prereq 아님 — graceful terminal.
-  cross_subject_theme_extraction: ["derive_main_theme"],
+  // derive_main_theme (M1-c W1): competency_* 후행 (analysisContext 충족).
+  // M1-c W6 hotfix (2026-04-28): cross_subject 의 dependents 에서 derive_main_theme 제거.
+  // cross_subject 가 timeout 으로 fail 해도 derive_main_theme 는 진로 + analysisContext 만으로
+  // 도출 가능 (graceful 정책). 이전엔 cross_subject failed → derive_main_theme prereq 실패로
+  // skip → mainTheme/cascadePlan 미영속 cascade.
+  cross_subject_theme_extraction: [],
   setek_guide: ["changche_guide", "haengteuk_guide", "draft_generation"],
   changche_guide: ["haengteuk_guide", "draft_generation"],
   haengteuk_guide: ["draft_generation", "draft_analysis", "draft_refinement"],
