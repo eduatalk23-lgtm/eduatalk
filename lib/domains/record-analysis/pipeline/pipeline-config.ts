@@ -313,10 +313,13 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   competency_volunteer: 90_000,  // α1-2: 학년 묶음 1회 LLM 호출 (~20-40s). 봉사 description 짧음.
   competency_awards: 90_000,     // α1-4-b: 학년 묶음 1회 LLM 호출 (~15-30s). 수상 정보는 봉사보다도 짧음.
   derive_main_theme: 120_000,    // P3.6 (M1-c W1): mainTheme + cascadePlan fast tier × 2 호출 (~10-30s). hash hit 시 LLM 0회.
-  setek_guide: 120_000,
+  // M1-c W3 hotfix (2026-04-27): cascade plan section 추가로 prompt token 증가 → 120s timeout 발생.
+  // 인제고 1학년 24 과목 + profileCard + narrativeArc + midPlan + cascade + hakjongScore 동시 주입 시
+  // Gemini Pro standard tier 응답 ~90-150s 범위. 240s 로 상향해 안전 여유 확보.
+  setek_guide: 240_000,
   slot_generation: 30_000,
-  changche_guide: 120_000,
-  haengteuk_guide: 120_000,
+  changche_guide: 240_000,
+  haengteuk_guide: 240_000,
   draft_generation: 240_000,  // 세특+창체+행특 가안 순차 생성
   draft_analysis: 280_000,   // 가안 역량 분석 (세특이 가장 오래)
   draft_refinement: 280_000, // P9: score<70 레코드 재생성+재분석 (청크, chunkSize=4)
@@ -363,9 +366,10 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   haengteuk_linking: 150_000,     // A2(2026-04-16): 90s→150s 상향. 인제고 풀런 90s 초과 관찰. Flash × N학년(보통 3회) 여유 포함.
   gap_tracking: 30_000,            // Gap Tracker: 규칙 기반 CPU (<5s)
   bypass_analysis: 120_000,
-  setek_guide: 120_000,
-  changche_guide: 120_000,
-  haengteuk_guide: 120_000,
+  // M1-c W3 hotfix (2026-04-27): cascade prompt 길이 증가 대응 (위 GRADE_PIPELINE_TASK_TIMEOUTS 동기).
+  setek_guide: 240_000,
+  changche_guide: 240_000,
+  haengteuk_guide: 240_000,
   activity_summary: 120_000,
   ai_strategy: 120_000,
   interview_generation: 120_000,

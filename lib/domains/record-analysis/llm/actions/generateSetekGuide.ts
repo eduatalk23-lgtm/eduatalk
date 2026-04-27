@@ -323,7 +323,14 @@ export async function generateProspectiveSetekGuide(
     resolvedCascadeSectionP = await loadAndBuildCascadeSection(studentId, tenantId, fallbackGradeP, supabase);
   }
 
-  const input: SetekGuideInput = {
+  const allPlannedSubjects = plans.map((p) => ({
+    subjectName: p.subject?.name ?? "과목 미정",
+    grade: p.grade,
+    semester: p.semester,
+    subjectType: p.subject?.subject_type?.name ?? undefined,
+  }));
+
+  const baseInput: SetekGuideInput = {
     mode: "prospective",
     studentName: report.student.name ?? "학생",
     grade: report.student.grade,
@@ -339,12 +346,7 @@ export async function generateProspectiveSetekGuide(
     strengths: (diagnosis?.strengths as string[]) ?? undefined,
     weaknesses: (diagnosis?.weaknesses as string[]) ?? undefined,
     edgePromptSection,
-    plannedSubjects: plans.map((p) => ({
-      subjectName: p.subject?.name ?? "과목 미정",
-      grade: p.grade,
-      semester: p.semester,
-      subjectType: p.subject?.subject_type?.name ?? undefined,
-    })),
+    plannedSubjects: allPlannedSubjects,
     guideAssignments: guideSection || undefined,
     analysisContext,
     crossGradeDirections,
@@ -356,13 +358,52 @@ export async function generateProspectiveSetekGuide(
     hakjongScoreSection: hakjongScoreSectionP,
   };
 
-  const parsed = await callGuideAI(SYSTEM_PROMPT, buildUserPrompt(input), parseResponse, { maxTokens: 32768, retryLabel: "setekGuide" });
-  if (!parsed) {
-    return { success: false, error: "AI 응답이 비어있습니다." };
+  // M1-c W4 (2026-04-27): in-runner chunked LLM 호출.
+  // 인제고 1학년 24 과목 + cascade/profileCard/narrativeArc/midPlan/hakjongScore 동시 주입 시
+  // 단일 호출이 240s timeout 도달. plannedSubjects 만 6과목씩 분할해 LLM 4회 직렬 호출.
+  // 공통 입력 (system prompt + cascade 등) 은 4회 반복되지만 각 응답은 6과목 가이드 단위라
+  // 응답 시간 분산 + Vercel 5분 한계 안전 (4 × ~30-60s = ~120-240s).
+  // CHUNK_SIZE 이하 입력은 단일 호출 (기존 동작 유지).
+  const CHUNK_SIZE = 6;
+  const accumulatedGuides: SetekGuideResult["guides"] = [];
+  let firstParsed: SetekGuideResult | null = null;
+
+  if (allPlannedSubjects.length <= CHUNK_SIZE) {
+    const single = await callGuideAI(
+      SYSTEM_PROMPT,
+      buildUserPrompt(baseInput),
+      parseResponse,
+      { maxTokens: 32768, retryLabel: "setekGuide" },
+    );
+    if (!single) {
+      return { success: false, error: "AI 응답이 비어있습니다." };
+    }
+    firstParsed = single;
+    accumulatedGuides.push(...single.guides);
+  } else {
+    const totalChunks = Math.ceil(allPlannedSubjects.length / CHUNK_SIZE);
+    for (let i = 0; i < allPlannedSubjects.length; i += CHUNK_SIZE) {
+      const batch = allPlannedSubjects.slice(i, i + CHUNK_SIZE);
+      const chunkIdx = Math.floor(i / CHUNK_SIZE) + 1;
+      const chunkInput: SetekGuideInput = { ...baseInput, plannedSubjects: batch };
+      const chunkParsed = await callGuideAI(
+        SYSTEM_PROMPT,
+        buildUserPrompt(chunkInput),
+        parseResponse,
+        { maxTokens: 32768, retryLabel: `setekGuide-chunk-${chunkIdx}/${totalChunks}` },
+      );
+      if (!chunkParsed) {
+        return { success: false, error: `AI 응답 비어있음 (chunk ${chunkIdx}/${totalChunks})` };
+      }
+      accumulatedGuides.push(...chunkParsed.guides);
+      if (firstParsed === null) firstParsed = chunkParsed;
+    }
   }
-  if (parsed.guides.length === 0) {
+
+  if (accumulatedGuides.length === 0 || firstParsed === null) {
     return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다." };
   }
+  const parsed: SetekGuideResult = { ...firstParsed, guides: accumulatedGuides };
 
   // 과목명 → subject_id 매핑 (계획 과목에서)
   const nameToSubjectId = new Map<string, string>();

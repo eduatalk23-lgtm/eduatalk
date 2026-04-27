@@ -149,7 +149,11 @@ export async function runDeriveMainThemeForGrade(
     if (!Number.isFinite(grade) || !perGrade) continue;
     const list: Array<{ category: string; summary: string }> = [];
     let totalLen = 0;
-    const seteks = (perGrade as { seteks?: Array<{ effectiveContent?: string }> }).seteks ?? [];
+    // M1-c W3 hotfix (2026-04-27): resolvedRecords 의 seteks/changche/haengteuk 는
+    // 일부 학년/모드에서 Array 가 아닌 값(undefined, object)일 수 있어 Array.isArray 가드 필수.
+    // 미가드 시 .slice is not a function 런타임 에러 → derive_main_theme 실패 → cascade skip.
+    const seteksRaw = (perGrade as { seteks?: unknown }).seteks;
+    const seteks = Array.isArray(seteksRaw) ? (seteksRaw as Array<{ effectiveContent?: string }>) : [];
     for (const s of seteks.slice(0, 6)) {
       const text = (s.effectiveContent ?? "").slice(0, 200);
       if (text) {
@@ -157,7 +161,8 @@ export async function runDeriveMainThemeForGrade(
         totalLen += text.length;
       }
     }
-    const changche = (perGrade as { changche?: Array<{ effectiveContent?: string }> }).changche ?? [];
+    const changcheRaw = (perGrade as { changche?: unknown }).changche;
+    const changche = Array.isArray(changcheRaw) ? (changcheRaw as Array<{ effectiveContent?: string }>) : [];
     for (const c of changche.slice(0, 4)) {
       const text = (c.effectiveContent ?? "").slice(0, 200);
       if (text) {
@@ -165,9 +170,11 @@ export async function runDeriveMainThemeForGrade(
         totalLen += text.length;
       }
     }
-    const haengteuk = (perGrade as { haengteuk?: Array<{ effectiveContent?: string }> }).haengteuk ?? [];
-    for (const h of haengteuk.slice(0, 2)) {
-      const text = (h.effectiveContent ?? "").slice(0, 200);
+    // haengteuk 는 ResolvedRecord | null (학년당 단일 객체) — Array 가 아님 (pipeline-types.ts:393).
+    // 이전 버전은 Array 로 가정하고 .slice(0,2) 호출 → 런타임 에러로 derive_main_theme 실패.
+    const haengteukRaw = (perGrade as { haengteuk?: { effectiveContent?: string } | null }).haengteuk;
+    if (haengteukRaw && typeof haengteukRaw === "object") {
+      const text = (haengteukRaw.effectiveContent ?? "").slice(0, 200);
       if (text) {
         list.push({ category: "haengteuk", summary: text });
         totalLen += text.length;
