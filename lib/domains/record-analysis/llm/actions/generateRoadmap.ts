@@ -42,6 +42,8 @@ export interface RoadmapExtraSections {
   hyperedgeSummarySection?: string;
   /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
   profileCardSection?: string;
+  /** M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션. */
+  mainThemeCascadeSection?: string;
 }
 
 export async function generateAiRoadmap(
@@ -233,6 +235,7 @@ export async function generateAiRoadmap(
       narrativeArcSection: extraSections?.narrativeArcSection,
       hyperedgeSummarySection: extraSections?.hyperedgeSummarySection,
       profileCardSection: extraSections?.profileCardSection,
+      mainThemeCascadeSection: extraSections?.mainThemeCascadeSection,
     };
 
     // analysis 모드 전용 데이터

@@ -87,6 +87,21 @@ export interface PipelineTaskResultMap {
     truncationWarning?: boolean;
     elapsedMs?: number;
   };
+  /**
+   * P3.6 (M1-c W1, 2026-04-27): 메인 탐구주제 + 학년별 cascade plan 도출.
+   * graceful — capability LLM 호출 실패해도 가이드 진입에 영향 없음.
+   * hash 기반 staleness — 학생 프로필(전공/계열/수강계획) 변경 없으면 LLM 호출 스킵.
+   * 결과는 ctx.belief.mainTheme / cascadePlan + DB task_results._mainTheme / _cascadePlan 에 영속.
+   */
+  derive_main_theme: {
+    themeOk: boolean;
+    cascadeOk: boolean;
+    fromCache: boolean;
+    structuralHash?: string;
+    elapsedMs?: number;
+    skipped?: boolean;
+    skipReason?: string;
+  };
   /** P4-a: 세특 방향 가이드 */
   setek_guide: { cached?: boolean; elapsedMs?: number };
   /** P4-b: 슬롯 생성 (string preview만 반환 → result는 elapsedMs만) */

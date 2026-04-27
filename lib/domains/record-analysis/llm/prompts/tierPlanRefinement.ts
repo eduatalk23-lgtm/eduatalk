@@ -89,6 +89,11 @@ export interface TierPlanRefinementInput {
   gradeThemesSection?: string;
   /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
   profileCardSection?: string;
+  /**
+   * M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션.
+   * 메인 탐구주제와 학년별 cascade 척추 — S7 tier_plan 개정의 핵심 비교 기준.
+   */
+  mainThemeCascadeSection?: string;
 }
 
 export const TIER_PLAN_REFINEMENT_SYSTEM_PROMPT = `당신은 대입 컨설팅 전문가로, 학생의 **현 메인 탐구 3단 계획**을 학생의 **실제 학습 궤적**(Synthesis 결과)을 근거로 **개정**합니다.
@@ -250,6 +255,15 @@ export function buildTierPlanRefinementUserPrompt(
   // Phase C A6: 학생 정체성 프로필 카드 주입
   if (input.profileCardSection && input.profileCardSection.trim().length > 0) {
     sections.push(input.profileCardSection, "");
+  }
+
+  // M1-c W5: mainTheme + cascadePlan 통합 섹션 — tier_plan 개정의 핵심 비교 기준
+  if (input.mainThemeCascadeSection && input.mainThemeCascadeSection.trim().length > 0) {
+    sections.push(input.mainThemeCascadeSection, "");
+    sections.push(
+      `**중요**: 위 메인 탐구주제 + 학년별 cascade 가 현 tier_plan 과 의미 있는 격차가 있다면 tier_plan 을 cascade 의 학년별 tier(기초/발전/심화)·subjects·rationale 에 정렬하도록 개정하세요.`,
+      "",
+    );
   }
 
   sections.push(

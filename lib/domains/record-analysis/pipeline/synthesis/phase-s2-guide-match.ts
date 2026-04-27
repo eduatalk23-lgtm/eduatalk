@@ -721,7 +721,8 @@ async function runExplorationDesign(
     if (parts.length > 0) profileCardSummary = parts.join(" | ");
   }
 
-  // PR 4 (2026-04-17): Blueprint 설계 청사진 로드 — AI 에게 top-down 목표 공개
+  // PR 4 (2026-04-17) + M1-d (2026-04-27): Blueprint 설계 청사진 로드
+  // top-down 목표 (targetConvergences) + 학년별 마일스톤 + 미충족 수렴축 판정
   let blueprintConvergences:
     | Array<{
         grade: number;
@@ -732,6 +733,16 @@ async function runExplorationDesign(
       }>
     | undefined;
   let blueprintArc: string | undefined;
+  let blueprintMilestones:
+    | Array<{
+        grade: number;
+        keyActivities: string[];
+        competencyFocus: string[];
+        narrativeGoal: string;
+        targetConvergenceCount?: number;
+      }>
+    | undefined;
+  let unfulfilledConvergenceIndices: number[] | undefined;
   try {
     const { loadBlueprintForStudent } = await import(
       "@/lib/domains/record-analysis/blueprint/loader"
@@ -745,9 +756,91 @@ async function runExplorationDesign(
         rationale: c.rationale,
         tierAlignment: c.tierAlignment,
       }));
+
+      // M1-d: 미충족 수렴축 판정 — 이미 배정된 가이드 + NEIS 활동 텍스트 풀에서 매칭
+      try {
+        const { computeUnfulfilledConvergences } = await import(
+          "@/lib/domains/record-analysis/blueprint/coverage"
+        );
+        const [{ data: assignmentRows }, { data: setekRows }, { data: changcheRows }] =
+          await Promise.all([
+            supabase
+              .from("exploration_guide_assignments")
+              .select("guide_id, exploration_guides!inner(title)")
+              .eq("student_id", studentId)
+              .eq("tenant_id", tenantId),
+            supabase
+              .from("student_record_seteks")
+              .select("imported_content, confirmed_content, content")
+              .eq("student_id", studentId)
+              .eq("tenant_id", tenantId)
+              .is("deleted_at", null),
+            supabase
+              .from("student_record_changche")
+              .select("imported_content, confirmed_content, content")
+              .eq("student_id", studentId)
+              .eq("tenant_id", tenantId),
+          ]);
+
+        const assignedTitles: string[] = [];
+        for (const row of (assignmentRows ?? []) as Array<{
+          exploration_guides: { title: string } | { title: string }[] | null;
+        }>) {
+          const g = Array.isArray(row.exploration_guides)
+            ? row.exploration_guides[0]
+            : row.exploration_guides;
+          if (g?.title) assignedTitles.push(g.title);
+        }
+
+        const neisTexts: string[] = [];
+        for (const r of [...(setekRows ?? []), ...(changcheRows ?? [])] as Array<{
+          imported_content?: string | null;
+          confirmed_content?: string | null;
+          content?: string | null;
+        }>) {
+          const text =
+            r.imported_content?.trim() ||
+            r.confirmed_content?.trim() ||
+            r.content?.trim() ||
+            "";
+          if (text) neisTexts.push(text.slice(0, 400)); // 400자 캡으로 메모리 보호
+        }
+
+        const verdict = computeUnfulfilledConvergences({
+          convergences: bp.targetConvergences.slice(0, 6),
+          assignedGuideTitles: assignedTitles,
+          neisActivityTexts: neisTexts,
+        });
+        unfulfilledConvergenceIndices = verdict.unfulfilledIndices;
+        logActionDebug(
+          LOG_CTX,
+          `M1-d coverage: ${verdict.unfulfilledIndices.length}/${blueprintConvergences.length} 미충족`,
+          { studentId },
+        );
+      } catch {
+        // best-effort — coverage 판정 실패 시 미표시 (기존 동작 유지)
+      }
     }
     if (bp?.storylineSkeleton?.narrativeArc) {
       blueprintArc = bp.storylineSkeleton.narrativeArc;
+    }
+
+    // M1-d: 학년별 마일스톤 추출
+    if (bp?.milestones && typeof bp.milestones === "object") {
+      const ms: typeof blueprintMilestones = [];
+      for (const [gradeStr, m] of Object.entries(bp.milestones)) {
+        const grade = Number(gradeStr);
+        if (!Number.isFinite(grade) || !m) continue;
+        ms.push({
+          grade,
+          keyActivities: Array.isArray(m.keyActivities) ? m.keyActivities : [],
+          competencyFocus: Array.isArray(m.competencyFocus) ? m.competencyFocus : [],
+          narrativeGoal: m.narrativeGoal ?? "",
+          targetConvergenceCount: m.targetConvergenceCount,
+        });
+      }
+      ms.sort((a, b) => a.grade - b.grade);
+      if (ms.length > 0) blueprintMilestones = ms;
     }
   } catch {
     // best-effort — blueprint 없이 진행
@@ -789,6 +882,12 @@ async function runExplorationDesign(
           ? { blueprintConvergences }
           : {}),
         ...(blueprintArc ? { blueprintArc } : {}),
+        ...(blueprintMilestones && blueprintMilestones.length > 0
+          ? { blueprintMilestones }
+          : {}),
+        ...(unfulfilledConvergenceIndices && unfulfilledConvergenceIndices.length > 0
+          ? { unfulfilledConvergenceIndices }
+          : {}),
       }),
     }],
     schema: zodSchema(explorationDesignSchema),

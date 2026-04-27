@@ -173,6 +173,34 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
     },
   },
 
+  // P3.6 (M1-c W1, 2026-04-27): 메인 탐구주제 + cascade plan capability 도출
+  // graceful terminal — 결과는 BeliefState 매개로 downstream Phase 가 간접 소비.
+  // P3 + cross_subject_theme_extraction 후행 (analysisContext + gradeThemes 모두 충족 시점).
+  derive_main_theme: {
+    writes: [],
+    reads: [
+      "students",
+      "student_main_explorations",
+      "student_course_plans",
+      "student_record_seteks",
+      "student_record_changche",
+      "student_record_analysis_pipelines",
+    ],
+    readsResults: [
+      "competency_setek",
+      "competency_changche",
+      "competency_haengteuk",
+      "cross_subject_theme_extraction",
+    ],
+    terminal: {
+      reason: "external_tool",
+      consumers: [
+        "downstream Phase (S2 guide-match / S3 / S5 / S6 / S7) prompt — belief.mainTheme/cascadePlan 매개",
+        "admin UI (메인테마/cascade 카드, M1 운영 wiring 후 예정)",
+      ],
+    },
+  },
+
   // α1-4-b: 수상 역량 태깅 (P4 pre-task, P1-P3 와 독립)
   competency_awards: {
     writes: ["student_record_activity_tags"],

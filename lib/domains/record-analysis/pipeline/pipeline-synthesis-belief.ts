@@ -17,6 +17,8 @@ import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { logActionWarn, logActionError } from "@/lib/logging/actionLogger";
 import type { GradeThemesByGrade } from "./synthesis/helpers";
 import type { MidPlan } from "./orient/mid-pipeline-planner";
+import type { MainTheme } from "../capability/main-theme";
+import type { CascadePlan } from "../capability/cascade-plan";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline-synthesis-belief" };
 
@@ -29,6 +31,10 @@ export interface SynthesisCumulativeBelief {
   midPlan?: MidPlan | null;
   /** D3 확장 (격차 1): 학년별 _midPlan dict. 없음 = undefined (graceful). */
   midPlanByGrade?: Record<number, MidPlan>;
+  /** D4 (M1-c, 2026-04-27): 메인 탐구주제. task_results._mainTheme 에서 회수. */
+  mainTheme?: MainTheme;
+  /** D4 (M1-c, 2026-04-27): 학년별 cascade plan. task_results._cascadePlan 에서 회수. */
+  cascadePlan?: CascadePlan;
 }
 
 /**
@@ -143,6 +149,48 @@ export async function loadSynthesisCumulativeBelief(
     logActionWarn(
       LOG_CTX,
       "D3 midPlan/midPlanByGrade 시딩 실패 — ctx.midPlan/midPlanByGrade undefined 로 진행",
+      { pipelineId, error: err instanceof Error ? err.message : String(err) },
+    );
+  }
+
+  // ── D4: mainTheme + cascadePlan (M1-c, 2026-04-27) ────────────────────────
+  // synthesis pipeline 의 task_results._mainTheme / _cascadePlan 에서 회수.
+  // grade pipeline 에서 도출한 경우도 동일 키로 fallback 회수.
+  try {
+    const { data: pipelineRows } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("pipeline_type, task_results, completed_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(8);
+
+    for (const row of (pipelineRows ?? []) as Array<{
+      pipeline_type: string;
+      task_results: unknown;
+    }>) {
+      const tr = row.task_results as Record<string, unknown> | null;
+      if (!tr) continue;
+      const theme = tr._mainTheme as MainTheme | undefined;
+      const cascade = tr._cascadePlan as CascadePlan | undefined;
+      if (!result.mainTheme && theme && typeof theme === "object" && "label" in theme) {
+        result.mainTheme = theme;
+      }
+      if (
+        !result.cascadePlan &&
+        cascade &&
+        typeof cascade === "object" &&
+        "byGrade" in cascade
+      ) {
+        result.cascadePlan = cascade;
+      }
+      if (result.mainTheme && result.cascadePlan) break;
+    }
+  } catch (err) {
+    logActionWarn(
+      LOG_CTX,
+      "D4 mainTheme/cascadePlan 시딩 실패 — graceful 진행",
       { pipelineId, error: err instanceof Error ? err.message : String(err) },
     );
   }

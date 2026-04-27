@@ -84,6 +84,23 @@ export interface ExplorationDesignContext {
   }>;
   /** Blueprint 3년 관통 내러티브(있으면 1~2문장). */
   blueprintArc?: string;
+  /**
+   * M1-d (2026-04-27): blueprintConvergences 의 인덱스 중 "아직 채워지지 않은" 것.
+   * 호출자가 computeUnfulfilledConvergences() 로 사전 판정. 비어있으면 표시 안 함.
+   */
+  unfulfilledConvergenceIndices?: number[];
+  /**
+   * M1-d (2026-04-27): Blueprint 학년별 마일스톤. 메인테마 cascade 의 학년별
+   * keyActivities + competencyFocus + narrativeGoal 을 prompt 에 노출해
+   * AI 설계가 학년별 척추와 정합하도록 유도.
+   */
+  blueprintMilestones?: Array<{
+    grade: number;
+    keyActivities: string[];
+    competencyFocus: string[];
+    narrativeGoal: string;
+    targetConvergenceCount?: number;
+  }>;
 }
 
 export function buildExplorationDesignSystemPrompt(): string {
@@ -164,23 +181,55 @@ export function buildExplorationDesignUserPrompt(
     }
   }
 
-  // PR 4 (2026-04-17): Blueprint 청사진 — 설계의 top-down 목표를 AI 에게 공개
-  if ((ctx.blueprintConvergences?.length ?? 0) > 0 || ctx.blueprintArc) {
+  // PR 4 (2026-04-17) + M1-d (2026-04-27): Blueprint 청사진 — top-down 목표 + milestones + 미충족 highlight
+  if (
+    (ctx.blueprintConvergences?.length ?? 0) > 0 ||
+    ctx.blueprintArc ||
+    (ctx.blueprintMilestones?.length ?? 0) > 0
+  ) {
     lines.push("");
     lines.push("## 설계 청사진 (Blueprint — top-down 목표)");
     if (ctx.blueprintArc) lines.push(`- 3년 관통 내러티브: ${ctx.blueprintArc}`);
+
     if (ctx.blueprintConvergences?.length) {
-      lines.push("- 목표 수렴축:");
-      for (const bc of ctx.blueprintConvergences.slice(0, 6)) {
+      const unfulfilled = new Set(ctx.unfulfilledConvergenceIndices ?? []);
+      const hasUnfulfilledHints = unfulfilled.size > 0;
+      lines.push(
+        hasUnfulfilledHints
+          ? "- 목표 수렴축 (★=아직 채워지지 않음, 우선 채울 것):"
+          : "- 목표 수렴축:",
+      );
+      for (let i = 0; i < Math.min(ctx.blueprintConvergences.length, 6); i++) {
+        const bc = ctx.blueprintConvergences[i];
         const kw = bc.themeKeywords.slice(0, 4).join(", ");
+        const marker = unfulfilled.has(i) ? "★ " : "  ";
         lines.push(
-          `  · 고${bc.grade} [${bc.tierAlignment}] "${bc.themeLabel}"` +
+          `  ${marker}· 고${bc.grade} [${bc.tierAlignment}] "${bc.themeLabel}"` +
             (kw ? ` (${kw})` : "") +
             ` — ${bc.rationale}`,
         );
       }
       lines.push(
-        "- 설계는 위 수렴축 중 **아직 채워지지 않은 것**을 우선 완성시키는 방향이어야 합니다.",
+        hasUnfulfilledHints
+          ? "- ★ 표시된 수렴축을 **우선 완성**시키는 방향으로 설계하세요. (이미 충족된 수렴축은 회피)"
+          : "- 설계는 위 수렴축 중 **아직 채워지지 않은 것**을 우선 완성시키는 방향이어야 합니다.",
+      );
+    }
+
+    // M1-d: 학년별 마일스톤 — 메인테마 cascade 의 학년별 척추 노출
+    if (ctx.blueprintMilestones && ctx.blueprintMilestones.length > 0) {
+      lines.push("- 학년별 마일스톤:");
+      for (const m of ctx.blueprintMilestones) {
+        const acts = m.keyActivities.slice(0, 4).join(", ");
+        const comps = m.competencyFocus.slice(0, 4).join(", ");
+        lines.push(
+          `  · 고${m.grade}: ${m.narrativeGoal}` +
+            (acts ? ` | 핵심 활동: ${acts}` : "") +
+            (comps ? ` | 역량 초점: ${comps}` : ""),
+        );
+      }
+      lines.push(
+        `- 설계는 고${ctx.designGrade} 마일스톤의 핵심 활동/역량 초점과 정합해야 합니다.`,
       );
     }
   }

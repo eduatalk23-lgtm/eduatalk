@@ -115,6 +115,23 @@ export interface BeliefState {
    * undefined = 시딩 미수행 / 모든 학년 _midPlan 없음 (graceful).
    */
   midPlanByGrade?: Record<number, import("./orient/mid-pipeline-planner").MidPlan>;
+
+  /**
+   * M1-c (2026-04-27): 메인 탐구주제 — 진로 + (있는 만큼의) NEIS 입력으로
+   * 학년 무관하게 도출되는 학생의 단일 탐구 척추.
+   * deriveMainTheme capability 가 생성, ctx.results["_mainTheme"] 영속화.
+   * loadSynthesisCumulativeBelief D4 가 task_results 에서 회수해 시딩.
+   * undefined = 미생성 / 1학년 신규에도 동작해야 함 (cold start 핵심).
+   */
+  mainTheme?: import("../capability/main-theme").MainTheme;
+
+  /**
+   * M1-c (2026-04-27): 메인테마 → 1·2·3학년 cascade 배분 plan.
+   * NEIS 있는 학년은 evidenceFromNeis 로 결속, 없는 학년은 design 대상.
+   * buildCascadePlan capability 가 생성, ctx.results["_cascadePlan"] 영속화.
+   * undefined = 미생성 / mainTheme 부재 시 생성 불가 (graceful).
+   */
+  cascadePlan?: import("../capability/cascade-plan").CascadePlan;
 }
 
 /** 빈 BeliefState 초기값 — `loadPipelineContext` 에서 사용. */

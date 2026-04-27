@@ -495,6 +495,17 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
       ? ctx.belief.profileCard
       : undefined;
 
+  // M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션
+  let mainThemeCascadeSection: string | undefined;
+  if (ctx.belief.mainTheme || ctx.belief.cascadePlan) {
+    const { buildMainThemeCascadeSection } = await import("./helpers");
+    const built = buildMainThemeCascadeSection({
+      mainTheme: ctx.belief.mainTheme,
+      cascadePlan: ctx.belief.cascadePlan,
+    });
+    if (built.trim().length > 0) mainThemeCascadeSection = built;
+  }
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -516,6 +527,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     gradeThemesSection,
     narrativeArcSection,
     profileCardSection,
+    mainThemeCascadeSection,
   });
   if (!result.success) throw new Error(result.error);
 

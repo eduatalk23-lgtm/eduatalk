@@ -372,6 +372,17 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
       ? ctx.belief.profileCard
       : undefined;
 
+  // M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션
+  let mainThemeCascadeSection: string | undefined;
+  if (ctx.belief.mainTheme || ctx.belief.cascadePlan) {
+    const { buildMainThemeCascadeSection } = await import("./helpers");
+    const built = buildMainThemeCascadeSection({
+      mainTheme: ctx.belief.mainTheme,
+      cascadePlan: ctx.belief.cascadePlan,
+    });
+    if (built.trim().length > 0) mainThemeCascadeSection = built;
+  }
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -395,6 +406,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     gradeThemesSection: interviewGradeThemesSection,
     narrativeArcSection: interviewNarrativeArcSection,
     profileCardSection: interviewProfileCardSection,
+    mainThemeCascadeSection,
   });
 
   if (!result.success) throw new Error(result.error);
@@ -604,6 +616,21 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
       ? ctx.belief.profileCard
       : undefined;
 
+  // M1-c W5 (2026-04-27): mainTheme + cascadePlan → 로드맵 학기별 활동 정렬
+  let roadmapMainThemeCascadeSection: string | undefined;
+  if (ctx.belief.mainTheme || ctx.belief.cascadePlan) {
+    try {
+      const { buildMainThemeCascadeSection } = await import("./helpers");
+      const built = buildMainThemeCascadeSection({
+        mainTheme: ctx.belief.mainTheme,
+        cascadePlan: ctx.belief.cascadePlan,
+      });
+      if (built.trim().length > 0) roadmapMainThemeCascadeSection = built;
+    } catch {
+      // best-effort
+    }
+  }
+
   const llmResult = await generateAiRoadmap(studentId, llmMode, {
     midPlanSynthesisSection: roadmapMidPlanSection,
     midPlanByGradeSection: roadmapMidPlanByGradeSection,
@@ -615,6 +642,7 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
     narrativeArcSection: roadmapNarrativeArcSection,
     hyperedgeSummarySection: roadmapHyperedgeSummarySection,
     profileCardSection: roadmapProfileCardSection,
+    mainThemeCascadeSection: roadmapMainThemeCascadeSection,
   });
   if (llmResult.success && llmResult.data) {
     // Cross-run: 다음 실행 storyline_generation 이 "과거 계획 대비 진척" 서사 힌트로 활용.

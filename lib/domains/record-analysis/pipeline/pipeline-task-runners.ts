@@ -79,3 +79,6 @@ export {
 
 // H1 / L3-A: Cross-subject Theme Extraction (Grade Pipeline P3.5)
 export { runCrossSubjectThemeExtractionForGrade } from "./pipeline-task-runners-theme-extraction";
+
+// M1-c W1+W2 (2026-04-27): derive_main_theme P3.6 — mainTheme + cascadePlan capability runner
+export { runDeriveMainThemeForGrade } from "./pipeline-task-runners-main-theme";

@@ -242,6 +242,21 @@ export async function runTierPlanRefinement(
       ? ctx.belief.profileCard
       : undefined;
 
+  // M1-c W5 (2026-04-27): mainTheme + cascadePlan → S7 tier_plan 개정의 핵심 비교 기준
+  let s7MainThemeCascadeSection: string | undefined;
+  if (ctx.belief.mainTheme || ctx.belief.cascadePlan) {
+    try {
+      const { buildMainThemeCascadeSection } = await import("./helpers");
+      const built = buildMainThemeCascadeSection({
+        mainTheme: ctx.belief.mainTheme,
+        cascadePlan: ctx.belief.cascadePlan,
+      });
+      if (built.trim().length > 0) s7MainThemeCascadeSection = built;
+    } catch {
+      // best-effort
+    }
+  }
+
   // Phase C A1: 직전 실행 gap_tracking.topBridges → S7 tier_plan 개정 시 미해결 격차 반영 (best-effort)
   let s7PreviousRunOutputsSection: string | undefined;
   try {
@@ -298,6 +313,7 @@ export async function runTierPlanRefinement(
     previousRunOutputsSection: s7PreviousRunOutputsSection,
     gradeThemesSection: s7GradeThemesSection,
     profileCardSection: s7ProfileCardSection,
+    mainThemeCascadeSection: s7MainThemeCascadeSection,
   });
 
   if (!suggestion.success) {

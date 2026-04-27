@@ -40,6 +40,7 @@ export const GRADE_PIPELINE_TASK_KEYS = [
   "cross_subject_theme_extraction",
   "competency_volunteer",          // α1-2: 봉사 역량 태깅 + 반복 주제 추출 (P3.5 pre-task)
   "competency_awards",             // α1-4-b: 수상 역량 태깅 + 반복 주제 추출 (P3.5 pre-task)
+  "derive_main_theme",             // P3.6 (M1-c W1, 2026-04-27): 메인 탐구주제 + cascadePlan capability 도출. graceful (실패해도 가이드 계속).
   "setek_guide",
   "slot_generation",
   "changche_guide",
@@ -145,13 +146,16 @@ function invertDependents<T extends string>(
  * - changche_guide 완료 후 haengteuk_guide 실행 가능
  */
 export const GRADE_TASK_DEPENDENTS: Partial<Record<_GradeKey, _GradeKey[]>> = {
-  competency_setek: ["slot_generation", "setek_guide", "changche_guide", "haengteuk_guide", "cross_subject_theme_extraction"],
-  competency_changche: ["slot_generation", "changche_guide", "haengteuk_guide", "cross_subject_theme_extraction"],
-  competency_haengteuk: ["slot_generation", "haengteuk_guide", "cross_subject_theme_extraction"],
+  competency_setek: ["slot_generation", "setek_guide", "changche_guide", "haengteuk_guide", "cross_subject_theme_extraction", "derive_main_theme"],
+  competency_changche: ["slot_generation", "changche_guide", "haengteuk_guide", "cross_subject_theme_extraction", "derive_main_theme"],
+  competency_haengteuk: ["slot_generation", "haengteuk_guide", "cross_subject_theme_extraction", "derive_main_theme"],
   // cross_subject_theme_extraction은 가이드의 강한 prereq가 아님 — 실패해도 가이드는 themes 없이 진행 (graceful degradation).
   // 따라서 setek_guide/changche_guide/haengteuk_guide의 prereq에는 추가하지 않는다.
   // competency_volunteer: 선행 없음([]) — P1~P3와 독립. 실패해도 가이드는 계속 진행 (graceful).
   // competency_awards: 선행 없음([]) — P1~P3와 독립. 실패해도 가이드는 계속 진행 (graceful).
+  // derive_main_theme (M1-c W1): competency_* 후행 (analysisContext 충족). cross_subject_theme_extraction graceful 의존
+  //   (gradeThemes 있으면 키워드 보강, 없어도 진로만으로 도출 가능). 가이드 prereq 아님 — graceful terminal.
+  cross_subject_theme_extraction: ["derive_main_theme"],
   setek_guide: ["changche_guide", "haengteuk_guide", "draft_generation"],
   changche_guide: ["haengteuk_guide", "draft_generation"],
   haengteuk_guide: ["draft_generation", "draft_analysis", "draft_refinement"],
@@ -290,6 +294,7 @@ export const GRADE_PIPELINE_TASK_LABELS: Record<_GradeKey, string> = {
   cross_subject_theme_extraction: "과목 교차 테마",
   competency_volunteer: "봉사 역량 태깅",  // α1-2
   competency_awards: "수상 역량 태깅",  // α1-4-b
+  derive_main_theme: "메인 탐구주제 + 학년별 cascade",  // P3.6 (M1-c W1)
   setek_guide: "세특 방향",
   slot_generation: "슬롯 생성",
   changche_guide: "창체 방향",
@@ -307,6 +312,7 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   cross_subject_theme_extraction: 120_000,
   competency_volunteer: 90_000,  // α1-2: 학년 묶음 1회 LLM 호출 (~20-40s). 봉사 description 짧음.
   competency_awards: 90_000,     // α1-4-b: 학년 묶음 1회 LLM 호출 (~15-30s). 수상 정보는 봉사보다도 짧음.
+  derive_main_theme: 120_000,    // P3.6 (M1-c W1): mainTheme + cascadePlan fast tier × 2 호출 (~10-30s). hash hit 시 LLM 0회.
   setek_guide: 120_000,
   slot_generation: 30_000,
   changche_guide: 120_000,
@@ -447,8 +453,16 @@ export const GRADE_PHASE_TASKS: Record<number, _GradeKey[]> = {
   1: ["competency_setek"],
   2: ["competency_changche"],
   3: ["competency_haengteuk"],
-  // Phase 4 pre-task: cross_subject_theme_extraction + competency_volunteer + competency_awards (직렬 순차)
-  4: ["cross_subject_theme_extraction", "competency_volunteer", "competency_awards", "setek_guide", "slot_generation"],
+  // Phase 4 pre-task: cross_subject_theme_extraction + competency_volunteer + competency_awards + derive_main_theme (직렬 순차)
+  // derive_main_theme (M1-c W1, P3.6) — analysisContext + gradeThemes 충족 시점에 capability 호출.
+  4: [
+    "cross_subject_theme_extraction",
+    "competency_volunteer",
+    "competency_awards",
+    "derive_main_theme",
+    "setek_guide",
+    "slot_generation",
+  ],
   5: ["changche_guide"],
   6: ["haengteuk_guide"],
   7: ["draft_generation"],

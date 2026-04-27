@@ -165,7 +165,7 @@ describe("Grade Phase 오케스트레이션", () => {
       expect(ctx.tasks["competency_awards"]).toBe("completed");
     });
 
-    it("P1-P3 모두 completed이면 정상 실행 (P3.5 cross-subject + volunteer + awards + P4 guide+slot)", async () => {
+    it("P1-P3 모두 completed이면 정상 실행 (P3.5 cross-subject + volunteer + awards + P3.6 derive_main_theme + P4 guide+slot)", async () => {
       const ctx = makeCtx({
         tasks: {
           competency_setek: "completed",
@@ -175,12 +175,13 @@ describe("Grade Phase 오케스트레이션", () => {
       });
       await executeGradePhase4(ctx);
 
-      // P3.5 cross_subject_theme_extraction + competency_volunteer + competency_awards (직렬)
-      //  + setek_guide + slot_generation (병렬) = 총 5건.
-      expect(runTaskWithState).toHaveBeenCalledTimes(5);
+      // P3.5 cross_subject_theme_extraction + competency_volunteer + competency_awards
+      //  + P3.6 derive_main_theme (M1-c W1) + setek_guide + slot_generation (병렬) = 총 6건.
+      expect(runTaskWithState).toHaveBeenCalledTimes(6);
       expect(ctx.tasks["cross_subject_theme_extraction"]).toBe("completed");
       expect(ctx.tasks["competency_volunteer"]).toBe("completed");
       expect(ctx.tasks["competency_awards"]).toBe("completed");
+      expect(ctx.tasks["derive_main_theme"]).toBe("completed");
       expect(ctx.tasks["setek_guide"]).toBe("completed");
       expect(ctx.tasks["slot_generation"]).toBe("completed");
     });

@@ -425,6 +425,70 @@ export function buildGradeThemesByGradeSection(byGrade: GradeThemesByGrade | und
   return buildCrossSubjectThemesDiagnosisSection(byGrade);
 }
 
+// ============================================
+// W5 helper (M1-c, 2026-04-27): mainTheme + cascadePlan 섹션 빌더
+// S3/S5/S6/S7 prompt 에 공통 주입.
+// ============================================
+
+/**
+ * BeliefState.mainTheme + cascadePlan → prompt 섹션 (마크다운).
+ * 둘 다 없으면 빈 문자열 — 호출부에서 graceful omit.
+ */
+export function buildMainThemeCascadeSection(input: {
+  mainTheme?: import("../../capability/main-theme").MainTheme;
+  cascadePlan?: import("../../capability/cascade-plan").CascadePlan;
+}): string {
+  const { mainTheme, cascadePlan } = input;
+  if (!mainTheme && !cascadePlan) return "";
+
+  const lines: string[] = ["## 메인 탐구주제 + 학년 cascade (BeliefState)"];
+
+  if (mainTheme) {
+    lines.push(`- **메인테마**: ${mainTheme.label}`);
+    if (mainTheme.rationale) lines.push(`  - rationale: ${mainTheme.rationale}`);
+    if (mainTheme.keywords?.length) {
+      lines.push(`  - 키워드: ${mainTheme.keywords.join(", ")}`);
+    }
+    if (mainTheme.sourceCitations?.length) {
+      lines.push(`  - 근거: ${mainTheme.sourceCitations.slice(0, 4).join(" | ")}`);
+    }
+  }
+
+  if (cascadePlan && Object.keys(cascadePlan.byGrade).length > 0) {
+    const TIER_LABEL: Record<string, string> = {
+      foundational: "기초",
+      development: "발전",
+      advanced: "심화",
+    };
+    lines.push("- **학년별 cascade**:");
+    const grades = Object.keys(cascadePlan.byGrade)
+      .map(Number)
+      .filter((n) => Number.isFinite(n))
+      .sort();
+    for (const g of grades) {
+      const node = cascadePlan.byGrade[String(g)];
+      if (!node) continue;
+      const tierKor = TIER_LABEL[node.tier] ?? node.tier;
+      const subjects = node.subjects.slice(0, 6).join(", ");
+      const ev =
+        node.evidenceFromNeis && node.evidenceFromNeis.length > 0
+          ? ` | NEIS 근거: ${node.evidenceFromNeis.slice(0, 3).join(" / ")}`
+          : "";
+      lines.push(
+        `  · 고${g} [${node.tier}/${tierKor}] ${subjects} | ${node.contentSummary}${ev}`,
+      );
+      if (node.rationale) {
+        lines.push(`    - rationale: ${node.rationale}`);
+      }
+    }
+    if (cascadePlan.coherenceNote) {
+      lines.push(`- **정합성 메모**: ${cascadePlan.coherenceNote}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 /**
  * aggregateGradeThemes 결과 → 진단 프롬프트 주입용 마크다운 섹션.
  *

@@ -9,6 +9,9 @@ import {
 } from "@/lib/types/actionResponse";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { diversifyByCluster } from "../utils/cluster-diversity";
+import { computeGuideRanking, type RankedGuide } from "../capability/ranking";
+import { loadGuideRankingMetadata } from "../capability/ranking-metadata";
+import { loadToolRankingTokens } from "../capability/tool-ranking-context";
 
 const LOG_CTX = { domain: "guide", action: "autoRecommend" } as const;
 
@@ -313,26 +316,56 @@ export async function autoRecommendGuidesAction(input: {
       };
     });
 
-    // 매치 강도 우선 정렬: 3축 모두 > 2축 > 1축
-    const REASON_ORDER: Record<MatchReason, number> = {
-      all: 0,
-      both: 1, // legacy: classification + subject
-      "classification+activity": 1,
-      "subject+activity": 1,
-      sequel: 1, // Phase A: sequel은 2축 매칭과 동급
-      classification: 2,
-      subject: 2,
-      activity: 2,
-    };
-    // Phase β G3 — main_exploration tier_plan 연결 클러스터면 1단계 승격
-    //   (boosted=true 는 reason 점수 -1 과 동등 효과).
-    const scoreOf = (r: ResultRow) =>
-      REASON_ORDER[r.match_reason] - (r.main_exploration_boosted ? 1 : 0);
-    result.sort((a, b) => scoreOf(a) - scoreOf(b));
+    // M1-b (2026-04-27): pipeline 과 동일한 capability 산식 적용.
+    //   - 6 승수 보너스 + midPlanBonus(격차 3) + 클러스터 페널티가 tool 사용자에게도 도달.
+    //   - main_exploration_boosted 는 capability finalScore 기반 정렬 위에 추가 가산.
+    const tokens = await loadToolRankingTokens(supabase, input.studentId);
+    const studentGrade = tokens.studentGrade ?? 1;
+    const tenantId = tokens.tenantId;
 
-    // L3: 클러스터 다양성 — 특정 클러스터 편중 방지
+    let ranked: RankedGuide[] = [];
+    if (tenantId) {
+      const metadata = await loadGuideRankingMetadata(supabase, {
+        studentId: input.studentId,
+        tenantId,
+        guideIds: result.map((g) => g.id),
+      });
+      ranked = computeGuideRanking({
+        guides: result.map((g) => ({
+          id: g.id,
+          title: g.title,
+          guide_type: g.guide_type,
+          match_reason: g.match_reason,
+        })),
+        studentGrade,
+        clubHistory: metadata.clubHistory,
+        lineageByGuide: metadata.lineageByGuide,
+        difficultyByGuide: metadata.difficultyByGuide,
+        clusterByGuide: metadata.clusterByGuide,
+        sequelTargets: metadata.sequelTargets,
+        exploredClusters: metadata.exploredClusters,
+        majorMatchGuides: metadata.majorMatchGuides,
+        hyperedgeTokens: metadata.hyperedgeTokens,
+        weakStageGuideTypes: metadata.weakStageGuideTypes,
+        storylineKeywords: metadata.storylineKeywords,
+        midPlanFocusTokens: tokens.midPlanFocusTokens,
+      });
+    }
+
+    // capability 결과를 base 로, ResultRow 메타(book_title / boosted / topic_cluster_id) 와 결합
+    const rankedById = new Map(ranked.map((r) => [r.id, r]));
+    const mergedScored = result.map((row) => {
+      const r = rankedById.get(row.id);
+      const base = r?.finalScore ?? 1;
+      const boosted = row.main_exploration_boosted ? 1.1 : 1.0;
+      return { row, score: base * boosted };
+    });
+    mergedScored.sort((a, b) => b.score - a.score);
+    const sorted = mergedScored.map((m) => m.row);
+
+    // L3: 클러스터 다양성 (capability 페널티 위에 추가로 N개 cap 적용)
     const diversified = diversifyByCluster(
-      result,
+      sorted,
       (g) => g.topic_cluster_id,
       limit,
     );

@@ -361,6 +361,17 @@ export async function runAiDiagnosis(
       ? ctx.belief.profileCard
       : undefined;
 
+  // M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션
+  let mainThemeCascadeSection: string | undefined;
+  if (ctx.belief.mainTheme || ctx.belief.cascadePlan) {
+    const { buildMainThemeCascadeSection } = await import("./helpers");
+    const built = buildMainThemeCascadeSection({
+      mainTheme: ctx.belief.mainTheme,
+      cascadePlan: ctx.belief.cascadePlan,
+    });
+    if (built.trim().length > 0) mainThemeCascadeSection = built;
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -376,7 +387,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, midPlanByGradeSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, midPlanByGradeSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection, mainThemeCascadeSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

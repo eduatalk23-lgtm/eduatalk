@@ -39,6 +39,7 @@ import {
   runCrossSubjectThemeExtractionForGrade,
   runCompetencyVolunteerForGrade,
   runCompetencyAwardsForGrade,
+  runDeriveMainThemeForGrade,
 } from "./pipeline-task-runners";
 
 // ============================================
@@ -413,6 +414,17 @@ export async function executeGradePhase4(
     if (await checkCancelled(ctx)) return;
   }
 
+  // ── P3.6 (M1-c W1+W2, 2026-04-27): derive_main_theme — 메인 탐구주제 + cascadePlan ──
+  // - competency_* 후행 (analysisContext + gradeThemes 충족 시점).
+  // - hash 기반 staleness — 학생 입력 변경 없으면 LLM 호출 0회로 cache hit.
+  // - graceful — 실패해도 가이드 진입 영향 없음. ctx.belief.mainTheme/cascadePlan 즉시 시딩.
+  if (!skipIfPrereqFailed(ctx, "derive_main_theme")) {
+    await runTaskWithState(ctx, "derive_main_theme", () =>
+      runDeriveMainThemeForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+
   const skipGuide = skipIfPrereqFailed(ctx, "setek_guide");
   const skipSlot = skipIfPrereqFailed(ctx, "slot_generation");
 
@@ -479,6 +491,7 @@ export async function executeGradePhase6(
       if (k === "cross_subject_theme_extraction") return true;
       if (k === "competency_volunteer") return true;
       if (k === "competency_awards") return true;
+      if (k === "derive_main_theme") return true; // M1-c W1: graceful — 완료 판정 영향 없음
       return ctx.tasks[k] === "completed";
     });
     await updatePipelineState(
@@ -650,6 +663,7 @@ async function finalizeDesignModeStatus(ctx: PipelineContext): Promise<void> {
     if (k === "cross_subject_theme_extraction") return true;
     if (k === "competency_volunteer") return true;
     if (k === "competency_awards") return true;
+    if (k === "derive_main_theme") return true; // M1-c W1: graceful
     return ctx.tasks[k] === "completed";
   });
 

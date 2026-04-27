@@ -91,6 +91,32 @@ export async function runBlueprintGeneration(
       previousConvergenceCount: previousConvergences?.length ?? 0,
     });
 
+    // W4 (M1-c, 2026-04-27): cascade ↔ blueprint 정합성 best-effort warning.
+    //   ctx.belief.cascadePlan 이 있으면 학년별 keywords 중첩도를 측정해
+    //   임계 미만이면 warning 로그 (자동 수정 X — 컨설턴트 검토 트리거).
+    //   cascade 가 없으면 (P3.6 미실행 또는 graceful skip) silent skip.
+    try {
+      const cascade = ctx.belief.cascadePlan;
+      if (cascade && Object.keys(cascade.byGrade).length > 0) {
+        const { computeCascadeBlueprintCoherence } = await import(
+          "../../blueprint/coverage"
+        );
+        const verdict = computeCascadeBlueprintCoherence({
+          cascade,
+          targetConvergences: output.targetConvergences,
+        });
+        if (verdict.mismatchCount > 0) {
+          logActionDebug(
+            LOG_CTX,
+            `W4 cascade ↔ blueprint 정합성 경고: ${verdict.mismatchCount}개 학년 불일치 (${verdict.summary})`,
+            { pipelineId, ...verdict.byGrade },
+          );
+        }
+      }
+    } catch {
+      // best-effort
+    }
+
     // 다음 실행을 위한 cross-run payload — 현재 수렴 테마를 writesForNextRun 형식으로 저장.
     const nextRunPayload: BlueprintPreviousRunPayload = {
       convergences: output.targetConvergences.map((conv) => ({

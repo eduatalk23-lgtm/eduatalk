@@ -805,6 +805,7 @@ describe("S6 interview_generation — runInterviewGeneration", () => {
         "hakjongScoreSection": undefined,
         "hyperedgeSummarySection": undefined,
         "mainExplorationSection": undefined,
+        "mainThemeCascadeSection": undefined,
         "midPlanByGradeSection": undefined,
         "midPlanSynthesisSection": undefined,
         "narrativeArcSection": undefined,

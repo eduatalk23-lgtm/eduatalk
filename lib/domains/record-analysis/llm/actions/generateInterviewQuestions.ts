@@ -73,6 +73,8 @@ export async function generateInterviewQuestions(input: {
   narrativeArcSection?: string;
   /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
   profileCardSection?: string;
+  /** M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션. */
+  mainThemeCascadeSection?: string;
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -164,6 +166,10 @@ export async function generateInterviewQuestions(input: {
     // Phase C A6: 학생 정체성 프로필 카드 → 지속성·강점 근거 질문
     if (input.profileCardSection) {
       userPrompt += `\n\n${input.profileCardSection}\n\n위 학생 프로필에서 드러나는 관심 일관성·강점을 검증하는 면접 질문을 1개 이상 포함하라.`;
+    }
+    // M1-c W5: mainTheme + cascadePlan → 메인 탐구 척추 정합성 검증
+    if (input.mainThemeCascadeSection) {
+      userPrompt += `\n\n${input.mainThemeCascadeSection}\n\n위 메인 탐구주제와 학년별 cascade 가 실제 기록·활동으로 구현됐는지 확인하는 질문을 1개 이상 포함하라.`;
     }
 
     const result = await withRetry(

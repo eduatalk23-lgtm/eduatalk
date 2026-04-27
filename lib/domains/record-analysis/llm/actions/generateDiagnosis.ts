@@ -119,6 +119,8 @@ export async function generateAiDiagnosis(
   hyperedgeSummarySection?: string,
   /** Phase B G5: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
   profileCardSection?: string,
+  /** M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션 (buildMainThemeCascadeSection() 결과). */
+  mainThemeCascadeSection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -222,6 +224,7 @@ export async function generateAiDiagnosis(
       gradeThemesSection,
       hyperedgeSummarySection,
       profileCardSection,
+      mainThemeCascadeSection,
       isProspective,
     });
 

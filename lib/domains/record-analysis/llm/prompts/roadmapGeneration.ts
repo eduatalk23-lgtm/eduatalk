@@ -236,6 +236,10 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   if (input.profileCardSection) {
     prompt += `${input.profileCardSection}\n\n`;
   }
+  // M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션
+  if (input.mainThemeCascadeSection) {
+    prompt += `${input.mainThemeCascadeSection}\n\n`;
+  }
 
   prompt += `위 정보를 종합하여 ${input.grade}학년부터 3학년까지의 학기별 활동 로드맵을 JSON으로 생성해주세요.`;
   if (input.mainExplorationSection) {
@@ -276,6 +280,9 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   }
   if (input.profileCardSection) {
     prompt += ` 학생 프로필 카드가 제공된 경우, 지속적 관심 축과 강점 역량을 중심으로 활동 방향을 정렬하세요.`;
+  }
+  if (input.mainThemeCascadeSection) {
+    prompt += ` 메인 탐구주제 + 학년별 cascade 가 제공된 경우, 각 학년 학기 활동이 cascade 의 tier(기초/발전/심화) 와 정합하도록 배치하고, evidenceFromNeis 가 비어있는 학년에는 새로운 탐구 활동을 우선 배치하세요.`;
   }
   return prompt;
 }
