@@ -47,6 +47,8 @@ export async function generateSetekGuide(
   narrativeArcSection?: string,
   /** β+1: MidPipeline Planner 메타 판정 섹션. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
   midPlanSection?: string,
+  /** M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
+  cascadePlanSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -104,7 +106,7 @@ export async function generateSetekGuide(
 
     // Phase R2: 기록 없으면 prospective 모드로 전환
     if (!hasAnyData) {
-      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection);
+      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection, midPlanSection, cascadePlanSection);
     }
 
     // 역량 진단 데이터 변환 (컨설턴트 진단 우선, 없으면 AI 진단)
@@ -128,6 +130,16 @@ export async function generateSetekGuide(
     const { loadHakjongScoreSection } = await import("../load-hakjong-score-section");
     const hakjongScoreSection = await loadHakjongScoreSection(studentId, tenantId, supabase);
 
+    // M1-c Sprint 3-A (2026-04-27): 비파이프라인 fallback — cascadePlanSection 미주입 시
+    // task_results 에서 직접 회수 (UI 수동 재생성 / agent tool 경로).
+    // 가장 높은 학년 cascade 사용 (다학년 분석 호출).
+    let resolvedCascadeSection = cascadePlanSection;
+    if (!resolvedCascadeSection) {
+      const fallbackGrade = grades.length > 0 ? Math.max(...grades) : studentGrade;
+      const { loadAndBuildCascadeSection } = await import("../cascade-plan-guide-section");
+      resolvedCascadeSection = await loadAndBuildCascadeSection(studentId, tenantId, fallbackGrade, supabase);
+    }
+
     const input: SetekGuideInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -149,6 +161,7 @@ export async function generateSetekGuide(
       studentProfileCard: studentProfileCard || undefined,
       narrativeArcSection: narrativeArcSection || undefined,
       midPlanSection: midPlanSection || undefined,
+      cascadePlanSection: resolvedCascadeSection || undefined,
       hakjongScoreSection,
     };
 
@@ -251,6 +264,8 @@ export async function generateProspectiveSetekGuide(
   narrativeArcSection?: string,
   /** β+1: MidPipeline Planner 메타 판정 섹션. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
   midPlanSection?: string,
+  /** M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
+  cascadePlanSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
@@ -299,6 +314,15 @@ export async function generateProspectiveSetekGuide(
   const { loadHakjongScoreSection: loadHakjongP } = await import("../load-hakjong-score-section");
   const hakjongScoreSectionP = await loadHakjongP(studentId, tenantId, supabase);
 
+  // M1-c Sprint 3-A (2026-04-27): 비파이프라인 fallback — cascadePlanSection 미주입 시
+  // task_results 에서 직접 회수. prospective 는 학생 학년 기준.
+  let resolvedCascadeSectionP = cascadePlanSection;
+  if (!resolvedCascadeSectionP) {
+    const fallbackGradeP = grades.length > 0 ? Math.max(...grades) : report.student.grade;
+    const { loadAndBuildCascadeSection } = await import("../cascade-plan-guide-section");
+    resolvedCascadeSectionP = await loadAndBuildCascadeSection(studentId, tenantId, fallbackGradeP, supabase);
+  }
+
   const input: SetekGuideInput = {
     mode: "prospective",
     studentName: report.student.name ?? "학생",
@@ -328,6 +352,7 @@ export async function generateProspectiveSetekGuide(
     studentProfileCard: studentProfileCard || undefined,
     narrativeArcSection: narrativeArcSection || undefined,
     midPlanSection: midPlanSection || undefined,
+    cascadePlanSection: resolvedCascadeSectionP || undefined,
     hakjongScoreSection: hakjongScoreSectionP,
   };
 

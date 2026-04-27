@@ -660,6 +660,12 @@ export interface SuggestStrategiesInput {
    * undefined 또는 "" 이면 섹션 생략 (no-op).
    */
   profileCardSection?: string;
+  /**
+   * M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션
+   * (buildMainThemeCascadeSection() 결과). 메인 탐구주제와 학년별 cascade 척추를
+   * 전략 도출에 반영. undefined/"" 이면 섹션 생략 (no-op).
+   */
+  mainThemeCascadeSection?: string;
 }
 
 /** suggestStrategies 액션의 출력 */
@@ -783,6 +789,14 @@ export interface SetekGuideInput {
    */
   midPlanSection?: string;
   /**
+   * M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션
+   * (buildCascadePlanGuideSection() 결과). 학년별 tier·subjects·rationale 을 가이드
+   * 방향에 노출해 메인 탐구 척추 정합 유도. Sprint 1 은 setek 만 소비, changche/haengteuk
+   * 은 Sprint 2 에서 배선 (필드 정의는 일관성 위해 동시 추가).
+   * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  cascadePlanSection?: string;
+  /**
    * 격차 D (2026-04-26): 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
    * 가이드가 약점 축(공동체 45점 등)을 우선 보강하는 방향으로 생성되도록 주입.
    * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
@@ -865,6 +879,8 @@ export interface RoadmapGenerationInput {
   hyperedgeSummarySection?: string;
   /** Phase C A6: 학생 정체성 프로필 카드 텍스트 (ctx.belief.profileCard). 없으면 생략. */
   profileCardSection?: string;
+  /** M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션. 없으면 생략. */
+  mainThemeCascadeSection?: string;
 }
 
 // ============================================
@@ -924,6 +940,14 @@ export interface ChangcheGuideInput {
    * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
    */
   midPlanSection?: string;
+  /**
+   * M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션
+   * (buildCascadePlanGuideSection() 결과). 학년별 tier·subjects·rationale 을 가이드
+   * 방향에 노출해 메인 탐구 척추 정합 유도. Sprint 1 은 setek 만 소비, changche/haengteuk
+   * 은 Sprint 2 에서 배선 (필드 정의는 일관성 위해 동시 추가).
+   * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  cascadePlanSection?: string;
   /**
    * 격차 D (2026-04-26): 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
    * 가이드가 약점 축(공동체 45점 등)을 우선 보강하는 방향으로 생성되도록 주입.
@@ -996,6 +1020,14 @@ export interface HaengteukGuideInput {
    * undefined 또는 "" 이면 해당 섹션을 프롬프트에서 생략한다.
    */
   midPlanSection?: string;
+  /**
+   * M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션
+   * (buildCascadePlanGuideSection() 결과). 학년별 tier·subjects·rationale 을 가이드
+   * 방향에 노출해 메인 탐구 척추 정합 유도. Sprint 1 은 setek 만 소비, changche/haengteuk
+   * 은 Sprint 2 에서 배선 (필드 정의는 일관성 위해 동시 추가).
+   * undefined/"" 이면 해당 섹션을 프롬프트에서 생략한다.
+   */
+  cascadePlanSection?: string;
   /**
    * 격차 D (2026-04-26): 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
    * 가이드가 약점 축(공동체 45점 등)을 우선 보강하는 방향으로 생성되도록 주입.

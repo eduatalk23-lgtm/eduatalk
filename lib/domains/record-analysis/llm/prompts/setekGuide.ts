@@ -202,6 +202,11 @@ export function buildUserPrompt(input: SetekGuideInput): string {
     prompt += `${input.midPlanSection}\n\n`;
   }
 
+  // M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 학년별 척추 정합
+  if (input.cascadePlanSection) {
+    prompt += `${input.cascadePlanSection}\n\n`;
+  }
+
   // 격차 D (2026-04-26): 학종 3요소 통합 점수 — 약점 축 우선 보강 방향 유도
   if (input.hakjongScoreSection) {
     prompt += `${input.hakjongScoreSection}\n\n`;

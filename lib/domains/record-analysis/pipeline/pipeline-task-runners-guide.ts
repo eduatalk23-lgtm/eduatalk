@@ -130,6 +130,18 @@ export async function runSetekGuide(
     midPlanSection = undefined;
   }
 
+  // M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션 빌더 (학년별 호출).
+  // belief 의 mainTheme/cascadePlan 은 P3.6 derive_main_theme 가 시딩. 양쪽 undefined 면 undefined 반환.
+  const buildCascadeForGrade = async (grade: number): Promise<string | undefined> => {
+    try {
+      const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+      return buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, grade);
+    } catch (err) {
+      logActionError({ ...LOG_CTX, action: "pipeline.cascadePlanSection.setekGuide" }, err, { pipelineId: ctx.pipelineId });
+      return undefined;
+    }
+  };
+
   // NEIS 학년 → 분석형 세특 가이드 (NEIS 데이터 기반)
   if (hasNeisGrades) {
     const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
@@ -137,7 +149,10 @@ export async function runSetekGuide(
       ctx.neisGrades!.map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
     );
     const profileCard = ctx.belief.profileCard || undefined;
-    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx, sharedReport, profileCard, narrativeArcSection, midPlanSection);
+    // 다학년 분석 호출에서는 가장 높은 학년의 cascade 사용 (메인 탐구 척추 연속성)
+    const cascadeGrade = Math.max(...ctx.neisGrades!);
+    const cascadePlanSection = await buildCascadeForGrade(cascadeGrade);
+    const result = await analyzeSetekGuide(studentId, ctx.neisGrades!, extraSections, undefined, mergedAnalysisCtx, sharedReport, profileCard, narrativeArcSection, midPlanSection, cascadePlanSection);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     if (guides) results.push(`NEIS ${guides.length}과목`);
@@ -153,9 +168,10 @@ export async function runSetekGuide(
       ctx.consultingGrades!.map(async (grade) => {
         const targetSchoolYear = currentYear - ctx.studentGrade + grade;
         const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[grade]);
+        const cascadePlanSection = await buildCascadeForGrade(grade);
         const result = await generateSetekDirection(
           studentId, tenantId, guideUserId,
-          sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection,
+          sharedReport!, [grade], extraSections, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection, cascadePlanSection,
         );
         return { grade, result };
       }),
@@ -211,6 +227,17 @@ export async function runChangcheGuide(
     midPlanSection = undefined;
   }
 
+  // M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan — 학년별 호출용 lazy 빌더
+  const buildCascadeForGrade = async (grade: number): Promise<string | undefined> => {
+    try {
+      const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+      return buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, grade);
+    } catch (err) {
+      logActionError({ ...LOG_CTX, action: "pipeline.cascadePlanSection.changcheGuide" }, err, { pipelineId: ctx.pipelineId });
+      return undefined;
+    }
+  };
+
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
   const hasNeisData = ctx.neisGrades && ctx.neisGrades.length > 0;
   if (!hasNeisData) {
@@ -232,9 +259,14 @@ export async function runChangcheGuide(
       (ctx.consultingGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
     );
     const profileCard = ctx.belief.profileCard || undefined;
+    // 다학년 컨설팅 호출 — 가장 높은 학년 cascade 사용 (척추 연속성)
+    const cascadeGradeC = (ctx.consultingGrades && ctx.consultingGrades.length > 0)
+      ? Math.max(...ctx.consultingGrades)
+      : ctx.studentGrade;
+    const cascadePlanSectionC = await buildCascadeForGrade(cascadeGradeC);
     const result = await generateChangcheDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      report, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx, profileCard, narrativeArcSection, midPlanSection,
+      report, coursePlanData ?? null, undefined, setekCtx, undefined, allGradesCtx, profileCard, narrativeArcSection, midPlanSection, cascadePlanSectionC,
     );
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
@@ -269,7 +301,12 @@ export async function runChangcheGuide(
     (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
   );
   const profileCardChangche = ctx.belief.profileCard || undefined;
-  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche, report, profileCardChangche, narrativeArcSection, midPlanSection);
+  // 다학년 분석 호출 — 가장 높은 NEIS 학년 cascade 사용
+  const cascadeGradeAnalyzeC = ctx.neisGrades && ctx.neisGrades.length > 0
+    ? Math.max(...ctx.neisGrades)
+    : ctx.studentGrade;
+  const cascadePlanSectionAnalyzeC = await buildCascadeForGrade(cascadeGradeAnalyzeC);
+  const result = await analyzeChangcheGuide(studentId, undefined, guideEdgeSection, setekGuideContext, undefined, mergedCtxChangche, report, profileCardChangche, narrativeArcSection, midPlanSection, cascadePlanSectionAnalyzeC);
   if (!result.success) throw new Error(result.error);
   const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
   return guides ? `${guides.length}개 활동유형 방향 생성` : "창체 방향 생성 완료";
@@ -308,6 +345,17 @@ export async function runHaengteukGuide(
     midPlanSection = undefined;
   }
 
+  // M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan — 학년별 호출용 lazy 빌더
+  const buildCascadeForGrade = async (grade: number): Promise<string | undefined> => {
+    try {
+      const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+      return buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, grade);
+    } catch (err) {
+      logActionError({ ...LOG_CTX, action: "pipeline.cascadePlanSection.haengteukGuide" }, err, { pipelineId: ctx.pipelineId });
+      return undefined;
+    }
+  };
+
   const profileCardHaengteuk = ctx.belief.profileCard || undefined;
 
   // NEIS 없음 → 수강계획 기반 방향 생성 (컨설팅 모듈)
@@ -330,9 +378,13 @@ export async function runHaengteukGuide(
     const allGradesCtxH = mergeGuideAnalysisContexts(
       (ctx.consultingGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
     );
+    const cascadeGradeH = (ctx.consultingGrades && ctx.consultingGrades.length > 0)
+      ? Math.max(...ctx.consultingGrades)
+      : ctx.studentGrade;
+    const cascadePlanSectionH = await buildCascadeForGrade(cascadeGradeH);
     const result = await generateHaengteukDirection(
       studentId, tenantId, (await import("@/lib/auth/guards").then((m) => m.requireAdminOrConsultant())).userId,
-      report, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH, profileCardHaengteuk, narrativeArcSection, midPlanSection,
+      report, coursePlanData ?? null, undefined, changcheCtx, undefined, allGradesCtxH, profileCardHaengteuk, narrativeArcSection, midPlanSection, cascadePlanSectionH,
     );
     if (!result.success) throw new Error(result.error);
     return "행특 방향 생성 완료 (예비)";
@@ -364,7 +416,11 @@ export async function runHaengteukGuide(
   const mergedCtxHaengteuk = mergeGuideAnalysisContexts(
     (ctx.neisGrades ?? []).map((g) => toGuideAnalysisContext(ctx.belief.analysisContext?.[g])),
   );
-  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk, report, profileCardHaengteuk, narrativeArcSection, midPlanSection);
+  const cascadeGradeAnalyzeH = ctx.neisGrades && ctx.neisGrades.length > 0
+    ? Math.max(...ctx.neisGrades)
+    : ctx.studentGrade;
+  const cascadePlanSectionAnalyzeH = await buildCascadeForGrade(cascadeGradeAnalyzeH);
+  const result = await analyzeHaengteukGuide(studentId, undefined, guideEdgeSection, changcheGuideContext, undefined, mergedCtxHaengteuk, report, profileCardHaengteuk, narrativeArcSection, midPlanSection, cascadePlanSectionAnalyzeH);
   if (!result.success) throw new Error(result.error);
   return "행특 방향 생성 완료";
 }
@@ -472,13 +528,23 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
     midPlanSection = undefined;
   }
 
+  // M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 학년 척추 정합 (단일 학년 호출).
+  let cascadePlanSection: string | undefined;
+  try {
+    const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+    cascadePlanSection = buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, targetGrade);
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.cascadePlanSection.setekGuideForGrade" }, err, { pipelineId: ctx.pipelineId });
+    cascadePlanSection = undefined;
+  }
+
   if (gradeResolved.hasAnyNeis) {
     // NEIS 학년 → 분석형 세특 가이드
     // targetSchoolYear 전달 필수 — 미지정 시 generateSetekGuide가 calculateSchoolYear()(현재 학년도)로 저장해
     // 여러 학년의 보완 방향이 같은 row에 덮어써지는 버그 발생
     const { analyzeSetekGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
-    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, gradeReport, profileCard, narrativeArcSection, midPlanSection);
+    const result = await analyzeSetekGuide(studentId, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, gradeReport, profileCard, narrativeArcSection, midPlanSection, cascadePlanSection);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
     return guides ? `${targetGrade}학년 NEIS 세특 ${guides.length}과목` : `${targetGrade}학년 세특 방향 생성 완료`;
@@ -491,7 +557,7 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
   const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
   const result = await generateSetekDirection(
     studentId, tenantId, guideUserId,
-    gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection,
+    gradeReport, [targetGrade], extraSections, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection, cascadePlanSection,
   );
   if (!result.success) throw new Error(result.error);
   const guides = result.data?.guides ?? [];
@@ -556,12 +622,22 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
     if (section) blueprintGuideSection = section;
   }
 
+  // M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan 학년 척추 정합
+  let cascadePlanSection: string | undefined;
+  try {
+    const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+    cascadePlanSection = buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, targetGrade);
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.cascadePlanSection.changcheGuideForGrade" }, err, { pipelineId: ctx.pipelineId });
+    cascadePlanSection = undefined;
+  }
+
   if (gradeResolved.hasAnyNeis) {
     // NEIS 학년 → 분석형 창체 가이드
     // targetSchoolYear 전달 필수 — 미지정 시 학년별 결과가 현재 학년도 1개 row에 덮어써짐
     const { analyzeChangcheGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
-    const result = await analyzeChangcheGuide(studentId, [targetGrade], blueprintGuideSection, undefined, targetSchoolYear, gradeAnalysisCtx, gradeReport);
+    const result = await analyzeChangcheGuide(studentId, [targetGrade], blueprintGuideSection, undefined, targetSchoolYear, gradeAnalysisCtx, gradeReport, undefined, undefined, undefined, cascadePlanSection);
     if (!result.success) throw new Error(result.error);
     const guides = (result.data as { guides?: Array<{ activityType: string }> })?.guides;
     return guides ? `${targetGrade}학년 창체 ${guides.length}개 활동유형 방향 생성` : `${targetGrade}학년 창체 방향 생성 완료`;
@@ -584,7 +660,7 @@ export async function runChangcheGuideForGrade(ctx: PipelineContext): Promise<Ta
   const gradeAnalysisCtxForChangche = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
   await generateChangcheDirection(
     studentId, tenantId, guideUserId,
-    gradeReport, coursePlanData ?? null, blueprintGuideSection, setekCtx, targetSchoolYear, gradeAnalysisCtxForChangche,
+    gradeReport, coursePlanData ?? null, blueprintGuideSection, setekCtx, targetSchoolYear, gradeAnalysisCtxForChangche, undefined, undefined, undefined, cascadePlanSection,
   );
 
   return `${targetGrade}학년 창체 방향 생성 완료 (예비)`;
@@ -638,12 +714,22 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
     if (section) blueprintGuideSection = section;
   }
 
+  // M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan 학년 척추 정합
+  let cascadePlanSection: string | undefined;
+  try {
+    const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+    cascadePlanSection = buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, targetGrade);
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.cascadePlanSection.haengteukGuideForGrade" }, err, { pipelineId: ctx.pipelineId });
+    cascadePlanSection = undefined;
+  }
+
   if (gradeResolved.hasAnyNeis) {
     // NEIS 학년 → 분석형 행특 가이드
     // targetSchoolYear 전달 필수 — 미지정 시 학년별 결과가 현재 학년도 1개 row에 덮어써짐
     const { analyzeHaengteukGuide } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
     const gradeAnalysisCtxH = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
-    const result = await analyzeHaengteukGuide(studentId, [targetGrade], blueprintGuideSection, undefined, targetSchoolYear, gradeAnalysisCtxH, gradeReport);
+    const result = await analyzeHaengteukGuide(studentId, [targetGrade], blueprintGuideSection, undefined, targetSchoolYear, gradeAnalysisCtxH, gradeReport, undefined, undefined, undefined, cascadePlanSection);
     if (!result.success) throw new Error(result.error);
     return `${targetGrade}학년 행특 방향 생성 완료`;
   }
@@ -665,7 +751,7 @@ export async function runHaengteukGuideForGrade(ctx: PipelineContext): Promise<T
   const gradeAnalysisCtxForHaengteuk = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
   await generateHaengteukDirection(
     studentId, tenantId, guideUserId,
-    gradeReport, coursePlanData ?? null, blueprintGuideSection, changcheCtx, targetSchoolYear, gradeAnalysisCtxForHaengteuk,
+    gradeReport, coursePlanData ?? null, blueprintGuideSection, changcheCtx, targetSchoolYear, gradeAnalysisCtxForHaengteuk, undefined, undefined, undefined, cascadePlanSection,
   );
 
   return `${targetGrade}학년 행특 방향 생성 완료 (예비)`;

@@ -54,6 +54,8 @@ export async function generateProspectiveHaengteukGuide(
   narrativeArcSection?: string,
   /** MidPlanner 메타 판정 섹션 텍스트. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
   midPlanSection?: string,
+  /** M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
+  cascadePlanSection?: string,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획+진로 기반 행특 방향 생성", { studentId });
@@ -116,6 +118,7 @@ export async function generateProspectiveHaengteukGuide(
     : "";
 
   const midPlanSectionBlock = midPlanSection ? `${midPlanSection}\n` : "";
+  const cascadePlanSectionBlock = cascadePlanSection ? `${cascadePlanSection}\n` : "";
 
   // 격차 D (prospective): hakjongScore 약점 축 → 가이드 방향 보강 힌트
   const { loadHakjongScoreSection: loadHakjongP } = await import("../load-hakjong-score-section");
@@ -143,6 +146,7 @@ ${gridSection}
 ${profileCardSection}
 ${narrativeArcSectionBlock}
 ${midPlanSectionBlock}
+${cascadePlanSectionBlock}
 ${hakjongScoreSectionBlock}
 ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
@@ -228,6 +232,8 @@ export async function generateHaengteukGuide(
   narrativeArcSection?: string,
   /** MidPlanner 메타 판정 섹션 텍스트. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
   midPlanSection?: string,
+  /** M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
+  cascadePlanSection?: string,
 ): Promise<ActionResponse<HaengteukGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -322,6 +328,7 @@ export async function generateHaengteukGuide(
       studentProfileCard,
       narrativeArcSection: narrativeArcSection || undefined,
       midPlanSection: midPlanSection || undefined,
+      cascadePlanSection: cascadePlanSection || undefined,
       hakjongScoreSection,
     };
 

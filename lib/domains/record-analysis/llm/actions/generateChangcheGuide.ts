@@ -53,6 +53,8 @@ export async function generateProspectiveChangcheGuide(
   narrativeArcSection?: string,
   /** β+1: MidPipeline Planner 메타 판정 섹션. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
   midPlanSection?: string,
+  /** M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
+  cascadePlanSection?: string,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 창체 방향 생성", { studentId });
@@ -113,6 +115,7 @@ export async function generateProspectiveChangcheGuide(
     : "";
 
   const midPlanSectionBlock = midPlanSection ? `${midPlanSection}\n` : "";
+  const cascadePlanSectionBlock = cascadePlanSection ? `${cascadePlanSection}\n` : "";
 
   // 격차 D (prospective): hakjongScore 약점 축 → 가이드 방향 보강 힌트
   const { loadHakjongScoreSection: loadHakjongP } = await import("../load-hakjong-score-section");
@@ -144,6 +147,7 @@ ${gridSection}
 ${profileCardSection}
 ${narrativeArcSectionBlock}
 ${midPlanSectionBlock}
+${cascadePlanSectionBlock}
 ${hakjongScoreSectionBlock}
 ${crossGradeDirections ? `## 이전 학년 보완방향 (분석 결과 기반)\n→ 아래 보완방향을 이어받아 설계방향에 반영하세요.\n${crossGradeDirections}\n` : ""}
 
@@ -328,6 +332,7 @@ export async function generateChangcheGuide(
       studentProfileCard,
       narrativeArcSection: narrativeArcSection || undefined,
       midPlanSection: midPlanSection || undefined,
+      cascadePlanSection: cascadePlanSection || undefined,
       hakjongScoreSection,
     };
 

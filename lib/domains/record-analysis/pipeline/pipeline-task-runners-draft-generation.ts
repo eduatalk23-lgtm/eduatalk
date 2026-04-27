@@ -343,8 +343,22 @@ async function processDraftItem(
     if (section) blueprintContextSection = `\n\n${section}\n`;
   }
 
+  // M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan — 학년 척추 정합 주입.
+  // P7 가안이 cascade tier (foundational/development/advanced) 와 학년 교과 정합으로 작성되도록 유도.
+  let cascadeContextSection = "";
+  try {
+    const { buildCascadePlanGuideSection } = await import(
+      "@/lib/domains/record-analysis/llm/cascade-plan-guide-section"
+    );
+    const section = buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, targetGrade);
+    if (section) cascadeContextSection = `\n\n${section}\n`;
+  } catch (err) {
+    logActionError(LOG_CTX, err, { phase: "draft_generation_cascade_section", recordId: item.recordId });
+    cascadeContextSection = "";
+  }
+
   if (item.kind === "setek") {
-    const userPrompt = `## 과목: ${item.subjectName} (${targetGrade}학년 ${item.semester}학기)\n\n## 세특 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}${blueprintContextSection}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
+    const userPrompt = `## 과목: ${item.subjectName} (${targetGrade}학년 ${item.semester}학기)\n\n## 세특 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}${blueprintContextSection}${cascadeContextSection}\n\n위 정보를 바탕으로 NEIS 500자 이내의 세특 초안을 작성해주세요.`;
     try {
       const saved = await generateAndSaveDraft(
         supabase,
@@ -367,7 +381,7 @@ async function processDraftItem(
     const teacherSection = item.guide.teacherPoints.length > 0
       ? `## 교사 관찰 포인트\n${item.guide.teacherPoints.join("\n")}\n\n`
       : "";
-    const userPrompt = `## 활동유형: ${item.label} (${targetGrade}학년)\n\n## 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}${blueprintContextSection}\n\n${teacherSection}${item.charLimit}자 이내의 ${item.label} 특기사항 초안을 작성해주세요.`;
+    const userPrompt = `## 활동유형: ${item.label} (${targetGrade}학년)\n\n## 방향\n${item.guide.direction}\n\n## 포함할 키워드\n${item.guide.keywords.join(", ")}${blueprintContextSection}${cascadeContextSection}\n\n${teacherSection}${item.charLimit}자 이내의 ${item.label} 특기사항 초안을 작성해주세요.`;
     try {
       const saved = await generateAndSaveDraft(
         supabase,
@@ -393,6 +407,9 @@ async function processDraftItem(
   }
   if (blueprintContextSection) {
     userPrompt += `${blueprintContextSection.trim()}\n\n`;
+  }
+  if (cascadeContextSection) {
+    userPrompt += `${cascadeContextSection.trim()}\n\n`;
   }
   if (alreadyGenerated.length > 0) {
     userPrompt += `## 이 학년의 다른 기록\n이 학년에서 ${alreadyGenerated.join(", ")} 등의 방향이 설정되어 있습니다. 이를 참고하여 행특을 작성해주세요.\n\n`;

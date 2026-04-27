@@ -163,7 +163,11 @@ export function computePipelineFinalStatus(
     requiredKeys = BOOTSTRAP_TASK_KEYS;
   } else if (gradeMode === "design") {
     requiredKeys = GRADE_PIPELINE_TASK_KEYS.filter(
-      (k) => k !== "cross_subject_theme_extraction",
+      (k) =>
+        k !== "cross_subject_theme_extraction" &&
+        k !== "competency_volunteer" &&
+        k !== "competency_awards" &&
+        k !== "derive_main_theme",
     );
   } else {
     requiredKeys = GRADE_PIPELINE_TASK_KEYS.filter(
@@ -171,7 +175,10 @@ export function computePipelineFinalStatus(
         k !== "draft_generation" &&
         k !== "draft_analysis" &&
         k !== "draft_refinement" &&
-        k !== "cross_subject_theme_extraction",
+        k !== "cross_subject_theme_extraction" &&
+        k !== "competency_volunteer" &&
+        k !== "competency_awards" &&
+        k !== "derive_main_theme",
     );
   }
 
@@ -690,6 +697,15 @@ export async function loadPipelineContext(
   const persistedAnalysisContext = results._analysisContext as
     import("./pipeline-types").AnalysisContextByGrade | undefined;
 
+  // M1-c Sprint 1 (2026-04-27): Grade Pipeline 분할 재시작 시 task_results._mainTheme / _cascadePlan 복원
+  // P3.6 derive_main_theme runner 가 writes ctx.results["_mainTheme"] / ["_cascadePlan"] —
+  // Phase 4+ 신 HTTP 요청에서 belief 가 비어있을 때 results 에서 직접 시딩.
+  // Synthesis 경로는 loadSynthesisCumulativeBelief D4 가 우선 시딩하므로 충돌 없음 (아래 fallback).
+  const persistedMainTheme = results._mainTheme as
+    import("../capability/main-theme").MainTheme | undefined;
+  const persistedCascadePlan = results._cascadePlan as
+    import("../capability/cascade-plan").CascadePlan | undefined;
+
   // Synthesis 파이프라인: unifiedInput을 loadPipelineContext에서 빌드
   // (각 Phase route가 별도 HTTP 요청이라 Phase 2+ 에서 ctx.unifiedInput이 undefined였던 버그 수정)
   // assertSynthesisCtx가 unifiedInput을 요구하므로 반드시 여기서 채워야 함
@@ -730,6 +746,8 @@ export async function loadPipelineContext(
     gradeThemesByGrade?: import("./synthesis/helpers").GradeThemesByGrade;
     midPlan?: import("./orient/mid-pipeline-planner").MidPlan | null;
     midPlanByGrade?: Record<number, import("./orient/mid-pipeline-planner").MidPlan>;
+    mainTheme?: import("../capability/main-theme").MainTheme;
+    cascadePlan?: import("../capability/cascade-plan").CascadePlan;
   } = {};
   if (pipelineType === "synthesis") {
     const { loadSynthesisCumulativeBelief } = await import("./pipeline-synthesis-belief");
@@ -789,6 +807,19 @@ export async function loadPipelineContext(
       ...(synthesisCumulativeBelief.midPlanByGrade
         ? { midPlanByGrade: synthesisCumulativeBelief.midPlanByGrade }
         : {}),
+      // M1-c (D4 + Sprint 1): mainTheme + cascadePlan
+      // Synthesis: loadSynthesisCumulativeBelief 결과 우선. Grade Pipeline 분할 재시작:
+      // task_results._mainTheme / _cascadePlan 에서 fallback 복원.
+      ...(synthesisCumulativeBelief.mainTheme
+        ? { mainTheme: synthesisCumulativeBelief.mainTheme }
+        : persistedMainTheme
+          ? { mainTheme: persistedMainTheme }
+          : {}),
+      ...(synthesisCumulativeBelief.cascadePlan
+        ? { cascadePlan: synthesisCumulativeBelief.cascadePlan }
+        : persistedCascadePlan
+          ? { cascadePlan: persistedCascadePlan }
+          : {}),
     },
   };
 }
