@@ -106,6 +106,15 @@ export interface BeliefState {
    * 빈 객체({}) = 해소 완료·레코드 0건 (Synthesis 의 undefined 와 구분).
    */
   resolvedRecords?: import("./pipeline-types").ResolvedRecordsByGrade;
+
+  /**
+   * Synthesis 전용: 학년별 MidPlan dict (격차 1 — 다학년 통합).
+   * loadSynthesisCumulativeBelief 의 D3 확장에서 모든 completed grade pipeline 의
+   * task_results._midPlan 을 grade → MidPlan 으로 수집.
+   * S3/S5/S6/S7 프롬프트에 buildMidPlanByGradeSection() 으로 변환해 주입.
+   * undefined = 시딩 미수행 / 모든 학년 _midPlan 없음 (graceful).
+   */
+  midPlanByGrade?: Record<number, import("./orient/mid-pipeline-planner").MidPlan>;
 }
 
 /** 빈 BeliefState 초기값 — `loadPipelineContext` 에서 사용. */

@@ -55,6 +55,8 @@ export async function generateInterviewQuestions(input: {
   mainExplorationSection?: string;
   /** 격차 A: MidPlan focusHypothesis + concernFlags. buildMidPlanSynthesisSection() 결과. */
   midPlanSynthesisSection?: string;
+  /** 격차 1 다학년 통합: buildMidPlanByGradeSection() 결과. */
+  midPlanByGradeSection?: string;
   /** 격차 A: 학종 3요소 통합 점수 섹션. buildHakjongScoreSection() 결과. */
   hakjongScoreSection?: string;
   /** 격차 A: S5 합의 전략 요약 섹션. buildStrategySummarySection() 결과. */
@@ -130,6 +132,9 @@ export async function generateInterviewQuestions(input: {
     // 격차 A: MidPlan / HakjongScore / S5 전략 섹션 주입 (best-effort — 없으면 생략)
     if (input.midPlanSynthesisSection) {
       userPrompt += `\n\n${input.midPlanSynthesisSection}\n\n위 핵심 탐구 축 가설에서 강조하는 방향 및 우려 플래그를 겨냥한 면접 질문을 1개 이상 포함하라.`;
+    }
+    if (input.midPlanByGradeSection) {
+      userPrompt += `\n\n${input.midPlanByGradeSection}\n\n위 학년별 탐구 축 분포에서 학년 간 연속성 또는 변화 지점을 묻는 면접 질문을 1개 이상 포함하라.`;
     }
     if (input.hakjongScoreSection) {
       userPrompt += `\n\n${input.hakjongScoreSection}\n\n위 약점 축(🔴 표시)에 해당하는 활동·기록의 부족 여부를 확인하는 질문을 1개 이상 포함하라.`;

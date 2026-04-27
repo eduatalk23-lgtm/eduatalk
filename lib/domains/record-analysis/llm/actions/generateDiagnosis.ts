@@ -104,6 +104,11 @@ export async function generateAiDiagnosis(
    */
   midPlanSynthesisSection?: string,
   /**
+   * 격차 1 다학년 통합: buildMidPlanByGradeSection() 결과.
+   * 전 학년 탐구 축 연속성을 진단에 반영. 없으면 생략.
+   */
+  midPlanByGradeSection?: string,
+  /**
    * 격차 6: 학종 3요소 통합 점수 섹션 (buildHakjongScoreSection() 결과).
    * α2 Reward 엔진이 계산한 학업/진로/공동체 0~100 점수. 없으면 생략.
    */
@@ -212,6 +217,7 @@ export async function generateAiDiagnosis(
       mainExplorationSection,
       narrativeArcSection,
       midPlanSynthesisSection,
+      midPlanByGradeSection,
       hakjongScoreSection,
       gradeThemesSection,
       hyperedgeSummarySection,

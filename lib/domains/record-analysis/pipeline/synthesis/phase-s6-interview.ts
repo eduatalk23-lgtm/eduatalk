@@ -242,7 +242,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     .join("\n\n") || undefined;
 
   // 격차 A: midPlan / hakjongScore / S5 strategy 섹션 로드 (best-effort)
-  const { buildMidPlanSynthesisSection } = await import("../../llm/mid-plan-guide-section");
+  const { buildMidPlanSynthesisSection, buildMidPlanByGradeSection } = await import("../../llm/mid-plan-guide-section");
   const { buildHakjongScoreSection } = await import("../../llm/hakjong-score-section");
   const { buildStrategySummarySection } = await import("../../llm/strategy-summary-section");
   const { resolveMidPlan } = await import("../orient/resolve-mid-plan");
@@ -250,6 +250,8 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
 
   // midPlan: resolveMidPlan 헬퍼 (S2 — ctx.midPlan ?? ctx.results["_midPlan"])
   const midPlanSynthesisSection = buildMidPlanSynthesisSection(resolveMidPlan(ctx));
+  // 격차 1 다학년 통합: belief.midPlanByGrade 학년별 MidPlan 분포
+  const midPlanByGradeSection = buildMidPlanByGradeSection(ctx.belief.midPlanByGrade);
 
   // hakjongScore: findLatestSnapshot → parseSnapshotHakjongScore (S3 헬퍼)
   let hakjongScoreSection: string | undefined;
@@ -390,6 +392,7 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     appliedUniversities,
     mainExplorationSection: combinedMainExploration,
     midPlanSynthesisSection,
+    midPlanByGradeSection,
     hakjongScoreSection,
     strategySummarySection,
     hyperedgeSummarySection,
@@ -480,13 +483,15 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
   const llmMode = (ctx.neisGrades && ctx.neisGrades.length > 0) ? "analysis" : "planning";
 
   // 격차 B: midPlan / hakjongScore / S5 strategy 섹션 로드 (best-effort — interview와 동일 패턴)
-  const { buildMidPlanSynthesisSection: buildMPSection } = await import("../../llm/mid-plan-guide-section");
+  const { buildMidPlanSynthesisSection: buildMPSection, buildMidPlanByGradeSection: buildMPByGradeSection } = await import("../../llm/mid-plan-guide-section");
   const { buildHakjongScoreSection: buildHJSection } = await import("../../llm/hakjong-score-section");
   const { buildStrategySummarySection: buildStSection } = await import("../../llm/strategy-summary-section");
   const { resolveMidPlan: resolveMP } = await import("../orient/resolve-mid-plan");
   const { parseSnapshotHakjongScore: parseHJ } = await import("./snapshot-helpers");
 
   const roadmapMidPlanSection = buildMPSection(resolveMP(ctx));
+  // 격차 1 다학년 통합: belief.midPlanByGrade
+  const roadmapMidPlanByGradeSection = buildMPByGradeSection(ctx.belief.midPlanByGrade);
 
   let roadmapHakjongSection: string | undefined;
   try {
@@ -613,6 +618,7 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
 
   const llmResult = await generateAiRoadmap(studentId, llmMode, {
     midPlanSynthesisSection: roadmapMidPlanSection,
+    midPlanByGradeSection: roadmapMidPlanByGradeSection,
     hakjongScoreSection: roadmapHakjongSection,
     strategySummarySection: roadmapStrategySection,
     previousRunOutputsSection: roadmapPreviousRunOutputsSection,

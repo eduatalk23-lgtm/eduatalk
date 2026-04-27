@@ -70,6 +70,11 @@ export interface TierPlanRefinementInput {
    * tier_plan 개정 방향이 핵심 탐구 축 가설과 정합되도록 LLM 에 힌트 제공.
    */
   midPlanSynthesisSection?: string;
+  /**
+   * 격차 1 다학년 통합: 학년별 MidPlan 분포 섹션. buildMidPlanByGradeSection() 결과.
+   * tier_plan 개정 시 학년 간 탐구 축 연속성/변화 지점을 반영하기 위해 주입. 없으면 생략.
+   */
+  midPlanByGradeSection?: string;
   /** Phase B G1: 세특 8단계 서사 완성도 섹션. 없으면 생략. */
   narrativeArcSection?: string;
   /** Phase B G2: hyperedge(N-ary 수렴 테마) 요약 섹션. 없으면 생략. */
@@ -215,6 +220,11 @@ export function buildTierPlanRefinementUserPrompt(
   // 격차 C (2026-04-26): MidPlan focusHypothesis 섹션 주입
   if (input.midPlanSynthesisSection && input.midPlanSynthesisSection.trim().length > 0) {
     sections.push(input.midPlanSynthesisSection, "");
+  }
+
+  // 격차 1 다학년 통합: 학년별 MidPlan 분포 주입
+  if (input.midPlanByGradeSection && input.midPlanByGradeSection.trim().length > 0) {
+    sections.push(input.midPlanByGradeSection, "");
   }
 
   // Phase B G1: narrativeArc 8단계 서사 완성도 주입

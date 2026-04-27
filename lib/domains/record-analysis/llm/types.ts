@@ -627,6 +627,11 @@ export interface SuggestStrategiesInput {
    */
   midPlanSynthesisSection?: string;
   /**
+   * 격차 1 다학년 통합: buildMidPlanByGradeSection() 결과.
+   * 학년별 focusHypothesis/override 분포를 전략에 반영. 없으면 생략.
+   */
+  midPlanByGradeSection?: string;
+  /**
    * 격차 4: 설계 모드 AI 가안 품질 섹션 (buildProjectedQualitySection() 결과).
    * P8 draft_analysis 가 저장한 source='ai_projected' content_quality 5축 점수 + 이슈 집계.
    * 설계 모드 학년이 없거나 P8 미실행이면 undefined (no-op).
@@ -842,6 +847,8 @@ export interface RoadmapGenerationInput {
   bridgeSection?: string;
   /** 격차 B: MidPlan focusHypothesis + concernFlags. buildMidPlanSynthesisSection() 결과. */
   midPlanSynthesisSection?: string;
+  /** 격차 1 다학년 통합: buildMidPlanByGradeSection() 결과. */
+  midPlanByGradeSection?: string;
   /** 격차 B: 학종 3요소 통합 점수 섹션. buildHakjongScoreSection() 결과. */
   hakjongScoreSection?: string;
   /** 격차 B: S5 합의 전략 요약 섹션. buildStrategySummarySection() 결과. */

@@ -187,13 +187,16 @@ export async function runTierPlanRefinement(
   //   buildMidPlanSynthesisSection 으로 변환 후 extractTierPlanSuggestion 에 주입.
   //   midPlan 부재 또는 변환 실패 시 undefined (no-op) — S7 기존 동작 보존.
   let midPlanSynthesisSection: string | undefined;
+  let midPlanByGradeSection: string | undefined;
   try {
-    const { buildMidPlanSynthesisSection } = await import(
+    const { buildMidPlanSynthesisSection, buildMidPlanByGradeSection } = await import(
       "@/lib/domains/record-analysis/llm/mid-plan-guide-section"
     );
     const { resolveMidPlan } = await import("../orient/resolve-mid-plan");
     const built = buildMidPlanSynthesisSection(resolveMidPlan(ctx));
     if (built) midPlanSynthesisSection = built;
+    // 격차 1 다학년 통합: belief.midPlanByGrade 학년별 MidPlan 분포
+    midPlanByGradeSection = buildMidPlanByGradeSection(ctx.belief.midPlanByGrade) ?? undefined;
   } catch {
     // best-effort: 실패해도 S7 계속 진행
   }
@@ -295,6 +298,7 @@ export async function runTierPlanRefinement(
     hakjongScore: snapshotCtx.hakjongScore,
     hakjongScoreV2Pre: snapshotCtx.hakjongScoreV2Pre,
     midPlanSynthesisSection,
+    midPlanByGradeSection,
     narrativeArcSection,
     hyperedgeSummarySection,
     previousRunOutputsSection: s7PreviousRunOutputsSection,

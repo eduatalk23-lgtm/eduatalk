@@ -26,6 +26,8 @@ const LOG_CTX = { domain: "record-analysis", action: "generateRoadmap" };
 /** 격차 B: 외부에서 미리 로드된 컨텍스트 섹션 주입용 옵션 (optional) */
 export interface RoadmapExtraSections {
   midPlanSynthesisSection?: string;
+  /** 격차 1 다학년 통합: buildMidPlanByGradeSection() 결과. */
+  midPlanByGradeSection?: string;
   hakjongScoreSection?: string;
   strategySummarySection?: string;
   /** Phase C A1: 직전 실행 미해결 격차 섹션 (previousRunOutputs 기반). 없으면 생략. */
@@ -220,6 +222,7 @@ export async function generateAiRoadmap(
       bridgeSection,
       // 격차 B: 외부 주입 섹션 (phase-s6-interview.ts에서 best-effort 로드 후 전달)
       midPlanSynthesisSection: extraSections?.midPlanSynthesisSection,
+      midPlanByGradeSection: extraSections?.midPlanByGradeSection,
       hakjongScoreSection: extraSections?.hakjongScoreSection,
       strategySummarySection: extraSections?.strategySummarySection,
       // Phase C A1/A2: 직전 실행 격차 + 반복 품질 패턴 섹션

@@ -729,6 +729,7 @@ export async function loadPipelineContext(
     profileCard?: string;
     gradeThemesByGrade?: import("./synthesis/helpers").GradeThemesByGrade;
     midPlan?: import("./orient/mid-pipeline-planner").MidPlan | null;
+    midPlanByGrade?: Record<number, import("./orient/mid-pipeline-planner").MidPlan>;
   } = {};
   if (pipelineType === "synthesis") {
     const { loadSynthesisCumulativeBelief } = await import("./pipeline-synthesis-belief");
@@ -783,6 +784,10 @@ export async function loadPipelineContext(
       // Phase D2: gradeThemesByGrade (aggregateGradeThemes 전 학년 집계)
       ...(synthesisCumulativeBelief.gradeThemesByGrade
         ? { gradeThemesByGrade: synthesisCumulativeBelief.gradeThemesByGrade }
+        : {}),
+      // 격차 1 (D3 확장): midPlanByGrade (모든 학년 _midPlan dict)
+      ...(synthesisCumulativeBelief.midPlanByGrade
+        ? { midPlanByGrade: synthesisCumulativeBelief.midPlanByGrade }
         : {}),
     },
   };

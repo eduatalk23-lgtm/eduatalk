@@ -203,6 +203,9 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   if (input.midPlanSynthesisSection) {
     prompt += `${input.midPlanSynthesisSection}\n\n`;
   }
+  if (input.midPlanByGradeSection) {
+    prompt += `${input.midPlanByGradeSection}\n\n`;
+  }
   if (input.hakjongScoreSection) {
     prompt += `${input.hakjongScoreSection}\n\n`;
   }
@@ -249,6 +252,9 @@ export function buildUserPrompt(input: RoadmapGenerationInput): string {
   }
   if (input.midPlanSynthesisSection) {
     prompt += ` 핵심 탐구 축 가설이 제공된 경우, 로드맵 전반에 해당 축 방향의 활동을 우선 배치하세요.`;
+  }
+  if (input.midPlanByGradeSection) {
+    prompt += ` 학년별 MidPlan 분포가 제공된 경우, 학년 간 탐구 축 연속성을 유지하면서 학년별 우선 레코드의 약점을 보완하는 활동을 학기에 1건 이상 반영하세요.`;
   }
   if (input.hakjongScoreSection) {
     prompt += ` 학종 3요소 통합 점수(약점 축 🔴)가 제공된 경우, 해당 약점 영역을 강화하는 활동(봉사·수상·창체 등)을 로드맵에 포함하세요.`;

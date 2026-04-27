@@ -27,6 +27,8 @@ export interface SynthesisCumulativeBelief {
   gradeThemesByGrade?: GradeThemesByGrade;
   /** D3: 최신 grade pipeline _midPlan (option B 단일). 없음 = null. */
   midPlan?: MidPlan | null;
+  /** D3 확장 (격차 1): 학년별 _midPlan dict. 없음 = undefined (graceful). */
+  midPlanByGrade?: Record<number, MidPlan>;
 }
 
 /**
@@ -94,10 +96,13 @@ export async function loadSynthesisCumulativeBelief(
     );
   }
 
-  // ── D3: midPlan (option B — 최신 학년 단일) ──────────────────────────────
-  // 학년별 grade pipeline task_results._midPlan 에서 가장 최신 학년(grade DESC) 1개만 추출.
-  // resolveMidPlan(ctx) 가 ctx.midPlan → ctx.results["_midPlan"] 순으로 해소하므로
-  // ctx.midPlan 에 시딩하면 기존 phase 코드 무수정 호환.
+  // ── D3: midPlan (option B 단일 + 격차 1 다학년 dict) ────────────────────
+  // 학년별 grade pipeline task_results._midPlan 에서 전체 학년을 수집한다.
+  //
+  // - result.midPlan     : 최신 학년 단일 (기존 option B 호환 유지 — resolveMidPlan() 소비).
+  // - result.midPlanByGrade : 모든 학년 dict (격차 1 신규 — S3/S5/S6/S7 다학년 섹션 소비).
+  //
+  // 쿼리 패턴: aggregateGradeThemes 와 동일 (grade DESC, created_at DESC, dedupe by grade).
   try {
     const { data: gradeRows } = await supabase
       .from("student_record_analysis_pipelines")
@@ -109,8 +114,9 @@ export async function loadSynthesisCumulativeBelief(
       .order("grade", { ascending: false })
       .order("created_at", { ascending: false });
 
-    // 학년 내림차순 조회 — grade 가 높은 것(최신 학년)부터 순회해 _midPlan 보유 첫 번째 선택.
+    // 학년별 최신 run 1건씩 dedupe (grade DESC + created_at DESC 이미 정렬됨).
     const seenGrades = new Set<number>();
+    const byGrade: Record<number, MidPlan> = {};
     for (const row of (gradeRows ?? []) as Array<{
       grade: number | null;
       task_results: unknown;
@@ -120,15 +126,23 @@ export async function loadSynthesisCumulativeBelief(
       const tr = row.task_results as Record<string, unknown> | null;
       const mp = tr?._midPlan as MidPlan | null | undefined;
       if (mp && typeof mp === "object" && "focusHypothesis" in mp) {
-        result.midPlan = mp;
-        break; // 최신 학년 1개만
+        byGrade[row.grade] = mp;
+        // option B 단일: 첫 번째로 발견한 학년(가장 높은 학년 = 최신)
+        if (!result.midPlan) {
+          result.midPlan = mp;
+        }
       }
     }
-    // _midPlan 없음: result.midPlan = undefined → ctx.midPlan 시딩 안 됨 (graceful)
+
+    // 격차 1: 학년별 dict 시딩 (1건 이상 있을 때만)
+    if (Object.keys(byGrade).length > 0) {
+      result.midPlanByGrade = byGrade;
+    }
+    // 빈 dict 또는 _midPlan 전무: result.midPlan / result.midPlanByGrade = undefined (graceful)
   } catch (err) {
     logActionWarn(
       LOG_CTX,
-      "D3 midPlan 시딩 실패 — ctx.midPlan undefined 로 진행",
+      "D3 midPlan/midPlanByGrade 시딩 실패 — ctx.midPlan/midPlanByGrade undefined 로 진행",
       { pipelineId, error: err instanceof Error ? err.message : String(err) },
     );
   }

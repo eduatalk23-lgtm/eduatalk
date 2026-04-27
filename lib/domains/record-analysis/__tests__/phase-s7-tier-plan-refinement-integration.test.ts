@@ -74,6 +74,7 @@ vi.mock("@/lib/domains/record-analysis/llm/mid-plan-guide-section", () => ({
     if (!midPlan) return undefined;
     return "## MidPlan 핵심 탐구 축 가설\n- 수학 심화 탐구 중심";
   }),
+  buildMidPlanByGradeSection: vi.fn().mockReturnValue(undefined),
 }));
 
 // resolve-mid-plan

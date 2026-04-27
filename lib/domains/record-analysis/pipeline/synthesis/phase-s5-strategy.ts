@@ -422,12 +422,14 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
 
   // β 격차 1: MidPlan 핵심 탐구 축 가설 → 전략 프롬프트 주입 (best-effort)
   let midPlanSynthesisSection: string | undefined;
+  let midPlanByGradeSection: string | undefined;
   try {
     const midPlan = resolveMidPlan(ctx);
+    const { buildMidPlanSynthesisSection, buildMidPlanByGradeSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
     if (midPlan) {
-      const { buildMidPlanSynthesisSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
       midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlan);
     }
+    midPlanByGradeSection = buildMidPlanByGradeSection(ctx.belief.midPlanByGrade);
   } catch (mpErr) {
     logActionError({ ...LOG_CTX, action: "pipeline.midPlanSynthesisSection.strategy" }, mpErr, { pipelineId });
   }
@@ -514,6 +516,7 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     qualityPatterns: ctx.belief.qualityPatterns,
     mainExplorationSection: mainExplorationSection || undefined,
     midPlanSynthesisSection,
+    midPlanByGradeSection,
     projectedQualitySection,
     hakjongScoreSection,
     gradeThemesSection,

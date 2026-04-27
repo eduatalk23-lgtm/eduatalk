@@ -16,6 +16,65 @@
 
 import type { MidPlan } from "../pipeline/orient/mid-pipeline-planner";
 
+// ============================================
+// 격차 1: 다학년 MidPlan dict → Synthesis(진단/전략/면접/tier_plan) 프롬프트 섹션
+//
+// S3/S5/S6/S7 에 전 학년 MidPlan 을 요약 형태로 동시 주입한다.
+// 단일 midPlanSynthesisSection(최신 학년)은 기존 그대로 유지하며,
+// 이 섹션은 추가 컨텍스트로 병렬 슬롯에 배치한다.
+// ============================================
+
+/**
+ * 학년별 MidPlan dict 를 Synthesis 프롬프트에 주입할 마크다운 섹션으로 렌더한다.
+ *
+ * 각 학년별로 focusHypothesis + recordPriorityOverride 키 수 + concernFlags 수를 1줄 요약.
+ * 단일 섹션(최신 학년)과 병렬 주입 — LLM 은 두 섹션 모두 참조.
+ *
+ * @param midPlanByGrade - belief.midPlanByGrade (grade → MidPlan dict)
+ * @returns 마크다운 섹션, 또는 undefined (dict 없거나 비어있으면 생략)
+ */
+export function buildMidPlanByGradeSection(
+  midPlanByGrade: Record<number, MidPlan> | null | undefined,
+): string | undefined {
+  if (!midPlanByGrade || Object.keys(midPlanByGrade).length === 0) return undefined;
+
+  const grades = Object.keys(midPlanByGrade)
+    .map(Number)
+    .sort((a, b) => a - b); // 학년 오름차순 (G1 → G2 → G3)
+
+  const lines: string[] = [];
+  lines.push(`## 학년별 MidPlan 통합 (다학년 탐구 축 맥락)`);
+  lines.push(``);
+
+  for (const grade of grades) {
+    const mp = midPlanByGrade[grade];
+    if (!mp) continue;
+
+    const focusSummary =
+      typeof mp.focusHypothesis === "string" && mp.focusHypothesis.trim().length > 0
+        ? mp.focusHypothesis.trim().slice(0, 80)
+        : "(가설 없음)";
+
+    const overrideCount = mp.recordPriorityOverride
+      ? Object.keys(mp.recordPriorityOverride).length
+      : 0;
+    const concernCount = Array.isArray(mp.concernFlags) ? mp.concernFlags.length : 0;
+
+    lines.push(
+      `- **G${grade}**: focusHypothesis: ${focusSummary}` +
+      ` / 우선 레코드 ${overrideCount}건 / 우려 ${concernCount}건`,
+    );
+  }
+
+  lines.push(``);
+  lines.push(
+    `**위 학년별 탐구 축 가설을 참고하여 학년 간 탐구 연속성과 방향 정합성을 평가하세요.` +
+    ` 특히 학년이 올라갈수록 탐구 축이 심화·수렴하는지 확인하고, 역행하거나 단절된 경우 약점으로 지적하세요.**`,
+  );
+
+  return lines.join("\n");
+}
+
 /**
  * MidPlan 메타 판정 결과를 가이드 프롬프트에 주입할 마크다운 섹션으로 렌더한다.
  *

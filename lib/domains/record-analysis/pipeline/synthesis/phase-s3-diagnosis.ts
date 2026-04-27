@@ -280,12 +280,15 @@ export async function runAiDiagnosis(
 
   // β 격차 1: MidPlan 핵심 탐구 축 가설 → 진단 프롬프트 주입 (best-effort)
   let midPlanSynthesisSection: string | undefined;
+  let midPlanByGradeSection: string | undefined;
   try {
     const midPlan = resolveMidPlan(ctx);
+    const { buildMidPlanSynthesisSection, buildMidPlanByGradeSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
     if (midPlan) {
-      const { buildMidPlanSynthesisSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
       midPlanSynthesisSection = buildMidPlanSynthesisSection(midPlan);
     }
+    // 격차 1: 다학년 dict 섹션 (단일 섹션과 병렬 주입)
+    midPlanByGradeSection = buildMidPlanByGradeSection(ctx.belief.midPlanByGrade);
   } catch (mpErr) {
     logActionError({ ...LOG_CTX, action: "pipeline.midPlanSynthesisSection.diagnosis" }, mpErr, { pipelineId });
   }
@@ -378,7 +381,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, midPlanByGradeSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

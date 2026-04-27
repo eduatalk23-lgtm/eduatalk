@@ -150,6 +150,11 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += `${input.midPlanSynthesisSection}\n\n`;
   }
 
+  // 격차 1 다학년 통합: 학년별 MidPlan 분포 (buildMidPlanByGradeSection 결과)
+  if (input.midPlanByGradeSection) {
+    prompt += `${input.midPlanByGradeSection}\n\n`;
+  }
+
   // 격차 4: 설계 모드 AI 가안 품질 (buildProjectedQualitySection 결과)
   if (input.projectedQualitySection) {
     prompt += `${input.projectedQualitySection}\n\n`;

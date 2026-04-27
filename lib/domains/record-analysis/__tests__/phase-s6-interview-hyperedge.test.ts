@@ -67,6 +67,7 @@ vi.mock("../pipeline/synthesis/helpers", () => ({
 // mid-plan-guide-section
 vi.mock("@/lib/domains/record-analysis/llm/mid-plan-guide-section", () => ({
   buildMidPlanSynthesisSection: vi.fn().mockReturnValue(undefined),
+  buildMidPlanByGradeSection: vi.fn().mockReturnValue(undefined),
 }));
 
 // hakjong-score-section
