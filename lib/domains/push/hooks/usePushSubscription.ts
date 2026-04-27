@@ -1,12 +1,46 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import {
-  subscribePush,
-  unsubscribePush,
-} from "../actions/subscription";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
+async function subscribePushApi(
+  subscription: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  },
+  deviceLabel: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription, deviceLabel }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      error?: string;
+    };
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error ?? `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+async function unsubscribePushApi(endpoint: string): Promise<void> {
+  try {
+    await fetch("/api/push/unsubscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint }),
+    });
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Push 구독을 자동으로 관리하는 훅.
@@ -53,7 +87,7 @@ export function usePushSubscription(userId: string | null) {
       if (!p256dhKey || !authKey) return;
 
       const endpoint = subscription.endpoint;
-      const result = await subscribePush(
+      const result = await subscribePushApi(
         {
           endpoint,
           keys: {
@@ -94,7 +128,7 @@ export function usePushSubscription(userId: string | null) {
       const registration = await navigator.serviceWorker?.ready;
       const subscription = await registration?.pushManager?.getSubscription();
       if (subscription) {
-        await unsubscribePush(subscription.endpoint);
+        await unsubscribePushApi(subscription.endpoint);
         await subscription.unsubscribe();
       }
     } catch {
