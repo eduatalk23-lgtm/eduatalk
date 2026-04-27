@@ -276,7 +276,9 @@ export const BOOTSTRAP_PHASE_TASKS: Record<number, _BootstrapKey[]> = {
 };
 
 export const BLUEPRINT_TASK_TIMEOUTS: Record<_BlueprintKey, number> = {
-  blueprint_generation: 180_000,  // 기존 synthesis와 동일, 여유 포함
+  // M1-c W6 hotfix (2026-04-28): standard tier (Pro) 응답 변동성 ↑ — 1차 91s 통과 / 2차 180s timeout 관찰.
+  // 280s 로 상향 (Vercel Hobby 300s maxDuration 안전 여유).
+  blueprint_generation: 280_000,
 };
 
 export const BLUEPRINT_PHASE_TASKS: Record<number, _BlueprintKey[]> = {
