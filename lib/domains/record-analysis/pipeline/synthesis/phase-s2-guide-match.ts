@@ -118,6 +118,23 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
   // → 명시적으로 DB에서 다시 읽어 항상 최신 상태 보장.
   await refreshCoursePlanData(ctx);
 
+  // ── Step 2.1 (2026-04-27): Slot Generator Shadow run ──
+  // 매칭 로직 변경 없음. 슬롯 도출 결과는 ctx.results._slots + ctx.previews에 박제.
+  // Step 2.2부터 score(guide, slot) 시그니처에서 소비.
+  // 어떤 에러도 매칭을 중단시키지 않음 (graceful).
+  {
+    const { runSlotGeneratorShadow } = await import("../slots/shadow-run");
+    await runSlotGeneratorShadow({
+      studentId,
+      tenantId,
+      studentGrade,
+      belief: ctx.belief,
+      coursePlanData: ctx.coursePlanData ?? null,
+      results: ctx.results,
+      previews: ctx.previews,
+    });
+  }
+
   const classificationId = (snapshot?.target_sub_classification_id as number | null) ?? null;
   // desired_career_field는 이제 H3 careerFieldHint로 대체됨
   void (snapshot?.desired_career_field);
