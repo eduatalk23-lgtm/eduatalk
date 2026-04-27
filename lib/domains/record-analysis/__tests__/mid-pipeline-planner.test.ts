@@ -10,7 +10,7 @@
 // ============================================
 
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
-import { runMidPipelinePlanner } from "../pipeline/orient/mid-pipeline-planner";
+import { runMidPipelinePlanner, serializeBeliefForPlanner } from "../pipeline/orient/mid-pipeline-planner";
 import type { PipelineContext } from "../pipeline/pipeline-types";
 
 // ── ai-client 모듈 mock ──────────────────────────────────────────────────────
@@ -216,5 +216,107 @@ describe("MidPlanner — optional 필드 부재 처리", () => {
     expect(result!.recordPriorityOverride).toBeUndefined();
     expect(result!.concernFlags).toEqual([]);
     expect(result!.rationale).toHaveLength(1);
+  });
+});
+
+// ============================================
+// 케이스 7: serializeBeliefForPlanner — allRecordSummaries + Top-8
+// (격차 2, 2026-04-26)
+// ============================================
+describe("serializeBeliefForPlanner — allRecordSummaries Top-8", () => {
+  /** 직렬화 호출 공통 헬퍼 (belief + 최소 ctx) */
+  function serialize(belief: Parameters<typeof serializeBeliefForPlanner>[0]): string {
+    return serializeBeliefForPlanner(belief, { studentGrade: 1, gradeMode: "analysis", targetGrade: 1 });
+  }
+
+  it("allRecordSummaries 가 있으면 qualityIssues 보다 우선 사용된다", () => {
+    const belief: Parameters<typeof serializeBeliefForPlanner>[0] = {
+      analysisContext: {
+        1: {
+          grade: 1,
+          qualityIssues: [
+            { recordId: "issue-only", recordType: "setek", issues: ["P1"], feedback: "f", overallScore: 30 },
+          ],
+          weakCompetencies: [],
+          allRecordSummaries: [
+            { recordId: "allrec1-summary-only", recordType: "setek", issues: [], feedback: "f", overallScore: 80 },
+            { recordId: "allrec2-has-issues-xx", recordType: "changche", issues: ["P1"], feedback: "f", overallScore: 40 },
+          ],
+        },
+      },
+    };
+
+    const serialized = serialize(belief);
+
+    // allRecordSummaries 의 레코드가 출력에 포함돼야 함 (id 앞 8자가 노출됨)
+    expect(serialized).toContain("allrec1-");
+    expect(serialized).toContain("allrec2-");
+    // qualityIssues 전용 레코드(issue-only)는 allRecordSummaries 에 없으므로 미포함
+    expect(serialized).not.toContain("issue-only");
+  });
+
+  it("allRecordSummaries 없으면 qualityIssues 폴백으로 사용된다", () => {
+    const belief: Parameters<typeof serializeBeliefForPlanner>[0] = {
+      analysisContext: {
+        1: {
+          grade: 1,
+          qualityIssues: [
+            { recordId: "fallbackrec1", recordType: "setek", issues: ["P1"], feedback: "f", overallScore: 50 },
+          ],
+          weakCompetencies: [],
+          // allRecordSummaries 미설정
+        },
+      },
+    };
+
+    const serialized = serialize(belief);
+    expect(serialized).toContain("fallback");
+  });
+
+  it("Top-8 제한 — 9건 입력 시 8건만 출력 (overallScore 낮은 순)", () => {
+    const summaries = Array.from({ length: 9 }, (_, i) => ({
+      recordId: `rc${String(i).padStart(6, "0")}xx`,
+      recordType: "setek" as const,
+      issues: [] as string[],
+      feedback: "f",
+      overallScore: (i + 1) * 10, // 10, 20, ..., 90
+    }));
+
+    const belief: Parameters<typeof serializeBeliefForPlanner>[0] = {
+      analysisContext: {
+        1: {
+          grade: 1,
+          qualityIssues: [],
+          weakCompetencies: [],
+          allRecordSummaries: summaries,
+        },
+      },
+    };
+
+    const serialized = serialize(belief);
+
+    // Top-8 = score 10~80 (rc000000xx ~ rc000007xx), score=90(rc000008xx)는 제외
+    expect(serialized).toContain("rc000000"); // score=10, 첫 번째
+    expect(serialized).not.toContain("rc000008"); // 9번째 → 제외
+    // 섹션 제목에 Top-8 표기 확인
+    expect(serialized).toContain("Top-8");
+  });
+
+  it("섹션 제목에 '이슈 0개 포함' 문구가 있다", () => {
+    const belief: Parameters<typeof serializeBeliefForPlanner>[0] = {
+      analysisContext: {
+        1: {
+          grade: 1,
+          qualityIssues: [],
+          weakCompetencies: [],
+          allRecordSummaries: [
+            { recordId: "rc12345678", recordType: "setek", issues: [], feedback: "f", overallScore: 70 },
+          ],
+        },
+      },
+    };
+
+    const serialized = serialize(belief);
+    expect(serialized).toContain("이슈 0개 포함");
   });
 });

@@ -285,6 +285,91 @@ describe("collectAnalysisContext()", () => {
     expect(ctx.belief.analysisContext![2].qualityIssues[0].issues).toContain("F10_성장부재");
     expect(ctx.belief.analysisContext![1].qualityIssues[0].issues).toContain("P1_나열식");
   });
+
+  // ── allRecordSummaries (격차 2 — MidPlanner Top-N 보강) ──────────────────
+
+  it("issues=[] 레코드도 allRecordSummaries에 추가된다 (qualityIssues에는 제외)", () => {
+    const ctx = makeCtx();
+    const records = [{ id: "r1", subjectName: "수학" }];
+    const allResults = new Map([["r1", makeEmptyResult()]]);
+
+    collectAnalysisContext(ctx, 1, "setek", records, allResults);
+
+    const gradeCtx = ctx.belief.analysisContext![1];
+    expect(gradeCtx.qualityIssues).toHaveLength(0);
+    expect(gradeCtx.allRecordSummaries).toBeDefined();
+    expect(gradeCtx.allRecordSummaries!).toHaveLength(1);
+    expect(gradeCtx.allRecordSummaries![0].recordId).toBe("r1");
+    expect(gradeCtx.allRecordSummaries![0].overallScore).toBe(80);
+  });
+
+  it("issues>0 레코드는 qualityIssues 와 allRecordSummaries 모두에 들어간다", () => {
+    const ctx = makeCtx();
+    const records = [{ id: "r1", subjectName: "영어" }];
+    const allResults = new Map([["r1", makeResultWithIssues(["P1_나열식"])]]);
+
+    collectAnalysisContext(ctx, 1, "setek", records, allResults);
+
+    const gradeCtx = ctx.belief.analysisContext![1];
+    expect(gradeCtx.qualityIssues).toHaveLength(1);
+    expect(gradeCtx.allRecordSummaries!).toHaveLength(1);
+    expect(gradeCtx.allRecordSummaries![0].recordId).toBe("r1");
+  });
+
+  it("allRecordSummaries 동일 recordId 중복 방지 — 두 번 호출해도 1건만", () => {
+    const ctx = makeCtx();
+    const records = [{ id: "r1", subjectName: "과학" }];
+    const allResults = new Map([["r1", makeEmptyResult()]]);
+
+    collectAnalysisContext(ctx, 1, "setek", records, allResults);
+    collectAnalysisContext(ctx, 1, "setek", records, allResults);
+
+    expect(ctx.belief.analysisContext![1].allRecordSummaries!).toHaveLength(1);
+  });
+
+  it("혼합: issues 있는 r1 + issues 없는 r2 → allRecordSummaries 에 2건, qualityIssues 에 1건", () => {
+    const ctx = makeCtx();
+    const records = [
+      { id: "r1", subjectName: "국어" },
+      { id: "r2", subjectName: "수학" },
+    ];
+    const allResults = new Map([
+      ["r1", makeResultWithIssues(["P1_나열식"])],
+      ["r2", makeEmptyResult()],
+    ]);
+
+    collectAnalysisContext(ctx, 1, "setek", records, allResults);
+
+    const gradeCtx = ctx.belief.analysisContext![1];
+    expect(gradeCtx.qualityIssues).toHaveLength(1);
+    expect(gradeCtx.allRecordSummaries!).toHaveLength(2);
+    const ids = gradeCtx.allRecordSummaries!.map((r) => r.recordId);
+    expect(ids).toContain("r1");
+    expect(ids).toContain("r2");
+  });
+
+  it("contentQuality 없는 레코드는 allRecordSummaries 에도 추가되지 않는다", () => {
+    const ctx = makeCtx();
+    const records = [{ id: "r1" }];
+    const result: HighlightAnalysisResult = {
+      sections: [],
+      competencyGrades: [],
+      summary: "요약",
+      contentQuality: undefined,
+    };
+    collectAnalysisContext(ctx, 1, "setek", records, new Map([["r1", result]]));
+
+    expect(ctx.belief.analysisContext![1].allRecordSummaries!).toHaveLength(0);
+  });
+
+  it("gradeCtx 없을 때 allRecordSummaries 빈 배열로 초기화된다", () => {
+    const ctx = makeCtx();
+    collectAnalysisContext(ctx, 3, "setek", [], new Map());
+
+    const gradeCtx = ctx.belief.analysisContext![3];
+    expect(gradeCtx.allRecordSummaries).toBeDefined();
+    expect(Array.isArray(gradeCtx.allRecordSummaries)).toBe(true);
+  });
 });
 
 // ============================================

@@ -428,6 +428,12 @@ export interface GradeAnalysisContext {
   qualityIssues: RecordAnalysisContext[];
   /** B- 이하 역량 등급 항목 */
   weakCompetencies: CompetencyAnalysisContext[];
+  /**
+   * 모든 분석 완료 레코드 요약 (이슈 0개 레코드 포함).
+   * qualityIssues 의 superset — issues=[] 인 레코드도 포함.
+   * MidPlanner Top-N serializer 전용. 다른 phase 에서 소비하지 말 것.
+   */
+  allRecordSummaries?: RecordAnalysisContext[];
 }
 
 /** 전체 학년에 걸친 역량 분석 맥락 (학년 번호 → 맥락) */

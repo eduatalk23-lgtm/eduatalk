@@ -72,7 +72,11 @@ export function collectAnalysisContext(
   // 맥락 초기화
   if (!ctx.belief.analysisContext) ctx.belief.analysisContext = {};
   if (!ctx.belief.analysisContext[targetGrade]) {
-    ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+    ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [], allRecordSummaries: [] };
+  }
+  // allRecordSummaries 가 없는 기존 gradeCtx (이전 run 복원 등) → qualityIssues 로 seed (best-effort 호환).
+  if (!ctx.belief.analysisContext[targetGrade].allRecordSummaries) {
+    ctx.belief.analysisContext[targetGrade].allRecordSummaries = [...ctx.belief.analysisContext[targetGrade].qualityIssues];
   }
   // α 후속 5 (2026-04-24): ctx.belief.analysisContext 를 동일 객체로 동기화 (dual write alias).
   // 객체 참조를 공유하므로 이후 gradeCtx 변이가 belief 에 자동 반영된다.
@@ -101,6 +105,21 @@ export function collectAnalysisContext(
           overallScore: cq.overallScore,
         };
         gradeCtx.qualityIssues.push(recordCtx);
+      }
+    }
+
+    // allRecordSummaries: cq 가 있는 모든 레코드 (issues 빈 배열 포함) — MidPlanner Top-N 전용.
+    if (cq) {
+      const existingAll = gradeCtx.allRecordSummaries!.find((r) => r.recordId === recordId);
+      if (!existingAll) {
+        gradeCtx.allRecordSummaries!.push({
+          recordId,
+          recordType,
+          subjectName: subjectNameById.get(recordId),
+          issues: cq.issues,
+          feedback: cq.feedback,
+          overallScore: cq.overallScore,
+        });
       }
     }
 

@@ -172,8 +172,12 @@ export function serializeBeliefForPlanner(
       feedback: string;
     }> = [];
     for (const [grade, gradeCtx] of Object.entries(analysisContext)) {
-      if (!gradeCtx?.qualityIssues) continue;
-      for (const r of gradeCtx.qualityIssues) {
+      // allRecordSummaries 우선 (이슈 0개 레코드 포함) → 없으면 qualityIssues 폴백.
+      const source = (gradeCtx?.allRecordSummaries && gradeCtx.allRecordSummaries.length > 0)
+        ? gradeCtx.allRecordSummaries
+        : gradeCtx?.qualityIssues;
+      if (!source) continue;
+      for (const r of source) {
         allRecords.push({
           grade,
           recordId: r.recordId,
@@ -186,10 +190,10 @@ export function serializeBeliefForPlanner(
       }
     }
     if (allRecords.length > 0) {
-      const top5 = allRecords
+      const top8 = allRecords
         .sort((a, b) => a.overallScore - b.overallScore)
-        .slice(0, 5);
-      const lines = top5.map((r) => {
+        .slice(0, 8);
+      const lines = top8.map((r) => {
         const subject = r.subjectName ? `(${r.subjectName})` : "";
         const issuesStr = r.issues.slice(0, 3).join(", ");
         const typeLabel =
@@ -201,7 +205,7 @@ export function serializeBeliefForPlanner(
         return `- id=${r.recordId.slice(0, 8)}… [${r.grade}학년] ${typeLabel}${subject} score=${r.overallScore} issues=[${issuesStr}]`;
       });
       sections.push(
-        `## 문제 집중 레코드 Top-5 (overallScore 낮은 순)\n${lines.join("\n")}`,
+        `## 문제 집중 레코드 Top-8 (overallScore 낮은 순, 이슈 0개 포함)\n${lines.join("\n")}`,
       );
     }
   }

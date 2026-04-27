@@ -287,7 +287,7 @@ export async function runDraftAnalysisForGrade(
     if (weakItems.length > 0) {
       if (!ctx.belief.analysisContext) ctx.belief.analysisContext = {};
       if (!ctx.belief.analysisContext[targetGrade]) {
-        ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+        ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [], allRecordSummaries: [] };
       }
       ctx.belief.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
       // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
@@ -618,7 +618,7 @@ async function finalizeDraftAnalysisChunked(
     if (weakItems.length > 0) {
       if (!ctx.belief.analysisContext) ctx.belief.analysisContext = {};
       if (!ctx.belief.analysisContext[targetGrade]) {
-        ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [] };
+        ctx.belief.analysisContext[targetGrade] = { grade: targetGrade, qualityIssues: [], weakCompetencies: [], allRecordSummaries: [] };
       }
       ctx.belief.analysisContext[targetGrade].weakCompetencies.push(...weakItems);
       // α 후속 5 (2026-04-24): dual write — belief 와 동일 객체 참조 동기화.
