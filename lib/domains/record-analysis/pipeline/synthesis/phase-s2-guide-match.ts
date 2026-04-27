@@ -379,6 +379,34 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
         collectFocusKeywords(mp?.focusHypothesis);
       }
     }
+    // v4 (2026-04-27): gradeThemes 도 토큰 source 에 추가 — focusHypothesis 가 결함 위주로 나올 때
+    //   테마 콘텐츠가 빠지는 LLM 비결정성 보강. P3.5 가 매번 안정적으로 채우는 dominant theme 라벨/키워드.
+    //   themes[].id (kebab-case 영문) + label (한국어 phrase) + keywords[] 모두 추가.
+    if (ctx.belief.gradeThemesByGrade) {
+      for (const byGrade of Object.values(ctx.belief.gradeThemesByGrade)) {
+        if (!byGrade?.themes) continue;
+        const dominantSet = new Set(byGrade.dominantThemeIds ?? []);
+        for (const theme of byGrade.themes) {
+          if (!dominantSet.has(theme.id)) continue; // dominant 만 채택 (전체 테마는 noise)
+          // (1) 영문 kebab-case id
+          if (/^[a-z]+(?:-[a-z]+)+$/.test(theme.id)) midPlanFocusKeywords.add(theme.id.toLowerCase());
+          // (2) 한국어 label (예: "우주 탐구")
+          if (theme.label) {
+            midPlanFocusKeywords.add(theme.label.toLowerCase());
+            // label 이 다어절이면 단어 분리해서도 추가
+            const labelWords = theme.label.split(/[\s·]+/).map((w) => w.trim()).filter(
+              (w) => w.length >= 2 && /^[가-힣]+$/.test(w) && !KO_GENERIC_STOP.has(w),
+            );
+            for (const w of labelWords) midPlanFocusKeywords.add(w);
+          }
+          // (3) keywords 배열 (이미 한국어 키워드)
+          for (const kw of theme.keywords ?? []) {
+            const k = kw.trim().toLowerCase();
+            if (k.length >= 2 && !KO_GENERIC_STOP.has(k)) midPlanFocusKeywords.add(k);
+          }
+        }
+      }
+    }
 
     // ranking 적용 후 기존 ranked에 추가
     const poolRanked = await applyContinuityRanking(
