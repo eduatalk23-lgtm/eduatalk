@@ -4,7 +4,7 @@
 // Grade Pipeline 그리드 컴포넌트
 // ============================================
 
-import { Play } from "lucide-react";
+import { Play, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   GRADE_PHASE_GROUPS,
@@ -24,6 +24,8 @@ interface PipelineGradeGridProps {
   runningStartMs: number | null;
   onRunGradePhase: (grade: number, phase: number) => void;
   onRunGradeSequence?: (grade: number) => void;
+  /** M1-c W3 (2026-04-27): 학년별 재실행 (cascade tier 만 reset, P1~P3 캐시 보존). */
+  onRerunGrade?: (grade: number) => void;
   /** 학년 단위 실행 버튼 disabled 여부 (전체 실행 중 등) */
   isGradeRunDisabled?: boolean;
 }
@@ -36,6 +38,7 @@ export function PipelineGradeGrid({
   runningStartMs,
   onRunGradePhase,
   onRunGradeSequence,
+  onRerunGrade,
   isGradeRunDisabled,
 }: PipelineGradeGridProps) {
   return (
@@ -163,6 +166,21 @@ export function PipelineGradeGrid({
                             전체
                           </button>
                         )}
+                        {/* M1-c W3 (2026-04-27): 학년별 재실행 — completed 학년에서 cascade tier 만 reset */}
+                        {isFirstSection &&
+                          onRerunGrade &&
+                          pipeline?.status === "completed" &&
+                          !isGradeRunDisabled && (
+                            <button
+                              type="button"
+                              onClick={() => onRerunGrade(grade)}
+                              title={`${grade}학년 cascade tier 재실행 (P3.6+P4-P9, P1-P3 캐시 보존)`}
+                              className="inline-flex items-center gap-0.5 rounded-sm border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30 px-1 py-px text-[9px] font-medium transition-colors cursor-pointer"
+                            >
+                              <RefreshCw className="h-2.5 w-2.5" />
+                              재실행
+                            </button>
+                          )}
                       </div>
 
                       {section.phases.map((pg) => {

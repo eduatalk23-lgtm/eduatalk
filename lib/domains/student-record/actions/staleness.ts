@@ -4,18 +4,18 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPipelineStaleness, checkBlueprintStaleness } from "../stale-detection";
 
-/** 파이프라인 stale 여부 조회 (서버 액션) */
+/** 파이프라인 stale 여부 조회 (서버 액션). M1-c W3: reason 분기 노출. */
 export async function checkPipelineStalenessAction(
   studentId: string,
-): Promise<{ isStale: boolean }> {
+): Promise<{ isStale: boolean; reason: "record_changed" | "task_manifest_changed" | null }> {
   try {
     const { tenantId } = await requireAdminOrConsultant();
-    if (!tenantId) return { isStale: false };
+    if (!tenantId) return { isStale: false, reason: null };
 
     const result = await checkPipelineStaleness(studentId, tenantId);
-    return { isStale: result.isStale };
+    return { isStale: result.isStale, reason: result.reason };
   } catch {
-    return { isStale: false };
+    return { isStale: false, reason: null };
   }
 }
 

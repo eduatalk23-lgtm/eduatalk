@@ -24,7 +24,10 @@ import {
   checkPipelineStalenessAction,
   checkBlueprintStalenessAction,
 } from "@/lib/domains/student-record/actions/staleness";
-import { rerunBlueprintFromStalenessAction } from "@/lib/domains/student-record/actions/pipeline-orchestrator-rerun";
+import {
+  rerunBlueprintFromStalenessAction,
+  rerunGradePipelineTasks,
+} from "@/lib/domains/student-record/actions/pipeline-orchestrator-rerun";
 import { useSidePanel } from "@/components/side-panel";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -148,6 +151,8 @@ export function PipelinePanelApp({
     staleTime: 30_000,
   });
   const isPipelineStale = stalenessData?.isStale ?? false;
+  // M1-c W3 (2026-04-27): staleness reason 분기 — record_changed vs task_manifest_changed
+  const stalenessReason = stalenessData?.reason ?? null;
 
   // Phase 4a (2026-04-19): Blueprint Staleness Cascade.
   //   main_exploration 변경 후 blueprint 가 stale 인지 별도 체크.
@@ -169,6 +174,36 @@ export function PipelinePanelApp({
       return;
     }
     showSuccess("Blueprint 부터 재실행을 시작합니다");
+    await queryClient.invalidateQueries({
+      queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
+    });
+    runFullSequence();
+  };
+
+  // M1-c W3 (2026-04-27): 학년별 cascade tier 재실행.
+  // P1~P3 (역량 분석) 캐시는 보존하고 P3.6 derive_main_theme + P4~P9 만 reset.
+  // 새 cascade 코드 검증 / 코드 변경 후 재측정 시나리오에 사용.
+  const handleRerunGrade = async (grade: number) => {
+    const pipelineId = gp[grade]?.pipelineId;
+    if (!pipelineId) {
+      showError(`${grade}학년 파이프라인을 찾을 수 없습니다`);
+      return;
+    }
+    const result = await rerunGradePipelineTasks(pipelineId, [
+      "derive_main_theme",
+      "setek_guide",
+      "changche_guide",
+      "haengteuk_guide",
+      "slot_generation",
+      "draft_generation",
+      "draft_analysis",
+      "draft_refinement",
+    ] as GradePipelineTaskKey[]);
+    if (!result.success) {
+      showError(result.error ?? `${grade}학년 재실행 실패`);
+      return;
+    }
+    showSuccess(`${grade}학년 cascade tier 재실행을 시작합니다 (P1~P3 캐시 보존)`);
     await queryClient.invalidateQueries({
       queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
     });
@@ -502,7 +537,9 @@ export function PipelinePanelApp({
           <div className="flex items-center gap-1.5 min-w-0">
             <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
             <span className="text-xs text-amber-700 dark:text-amber-300 truncate">
-              입력 데이터가 변경되었습니다. 재분석이 필요합니다.
+              {stalenessReason === "task_manifest_changed"
+                ? "새 분석 단계가 추가되었습니다. 재실행하면 신규 task 가 자동 합류합니다."
+                : "입력 데이터가 변경되었습니다. 재분석이 필요합니다."}
             </span>
           </div>
           <button
@@ -512,7 +549,7 @@ export function PipelinePanelApp({
             className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
           >
             <RefreshCw className="h-3 w-3" />
-            재분석
+            {stalenessReason === "task_manifest_changed" ? "재분석 (신규 단계 합류)" : "재분석"}
           </button>
         </div>
       )}
@@ -556,6 +593,7 @@ export function PipelinePanelApp({
             runningStartMs={runningStartMs}
             onRunGradePhase={runGradePhase}
             onRunGradeSequence={runGradeSequence}
+            onRerunGrade={handleRerunGrade}
             isGradeRunDisabled={isAnyRunning || isCancelling}
           />
           <PipelinePastBlueprintGrid

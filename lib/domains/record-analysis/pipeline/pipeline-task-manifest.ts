@@ -718,3 +718,7 @@ export function findReadersOfTable(table: string): ManifestTaskKey[] {
   }
   return readers;
 }
+
+// M1-c W3 (2026-04-27): manifest hash 헬퍼는 별도 파일로 분리.
+// 거대한 PIPELINE_TASK_MANIFEST 객체와 module-level 평가 충돌 회피.
+// → @/lib/domains/record-analysis/pipeline/pipeline-manifest-hash 참조.

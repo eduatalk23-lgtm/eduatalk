@@ -19,6 +19,7 @@ import type {
 } from "./pipeline-types";
 import { resolveRecordData, resolveRecordDataForGrade, deriveGradeCategories } from "./pipeline-data-resolver";
 import { PIPELINE_TASK_KEYS, GRADE_PIPELINE_TASK_KEYS, SYNTHESIS_PIPELINE_TASK_KEYS, PAST_ANALYTICS_TASK_KEYS, BLUEPRINT_TASK_KEYS, BOOTSTRAP_TASK_KEYS, PIPELINE_TASK_TIMEOUTS, GRADE_PIPELINE_TASK_TIMEOUTS, PAST_ANALYTICS_TASK_TIMEOUTS, BLUEPRINT_TASK_TIMEOUTS, BOOTSTRAP_TASK_TIMEOUTS, GRADE_PHASE_TASKS, SYNTHESIS_PHASE_TASKS } from "./pipeline-types";
+import { computeManifestHash } from "./pipeline-manifest-hash";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -75,6 +76,24 @@ export async function updatePipelineState(
   };
   if (isFinal) {
     update.completed_at = new Date().toISOString();
+    // M1-c W3 (2026-04-27): 풀런 완료 시 manifest hash 영속.
+    // 이후 코드 변경으로 새 task 가 추가되면 hash mismatch → checkPipelineStaleness 가
+    // isStale=true / reason='task_manifest_changed' 반환 → UI 재실행 안내.
+    if (status === "completed") {
+      try {
+        const { data: row } = await supabase
+          .from("student_record_analysis_pipelines")
+          .select("pipeline_type")
+          .eq("id", pipelineId)
+          .maybeSingle();
+        const pType = row?.pipeline_type as string | undefined;
+        if (pType && (pType === "grade" || pType === "synthesis" || pType === "past_analytics" || pType === "blueprint")) {
+          update.task_manifest_hash = computeManifestHash(pType);
+        }
+      } catch (err) {
+        logActionWarn(LOG_CTX, `manifest hash 계산 실패: ${err instanceof Error ? err.message : String(err)}`, { pipelineId });
+      }
+    }
   }
 
   // CAS 가드: "running"으로 덮어쓰는 경우, 이미 cancelled인 파이프라인은 건드리지 않는다.

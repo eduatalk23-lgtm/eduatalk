@@ -376,19 +376,29 @@ export async function checkBlueprintStaleness(
 }
 
 /**
- * 파이프라인의 content_hash와 현재 레코드 상태를 비교하여 stale 여부 반환
+ * 파이프라인의 content_hash와 현재 레코드 상태를 비교하여 stale 여부 반환.
+ *
+ * M1-c W3 (2026-04-27): manifest hash 분기 추가.
+ * - reason='record_changed': 학생 레코드/수강계획 본문 변경
+ * - reason='task_manifest_changed': 코드 변경으로 task graph 가 갱신 (예: 새 분석 단계 추가)
+ * - reason=null: stale 아님
  */
 export async function checkPipelineStaleness(
   studentId: string,
   tenantId: string,
-): Promise<{ isStale: boolean; savedHash: string | null; currentHash: string }> {
+): Promise<{
+  isStale: boolean;
+  savedHash: string | null;
+  currentHash: string;
+  reason: "record_changed" | "task_manifest_changed" | null;
+}> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 최신 완료 synthesis 파이프라인의 content_hash 조회
+  // 1. 최신 완료 synthesis 파이프라인의 content_hash + task_manifest_hash 조회
   // (content_hash를 실제로 저장하는 것은 synthesis뿐 — grade 파이프라인은 null)
   const { data: pipeline } = await supabase
     .from("student_record_analysis_pipelines")
-    .select("content_hash")
+    .select("content_hash, task_manifest_hash")
     .eq("student_id", studentId)
     .eq("status", "completed")
     .eq("pipeline_type", "synthesis")
@@ -397,6 +407,26 @@ export async function checkPipelineStaleness(
     .maybeSingle();
 
   const savedHash = pipeline?.content_hash ?? null;
+  const savedManifestHash = (pipeline?.task_manifest_hash as string | null | undefined) ?? null;
+
+  // 1-b. Manifest hash 비교 — 우선순위 높음 (코드 변경으로 새 task 추가 시 즉시 감지)
+  // synthesis 가 한 번이라도 완료된 적이 있을 때만 비교 (savedManifestHash 가 있을 때만).
+  if (savedManifestHash != null) {
+    try {
+      const { computeManifestHash } = await import("@/lib/domains/record-analysis/pipeline/pipeline-manifest-hash");
+      const currentManifestHash = computeManifestHash("synthesis");
+      if (savedManifestHash !== currentManifestHash) {
+        return {
+          isStale: true,
+          savedHash,
+          currentHash: savedHash ?? "",
+          reason: "task_manifest_changed",
+        };
+      }
+    } catch {
+      // graceful: manifest hash 모듈 로드 실패 시 record hash 분기로 폴백
+    }
+  }
 
   // 2. 현재 레코드 해시 계산 (personal_seteks + 수강계획 포함)
   const [seteks, personalSeteks, changche, haengteuk, coursePlans] = await Promise.all([
@@ -439,9 +469,11 @@ export async function checkPipelineStaleness(
   const coursePlanRecords = (coursePlans.data ?? []).map((r) => ({ id: r.id, updated_at: r.updated_at }));
   const currentHash = computeContentHash(allRecords, coursePlanRecords);
 
+  const recordStale = savedHash !== null && savedHash !== currentHash;
   return {
-    isStale: savedHash !== null && savedHash !== currentHash,
+    isStale: recordStale,
     savedHash,
     currentHash,
+    reason: recordStale ? "record_changed" : null,
   };
 }
