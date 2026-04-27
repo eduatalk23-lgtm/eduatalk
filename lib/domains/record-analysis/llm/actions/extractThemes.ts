@@ -83,7 +83,11 @@ export async function extractCrossSubjectThemes(
         generateTextWithRateLimit({
           system: CROSS_SUBJECT_THEMES_SYSTEM_PROMPT,
           messages: [{ role: "user", content: userPrompt }],
-          modelTier: "advanced",
+          // M1-c W6 (2026-04-27): advanced → fast.
+          // 14 records × 550자 input + themes 6개 output 은 fast tier 충분.
+          // phase route maxDuration 300s 안에 다른 pre-task 와 직렬 들어가야 함 → 응답 시간 단축 필수.
+          // 메모리 LLM Actions 표: extractNarrativeArc (8단계 서사, 더 복잡) 도 fast 사용.
+          modelTier: "fast",
           temperature: 0.3,
           maxTokens: 4000,
           responseFormat: "json",

@@ -320,6 +320,96 @@ export async function executeGradePhase3(
 // Grade Phase 4: 과목 교차 테마 추출(P3.5 → 직렬) + 세특 가이드 + 슬롯 생성 (병렬)
 // ============================================
 
+// ============================================
+// Grade Phase 4-Pre (M1-c W6, 2026-04-27): pre-task 4개 분리
+//
+// cross_subject_theme_extraction (fast LLM, ~30-60s) +
+// competency_volunteer (~20-40s) + competency_awards (~15-30s) +
+// derive_main_theme (~10-30s, hash hit 시 0)
+//
+// 합 80-160s (worst 200s) — phase route maxDuration 300s 내 안전 단독 실행.
+// Phase 4 (setek_guide chunk + slot_generation) 와 분리 → route timeout 압박 해소.
+// 모든 task 가 graceful (실패해도 가이드 계속) — 실패 → main 진입 시 prereq skip.
+//
+// UI 가 phase-3 후 phase-4-pre 1회 호출, 그 다음 phase-4 chunk loop 호출.
+// ============================================
+
+export async function executeGradePhase4Pre(
+  ctx: PipelineContext,
+): Promise<void> {
+  if (await checkCancelled(ctx)) return;
+
+  // setup: narrativeContext + orient + blueprint cache (idempotent)
+  if (!ctx.narrativeContext) {
+    const { buildNarrativeContextFromAnalysisContext } = await import("./narrative-context");
+    ctx.narrativeContext = buildNarrativeContextFromAnalysisContext(ctx.belief.analysisContext);
+  }
+  if (!ctx.plannerDirective) {
+    const { runOrientPhase } = await import("./pipeline-orient-phase");
+    ctx.plannerDirective = await runOrientPhase(ctx);
+  }
+  if (ctx.gradeMode === "design" && !ctx.belief.blueprint) {
+    const { loadBlueprintForStudent } = await import("../blueprint/loader");
+    const loaded = await loadBlueprintForStudent(ctx.studentId, ctx.tenantId);
+    if (loaded) ctx.belief.blueprint = loaded;
+  }
+
+  // P3.5 cross_subject (graceful, prereq 실패 시 skip)
+  if (!skipIfPrereqFailed(ctx, "cross_subject_theme_extraction")) {
+    await runTaskWithState(ctx, "cross_subject_theme_extraction", () =>
+      runCrossSubjectThemeExtractionForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+
+  // β(A) MidPipelinePlanner (telemetry 영속)
+  if (ctx.midPlan === undefined) {
+    try {
+      const { runMidPipelinePlanner } = await import("./orient/mid-pipeline-planner");
+      ctx.midPlan = await runMidPipelinePlanner(ctx);
+    } catch {
+      ctx.midPlan = null;
+    }
+    if (ctx.midPlan !== null) {
+      ctx.results["_midPlan"] = ctx.midPlan as unknown as Record<string, unknown>;
+      await updatePipelineState(
+        ctx.supabase as SupabaseAdminClient,
+        ctx.pipelineId, "running",
+        ctx.tasks, ctx.previews, ctx.results, ctx.errors,
+      );
+    }
+  }
+
+  // α1-2 봉사 (graceful)
+  if (!skipIfPrereqFailed(ctx, "competency_volunteer")) {
+    await runTaskWithState(ctx, "competency_volunteer", () =>
+      runCompetencyVolunteerForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+
+  // α1-4-b 수상 (graceful)
+  if (!skipIfPrereqFailed(ctx, "competency_awards")) {
+    await runTaskWithState(ctx, "competency_awards", () =>
+      runCompetencyAwardsForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+
+  // P3.6 derive_main_theme (graceful)
+  if (!skipIfPrereqFailed(ctx, "derive_main_theme")) {
+    await runTaskWithState(ctx, "derive_main_theme", () =>
+      runDeriveMainThemeForGrade(ctx),
+    );
+    if (await checkCancelled(ctx)) return;
+  }
+}
+
+// ============================================
+// Grade Phase 4: setek_guide + slot_generation
+// (M1-c W6: pre-task 는 phase-4-pre 로 분리. 이 함수는 setup idempotent + main task)
+// ============================================
+
 export async function executeGradePhase4(
   ctx: PipelineContext,
   chunkOpts?: { chunkSize?: number },

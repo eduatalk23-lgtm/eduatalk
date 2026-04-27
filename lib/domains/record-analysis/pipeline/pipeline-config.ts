@@ -309,7 +309,8 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   competency_setek: 280_000,   // 세특이 가장 오래 걸림 (Vercel 5분 제한 내 여유)
   competency_changche: 120_000,
   competency_haengteuk: 120_000,
-  cross_subject_theme_extraction: 120_000,
+  // M1-c W6 (2026-04-27): fast tier 전환 후에도 14 records prompt 응답 여유 확보 (~30-60s 예상).
+  cross_subject_theme_extraction: 180_000,
   competency_volunteer: 90_000,  // α1-2: 학년 묶음 1회 LLM 호출 (~20-40s). 봉사 description 짧음.
   competency_awards: 90_000,     // α1-4-b: 학년 묶음 1회 LLM 호출 (~15-30s). 수상 정보는 봉사보다도 짧음.
   // M1-c W4 hotfix (2026-04-27): 인제고 1학년 첫 풀런 실측 120s 초과. fast tier 응답 변동성 ↑ (rate limit retry 또는 Pro fallback 영향).

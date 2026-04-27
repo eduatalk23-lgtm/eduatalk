@@ -458,6 +458,32 @@ export function usePipelineExecution({
       setRunningStartMs(Date.now());
 
       const MAX_RETRIES = 2;
+
+      // M1-c W6 (2026-04-27): phase=4 진입 직전 phase-4-pre 1회 선행 호출.
+      // pre-task 4종 (cross_subject + volunteer + awards + derive_main_theme) 분리 → route timeout 압박 해소.
+      if (phase === 4) {
+        for (let preRetry = 0; preRetry <= MAX_RETRIES; preRetry++) {
+          try {
+            await fetchPhase(
+              `/api/admin/pipeline/grade/phase-4-pre`,
+              { pipelineId },
+              signal,
+            );
+            invalidate();
+            break;
+          } catch (e) {
+            if ((e as Error)?.name === "AbortError") return "aborted";
+            if (preRetry >= MAX_RETRIES) break;
+            try {
+              await abortableSleep(3000, signal);
+            } catch {
+              return "aborted";
+            }
+          }
+        }
+        if (isAborted()) return "aborted";
+      }
+
       // 청크 지원 phase: P1~P3 (역량 분석 배치) + P4 (M1-c W5 setek_guide chunk, 2026-04-27) + P7 (가안 생성 배치, B6 2026-04-15) + P8 (가안 분석 배치, 트랙 A 2026-04-14) + P9 (재생성 배치, Phase 5)
       const isChunkedPhase = phase <= 3 || phase === 4 || phase === 7 || phase === 8 || phase === 9;
       if (isChunkedPhase) {
