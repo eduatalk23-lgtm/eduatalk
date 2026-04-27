@@ -49,7 +49,7 @@ export interface RankedGuide {
   narrativeArcBonus?: number;
   /** 스토리라인 키워드 매칭 (1.0 기본, 1.2 매칭) — 관점별 필터링 */
   storylineBonus?: number;
-  /** 격차 3: MidPlan focusHypothesis 키워드 매칭 (1.0 기본, 1.1 일치) */
+  /** 격차 3: MidPlan focusHypothesis 키워드 매칭 (1.0 기본 / 1.05 1매칭 / 1.10 2매칭 / 1.15 3+매칭) */
   midPlanBonus?: number;
   /** 최종 가중치 점수 (모든 보너스 승수 곱) */
   finalScore: number;
@@ -409,16 +409,19 @@ export async function applyContinuityRanking(
       }
     }
 
-    // 격차 3: MidPlan focusHypothesis 토큰 매칭 (가이드 title 에 가설 키워드 포함 시 1.1×)
+    // 격차 3 v3: MidPlan focusHypothesis 키워드 매칭 — 매칭 개수 비례 보너스.
+    //   1개=1.05× / 2개=1.10× / 3+=1.15×. 0개=1.00× (no-op).
+    //   사전 시뮬레이션(김세린): 50건 분포 0매칭 50% / 1매칭 42% / 2매칭 8%.
     let midPlanBonus = 1.0;
     if (midPlanFocusTokens && midPlanFocusTokens.size > 0) {
       const titleLower = g.title.toLowerCase();
+      let hitCount = 0;
       for (const tok of midPlanFocusTokens) {
-        if (titleLower.includes(tok)) {
-          midPlanBonus = 1.1;
-          break;
-        }
+        if (titleLower.includes(tok)) hitCount++;
       }
+      if (hitCount >= 3) midPlanBonus = 1.15;
+      else if (hitCount === 2) midPlanBonus = 1.10;
+      else if (hitCount === 1) midPlanBonus = 1.05;
     }
 
     return {

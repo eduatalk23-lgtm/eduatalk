@@ -340,21 +340,43 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       }
     }
 
-    // 격차 3: MidPlan focusHypothesis 토큰 추출 — ctx.midPlan(최신 학년) + ctx.belief.midPlanByGrade(다학년) 합집합.
-    // 가이드 title 매칭 시 1.10× 보너스 → MidPlanner 메타 가설과 정합한 가이드 우선.
-    const midPlanFocusTokens = new Set<string>();
-    const collectFocusTokens = (focusHypothesis: string | undefined) => {
+    // 격차 3: MidPlan focusHypothesis 키워드 추출 — ctx.midPlan(최신 학년) + ctx.belief.midPlanByGrade(다학년) 합집합.
+    //
+    // v1(폐기): 단순 단일 토큰 매칭 → 6차 풀런에서 50건 중 31건(62%) 매칭, 균일 1.10× 적용으로 변별력 0.
+    // v2(폐기): bigram + 의미 단어만 → 50건 중 0~1건 매칭, 너무 좁음.
+    // v3(현재): 보수적 stopword + 매칭 개수 비례 보너스 (1개=1.05×, 2개=1.10×, 3+=1.15×).
+    //   사전 시뮬레이션: 50건 → 0매칭 25건(50%) / 1매칭 21건(42%) / 2매칭 4건(8%) — 변별력 회복.
+    //   매칭 개수 비례 보너스는 applyContinuityRanking 측에서 keyword.size 보고 dynamic 계산.
+    const midPlanFocusKeywords = new Set<string>();
+    const KO_SUFFIX_STOP = /(은|는|이|가|을|를|에|와|과|의|로|도|만|에서|부터|까지|에게|이다|있다|되다|되|할|것|면|며|므로|이며|있으며|있는|있을|관련된|이지만|할까|일까)$/;
+    const KO_GENERIC_STOP = new Set([
+      "있다", "있으며", "있는", "있을", "이", "그", "저",
+      "대한", "위한", "위해", "대해", "통해", "통한", "관련", "관련된",
+      "학생", "학생은", "역량이", "역량을", "이슈가", "테마", "테마에",
+      "이해가", "이해", "필요할", "필요", "부족할", "부족", "가능성", "가능성이",
+      "것으로", "추정된다", "추정", "발생할", "발생",
+    ]);
+    const collectFocusKeywords = (focusHypothesis: string | undefined) => {
       if (!focusHypothesis) return;
-      // 한국어/영문 혼용 토큰화. 따옴표·특수문자 제거 후 길이 2 이상만 채택.
-      for (const tok of focusHypothesis.split(/[\s·,/()[\]{}"'`~!@#$%^&*+=|<>?:;.]+/)) {
-        const t = tok.trim().toLowerCase();
-        if (t.length >= 2) midPlanFocusTokens.add(t);
+      // (1) 영문 kebab-case 추출 (예: critical-thinking, social-issues)
+      const kebabMatches = focusHypothesis.toLowerCase().match(/[a-z]+(?:-[a-z]+)+/g) ?? [];
+      for (const m of kebabMatches) midPlanFocusKeywords.add(m);
+      // (2) 괄호 안 영문 라벨 제거 후 의미 한국어 어절 + 인접 bigram
+      const cleaned = focusHypothesis.replace(/\([^)]*\)/g, " ");
+      const allWords = cleaned
+        .split(/[\s·,/[\]{}"'`~!@#$%^&*+=|<>?:;.0-9]+/)
+        .map((w) => w.trim())
+        .filter((w) => w.length >= 2 && /^[가-힣]+$/.test(w));
+      const semantic = allWords.filter((w) => !KO_SUFFIX_STOP.test(w) && !KO_GENERIC_STOP.has(w));
+      for (const w of semantic) midPlanFocusKeywords.add(w);
+      for (let i = 0; i < semantic.length - 1; i++) {
+        midPlanFocusKeywords.add(`${semantic[i]} ${semantic[i + 1]}`);
       }
     };
-    if (ctx.midPlan?.focusHypothesis) collectFocusTokens(ctx.midPlan.focusHypothesis);
+    if (ctx.midPlan?.focusHypothesis) collectFocusKeywords(ctx.midPlan.focusHypothesis);
     if (ctx.belief.midPlanByGrade) {
       for (const mp of Object.values(ctx.belief.midPlanByGrade)) {
-        collectFocusTokens(mp?.focusHypothesis);
+        collectFocusKeywords(mp?.focusHypothesis);
       }
     }
 
@@ -367,7 +389,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       studentId,
       tenantId,
       majorRecommendedSubjectIds,
-      midPlanFocusTokens.size > 0 ? midPlanFocusTokens : undefined,
+      midPlanFocusKeywords.size > 0 ? midPlanFocusKeywords : undefined,
     );
     state.phaseB.ranked.push(...poolRanked);
   }
