@@ -572,11 +572,14 @@ async function runCompetencyForType(ctx: PipelineContext, recordType: Competency
   // 행특이 마지막 역량 분석 Phase이므로 여기서 전 영역 집계를 실행
   if (recordType === "haengteuk") {
     await runHaengteukAggregate(ctx, targetGrade, allResults);
+  }
 
-    // Phase 분할 재시작 시 복원 가능하도록 task_results 에 영속화
-    if (ctx.belief.analysisContext) {
-      ctx.results["_analysisContext"] = ctx.belief.analysisContext;
-    }
+  // 모든 recordType / 모든 phase 완료 후 영속화.
+  // 버그 수정: 이전에는 haengteuk 마지막 phase 에서만 저장했기 때문에
+  // P1(setek)/P2(changche)의 analysisContext 가 다음 HTTP 청크 요청에서 복원되지 않아
+  // P4-P6 가이드 러너 / P3.5 테마 추출 / MidPlanner 에 haengteuk 1건만 주입되는 결함이 있었음.
+  if (ctx.belief.analysisContext) {
+    ctx.results["_analysisContext"] = ctx.belief.analysisContext;
   }
 
   const total = succeeded + skipped + failed;
@@ -636,11 +639,15 @@ async function runCompetencyChunkForType(
   // 행특: 마지막 청크에서만 집계 실행
   if (recordType === "haengteuk" && !hasMore) {
     await runHaengteukAggregate(ctx, targetGrade, allResults);
+  }
 
-    // Phase 분할 재시작 시 복원 가능하도록 task_results 에 영속화
-    if (ctx.belief.analysisContext) {
-      ctx.results["_analysisContext"] = ctx.belief.analysisContext;
-    }
+  // 모든 recordType / 모든 청크 완료 후 영속화.
+  // 버그 수정: 이전에는 haengteuk 마지막 청크에서만 저장했기 때문에
+  // P1(setek)/P2(changche) 각 청크와 haengteuk 중간 청크의 analysisContext 가
+  // 다음 HTTP 청크 요청 에서 복원되지 않아 P4-P6 / P3.5 / MidPlanner 에
+  // haengteuk 1건만 주입되는 결함이 있었음.
+  if (ctx.belief.analysisContext) {
+    ctx.results["_analysisContext"] = ctx.belief.analysisContext;
   }
 
   const total = succeeded + skipped + failed;
