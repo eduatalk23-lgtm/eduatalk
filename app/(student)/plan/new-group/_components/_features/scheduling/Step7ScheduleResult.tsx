@@ -73,20 +73,24 @@ export function Step7ScheduleResult({
       await updatePlanGroupStatus(groupId, "saved");
       return generatePlansFromGroupAction(groupId);
     },
-    onSuccess: async () => {
-      // 플랜 생성 후 DB 동기화를 위한 짧은 지연
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      // 플랜 생성 후 관련 쿼리 무효화 및 즉시 refetch
-      await queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["planSchedule", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["contentScheduleOverview", groupId] });
-      // 즉시 refetch하여 최신 데이터 표시
-      // refetch가 완료될 때까지 기다려서 plansCheck가 업데이트되도록 보장
-      await queryClient.refetchQueries({
-        queryKey: ["plansExist", groupId],
-        exact: true
+    onSuccess: (result) => {
+      // plansExist: mutation 응답의 count로 직접 캐시 주입 → isWaitingForPlansCheck 가드가 즉시 해소됨
+      const count = result?.count ?? 0;
+      queryClient.setQueryData(["plansExist", groupId], {
+        hasPlans: count > 0,
+        planCount: count,
       });
-      await queryClient.refetchQueries({ queryKey: ["planSchedule", groupId] });
+
+      // planSchedule / contentScheduleOverview: mutation 응답에 해당 데이터가 없으므로
+      // stale 표시만 하고 실제 refetch는 각 컴포넌트가 마운트될 때 처리
+      queryClient.invalidateQueries({
+        queryKey: ["planSchedule", groupId],
+        refetchType: "none",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentScheduleOverview", groupId],
+        refetchType: "none",
+      });
     },
   });
 

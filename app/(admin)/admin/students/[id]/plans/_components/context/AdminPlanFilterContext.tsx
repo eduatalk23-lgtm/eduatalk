@@ -177,23 +177,15 @@ export function AdminPlanFilterProvider({
         return;
       }
 
-      // Admin calendar page (/admin/calendar?student=xxx):
-      // URL만 동기화, 서버 컴포넌트 재실행 방지 (불필요한 auth 호출 제거)
-      if (pathname === '/admin/calendar') {
-        window.history.replaceState(null, '', `/admin/calendar?student=${studentId}&date=${date}`);
-        return;
-      }
-
-      if (selectedCalendarId) {
-        const basePath = viewMode === "student"
-          ? `/plan/calendar`
-          : `/admin/students/${studentId}/plans/calendar/${selectedCalendarId}`;
+      if (viewMode === "student") {
+        // student 모드: React Query가 데이터를 관리하므로 router.replace로 URL 동기화
+        // (page.tsx가 thin shell로 축소되어 router.replace 시 서버 재실행 비용 최소화)
+        const basePath = selectedCalendarId ? `/plan/calendar` : `/plan/planner`;
         router.replace(`${basePath}?date=${date}`, { scroll: false });
+      } else if (selectedCalendarId) {
+        router.replace(`/admin/students/${studentId}/plans/calendar/${selectedCalendarId}?date=${date}`, { scroll: false });
       } else {
-        const basePath = viewMode === "student"
-          ? `/plan/planner`
-          : `/admin/students/${studentId}/plans`;
-        router.replace(`${basePath}?date=${date}`, { scroll: false });
+        router.replace(`/admin/students/${studentId}/plans?date=${date}`, { scroll: false });
       }
     },
     [router, studentId, selectedCalendarId, viewMode, pathname]

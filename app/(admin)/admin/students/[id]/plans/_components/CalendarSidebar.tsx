@@ -511,7 +511,7 @@ export function CalendarSidebar() {
                     <div className="space-y-0.5">
                       {group.items.map((plan) => (
                         <OverdueItem
-                          key={plan.id}
+                          key={`${plan.id}-${plan.planDate ?? 'no-date'}`}
                           plan={plan}
                           onClick={(e) => {
                             showPopover(plan, e.currentTarget.getBoundingClientRect());
@@ -1295,7 +1295,7 @@ function OverdueListDialog({
             // 과목순: 플랫 리스트
             sorted.map((plan) => (
               <OverdueDialogItem
-                key={plan.id}
+                key={`${plan.id}-${plan.planDate ?? 'no-date'}`}
                 plan={plan}
                 onItemClick={onItemClick}
                 onCheckboxChange={onCheckboxChange}
@@ -1311,7 +1311,7 @@ function OverdueListDialog({
                 </p>
                 {group.items.map((plan) => (
                   <OverdueDialogItem
-                    key={plan.id}
+                    key={`${plan.id}-${plan.planDate ?? 'no-date'}`}
                     plan={plan}
                     onItemClick={onItemClick}
                     onCheckboxChange={onCheckboxChange}
