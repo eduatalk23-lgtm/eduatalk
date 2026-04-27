@@ -340,6 +340,24 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       }
     }
 
+    // 격차 3: MidPlan focusHypothesis 토큰 추출 — ctx.midPlan(최신 학년) + ctx.belief.midPlanByGrade(다학년) 합집합.
+    // 가이드 title 매칭 시 1.10× 보너스 → MidPlanner 메타 가설과 정합한 가이드 우선.
+    const midPlanFocusTokens = new Set<string>();
+    const collectFocusTokens = (focusHypothesis: string | undefined) => {
+      if (!focusHypothesis) return;
+      // 한국어/영문 혼용 토큰화. 따옴표·특수문자 제거 후 길이 2 이상만 채택.
+      for (const tok of focusHypothesis.split(/[\s·,/()[\]{}"'`~!@#$%^&*+=|<>?:;.]+/)) {
+        const t = tok.trim().toLowerCase();
+        if (t.length >= 2) midPlanFocusTokens.add(t);
+      }
+    };
+    if (ctx.midPlan?.focusHypothesis) collectFocusTokens(ctx.midPlan.focusHypothesis);
+    if (ctx.belief.midPlanByGrade) {
+      for (const mp of Object.values(ctx.belief.midPlanByGrade)) {
+        collectFocusTokens(mp?.focusHypothesis);
+      }
+    }
+
     // ranking 적용 후 기존 ranked에 추가
     const poolRanked = await applyContinuityRanking(
       [...guideMap.values()],
@@ -349,6 +367,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       studentId,
       tenantId,
       majorRecommendedSubjectIds,
+      midPlanFocusTokens.size > 0 ? midPlanFocusTokens : undefined,
     );
     state.phaseB.ranked.push(...poolRanked);
   }

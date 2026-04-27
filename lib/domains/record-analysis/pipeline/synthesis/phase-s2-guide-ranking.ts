@@ -49,6 +49,8 @@ export interface RankedGuide {
   narrativeArcBonus?: number;
   /** 스토리라인 키워드 매칭 (1.0 기본, 1.2 매칭) — 관점별 필터링 */
   storylineBonus?: number;
+  /** 격차 3: MidPlan focusHypothesis 키워드 매칭 (1.0 기본, 1.1 일치) */
+  midPlanBonus?: number;
   /** 최종 가중치 점수 (모든 보너스 승수 곱) */
   finalScore: number;
 }
@@ -126,6 +128,8 @@ export async function applyContinuityRanking(
   studentId: string,
   tenantIdForRanking: string,
   majorRecommendedSubjectIds?: Set<string>,
+  /** 격차 3: MidPlan focusHypothesis 키워드 토큰 (caller 가 ctx.midPlan + belief.midPlanByGrade 에서 추출). 없으면 보너스 미적용. */
+  midPlanFocusTokens?: Set<string>,
 ): Promise<RankedGuide[]> {
   if (guides.length === 0) return [];
 
@@ -405,6 +409,18 @@ export async function applyContinuityRanking(
       }
     }
 
+    // 격차 3: MidPlan focusHypothesis 토큰 매칭 (가이드 title 에 가설 키워드 포함 시 1.1×)
+    let midPlanBonus = 1.0;
+    if (midPlanFocusTokens && midPlanFocusTokens.size > 0) {
+      const titleLower = g.title.toLowerCase();
+      for (const tok of midPlanFocusTokens) {
+        if (titleLower.includes(tok)) {
+          midPlanBonus = 1.1;
+          break;
+        }
+      }
+    }
+
     return {
       id: g.id,
       title: g.title,
@@ -418,6 +434,7 @@ export async function applyContinuityRanking(
       hyperedgeBonus,
       narrativeArcBonus,
       storylineBonus,
+      midPlanBonus,
       finalScore:
         baseScore *
         continuityScore *
@@ -426,7 +443,8 @@ export async function applyContinuityRanking(
         majorBonus *
         hyperedgeBonus *
         narrativeArcBonus *
-        storylineBonus,
+        storylineBonus *
+        midPlanBonus,
     };
   });
 

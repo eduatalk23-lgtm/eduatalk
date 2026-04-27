@@ -329,19 +329,14 @@ export async function runAiDiagnosis(
     logActionError({ ...LOG_CTX, action: "pipeline.hakjongScoreSection.diagnosis" }, hkErr, { pipelineId });
   }
 
-  // Phase B G3 / Phase D2: 학년 지배 교과 교차 테마 → 진단 프롬프트 주입.
-  // Synthesis: belief.gradeThemesByGrade (Phase D2 시딩) 우선 사용 → buildGradeThemesByGradeSection.
-  // Grade 파이프라인(단일 학년): belief.gradeThemes → buildGradeThemesSection 폴백.
+  // Phase D2: 학년 지배 교과 교차 테마 → 진단 프롬프트 주입.
+  // Synthesis 단독 phase 이므로 belief.gradeThemesByGrade (Phase D2 시딩) 만 사용.
+  // 격차 4: 단일 belief.gradeThemes 폴백 분기 제거 — Synthesis ctx.belief.gradeThemes 는 시딩되지 않으므로 dead.
   let gradeThemesSection: string | undefined;
   try {
-    if (ctx.belief.gradeThemesByGrade) {
-      const { buildGradeThemesByGradeSection } = await import("./helpers");
-      const built = buildGradeThemesByGradeSection(ctx.belief.gradeThemesByGrade);
-      if (built) gradeThemesSection = built;
-    } else {
-      const { buildGradeThemesSection } = await import("@/lib/domains/record-analysis/llm/grade-themes-section");
-      gradeThemesSection = buildGradeThemesSection(ctx.belief.gradeThemes);
-    }
+    const { buildGradeThemesByGradeSection } = await import("./helpers");
+    const built = buildGradeThemesByGradeSection(ctx.belief.gradeThemesByGrade);
+    if (built) gradeThemesSection = built;
   } catch (gtErr) {
     logActionError({ ...LOG_CTX, action: "pipeline.gradeThemesSection.diagnosis" }, gtErr, { pipelineId });
   }

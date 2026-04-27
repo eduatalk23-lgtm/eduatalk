@@ -67,6 +67,10 @@ vi.mock("../pipeline/synthesis/helpers", () => ({
   fetchAllYearCompetencyScores: vi.fn().mockResolvedValue([]),
   buildUniversityMatchPromptSection: vi.fn().mockReturnValue(undefined),
   buildHyperedgeSummarySection: vi.fn().mockReturnValue(undefined),
+  buildGradeThemesByGradeSection: vi.fn().mockImplementation((byGrade: unknown) => {
+    if (!byGrade || Object.keys(byGrade as object).length === 0) return undefined;
+    return "## 학년 테마 섹션";
+  }),
   competencyGradeToScore: vi.fn().mockReturnValue(0),
   aggregateQualityPatterns: vi.fn().mockResolvedValue({ qualityPatternSection: undefined, repeatingPatterns: [] }),
   fetchActiveMainExplorationSection: vi.fn().mockResolvedValue(undefined),
@@ -207,10 +211,14 @@ describe("S5 ai_strategy — Phase A/B 신호 통합 테스트", () => {
       "@/lib/domains/record-analysis/pipeline/synthesis/phase-s5-strategy"
     );
 
-    const gradeThemes = { 1: { dominantSubject: "수학" }, 2: { dominantSubject: "물리" } };
+    // 격차 4 이후: Synthesis 단독 phase 라 gradeThemesByGrade 만 사용 (단일 gradeThemes 폴백 제거).
+    const gradeThemesByGrade = {
+      1: { themes: [{ id: "t1", label: "수학" }], dominantThemeIds: ["t1"] },
+      2: { themes: [{ id: "t2", label: "물리" }], dominantThemeIds: ["t2"] },
+    };
     const profileCard = "## 학생 프로필\n수학-물리 융합 탐구 학생";
     const ctx = makeCtx({
-      belief: { gradeThemes, profileCard },
+      belief: { gradeThemesByGrade, profileCard },
     });
 
     await runAiStrategy(ctx as never);

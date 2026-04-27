@@ -124,6 +124,10 @@ vi.mock("../pipeline/synthesis/helpers", () => ({
   buildTimeseriesPromptSection: vi.fn().mockReturnValue(""),
   aggregateGradeThemes: vi.fn().mockResolvedValue({}),
   buildCrossSubjectThemesDiagnosisSection: vi.fn().mockReturnValue(undefined),
+  buildGradeThemesByGradeSection: vi.fn().mockImplementation((byGrade: unknown) => {
+    if (!byGrade || Object.keys(byGrade as object).length === 0) return undefined;
+    return "## 학년 테마 섹션";
+  }),
   fetchActiveMainExplorationSection: vi.fn().mockResolvedValue(undefined),
   buildBlueprintContextSection: vi.fn().mockReturnValue(undefined),
   buildHyperedgeSummarySection: vi.fn().mockImplementation((hyperedges: unknown[]) => {
@@ -254,11 +258,12 @@ describe("S3 ai_diagnosis — Phase A/B 신호 통합 테스트", () => {
       "@/lib/domains/record-analysis/pipeline/synthesis/phase-s3-diagnosis"
     );
 
-    const gradeThemes = {
-      1: { dominantSubject: "수학", theme: "수리 기반 탐구" },
-      2: { dominantSubject: "물리", theme: "역학 응용" },
+    // 격차 4 이후: Synthesis 단독 phase 라 gradeThemesByGrade 만 사용 (단일 gradeThemes 폴백 제거).
+    const gradeThemesByGrade = {
+      1: { themes: [{ id: "t1", label: "수리" }], dominantThemeIds: ["t1"] },
+      2: { themes: [{ id: "t2", label: "역학" }], dominantThemeIds: ["t2"] },
     };
-    const ctx = makeCtx({ belief: { gradeThemes } });
+    const ctx = makeCtx({ belief: { gradeThemesByGrade } });
 
     await runAiDiagnosis(ctx as never, [], null);
 
