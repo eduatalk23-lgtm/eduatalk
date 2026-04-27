@@ -96,10 +96,12 @@ export async function generateSetekDirection(
   narrativeArcSection?: string,
   midPlanSection?: string,
   cascadePlanSection?: string,
+  /** M1-c W5: task-level chunk 모드. 외부 runner 가 chunk 단위로 호출 시 전달. undefined = 단일 호출. */
+  chunkRange?: { offset: number; limit: number; totalCount: number; isFirstChunk: boolean; isLastChunk: boolean },
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { generateProspectiveSetekGuide } = await import("./generateSetekGuide");
   return withRetry(
-    () => generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection, midPlanSection, cascadePlanSection),
+    () => generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection, targetSchoolYear, pipelineAnalysisContext, studentProfileCard, narrativeArcSection, midPlanSection, cascadePlanSection, chunkRange),
     { label: "generateSetekDirection" },
   );
 }

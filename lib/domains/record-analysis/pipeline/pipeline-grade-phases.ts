@@ -27,6 +27,7 @@ import {
   runCompetencyHaengteukForGrade,
   runCompetencyHaengteukChunkForGrade,
   runSetekGuideForGrade,
+  runSetekGuideChunkForGrade,
   runSlotGenerationForGrade,
   runChangcheGuideForGrade,
   runHaengteukGuideForGrade,
@@ -321,7 +322,8 @@ export async function executeGradePhase3(
 
 export async function executeGradePhase4(
   ctx: PipelineContext,
-): Promise<void> {
+  chunkOpts?: { chunkSize?: number },
+): Promise<PhaseChunkResult | void> {
   if (await checkCancelled(ctx)) return;
 
   // ── Step 1 (2026-04-24, 비선형 재조직): narrativeContext 격상 ──
@@ -428,6 +430,22 @@ export async function executeGradePhase4(
   const skipGuide = skipIfPrereqFailed(ctx, "setek_guide");
   const skipSlot = skipIfPrereqFailed(ctx, "slot_generation");
 
+  // M1-c W5 (2026-04-27): chunkOpts 가 있으면 setek_guide 만 chunk 분기.
+  // slot_generation 은 첫 chunk (still pending) 에서만 실행 — idempotent 가정.
+  if (chunkOpts?.chunkSize != null) {
+    // slot_generation 미완료면 첫 chunk 시 실행 (idempotent — 재호출 safe)
+    if (!skipSlot && ctx.tasks["slot_generation"] !== "completed") {
+      await runTaskWithState(ctx, "slot_generation", () => runSlotGenerationForGrade(ctx));
+    }
+    if (skipGuide) {
+      // 가이드 prereq 실패 → skip 마킹
+      return COMPLETED_CHUNK_RESULT;
+    }
+    // setek_guide chunk 호출 — executeDraftChunk 패턴 재사용
+    return executeDraftChunk(ctx, "setek_guide", chunkOpts.chunkSize, runSetekGuideChunkForGrade);
+  }
+
+  // 기존 단일 모드 (chunkOpts 없음)
   const tasks: Promise<void>[] = [];
   if (!skipGuide) {
     tasks.push(runTaskWithState(ctx, "setek_guide", () => runSetekGuideForGrade(ctx)));

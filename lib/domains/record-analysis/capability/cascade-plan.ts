@@ -46,7 +46,7 @@ const cascadeGradeNodeSchema = z.object({
   rationale: z
     .string()
     .min(10)
-    .max(240)
+    .max(500)
     .describe("왜 이 학년에 이 tier·교과인가의 근거"),
 });
 

@@ -48,6 +48,7 @@ export {
   runHaengteukGuide,
   runSlotGeneration,
   runSetekGuideForGrade,
+  runSetekGuideChunkForGrade,
   runChangcheGuideForGrade,
   runHaengteukGuideForGrade,
 } from "./pipeline-task-runners-guide";

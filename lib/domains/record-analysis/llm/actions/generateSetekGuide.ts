@@ -266,6 +266,15 @@ export async function generateProspectiveSetekGuide(
   midPlanSection?: string,
   /** M1-c Sprint 1 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
   cascadePlanSection?: string,
+  /**
+   * M1-c W5 (2026-04-27): 외부 task-level chunk 모드.
+   * - undefined: 단일 호출 (기존 동작) — 모든 plans 처리 + deleteExistingGuides + insert
+   * - { offset, limit, isFirstChunk, isLastChunk }: chunk 단위 호출
+   *   · isFirstChunk=true: deleteExistingGuides 실행 (기존 row 정리)
+   *   · 모든 chunk: 자기 subset 만 LLM 호출 + insert (누적)
+   *   · isLastChunk=true: requestedSubjectCount = 전체 plans 수 (완결성 가드용)
+   */
+  chunkRange?: { offset: number; limit: number; totalCount: number; isFirstChunk: boolean; isLastChunk: boolean },
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
@@ -323,7 +332,11 @@ export async function generateProspectiveSetekGuide(
     resolvedCascadeSectionP = await loadAndBuildCascadeSection(studentId, tenantId, fallbackGradeP, supabase);
   }
 
-  const allPlannedSubjects = plans.map((p) => ({
+  // M1-c W5: chunkRange 가 있으면 plans subset 만 처리 (task-level chunk 단위)
+  const effectivePlans = chunkRange
+    ? plans.slice(chunkRange.offset, chunkRange.offset + chunkRange.limit)
+    : plans;
+  const allPlannedSubjects = effectivePlans.map((p) => ({
     subjectName: p.subject?.name ?? "과목 미정",
     grade: p.grade,
     semester: p.semester,
@@ -358,52 +371,23 @@ export async function generateProspectiveSetekGuide(
     hakjongScoreSection: hakjongScoreSectionP,
   };
 
-  // M1-c W4 (2026-04-27): in-runner chunked LLM 호출.
-  // 인제고 1학년 24 과목 + cascade/profileCard/narrativeArc/midPlan/hakjongScore 동시 주입 시
-  // 단일 호출이 240s timeout 도달. plannedSubjects 만 6과목씩 분할해 LLM 4회 직렬 호출.
-  // 공통 입력 (system prompt + cascade 등) 은 4회 반복되지만 각 응답은 6과목 가이드 단위라
-  // 응답 시간 분산 + Vercel 5분 한계 안전 (4 × ~30-60s = ~120-240s).
-  // CHUNK_SIZE 이하 입력은 단일 호출 (기존 동작 유지).
-  const CHUNK_SIZE = 6;
-  const accumulatedGuides: SetekGuideResult["guides"] = [];
-  let firstParsed: SetekGuideResult | null = null;
-
-  if (allPlannedSubjects.length <= CHUNK_SIZE) {
-    const single = await callGuideAI(
-      SYSTEM_PROMPT,
-      buildUserPrompt(baseInput),
-      parseResponse,
-      { maxTokens: 32768, retryLabel: "setekGuide" },
-    );
-    if (!single) {
-      return { success: false, error: "AI 응답이 비어있습니다." };
-    }
-    firstParsed = single;
-    accumulatedGuides.push(...single.guides);
-  } else {
-    const totalChunks = Math.ceil(allPlannedSubjects.length / CHUNK_SIZE);
-    for (let i = 0; i < allPlannedSubjects.length; i += CHUNK_SIZE) {
-      const batch = allPlannedSubjects.slice(i, i + CHUNK_SIZE);
-      const chunkIdx = Math.floor(i / CHUNK_SIZE) + 1;
-      const chunkInput: SetekGuideInput = { ...baseInput, plannedSubjects: batch };
-      const chunkParsed = await callGuideAI(
-        SYSTEM_PROMPT,
-        buildUserPrompt(chunkInput),
-        parseResponse,
-        { maxTokens: 32768, retryLabel: `setekGuide-chunk-${chunkIdx}/${totalChunks}` },
-      );
-      if (!chunkParsed) {
-        return { success: false, error: `AI 응답 비어있음 (chunk ${chunkIdx}/${totalChunks})` };
-      }
-      accumulatedGuides.push(...chunkParsed.guides);
-      if (firstParsed === null) firstParsed = chunkParsed;
-    }
+  // M1-c W5 (2026-04-27): 단일 LLM 호출. chunkRange 가 있으면 effectivePlans (subset) 만 처리.
+  // task-level chunk 모드에서는 외부 runner 가 chunkSize 단위로 본 함수를 반복 호출 (각 호출 = 별도 HTTP request).
+  const retryLabel = chunkRange
+    ? `setekGuide-chunk-${Math.floor(chunkRange.offset / chunkRange.limit) + 1}`
+    : "setekGuide";
+  const parsed = await callGuideAI(
+    SYSTEM_PROMPT,
+    buildUserPrompt(baseInput),
+    parseResponse,
+    { maxTokens: 32768, retryLabel },
+  );
+  if (!parsed) {
+    return { success: false, error: "AI 응답이 비어있습니다." };
   }
-
-  if (accumulatedGuides.length === 0 || firstParsed === null) {
+  if (parsed.guides.length === 0) {
     return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다." };
   }
-  const parsed: SetekGuideResult = { ...firstParsed, guides: accumulatedGuides };
 
   // 과목명 → subject_id 매핑 (계획 과목에서)
   const nameToSubjectId = new Map<string, string>();
@@ -411,13 +395,16 @@ export async function generateProspectiveSetekGuide(
     if (p.subject?.name) nameToSubjectId.set(p.subject.name, p.subject_id);
   }
 
-  // 기존 AI 가이드 삭제
-  const prospDeleteResult = await deleteExistingGuides(
-    "student_record_setek_guides",
-    { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", guideMode: "prospective" },
-    LOG_CTX,
-  );
-  if (prospDeleteResult) return prospDeleteResult;
+  // M1-c W5: chunk 모드에서는 첫 chunk 만 기존 가이드 삭제 (이후 chunk 는 누적 insert).
+  // 단일 호출 모드 (chunkRange undefined) 는 항상 삭제.
+  if (!chunkRange || chunkRange.isFirstChunk) {
+    const prospDeleteResult = await deleteExistingGuides(
+      "student_record_setek_guides",
+      { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", guideMode: "prospective" },
+      LOG_CTX,
+    );
+    if (prospDeleteResult) return prospDeleteResult;
+  }
 
   const rows = parsed.guides
     .map((g, i) => {
@@ -465,6 +452,11 @@ export async function generateProspectiveSetekGuide(
 
   return {
     success: true,
-    data: { ...parsed, summaryId: inserted[0].id, requestedSubjectCount: plans.length },
+    data: {
+      ...parsed,
+      summaryId: inserted[0].id,
+      // M1-c W5: chunk 모드에서는 마지막 chunk 만 totalCount 기준 (전체 plans). 이외 chunk 는 그 chunk 의 plans 수.
+      requestedSubjectCount: chunkRange ? (chunkRange.isLastChunk ? chunkRange.totalCount : effectivePlans.length) : plans.length,
+    },
   };
 }

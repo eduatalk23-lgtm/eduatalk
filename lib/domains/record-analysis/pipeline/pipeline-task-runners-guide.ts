@@ -575,6 +575,125 @@ export async function runSetekGuideForGrade(ctx: PipelineContext): Promise<TaskR
 }
 
 // ============================================
+// G2-chunk. 학년별 세특 방향 가이드 (청크 단위 — task-level chunk, M1-c W5)
+//
+// prospective 모드 (NEIS 0건) 24+ 과목 학생용. plans 를 chunkSize 단위로 slice 후
+// 각 chunk 가 별도 HTTP request 로 처리. 외부 (UI) 가 hasMore=false 까지 loop.
+// 기존 패턴 mimic: runDraftGenerationChunkForGrade.
+// ============================================
+
+export async function runSetekGuideChunkForGrade(
+  ctx: PipelineContext,
+  chunkSize: number,
+): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertGradeCtx(ctx);
+  const { studentId, tenantId, studentGrade, targetGrade } = ctx;
+
+  const { calculateSchoolYear: calcSchoolYear } = await import("@/lib/utils/schoolYear");
+  const currentSchoolYear = calcSchoolYear();
+  const targetSchoolYear = currentSchoolYear - studentGrade + targetGrade;
+
+  const gradeResolved = ctx.belief.resolvedRecords?.[targetGrade];
+  if (!gradeResolved) {
+    return { preview: `${targetGrade}학년 레코드 없음`, hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+  if (gradeResolved.hasAnyNeis) {
+    // 분석 모드는 단일 호출 패턴 (chunk 무관) — runSetekGuideForGrade 위임
+    const out = await runSetekGuideForGrade(ctx);
+    return { preview: typeof out === "string" ? out : (out as { preview?: string }).preview ?? "", hasMore: false, totalUncached: 0, chunkProcessed: 1 };
+  }
+
+  // 컨설팅 학년 (prospective) — chunk 단위 처리
+  const { fetchCoursePlanTabData } = await import("@/lib/domains/student-record/actions/coursePlan");
+  const coursePlanRes = await fetchCoursePlanTabData(studentId).catch(() => null);
+  const coursePlanData = coursePlanRes?.success ? coursePlanRes.data : null;
+  const plans = coursePlanData?.plans?.filter((p) =>
+    (p.plan_status === "confirmed" || p.plan_status === "recommended") && p.grade === targetGrade,
+  ) ?? [];
+
+  const totalCount = plans.length;
+  if (totalCount === 0) {
+    return { preview: `${targetGrade}학년 수강계획 없음`, hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+
+  // 이미 생성된 가이드 row 수 → 다음 chunk offset
+  // 동일 학년 + source='ai' 조건이면 prospective row 만 잡힘 (retrospective 는 다른 학년)
+  const existingCount = await guideRepo.countSetekGuides(
+    { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
+    ctx.supabase,
+  );
+  const offset = existingCount;
+  if (offset >= totalCount) {
+    return { preview: `${targetGrade}학년 세특 방향 ${totalCount}과목 (이미 완료)`, hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+
+  const limit = Math.min(chunkSize, totalCount - offset);
+  const isFirstChunk = offset === 0;
+  const isLastChunk = offset + limit >= totalCount;
+  const chunkIdx = Math.floor(offset / chunkSize) + 1;
+  const totalChunks = Math.ceil(totalCount / chunkSize);
+
+  const gradeReport = await fetchReportOrThrow(studentId, `${targetGrade}학년`, ctx);
+
+  let narrativeArcSection: string | undefined;
+  try {
+    const { buildNarrativeArcDiagnosisSection } = await import("@/lib/domains/record-analysis/llm/narrative-arc-diagnosis-section");
+    narrativeArcSection = await buildNarrativeArcDiagnosisSection(studentId, tenantId, ctx.supabase);
+  } catch (err) {
+    logActionError({ ...LOG_CTX, action: "pipeline.narrativeArcSection.setekGuideChunkForGrade" }, err, { pipelineId: ctx.pipelineId });
+    narrativeArcSection = undefined;
+  }
+
+  let midPlanSection: string | undefined;
+  try {
+    const { buildMidPlanGuideSection } = await import("@/lib/domains/record-analysis/llm/mid-plan-guide-section");
+    midPlanSection = buildMidPlanGuideSection(resolveMidPlan(ctx));
+  } catch {
+    midPlanSection = undefined;
+  }
+
+  let cascadePlanSection: string | undefined;
+  try {
+    const { buildCascadePlanGuideSection } = await import("@/lib/domains/record-analysis/llm/cascade-plan-guide-section");
+    cascadePlanSection = buildCascadePlanGuideSection(ctx.belief.mainTheme, ctx.belief.cascadePlan, targetGrade);
+  } catch {
+    cascadePlanSection = undefined;
+  }
+
+  const profileCard = ctx.belief.profileCard || undefined;
+  const gradeAnalysisCtx = toGuideAnalysisContext(ctx.belief.analysisContext?.[targetGrade], ctx.belief.gradeThemes);
+
+  const { generateSetekDirection } = await import("@/lib/domains/record-analysis/llm/actions/guide-modules");
+  const { requireAdminOrConsultant: reqAuth } = await import("@/lib/auth/guards");
+  const { userId: guideUserId } = await reqAuth();
+
+  const result = await generateSetekDirection(
+    studentId, tenantId, guideUserId,
+    gradeReport, [targetGrade], undefined, targetSchoolYear, gradeAnalysisCtx, profileCard, narrativeArcSection, midPlanSection, cascadePlanSection,
+    { offset, limit, totalCount, isFirstChunk, isLastChunk },
+  );
+  if (!result.success) throw new Error(result.error);
+  const guides = result.data?.guides ?? [];
+
+  if (isLastChunk) {
+    const finalCount = offset + guides.length;
+    if (totalCount > 0 && finalCount / totalCount < 0.9) {
+      const pct = ((finalCount / totalCount) * 100).toFixed(0);
+      throw new Error(`setek_guide 부분 생성: ${finalCount}/${totalCount}과목 (${pct}% < 90%)`);
+    }
+  }
+
+  const remaining = totalCount - (offset + limit);
+  const remHint = remaining > 0 ? ` · 잔여 ${remaining}과목` : "";
+  return {
+    preview: `${targetGrade}학년 세특 chunk ${chunkIdx}/${totalChunks}: ${guides.length}과목${remHint}`,
+    hasMore: !isLastChunk,
+    totalUncached: totalCount - offset,
+    chunkProcessed: guides.length,
+  };
+}
+
+// ============================================
 // G3. 학년별 창체 방향 가이드
 // ============================================
 

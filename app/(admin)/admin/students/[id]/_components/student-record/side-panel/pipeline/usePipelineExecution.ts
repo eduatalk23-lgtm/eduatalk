@@ -125,17 +125,18 @@ export function usePipelineExecution({
       }
       const MAX_RETRIES = 2;
 
-      // 청크 지원 phase: P1~P3 (역량 분석) + P7 (가안 생성) + P8 (가안 분석)
-      const isChunkedPhase = phase <= 3 || phase === 7 || phase === 8;
+      // 청크 지원 phase: P1~P3 (역량 분석) + P4 (M1-c W5 setek_guide chunk) + P7 (가안 생성) + P8 (가안 분석)
+      const isChunkedPhase = phase <= 3 || phase === 4 || phase === 7 || phase === 8;
       if (isChunkedPhase) {
         let hasMore = true;
         let retries = 0;
+        const chunkSize = phase === 4 ? 6 : 4;
         while (hasMore) {
           try {
             const res = await fetch(`/api/admin/pipeline/grade/phase-${phase}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pipelineId: pid, chunkSize: 4 }),
+              body: JSON.stringify({ pipelineId: pid, chunkSize }),
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = (await res.json()) as { hasMore?: boolean };
@@ -149,7 +150,7 @@ export function usePipelineExecution({
           }
         }
       } else {
-        // Phase 4~6: 단일 호출 + 재시도
+        // Phase 5~6: 단일 호출 + 재시도
         for (let retry = 0; retry <= MAX_RETRIES; retry++) {
           try {
             const res = await fetch(`/api/admin/pipeline/grade/phase-${phase}`, {
@@ -457,16 +458,18 @@ export function usePipelineExecution({
       setRunningStartMs(Date.now());
 
       const MAX_RETRIES = 2;
-      // 청크 지원 phase: P1~P3 (역량 분석 배치) + P7 (가안 생성 배치, B6 2026-04-15) + P8 (가안 분석 배치, 트랙 A 2026-04-14) + P9 (재생성 배치, Phase 5)
-      const isChunkedPhase = phase <= 3 || phase === 7 || phase === 8 || phase === 9;
+      // 청크 지원 phase: P1~P3 (역량 분석 배치) + P4 (M1-c W5 setek_guide chunk, 2026-04-27) + P7 (가안 생성 배치, B6 2026-04-15) + P8 (가안 분석 배치, 트랙 A 2026-04-14) + P9 (재생성 배치, Phase 5)
+      const isChunkedPhase = phase <= 3 || phase === 4 || phase === 7 || phase === 8 || phase === 9;
       if (isChunkedPhase) {
         let hasMore = true;
         let retries = 0;
+        // P4 setek_guide chunk: chunkSize=6 (24과목 → 4 chunk). P1~P3, P7~P9 는 chunkSize=4 (레코드 단위).
+        const chunkSize = phase === 4 ? 6 : 4;
         while (hasMore && !isAborted()) {
           try {
             const phaseJson = (await fetchPhase(
               `/api/admin/pipeline/grade/phase-${phase}`,
-              { pipelineId, chunkSize: 4 },
+              { pipelineId, chunkSize },
               signal,
             )) as { hasMore?: boolean };
             hasMore = phaseJson.hasMore ?? false;

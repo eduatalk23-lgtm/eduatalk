@@ -312,11 +312,12 @@ export const GRADE_PIPELINE_TASK_TIMEOUTS: Record<_GradeKey, number> = {
   cross_subject_theme_extraction: 120_000,
   competency_volunteer: 90_000,  // α1-2: 학년 묶음 1회 LLM 호출 (~20-40s). 봉사 description 짧음.
   competency_awards: 90_000,     // α1-4-b: 학년 묶음 1회 LLM 호출 (~15-30s). 수상 정보는 봉사보다도 짧음.
-  derive_main_theme: 120_000,    // P3.6 (M1-c W1): mainTheme + cascadePlan fast tier × 2 호출 (~10-30s). hash hit 시 LLM 0회.
-  // M1-c W3 hotfix (2026-04-27): cascade plan section 추가로 prompt token 증가 → 120s timeout 발생.
-  // 인제고 1학년 24 과목 + profileCard + narrativeArc + midPlan + cascade + hakjongScore 동시 주입 시
-  // Gemini Pro standard tier 응답 ~90-150s 범위. 240s 로 상향해 안전 여유 확보.
-  setek_guide: 240_000,
+  // M1-c W4 hotfix (2026-04-27): 인제고 1학년 첫 풀런 실측 120s 초과. fast tier 응답 변동성 ↑ (rate limit retry 또는 Pro fallback 영향).
+  // mainTheme + cascadePlan 2회 LLM 직렬 + 각 withRetry(1s→3s→10s × 3회) 누적 시 충분 여유 필요.
+  derive_main_theme: 240_000,
+  // M1-c W4 hotfix (2026-04-27): in-runner chunked LLM 호출 (CHUNK_SIZE=6) + cascade prompt 길이 증가.
+  // 14 과목 / 6 = 3 chunk × ~60-90s = ~180-270s. Vercel 5분 한계 안전 여유 → 280s.
+  setek_guide: 280_000,
   slot_generation: 30_000,
   changche_guide: 240_000,
   haengteuk_guide: 240_000,
