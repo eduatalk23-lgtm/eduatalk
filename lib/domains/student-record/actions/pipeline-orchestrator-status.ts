@@ -145,26 +145,42 @@ export async function fetchGradeAwarePipelineStatus(
             errors,
           };
         }
-      } else if (row.pipeline_type === "synthesis" && !synthesisPipeline) {
-        // M1-c W6 (2026-04-28): latest 가 cancelled/failed 이고 task 가 전부 pending 인
-        // "공허한" row 이면 skip → 직전 의미있는 row 가 진실. 이 때 직전 run 의 completed
-        // task 결과(storyline/edges/diagnosis 등)는 DB 에는 영속되어 있으므로 UI 가 다시
-        // 노출하는 게 정합. (단, status 자체는 직전 row 의 상태로 표시되어 "재실행" 액션
-        // 가능성 유지.)
-        const taskValues = Object.values(tasks);
-        const allPending = taskValues.length > 0 && taskValues.every((v) => v === "pending");
-        const isAborted = row.status === "cancelled" || row.status === "failed";
-        if (isAborted && allPending) {
-          // skip — 직전 row 채택 위해 이 row 무시
+      } else if (row.pipeline_type === "synthesis") {
+        // M1-c W6 (2026-04-28): synthesis row 채택 + task-level union.
+        //
+        // 동기: 사용자가 새 synthesis 트리거 → 일부 task completed 후 cancel/fail →
+        // 다시 새 row 생성 → 또 일부 completed... 패턴이 반복되면 매 row 마다 다른
+        // task 가 completed. 가장 최근 row 1건만 보면 직전 run 의 LLM 산출물(diagnosis/
+        // strategy/interview 등)이 가려짐 — DB 에는 영속되어 있는데도.
+        //
+        // 정책:
+        //  1) latest 가 cancelled/failed + task 전부 pending 인 "공허한 row" 면 skip.
+        //  2) 그 외 latest 채택 (status/pipelineId 베이스).
+        //  3) 후속(과거) row 의 completed task 중 latest 에 없는 것을 union — preview/
+        //     elapsed 도 함께. errors 는 latest 우선 (덮어쓰지 않음).
+        if (!synthesisPipeline) {
+          const taskValues = Object.values(tasks);
+          const allPending = taskValues.length > 0 && taskValues.every((v) => v === "pending");
+          const isAborted = row.status === "cancelled" || row.status === "failed";
+          if (!(isAborted && allPending)) {
+            synthesisPipeline = {
+              pipelineId: row.id as string,
+              status: row.status as string,
+              tasks,
+              previews,
+              elapsed,
+              errors,
+            };
+          }
         } else {
-          synthesisPipeline = {
-            pipelineId: row.id as string,
-            status: row.status as string,
-            tasks,
-            previews,
-            elapsed,
-            errors,
-          };
+          // task-level union: latest 에 미완료(pending/failed) 인 task 가 prev 에서 completed 면 채움.
+          for (const [k, v] of Object.entries(tasks)) {
+            if (v === "completed" && synthesisPipeline.tasks[k] !== "completed") {
+              synthesisPipeline.tasks[k] = "completed";
+              if (previews[k]) synthesisPipeline.previews[k] = previews[k];
+              if (elapsed[k] != null) synthesisPipeline.elapsed[k] = elapsed[k];
+            }
+          }
         }
       } else if (row.pipeline_type === "past_analytics" && !pastAnalyticsPipeline) {
         pastAnalyticsPipeline = {
