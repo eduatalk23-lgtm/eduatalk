@@ -377,15 +377,19 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   // haengteuk_linking 150s 초과 timeout 관찰. Flash 응답 변동성 흡수 + Vercel 5분 안전 여유.
   haengteuk_linking: 240_000,
   gap_tracking: 30_000,            // Gap Tracker: 규칙 기반 CPU (<5s)
-  bypass_analysis: 120_000,
+  // M1-c W6 hotfix (2026-04-28): 120→240s 일괄 상향.
+  // bypass_analysis / activity_summary / ai_strategy / interview_generation / roadmap_generation
+  // 모두 학생 단위 단일 통합 LLM 호출 (chunk 부적합). cascade 통합으로 응답 borderline.
+  // 인제고 1학년 풀런 5 task 모두 정확히 120s timeout 관찰 → 240s 안전.
+  bypass_analysis: 240_000,
   // M1-c W3 hotfix (2026-04-27): cascade prompt 길이 증가 대응 (위 GRADE_PIPELINE_TASK_TIMEOUTS 동기).
   setek_guide: 240_000,
   changche_guide: 240_000,
   haengteuk_guide: 240_000,
-  activity_summary: 120_000,
-  ai_strategy: 120_000,
-  interview_generation: 120_000,
-  roadmap_generation: 120_000,
+  activity_summary: 240_000,
+  ai_strategy: 240_000,
+  interview_generation: 240_000,
+  roadmap_generation: 240_000,
   // Phase 4b Sprint 3: Flash → Pro fallback + jaccard 비교 + INSERT. 보통 Flash 성공 ~10-15s.
   tier_plan_refinement: 180_000,
 };
