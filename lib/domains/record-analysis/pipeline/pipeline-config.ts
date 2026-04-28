@@ -359,7 +359,8 @@ export const PIPELINE_TASK_LABELS: Record<_LegacyKey, string> = {
 /** 태스크별 타임아웃 (ms). 초과 시 failed 전환. */
 export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   competency_analysis: 280_000,   // 4분 40초 (다건 배치 — Vercel 5분 제한 내 여유)
-  storyline_generation: 120_000,
+  // 2026-04-28 c: LLM 응답 변동성 흡수 — 학생 단위 단일 LLM 호출 task 일괄 280s 정책.
+  storyline_generation: 280_000,
   blueprint_generation: 120_000,  // Blueprint Phase LLM (standard, ~30-60s)
   edge_computation: 30_000,       // CPU 기반 (5-10s)
   hyperedge_computation: 60_000,  // D-track(2026-04-14): 승격. CPU 기반 (pair-seed union-find, <10s). 여유.
@@ -368,8 +369,10 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   // M1-c W6 hotfix (2026-04-28): 120→240s. ai_diagnosis 는 학생 단위 통합 진단 (cross_subject 와
   // 같은 단일 LLM 본질) — chunk 부적합. cascade 통합으로 응답 시간 늘어남 + L1/L2/L3 validator
   // 누적 시 borderline. Vercel 5분 maxDuration 안전 여유.
-  ai_diagnosis: 240_000,
-  course_recommendation: 120_000,
+  // 2026-04-28 b: 인제고 1학년 design-only prospective 경로에서 240s 도달 timeout 관찰
+  // (LLM 1회 호출이 ~120s + retry 시 누적). 280s 로 추가 상향 (Vercel maxDuration=300s 직전).
+  ai_diagnosis: 280_000,
+  course_recommendation: 280_000,
   slot_generation: 30_000,        // 30초 (DB upsert 위주)
   guide_matching: 200_000,        // P2(2026-04-14): Phase A LLM 설계 + design 4건 풀매칭/셸생성 +
                                   //   Phase B fallback이 한 태스크에 묶여 있어 60s 초과. LLM 태스크 수준 상향.
@@ -391,7 +394,8 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   interview_generation: 240_000,
   roadmap_generation: 240_000,
   // Phase 4b Sprint 3: Flash → Pro fallback + jaccard 비교 + INSERT. 보통 Flash 성공 ~10-15s.
-  tier_plan_refinement: 180_000,
+  // 2026-04-28 c: Pro fallback 시 240s 도달 사례 대비 280s 안전 마진.
+  tier_plan_refinement: 280_000,
 };
 
 // ============================================

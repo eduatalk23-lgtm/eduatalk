@@ -608,6 +608,14 @@ export interface PipelineContext {
   /** M4: 가이드 배정 컨텍스트 캐시 (Phase 4-6 + Synthesis S5 간 DB 재조회 방지) */
   cachedGuideContexts?: Partial<Record<"guide" | "summary" | "strategy", string>>;
 
+  /**
+   * 현재 실행 중인 task 의 절대 마감 시각 (ms, Date.now() 기준).
+   * runTaskWithState 가 withTaskTimeout 직전에 세팅하고, task 종료(성공/실패) 후 undefined 로 리셋.
+   * LLM action 의 withRetry({ deadline }) 에 전달하여 wrapper timeout 후 추가 retry 차단 (좀비 promise 방지).
+   * 다음 task 에 영향을 주지 않도록 task 완료 즉시 리셋한다.
+   */
+  taskDeadline?: number;
+
 }
 
 /**

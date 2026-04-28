@@ -31,6 +31,7 @@ export {
   runHyperedgeComputation,
   runNarrativeArcExtraction,
   runActivitySummary,
+  runActivitySummaryForGrade,
   runAiStrategy,
   runBypassAnalysis,
   runInterviewGeneration,

@@ -277,6 +277,8 @@ export async function runTaskWithState(
       (BLUEPRINT_TASK_TIMEOUTS as Record<string, number>)[key] ??
       (BOOTSTRAP_TASK_TIMEOUTS as Record<string, number>)[key] ??
       PIPELINE_TASK_TIMEOUTS[key as PipelineTaskKey];
+    // deadline 세팅: LLM action 의 withRetry 에 전달하여 wrapper timeout 후 추가 retry 를 즉시 차단.
+    ctx.taskDeadline = startMs + timeoutMs;
     const output = await withTaskTimeout(runner(), timeoutMs, key);
     const elapsedMs = Date.now() - startMs;
     ctx.tasks[key] = "completed";
@@ -306,6 +308,9 @@ export async function runTaskWithState(
       err,
       { pipelineId: ctx.pipelineId, elapsedMs },
     );
+  } finally {
+    // deadline 리셋: 다음 task 가 이전 task 의 deadline 을 오염시키지 않도록.
+    ctx.taskDeadline = undefined;
   }
 
   // 파이프라인 레벨 상태 자동 계산: 모든 required 태스크가 종결되면 completed/failed로 전이.
@@ -948,7 +953,10 @@ export function validatePhasePrerequisites(
       const details = incomplete
         .map((k) => `${k}=${ctx.tasks[k] || "pending"}`)
         .join(", ");
-      return `Phase ${phaseNumber} 실행 불가: Phase ${p} 미완료 (${details})`;
+      const message = `Phase ${phaseNumber} 실행 불가: Phase ${p} 미완료 (${details})`;
+      // 409 prereq 실패 진단을 위해 서버 로그에 명시 — 어떤 task 가 잔존하는지 즉시 식별.
+      logActionWarn(LOG_CTX, message, { pipelineId: ctx.pipelineId, pipelineType });
+      return message;
     }
   }
 

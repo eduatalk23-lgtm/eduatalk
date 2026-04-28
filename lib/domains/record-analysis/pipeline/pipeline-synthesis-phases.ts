@@ -37,6 +37,7 @@ import {
   runRoadmapGeneration,
   runTierPlanRefinement,
 } from "./pipeline-task-runners";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 // ============================================
@@ -508,7 +509,16 @@ export async function executeSynthesisPhase3(
     await runTaskWithState(ctx, "course_recommendation", () =>
       runCourseRecommendation(ctx),
     );
-    await refreshCoursePlanData(ctx);
+    // refreshCoursePlanData throw 시 후속 ai_diagnosis 미실행 → pending 잔존 → phase 4~7 영구 차단.
+    // 재조회 실패해도 진단은 ctx.coursePlanData 직전값으로 진행해야 한다.
+    try {
+      await refreshCoursePlanData(ctx);
+    } catch (err) {
+      logActionWarn(
+        "executeSynthesisPhase3",
+        `refreshCoursePlanData 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     if (!diagSkipped) {
       const edges: PersistedEdge[] | CrossRefEdge[] = [];
       await runTaskWithState(ctx, "ai_diagnosis", () =>
@@ -528,7 +538,14 @@ export async function executeSynthesisPhase3(
       runCourseRecommendation(ctx),
     ));
     await Promise.allSettled(tasks);
-    await refreshCoursePlanData(ctx);
+    try {
+      await refreshCoursePlanData(ctx);
+    } catch (err) {
+      logActionWarn(
+        "executeSynthesisPhase3",
+        `refreshCoursePlanData 실패 (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // S3.5: Gap Tracker (blueprint 존재 시에만 — blueprint 없으면 자동 스킵)
@@ -554,6 +571,156 @@ export async function executeSynthesisPhase4(
 }
 
 // ============================================
+// Synthesis Phase 5 — Activity Summary Chunk (Map-Reduce per grade)
+//
+// activity_summary 태스크를 학년 단위로 1회씩 처리.
+// 단일 3년 LLM 호출(~240s) 대신 학년별 ~60s 호출 3회로 분산 → 240s wall 안전 회피.
+// narrative-chunk / haengteuk-chunk 패턴 그대로 mimic.
+// 클라이언트가 phase-5 main 호출 전 hasMore=false 까지 반복 호출.
+// ============================================
+
+export interface ActivitySummaryChunkResult {
+  completed: boolean;
+  hasMore: boolean;
+  processedGrade?: number;
+  totalGrades: number;
+  completedGrades: number[];
+}
+
+export async function executeSynthesisPhase5ActivitySummaryChunk(
+  ctx: PipelineContext,
+  grade?: number,
+): Promise<ActivitySummaryChunkResult> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, totalGrades: 0, completedGrades: [] };
+  }
+
+  // 이미 완료됐으면 즉시 반환
+  if (ctx.tasks["activity_summary"] === "completed") {
+    return { completed: true, hasMore: false, totalGrades: 3, completedGrades: [1, 2, 3] };
+  }
+
+  // 대상 학년 목록: neisGrades + consultingGrades 합집합, 없으면 [1,2,3] fallback
+  const allGrades = [...new Set([
+    ...(ctx.neisGrades ?? []),
+    ...(ctx.consultingGrades ?? []),
+  ])].sort((a, b) => a - b);
+  const targetGrades = allGrades.length > 0 ? allGrades : [1, 2, 3];
+
+  // 이미 처리된 학년: ctx.results._activitySummaryChunkGrades 에 영속
+  const completedGrades: number[] = Array.isArray(
+    (ctx.results as Record<string, unknown>)["_activitySummaryChunkGrades"],
+  )
+    ? ((ctx.results as Record<string, unknown>)["_activitySummaryChunkGrades"] as number[])
+    : [];
+
+  const remaining = targetGrades.filter((g) => !completedGrades.includes(g));
+
+  // 모든 학년 완료 (또는 대상 없음)
+  if (remaining.length === 0) {
+    ctx.tasks["activity_summary"] = "completed";
+    ctx.previews["activity_summary"] = `활동 요약서 학년별 완료 (${completedGrades.join(", ")}학년)`;
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+    return {
+      completed: true,
+      hasMore: false,
+      totalGrades: targetGrades.length,
+      completedGrades,
+    };
+  }
+
+  // 첫 청크이면 running 마킹
+  if (ctx.tasks["activity_summary"] !== "running") {
+    ctx.tasks["activity_summary"] = "running";
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+  }
+
+  // 처리할 학년: grade 파라미터 지정 시 사용, 없으면 첫 번째 미처리 학년
+  const gradeToProcess = grade !== undefined && remaining.includes(grade)
+    ? grade
+    : remaining[0];
+
+  try {
+    const edges = await loadComputedEdges(ctx);
+    const { runActivitySummaryForGrade } = await import("./synthesis");
+    const outcome = await runActivitySummaryForGrade(ctx, gradeToProcess, edges);
+
+    const updatedCompleted = [...completedGrades, gradeToProcess];
+    (ctx.results as Record<string, unknown>)["_activitySummaryChunkGrades"] = updatedCompleted;
+
+    const skipMsg = outcome.skipped ? ` (데이터 없음 — 스킵: ${outcome.reason ?? ""})` : "";
+    ctx.previews["activity_summary"] = `활동 요약서 ${gradeToProcess}학년 처리 완료${skipMsg} (${updatedCompleted.length}/${targetGrades.length})`;
+
+    const nextRemaining = targetGrades.filter((g) => !updatedCompleted.includes(g));
+    const hasMore = nextRemaining.length > 0;
+
+    if (!hasMore) {
+      ctx.tasks["activity_summary"] = "completed";
+      ctx.previews["activity_summary"] = `활동 요약서 학년별 완료 (${updatedCompleted.join(", ")}학년)`;
+    }
+
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+
+    return {
+      completed: !hasMore,
+      hasMore,
+      processedGrade: gradeToProcess,
+      totalGrades: targetGrades.length,
+      completedGrades: updatedCompleted,
+    };
+  } catch (err) {
+    logActionError(
+      { domain: "record-analysis", action: "pipeline.synthesis.phase-5.activity-summary-chunk" },
+      err,
+      { pipelineId: ctx.pipelineId, grade: gradeToProcess },
+    );
+    ctx.tasks["activity_summary"] = "failed";
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.errors["activity_summary"] = msg;
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+    return {
+      completed: false,
+      hasMore: false,
+      processedGrade: gradeToProcess,
+      totalGrades: targetGrades.length,
+      completedGrades,
+    };
+  }
+}
+
+// ============================================
 // Synthesis Phase 5: 활동 요약 + 보완 전략
 // ============================================
 
@@ -569,6 +736,8 @@ export async function executeSynthesisPhase5(
 
   const edges = summarySkipped ? [] : await loadComputedEdges(ctx);
   const tasks: Promise<unknown>[] = [];
+  // activity_summary: chunked sub-route 가 이미 completed 처리한 경우 skip.
+  // 아닌 경우(chunked 미호출 폴백): inline 단일 호출 안전망.
   if (!summarySkipped) {
     tasks.push(runTaskWithState(ctx, "activity_summary", () =>
       runActivitySummary(ctx, edges),
