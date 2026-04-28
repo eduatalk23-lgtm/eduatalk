@@ -3,6 +3,12 @@
 // ============================================
 // 파이프라인 상태 조회 (7-4)
 //   fetchGradeAwarePipelineStatus — grade + synthesis 파이프라인 상태 조회
+//
+// 폴링 핫패스. 비용 최소화 원칙:
+//   - self-healing / zombie cleanup → pipeline-orchestrator-cleanup.ts (트리거 시점만)
+//   - expectedModes 산출 → pipeline-orchestrator-modes.ts (별도 query, staleTime 5분)
+//
+// 본 함수는 student_record_analysis_pipelines 1회 SELECT 만 수행.
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -10,14 +16,8 @@ import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
-import type {
-  CachedSetek,
-  CachedChangche,
-  CachedHaengteuk,
-} from "@/lib/domains/record-analysis/pipeline";
 import { GRADE_PIPELINE_TASK_KEYS } from "@/lib/domains/record-analysis/pipeline";
-import { resolveRecordData, deriveGradeCategories } from "@/lib/domains/record-analysis/pipeline";
-import type { GradeAwarePipelineStatus } from "./pipeline-orchestrator-types";
+import type { GradeAwarePipelineStatus, AiGuideProgress } from "./pipeline-orchestrator-types";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };
 
@@ -27,6 +27,10 @@ const LOG_CTX = { domain: "student-record", action: "pipeline-orchestrator" };
 
 /**
  * 해당 학생의 최근 grade + synthesis 파이프라인 상태를 모두 조회.
+ *
+ * 주의: self-healing / zombie / expectedModes 는 본 함수 책임이 아니다.
+ *   - cleanupStalePipelinesForStudent() — 패널 마운트·run* 트리거 시점에 호출
+ *   - fetchExpectedModes() — 별도 query (staleTime 5분)
  */
 export async function fetchGradeAwarePipelineStatus(
   studentId: string,
@@ -35,64 +39,22 @@ export async function fetchGradeAwarePipelineStatus(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // ── Self-healing: analysis 모드 stuck 파이프라인 복구 ─────────────
-    // 예전 버그로 Phase 6이 "completed" 마킹을 하지 않아 analysis 모드 파이프라인이
-    // 모든 태스크 완료 후에도 status="running"으로 고착될 수 있다. 폴링 호출마다
-    // 이를 감지하여 올바르게 "completed"로 승격한다. (최신 코드에서는 Phase 6이
-    // 직접 마킹하므로 발생하지 않지만, 기존 stuck 데이터 복구용)
-    {
-      const { data: stuckGrade } = await supabase
-        .from("student_record_analysis_pipelines")
-        .select("id, tasks, mode")
-        .eq("student_id", studentId)
-        .eq("pipeline_type", "grade")
-        .eq("status", "running");
-
-      const ANALYSIS_REQUIRED = GRADE_PIPELINE_TASK_KEYS.filter(
-        (k) => k !== "draft_generation" && k !== "draft_analysis",
-      );
-
-      for (const row of stuckGrade ?? []) {
-        if (row.mode !== "analysis") continue;
-        const t = (row.tasks ?? {}) as Record<string, string>;
-        const allDone = ANALYSIS_REQUIRED.every((k) => t[k] === "completed");
-        if (allDone) {
-          await supabase
-            .from("student_record_analysis_pipelines")
-            .update({
-              status: "completed",
-              completed_at: new Date().toISOString(),
-            })
-            .eq("id", row.id as string);
-        }
-      }
-    }
-
-    // 좀비 자동 정리 (self-healing):
-    // 트랙 D (2026-04-14): 판정 기준을 `started_at` → `updated_at` 으로 변경.
-    //   기존: started_at 기준이라 장기 실행 synthesis(10~13분)가 정상 실행 중에도 오판되어 cancel됨.
-    //   신규: updated_at 기준 — 각 task 완료/실행 중마다 runTaskWithState가 DB write(heartbeat) 하므로,
-    //         **최근 활동이 없는 진짜 좀비**만 잡힌다. 임계값 5분 유지.
-    // 조건 불만족 시 PostgreSQL UPDATE는 no-op이므로 오버헤드 적음.
-    // 주의: 위의 analysis 복구가 먼저 실행되어야 성공한 파이프라인이 cancelled로 오마킹되지 않는다.
-    const zombieThreshold = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    await supabase
-      .from("student_record_analysis_pipelines")
-      .update({
-        status: "cancelled",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("student_id", studentId)
-      .eq("status", "running")
-      .lt("updated_at", zombieThreshold);
-
     // M1-c W6 (2026-04-28): limit 40 → 200 상향.
     // 근본 원인: bootstrap/blueprint 쌍이 운영 도중 매 재부트스트랩마다 누적되면서
     // 학생당 수십 row 까지 늘어남. created_at desc + limit(40) 으로 자르면 grade
     // pipeline (학년당 1 row, 학생당 최대 3) 이 신규 bootstrap/blueprint 에 밀려
     // 응답에서 누락 → UI 가 해당 학년 cell 을 "실행 가능" 으로 잘못 표시.
     // 동일 학생 row 가 200 을 넘는 경우는 운영상 비정상이므로 200 으로 충분.
-    const { data: rows, error } = await supabase
+    //
+    // B1: task_results JSONB 컬럼은 태스크별 LLM 출력 전체를 담고 있어 크기가 크다.
+    // 클라이언트가 실제로 사용하는 값은 elapsedMs(태스크 소요시간) 1개 필드뿐.
+    // SELECT 절에서 task_results 를 제외하고, elapsed 는 별도 컬럼(task_results_elapsed)
+    // 없이 task_results 컬럼 대신 Supabase PostgREST JSON path expression 을 사용한다.
+    //
+    // Supabase JS client 는 JSONB 컬럼에서 특정 path 만 추출하는 SELECT 문법을 지원하지 않으므로
+    // 옵션 B 적용: task_results 컬럼 자체는 SELECT 하되, JS 레이어에서 elapsedMs 를 추출한 후
+    // row 객체에서 task_results 를 삭제하여 Server Action 직렬화 payload 를 절감한다.
+    const { data: rawRows, error } = await supabase
       .from("student_record_analysis_pipelines")
       .select("id, status, pipeline_type, grade, mode, tasks, task_previews, task_results, error_details")
       .eq("student_id", studentId)
@@ -102,25 +64,30 @@ export async function fetchGradeAwarePipelineStatus(
 
     if (error) throw error;
 
+    // B1: task_results 에서 elapsedMs 만 추출하고 원본은 제거 (Server Action 직렬화 payload trim).
+    // task_results 는 LLM 출력 전체를 담아 크기가 크나, 클라이언트 소비처는 elapsedMs 1필드뿐.
+    const rows = rawRows.map((row) => {
+      const resultsRaw = (row.task_results ?? {}) as Record<string, Record<string, unknown>>;
+      const elapsed: Record<string, number> = {};
+      for (const [k, v] of Object.entries(resultsRaw)) {
+        if (v && typeof v === "object" && "elapsedMs" in v && typeof v.elapsedMs === "number") {
+          elapsed[k] = v.elapsedMs;
+        }
+      }
+      return { ...row, task_results: null, _elapsed: elapsed };
+    });
+
     const gradePipelines: GradeAwarePipelineStatus["gradePipelines"] = {};
     let synthesisPipeline: GradeAwarePipelineStatus["synthesisPipeline"] = null;
     let pastAnalyticsPipeline: GradeAwarePipelineStatus["pastAnalyticsPipeline"] = null;
     let blueprintPipeline: GradeAwarePipelineStatus["blueprintPipeline"] = null;
     let bootstrapPipeline: GradeAwarePipelineStatus["bootstrapPipeline"] = null;
 
-    for (const row of rows ?? []) {
+    for (const row of rows) {
       const tasks = (row.tasks ?? {}) as Record<string, string>;
       const previews = (row.task_previews ?? {}) as Record<string, string>;
-      const results = (row.task_results ?? {}) as Record<string, Record<string, unknown>>;
+      const elapsed = row._elapsed;
       const errors = (row.error_details ?? {}) as Record<string, string>;
-
-      // 태스크별 소요시간 추출
-      const elapsed: Record<string, number> = {};
-      for (const [k, v] of Object.entries(results)) {
-        if (v && typeof v === "object" && "elapsedMs" in v && typeof v.elapsedMs === "number") {
-          elapsed[k] = v.elapsedMs;
-        }
-      }
 
       if (row.pipeline_type === "grade" && row.grade != null) {
         const gradeNum = row.grade as number;
@@ -212,49 +179,37 @@ export async function fetchGradeAwarePipelineStatus(
       }
     }
 
-    // 파이프라인 실행 전에도 학년별 예상 mode 산출 (NEIS 유무 기반)
-    const expectedModes: Record<number, "analysis" | "design"> = {};
-    const { data: student } = await supabase
-      .from("students")
-      .select("grade, tenant_id")
-      .eq("id", studentId)
-      .single();
+    // P0-2: 가이드 본문 생성 진행률 합산 (synthesis 존재 시에만).
+    // ai-guide-gen 이 비동기로 setek/changche/haengteuk 가이드 본문을 채우므로
+    // synthesis task='completed' 와 별도로 본문 진행률을 UI 에 노출.
+    let aiGuideProgress: AiGuideProgress | null = null;
+    if (synthesisPipeline) {
+      try {
+        const { data: guideRows } = await supabase
+          .from("exploration_guides")
+          .select("status")
+          .eq("source_type", "ai_pipeline_design")
+          .eq("is_latest", true)
+          .filter("ai_generation_meta->>studentId", "eq", studentId);
 
-    if (student) {
-      const tenantId = student.tenant_id as string;
-      const [sRes, cRes, hRes, cpRes] = await Promise.all([
-        supabase.from("student_record_seteks")
-          .select("grade, imported_content")
-          .eq("student_id", studentId).eq("tenant_id", tenantId).is("deleted_at", null),
-        supabase.from("student_record_changche")
-          .select("grade, imported_content")
-          .eq("student_id", studentId).eq("tenant_id", tenantId),
-        supabase.from("student_record_haengteuk")
-          .select("grade, imported_content")
-          .eq("student_id", studentId).eq("tenant_id", tenantId),
-        supabase.from("student_course_plans")
-          .select("grade")
-          .eq("student_id", studentId).in("plan_status", ["confirmed", "recommended"]),
-      ]);
-
-      const resolvedRecords = resolveRecordData(
-        (sRes.data ?? []) as CachedSetek[],
-        (cRes.data ?? []) as CachedChangche[],
-        (hRes.data ?? []) as CachedHaengteuk[],
-      );
-      const { neisGrades } = deriveGradeCategories(resolvedRecords);
-      const coursePlanGrades = [...new Set(
-        ((cpRes.data ?? []) as { grade: number }[]).map((r) => r.grade).filter((g) => g >= 1 && g <= 3),
-      )];
-
-      // 레코드 또는 수강계획이 있는 모든 학년에 대해 mode 계산
-      const allGrades = [...new Set([
-        ...Object.keys(resolvedRecords).map(Number),
-        ...coursePlanGrades,
-      ])].filter((g) => g >= 1 && g <= 3);
-
-      for (const grade of allGrades) {
-        expectedModes[grade] = neisGrades.includes(grade) ? "analysis" : "design";
+        const counts: AiGuideProgress = {
+          total: guideRows?.length ?? 0,
+          completed: 0,
+          queued: 0,
+          generating: 0,
+          failed: 0,
+        };
+        for (const r of guideRows ?? []) {
+          const s = (r as { status: string }).status;
+          if (s === "pending_approval" || s === "approved") counts.completed += 1;
+          else if (s === "queued_generation") counts.queued += 1;
+          else if (s === "ai_generating") counts.generating += 1;
+          else if (s === "ai_failed") counts.failed += 1;
+        }
+        aiGuideProgress = counts;
+      } catch {
+        // 비치명적 — 진행률만 누락하고 본 status 응답은 정상 반환.
+        aiGuideProgress = null;
       }
     }
 
@@ -264,7 +219,7 @@ export async function fetchGradeAwarePipelineStatus(
       pastAnalyticsPipeline,
       blueprintPipeline,
       bootstrapPipeline,
-      expectedModes,
+      aiGuideProgress,
     });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchGradeAwarePipelineStatus" }, error, { studentId });

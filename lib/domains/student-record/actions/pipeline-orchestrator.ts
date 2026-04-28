@@ -30,6 +30,10 @@ export { runFullOrchestration } from "./pipeline-orchestrator-full";
 
 export { fetchGradeAwarePipelineStatus } from "./pipeline-orchestrator-status";
 
+export { fetchExpectedModes } from "./pipeline-orchestrator-modes";
+
+export { cleanupStalePipelinesForStudent } from "./pipeline-orchestrator-cleanup";
+
 export {
   rerunGradePipelineTasks,
   rerunSynthesisPipelineTasks,
