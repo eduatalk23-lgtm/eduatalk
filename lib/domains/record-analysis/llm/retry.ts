@@ -7,6 +7,19 @@ import { extractRetryAfterMs } from "./retry-after-parser";
 // UX 보호 차원에서 60초로 캡. 더 긴 대기가 필요하면 withExtendedRetry 사용.
 const RETRY_HINT_MAX_MS = 60_000;
 
+/**
+ * 백오프 sleep — deadline 지정 시 deadline 도달까지만 대기 (이후 다음 retry 시도 시
+ * deadline 가드가 즉시 throw). deadline 미지정 시 기존 setTimeout 동작 그대로.
+ */
+function sleepWithDeadline(delayMs: number, deadline: number | undefined): Promise<void> {
+  if (deadline === undefined) {
+    return new Promise<void>((r) => setTimeout(r, delayMs));
+  }
+  const remaining = deadline - Date.now();
+  const effective = Math.max(0, Math.min(delayMs, remaining));
+  return new Promise<void>((r) => setTimeout(r, effective));
+}
+
 // ============================================
 // 에러 분류 기반 적응형 재시도 래퍼
 //
@@ -48,6 +61,12 @@ export async function withRetry<T>(
     label?: string;
     /** 에러 카테고리별 자동 백오프 (기본: true) */
     adaptiveBackoff?: boolean;
+    /**
+     * 절대 마감 시각 (ms, Date.now() 기준).
+     * task timeout 과 연결해, 마감 후에는 추가 retry 를 하지 않고 즉시 throw.
+     * 미지정 시 기존 동작 (마감 무제한 — 좀비 promise 가능).
+     */
+    deadline?: number;
   },
 ): Promise<T> {
   const {
@@ -55,6 +74,7 @@ export async function withRetry<T>(
     adaptiveBackoff = true,
     backoff: explicitBackoff,
     maxRetries: explicitMaxRetries,
+    deadline,
   } = options ?? {};
 
   // 명시적 backoff 배열 → 기존 동작 (하위 호환)
@@ -71,6 +91,14 @@ export async function withRetry<T>(
   const maxFirstPass = useAdaptive ? (explicitMaxRetries ?? 3) : defaultMaxRetries;
 
   for (attempt = 0; attempt <= maxFirstPass; attempt++) {
+    // 마감 가드: task timeout 이미 도달했으면 추가 retry 의미 없음 (좀비 promise 차단).
+    if (deadline !== undefined && Date.now() >= deadline) {
+      logActionWarn(
+        { domain: "record-analysis", action: "llm-retry" },
+        `[${label}] deadline 도달 — 추가 retry 중단 (attempt=${attempt})`,
+      );
+      throw lastError ?? new Error(`[${label}] deadline exceeded before first attempt`);
+    }
     try {
       return await fn();
     } catch (error) {
@@ -103,11 +131,11 @@ export async function withRetry<T>(
           { domain: "record-analysis", action: "llm-retry" },
           `[${label}] ${category} 에러, 재시도 ${attempt + 1}/${effectiveMax} (${delay}ms 대기, ${delaySource})`,
         );
-        await new Promise<void>((r) => setTimeout(r, delay));
+        await sleepWithDeadline(delay, deadline);
       } else {
         if (attempt >= defaultMaxRetries) break;
         const delay = defaultBackoff[Math.min(attempt, defaultBackoff.length - 1)];
-        await new Promise<void>((r) => setTimeout(r, delay));
+        await sleepWithDeadline(delay, deadline);
       }
     }
   }

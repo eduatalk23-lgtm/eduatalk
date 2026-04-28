@@ -40,6 +40,12 @@ export interface CoursePlanContext {
   tenantId: string;
   coursePlanData: import("@/lib/domains/student-record/course-plan/types").CoursePlanTabData | null;
   snapshot: Record<string, unknown> | null;
+  /**
+   * P3: design-only 학년의 세특/창체/행특 방향 가이드 요약.
+   * 수강계획이 없어도 가이드가 있으면 예비 진단 생성 가능.
+   * ctx.unifiedInput.grades[grade].directionGuides에서 수집.
+   */
+  directionGuidesSummary?: string;
 }
 
 const LOG_CTX = { domain: "record-analysis", action: "generateDiagnosis" };

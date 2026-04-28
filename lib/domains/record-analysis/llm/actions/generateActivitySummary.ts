@@ -99,6 +99,12 @@ export async function generateActivitySummary(
   edgePromptSection?: string,
   /** 파이프라인에서 전달되는 ReportData (있으면 fetchReportData 호출 스킵) */
   cachedReport?: import("@/lib/domains/student-record/actions/report").ReportData,
+  /**
+   * 현재 task 의 절대 마감 시각 (ms, Date.now() 기준).
+   * withRetry 에 전달하여 wrapper timeout 이후 추가 retry 를 즉시 차단 (좀비 promise 방지).
+   * 파이프라인 외부에서 직접 호출하는 경우 미지정 — 기존 동작 유지.
+   */
+  deadline?: number,
 ): Promise<ActionResponse<ActivitySummaryResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -299,7 +305,7 @@ export async function generateActivitySummary(
         maxTokens: 8192,
         responseFormat: "json",
       }),
-      { label: "generateActivitySummary" },
+      { label: "generateActivitySummary", deadline },
     );
 
     if (!result.content) {

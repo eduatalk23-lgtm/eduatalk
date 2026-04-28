@@ -44,6 +44,12 @@ export interface RoadmapExtraSections {
   profileCardSection?: string;
   /** M1-c W5 (2026-04-27): mainTheme + cascadePlan 통합 섹션. */
   mainThemeCascadeSection?: string;
+  /**
+   * 현재 task 의 절대 마감 시각 (ms, Date.now() 기준).
+   * withRetry 에 전달하여 wrapper timeout 이후 추가 retry 를 즉시 차단 (좀비 promise 방지).
+   * 파이프라인 외부에서 직접 호출하는 경우 미지정 — 기존 동작 유지.
+   */
+  deadline?: number;
 }
 
 export async function generateAiRoadmap(
@@ -287,7 +293,7 @@ export async function generateAiRoadmap(
         maxTokens: 8192,
         responseFormat: "json",
       }),
-      { label: "generateAiRoadmap" },
+      { label: "generateAiRoadmap", deadline: extraSections?.deadline },
     );
 
     if (!result.content) {

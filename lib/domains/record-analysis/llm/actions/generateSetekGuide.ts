@@ -275,6 +275,13 @@ export async function generateProspectiveSetekGuide(
    *   · isLastChunk=true: requestedSubjectCount = 전체 plans 수 (완결성 가드용)
    */
   chunkRange?: { offset: number; limit: number; totalCount: number; isFirstChunk: boolean; isLastChunk: boolean },
+  /**
+   * P2-2 (2026-04-28): per-subject 재생성 모드.
+   * 지정된 subject_id 만 LLM 입력으로 노출하고, 기존 가이드 삭제 없이 누적 insert.
+   * 90% 완결성 게이트가 부분 생성으로 throw 한 케이스에서 누락 과목만 보충하는 용도.
+   * chunkRange 와 상호 배타 — recoverySubjectIds 가 우선 적용된다.
+   */
+  recoverySubjectIds?: string[],
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
   debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
@@ -333,9 +340,12 @@ export async function generateProspectiveSetekGuide(
   }
 
   // M1-c W5: chunkRange 가 있으면 plans subset 만 처리 (task-level chunk 단위)
-  const effectivePlans = chunkRange
-    ? plans.slice(chunkRange.offset, chunkRange.offset + chunkRange.limit)
-    : plans;
+  // P2-2: recoverySubjectIds 우선 — 지정 과목만 노출.
+  const effectivePlans = recoverySubjectIds && recoverySubjectIds.length > 0
+    ? plans.filter((p) => recoverySubjectIds.includes(p.subject_id))
+    : chunkRange
+      ? plans.slice(chunkRange.offset, chunkRange.offset + chunkRange.limit)
+      : plans;
   const allPlannedSubjects = effectivePlans.map((p) => ({
     subjectName: p.subject?.name ?? "과목 미정",
     grade: p.grade,
@@ -397,7 +407,9 @@ export async function generateProspectiveSetekGuide(
 
   // M1-c W5: chunk 모드에서는 첫 chunk 만 기존 가이드 삭제 (이후 chunk 는 누적 insert).
   // 단일 호출 모드 (chunkRange undefined) 는 항상 삭제.
-  if (!chunkRange || chunkRange.isFirstChunk) {
+  // P2-2: recoverySubjectIds 모드는 누적 insert 만 수행 — 기존 가이드 보존.
+  const isRecoveryMode = !!(recoverySubjectIds && recoverySubjectIds.length > 0);
+  if (!isRecoveryMode && (!chunkRange || chunkRange.isFirstChunk)) {
     const prospDeleteResult = await deleteExistingGuides(
       "student_record_setek_guides",
       { studentId, tenantId, schoolYear: currentSchoolYear, source: "ai", guideMode: "prospective" },
@@ -456,7 +468,11 @@ export async function generateProspectiveSetekGuide(
       ...parsed,
       summaryId: inserted[0].id,
       // M1-c W5: chunk 모드에서는 마지막 chunk 만 totalCount 기준 (전체 plans). 이외 chunk 는 그 chunk 의 plans 수.
-      requestedSubjectCount: chunkRange ? (chunkRange.isLastChunk ? chunkRange.totalCount : effectivePlans.length) : plans.length,
+      requestedSubjectCount: isRecoveryMode
+        ? effectivePlans.length
+        : chunkRange
+          ? (chunkRange.isLastChunk ? chunkRange.totalCount : effectivePlans.length)
+          : plans.length,
     },
   };
 }
