@@ -114,14 +114,23 @@ export async function runSynthesisPipeline(
     // grade 파이프라인이 모두 completed인지 확인 (개별 태스크 레벨까지 검증)
     const { data: gradePipelines, error: fetchErr } = await supabase
       .from("student_record_analysis_pipelines")
-      .select("id, status, grade, tasks")
+      .select("id, status, grade, tasks, created_at")
       .eq("student_id", studentId)
       .eq("pipeline_type", "grade")
       .order("created_at", { ascending: false });
 
     if (fetchErr) throw fetchErr;
 
-    const grades = gradePipelines ?? [];
+    // M1-c W6 hotfix (2026-04-28): 학년별 가장 최근 row 만 비교.
+    // 이전엔 학생의 모든 grade row (옛 cancelled/failed 포함) 를 every() 체크 →
+    // 옛 row 1개라도 not completed 면 synthesis 막힘. created_at desc 첫 entry 가 최신.
+    const latestByGrade = new Map<number, (typeof gradePipelines)[number]>();
+    for (const p of gradePipelines ?? []) {
+      if (p.grade != null && !latestByGrade.has(p.grade as number)) {
+        latestByGrade.set(p.grade as number, p);
+      }
+    }
+    const grades = Array.from(latestByGrade.values());
     const allCompleted = grades.length > 0 && grades.every((p) => p.status === "completed");
     if (!allCompleted) {
       return createErrorResponse(
