@@ -11,7 +11,27 @@ import type { PendingAiGuideItem, AiGuideQueueStatus } from "@/lib/domains/guide
 import {
   bulkUpdateGuidesStatusAction,
   approveAndPromoteGuideAction,
+  fetchAiGuideStatusAction,
 } from "@/lib/domains/guide/actions/crud";
+
+// ai-guide-gen 라우트가 202 로 응답하므로 본문 완료는 status 폴링으로 판정.
+// terminal 상태 진입 또는 timeout 까지 대기.
+const POLL_INTERVAL_MS = 4000;
+const POLL_TIMEOUT_MS = 6 * 60 * 1000; // 6분 — Vercel 300s + 여유
+
+async function waitForGuideTerminal(guideId: string): Promise<"completed" | "failed" | "timeout"> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    const res = await fetchAiGuideStatusAction(guideId);
+    if (!res.success) continue;
+    const s = res.data.status;
+    if (s === "pending_approval" || s === "approved") return "completed";
+    if (s === "ai_failed") return "failed";
+    // ai_generating / queued_generation 은 계속 대기
+  }
+  return "timeout";
+}
 
 const STATUS_TABS: Array<{ key: AiGuideQueueStatus; label: string }> = [
   { key: "pending_approval", label: "승인 대기" },
@@ -229,7 +249,17 @@ export function PendingApprovalClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ guideId: g.id }),
         });
-        if (res.ok) {
+        // 202 Accepted = background 시작. 실제 완료는 status 폴링으로 판정.
+        if (res.status === 202) {
+          const outcome = await waitForGuideTerminal(g.id);
+          if (outcome === "completed") {
+            done += 1;
+            setGuides((prev) => prev.filter((x) => x.id !== g.id));
+          } else {
+            failed += 1;
+          }
+        } else if (res.ok) {
+          // 큐가 비었거나 레거시 동기 경로 — 성공 취급
           done += 1;
           setGuides((prev) => prev.filter((x) => x.id !== g.id));
         } else {

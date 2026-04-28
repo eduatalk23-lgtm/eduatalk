@@ -906,6 +906,35 @@ export async function fetchAiGuideQueueCountsAction(): Promise<
   }
 }
 
+/**
+ * 단건 가이드 status 조회 — ai-guide-gen 비동기 후 폴링용.
+ *
+ * 라우트가 202 로 즉시 응답하므로 호출자는 본 액션을 인터벌로 호출해
+ * `ai_generating` → terminal(`pending_approval`/`ai_failed`/`approved`) 전이를
+ * 감지한다. ECONNRESET / fetch abort 와 무관하게 DB 가 진실원.
+ */
+export async function fetchAiGuideStatusAction(
+  guideId: string,
+): Promise<ActionResponse<{ status: string }>> {
+  try {
+    await requireAdminOrConsultant();
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+      .from("exploration_guides")
+      .select("status")
+      .eq("id", guideId)
+      .single();
+
+    if (error) throw error;
+    return createSuccessResponse({ status: data?.status ?? "unknown" });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchAiGuideStatus" }, error, { guideId });
+    return createErrorResponse("가이드 상태를 조회할 수 없습니다.");
+  }
+}
+
 /** AI 파이프라인 설계 가이드 큐 조회 (상태별 필터) */
 export async function fetchPendingAiGuidesAction(
   limit = 50,

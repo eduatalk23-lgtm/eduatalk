@@ -35,6 +35,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "pipeline", studentId] as const,
   gradeAwarePipeline: (studentId: string) =>
     [...studentRecordKeys.all, "gradeAwarePipelineStatus", studentId] as const,
+  expectedModes: (studentId: string) =>
+    [...studentRecordKeys.all, "expectedModes", studentId] as const,
   edges: (studentId: string) =>
     [...studentRecordKeys.all, "edges", studentId] as const,
   hyperedges: (studentId: string) =>
@@ -383,6 +385,28 @@ export function gradeAwarePipelineStatusQueryOptions(studentId: string) {
     },
     staleTime: 2_000,
     gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/**
+ * 학년별 예상 mode (analysis/design) — 폴링 대상 아님.
+ * NEIS 레코드/수강계획에 의존하므로 파이프라인 실행 중에는 변하지 않음.
+ * 레코드 import/수강계획 수정 시 invalidateQueries 호출.
+ */
+export function expectedModesQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.expectedModes(studentId),
+    queryFn: async () => {
+      const { fetchExpectedModes } = await import(
+        "@/lib/domains/student-record/actions/pipeline-orchestrator"
+      );
+      const result = await fetchExpectedModes(studentId);
+      if (!result.success) throw new Error(result.error);
+      return result.data!;
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     enabled: !!studentId,
   });
 }
