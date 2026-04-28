@@ -31,7 +31,7 @@ export function usePipelineExecution({
   pollingStartRef,
 }: UsePipelineExecutionOptions) {
   const queryClient = useQueryClient();
-  const { showError } = useToast();
+  const { showError, showInfo } = useToast();
   const [runningCell, setRunningCell] = useState<string | null>(null);
   const [runningStartMs, setRunningStartMs] = useState<number | null>(null);
   const [isFullRunning, setIsFullRunning] = useState(false);
@@ -181,14 +181,23 @@ export function usePipelineExecution({
 
   const runSynthesisPhase = async (phase: number) => {
     if (fetchingRef.current) return;
+
+    // M1-c W6 hotfix (2026-04-28): synthesis prereq UX — 모든 학년 완료 후만 가능.
+    const status = queryClient.getQueryData<GradeAwarePipelineStatus>(
+      gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+    );
+    const grades = Object.values(status?.gradePipelines ?? {});
+    if (grades.length === 0 || !grades.every((p) => p.status === "completed")) {
+      showInfo("종합 파이프라인은 1·2·3학년 모두 완료 후 가능합니다");
+      return;
+    }
+
     setRunningCell(`s-${phase}`);
     setRunningStartMs(Date.now());
     fetchingRef.current = true;
     pollingStartRef.current = Date.now();
 
-    const sp = queryClient.getQueryData<GradeAwarePipelineStatus>(
-      gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
-    )?.synthesisPipeline ?? null;
+    const sp = status?.synthesisPipeline ?? null;
 
     try {
       let pid = sp?.pipelineId;
@@ -805,6 +814,24 @@ export function usePipelineExecution({
         }
       }
       if (isAborted()) return;
+
+      // M1-c W6 hotfix (2026-04-28): synthesis prereq UX 개선.
+      // grade 모두 completed 안 됐으면 synthesis 호출 안 하고 안내 토스트 (실패 X).
+      // 이전엔 backend prereq fail → throw → "파이프라인 실행 실패" 일반 토스트로 노출.
+      await queryClient.refetchQueries({
+        queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      });
+      const preSynthStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
+        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+      );
+      const gradePipelines = Object.values(preSynthStatus?.gradePipelines ?? {});
+      const allGradesCompleted = gradePipelines.length > 0 && gradePipelines.every(
+        (p) => p.status === "completed",
+      );
+      if (!allGradesCompleted) {
+        showInfo("종합 파이프라인은 1·2·3학년 모두 완료 후 가능합니다");
+        return;
+      }
 
       const sJson = (await fetchPhase(
         "/api/admin/pipeline/synthesis/run",
