@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
-import { guardCancelled } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
+import { guardCancelled, guardAlreadyCompleted } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
 import { executeGradePhase4Pre } from "@/lib/domains/record-analysis/pipeline/pipeline-grade-phases";
 
 export const maxDuration = 300;
@@ -29,6 +29,8 @@ export async function POST(request: NextRequest) {
     const ctx = await loadPipelineContext(pipelineId);
     const cancelResp = await guardCancelled(ctx);
     if (cancelResp) return cancelResp;
+    const completedResp = guardAlreadyCompleted(ctx);
+    if (completedResp) return completedResp;
     // phase 4 pre 의 prereq 는 phase 3 완료 — phase 4 와 동일 prereq 적용
     const validationError = validatePhasePrerequisites(ctx, 4, "grade");
     if (validationError) {

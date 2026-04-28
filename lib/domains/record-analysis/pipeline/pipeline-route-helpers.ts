@@ -31,6 +31,30 @@ export async function guardCancelled(
   return null;
 }
 
+/**
+ * M1-c W6 (2026-04-28): 파이프라인 자체가 이미 completed 면 즉시 200 + skip 응답.
+ *
+ * 문제: client cache stale 또는 cachedGrade undefined 로 client-side 가드
+ * (executeGradePhasesForPipeline) 통과 못 함 → phase route 호출 → updatePipelineState
+ * (running) 가 status 'completed' → 'running' 으로 reset 하는 표시 버그.
+ *
+ * 해결: phase route 진입 직후 ctx.snapshot.status === 'completed' 면 즉시 skip.
+ * guardCancelled 와 동일 패턴.
+ */
+export function guardAlreadyCompleted(
+  ctx: PipelineContext,
+): NextResponse | null {
+  const status = (ctx.snapshot as { status?: string } | null)?.status;
+  if (status === "completed") {
+    return NextResponse.json({
+      pipelineId: ctx.pipelineId,
+      skipped: true,
+      reason: "이미 완료된 파이프라인 — phase 실행 스킵",
+    });
+  }
+  return null;
+}
+
 // ============================================
 // Phase 누적 timeout 가드 (2026-04-26)
 //

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
-import { guardCancelled } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
+import { guardCancelled, guardAlreadyCompleted } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
 import { executeGradePhase8 } from "@/lib/domains/record-analysis/pipeline/pipeline-grade-phases";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const ctx = await loadPipelineContext(pipelineId);
     const cancelResp = await guardCancelled(ctx);
     if (cancelResp) return cancelResp;
+    const completedResp = guardAlreadyCompleted(ctx);
+    if (completedResp) return completedResp;
     const validationError = validatePhasePrerequisites(ctx, 8, "grade");
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 409 });
