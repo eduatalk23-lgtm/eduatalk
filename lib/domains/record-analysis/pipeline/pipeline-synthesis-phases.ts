@@ -312,9 +312,12 @@ export async function executeSynthesisPhase2(
   );
 
   // 행특 ↔ 탐구 가이드 링크 — guide_matching 선행. task_key 승격.
+  // M1-c W6 (2026-04-28): chunked sub-route (executeSynthesisPhase2HaengteukChunk) 가 선행
+  // 처리한 경우 skip. 클라이언트가 phase-2 main 호출 전에 haengteuk-chunk 를 hasMore=false 까지 loop.
   if (await checkCancelled(ctx)) return;
   if (
     ctx.tasks.guide_matching === "completed" &&
+    ctx.tasks.haengteuk_linking !== "completed" &&
     !skipIfSynthPrereqFailed(ctx, "haengteuk_linking")
   ) {
     if (!enforcePhaseDeadline(deadline, "haengteuk_linking", ctx.pipelineId)) return;
@@ -401,6 +404,81 @@ export async function executeSynthesisPhase2NarrativeChunk(
     ctx.tasks["narrative_arc_extraction"] = "failed";
     const msg = err instanceof Error ? err.message : String(err);
     ctx.errors["narrative_arc_extraction"] = msg;
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+}
+
+// ============================================
+// M1-c W6 (2026-04-28): Synthesis Phase 2 — Haengteuk Linking Chunk
+//
+// haengteuk_linking 학년별 LLM 호출. 3년 cascade 시 3회 직렬 → 150-180s 도달 위험.
+// narrative_arc chunked sub-route 패턴 mimic — 학년 단위 chunk + 별도 HTTP request.
+// ============================================
+
+export async function executeSynthesisPhase2HaengteukChunk(
+  ctx: PipelineContext,
+  chunkSize: number,
+): Promise<PhaseChunkResult> {
+  if (await checkCancelled(ctx)) {
+    return { completed: false, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
+  if (ctx.tasks["haengteuk_linking"] === "completed") {
+    return { completed: true, hasMore: false, chunkProcessed: 0, totalUncached: 0 };
+  }
+
+  const startMs = Date.now();
+
+  if (ctx.tasks["haengteuk_linking"] !== "running") {
+    ctx.tasks["haengteuk_linking"] = "running";
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+  }
+
+  try {
+    const { runHaengteukGuideLinkingChunk } = await import("./synthesis");
+    const output = await runHaengteukGuideLinkingChunk(ctx, chunkSize);
+    const { hasMore, totalUncached, chunkProcessed, preview } = output;
+
+    if (preview) ctx.previews["haengteuk_linking"] = preview;
+    if (!hasMore) {
+      ctx.tasks["haengteuk_linking"] = "completed";
+      setTaskResult(ctx.results, "haengteuk_linking", {
+        elapsedMs: Date.now() - startMs,
+      });
+    }
+
+    await updatePipelineState(
+      ctx.supabase as SupabaseAdminClient,
+      ctx.pipelineId,
+      "running",
+      ctx.tasks,
+      ctx.previews,
+      ctx.results ?? {},
+      ctx.errors ?? {},
+    );
+
+    return { completed: !hasMore, hasMore, chunkProcessed, totalUncached };
+  } catch (err) {
+    ctx.tasks["haengteuk_linking"] = "failed";
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.errors["haengteuk_linking"] = msg;
     await updatePipelineState(
       ctx.supabase as SupabaseAdminClient,
       ctx.pipelineId,

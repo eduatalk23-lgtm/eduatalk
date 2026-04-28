@@ -181,6 +181,138 @@ export async function runHaengteukGuideLinking(
 }
 
 // ============================================
+// M1-c W6 (2026-04-28): chunked variant — 학년 단위 chunk 처리
+//
+// narrative_arc chunked sub-route 패턴 mimic. 학년별 LLM 호출 1회 → 학년 N개씩 chunk.
+// 각 chunk = 별도 HTTP request → maxDuration 300s 독립 → timeout 분산 안전.
+//
+// 동작:
+// - existingLinkedHaengteukIds: 이미 link 완료된 행특 가이드 id (이번 풀런 chunk 1번 이후)
+// - pending = haengteukGuides.filter(hg => !existingLinkedHaengteukIds.has(hg.id))
+// - chunk = pending.slice(0, chunkSize)
+// - hasMore = pending.length > chunkSize
+//
+// 첫 chunk 진입 신호: ctx.previews["haengteuk_linking"] 비어있음 (setek 패턴 mimic).
+// 단 여기는 학년 단위라 row delete 정책 다름 — chunk 마다 자기 학년 row 만 cleanup.
+// ============================================
+
+export async function runHaengteukGuideLinkingChunk(
+  ctx: PipelineContext,
+  chunkSize: number,
+): Promise<TaskRunnerOutput & { hasMore: boolean; totalUncached: number; chunkProcessed: number }> {
+  assertSynthesisCtx(ctx);
+  const { supabase, studentId, tenantId } = ctx;
+
+  // 1. 학생의 행특 가이드 조회
+  const { data: haengteukGuides, error: hgErr } = await supabase
+    .from("student_record_haengteuk_guides")
+    .select("id, school_year, evaluation_items")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (hgErr) {
+    return { preview: "행특 가이드 조회 실패", hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+  if (!haengteukGuides || haengteukGuides.length === 0) {
+    return { preview: "행특 가이드 없음 — 링크 생성 스킵", hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+
+  // 2. 학생의 탐구 가이드 배정 조회
+  const { data: assignments, error: asgErr } = await supabase
+    .from("exploration_guide_assignments")
+    .select(
+      `id, guide_id, target_activity_type, ai_recommendation_reason,
+       exploration_guides!inner(title, guide_type)`,
+    )
+    .eq("student_id", studentId)
+    .in("status", ["assigned", "in_progress", "submitted", "completed"])
+    .returns<AssignmentRow[]>();
+
+  if (asgErr) {
+    return { preview: "탐구 가이드 배정 조회 실패", hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+  if (!assignments || assignments.length === 0) {
+    return { preview: "배정된 탐구 가이드 없음 — 링크 생성 스킵", hasMore: false, totalUncached: 0, chunkProcessed: 0 };
+  }
+
+  // 3. pending haengteuk 식별 — 기존 ai 링크 없는 학년만 처리 (chunk 진행에 따라 누적)
+  const { data: existingLinks } = await linksTable(supabase)
+    .select("haengteuk_guide_id")
+    .in("haengteuk_guide_id", (haengteukGuides as HaengteukGuideRow[]).map((h) => h.id))
+    .eq("source", "ai");
+
+  const linkedSet = new Set<string>(
+    (existingLinks ?? []).map((r) => (r as { haengteuk_guide_id: string }).haengteuk_guide_id),
+  );
+
+  // 첫 chunk 판정 — ctx.previews["haengteuk_linking"] 비어있으면 새 chunk loop 첫 호출.
+  // 옛 풀런 row 가 잔존하면 새 풀런 시 모두 정리하고 시작.
+  const isVeryFirstChunk = !ctx.previews["haengteuk_linking"];
+  if (isVeryFirstChunk && linkedSet.size > 0) {
+    // 새 풀런 첫 chunk → 전체 학생의 ai 링크 일괄 삭제
+    await linksTable(supabase)
+      .delete()
+      .in("haengteuk_guide_id", (haengteukGuides as HaengteukGuideRow[]).map((h) => h.id))
+      .eq("source", "ai");
+    linkedSet.clear();
+  }
+
+  const pending = (haengteukGuides as HaengteukGuideRow[]).filter((h) => !linkedSet.has(h.id));
+  const totalUncached = pending.length;
+  if (totalUncached === 0) {
+    return {
+      preview: `행특 링크 완료 (${haengteukGuides.length}건 모두 처리)`,
+      hasMore: false,
+      totalUncached: 0,
+      chunkProcessed: 0,
+    };
+  }
+
+  const chunk = pending.slice(0, chunkSize);
+  const hasMore = totalUncached > chunkSize;
+
+  let chunkLinksInserted = 0;
+  let chunkSkipped = 0;
+  for (const hg of chunk) {
+    const matches = await matchHaengteukItemsToAssignments(hg, assignments);
+    if (!matches) {
+      chunkSkipped++;
+      continue;
+    }
+
+    const insertRows: LinksTableShape[] = [];
+    for (const result of matches) {
+      for (const m of result.matches) {
+        insertRows.push({
+          tenant_id: tenantId,
+          haengteuk_guide_id: hg.id,
+          evaluation_item: result.item,
+          exploration_guide_assignment_id: m.assignmentId,
+          relevance_score: m.relevance,
+          reasoning: m.reasoning,
+          source: "ai",
+        });
+      }
+    }
+    if (insertRows.length === 0) continue;
+    const { error: insErr } = await linksTable(supabase).insert(insertRows);
+    if (insErr) {
+      logActionWarn(LOG_CTX, `링크 INSERT 실패 (haengteuk ${hg.id}): ${insErr.message}`);
+      continue;
+    }
+    chunkLinksInserted += insertRows.length;
+  }
+
+  const remHint = hasMore ? ` · 잔여 ${totalUncached - chunk.length}학년` : "";
+  return {
+    preview: `행특 chunk ${chunk.length}학년: ${chunkLinksInserted}건 링크 (스킵 ${chunkSkipped})${remHint}`,
+    hasMore,
+    totalUncached,
+    chunkProcessed: chunk.length,
+  };
+}
+
+// ============================================
 // LLM 매칭 헬퍼
 // ============================================
 

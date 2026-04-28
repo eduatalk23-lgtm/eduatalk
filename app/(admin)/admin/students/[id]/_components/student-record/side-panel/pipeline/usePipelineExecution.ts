@@ -215,6 +215,7 @@ export function usePipelineExecution({
 
       // 트랙 D (2026-04-14): Phase 2 진입 전 narrative_arc chunked 선행.
       //   Vercel 300s 벽 회피 — grade P1~P3 자기치유 청크 패턴과 동일.
+      // M1-c W6 (2026-04-28): haengteuk_linking 도 chunked sub-route 추가 — narrative 다음.
       if (phase === 2) {
         const narrativeStatus = sp?.tasks?.narrative_arc_extraction;
         if (narrativeStatus !== "completed") {
@@ -228,6 +229,41 @@ export function usePipelineExecution({
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ pipelineId: pid, chunkSize: 4 }),
+                },
+              );
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              const j = (await r.json()) as { hasMore?: boolean };
+              hasMore = j.hasMore ?? false;
+              retries = 0;
+              if (hasMore) invalidate();
+            } catch {
+              retries++;
+              if (retries > 2) break;
+              await new Promise((r) => setTimeout(r, 3000));
+            }
+          }
+        }
+
+        // M1-c W6: haengteuk_linking chunked. guide_matching 완료 후 가능하지만
+        // phase-2 main 이 guide_matching 까지 처리하므로 이 시점엔 main 호출 후 cleanup 단계에 둘 수도.
+        // 단순화: phase-2 main 호출 직전엔 narrative 만 chunked, haengteuk 는 phase-2 main 후 cleanup.
+        // 사실 phase-2 main 안에서 guide_matching 까지 처리. haengteuk_linking 만 main 에서 fail 했음.
+        // → main 안의 haengteuk_linking 호출이 chunked variant 경로를 사용하지 않게 skip 하고,
+        //   클라이언트가 main 후 별도 chunk loop 호출 패턴.
+        // 단 이번 fix 는 main 안의 haengteuk_linking 가 task=completed 면 skip 하도록 변경됨.
+        // → 클라이언트가 main 호출 전 chunk loop 으로 haengteuk task=completed 마킹.
+        const haengteukStatus = sp?.tasks?.haengteuk_linking;
+        if (haengteukStatus !== "completed") {
+          let hasMore = true;
+          let retries = 0;
+          while (hasMore) {
+            try {
+              const r = await fetch(
+                "/api/admin/pipeline/synthesis/phase-2/haengteuk-chunk",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pipelineId: pid, chunkSize: 1 }),
                 },
               );
               if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -867,6 +903,7 @@ export function usePipelineExecution({
 
         // 트랙 D (2026-04-14): Phase 2 진입 전 narrative_arc chunked 선행.
         //   Vercel 300s 벽 회피 — 자기치유 청크 패턴 (DB 캐시가 진실 소스).
+        // M1-c W6 (2026-04-28): haengteuk_linking 도 chunked sub-route 추가.
         if (phase === 2 && synthTasks.narrative_arc_extraction !== "completed") {
           let nHasMore = true;
           let nRetries = 0;
@@ -884,6 +921,36 @@ export function usePipelineExecution({
               if ((e as Error)?.name === "AbortError") return;
               nRetries++;
               if (nRetries > 2) break;
+              try {
+                await abortableSleep(3000, ctrl.signal);
+              } catch {
+                return;
+              }
+            }
+          }
+          invalidate();
+        }
+
+        // M1-c W6: haengteuk_linking chunked sub-route 선행 (narrative 패턴 mimic).
+        // chunk runner 는 학년 단위 행특 가이드 + assignments 조회 — guide_matching 결과 직접 의존 X.
+        // task='completed' 마킹되면 phase-2 main 안의 haengteuk_linking 호출 skip.
+        if (phase === 2 && synthTasks.haengteuk_linking !== "completed") {
+          let hHasMore = true;
+          let hRetries = 0;
+          while (hHasMore && !isAborted()) {
+            try {
+              const hJson = (await fetchPhase(
+                "/api/admin/pipeline/synthesis/phase-2/haengteuk-chunk",
+                { pipelineId: sJson.pipelineId, chunkSize: 1 },
+                ctrl.signal,
+              )) as { hasMore?: boolean };
+              hHasMore = hJson.hasMore ?? false;
+              hRetries = 0;
+              if (hHasMore) invalidate();
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return;
+              hRetries++;
+              if (hRetries > 2) break;
               try {
                 await abortableSleep(3000, ctrl.signal);
               } catch {
