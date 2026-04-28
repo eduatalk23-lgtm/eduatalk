@@ -60,6 +60,62 @@ export async function runBlueprintGeneration(
     throw new Error("활성 메인 탐구 없음 — 메인 탐구를 설정한 후 Blueprint를 재실행해주세요");
   }
 
+  // ── M1-c W6 hotfix (2026-04-28): Blueprint cache 도입 ────────────────
+  //
+  // 직전 completed blueprint 가 있고 main_exploration 이 그 이후 변경 안 됐으면
+  // (= staleness=FRESH) LLM 호출 0회 + 직전 결과 재사용.
+  //
+  // 이전 패턴: 매 풀런마다 LLM 재호출 (인제고 1학년 5번 풀런 측정 시 모두 staleness=FRESH
+  // 임에도 22-112초 LLM 호출). 비용/시간 낭비 + 결과 가변성 (응답 일관성 저하).
+  //
+  // hash 패턴 대신 main_exploration.updated_at 비교만으로 충분 (이미 staleness 정합):
+  //   meUpdated <= prevBp.completedAt → fresh → 재사용
+  //   meUpdated  > prevBp.completedAt → stale → LLM 재호출
+  try {
+    const { data: prevBlueprintRows } = await ctx.supabase
+      .from("student_record_analysis_pipelines")
+      .select("task_results, completed_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("pipeline_type", "blueprint")
+      .eq("status", "completed")
+      .neq("id", pipelineId)
+      .order("completed_at", { ascending: false })
+      .limit(1);
+
+    const prevBp = (prevBlueprintRows ?? [])[0] as
+      | { task_results: Record<string, unknown> | null; completed_at: string }
+      | undefined;
+    const prevPhasePayload = prevBp?.task_results?._blueprintPhase as
+      | Record<string, unknown>
+      | undefined;
+    if (prevBp && prevPhasePayload && active[0].updated_at) {
+      const meUpdated = new Date(active[0].updated_at).getTime();
+      const bpCompleted = new Date(prevBp.completed_at).getTime();
+      if (meUpdated <= bpCompleted) {
+        // fresh — 직전 결과 재시딩 + LLM 0회
+        setTaskResult(ctx.results, "_blueprintPhase", prevPhasePayload);
+        const convergenceCount = Array.isArray(prevPhasePayload.targetConvergences)
+          ? (prevPhasePayload.targetConvergences as unknown[]).length
+          : 0;
+        const milestoneGrades = (prevPhasePayload.milestones && typeof prevPhasePayload.milestones === "object")
+          ? Object.keys(prevPhasePayload.milestones as Record<string, unknown>).length
+          : 0;
+        logActionDebug(LOG_CTX, "Blueprint cache hit (main_exp fresh) — LLM 호출 스킵", {
+          pipelineId,
+          meUpdatedAt: active[0].updated_at,
+          prevCompletedAt: prevBp.completed_at,
+        });
+        return {
+          preview: `Blueprint 캐시 재사용 (수렴 ${convergenceCount}개, 마일스톤 ${milestoneGrades}학년 · main_exp fresh)`,
+          result: { ...prevPhasePayload, fromCache: true },
+        };
+      }
+    }
+  } catch {
+    // cache 실패 시 정상 LLM 호출 경로로 폴백 (graceful)
+  }
+
   // ── Cross-run 연속성 힌트 로드 ────────────────────
   // 직전 실행의 blueprint_generation 이 writesForNextRun 으로 남긴 convergences 를 꺼내
   // LLM 프롬프트에 주입. 강한 이유 없이 테마 교체 방지.
