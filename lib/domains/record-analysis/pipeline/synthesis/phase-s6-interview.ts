@@ -75,30 +75,15 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
           .sort((a, b) => getEffectiveContent(b).length - getEffectiveContent(a).length)
   ).slice(0, 5);
 
-  if (candidateRecords.length === 0) return "기록 부족 — 건너뜀";
-
-  const { generateInterviewQuestions } = await import("../../llm/actions/generateInterviewQuestions");
-
-  // 메인 레코드 + 추가 레코드로 교차 질문 생성
-  const main = candidateRecords[0];
-  const mainContent = getEffectiveContent(main);
-  const mainSubject = getSubjectLabel(main);
-  const mainType = getRecordType(main);
-
-  const additionalRecords = candidateRecords.slice(1).map((r) => ({
-    content: getEffectiveContent(r),
-    recordType: getRecordType(r),
-    subjectName: getSubjectLabel(r),
-    grade: r.grade,
-  }));
-
-  // 설계 학년 가상 레코드를 보충 면접 자료로 추가 (방향 가이드 기반)
+  // 설계 학년 가상 레코드(방향 가이드 기반) 사전 수집 — design-only 학생도
+  // 면접 질문이 생성되도록 candidateRecords=0 가드 *전에* 합친다.
+  const virtualPool: { content: string; recordType: "setek" | "changche"; subjectName: string; grade: number }[] = [];
   if (ctx.unifiedInput?.hasAnyDesign) {
     const { collectDesignRecords } = await import("../pipeline-unified-input");
     const virtualRecords = collectDesignRecords(ctx.unifiedInput);
     for (const vr of virtualRecords) {
       if (vr.content.length >= 30) {
-        additionalRecords.push({
+        virtualPool.push({
           content: vr.content,
           recordType: vr.type as "setek" | "changche",
           subjectName: vr.subject,
@@ -106,6 +91,29 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
         });
       }
     }
+  }
+
+  if (candidateRecords.length === 0 && virtualPool.length === 0) return "기록 부족 — 건너뜀";
+
+  const { generateInterviewQuestions } = await import("../../llm/actions/generateInterviewQuestions");
+
+  // 메인 레코드 + 추가 레코드로 교차 질문 생성. cachedRecord 가 없으면 가상 레코드를 메인으로.
+  const useVirtualMain = candidateRecords.length === 0;
+  const main: CachedRecord | null = useVirtualMain ? null : candidateRecords[0];
+  const mainContent = main ? getEffectiveContent(main) : virtualPool[0].content;
+  const mainSubject = main ? getSubjectLabel(main) : virtualPool[0].subjectName;
+  const mainType: "setek" | "changche" = main ? getRecordType(main) : virtualPool[0].recordType;
+
+  const additionalRecords = candidateRecords.slice(useVirtualMain ? 0 : 1).map((r) => ({
+    content: getEffectiveContent(r),
+    recordType: getRecordType(r),
+    subjectName: getSubjectLabel(r),
+    grade: r.grade,
+  }));
+
+  // 가상 레코드를 보충 자료로 추가 (메인이 가상이면 첫 번째 제외)
+  for (const vr of virtualPool.slice(useVirtualMain ? 1 : 0)) {
+    additionalRecords.push(vr);
   }
 
   // 진단 약점을 면접 질문에 반영 (DB에서 조회 — in-memory 결과는 ai_diagnosis 실패 시 undefined)

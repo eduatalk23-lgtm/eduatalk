@@ -56,6 +56,13 @@ export async function runAiDiagnosis(
     return "역량 데이터 없음 — 건너뜀";
   }
 
+  // design-only: NEIS 없고 역량 데이터도 없으면 coursePlanData/directionGuides 도 빈 경우
+  // generateAiDiagnosis(scores=[], tags=[]) 호출 시 L1 validator throw → task failed → 후속 전략/면접 전체 차단.
+  // 설계 전용 학년에서는 진단 LLM 호출 자체를 건너뛰고 graceful completed 처리.
+  if (!hasNeisData && !hasConsultingGrades && scores.length === 0 && tags.length === 0) {
+    return "NEIS 기록 없음(설계 전용) — 예비진단 생략";
+  }
+
   // 하이브리드 모드: NEIS 학년이 있어도 컨설팅 학년이 있으면 수강계획 컨텍스트 전달
   const coursePlanContext = (!hasNeisData || hasConsultingGrades)
     ? { studentId, tenantId, coursePlanData: coursePlanData ?? null, snapshot }
@@ -491,7 +498,7 @@ export async function runAiDiagnosis(
       careerRate: diagCourseAdequacy.careerRate,
       fusionRate: diagCourseAdequacy.fusionRate,
     } : null,
-  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, midPlanByGradeSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection, mainThemeCascadeSection);
+  }, edgeCompetencyFreq, coursePlanContext, diagQualityPatternSection, crossSubjectThemesSection, mainExplorationSection || undefined, narrativeArcSection, midPlanSynthesisSection, midPlanByGradeSection, hakjongScoreSection, gradeThemesSection, hyperedgeSummarySection, profileCardSection, mainThemeCascadeSection, ctx.taskDeadline);
   if (!result.success) throw new Error(result.error);
 
   await diagnosisRepo.upsertDiagnosis({

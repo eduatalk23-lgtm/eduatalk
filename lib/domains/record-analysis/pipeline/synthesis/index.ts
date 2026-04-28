@@ -26,7 +26,7 @@ export { runGapTracking } from "./phase-s3p5-gap-tracker";
 export { runBypassAnalysis } from "./phase-s4-bypass";
 
 // S5
-export { runActivitySummary, runAiStrategy } from "./phase-s5-strategy";
+export { runActivitySummary, runActivitySummaryForGrade, runAiStrategy } from "./phase-s5-strategy";
 
 // S6
 export { runInterviewGeneration, runRoadmapGeneration } from "./phase-s6-interview";

@@ -47,6 +47,105 @@ const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 // 10. 활동 요약서
 // ============================================
 
+// ============================================
+// 10-a. 학년 단위 헬퍼 (Map-Reduce per grade, chunked sub-route 전용)
+// ============================================
+
+/**
+ * 단일 학년에 대해 generateActivitySummary 를 호출하고 결과를 DB에 저장한다.
+ * chunked sub-route (`phase-5/activity-summary-chunk`) 가 학년별로 이 함수를 1회씩 호출한다.
+ * 빈 데이터 학년은 graceful 처리(에러 아닌 "skipped" 반환).
+ */
+export async function runActivitySummaryForGrade(
+  ctx: PipelineContext,
+  grade: number,
+  computedEdges: PersistedEdge[] | CrossRefEdge[],
+): Promise<{ skipped: boolean; reason?: string }> {
+  assertSynthesisCtx(ctx);
+  const { studentId, tenantId } = ctx;
+
+  const { generateActivitySummary } = await import("../../llm/actions/generateActivitySummary");
+
+  // Phase E2: 엣지 데이터 → 요약서 프롬프트에 투입
+  let summaryEdgeSection: string | undefined;
+  if (computedEdges.length > 0) {
+    const { buildEdgePromptSection } = await import("@/lib/domains/record-analysis/llm/edge-summary");
+    summaryEdgeSection = buildEdgePromptSection(computedEdges, "summary");
+  }
+  // Phase 6: 가이드 배정 컨텍스트 → 요약서 프롬프트에 투입 (M4: ctx 캐시 활용)
+  const summaryContextSection = await getCachedGuideContext(ctx, studentId, "summary");
+
+  // 진단 데이터 → 요약서에 강점/약점 맥락 투입
+  let diagnosisSection: string | undefined;
+  const summaryDiag = await diagnosisRepo.findDiagnosis(studentId, calculateSchoolYear(), tenantId, "ai");
+  if (summaryDiag) {
+    const parts: string[] = ["## 종합 진단 요약 (활동 서술에 반영)"];
+    if (summaryDiag.strengths && (summaryDiag.strengths as string[]).length > 0) {
+      parts.push(`강점: ${(summaryDiag.strengths as string[]).join("; ")}`);
+    }
+    if (summaryDiag.weaknesses && (summaryDiag.weaknesses as string[]).length > 0) {
+      parts.push(`보완 필요: ${(summaryDiag.weaknesses as string[]).join("; ")}`);
+    }
+    if (Array.isArray(summaryDiag.improvements) && (summaryDiag.improvements as unknown[]).length > 0) {
+      const imps = summaryDiag.improvements as Array<{ priority: string; area: string; action: string }>;
+      parts.push(`개선 전략: ${imps.map((i) => `[${i.priority}] ${i.area}`).join(", ")}`);
+    }
+    if (parts.length > 1) diagnosisSection = parts.join("\n");
+  }
+
+  // 비NEIS 학년의 수강계획 컨텍스트 (레코드 없는 학년 보강)
+  let summaryCoursePlanSection: string | undefined;
+  if (ctx.consultingGrades && ctx.consultingGrades.length > 0 && ctx.coursePlanData?.plans) {
+    const plans = ctx.coursePlanData.plans.filter(
+      (p) => (p.plan_status === "confirmed" || p.plan_status === "recommended")
+        && ctx.consultingGrades.includes(p.grade),
+    );
+    if (plans.length > 0) {
+      const byGrade = new Map<number, string[]>();
+      for (const p of plans) {
+        if (!byGrade.has(p.grade)) byGrade.set(p.grade, []);
+        const name = (p.subject as { name?: string } | null)?.name ?? "과목 미정";
+        byGrade.get(p.grade)?.push(name);
+      }
+      const lines = [...byGrade.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([g, subs]) => `- ${g}학년 수강 예정: ${subs.join(", ")}`);
+      summaryCoursePlanSection = `## 수강 계획 (기록 없는 학년)\n${lines.join("\n")}\n위 학년은 아직 기록이 없습니다. 수강 예정 교과를 고려하여 해당 학년의 활동 방향을 서술하세요.`;
+    }
+  }
+
+  // Cross-run: 직전 실행 interview_generation.topQuestions → "질문이 많이 나왔던 활동" 우선 요약.
+  let priorInterviewSection: string | undefined;
+  const prevRun = ctx.belief.previousRunOutputs;
+  if (prevRun?.runId) {
+    const { getPreviousRunResult } = await import("../pipeline-previous-run");
+    const prevInterview = getPreviousRunResult<{
+      topQuestions: Array<{ question: string; questionType: string; difficulty: string }>;
+    }>(prevRun, "interview_generation");
+    const qs = prevInterview?.topQuestions ?? [];
+    if (qs.length > 0) {
+      const lines = qs.map((q) => `- [${q.questionType}/${q.difficulty}] ${q.question}`);
+      priorInterviewSection = [
+        `## 직전 실행(${prevRun.completedAt?.slice(0, 10) ?? "이전"}) 면접 빈출 맥락`,
+        "아래 질문이 쏠렸던 활동 축을 요약 서술에서 특히 **구체성/성장 서사**로 강화.",
+        ...lines,
+      ].join("\n");
+    }
+  }
+
+  const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection, summaryCoursePlanSection, priorInterviewSection].filter(Boolean).join("\n") || undefined;
+  const result = await generateActivitySummary(studentId, [grade], extraSections, undefined, ctx.taskDeadline);
+
+  if (!result.success) {
+    // 빈 데이터 학년(대상 없음) → skipped
+    if (result.error?.includes("기록 데이터가 없습니다")) {
+      return { skipped: true, reason: result.error };
+    }
+    throw new Error(result.error);
+  }
+  return { skipped: false };
+}
+
 export async function runActivitySummary(
   ctx: PipelineContext,
   computedEdges: PersistedEdge[] | CrossRefEdge[],
@@ -139,7 +238,7 @@ export async function runActivitySummary(
   }
 
   const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection, summaryCoursePlanSection, priorInterviewSection].filter(Boolean).join("\n") || undefined;
-  const result = await generateActivitySummary(studentId, grades, extraSections);
+  const result = await generateActivitySummary(studentId, grades, extraSections, undefined, ctx.taskDeadline);
   if (!result.success) throw new Error(result.error);
 
   // Cross-run: 방금 저장된 + 최근 저장된 activity_summaries 를 task_results 에 스냅샷.
