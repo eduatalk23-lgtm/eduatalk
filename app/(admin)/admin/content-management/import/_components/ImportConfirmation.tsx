@@ -7,7 +7,7 @@
  */
 
 import Button from "@/components/atoms/Button";
-import type { ContentType } from "@/lib/domains/content-research";
+import type { ContentType } from "@/lib/domains/content-research/types";
 
 interface ParsedRow {
   originalData: Record<string, unknown>;

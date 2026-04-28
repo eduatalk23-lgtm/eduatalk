@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { ConfidenceIndicator, QualityBadge } from "./ConfidenceIndicator";
-import type { ExtractedMetadata } from "@/lib/domains/content-research";
+import type { ExtractedMetadata } from "@/lib/domains/content-research/types";
 
 interface AIMetadataPanelProps {
   metadata: ExtractedMetadata | null;

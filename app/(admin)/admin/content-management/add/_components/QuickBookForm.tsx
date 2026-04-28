@@ -10,11 +10,9 @@ import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { AIMetadataPanel } from "./AIMetadataPanel";
-import {
-  extractContentMetadata,
-  calculateOverallConfidence,
-  type ExtractedMetadata,
-} from "@/lib/domains/content-research";
+import { extractContentMetadata } from "@/lib/domains/content-research/actions/extractMetadata";
+import { calculateOverallConfidence } from "@/lib/domains/content-research/utils/confidence";
+import type { ExtractedMetadata } from "@/lib/domains/content-research/types";
 import { addMasterBook } from "@/lib/domains/content";
 import FormField from "@/components/molecules/FormField";
 

@@ -17,9 +17,11 @@ import { ImportConfirmation } from "./ImportConfirmation";
 import {
   validateImportData,
   applyAISuggestionsToRows,
-  type ContentType,
-  type BulkImportValidationResult,
-} from "@/lib/domains/content-research";
+} from "@/lib/domains/content-research/actions/validateImport";
+import type {
+  ContentType,
+  BulkImportValidationResult,
+} from "@/lib/domains/content-research/types";
 import { importMasterBooksFromExcel } from "@/lib/domains/master-content/actions/books/import";
 import { importMasterLecturesFromExcel } from "@/lib/domains/master-content/actions/lectures/import";
 import * as XLSX from "xlsx";

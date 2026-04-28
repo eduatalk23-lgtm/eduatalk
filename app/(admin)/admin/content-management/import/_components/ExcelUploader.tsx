@@ -11,7 +11,7 @@ import Button from "@/components/atoms/Button";
 import { downloadMasterBooksTemplate } from "@/lib/domains/master-content/actions/books/export";
 import { downloadMasterLecturesTemplate } from "@/lib/domains/master-content/actions/lectures/export";
 import { useToast } from "@/components/ui/ToastProvider";
-import type { ContentType } from "@/lib/domains/content-research";
+import type { ContentType } from "@/lib/domains/content-research/types";
 
 interface ExcelUploaderProps {
   contentType: ContentType;
