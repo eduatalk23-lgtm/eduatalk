@@ -9,7 +9,7 @@
  * - Per-tag 알림 누적 카운트 (메시지 요약 표시)
  */
 
-const CACHE_NAME = "timelevelup-a1db8842";
+const CACHE_NAME = "timelevelup-b2ea9953";
 const OFFLINE_URL = "/offline";
 
 // ============================================
@@ -189,8 +189,33 @@ self.addEventListener("fetch", (event) => {
   ) return;
 
   if (event.request.mode === "navigate") {
+    // /offline 자체에 대한 navigate 요청은 fallback 적용 시 무한 루프가 발생하므로
+    // 네트워크 실패하면 unavailable 응답을 그대로 노출하여 브라우저 기본 에러 화면 사용
+    const isOfflineRoute = url.pathname === OFFLINE_URL;
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+      fetch(event.request).catch(async () => {
+        if (isOfflineRoute) {
+          return new Response("Offline", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" },
+          });
+        }
+        const cached = await caches.match(OFFLINE_URL);
+        if (!cached) {
+          return new Response("Offline", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" },
+          });
+        }
+        // 클라이언트가 fallback 여부를 인지할 수 있도록 헤더 동봉
+        const headers = new Headers(cached.headers);
+        headers.set("X-SW-Offline-Fallback", "1");
+        return new Response(await cached.clone().blob(), {
+          status: cached.status,
+          statusText: cached.statusText,
+          headers,
+        });
+      })
     );
     return;
   }

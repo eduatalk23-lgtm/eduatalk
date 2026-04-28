@@ -120,6 +120,36 @@ export function waitForOnline(timeoutMs: number = 30000): Promise<boolean> {
 }
 
 /**
+ * 실제 네트워크 도달성 검사 (navigator.onLine 보완)
+ *
+ * navigator.onLine 은 인터페이스 존재 여부만 반영하므로
+ * 캡티브 포털, DNS 실패, SW offline fallback 등 실제 단절 상황을 놓칠 수 있다.
+ * /api/health 로 짧은 타임아웃 ping 을 보내 실 도달성을 확인한다.
+ */
+export async function checkActualConnectivity(
+  timeoutMs: number = 3000
+): Promise<boolean> {
+  if (typeof navigator === "undefined") return true;
+  // navigator.onLine === false 면 ping 불필요
+  if (!navigator.onLine) return false;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch("/api/health", {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * 네트워크 오류인지 확인
  */
 export function isNetworkError(error: unknown): boolean {

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { WifiOff, RefreshCw, Home } from "lucide-react";
-import Link from "next/link";
 import Button from "@/components/atoms/Button";
 import { cn } from "@/lib/cn";
+import { checkActualConnectivity } from "@/lib/offline/networkStatus";
 
-// 온라인 상태 구독을 위한 외부 스토어
+const RETURN_PATH_KEY = "offline:returnPath";
+
 function subscribeOnline(callback: () => void) {
   window.addEventListener("online", callback);
   window.addEventListener("offline", callback);
@@ -21,23 +23,71 @@ function getOnlineSnapshot() {
 }
 
 function getServerSnapshot() {
-  return true; // SSR에서는 온라인으로 가정
+  return true;
 }
 
-/**
- * 오프라인 상태일 때 표시되는 페이지
- * Service Worker가 자동으로 이 페이지를 표시합니다.
- */
 export default function OfflinePage() {
-  const isOnline = useSyncExternalStore(
+  const router = useRouter();
+  const navigatorOnline = useSyncExternalStore(
     subscribeOnline,
     getOnlineSnapshot,
     getServerSnapshot
   );
 
-  const handleRefresh = () => {
-    window.location.reload();
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retryFailed, setRetryFailed] = useState(false);
+  const [returnPath, setReturnPath] = useState<string>("/");
+
+  // 진입 시 referrer 보관 (SW fallback 으로 떨어진 경우 원래 경로로 복귀)
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(RETURN_PATH_KEY);
+      if (stored) {
+        setReturnPath(stored);
+        return;
+      }
+      const ref = document.referrer;
+      if (ref) {
+        const url = new URL(ref);
+        if (url.origin === window.location.origin && url.pathname !== "/offline") {
+          sessionStorage.setItem(RETURN_PATH_KEY, url.pathname + url.search);
+          setReturnPath(url.pathname + url.search);
+        }
+      }
+    } catch {
+      // sessionStorage 접근 실패는 무시
+    }
+  }, []);
+
+  const handleRefresh = async () => {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    setRetryFailed(false);
+    const reachable = await checkActualConnectivity(3500);
+    if (reachable) {
+      try {
+        sessionStorage.removeItem(RETURN_PATH_KEY);
+      } catch {
+        // 무시
+      }
+      // 원래 경로(또는 루트)로 복귀
+      window.location.replace(returnPath || "/");
+      return;
+    }
+    setIsRetrying(false);
+    setRetryFailed(true);
   };
+
+  const handleHome = () => {
+    try {
+      sessionStorage.removeItem(RETURN_PATH_KEY);
+    } catch {
+      // 무시
+    }
+    router.replace("/");
+  };
+
+  const showSpin = isRetrying;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
@@ -65,32 +115,32 @@ export default function OfflinePage() {
             onClick={handleRefresh}
             variant="primary"
             className="w-full"
-            disabled={!isOnline}
+            disabled={isRetrying}
           >
             <RefreshCw
-              className={cn(
-                "w-4 h-4 mr-2",
-                !isOnline && "animate-spin"
-              )}
+              className={cn("w-4 h-4 mr-2", showSpin && "animate-spin")}
             />
-            {isOnline ? "새로고침" : "연결 확인 중..."}
+            {isRetrying ? "연결 확인 중..." : "다시 시도"}
           </Button>
 
-          <Link href="/">
-            <Button variant="outline" className="w-full">
-              <Home className="w-4 h-4 mr-2" />
-              홈으로 이동
-            </Button>
-          </Link>
+          <Button onClick={handleHome} variant="outline" className="w-full">
+            <Home className="w-4 h-4 mr-2" />
+            메인으로 이동
+          </Button>
         </div>
 
-        {isOnline && (
+        {retryFailed && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            아직 인터넷에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.
+          </p>
+        )}
+
+        {navigatorOnline && !isRetrying && !retryFailed && (
           <p className="text-sm text-green-600 dark:text-green-400">
-            인터넷 연결이 복구되었습니다!
+            네트워크가 복구된 것 같습니다. 다시 시도를 눌러주세요.
           </p>
         )}
       </div>
     </div>
   );
 }
-

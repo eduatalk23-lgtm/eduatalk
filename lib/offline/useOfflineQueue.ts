@@ -12,6 +12,7 @@ import {
   isOnline as checkOnline,
   addNetworkStatusListener,
   initNetworkStatusListeners,
+  cleanupNetworkStatusListeners,
 } from "./networkStatus";
 
 export type UseOfflineQueueReturn = {
@@ -77,6 +78,7 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
       unsubscribeQueue();
       unsubscribeNetwork();
       unsubscribeQueueStatus();
+      cleanupNetworkStatusListeners();
     };
   }, []);
 
