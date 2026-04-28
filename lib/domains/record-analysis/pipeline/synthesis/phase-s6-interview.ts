@@ -14,6 +14,7 @@ import {
 import * as repository from "@/lib/domains/student-record/repository";
 import * as diagnosisRepo from "@/lib/domains/student-record/repository/diagnosis-repository";
 import { resolveEffectiveContent } from "../pipeline-data-resolver";
+import { computeSynthesisInputHash, tryReusePreviousResult } from "./cache-helper";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
@@ -383,6 +384,63 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
     if (built.trim().length > 0) mainThemeCascadeSection = built;
   }
 
+  // ============================================
+  // Synthesis cache (M1-c W6, 2026-04-28)
+  // ============================================
+  const interviewInput = {
+    content: mainContent,
+    recordType: mainType,
+    subjectName: mainSubject ?? "",
+    grade: main.grade,
+    additionalRecordsKey: (additionalRecords ?? []).map((r) => `${r.recordType}|${r.grade}|${(r.content ?? "").length}`).sort(),
+    diagnosticWeaknesses: [...(diagWeaknesses ?? [])].sort(),
+    careerContext: careerContext ?? "",
+    weakCompetenciesKey: (weakCompetencies ?? []).map((c) => `${c.item}|${c.grade}`).sort(),
+    existingQuestionsKey: [...(existingQuestions ?? [])].sort(),
+    qualityIssuesKey: (qualityIssues ?? []).map((q) => `${q.recordType}|${q.subjectName ?? ""}|${q.issues.length}`).sort(),
+    appliedUniversitiesKey: (appliedUniversities ?? []).map((u) => `${u.universityName}|${u.department ?? ""}`).sort(),
+    mainExplorationSection: combinedMainExploration ?? "",
+    midPlanSynthesisSection: midPlanSynthesisSection ?? "",
+    midPlanByGradeSection: midPlanByGradeSection ?? "",
+    hakjongScoreSection: hakjongScoreSection ?? "",
+    strategySummarySection: strategySummarySection ?? "",
+    hyperedgeSummarySection: hyperedgeSummarySection ?? "",
+    previousRunOutputsSection: interviewPreviousRunOutputsSection ?? "",
+    qualityPatternsSection: interviewQualityPatternsSection ?? "",
+    gradeThemesSection: interviewGradeThemesSection ?? "",
+    narrativeArcSection: interviewNarrativeArcSection ?? "",
+    profileCardSection: interviewProfileCardSection ?? "",
+    mainThemeCascadeSection: mainThemeCascadeSection ?? "",
+  };
+  const inputHash = computeSynthesisInputHash(interviewInput as unknown as Record<string, unknown>);
+
+  type CachedInterviewResult = {
+    inputHash: string;
+    totalCount: number;
+    byType: Record<string, number>;
+    topQuestions: Array<{ question: string; questionType: string; difficulty: string; sourceType: string }>;
+  };
+  const cached = tryReusePreviousResult<CachedInterviewResult>(
+    ctx.belief.previousRunOutputs,
+    "interview_generation",
+    inputHash,
+  );
+  if (cached) {
+    // 직전 ai-generated interview 질문이 살아있는지 확인
+    const { count: aliveCount } = await supabase
+      .from("student_record_interview_questions")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("is_ai_generated", true);
+    if ((aliveCount ?? 0) > 0) {
+      return {
+        preview: `면접 질문 캐시 적중 — LLM 호출 생략 (${aliveCount}건 유지)`,
+        result: { ...cached, inputHash, totalCount: aliveCount ?? cached.totalCount },
+      };
+    }
+  }
+
   const result = await generateInterviewQuestions({
     content: mainContent,
     recordType: mainType,
@@ -471,6 +529,8 @@ export async function runInterviewGeneration(ctx: PipelineContext): Promise<Task
       totalCount: questions.length,
       byType,
       topQuestions,
+      // M1-c W6 (2026-04-28): synthesis cache 키
+      inputHash,
     },
   };
 }
@@ -631,6 +691,48 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
     }
   }
 
+  // ============================================
+  // Synthesis cache (M1-c W6, 2026-04-28)
+  // ============================================
+  const roadmapInputHash = computeSynthesisInputHash({
+    studentId,
+    llmMode,
+    midPlanSynthesisSection: roadmapMidPlanSection ?? "",
+    midPlanByGradeSection: roadmapMidPlanByGradeSection ?? "",
+    hakjongScoreSection: roadmapHakjongSection ?? "",
+    strategySummarySection: roadmapStrategySection ?? "",
+    previousRunOutputsSection: roadmapPreviousRunOutputsSection ?? "",
+    qualityPatternsSection: roadmapQualityPatternsSection ?? "",
+    gradeThemesSection: roadmapGradeThemesSection ?? "",
+    narrativeArcSection: roadmapNarrativeArcSection ?? "",
+    hyperedgeSummarySection: roadmapHyperedgeSummarySection ?? "",
+    profileCardSection: roadmapProfileCardSection ?? "",
+    mainThemeCascadeSection: roadmapMainThemeCascadeSection ?? "",
+  });
+
+  type CachedRoadmapResult = {
+    inputHash: string;
+    mode: string;
+    itemCount: number;
+    items: Array<{ grade: number; semester: number | null; area: string }>;
+  };
+  const cachedRoadmap = tryReusePreviousResult<CachedRoadmapResult>(
+    ctx.belief.previousRunOutputs,
+    "roadmap_generation",
+    roadmapInputHash,
+  );
+  if (cachedRoadmap) {
+    // 직전 [AI] 로드맵 row 가 살아있는지 확인
+    const aliveRoadmap = await repository.findAllRoadmapItemsByStudent(studentId, tenantId);
+    const aliveAi = aliveRoadmap.filter((r) => r.plan_content.startsWith("[AI]"));
+    if (aliveAi.length > 0) {
+      return {
+        preview: `로드맵 캐시 적중 — LLM 호출 생략 (${aliveAi.length}건 유지)`,
+        result: { ...cachedRoadmap, inputHash: roadmapInputHash, itemCount: aliveAi.length },
+      };
+    }
+  }
+
   const llmResult = await generateAiRoadmap(studentId, llmMode, {
     midPlanSynthesisSection: roadmapMidPlanSection,
     midPlanByGradeSection: roadmapMidPlanByGradeSection,
@@ -657,6 +759,8 @@ export async function runRoadmapGeneration(ctx: PipelineContext): Promise<TaskRu
         mode: llmMode,
         itemCount: llmResult.data.items.length,
         items,
+        // M1-c W6 (2026-04-28): synthesis cache 키
+        inputHash: roadmapInputHash,
       },
     };
   }

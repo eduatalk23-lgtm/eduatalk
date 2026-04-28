@@ -22,6 +22,7 @@ import {
 import { findHyperedges } from "@/lib/domains/student-record/repository/hyperedge-repository";
 import { resolveMidPlan } from "../orient/resolve-mid-plan";
 import { parseSnapshotHakjongScore } from "./snapshot-helpers";
+import { computeSynthesisInputHash, tryReusePreviousResult } from "./cache-helper";
 
 // M4: 가이드 배정 컨텍스트 캐시 — Phase 간 DB 재조회 방지
 type GuideContextKey = "guide" | "summary" | "strategy";
@@ -252,15 +253,9 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     return "약점/부족역량 없음 — 건너뜀";
   }
 
-  // 재실행 안전성: 기존 planned 전략 삭제 (in_progress/done은 보존)
+  // M1-c W6 (2026-04-28): planned 삭제는 cache miss 인 경우에만 수행하도록 아래로 이동.
+  // 여기서는 hash 키에 들어갈 existingContents (planned 제외) 만 미리 계산.
   const plannedStrategies = existingStrategies.filter((s) => s.status === "planned");
-  if (plannedStrategies.length > 0) {
-    await Promise.allSettled(
-      plannedStrategies.map((s) => diagnosisRepo.deleteStrategy(s.id)),
-    );
-  }
-
-  // 삭제 후 남은 전략만으로 중복 체크
   const keptStrategies = existingStrategies.filter((s) => s.status !== "planned");
   const existingContents = keptStrategies.map((s) => s.strategy_content.slice(0, 60));
 
@@ -506,6 +501,63 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     if (built.trim().length > 0) mainThemeCascadeSection = built;
   }
 
+  // ============================================
+  // Synthesis cache (M1-c W6, 2026-04-28) — ai_diagnosis 와 동일 패턴
+  // ============================================
+  const inputHash = computeSynthesisInputHash({
+    weaknesses: [...weaknesses].sort(),
+    weakCompetencies: weakCompetencies.map((c) => `${c.item}|${c.grade}`).sort(),
+    rubricWeaknesses: [...rubricWeaknesses].sort(),
+    diagnosisImprovements: diagnosisImprovements.map((i) => `${i.priority}|${i.area}|${i.action}`).sort(),
+    grade: studentGrade,
+    targetMajor: (snapshot?.target_major as string) ?? null,
+    existingContents: [...existingContents].sort(),
+    universityMatchContext: universityMatchContext ?? "",
+    guideContextSection: guideContextSection ?? "",
+    combinedHyperedgeSection: combinedHyperedgeSection ?? "",
+    qualityPatterns: (ctx.belief.qualityPatterns ?? []).map((p) => `${p.pattern}|${p.count}`).sort(),
+    mainExplorationSection: mainExplorationSection ?? "",
+    midPlanSynthesisSection: midPlanSynthesisSection ?? "",
+    midPlanByGradeSection: midPlanByGradeSection ?? "",
+    projectedQualitySection: projectedQualitySection ?? "",
+    hakjongScoreSection: hakjongScoreSection ?? "",
+    gradeThemesSection: gradeThemesSection ?? "",
+    narrativeArcSection: narrativeArcSection ?? "",
+    profileCardSection: profileCardSection ?? "",
+    mainThemeCascadeSection: mainThemeCascadeSection ?? "",
+  });
+
+  type CachedStrategyResult = {
+    inputHash: string;
+    savedCount: number;
+    priorGapBridgeCount?: number;
+    priorGapSectionChars?: number;
+    _universityMatch?: import("../../eval/university-profile-matcher").UniversityMatchAnalysis;
+  };
+
+  const cached = tryReusePreviousResult<CachedStrategyResult>(
+    ctx.belief.previousRunOutputs,
+    "ai_strategy",
+    inputHash,
+  );
+  if (cached) {
+    // 직전 planned 전략 row 가 살아있는지 확인 — 없으면 cache miss 로 fallthrough
+    const alivePlanned = plannedStrategies.length;
+    if (alivePlanned > 0) {
+      return {
+        preview: `보완전략 캐시 적중 — LLM 호출 생략 (${alivePlanned}건 유지)`,
+        result: { ...cached, inputHash, savedCount: alivePlanned },
+      };
+    }
+  }
+
+  // cache miss → 기존 planned 정리 (재실행 안전성: in_progress/done 은 보존)
+  if (plannedStrategies.length > 0) {
+    await Promise.allSettled(
+      plannedStrategies.map((s) => diagnosisRepo.deleteStrategy(s.id)),
+    );
+  }
+
   const { suggestStrategies } = await import("../../llm/actions/suggestStrategies");
   const result = await suggestStrategies({
     weaknesses,
@@ -564,6 +616,8 @@ export async function runAiStrategy(ctx: PipelineContext): Promise<TaskRunnerOut
     preview: `${saved}건 보완전략 제안됨`,
     result: {
       savedCount: saved,
+      // M1-c W6 (2026-04-28): synthesis cache 키
+      inputHash,
       // Cross-run 소비 자기보고 (cross-run-consumer-diff [J] 측정용)
       priorGapBridgeCount,
       priorGapSectionChars,

@@ -33,6 +33,7 @@ import { findLatestSnapshot } from "@/lib/domains/student-record/repository/stud
 import type { StudentState } from "@/lib/domains/student-record/types/student-state";
 import { MAJOR_TO_TIER1 } from "@/lib/constants/career-classification";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
+import { computeSynthesisInputHash, tryReusePreviousResult } from "./cache-helper";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline.phase-s7" };
 
@@ -290,6 +291,51 @@ export async function runTierPlanRefinement(
     logActionDebug(LOG_CTX, `직전 실행 gap 섹션 빌드 실패 (S7 계속): ${s7PrevErr}`);
   }
 
+  // ============================================
+  // Synthesis cache (M1-c W6, 2026-04-28)
+  // tier_plan_refinement 는 LLM 2회 (suggestion + judge). cache hit 시 둘 다 skip + 직전 verdict 그대로 반환.
+  // 활성 main_exploration row 가 그대로면 재사용. cache miss 또는 active row 변경 시 fallthrough.
+  // ============================================
+  const s7InputHash = computeSynthesisInputHash({
+    activeMainExplorationId: active.id,
+    currentThemeLabel: active.theme_label,
+    currentTierPlanRaw: JSON.stringify(currentTierPlan),
+    targetMajor,
+    targetMajor2: targetMajor2 ?? "",
+    tier1Code: tier1Code ?? "",
+    currentGrade,
+    strategyHighlights: [...strategyHighlights].sort(),
+    roadmapHighlights: [...roadmapHighlights].sort(),
+    qualityPatterns: [...qualityPatterns].sort(),
+    diagnosisWeaknesses: [...diagnosisWeaknesses].sort(),
+    midPlanSynthesisSection: midPlanSynthesisSection ?? "",
+    midPlanByGradeSection: midPlanByGradeSection ?? "",
+    narrativeArcSection: narrativeArcSection ?? "",
+    hyperedgeSummarySection: hyperedgeSummarySection ?? "",
+    previousRunOutputsSection: s7PreviousRunOutputsSection ?? "",
+    gradeThemesSection: s7GradeThemesSection ?? "",
+    profileCardSection: s7ProfileCardSection ?? "",
+    mainThemeCascadeSection: s7MainThemeCascadeSection ?? "",
+  });
+
+  type CachedTierResult = {
+    inputHash: string;
+    action: string;
+    [k: string]: unknown;
+  };
+  const s7Cached = tryReusePreviousResult<CachedTierResult>(
+    ctx.belief.previousRunOutputs,
+    "tier_plan_refinement",
+    s7InputHash,
+  );
+  if (s7Cached) {
+    // 활성 main_exploration row 가 직전과 동일한지 확인 (chain depth/origin 변경 없음)
+    return {
+      preview: `tier_plan 캐시 적중 — LLM 호출 생략 (직전 ${s7Cached.action})`,
+      result: { ...s7Cached, inputHash: s7InputHash, elapsedMs: Date.now() - startMs },
+    };
+  }
+
   const suggestion = await extractTierPlanSuggestion({
     currentThemeLabel: active.theme_label,
     currentThemeKeywords: active.theme_keywords ?? [],
@@ -326,6 +372,7 @@ export async function runTierPlanRefinement(
       result: {
         action: "skipped_llm_error",
         error: suggestion.error,
+        inputHash: s7InputHash,
         elapsedMs: Date.now() - startMs,
       },
     };
@@ -364,6 +411,7 @@ export async function runTierPlanRefinement(
         jaccardByTier: similarity.byTier,
         threshold: similarity.threshold,
         ...(suggestion.modelName ? { modelName: suggestion.modelName } : {}),
+        inputHash: s7InputHash,
         elapsedMs: Date.now() - startMs,
       },
     };
@@ -378,6 +426,8 @@ export async function runTierPlanRefinement(
     jaccardByTier: similarity.byTier,
     threshold: similarity.threshold,
     ...(suggestion.modelName ? { modelName: suggestion.modelName } : {}),
+    // M1-c W6 (2026-04-28): synthesis cache 키
+    inputHash: s7InputHash,
   };
 
   // ── 9. 수렴: no-op 종료 ──

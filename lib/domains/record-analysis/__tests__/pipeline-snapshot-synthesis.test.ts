@@ -922,6 +922,7 @@ describe("S6 roadmap_generation — runRoadmapGeneration", () => {
       {
         "preview": "2건 AI 로드맵 (analysis)",
         "result": {
+          "inputHash": "a43df1d3",
           "itemCount": 2,
           "items": [
             {
