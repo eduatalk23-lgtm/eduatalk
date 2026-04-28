@@ -146,14 +146,26 @@ export async function fetchGradeAwarePipelineStatus(
           };
         }
       } else if (row.pipeline_type === "synthesis" && !synthesisPipeline) {
-        synthesisPipeline = {
-          pipelineId: row.id as string,
-          status: row.status as string,
-          tasks,
-          previews,
-          elapsed,
-          errors,
-        };
+        // M1-c W6 (2026-04-28): latest 가 cancelled/failed 이고 task 가 전부 pending 인
+        // "공허한" row 이면 skip → 직전 의미있는 row 가 진실. 이 때 직전 run 의 completed
+        // task 결과(storyline/edges/diagnosis 등)는 DB 에는 영속되어 있으므로 UI 가 다시
+        // 노출하는 게 정합. (단, status 자체는 직전 row 의 상태로 표시되어 "재실행" 액션
+        // 가능성 유지.)
+        const taskValues = Object.values(tasks);
+        const allPending = taskValues.length > 0 && taskValues.every((v) => v === "pending");
+        const isAborted = row.status === "cancelled" || row.status === "failed";
+        if (isAborted && allPending) {
+          // skip — 직전 row 채택 위해 이 row 무시
+        } else {
+          synthesisPipeline = {
+            pipelineId: row.id as string,
+            status: row.status as string,
+            tasks,
+            previews,
+            elapsed,
+            errors,
+          };
+        }
       } else if (row.pipeline_type === "past_analytics" && !pastAnalyticsPipeline) {
         pastAnalyticsPipeline = {
           pipelineId: row.id as string,
