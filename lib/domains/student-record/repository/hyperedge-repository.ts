@@ -135,7 +135,79 @@ export async function replaceHyperedges(
   });
 
   if (error) throw error;
-  return (data as number) ?? rows.length;
+  const count = (data as number) ?? rows.length;
+
+  // A1 (2026-04-28): cross-run drift / theme stability 분석용 snapshot 동시 저장 (analysis 컨텍스트만).
+  // best-effort — 실패해도 replace 결과 반환 유지.
+  if (context === "analysis") {
+    try {
+      await saveHyperedgeSnapshot(studentId, pipelineId, rows, count);
+    } catch (snapErr) {
+      // 로깅은 호출자 책임 — repository 는 throw 대신 silent 무시
+      console.warn(
+        "[hyperedge-repository] saveHyperedgeSnapshot 실패 (non-fatal):",
+        snapErr instanceof Error ? snapErr.message : snapErr,
+      );
+    }
+  }
+
+  return count;
+}
+
+/**
+ * A1: hyperedge JSONB 동결 스냅샷 저장 (pipeline_id 단위 1건 upsert).
+ */
+async function saveHyperedgeSnapshot(
+  studentId: string,
+  pipelineId: string,
+  rows: ReturnType<typeof toHyperedgeRow>[],
+  count: number,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("student_record_hyperedge_snapshots")
+    .upsert(
+      {
+        student_id: studentId,
+        pipeline_id: pipelineId,
+        hyperedge_count: count,
+        hyperedges_json: rows,
+      },
+      { onConflict: "student_id,pipeline_id" },
+    );
+  if (error) throw error;
+}
+
+/** A1: 학생의 hyperedge snapshot 이력 조회 (최신 순). */
+export async function findHyperedgeSnapshots(
+  studentId: string,
+  limit = 5,
+): Promise<
+  Array<{
+    id: string;
+    student_id: string;
+    pipeline_id: string;
+    hyperedge_count: number;
+    hyperedges_json: unknown[];
+    computed_at: string;
+  }>
+> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_hyperedge_snapshots")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("computed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as Array<{
+    id: string;
+    student_id: string;
+    pipeline_id: string;
+    hyperedge_count: number;
+    hyperedges_json: unknown[];
+    computed_at: string;
+  }>;
 }
 
 // ============================================

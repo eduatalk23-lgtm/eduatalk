@@ -4,7 +4,10 @@
 // ============================================
 
 import { logActionError } from "@/lib/logging/actionLogger";
-import { generateObjectWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import {
+  generateObjectWithRateLimit,
+  streamObjectWithRateLimit,
+} from "@/lib/domains/plan/llm/ai-sdk";
 import { geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
 import { zodSchema } from "ai";
 import {
@@ -47,6 +50,12 @@ export type GenerateProgressCallback = (
   detail?: string,
 ) => void;
 
+/** B1 Stream-to-DB: LLM 부분 객체 콜백. 호출자가 throttle/persistence 담당. */
+export type GeneratePartialCallback = (
+  partial: Partial<GeneratedGuideOutput>,
+  chunkIndex: number,
+) => void | Promise<void>;
+
 /** generateGuideCore 성공 결과 (AI 생성 결과만 반환, DB 저장 안 함) */
 export interface GenerateGuideCoreSuccess {
   preview: GeneratedGuideOutput;
@@ -72,7 +81,11 @@ export async function generateGuideCore(
   input: GuideGenerationInput,
   userId: string,
   onProgress?: GenerateProgressCallback,
-  options?: { modelStartIndex?: number },
+  options?: {
+    modelStartIndex?: number;
+    /** B1: streamObject 부분 객체 콜백. 미지정 시 stream 미사용 (generateObject 경로). */
+    onPartial?: GeneratePartialCallback;
+  },
 ): Promise<GenerateGuideCoreResult> {
   try {
     // 할당량 확인
@@ -114,17 +127,24 @@ export async function generateGuideCore(
 
     let generated: GeneratedGuideOutput;
     let modelId: string;
+    const useStream = !!options?.onPartial;
     try {
-      const result = await generateObjectWithRateLimit({
+      const baseArgs = {
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
+        messages: [{ role: "user" as const, content: userPrompt }],
         schema: zodSchema(generatedGuideSchema),
-        modelTier: "advanced",
+        modelTier: "advanced" as const,
         temperature: 0.5,
         maxTokens: 65536,
         timeoutMs: 300_000, // API Route maxDuration=300 (5분)
         modelStartIndex: options?.modelStartIndex,
-      });
+      };
+      const result = useStream
+        ? await streamObjectWithRateLimit({
+            ...baseArgs,
+            onPartial: options!.onPartial,
+          })
+        : await generateObjectWithRateLimit(baseArgs);
       generated = result.object;
       modelId = result.modelId;
     } catch (primaryError) {
@@ -138,15 +158,21 @@ export async function generateGuideCore(
         logActionWarn(LOG_CTX, "2.5-pro 과부하 → 2.5-flash fallback", {
           source: input.source,
         });
-        const result = await generateObjectWithRateLimit({
+        const fbArgs = {
           system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }],
+          messages: [{ role: "user" as const, content: userPrompt }],
           schema: zodSchema(generatedGuideSchema),
-          modelTier: "fast",
+          modelTier: "fast" as const,
           temperature: 0.5,
           maxTokens: 40960,
           timeoutMs: 300_000, // API Route maxDuration=300 (5분)
-        });
+        };
+        const result = useStream
+          ? await streamObjectWithRateLimit({
+              ...fbArgs,
+              onPartial: options!.onPartial,
+            })
+          : await generateObjectWithRateLimit(fbArgs);
         generated = result.object;
         modelId = result.modelId + " (fallback)";
       } else {

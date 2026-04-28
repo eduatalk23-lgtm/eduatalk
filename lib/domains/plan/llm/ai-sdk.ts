@@ -52,7 +52,13 @@
  * 상세: `lib/domains/plan/llm/llm-cache.ts`, `resolveEffectiveTier()`
  */
 
-import { generateText, generateObject, streamText, APICallError } from "ai";
+import {
+  generateText,
+  generateObject,
+  streamText,
+  streamObject,
+  APICallError,
+} from "ai";
 import { google } from "@ai-sdk/google";
 import { openai, createOpenAI } from "@ai-sdk/openai";
 import type { Schema, LanguageModel } from "ai";
@@ -73,6 +79,10 @@ import {
   lastUserMessage,
   LlmCacheMissError,
 } from "./llm-cache";
+// claude-code-cli 는 node:child_process 등 Node-only 모듈을 사용하므로
+// 정적 import 시 Client 번들 그래프에 끌려와 빌드가 실패할 수 있다.
+// 타입만 정적으로 가져오고 (erased), 실행체는 사용 지점에서 동적 import.
+import type { ClaudeCodeModel } from "./providers/claude-code-cli";
 
 // ============================================
 // LLM Provider 추상화 (Google Gemini / OpenAI)
@@ -86,7 +96,7 @@ import {
 // advanced: 세특 심층 분석 (단일 레코드, 루브릭 채점)
 // ⚠ fast/standard 현재 동일 모델 — standard 전용 모델 출시 시 분리
 
-export type LlmProvider = "gemini" | "openai" | "ollama";
+export type LlmProvider = "gemini" | "openai" | "ollama" | "claude-code";
 
 /** Ollama 로컬 모델 ID — dev에서 `LLM_OLLAMA_MODEL` env로 오버라이드 가능 (기본: gemma4:latest) */
 const OLLAMA_MODEL = process.env.LLM_OLLAMA_MODEL || "gemma4:latest";
@@ -108,6 +118,13 @@ const MODEL_ID_MAP: Record<LlmProvider, Record<ModelTier, string>> = {
     fast: OLLAMA_MODEL,
     standard: OLLAMA_MODEL,
     advanced: OLLAMA_MODEL,
+  },
+  // Claude Code 구독(OAuth) 경로 — `claude -p` subprocess.
+  // 모델 별명만 저장 (실제 ID 결정은 Claude Code CLI 내부).
+  "claude-code": {
+    fast: "haiku",
+    standard: "haiku",
+    advanced: "sonnet",
   },
 };
 
@@ -131,6 +148,12 @@ const MODEL_FALLBACK_CHAIN: Record<LlmProvider, Record<ModelTier, string[]>> = {
     standard: [OLLAMA_MODEL],
     advanced: [OLLAMA_MODEL],
   },
+  // Claude Code: 단일 모델 별명. 폴백 체인 없음 (overload는 Claude Code CLI 내부 처리).
+  "claude-code": {
+    fast: ["haiku"],
+    standard: ["haiku"],
+    advanced: ["sonnet"],
+  },
 };
 
 const DEFAULT_MAX_TOKENS: Record<ModelTier, number> = {
@@ -151,6 +174,8 @@ const PROVIDER_MAX_TOKENS: Record<LlmProvider, number | null> = {
   openai: 16384,
   gemini: null,
   ollama: 32768,
+  // Haiku 4.5: 32k / Sonnet 4.6: 64k. 보수적으로 32k.
+  "claude-code": 32768,
 };
 
 /**
@@ -280,6 +305,35 @@ function resolveEffectiveProvider(): LlmProvider {
     }
     return "ollama";
   }
+  if (raw === "claude-code" || raw === "claude_code" || raw === "claudecode") {
+    // 권고4 (2026-04-28): claude-code provider 는 dev 환경 전용 격리.
+    // 이유:
+    //  1. `claude -p` subprocess 가 호스트에 설치되어 있어야 하므로 Vercel/CI 에서 미존재.
+    //  2. 호스트 1회 호출당 5분 가까이 — 프로덕션 (Vercel 300s) 한도 + 시리얼 누적 시
+    //     관측 사례(인제고 학생, 2026-04-28) 처럼 ECONNRESET / 풀런 정체.
+    //  3. Max 플랜 5h 윈도우 rate limit 이 운영 트래픽을 흡수 못 함.
+    // 가드: NODE_ENV !== 'development' 이거나 명시적 opt-in env 가 없으면 gemini fallback.
+    const isDev = process.env.NODE_ENV === "development";
+    const isExplicitOptIn = process.env.ALLOW_CLAUDE_CODE_PROVIDER === "true";
+    if (!isDev && !isExplicitOptIn) {
+      if (!_loggedProviderOverride) {
+        _loggedProviderOverride = true;
+        logActionWarn(
+          "ai-sdk.providerOverride",
+          `[GUARD] LLM_PROVIDER_OVERRIDE=claude-code 가 dev 환경이 아니거나 ALLOW_CLAUDE_CODE_PROVIDER=true 미설정 — gemini 로 fallback. 프로덕션에서는 claude-code subprocess 사용 금지.`,
+        );
+      }
+      return "gemini";
+    }
+    if (!_loggedProviderOverride) {
+      _loggedProviderOverride = true;
+      logActionWarn(
+        "ai-sdk.providerOverride",
+        `[DEV] LLM_PROVIDER_OVERRIDE=claude-code 활성 — 모든 LLM 요청이 'claude -p' subprocess로 라우팅됩니다. 프로덕션 금지. Max 플랜 5h 윈도우 rate limit 주의.`,
+      );
+    }
+    return "claude-code";
+  }
   return "gemini";
 }
 
@@ -326,6 +380,14 @@ function getLanguageModel(provider: LlmProvider, modelId: string): LanguageModel
   }
   if (provider === "ollama") {
     return ollamaClient(modelId);
+  }
+  if (provider === "claude-code") {
+    // claude-code는 Vercel AI SDK LanguageModel 인터페이스를 거치지 않고
+    // generateText/generateObjectWithRateLimit 진입부에서 직접 분기 처리됨.
+    // 이 함수에 도달하면 라우팅 버그.
+    throw new Error(
+      "[ai-sdk] getLanguageModel: 'claude-code' provider는 subprocess 경로를 사용해야 합니다. 호출 흐름을 확인하세요.",
+    );
   }
   return google(modelId);
 }
@@ -655,6 +717,114 @@ const jsonModeOutput: unknown = {
 };
 
 // ============================================
+// Claude Code CLI 분기 (subprocess 경로)
+// ============================================
+//
+// `LLM_PROVIDER_OVERRIDE=claude-code` 인 경우 Vercel AI SDK 우회.
+// AI SDK LanguageModel 인터페이스가 아닌, `claude -p` subprocess의
+// stdout JSON 을 파싱하여 동일한 AiSdkResult 형태로 변환한다.
+//
+// 캐시 layer는 호출자(generateText/ObjectWithRateLimit)에서 처리되므로,
+// 이 헬퍼는 순수하게 subprocess 호출 + 결과 변환만 담당한다.
+
+/** messages 배열을 단일 prompt 텍스트로 직렬화 */
+function flattenMessagesToPrompt(messages: { role: string; content: string }[]): string {
+  return messages
+    .map((m) => (m.role === "user" ? m.content : `[${m.role}]\n${m.content}`))
+    .join("\n\n");
+}
+
+/** Schema<T> 객체에서 JSON Schema 추출 (AI SDK v6 호환). 실패 시 null */
+function extractJsonSchema(schema: unknown): object | null {
+  if (!schema || typeof schema !== "object") return null;
+  const s = schema as Record<string, unknown>;
+  if (s.jsonSchema && typeof s.jsonSchema === "object") {
+    return s.jsonSchema as object;
+  }
+  return null;
+}
+
+async function runClaudeCodeForText(options: AiSdkOptions): Promise<AiSdkResult> {
+  const tier = resolveEffectiveTier(options.modelTier ?? "standard");
+  const modelAlias = MODEL_ID_MAP["claude-code"][tier] as ClaudeCodeModel;
+
+  const { runClaudeCodeCli } = await import("./providers/claude-code-cli");
+  const result = await runClaudeCodeCli({
+    system: options.system,
+    prompt: flattenMessagesToPrompt(options.messages),
+    model: modelAlias,
+    timeoutMs: options.timeoutMs ?? 120_000,
+  });
+
+  if (options.grounding?.enabled && !_warnedOpenAiGrounding) {
+    _warnedOpenAiGrounding = true;
+    logActionWarn(
+      "ai-sdk.grounding",
+      `[DEV] LLM_PROVIDER_OVERRIDE=claude-code에서는 google_search grounding을 지원하지 않습니다.`,
+    );
+  }
+
+  return {
+    content: result.text,
+    stopReason: "stop",
+    usage: result.usage,
+    modelId: result.modelId,
+    provider: "claude-code",
+    groundingMetadata: undefined,
+  };
+}
+
+async function runClaudeCodeForObject<T>(
+  options: AiSdkOptions & { schema: Schema<T> },
+): Promise<{
+  object: T;
+  usage: { inputTokens: number; outputTokens: number };
+  modelId: string;
+}> {
+  const tier = resolveEffectiveTier(options.modelTier ?? "standard");
+  const modelAlias = MODEL_ID_MAP["claude-code"][tier] as ClaudeCodeModel;
+
+  const schemaJson = extractJsonSchema(options.schema);
+  if (!schemaJson) {
+    throw new Error(
+      "[ai-sdk:claude-code] generateObject schema에서 JSON Schema를 추출하지 못했습니다. AI SDK v6의 zodSchema()/jsonSchema() 헬퍼로 감싼 형태를 사용하세요.",
+    );
+  }
+
+  const { runClaudeCodeCli } = await import("./providers/claude-code-cli");
+  const result = await runClaudeCodeCli({
+    system: options.system,
+    prompt: flattenMessagesToPrompt(options.messages),
+    schemaJson,
+    model: modelAlias,
+    timeoutMs: options.timeoutMs ?? 120_000,
+  });
+
+  if (result.structured == null) {
+    // schema 강제했는데도 구조화 결과가 비었으면 텍스트 파싱 시도 (안전망)
+    try {
+      const cleaned = result.text.replace(/^```json\s*|\s*```$/g, "").trim();
+      const parsed = JSON.parse(cleaned) as T;
+      return {
+        object: parsed,
+        usage: result.usage,
+        modelId: result.modelId,
+      };
+    } catch (e) {
+      throw new Error(
+        `[ai-sdk:claude-code] structured_output이 비어있고 텍스트 파싱도 실패: ${(e as Error).message}\nresult head: ${result.text.slice(0, 200)}`,
+      );
+    }
+  }
+
+  return {
+    object: result.structured as T,
+    usage: result.usage,
+    modelId: result.modelId,
+  };
+}
+
+// ============================================
 // generateTextWithRateLimit
 // ============================================
 
@@ -693,6 +863,26 @@ export async function generateTextWithRateLimit(
       return cached;
     }
     throw new LlmCacheMissError(cacheHash, "text");
+  }
+  // ──────────────────────────────────────────────────────
+
+  // ── Claude Code (subprocess) 분기 ─────────────────────
+  if (provider === "claude-code") {
+    const aiSdkResult = await runClaudeCodeForText(options);
+    if (cacheMode === "record" && cacheHash) {
+      await writeToCache(
+        cacheHash,
+        {
+          provider,
+          modelTier: tier,
+          kind: "text",
+          systemHead: options.system,
+          lastUserHead: lastUserMessage(options.messages),
+        },
+        aiSdkResult,
+      );
+    }
+    return aiSdkResult;
   }
   // ──────────────────────────────────────────────────────
 
@@ -901,6 +1091,26 @@ export async function generateObjectWithRateLimit<T>(
   }
   // ──────────────────────────────────────────────────────
 
+  // ── Claude Code (subprocess) 분기 ─────────────────────
+  if (provider === "claude-code") {
+    const result = await runClaudeCodeForObject(options);
+    if (cacheMode === "record" && cacheHash) {
+      await writeToCache(
+        cacheHash,
+        {
+          provider,
+          modelTier: tier,
+          kind: "object",
+          systemHead: options.system,
+          lastUserHead: lastUserMessage(options.messages),
+        },
+        result,
+      );
+    }
+    return result;
+  }
+  // ──────────────────────────────────────────────────────
+
   const fallbackChain = resolveFallbackChain(provider, tier);
   const maxTokens = clampMaxTokens(provider, options.maxTokens ?? DEFAULT_MAX_TOKENS[tier]);
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
@@ -1051,6 +1261,16 @@ export async function streamTextWithRateLimit(
 ): Promise<AiSdkResult> {
   const provider = resolveEffectiveProvider();
   const tier = resolveEffectiveTier(options.modelTier ?? "standard");
+
+  // claude-code subprocess는 streaming 미지원 → 일반 generateText로 폴백
+  if (provider === "claude-code") {
+    logActionDebug(
+      "ai-sdk.streamText",
+      `[claude-code] streaming 미지원 → generateTextWithRateLimit으로 폴백`,
+    );
+    return generateTextWithRateLimit(options);
+  }
+
   const fallbackChain = resolveFallbackChain(provider, tier);
   const maxTokens = clampMaxTokens(provider, options.maxTokens ?? DEFAULT_MAX_TOKENS[tier]);
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
@@ -1158,6 +1378,165 @@ export async function streamTextWithRateLimit(
     lastError ?? new Error("[AI SDK] streamText 모든 모델 실패");
   options.onError?.(finalError);
   throw finalError;
+}
+
+// ============================================
+// streamObjectWithRateLimit — B1 D6 Stream-to-DB 용
+// ============================================
+//
+// generateObjectWithRateLimit 와 동일한 폴백 체인 + rate-limit + circuit breaker 를
+// 거치되, AI SDK `streamObject` 의 partialObjectStream 을 소비하여 onPartial 콜백을
+// 호출한다. onPartial 핸들러가 throttle/DB write 를 담당.
+//
+// 캐시 layer 는 의도적으로 미포함:
+//   - record/replay 모드는 흐름 점검용. stream 결과를 동일하게 replay 하기 어렵고,
+//     5분 LLM 호출은 LLM_CACHE_MODE=replay 환경의 주 타겟이 아니다.
+//   - 운영 환경은 cacheMode='off' 이므로 영향 없음.
+//
+// claude-code provider 는 미지원 (subprocess 경로 stream 없음) — 이 경우 기존
+// runClaudeCodeForObject 로 폴백한다.
+
+export interface StreamObjectOptions<T> extends AiSdkOptions {
+  schema: Schema<T>;
+  /** 부분 객체가 도착할 때마다 호출. throttling 은 호출자 책임. */
+  onPartial?: (partial: Partial<T>, chunkIndex: number) => void | Promise<void>;
+}
+
+export async function streamObjectWithRateLimit<T>(
+  options: StreamObjectOptions<T>,
+): Promise<{
+  object: T;
+  usage: { inputTokens: number; outputTokens: number };
+  modelId: string;
+}> {
+  const provider = resolveEffectiveProvider();
+  const tier = resolveEffectiveTier(options.modelTier ?? "standard");
+
+  // claude-code: stream 미지원 → 기존 object 경로로 폴백 (onPartial 미호출)
+  if (provider === "claude-code") {
+    logActionDebug(
+      "ai-sdk.streamObject",
+      `[claude-code] streamObject 미지원 → runClaudeCodeForObject 폴백`,
+    );
+    return runClaudeCodeForObject(options);
+  }
+
+  const fallbackChain = resolveFallbackChain(provider, tier);
+  const maxTokens = clampMaxTokens(provider, options.maxTokens ?? DEFAULT_MAX_TOKENS[tier]);
+  const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
+  const startIndex = options.modelStartIndex ?? 0;
+  const providerOptions = buildProviderOptions(provider, tier);
+
+  let lastError: Error | null = null;
+
+  for (let i = startIndex; i < fallbackChain.length; i++) {
+    const currentModelId = fallbackChain[i];
+    if (isCircuitOpen(currentModelId)) {
+      logActionDebug("ai-sdk.streamObject", `${currentModelId} circuit open, skip`);
+      continue;
+    }
+
+    const abortSignal = options.timeoutMs
+      ? AbortSignal.timeout(options.timeoutMs)
+      : undefined;
+
+    logActionDebug(
+      "ai-sdk.streamObject",
+      `시작 - provider=${provider} model=${currentModelId} tier=${tier}`,
+    );
+
+    try {
+      const streamResult = await executeWithProviderGuards(provider, async () => {
+        return streamObject({
+          model: getLanguageModel(provider, currentModelId),
+          mode: "json",
+          system: options.system,
+          messages: options.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          schema: options.schema,
+          maxOutputTokens: maxTokens,
+          temperature,
+          maxRetries: 1,
+          ...(abortSignal ? { abortSignal } : {}),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(providerOptions && { providerOptions: providerOptions as any }),
+        });
+      });
+
+      let chunkIndex = 0;
+      for await (const partial of streamResult.partialObjectStream) {
+        if (options.onPartial) {
+          try {
+            await options.onPartial(partial as Partial<T>, chunkIndex);
+          } catch (cbError) {
+            // onPartial 콜백 실패는 stream 진행을 막지 않음 (best-effort persistence)
+            logActionWarn(
+              "ai-sdk.streamObject",
+              `onPartial 콜백 실패 (non-fatal): ${
+                cbError instanceof Error ? cbError.message : String(cbError)
+              }`,
+            );
+          }
+        }
+        chunkIndex++;
+      }
+
+      const finalObject = await streamResult.object;
+      const usage = await streamResult.usage;
+
+      if (provider === "gemini") {
+        geminiQuotaTracker.recordRequest();
+      }
+      recordCircuitSuccess(currentModelId);
+
+      return {
+        object: finalObject as T,
+        usage: {
+          inputTokens: usage?.inputTokens ?? 0,
+          outputTokens: usage?.outputTokens ?? 0,
+        },
+        modelId: currentModelId,
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (isRateLimitError(error)) {
+        if (provider === "gemini") {
+          geminiQuotaTracker.recordRateLimitHit();
+        }
+        recordCircuitFailure(currentModelId);
+        // streamObject 는 이미 1회 abort 비용이 큼 — 즉시 다음 모델로 전환
+        continue;
+      }
+
+      if (isOverloadError(error)) {
+        logActionWarn(
+          "ai-sdk.streamObject",
+          `${currentModelId} 과부하 → 다음 모델로 전환 | ${formatLlmErrorDetail(error)}`,
+        );
+        recordCircuitFailure(currentModelId);
+        continue;
+      }
+
+      if (isTimeoutError(error)) {
+        logActionWarn(
+          "ai-sdk.streamObject",
+          `${currentModelId} 타임아웃 → 함수 종료 (modelIndex=${i})`,
+        );
+        recordCircuitFailure(currentModelId);
+        const timeoutErr = new Error(`[AI SDK] ${currentModelId} 타임아웃 (modelIndex=${i})`);
+        (timeoutErr as Error & { modelIndex: number }).modelIndex = i;
+        throw timeoutErr;
+      }
+
+      recordCircuitFailure(currentModelId);
+      throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error("[AI SDK] streamObject 모든 모델 실패");
 }
 
 // ============================================

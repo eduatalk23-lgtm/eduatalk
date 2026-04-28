@@ -468,6 +468,49 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     state.assignment.skippedSlotOverflow = r.skippedSlotOverflow;
   }
 
+  // ── A2 (2026-04-28): drift snapshot 저장 (pipeline_id 단위, best-effort) ──
+  if (state.merged.capped.length > 0 && ctx.pipelineId) {
+    try {
+      const snapshotRows = state.merged.capped.map((g) => ({
+        guide_id: g.guideId,
+        slot:
+          (g as { slot?: string | null }).slot ??
+          (g as { slotKey?: string | null }).slotKey ??
+          null,
+        final_score:
+          (g as { finalScore?: number }).finalScore ??
+          (g as { score?: number }).score ??
+          null,
+        match_reason:
+          (g as { matchReason?: string | null }).matchReason ??
+          (g as { reason?: string | null }).reason ??
+          null,
+        title: (g as { title?: string | null }).title ?? null,
+      }));
+      await ctx.supabase
+        .from("exploration_guide_assignment_snapshots")
+        .upsert(
+          {
+            student_id: studentId,
+            pipeline_id: ctx.pipelineId,
+            assignment_count: snapshotRows.length,
+            assignments_json: snapshotRows,
+          },
+          { onConflict: "student_id,pipeline_id" },
+        );
+    } catch (snapErr) {
+      logActionDebug(
+        LOG_CTX,
+        "A2 assignment snapshot 저장 실패 (non-fatal)",
+        {
+          studentId,
+          pipelineId: ctx.pipelineId,
+          error: snapErr instanceof Error ? snapErr.message : String(snapErr),
+        },
+      );
+    }
+  }
+
   // ── D7: 결과 메시지 ──
   const aiHint = ENABLE_AI_GENERATION ? "" : "";
   const continuityHint = clubHistory.length > 0
