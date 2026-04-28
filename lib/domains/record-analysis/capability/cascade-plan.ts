@@ -26,35 +26,39 @@ import type { MainTheme } from "./main-theme";
 // 타입
 // ============================================
 
+// M1-c W6 hotfix (2026-04-28): 모든 string max 충분히 관대하게.
+// LLM 응답 가변성 (학년/학생/모델 변동) 흡수 위해. 인제고 2학년 풀런에서 cascadePlan
+// silent zod fail (cascade_plan=null 영속). max 제한 너무 빡빡하면 어떤 field 든 borderline
+// 도달 시 전체 cascade 영속 실패 → 본질 미달성. 충분히 큰 max 로 LLM 응답 다양성 수용.
 const cascadeGradeNodeSchema = z.object({
   tier: z.enum(["foundational", "development", "advanced"]),
   subjects: z
-    .array(z.string().min(1).max(40))
+    .array(z.string().min(1).max(80))
     .min(1)
-    .max(8)
+    .max(10)
     .describe("이 학년에서 메인테마를 다룰 핵심 교과"),
   contentSummary: z
     .string()
     .min(10)
-    .max(300)
+    .max(800)
     .describe("이 학년에서 무엇을 어떻게 탐구할지 요약 (2~3문장)"),
   evidenceFromNeis: z
-    .array(z.string().min(2).max(140))
-    .max(8)
+    .array(z.string().min(2).max(300))
+    .max(12)
     .optional()
     .describe("NEIS 활동 기반 인용 — 이미 충족된 부분 (있는 학년만)"),
   rationale: z
     .string()
     .min(10)
-    .max(500)
+    .max(800)
     .describe("왜 이 학년에 이 tier·교과인가의 근거"),
 });
 
 export const cascadePlanSchema = z.object({
-  themeLabel: z.string().min(2).max(80),
+  themeLabel: z.string().min(2).max(160),
   byGrade: z.record(z.string(), cascadeGradeNodeSchema),
   // 일관성 노트 (선택) — blueprint 와의 정합성 등
-  coherenceNote: z.string().max(400).optional(),
+  coherenceNote: z.string().max(800).optional(),
 });
 
 export type CascadeGradeNode = z.infer<typeof cascadeGradeNodeSchema>;
