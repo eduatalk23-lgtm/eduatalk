@@ -365,7 +365,10 @@ export const PIPELINE_TASK_TIMEOUTS: Record<_LegacyKey, number> = {
   hyperedge_computation: 60_000,  // D-track(2026-04-14): 승격. CPU 기반 (pair-seed union-find, <10s). 여유.
   narrative_arc_extraction: 280_000, // D-track(2026-04-14): 청크 모드 기본. chunkSize=4 × LLM ~10s × 3 concurrency ≈ ~15s/청크.
                                   //   단일 route 최대 280s → chunkSize 크게 주어도 한 청크 내 안전.
-  ai_diagnosis: 120_000,          // 2분 (실제 20-30s, 여유 포함)
+  // M1-c W6 hotfix (2026-04-28): 120→240s. ai_diagnosis 는 학생 단위 통합 진단 (cross_subject 와
+  // 같은 단일 LLM 본질) — chunk 부적합. cascade 통합으로 응답 시간 늘어남 + L1/L2/L3 validator
+  // 누적 시 borderline. Vercel 5분 maxDuration 안전 여유.
+  ai_diagnosis: 240_000,
   course_recommendation: 120_000,
   slot_generation: 30_000,        // 30초 (DB upsert 위주)
   guide_matching: 200_000,        // P2(2026-04-14): Phase A LLM 설계 + design 4건 풀매칭/셸생성 +

@@ -238,7 +238,10 @@ export async function generateAiDiagnosis(
         messages: [{ role: "user", content: userPrompt }],
         modelTier: diagModelTier,
         temperature: 0.3,
-        maxTokens: 4000,
+        // M1-c W6 hotfix (2026-04-28): 4000 → 8000.
+        // 인제고 1학년 cascade 통합 진단 응답이 4000 토큰 borderline → truncation 위험.
+        // Blueprint 와 동일 fix 패턴. 평균 응답 2000-3000 토큰이라 추가 비용 거의 0.
+        maxTokens: 8000,
         responseFormat: "json",
       }),
       { label: "generateAiDiagnosis" },
