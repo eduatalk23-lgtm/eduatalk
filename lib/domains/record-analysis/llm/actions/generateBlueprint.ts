@@ -199,7 +199,13 @@ export async function generateBlueprintDesign(
           messages: [{ role: "user", content: userPrompt }],
           modelTier: "standard",
           temperature: 0.5,
-          maxTokens: 4000,
+          // M1-c W6 hotfix (2026-04-28): maxTokens 4000 → 8000.
+          // 인제고 2학년 blueprint 첫 풀런 "AI 응답 파싱에 실패" — 4000 토큰 응답 truncation 추정.
+          // targetConvergences (3 학년 × N pattern) + milestones + competency_growth_targets +
+          // tier_plan 합쳐 4000 토큰 borderline. 평균 응답은 2000~3000 토큰이라 추가 비용 0,
+          // truncation 케이스만 흡수.
+          maxTokens: 8000,
+          responseFormat: "json",
         }),
       { label: "generateBlueprint" },
     );
