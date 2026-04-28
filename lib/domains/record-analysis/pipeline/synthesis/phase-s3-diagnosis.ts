@@ -24,6 +24,7 @@ import {
 } from "./helpers";
 import { resolveMidPlan } from "../orient/resolve-mid-plan";
 import { parseSnapshotHakjongScore } from "./snapshot-helpers";
+import { computeSynthesisInputHash, tryReusePreviousResult } from "./cache-helper";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline" };
 
@@ -372,6 +373,109 @@ export async function runAiDiagnosis(
     if (built.trim().length > 0) mainThemeCascadeSection = built;
   }
 
+  // ============================================
+  // Synthesis cache (M1-c W6, 2026-04-28)
+  //
+  // 직전 completed synthesis run 의 ai_diagnosis 입력 hash 와 비교.
+  // 일치 + DB student_record_diagnosis row 살아있음 → LLM 호출 + DB upsert + inferredEdges insert 모두 skip.
+  // belief.qualityPatterns / _timeSeriesAnalysis 는 prev result 에서 복원해 후속 task 호환성 유지.
+  // ============================================
+  const scoresKey = scores
+    .map((s) => `${s.competency_area}|${s.competency_item}|${s.grade_value}|${s.source}`)
+    .sort()
+    .join("\n");
+  const tagsKey = tags
+    .map((t) => `${t.record_type}|${t.record_id}|${t.competency_item}|${t.tag_context}`)
+    .sort()
+    .join("\n")
+    .slice(0, 50000);
+  const edgesKey = computedEdges
+    .map((e) => {
+      if ("source_record_id" in e) {
+        return `${e.source_record_id}|${e.target_record_id}|${e.edge_type}`;
+      }
+      const ce = e as { sourceId?: string; targetId?: string; edgeType?: string };
+      return `${ce.sourceId}|${ce.targetId}|${ce.edgeType}`;
+    })
+    .sort()
+    .join("\n");
+  const trendKey = gradeTrend
+    .map((t) => `${t.grade}-${t.semester}|${t.subjectName}|${t.rankGrade}`)
+    .sort()
+    .join("\n");
+  const adequacyKey = diagCourseAdequacy
+    ? `${diagCourseAdequacy.score}|${diagCourseAdequacy.taken.length}|${diagCourseAdequacy.notTaken.length}|${diagCourseAdequacy.notOffered.length}`
+    : "null";
+  const sectionsKey = [
+    diagnosisEdgeSection ?? "",
+    diagQualityPatternSection ?? "",
+    crossSubjectThemesSection ?? "",
+    mainExplorationSection ?? "",
+    narrativeArcSection ?? "",
+    midPlanSynthesisSection ?? "",
+    midPlanByGradeSection ?? "",
+    hakjongScoreSection ?? "",
+    gradeThemesSection ?? "",
+    hyperedgeSummarySection ?? "",
+    profileCardSection ?? "",
+    mainThemeCascadeSection ?? "",
+  ].join("\n---\n");
+
+  const inputHash = computeSynthesisInputHash({
+    schoolName: (snapshot?.school_name as string) ?? null,
+    targetMajor: (snapshot?.target_major as string) ?? null,
+    consultingGrades: [...(ctx.consultingGrades ?? [])].sort(),
+    hasNeisData,
+    scoresKey,
+    tagsKey,
+    edgesKey,
+    trendKey,
+    adequacyKey,
+    sectionsKey,
+  });
+
+  type CachedDiagResult = {
+    inputHash: string;
+    overallGrade: string;
+    weaknessCount: number;
+    improvementCount: number;
+    inferredEdgesInserted: number;
+    coverageWarnings?: import("../pipeline-types").DataCoverageWarning[];
+    priorCourseRecCount: number;
+    priorCourseSectionChars: number;
+    qualityPatterns?: Array<{ pattern: string; count: number; subjects: string[] }>;
+    _timeSeriesAnalysis?: import("../../eval/timeseries-analyzer").TimeSeriesAnalysis;
+  };
+
+  const cached = tryReusePreviousResult<CachedDiagResult>(
+    ctx.belief.previousRunOutputs,
+    "ai_diagnosis",
+    inputHash,
+  );
+
+  if (cached) {
+    // DB row 가 실제로 살아있는지 확인 — 없으면 cache miss 로 fallthrough
+    const existingFinal = await diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai");
+    if (existingFinal) {
+      // belief 복원 — 후속 task (S5 ai_strategy 등) 가 소비
+      if (cached.qualityPatterns && cached.qualityPatterns.length > 0) {
+        ctx.belief.qualityPatterns = cached.qualityPatterns;
+      }
+      logActionDebug(LOG_CTX, "ai_diagnosis 캐시 적중 — LLM 호출 생략", {
+        pipelineId,
+        inputHash,
+        prevRunId: ctx.belief.previousRunOutputs?.runId ?? null,
+      });
+      return {
+        preview: `종합진단 캐시 적중 — LLM 호출 생략 (등급: ${cached.overallGrade})`,
+        result: {
+          ...cached,
+          inputHash,
+        },
+      };
+    }
+  }
+
   const result = await generateAiDiagnosis(scores, tags, {
     targetMajor: (snapshot?.target_major as string) ?? undefined,
     schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -464,6 +568,8 @@ export async function runAiDiagnosis(
       // Cross-run 소비 자기보고 (cross-run-consumer-diff [H] 측정용)
       priorCourseRecCount,
       priorCourseSectionChars,
+      // M1-c W6 (2026-04-28): synthesis cache 키 — 다음 run 이 비교
+      inputHash,
       // executive summary 생성을 위해 캐시 (Phase 6 완료 후 참조)
       ...(savedTsAnalysis ? { _timeSeriesAnalysis: savedTsAnalysis } : {}),
       // S6: qualityPatterns를 DB에 영속화하여 Phase 재시작 시 S5에서 복원 가능
