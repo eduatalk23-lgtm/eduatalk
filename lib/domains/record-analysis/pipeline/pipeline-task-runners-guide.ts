@@ -616,8 +616,24 @@ export async function runSetekGuideChunkForGrade(
     return { preview: `${targetGrade}학년 수강계획 없음`, hasMore: false, totalUncached: 0, chunkProcessed: 0 };
   }
 
+  // M1-c W6 hotfix (2026-04-28): chunk loop 첫 호출 판정 + 옛 풀런 row 정리.
+  // 이전엔 옛 풀런(예: 04-17) 의 setek_guide row 가 잔존하면 existingCount > 0 으로
+  // chunk continuation 으로 오인되어 새 풀런이 옛 row 의 인덱스부터 시작 → 매칭 실패.
+  // wrapper(executeDraftChunk) 가 첫 chunk 결과 preview 를 ctx.previews 에 저장 →
+  // ctx.previews["setek_guide"] 비어있으면 chunk loop 첫 호출 (이번 풀런 시작점).
+  const isVeryFirstChunk = !ctx.previews["setek_guide"];
+  if (isVeryFirstChunk) {
+    const { deleteExistingGuides } = await import("@/lib/domains/record-analysis/llm/actions/guide-helpers");
+    const delResult = await deleteExistingGuides(
+      "student_record_setek_guides",
+      { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai", guideMode: "prospective" },
+      LOG_CTX,
+    );
+    if (delResult) throw new Error(delResult.error ?? "옛 setek_guide row 정리 실패");
+  }
+
   // 이미 생성된 가이드 row 수 → 다음 chunk offset
-  // 동일 학년 + source='ai' 조건이면 prospective row 만 잡힘 (retrospective 는 다른 학년)
+  // (첫 chunk 시 위에서 정리되어 0, 후속 chunk 는 chunk 1번 결과로 누적)
   const existingCount = await guideRepo.countSetekGuides(
     { studentId, tenantId, schoolYear: targetSchoolYear, source: "ai" },
     ctx.supabase,
