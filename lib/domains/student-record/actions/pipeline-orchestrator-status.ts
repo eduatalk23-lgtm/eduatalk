@@ -86,13 +86,19 @@ export async function fetchGradeAwarePipelineStatus(
       .eq("status", "running")
       .lt("updated_at", zombieThreshold);
 
+    // M1-c W6 (2026-04-28): limit 40 → 200 상향.
+    // 근본 원인: bootstrap/blueprint 쌍이 운영 도중 매 재부트스트랩마다 누적되면서
+    // 학생당 수십 row 까지 늘어남. created_at desc + limit(40) 으로 자르면 grade
+    // pipeline (학년당 1 row, 학생당 최대 3) 이 신규 bootstrap/blueprint 에 밀려
+    // 응답에서 누락 → UI 가 해당 학년 cell 을 "실행 가능" 으로 잘못 표시.
+    // 동일 학생 row 가 200 을 넘는 경우는 운영상 비정상이므로 200 으로 충분.
     const { data: rows, error } = await supabase
       .from("student_record_analysis_pipelines")
       .select("id, status, pipeline_type, grade, mode, tasks, task_previews, task_results, error_details")
       .eq("student_id", studentId)
       .in("pipeline_type", ["grade", "synthesis", "past_analytics", "blueprint", "bootstrap"])
       .order("created_at", { ascending: false })
-      .limit(40);
+      .limit(200);
 
     if (error) throw error;
 
