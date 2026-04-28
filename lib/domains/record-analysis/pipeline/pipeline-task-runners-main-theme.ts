@@ -299,7 +299,13 @@ export async function runDeriveMainThemeForGrade(
     });
   }
 
-  ctx.results["_mainThemeMeta"] = { structuralHash } as unknown as Record<string, unknown>;
+  // M1-c W6 hotfix (2026-04-28): cascadePlan fail reason 영속 (silent fail 진단 강화).
+  // 사용자 dev terminal 로그 외에 task_results 에서도 zod 실패 사유 직접 확인 가능.
+  ctx.results["_mainThemeMeta"] = {
+    structuralHash,
+    cascadeOk: cascadeRes.ok,
+    ...(cascadeRes.ok ? {} : { cascadeFailReason: cascadeRes.reason }),
+  } as unknown as Record<string, unknown>;
 
   logActionDebug(
     LOG_CTX,
