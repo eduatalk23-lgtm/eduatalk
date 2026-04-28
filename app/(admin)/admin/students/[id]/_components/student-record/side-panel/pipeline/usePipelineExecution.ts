@@ -12,11 +12,9 @@ import {
   studentRecordKeys,
 } from "@/lib/query-options/studentRecord";
 import { cancelPipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { fetchAiGuideStatusAction } from "@/lib/domains/guide/actions/crud";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  GRADE_PHASE_GROUPS,
-  SYNTHESIS_PHASE_GROUPS,
-} from "./pipeline-constants";
+import { GRADE_PHASE_GROUPS } from "./pipeline-constants";
 import type { GradeAwarePipelineStatus } from "@/lib/domains/student-record/actions/pipeline-orchestrator-types";
 
 interface UsePipelineExecutionOptions {
@@ -98,6 +96,119 @@ export function usePipelineExecution({
       signal.addEventListener("abort", onAbort, { once: true });
     });
   }
+
+  // ai-guide-gen 라우트가 202 로 응답한 뒤 background 본문 생성 완료까지 폴링.
+  // ECONNRESET / abort 와 무관하게 DB status 가 진실원.
+  // 6분 deadline — Vercel 300s 한도 + 여유. 초과 시 timeout 으로 실패 취급.
+  async function waitForAiGuideTerminal(
+    guideId: string,
+    signal: AbortSignal,
+  ): Promise<"completed" | "failed" | "timeout"> {
+    const deadline = Date.now() + 6 * 60 * 1000;
+    while (Date.now() < deadline) {
+      try {
+        await abortableSleep(4000, signal);
+      } catch {
+        return "timeout"; // abort
+      }
+      const r = await fetchAiGuideStatusAction(guideId);
+      if (!r.success) continue;
+      const s = r.data.status;
+      if (s === "pending_approval" || s === "approved") return "completed";
+      if (s === "ai_failed") return "failed";
+    }
+    return "timeout";
+  }
+
+  // P1-1: 풀런/synthesis 시퀀스가 phase 2 안에서 본문 생성을 시리얼 처리하면 LLM 본문 1건당
+  // 4~5분 × N 건이 phase 3~7 진입을 막아 사용자에게 "synthesis phase 2 진행중 무한" 으로 보였다.
+  // 메타 row 까지만 phase 2 task 로 마감하고 본문 생성은 시퀀스 종료 후 background 로 이관.
+  // 진행률은 P0-2 aiGuideProgress 배지가 노출. 사용자가 PendingApproval 일괄 버튼으로 재개 가능.
+  async function runAiGuideBodyGenBackground(signal: AbortSignal) {
+    try {
+      while (!signal.aborted) {
+        const res = await fetch("/api/admin/pipeline/ai-guide-gen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+          signal,
+        });
+        if (!res.ok && res.status !== 202) break;
+        const json = (await res.json()) as {
+          accepted?: boolean;
+          completed?: boolean;
+          guideId?: string;
+          remainingQueued?: number;
+        };
+        if (json?.completed) break;
+        if (json?.accepted && json.guideId) {
+          await waitForAiGuideTerminal(json.guideId, signal);
+          invalidate();
+          if (!json.remainingQueued || json.remainingQueued <= 0) break;
+          continue;
+        }
+        break;
+      }
+    } catch {
+      // background — silent. 사용자는 PendingApproval 에서 재시도 가능.
+    } finally {
+      invalidate();
+    }
+  }
+
+  // ─── Grade Pre-Task 실행 (Phase 3.5 사전 분석 4종) ────────────────────────
+  // phase-4-pre route 를 단독 호출하여 cross_subject / volunteer / awards / derive_main_theme 실행.
+  // "전체 실행" 시퀀스에서는 executeGradePhasesForPipeline 내부에서 phase===4 직전에 자동 호출되므로
+  // 이 핸들러는 개별 셀 클릭 및 "재실행" 버튼 전용.
+
+  const runGradePreTask = async (grade: number) => {
+    if (fetchingRef.current) return;
+    // pre-task 4종을 하나의 cellKey 로 묶어 실행 상태 표시
+    setRunningCell(`g-${grade}-pre`);
+    setRunningStartMs(Date.now());
+    fetchingRef.current = true;
+    pollingStartRef.current = Date.now();
+
+    const gp = queryClient.getQueryData<GradeAwarePipelineStatus>(
+      gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+    )?.gradePipelines ?? {};
+
+    try {
+      let pid = gp[grade]?.pipelineId;
+      if (!pid) {
+        const { runGradePipeline } = await import(
+          "@/lib/domains/student-record/actions/pipeline-orchestrator"
+        );
+        const r = await runGradePipeline(studentId, tenantId, grade);
+        if (!r.success || !r.data) throw new Error(r.error ?? "생성 실패");
+        pid = r.data.pipelineId;
+        invalidate();
+      }
+
+      const MAX_RETRIES = 2;
+      for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+        try {
+          const res = await fetch("/api/admin/pipeline/grade/phase-4-pre", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pipelineId: pid }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          break;
+        } catch {
+          if (retry >= MAX_RETRIES) break;
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
+    } catch {
+      /* 최종 실패 — 폴링으로 반영 */
+    } finally {
+      fetchingRef.current = false;
+      setRunningCell(null);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
+    }
+  };
 
   // ─── Grade Phase 실행 ──────────────────────────────────────────────────────
 
@@ -264,6 +375,37 @@ export function usePipelineExecution({
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ pipelineId: pid, chunkSize: 1 }),
+                },
+              );
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              const j = (await r.json()) as { hasMore?: boolean };
+              hasMore = j.hasMore ?? false;
+              retries = 0;
+              if (hasMore) invalidate();
+            } catch {
+              retries++;
+              if (retries > 2) break;
+              await new Promise((r) => setTimeout(r, 3000));
+            }
+          }
+        }
+      }
+
+      // Phase 5 진입 전: activity_summary 를 학년 단위 chunked sub-route 로 선행 처리.
+      // 단일 3년 LLM 호출(~240s) → 학년별 ~60s 호출 3회로 분산 → 240s wall 안전 회피.
+      if (phase === 5) {
+        const activitySummaryStatus = sp?.tasks?.activity_summary;
+        if (activitySummaryStatus !== "completed") {
+          let hasMore = true;
+          let retries = 0;
+          while (hasMore) {
+            try {
+              const r = await fetch(
+                "/api/admin/pipeline/synthesis/phase-5/activity-summary-chunk",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pipelineId: pid }),
                 },
               );
               if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -876,27 +1018,13 @@ export function usePipelineExecution({
       )) as { pipelineId?: string };
       if (!sJson.pipelineId) throw new Error("Synthesis 생성 실패");
 
-      // Synthesis도 완료 Phase 스킵을 위해 동기 refetch
-      await queryClient.refetchQueries({
-        queryKey: gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
-      });
-      const freshStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
-        gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
-      );
-      const synthTasks = freshStatus?.synthesisPipeline?.tasks ?? {};
-
+      // fetchGradeAwarePipelineStatus 는 task-level union (이전 풀런 completed 합산) 을 반환한다.
+      // 이것을 phase skip 판정에 사용하면 클라이언트는 "phase 1~3 완료" 로 보지만 서버 prereq 검증은
+      // 새 row 단독 view(전부 pending) → 409 → 풀런 차단. (client/server view mismatch)
+      // → 새 synthesis 세션에서는 phase skip 을 비활성화하고 phase 1 부터 순차 실행한다.
+      //   각 phase 는 content_hash 기반 cache 로 빠르게 통과한다 (LLM 미호출).
       for (let phase = 1; phase <= 7; phase++) {
         if (isAborted()) return;
-
-        const synthPhaseKeys = SYNTHESIS_PHASE_GROUPS[phase - 1]?.keys ?? [];
-        if (
-          synthPhaseKeys.length > 0 &&
-          synthPhaseKeys.every((k) => {
-            const s = synthTasks[k];
-            return s === "completed" || s === "cached" || s === "skipped";
-          })
-        )
-          continue;
 
         setRunningCell(`s-${phase}`);
         setRunningStartMs(Date.now());
@@ -904,7 +1032,9 @@ export function usePipelineExecution({
         // 트랙 D (2026-04-14): Phase 2 진입 전 narrative_arc chunked 선행.
         //   Vercel 300s 벽 회피 — 자기치유 청크 패턴 (DB 캐시가 진실 소스).
         // M1-c W6 (2026-04-28): haengteuk_linking 도 chunked sub-route 추가.
-        if (phase === 2 && synthTasks.narrative_arc_extraction !== "completed") {
+        // synthTasks 는 task-level union 이라 이전 풀런 completed 가 섞여있음 — 새 row 기준으로
+        // 판정 불가하므로 무조건 호출. 청크 엔드포인트가 내부 cache 로 빠르게 회전.
+        if (phase === 2) {
           let nHasMore = true;
           let nRetries = 0;
           while (nHasMore && !isAborted()) {
@@ -934,7 +1064,7 @@ export function usePipelineExecution({
         // M1-c W6: haengteuk_linking chunked sub-route 선행 (narrative 패턴 mimic).
         // chunk runner 는 학년 단위 행특 가이드 + assignments 조회 — guide_matching 결과 직접 의존 X.
         // task='completed' 마킹되면 phase-2 main 안의 haengteuk_linking 호출 skip.
-        if (phase === 2 && synthTasks.haengteuk_linking !== "completed") {
+        if (phase === 2) {
           let hHasMore = true;
           let hRetries = 0;
           while (hHasMore && !isAborted()) {
@@ -961,6 +1091,37 @@ export function usePipelineExecution({
           invalidate();
         }
 
+        // Phase 5 진입 전: activity_summary 를 학년 단위 chunked sub-route 로 선행 처리.
+        // 단일 3년 LLM 호출(~240s) → 학년별 ~60s 호출 3회로 분산 → 240s wall 안전 회피.
+        // task='completed' 마킹되면 phase-5 main 안의 activity_summary 호출 skip.
+        if (phase === 5) {
+          let aHasMore = true;
+          let aRetries = 0;
+          while (aHasMore && !isAborted()) {
+            try {
+              const aJson = (await fetchPhase(
+                "/api/admin/pipeline/synthesis/phase-5/activity-summary-chunk",
+                { pipelineId: sJson.pipelineId },
+                ctrl.signal,
+              )) as { hasMore?: boolean };
+              aHasMore = aJson.hasMore ?? false;
+              aRetries = 0;
+              if (aHasMore) invalidate();
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return;
+              aRetries++;
+              if (aRetries > 2) break;
+              try {
+                await abortableSleep(3000, ctrl.signal);
+              } catch {
+                return;
+              }
+            }
+          }
+          invalidate();
+        }
+
+        let lastErr: unknown = null;
         for (let retry = 0; retry <= 2; retry++) {
           try {
             await fetchPhase(
@@ -970,27 +1131,14 @@ export function usePipelineExecution({
             );
             invalidate();
 
-            // D6(M7): Phase 2(guide_matching) 완료 후 queued_generation 가이드 전문 생성
-            if (phase === 2) {
-              try {
-                let remaining = 1;
-                while (remaining > 0 && !isAborted()) {
-                  const genRes = await fetchPhase(
-                    "/api/admin/pipeline/ai-guide-gen",
-                    {},
-                    ctrl.signal,
-                  ) as { remainingQueued?: number };
-                  remaining = genRes?.remainingQueued ?? 0;
-                }
-              } catch {
-                // AI 가이드 생성 실패는 치명적이지 않음 — 계속 진행
-              }
-              invalidate();
-            }
+            // P1-1: phase 2 (guide_matching) 완료 후 본문 생성은 시퀀스 종료 후 background 로 이관.
+            // 여기서는 task='completed' 만 확인하고 phase 3 진입.
 
+            lastErr = null;
             break;
           } catch (e) {
             if ((e as Error)?.name === "AbortError") return;
+            lastErr = e;
             if (retry >= 2) break;
             try {
               await abortableSleep(3000, ctrl.signal);
@@ -999,12 +1147,31 @@ export function usePipelineExecution({
             }
           }
         }
+        // 재시도 소진. 선행 phase 미완료(409) 또는 영구 에러 — 다음 phase 로 silent 진행 시
+        // 후속 phase 가 같은 이유로 모두 409 → 사용자에겐 "스킵된 채 풀런 종료" 로 보인다.
+        // 풀런 전체를 중단하고 outer catch 가 사용자에게 에러를 노출하도록 throw.
+        // 단, throw 전에 synthesis 파이프라인을 cancelled 로 마킹하여 다른 액션 버튼이
+        // running 상태에 갇히지 않도록 한다 (heartbeat 5분 대기 회피).
+        if (lastErr) {
+          try {
+            const { cancelPipeline } = await import(
+              "@/lib/domains/student-record/actions/pipeline"
+            );
+            await cancelPipeline(sJson.pipelineId);
+          } catch {
+            // cancel 실패는 치명적 아님 — heartbeat 가 결국 처리
+          }
+          throw lastErr;
+        }
       }
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
+
+      // P1-1: synthesis 시퀀스 완료 후 가이드 본문 생성을 background 로 fire-and-forget.
+      // 시퀀스의 ctrl.signal 을 공유하므로 사용자가 cancel 하면 자연스레 중단.
+      // 진행률은 aiGuideProgress 배지가 노출 (P0-2).
+      void runAiGuideBodyGenBackground(ctrl.signal);
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") {
-        // 서버/네트워크 에러를 사용자에게 노출. (silent swallow 제거)
-        // 이전에는 "왜 막혔는지" 피드백 없이 버튼만 잠긴 채로 남아 디버깅 불가.
         const msg = e instanceof Error ? e.message : "파이프라인 실행 실패";
         showError(`파이프라인 실행 실패: ${msg}`);
       }
@@ -1016,6 +1183,191 @@ export function usePipelineExecution({
       invalidate();
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
       // setIsCancelling(false)는 폴링 결과 cancelled 확정 시 호출자가 useEffect로 해제
+    }
+  };
+
+  // ─── Synthesis 단독 전체 실행 ─────────────────────────────────────────────
+  // 1·2·3학년 모두 완료된 상태에서 synthesis phase 1~7 만 순차 실행.
+  // fullRunCtrlRef / fetchingRef / isFullRunning 을 runFullSequence 와 공유하여 동시 실행 자연 차단.
+
+  const runSynthesisSequence = async () => {
+    if (fullRunCtrlRef.current || fetchingRef.current) return;
+
+    // prereq 체크: 1·2·3학년 모두 completed 여야 synthesis 진행 가능
+    const preStatus = queryClient.getQueryData<GradeAwarePipelineStatus>(
+      gradeAwarePipelineStatusQueryOptions(studentId).queryKey,
+    );
+    const gradePipelinesForCheck = Object.values(preStatus?.gradePipelines ?? {});
+    if (
+      gradePipelinesForCheck.length === 0 ||
+      !gradePipelinesForCheck.every((p) => p.status === "completed")
+    ) {
+      showInfo("종합 파이프라인은 1·2·3학년 모두 완료 후 가능합니다");
+      return;
+    }
+
+    const ctrl = new AbortController();
+    fullRunAbortRef.current = false;
+    setIsCancelling(false);
+    setIsFullRunning(true);
+    fullRunCtrlRef.current = ctrl;
+    fetchingRef.current = true;
+    pollingStartRef.current = Date.now();
+
+    const isAborted = () => fullRunAbortRef.current || ctrl.signal.aborted;
+
+    try {
+      // synthesis/run 호출 — 신규 파이프라인 row INSERT (또는 기존 resume)
+      const sJson = (await fetchPhase(
+        "/api/admin/pipeline/synthesis/run",
+        { studentId, tenantId },
+        ctrl.signal,
+      )) as { pipelineId?: string };
+      if (!sJson.pipelineId) throw new Error("Synthesis 생성 실패");
+
+      // 새 synthesis 세션에서는 phase skip 을 비활성화하고 phase 1 부터 순차 실행.
+      // 각 phase 는 content_hash 기반 cache 로 이미 완료된 부분은 빠르게 통과.
+      for (let phase = 1; phase <= 7; phase++) {
+        if (isAborted()) return;
+
+        setRunningCell(`s-${phase}`);
+        setRunningStartMs(Date.now());
+
+        // Phase 2: narrative_arc chunked 선행 (Vercel 300s 벽 회피)
+        if (phase === 2) {
+          let nHasMore = true;
+          let nRetries = 0;
+          while (nHasMore && !isAborted()) {
+            try {
+              const nJson = (await fetchPhase(
+                "/api/admin/pipeline/synthesis/phase-2/narrative-chunk",
+                { pipelineId: sJson.pipelineId, chunkSize: 4 },
+                ctrl.signal,
+              )) as { hasMore?: boolean };
+              nHasMore = nJson.hasMore ?? false;
+              nRetries = 0;
+              if (nHasMore) invalidate();
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return;
+              nRetries++;
+              if (nRetries > 2) break;
+              try {
+                await abortableSleep(3000, ctrl.signal);
+              } catch {
+                return;
+              }
+            }
+          }
+          invalidate();
+        }
+
+        // Phase 2: haengteuk_linking chunked sub-route 선행
+        if (phase === 2) {
+          let hHasMore = true;
+          let hRetries = 0;
+          while (hHasMore && !isAborted()) {
+            try {
+              const hJson = (await fetchPhase(
+                "/api/admin/pipeline/synthesis/phase-2/haengteuk-chunk",
+                { pipelineId: sJson.pipelineId, chunkSize: 1 },
+                ctrl.signal,
+              )) as { hasMore?: boolean };
+              hHasMore = hJson.hasMore ?? false;
+              hRetries = 0;
+              if (hHasMore) invalidate();
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return;
+              hRetries++;
+              if (hRetries > 2) break;
+              try {
+                await abortableSleep(3000, ctrl.signal);
+              } catch {
+                return;
+              }
+            }
+          }
+          invalidate();
+        }
+
+        // Phase 5: activity_summary chunked sub-route 선행
+        if (phase === 5) {
+          let aHasMore = true;
+          let aRetries = 0;
+          while (aHasMore && !isAborted()) {
+            try {
+              const aJson = (await fetchPhase(
+                "/api/admin/pipeline/synthesis/phase-5/activity-summary-chunk",
+                { pipelineId: sJson.pipelineId },
+                ctrl.signal,
+              )) as { hasMore?: boolean };
+              aHasMore = aJson.hasMore ?? false;
+              aRetries = 0;
+              if (aHasMore) invalidate();
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return;
+              aRetries++;
+              if (aRetries > 2) break;
+              try {
+                await abortableSleep(3000, ctrl.signal);
+              } catch {
+                return;
+              }
+            }
+          }
+          invalidate();
+        }
+
+        let lastErr: unknown = null;
+        for (let retry = 0; retry <= 2; retry++) {
+          try {
+            await fetchPhase(
+              `/api/admin/pipeline/synthesis/phase-${phase}`,
+              { pipelineId: sJson.pipelineId },
+              ctrl.signal,
+            );
+            invalidate();
+
+            // P1-1: phase 2 본문 생성은 시퀀스 종료 후 background 로 이관.
+
+            lastErr = null;
+            break;
+          } catch (e) {
+            if ((e as Error)?.name === "AbortError") return;
+            lastErr = e;
+            if (retry >= 2) break;
+            try {
+              await abortableSleep(3000, ctrl.signal);
+            } catch {
+              return;
+            }
+          }
+        }
+
+        if (lastErr) {
+          try {
+            await cancelPipeline(sJson.pipelineId);
+          } catch {
+            // cancel 실패는 치명적 아님 — heartbeat 가 결국 처리
+          }
+          throw lastErr;
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
+
+      // P1-1: synthesis 단독 시퀀스도 동일하게 background 본문 생성을 fire-and-forget.
+      void runAiGuideBodyGenBackground(ctrl.signal);
+    } catch (e) {
+      if ((e as Error)?.name !== "AbortError") {
+        const msg = e instanceof Error ? e.message : "종합 파이프라인 실행 실패";
+        showError(`종합 파이프라인 실행 실패: ${msg}`);
+      }
+    } finally {
+      fullRunCtrlRef.current = null;
+      fetchingRef.current = false;
+      setIsFullRunning(false);
+      setRunningCell(null);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
     }
   };
 
@@ -1147,8 +1499,10 @@ export function usePipelineExecution({
     isFullRunning,
     isCancelling,
     setIsCancelling,
+    runGradePreTask,
     runGradePhase,
     runSynthesisPhase,
+    runSynthesisSequence,
     runPastAnalyticsPhase,
     runBlueprintPhase,
     runBootstrapPhase,

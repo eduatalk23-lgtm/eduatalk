@@ -20,7 +20,7 @@ import type { GradeAwarePipelineStatus } from "@/lib/domains/student-record/acti
 interface PipelinePastBlueprintGridProps {
   pa: GradeAwarePipelineStatus["pastAnalyticsPipeline"];
   bp: GradeAwarePipelineStatus["blueprintPipeline"];
-  expectedModes: GradeAwarePipelineStatus["expectedModes"];
+  expectedModes: Record<number, "analysis" | "design">;
   runningCell: string | null;
   runningStartMs: number | null;
   onRunPastPhase: (phase: number) => void;

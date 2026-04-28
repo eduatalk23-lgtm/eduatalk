@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { pipelineStatusQueryOptions } from "@/lib/query-options/studentRecord";
 import {
@@ -78,12 +78,20 @@ export function DesignPipelineResultsPanel({
   tenantId,
 }: DesignPipelineResultsPanelProps) {
   const queryClient = useQueryClient();
+  const pollingStartRef = useRef<number | null>(null);
 
   const { data: pipeline } = useQuery({
     ...pipelineStatusQueryOptions(studentId),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "running" ? 3000 : false;
+      if (status !== "running") {
+        pollingStartRef.current = null;
+        return false;
+      }
+      if (!pollingStartRef.current) pollingStartRef.current = Date.now();
+      const elapsed = Date.now() - pollingStartRef.current;
+      // 백오프: 첫 2분은 3초, 이후 10초.
+      return elapsed > 120_000 ? 10_000 : 3000;
     },
   });
 

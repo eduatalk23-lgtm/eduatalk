@@ -11,7 +11,7 @@ import {
 /**
  * Phase 4: overview + pipeline 상태 훅 (항상 활성)
  * - 서버 overview: warnings + progressCounts
- * - 파이프라인 상태 폴링 (2초)
+ * - 파이프라인 상태 구독 (폴링은 DesignPipelineResultsPanel 가 담당, 본 훅은 동일 query key 공유로 데이터만 수신)
  * - 파이프라인 완료 시 관련 쿼리 자동 무효화
  */
 export function useStudentRecordOverview({
@@ -27,7 +27,12 @@ export function useStudentRecordOverview({
     overviewQueryOptions(studentId, studentGrade, initialSchoolYear),
   );
 
-  const { data: pipelineData } = useQuery(pipelineStatusQueryOptions(studentId));
+  const { data: pipelineData } = useQuery({
+    ...pipelineStatusQueryOptions(studentId),
+    // 본 훅은 자체 폴링하지 않음 — 동일 queryKey 의 다른 subscriber(DesignPipelineResultsPanel)
+    // 가 폴링할 때만 갱신 데이터를 수신. 우발적 폴링 발생을 막기 위해 명시.
+    refetchInterval: false,
+  });
   const isPipelineRunning = pipelineData?.status === "running";
 
   // ─── 파이프라인 완료 시 관련 쿼리 자동 갱신 ──────────

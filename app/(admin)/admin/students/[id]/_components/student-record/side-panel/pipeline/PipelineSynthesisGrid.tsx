@@ -15,17 +15,22 @@ import {
 } from "./pipeline-constants";
 import { CockpitCell } from "./PipelineCockpitCell";
 import type { GradeAwarePipelineStatus } from "@/lib/domains/student-record/actions/pipeline-orchestrator-types";
-import { Check, Loader2, ChevronRight, AlertTriangle } from "lucide-react";
+import { Check, Loader2, ChevronRight, AlertTriangle, Play } from "lucide-react";
 import { useState } from "react";
 
 interface PipelineSynthesisGridProps {
   sp: GradeAwarePipelineStatus["synthesisPipeline"];
   gp: GradeAwarePipelineStatus["gradePipelines"];
-  expectedModes: GradeAwarePipelineStatus["expectedModes"];
+  expectedModes: Record<number, "analysis" | "design">;
   allGradesCompleted: boolean;
   runningCell: string | null;
   runningStartMs: number | null;
+  isAnyRunning?: boolean;
+  isCancelling?: boolean;
   onRunSynthesisPhase: (phase: number) => void;
+  onRunSynthesisSequence?: () => void;
+  /** P0-2: AI 가이드 본문 생성 진행률 (synthesis task 완료 후 background 진행) */
+  aiGuideProgress?: GradeAwarePipelineStatus["aiGuideProgress"];
 }
 
 export function PipelineSynthesisGrid({
@@ -35,7 +40,11 @@ export function PipelineSynthesisGrid({
   allGradesCompleted,
   runningCell,
   runningStartMs,
+  isAnyRunning = false,
+  isCancelling = false,
   onRunSynthesisPhase,
+  onRunSynthesisSequence,
+  aiGuideProgress,
 }: PipelineSynthesisGridProps) {
   // 파이프라인 mode 우선, 없으면 expectedModes 폴백
   const modes =
@@ -47,9 +56,32 @@ export function PipelineSynthesisGrid({
 
   return (
     <div>
-      <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
-        Synthesis Pipeline
-      </h4>
+      <div className="flex items-center justify-between mb-1.5">
+        <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+          Synthesis Pipeline
+        </h4>
+        {aiGuideProgress && aiGuideProgress.total > 0 && (
+          <span
+            className={cn(
+              "text-[10px] font-medium px-1.5 py-0.5 rounded-sm flex items-center gap-1",
+              aiGuideProgress.generating > 0 || aiGuideProgress.queued > 0
+                ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                : aiGuideProgress.failed > 0
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+            )}
+            title={`완성 ${aiGuideProgress.completed} · 생성중 ${aiGuideProgress.generating} · 대기 ${aiGuideProgress.queued} · 실패 ${aiGuideProgress.failed}`}
+          >
+            가이드 본문 {aiGuideProgress.completed}/{aiGuideProgress.total}
+            {aiGuideProgress.generating > 0 && (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            )}
+            {aiGuideProgress.failed > 0 && aiGuideProgress.generating === 0 && (
+              <AlertTriangle className="w-3 h-3" />
+            )}
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-[56px_repeat(6,1fr)] gap-1">
         {/* 라벨 셀 */}
         <div className="flex flex-col items-center justify-center gap-0.5">
@@ -69,6 +101,31 @@ export function PipelineSynthesisGrid({
             <span className="text-[9px] font-medium px-1 py-px rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
               혼합
             </span>
+          )}
+          {onRunSynthesisSequence && (
+            <button
+              type="button"
+              onClick={onRunSynthesisSequence}
+              disabled={!allGradesCompleted || isAnyRunning || isCancelling}
+              title={
+                !allGradesCompleted
+                  ? "1·2·3학년 모두 완료 후 가능합니다"
+                  : isCancelling
+                    ? "중단 중..."
+                    : isAnyRunning
+                      ? "다른 실행이 진행 중입니다"
+                      : "종합 Phase 1~7 일괄 실행"
+              }
+              className={cn(
+                "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-[9px] font-medium transition-colors",
+                allGradesCompleted && !isAnyRunning && !isCancelling
+                  ? "border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/30 cursor-pointer"
+                  : "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed",
+              )}
+            >
+              <Play className="h-2.5 w-2.5" />
+              전체
+            </button>
           )}
         </div>
 
@@ -127,7 +184,7 @@ export function PipelineSynthesisGrid({
       <div className="pt-1 border-t border-[var(--border-secondary)] mt-3">
         <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
           {(
-            ["completed", "cached", "running", "ready", "locked", "failed"] as const
+            ["completed", "cached", "running", "ready", "locked", "failed", "cancelled", "skipped"] as const
           ).map((s) => {
             const style = STATUS_STYLES[s];
             const label = {
@@ -137,6 +194,8 @@ export function PipelineSynthesisGrid({
               ready: "실행 가능",
               locked: "대기",
               failed: "실패",
+              cancelled: "취소",
+              skipped: "건너뜀",
             }[s];
             return (
               <span

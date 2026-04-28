@@ -49,6 +49,20 @@ export const GRADE_PHASE_GROUP_SECTIONS = [
   },
 ] as const;
 
+// ─── Phase 3.5 사전 분석 pre-task 그룹 ─────────────────────────────────────
+// P1~P3 완료 후 P4(setek_guide) 진입 전 phase-4-pre route 에서 실행되는 4종.
+// GRADE_PHASE_GROUPS 에 합산하지 않고 별도 그룹으로 관리하여 그리드 레이아웃 분리.
+
+export const PRE_TASK_PHASE_GROUPS: Array<{
+  label: string;
+  key: GradePipelineTaskKey;
+}> = [
+  { label: "교차 분석", key: "cross_subject_theme_extraction" },
+  { label: "봉사 역량", key: "competency_volunteer" },
+  { label: "수상 역량", key: "competency_awards" },
+  { label: "메인 테마", key: "derive_main_theme" },
+];
+
 // ─── Past Analytics (4축×3층 A층) ───────────────────────────────────────────
 export const PAST_ANALYTICS_PHASE_GROUPS: Array<{
   label: string;
@@ -110,7 +124,7 @@ export const SYNTHESIS_PHASE_GROUPS: Array<{
       "haengteuk_linking",
     ],
   },
-  { label: "진단+추천", keys: ["ai_diagnosis", "course_recommendation"] },
+  { label: "진단+추천", keys: ["ai_diagnosis", "course_recommendation", "gap_tracking"] },
   { label: "우회학과", keys: ["bypass_analysis"] },
   { label: "요약+전략", keys: ["activity_summary", "ai_strategy"] },
   { label: "면접+로드맵", keys: ["interview_generation", "roadmap_generation"] },
@@ -124,6 +138,8 @@ export const GRADE_TASK_LABEL_MAP: Record<GradePipelineTaskKey, string> = {
   competency_haengteuk: "행특 역량",
   cross_subject_theme_extraction: "과목 교차 테마",
   competency_volunteer: "봉사 역량",
+  competency_awards: "수상 역량",
+  derive_main_theme: "메인 테마",
   setek_guide: "세특 방향",
   slot_generation: "슬롯 생성",
   changche_guide: "창체 방향",
@@ -160,6 +176,10 @@ export const PHASE_DESCRIPTIONS: Record<string, string> = {
   "행특 방향": "행동특성 서술 개선 방향을 제안합니다",
   "가안 생성": "방향 가이드 기반으로 AI 초안을 생성합니다 (설계 모드 전용)",
   "가안 분석": "생성된 가안의 역량을 재분석합니다 (설계 모드 전용)",
+  "교차 분석": "P3.5 — 전 교과 세특에서 학년 단위 교차 테마를 추출합니다 (P4 가이드 주입)",
+  "봉사 역량": "P3.5 — 봉사활동 기록에서 공동체 역량 태깅 + 반복 주제를 추출합니다 (α1-2)",
+  "수상 역량": "P3.5 — 수상 기록에서 리더십·진로·학업 역량을 태깅합니다 (α1-4-b)",
+  "메인 테마": "P3.5 — 역량 분석 결과를 토대로 메인 탐구주제 + 학년별 cascadePlan을 도출합니다 (M1-c)",
   "과거 서사": "A1 — NEIS 기록만으로 학생의 과거 활동 서사(storyline)를 재구성합니다",
   "현상 진단": "A2 — 과거 서사 기반으로 현재까지의 성과/약점을 진단합니다",
   "즉시 행동": "A3 — 현상 진단을 토대로 지금 바로 실행 가능한 행동 권고를 생성합니다",
@@ -218,6 +238,27 @@ export function isGradePhaseReady(
   if (phase === 7) return t.haengteuk_guide === "completed";
   if (phase === 8) return t.draft_generation === "completed";
   return false;
+}
+
+// P3.5 사전 분석 pre-task 4종 ready 판정.
+// cross_subject / volunteer / awards 는 선행 없음 → P1~P3 중 하나라도 완료면 실행 가능 (graceful).
+// derive_main_theme 는 competency_* 3종 완료 후 실행 가능.
+export function isGradePreTaskReady(
+  grade: number,
+  taskKey: GradePipelineTaskKey,
+  gradePipelines: Record<number, { status: string; tasks: Record<string, string> }>,
+): boolean {
+  const t = gradePipelines[grade]?.tasks ?? {};
+  if (taskKey === "derive_main_theme") {
+    return (
+      t.competency_setek === "completed" &&
+      t.competency_changche === "completed" &&
+      t.competency_haengteuk === "completed"
+    );
+  }
+  // cross_subject_theme_extraction / competency_volunteer / competency_awards:
+  // P1(세특 역량)이 완료되면 실행 가능 (독립적, graceful).
+  return t.competency_setek === "completed" || t.competency_changche === "completed" || t.competency_haengteuk === "completed";
 }
 
 export function isPastAnalyticsPhaseReady(

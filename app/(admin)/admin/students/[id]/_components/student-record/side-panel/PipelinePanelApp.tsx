@@ -10,8 +10,10 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   gradeAwarePipelineStatusQueryOptions,
+  expectedModesQueryOptions,
   studentRecordKeys,
 } from "@/lib/query-options/studentRecord";
+import { cleanupStalePipelinesForStudent } from "@/lib/domains/student-record/actions/pipeline-orchestrator-cleanup";
 import {
   GRADE_PIPELINE_TASK_KEYS,
   SYNTHESIS_PIPELINE_TASK_KEYS,
@@ -86,8 +88,12 @@ export function PipelinePanelApp({
   const { closePanel } = useSidePanel();
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
+  // 측정/개발 전용 디버그 툴 게이트 — 운영 환경에서는 반드시 false(또는 미설정)
+  const isPipelineDebugEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_PIPELINE_DEBUG_TOOLS === "true";
   const [isLogCollapsed, setIsLogCollapsed] = useState(false);
   const [isResettingPhase2, setIsResettingPhase2] = useState(false);
+  const [recoveringGrade, setRecoveringGrade] = useState<number | null>(null);
   const pollingStartRef = useRef<number | null>(null);
 
   const {
@@ -96,8 +102,10 @@ export function PipelinePanelApp({
     isFullRunning,
     isCancelling,
     setIsCancelling,
+    runGradePreTask,
     runGradePhase,
     runSynthesisPhase,
+    runSynthesisSequence,
     runPastAnalyticsPhase,
     runBlueprintPhase,
     runBootstrapPhase,
@@ -105,6 +113,13 @@ export function PipelinePanelApp({
     runGradeSequence,
     stopFullRun,
   } = usePipelineExecution({ studentId, tenantId, pollingStartRef });
+
+  // 마운트 시 좀비/stuck 1회 정리 — 폴링 핫패스에서 분리.
+  useEffect(() => {
+    cleanupStalePipelinesForStudent(studentId).catch(() => {
+      // 실패해도 정상 흐름에 영향 없음 (폴링이 곧 최신 상태를 가져옴)
+    });
+  }, [studentId]);
 
   const { data: gradeStatus } = useQuery({
     ...gradeAwarePipelineStatusQueryOptions(studentId),
@@ -130,10 +145,16 @@ export function PipelinePanelApp({
         return false;
       }
       if (!pollingStartRef.current) pollingStartRef.current = Date.now();
-      if (Date.now() - pollingStartRef.current > 3600000) return false;
-      return 3000;
+      const elapsed = Date.now() - pollingStartRef.current;
+      if (elapsed > 3600000) return false;
+      // 백오프: 첫 2분은 3초, 이후 10초 (장기 실행 synthesis 비용 감축)
+      return elapsed > 120_000 ? 10_000 : 3000;
     },
   });
+
+  const { data: expectedModes = {} } = useQuery(
+    expectedModesQueryOptions(studentId),
+  );
 
   // ─── Stale 감지 ──────────────────────────────────────────────────────────
   // Grade 완료만으로는 부족 — Synthesis가 완료되어야 content_hash가 저장됨
@@ -210,10 +231,42 @@ export function PipelinePanelApp({
     runFullSequence();
   };
 
+  // 권고1 (2026-04-28): P4 setek_guide 부분 생성(90% 게이트 throw) 케이스의 누락 과목 재생성.
+  // 풀런 재실행 없이 누락 과목만 보충 → setek_guide row 메타 누적 insert + 본문은
+  // ai-guide-gen background 가 처리.
+  const handleRecoverSetekGuides = async (grade: number) => {
+    if (recoveringGrade != null) return;
+    setRecoveringGrade(grade);
+    try {
+      const { recoverMissingSetekGuidesAction } = await import(
+        "@/lib/domains/record-analysis/llm/actions/recoverSetekGuides"
+      );
+      const r = await recoverMissingSetekGuidesAction(studentId, tenantId, grade);
+      if (!r.success) {
+        showError(r.error ?? "누락 과목 재생성 실패");
+        return;
+      }
+      const { missingBefore, recovered } = r.data;
+      if (missingBefore === 0) {
+        showSuccess(`${grade}학년 누락 과목 없음 — 이미 모두 생성됨`);
+      } else {
+        showSuccess(
+          `${grade}학년 누락 ${missingBefore}과목 중 ${recovered}건 메타 생성 — 본문은 background 진행`,
+        );
+      }
+      await queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.gradeAwarePipeline(studentId),
+      });
+    } finally {
+      setRecoveringGrade(null);
+    }
+  };
+
   // ─── 파생 상태 ────────────────────────────────────────────────────────────
 
   const gp = gradeStatus?.gradePipelines ?? {};
   const sp = gradeStatus?.synthesisPipeline ?? null;
+  const aiGuideProgress = gradeStatus?.aiGuideProgress ?? null;
   const pa = gradeStatus?.pastAnalyticsPipeline ?? null;
   const bp = gradeStatus?.blueprintPipeline ?? null;
   const boot = gradeStatus?.bootstrapPipeline ?? null;
@@ -244,7 +297,6 @@ export function PipelinePanelApp({
     pa?.status === "running" ||
     bp?.status === "running" ||
     boot?.status === "running";
-  const expectedModes = gradeStatus?.expectedModes ?? {};
   const gradeNumbers = Object.keys(gp).map(Number).sort((a, b) => a - b);
   // 항상 1~3학년 모두 표시 (파이프라인 없는 학년도 표시)
   const displayGrades = [1, 2, 3];
@@ -258,18 +310,40 @@ export function PipelinePanelApp({
   // ─── 진행률 계산 ─────────────────────────────────────────────────────────
   const totalTasks =
     displayGrades.length * GRADE_PIPELINE_TASK_KEYS.length +
-    SYNTHESIS_PIPELINE_TASK_KEYS.length;
+    SYNTHESIS_PIPELINE_TASK_KEYS.length +
+    PAST_ANALYTICS_TASK_KEYS.length +
+    BLUEPRINT_TASK_KEYS.length +
+    BOOTSTRAP_TASK_KEYS.length;
   let completedCount = 0;
+  const doneStatuses = ["completed", "cached", "skipped"] as const;
   for (const g of displayGrades) {
     const tasks = gp[g]?.tasks ?? {};
     for (const key of GRADE_PIPELINE_TASK_KEYS) {
-      if (["completed", "cached", "skipped"].includes(tasks[key] ?? ""))
+      if (doneStatuses.includes(tasks[key] as (typeof doneStatuses)[number]))
         completedCount++;
     }
   }
   if (sp) {
     for (const key of SYNTHESIS_PIPELINE_TASK_KEYS) {
-      if (["completed", "cached", "skipped"].includes(sp.tasks[key] ?? ""))
+      if (doneStatuses.includes(sp.tasks[key] as (typeof doneStatuses)[number]))
+        completedCount++;
+    }
+  }
+  if (pa) {
+    for (const key of PAST_ANALYTICS_TASK_KEYS) {
+      if (doneStatuses.includes(pa.tasks[key] as (typeof doneStatuses)[number]))
+        completedCount++;
+    }
+  }
+  if (bp) {
+    for (const key of BLUEPRINT_TASK_KEYS) {
+      if (doneStatuses.includes(bp.tasks[key] as (typeof doneStatuses)[number]))
+        completedCount++;
+    }
+  }
+  if (boot) {
+    for (const key of BOOTSTRAP_TASK_KEYS) {
+      if (doneStatuses.includes(boot.tasks[key] as (typeof doneStatuses)[number]))
         completedCount++;
     }
   }
@@ -440,7 +514,7 @@ export function PipelinePanelApp({
           <span className="text-sm font-semibold">파이프라인 대시보드</span>
         </div>
         <div className="flex items-center gap-2">
-          {(isFullRunning || isCancelling) && (
+          {(isFullRunning || isCancelling) && !allComplete && (
             <button
               type="button"
               onClick={() => stopFullRun(gp, sp, pa, bp, boot)}
@@ -595,6 +669,9 @@ export function PipelinePanelApp({
             onRunGradeSequence={runGradeSequence}
             onRerunGrade={handleRerunGrade}
             isGradeRunDisabled={isAnyRunning || isCancelling}
+            onRecoverSetekGuides={handleRecoverSetekGuides}
+            recoveringGrade={recoveringGrade}
+            onRunGradePreTask={runGradePreTask}
           />
           <PipelinePastBlueprintGrid
             pa={pa}
@@ -606,8 +683,10 @@ export function PipelinePanelApp({
             onRunBlueprintPhase={runBlueprintPhase}
           />
           {/* 트랙 D (2026-04-14): Phase 2 재실행 — narrative chunk 분할 효과 측정용.
+              NEXT_PUBLIC_ENABLE_PIPELINE_DEBUG_TOOLS=true 인 환경에서만 노출.
               synthesis 파이프라인이 존재하고 Phase 2 관련 태스크가 한 번이라도 돈 경우에만 노출. */}
-          {sp?.pipelineId &&
+          {isPipelineDebugEnabled &&
+            sp?.pipelineId &&
             (sp.tasks.guide_matching === "completed" ||
               sp.tasks.narrative_arc_extraction === "completed" ||
               sp.status === "completed" ||
@@ -618,7 +697,7 @@ export function PipelinePanelApp({
                     Phase 2 재실행 (narrative chunk 측정)
                   </div>
                   <div className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">
-                    narrative/hyperedge/edge/guide_matching/haengteuk 초기화 + 파생 DB 클린업
+                    [개발 전용] narrative/hyperedge/edge/guide_matching/haengteuk 초기화 + 파생 DB 클린업
                   </div>
                 </div>
                 <button
@@ -626,7 +705,7 @@ export function PipelinePanelApp({
                   disabled={isResettingPhase2 || isAnyRunning || isCancelling}
                   onClick={async () => {
                     if (!sp?.pipelineId) return;
-                    if (!window.confirm("Phase 2 태스크를 초기화하고 파생 DB(narrative/hyperedge/edge/assignments/haengteuk_links)를 삭제합니다. 계속하시겠습니까?")) return;
+                    if (!window.confirm("⚠️ [개발/측정 전용] 이 작업은 DB 데이터를 영구 삭제합니다.\n\nPhase 2 태스크(narrative/hyperedge/edge/assignments/haengteuk_links)를 초기화하고 파생 DB를 삭제합니다.\n\n측정·개발 목적이 아니라면 반드시 취소하세요. 계속하시겠습니까?")) return;
                     setIsResettingPhase2(true);
                     try {
                       const res = await fetch("/api/admin/pipeline/synthesis/rerun", {
@@ -674,7 +753,11 @@ export function PipelinePanelApp({
             allGradesCompleted={allGradesCompleted}
             runningCell={runningCell}
             runningStartMs={runningStartMs}
+            isAnyRunning={isAnyRunning}
+            isCancelling={isCancelling}
             onRunSynthesisPhase={runSynthesisPhase}
+            onRunSynthesisSequence={runSynthesisSequence}
+            aiGuideProgress={aiGuideProgress}
           />
         </div>
 

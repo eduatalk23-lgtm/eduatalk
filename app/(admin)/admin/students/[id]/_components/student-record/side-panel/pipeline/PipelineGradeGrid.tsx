@@ -4,13 +4,16 @@
 // Grade Pipeline 그리드 컴포넌트
 // ============================================
 
-import { Play, RefreshCw } from "lucide-react";
+import React from "react";
+import { Play, RefreshCw, Wrench } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   GRADE_PHASE_GROUPS,
   GRADE_PHASE_GROUP_SECTIONS,
+  PRE_TASK_PHASE_GROUPS,
   type CellStatus,
   isGradePhaseReady,
+  isGradePreTaskReady,
   deriveCellStatus,
 } from "./pipeline-constants";
 import { CockpitCell } from "./PipelineCockpitCell";
@@ -19,7 +22,7 @@ import type { GradeAwarePipelineStatus } from "@/lib/domains/student-record/acti
 interface PipelineGradeGridProps {
   displayGrades: number[];
   gp: GradeAwarePipelineStatus["gradePipelines"];
-  expectedModes: GradeAwarePipelineStatus["expectedModes"];
+  expectedModes: Record<number, "analysis" | "design">;
   runningCell: string | null;
   runningStartMs: number | null;
   onRunGradePhase: (grade: number, phase: number) => void;
@@ -28,6 +31,12 @@ interface PipelineGradeGridProps {
   onRerunGrade?: (grade: number) => void;
   /** 학년 단위 실행 버튼 disabled 여부 (전체 실행 중 등) */
   isGradeRunDisabled?: boolean;
+  /** 권고1 (2026-04-28): P4 setek_guide 부분 생성 감지 시 누락 과목만 재생성 */
+  onRecoverSetekGuides?: (grade: number) => void;
+  /** recover 진행 중인 학년 (1/2/3) — 버튼 disabled */
+  recoveringGrade?: number | null;
+  /** Phase 3.5 pre-task 4종 재실행 (학년 단위, phase-4-pre route 호출) */
+  onRunGradePreTask?: (grade: number) => void;
 }
 
 export function PipelineGradeGrid({
@@ -40,6 +49,9 @@ export function PipelineGradeGrid({
   onRunGradeSequence,
   onRerunGrade,
   isGradeRunDisabled,
+  onRecoverSetekGuides,
+  recoveringGrade,
+  onRunGradePreTask,
 }: PipelineGradeGridProps) {
   return (
     <div>
@@ -48,6 +60,8 @@ export function PipelineGradeGrid({
       </h4>
       <div className="space-y-3">
         {GRADE_PHASE_GROUP_SECTIONS.map((section) => {
+          // "역량 분석" 섹션 렌더링 직후 Phase 3.5 사전 분석 블록 삽입
+          const showPreTaskSectionAfter = section.title === "역량 분석";
           const colCount = section.phases.length;
           const gridColsClass =
             colCount === 3
@@ -55,7 +69,8 @@ export function PipelineGradeGrid({
               : "grid-cols-[56px_repeat(2,1fr)]";
 
           return (
-            <div key={section.title}>
+            <React.Fragment key={section.title}>
+            <div>
               {/* 섹션 헤더 */}
               <div
                 className={cn(
@@ -181,6 +196,26 @@ export function PipelineGradeGrid({
                               재실행
                             </button>
                           )}
+                        {/* 권고1 (2026-04-28): P4 setek_guide 부분 생성 감지 시 누락 과목만 재생성 */}
+                        {isFirstSection &&
+                          onRecoverSetekGuides &&
+                          pipeline?.errors?.setek_guide?.includes("부분 생성") && (
+                            <button
+                              type="button"
+                              onClick={() => onRecoverSetekGuides(grade)}
+                              disabled={recoveringGrade === grade}
+                              title={`${grade}학년 누락 과목 재생성 — ${pipeline.errors.setek_guide}`}
+                              className={cn(
+                                "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-[9px] font-medium transition-colors",
+                                recoveringGrade === grade
+                                  ? "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed"
+                                  : "border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30 cursor-pointer",
+                              )}
+                            >
+                              <Wrench className="h-2.5 w-2.5" />
+                              {recoveringGrade === grade ? "재생성중" : "누락보충"}
+                            </button>
+                          )}
                       </div>
 
                       {section.phases.map((pg) => {
@@ -253,6 +288,108 @@ export function PipelineGradeGrid({
                 })}
               </div>
             </div>
+
+            {/* Phase 3.5 사전 분석 — "역량 분석" 섹션 직후 삽입 */}
+            {showPreTaskSectionAfter && (
+              <div>
+                {/* 섹션 헤더 */}
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-t-md mb-1 bg-violet-50 dark:bg-violet-950/20">
+                  <span className="text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                    사전 분석
+                  </span>
+                  <span className="text-[10px] text-violet-400 dark:text-violet-500">
+                    Phase 3.5 · pre-task
+                  </span>
+                </div>
+
+                {/* 4열 그리드 */}
+                <div className="grid gap-1 grid-cols-[56px_repeat(4,1fr)]">
+                  {/* 헤더 행 */}
+                  <div />
+                  {PRE_TASK_PHASE_GROUPS.map((ptg) => (
+                    <div
+                      key={ptg.key}
+                      className="text-center text-[11px] font-semibold text-[var(--text-tertiary)] pb-0.5"
+                    >
+                      {ptg.label}
+                    </div>
+                  ))}
+
+                  {/* 1~3학년 행 */}
+                  {displayGrades.map((grade) => {
+                    const pipeline = gp[grade];
+                    const tasks = pipeline?.tasks ?? {};
+                    const previews = pipeline?.previews ?? {};
+                    const elapsed = pipeline?.elapsed ?? {};
+
+                    return (
+                      <div key={grade} className="contents">
+                        {/* 학년 라벨 (pre-task 섹션은 버튼 없이 라벨만) */}
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="text-xs font-bold text-[var(--text-tertiary)]">
+                            {grade}학년
+                          </span>
+                          {onRunGradePreTask && !isGradeRunDisabled && (
+                            <button
+                              type="button"
+                              onClick={() => onRunGradePreTask(grade)}
+                              title={`${grade}학년 사전 분석 재실행 (phase-4-pre)`}
+                              className="inline-flex items-center gap-0.5 rounded-sm border border-violet-200 text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/30 px-1 py-px text-[9px] font-medium transition-colors cursor-pointer mt-0.5"
+                            >
+                              <Play className="h-2.5 w-2.5" />
+                              재실행
+                            </button>
+                          )}
+                        </div>
+
+                        {PRE_TASK_PHASE_GROUPS.map((ptg) => {
+                          const taskStatus = tasks[ptg.key] ?? "pending";
+                          const prereqMet = isGradePreTaskReady(grade, ptg.key, gp);
+                          const isCached = previews[ptg.key]?.includes("캐시") ?? false;
+                          const isSkipped = previews[ptg.key]?.includes("스킵") ?? false;
+                          const cellKey = `g-${grade}-pre-${ptg.key}`;
+                          const status =
+                            runningCell === cellKey
+                              ? ("running" as CellStatus)
+                              : deriveCellStatus(
+                                  [taskStatus],
+                                  prereqMet,
+                                  isCached,
+                                  isSkipped,
+                                  pipeline?.status,
+                                );
+
+                          const elapsedVal = elapsed[ptg.key];
+                          const errors = pipeline?.errors ?? {};
+                          const errorMsg =
+                            status === "failed" ? errors[ptg.key] : undefined;
+                          const runningPreview =
+                            status === "running" ? previews[ptg.key] : undefined;
+
+                          return (
+                            <CockpitCell
+                              key={ptg.key}
+                              label={ptg.label}
+                              status={status}
+                              elapsedMs={elapsedVal}
+                              progressText={runningPreview}
+                              runningStartMs={
+                                runningCell === cellKey
+                                  ? (runningStartMs ?? undefined)
+                                  : undefined
+                              }
+                              tooltip={errorMsg}
+                              onClick={() => onRunGradePreTask?.(grade)}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            </React.Fragment>
           );
         })}
       </div>
