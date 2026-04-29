@@ -117,3 +117,4 @@ test-results/
 # Database dumps
 dump_*.sql
 tmp/
+serena/
