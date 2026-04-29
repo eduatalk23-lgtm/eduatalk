@@ -20,7 +20,7 @@
  *   --variant=both      # mono + pipeline 순차 실행 + side-by-side diff 리포트
  *
  * 환경 변수:
- *   GOOGLE_GENERATIVE_AI_API_KEY  (필수, .env.local에서 자동 로드)
+ *   GOOGLE_API_KEY  (필수, .env.local에서 자동 로드)
  *
  * 모델 업그레이드 테스트 (eval 전용):
  *   LLM_MODEL_OVERRIDE=gemini-3.1-pro-preview  → Gemini 3.1 Pro (advanced tier에만 적용)
@@ -793,7 +793,7 @@ function formatExpected(sample: EvalSample): string {
 // ─── 메인 ────────────────────────────────────────────────────────────────
 
 async function main() {
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const apiKey = process.env.GOOGLE_API_KEY;
 
   const samples = targetIds
     ? GOLDEN_DATASET.filter((s) => targetIds.includes(s.id))
@@ -834,8 +834,8 @@ async function main() {
 
   // claude-cli variant는 Claude Code subprocess만 사용하므로 Google API key 불필요
   if (!apiKey && VARIANT !== "claude-cli") {
-    console.error("❌ GOOGLE_GENERATIVE_AI_API_KEY 환경 변수가 없습니다.");
-    console.error("   .env.local에 GOOGLE_GENERATIVE_AI_API_KEY=<키> 를 추가하세요.");
+    console.error("❌ GOOGLE_API_KEY 환경 변수가 없습니다.");
+    console.error("   .env.local에 GOOGLE_API_KEY=<키> 를 추가하세요.");
     process.exit(1);
   }
 

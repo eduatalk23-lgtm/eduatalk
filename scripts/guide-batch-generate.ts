@@ -64,14 +64,14 @@ import { GUIDE_TYPE_LABELS } from "../lib/domains/guide/types";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GOOGLE_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   console.error("❌ SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다.");
   process.exit(1);
 }
 if (!GOOGLE_API_KEY) {
-  console.error("❌ GOOGLE_GENERATIVE_AI_API_KEY 환경변수가 없습니다.");
+  console.error("❌ GOOGLE_API_KEY 환경변수가 없습니다.");
   process.exit(1);
 }
 

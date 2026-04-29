@@ -20,14 +20,14 @@
  *   --force          기존 임베딩(content_hash 일치) 도 재생성
  *   --limit=N        처리 대상 상한
  *
- * 전제: .env.local 에 GOOGLE_GENERATIVE_AI_API_KEY, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+ * 전제: .env.local 에 GOOGLE_API_KEY, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
 import { config } from "dotenv";
 import path from "path";
 import crypto from "crypto";
 import { embedMany } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { geminiRateLimiter } from "@/lib/domains/plan/llm/providers/gemini";
 
@@ -35,10 +35,14 @@ import { geminiRateLimiter } from "@/lib/domains/plan/llm/providers/gemini";
 
 config({ path: path.resolve(process.cwd(), ".env.local") });
 
-if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.error("❌ GOOGLE_GENERATIVE_AI_API_KEY 미설정 (.env.local)");
+if (!process.env.GOOGLE_API_KEY) {
+  console.error("❌ GOOGLE_API_KEY 미설정 (.env.local)");
   process.exit(1);
 }
+
+// @ai-sdk/google는 기본적으로 GOOGLE_GENERATIVE_AI_API_KEY를 읽으므로,
+// 통일된 GOOGLE_API_KEY를 명시적으로 주입.
+const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_API_KEY });
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error("❌ Supabase 환경변수 미설정");
   process.exit(1);

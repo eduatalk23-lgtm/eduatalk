@@ -1029,9 +1029,9 @@ function buildUserPrompt(profile: Profile, syntheticIdx: number): string {
 
 function createGenaiClient(): GoogleGenAI {
   if (useAiStudio) {
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      throw new Error("--ai-studio 모드: GOOGLE_API_KEY 또는 GOOGLE_GENERATIVE_AI_API_KEY 필요");
+      throw new Error("--ai-studio 모드: GOOGLE_API_KEY 필요");
     }
     return new GoogleGenAI({ apiKey });
   }

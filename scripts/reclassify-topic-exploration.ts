@@ -161,8 +161,8 @@ async function main() {
     console.error("❌ Supabase 환경변수 누락");
     process.exit(1);
   }
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    console.error("❌ GOOGLE_GENERATIVE_AI_API_KEY 누락");
+  if (!process.env.GOOGLE_API_KEY) {
+    console.error("❌ GOOGLE_API_KEY 누락");
     process.exit(1);
   }
 
