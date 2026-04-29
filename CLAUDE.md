@@ -125,6 +125,28 @@ export default async function Page({
 - Use `cn()` from `lib/cn.ts` for conditional classes
 - Follow design system tokens for colors/typography
 
+**색상 토큰 사용 규칙 (Tailwind v4 CSS-first):**
+프로젝트는 Tailwind v4 + `@theme inline` (`app/globals.css`) 사용. raw 색상(`bg-indigo-*`, `text-blue-*` 등) 금지. 시맨틱 토큰 두 표기 모두 정상 작동:
+
+```tsx
+// ✅ 권장 (간결): 시맨틱 클래스
+className="bg-primary-50 text-primary-700 border-secondary-200"
+
+// ✅ 허용 (명시적): arbitrary value with CSS var
+className="bg-[rgb(var(--color-primary-50))] text-[rgb(var(--color-primary-700))]"
+
+// ❌ 금지: raw Tailwind 색상
+className="bg-indigo-50 text-indigo-700 border-gray-200"
+```
+
+- 신규 코드는 **간결한 시맨틱 클래스 형태(A)** 우선 사용
+- 기존 코드의 arbitrary value 형태(B)는 그대로 유지 (둘 다 정상 동작)
+- 시맨틱 토큰: `primary` (indigo) / `secondary` (gray) / `success` / `warning` / `error` / `info`
+- 50~900 단계 모두 사용 가능 (예: `bg-info-50`, `text-error-600`, `border-secondary-300`)
+- 텍스트 컬러: `text-[var(--text-primary)]` / `--text-secondary` / `--text-tertiary` / `--text-placeholder`
+- 다크모드: 시맨틱 토큰은 `globals.css`에서 자동 반전 → `dark:` prefix **불필요**
+- 시맨틱 토큰에 없는 색상(orange / purple / pink / teal 등)만 raw 색상 정당화 (예: Avatar 해시 팔레트, 카테고리 색상)
+
 ### File Structure
 - Path alias: `@/*` → project root
 - Prefer editing existing files over creating new ones
