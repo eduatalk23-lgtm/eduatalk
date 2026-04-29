@@ -209,15 +209,15 @@ export default function PlannerCalendarView({
       {/* 헤더: 월 네비게이션 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">플래너 캘린더</h3>
+          <Calendar className="h-4 w-4 text-[var(--text-tertiary)]" />
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">플래너 캘린더</h3>
         </div>
 
         <div className="flex items-center gap-1">
           <button
             onClick={goToPrevMonth}
             disabled={!canGoPrev}
-            className="rounded p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-30"
+            className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[rgb(var(--color-secondary-100))] disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -227,7 +227,7 @@ export default function PlannerCalendarView({
           <button
             onClick={goToNextMonth}
             disabled={!canGoNext}
-            className="rounded p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-30"
+            className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[rgb(var(--color-secondary-100))] disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -235,9 +235,9 @@ export default function PlannerCalendarView({
       </div>
 
       {/* 통계 바 */}
-      <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex gap-3 text-xs text-[var(--text-tertiary)]">
         <span className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-red-500" />
+          <div className="h-2 w-2 rounded-full bg-[rgb(var(--color-error-500))]" />
           제외일 {stats.exclusions}
         </span>
         <span className="flex items-center gap-1">
@@ -248,7 +248,7 @@ export default function PlannerCalendarView({
           <div className="h-2 w-2 rounded-full bg-blue-500" />
           식사 {stats.meals}
         </span>
-        <span className="text-gray-300">|</span>
+        <span className="text-[rgb(var(--color-secondary-300))] dark:text-[rgb(var(--color-secondary-600))]">|</span>
         <span>이번 달 총 {stats.total}건</span>
       </div>
 

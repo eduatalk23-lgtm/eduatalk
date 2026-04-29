@@ -67,15 +67,15 @@ export default function CalendarMonthGrid({
   const pEnd = parseISO(periodEnd);
 
   return (
-    <div>
+    <div className="flex flex-col gap-1">
       {/* 요일 헤더 */}
-      <div className="mb-1 grid grid-cols-7 gap-0.5">
+      <div className="grid grid-cols-7 gap-0.5">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
             className={cn(
               "py-1 text-center text-xs font-medium",
-              label === "일" ? "text-red-400" : label === "토" ? "text-blue-400" : "text-gray-400 dark:text-gray-500"
+              label === "일" ? "text-[rgb(var(--color-error-400))]" : label === "토" ? "text-[rgb(var(--color-info-400))]" : "text-[var(--text-placeholder)]"
             )}
           >
             {label}
@@ -97,17 +97,20 @@ export default function CalendarMonthGrid({
           const hasMeal = dayTypes?.has("점심식사") || dayTypes?.has("아침식사") || dayTypes?.has("저녁식사");
           const hasSleep = dayTypes?.has("수면");
 
+          const ariaLabel = `${format(date, "yyyy년 M월 d일")}${today ? ", 오늘" : ""}`;
+
           return (
             <button
               key={dateKey}
+              aria-label={ariaLabel}
               onClick={() => onDateSelect(date)}
               disabled={!inMonth}
               className={cn(
                 "relative flex h-10 flex-col items-center justify-center rounded-md text-sm transition-colors",
                 !inMonth && "invisible",
-                !inPeriod && inMonth && "text-gray-300",
-                inPeriod && "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800",
-                hasExclusion && inPeriod && "bg-red-50",
+                !inPeriod && inMonth && "text-[rgb(var(--color-secondary-300))]",
+                inPeriod && "cursor-pointer hover:bg-[rgb(var(--color-secondary-100))]",
+                hasExclusion && inPeriod && "bg-[rgb(var(--color-error-50))] dark:bg-[rgb(var(--color-error-950))]",
                 selected && "ring-2 ring-blue-500 dark:ring-blue-400",
                 today && "font-bold"
               )}
@@ -115,8 +118,8 @@ export default function CalendarMonthGrid({
               <span
                 className={cn(
                   "leading-none",
-                  today && "text-blue-600 dark:text-blue-400",
-                  hasExclusion && inPeriod && "text-red-500 dark:text-red-400 line-through"
+                  today && "text-[rgb(var(--color-info-600))]",
+                  hasExclusion && inPeriod && "text-[rgb(var(--color-error-500))] line-through"
                 )}
               >
                 {format(date, "d")}
@@ -125,9 +128,9 @@ export default function CalendarMonthGrid({
               {/* 이벤트 dot 인디케이터 */}
               {inPeriod && dayTypes && dayTypes.size > 0 && (
                 <div className="absolute bottom-0.5 flex gap-0.5">
-                  {hasExclusion && <div className="h-1 w-1 rounded-full bg-red-500" />}
+                  {hasExclusion && <div className="h-1 w-1 rounded-full bg-[rgb(var(--color-error-500))]" />}
                   {hasAcademy && <div className="h-1 w-1 rounded-full bg-orange-500" />}
-                  {hasMeal && <div className="h-1 w-1 rounded-full bg-blue-500" />}
+                  {hasMeal && <div className="h-1 w-1 rounded-full bg-[rgb(var(--color-info-500))]" />}
                   {hasSleep && <div className="h-1 w-1 rounded-full bg-purple-500" />}
                 </div>
               )}
