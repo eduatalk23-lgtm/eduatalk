@@ -1582,6 +1582,7 @@ function ChatRoomComponent({
             type="button"
             onClick={onBack}
             className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
+            aria-label="뒤로 가기"
           >
             <ArrowLeft className="w-5 h-5 text-text-primary" />
           </button>

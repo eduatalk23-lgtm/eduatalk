@@ -64,7 +64,7 @@ function MessageReadersModalComponent({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* 배경 */}
       <div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-bg-overlay"
         onClick={onClose}
         aria-hidden
       />

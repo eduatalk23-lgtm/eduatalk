@@ -29,7 +29,8 @@ function TypingIndicatorComponent({ users }: TypingIndicatorProps) {
     <div
       className="min-h-8 overflow-hidden transition-opacity duration-150"
       style={{ opacity: isTyping ? 1 : 0 }}
-      aria-hidden={!isTyping}
+      aria-live="polite"
+      aria-atomic="true"
     >
       {isTyping && (
         <div className="flex items-center gap-2 px-4 py-2 text-sm text-text-tertiary">

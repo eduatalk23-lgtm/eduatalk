@@ -190,6 +190,7 @@ function ChatListComponent({
               onClick={onNewChat}
               className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
               title="새 채팅"
+              aria-label="새 채팅 시작"
             >
               <MessageSquarePlus className="w-5 h-5 text-text-secondary" />
             </button>
@@ -215,10 +216,11 @@ function ChatListComponent({
         >
           <Search className="w-5 h-5 text-text-tertiary flex-shrink-0" />
           <input
-            type="text"
+            type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="채팅방 검색..."
+            aria-label="채팅방 검색"
             className={cn(
               "flex-1 bg-transparent text-sm text-text-primary",
               "placeholder:text-text-tertiary",
@@ -230,6 +232,7 @@ function ChatListComponent({
               type="button"
               onClick={() => setSearchQuery("")}
               className="p-1 text-text-tertiary hover:text-text-secondary"
+              aria-label="검색어 지우기"
             >
               <X className="w-4 h-4" />
             </button>

@@ -482,6 +482,8 @@
   --color-bg-primary: var(--background);
   --color-bg-secondary: rgb(var(--color-secondary-50));
   --color-bg-tertiary: rgb(var(--color-secondary-100));
+  /* 모달/바텀시트 딤 — bg-bg-overlay 로 사용. 라이트/다크 공통 검정 40% */
+  --color-bg-overlay: rgb(0 0 0 / 0.4);
 
   /* Border Color */
   --color-border: rgb(var(--color-secondary-200));

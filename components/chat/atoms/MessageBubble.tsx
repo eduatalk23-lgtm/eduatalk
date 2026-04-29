@@ -200,7 +200,7 @@ function ErrorActionSheet({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center">
       <div
-        className="absolute inset-0 bg-black/40 animate-in fade-in duration-150"
+        className="absolute inset-0 bg-bg-overlay animate-in fade-in duration-150"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -329,8 +329,8 @@ function MessageBubbleComponent({
   const errorMessage = errorInfo?.message ?? "전송 실패";
   const canRetryError = errorInfo?.canRetry ?? true;
 
-  // 표시 옵션 추출 (isGrouped는 부모에서 간격 조절에 사용)
-  const { showName = true, showTime = true, isGrouped: _isGrouped = false } = displayOptions;
+  // 표시 옵션 추출 (isGrouped는 부모에서 간격 조절 + 꼬리 제거에 사용)
+  const { showName = true, showTime = true, isGrouped = false } = displayOptions;
 
   // 장문 텍스트 접기/펼치기
   const [isExpanded, setIsExpanded] = useState(false);
@@ -523,8 +523,10 @@ function MessageBubbleComponent({
                 className={cn(
                   "rounded-2xl overflow-hidden",
                   isOwn
-                    ? "bg-primary-500 dark:bg-primary-400 text-white rounded-br-sm"
-                    : "bg-bg-secondary text-text-primary rounded-bl-sm",
+                    ? "bg-primary-500 dark:bg-primary-400 text-white"
+                    : "bg-bg-secondary text-text-primary",
+                  // 카카오톡 스타일 꼬리 — 그룹 메시지(연속 발신)에서는 제거
+                  !isGrouped && (isOwn ? "rounded-br-sm" : "rounded-bl-sm"),
                   replyTarget && "rounded-t-none",
                   (hasError || isQueued) && "opacity-60"
                 )}

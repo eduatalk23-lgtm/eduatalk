@@ -12,7 +12,7 @@
 import { memo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { formatDistanceToNow } from "date-fns";
+import { format, isSameDay, isYesterday, isThisYear } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Avatar } from "@/components/atoms/Avatar";
 import { GroupAvatar } from "../atoms/GroupAvatar";
@@ -21,6 +21,15 @@ import { Image, Paperclip, BellOff } from "lucide-react";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatRoomListItem } from "@/lib/domains/chat/types";
+
+/** 채팅방 목록 시간 포맷 — 카카오톡 패턴 */
+function formatRoomTime(date: Date): string {
+  const now = new Date();
+  if (isSameDay(date, now)) return format(date, "a h:mm", { locale: ko });
+  if (isYesterday(date)) return "어제";
+  if (isThisYear(date)) return format(date, "M월 d일", { locale: ko });
+  return format(date, "yyyy. M. d.", { locale: ko });
+}
 
 interface ChatRoomCardProps {
   /** 채팅방 정보 */
@@ -83,12 +92,9 @@ function ChatRoomCardComponent({
   // 주제 표시 (topic이 있을 경우)
   const topicDisplay = room.topic ?? null;
 
-  // 시간 포맷
+  // 시간 포맷 (카카오톡 패턴: 오늘=오후 3:45, 어제=어제, 올해=1월 15일, 그 외=YYYY/M/D)
   const timeDisplay = room.lastMessage
-    ? formatDistanceToNow(new Date(room.lastMessage.createdAt), {
-        addSuffix: true,
-        locale: ko,
-      })
+    ? formatRoomTime(new Date(room.lastMessage.createdAt))
     : "";
 
   return (

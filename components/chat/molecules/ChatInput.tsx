@@ -546,15 +546,17 @@ function ChatInputComponent({
                 </div>
               )}
 
-              {/* 제거 버튼 */}
+              {/* 제거 버튼 — 터치 타깃 44px 확보를 위해 투명 패딩 래퍼 사용 */}
               {onRemoveFile && (
                 <button
                   type="button"
                   onClick={() => onRemoveFile(file.clientId)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-bg-primary border border-border rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                  className="absolute -top-3 -right-3 w-11 h-11 flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                   aria-label={`${file.file.name} 제거`}
                 >
-                  <X className="w-3 h-3 text-text-secondary" />
+                  <span className="w-5 h-5 bg-bg-primary border border-border rounded-full flex items-center justify-center">
+                    <X className="w-3 h-3 text-text-secondary" />
+                  </span>
                 </button>
               )}
 
@@ -777,6 +779,15 @@ function ChatInputComponent({
               "w-5 h-5 transition-transform duration-200",
               canSend ? "translate-x-0" : "-translate-x-0.5"
             )} />
+            {/* 예약 전송 어포던스 — 길게 누르기 단서 (시계 점) */}
+            {onScheduleSend && canSend && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-bg-primary border border-primary-500 flex items-center justify-center"
+                aria-hidden="true"
+              >
+                <Clock className="w-2 h-2 text-primary-500" />
+              </span>
+            )}
           </button>
 
           {/* 예약 전송 드롭다운 (+ 메뉴와 동일한 팝업 스타일) */}

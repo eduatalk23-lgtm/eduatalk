@@ -318,7 +318,7 @@ function MessageContextMenuComponent({
         ref={backdropRef}
         onClick={handleBackdropClick}
         className={cn(
-          "fixed inset-0 z-40 bg-black/50",
+          "fixed inset-0 z-40 bg-bg-overlay",
           "animate-in fade-in-0 duration-200"
         )}
         data-chat-overlay
