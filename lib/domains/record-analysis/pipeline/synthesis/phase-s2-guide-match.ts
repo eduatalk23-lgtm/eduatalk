@@ -440,6 +440,59 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     state.phaseB.ranked.push(...poolRanked);
   }
 
+  // ── Step B Shadow 측정 (2026-04-29) + Sprint 1 Wiring (2026-04-30) ──
+  // Phase A+B 합집합 ranked 에 slot-aware-score 채점 후 finalScore 에 boost 합성.
+  // ENV flag `ENABLE_SLOT_AWARE_RANKING=true` 일 때만 boost 적용.
+  // flag off 시 박제만 수행 — 기존 동작과 동일.
+  if (state.phaseB.ranked.length > 0) {
+    const { runSlotAwareScoreShadow } = await import("../slots/shadow-score-runner");
+    const { buildMaxDifficultyByGradeAsync } = await import("../slots/shadow-run");
+    const maxDifficultyByGrade = await buildMaxDifficultyByGradeAsync(studentId, tenantId);
+    await runSlotAwareScoreShadow({
+      ctx,
+      studentId,
+      tenantId,
+      ranked: state.phaseB.ranked,
+      maxDifficultyByGrade,
+      careerCompatibility: ctx.belief.mainTheme?.careerField
+        ? [ctx.belief.mainTheme.careerField]
+        : [],
+    });
+
+    if (process.env.ENABLE_SLOT_AWARE_RANKING === "true") {
+      const { computeSlotBoost, extractBestSlotScoreByGuide } = await import(
+        "../slots/slot-aware-boost"
+      );
+      const shadow = ctx.results["_slotAwareScores"] as
+        | {
+            topKPerSlot?: Array<{
+              candidates: Array<{
+                guideId: string;
+                breakdown: { totalScore: number };
+              }>;
+            }>;
+          }
+        | undefined;
+      const bestByGuide = extractBestSlotScoreByGuide(shadow?.topKPerSlot ?? []);
+      let appliedCount = 0;
+      const sample: Array<{ id: string; before: number; boost: number; after: number }> = [];
+      for (const r of state.phaseB.ranked) {
+        const best = bestByGuide.get(r.id) ?? 0;
+        const boost = computeSlotBoost(best);
+        if (boost > 1) appliedCount++;
+        const before = r.finalScore;
+        r.finalScore = before * boost;
+        if (sample.length < 5) sample.push({ id: r.id, before, boost, after: r.finalScore });
+      }
+      ctx.previews["slot_aware_boost"] = JSON.stringify({
+        version: "wiring-v1",
+        appliedCount,
+        totalGuides: state.phaseB.ranked.length,
+        sample,
+      });
+    }
+  }
+
   // ── Phase A + Phase B 합집합 정렬 + 전체 상한 ──
   //
   // Phase A (AI 설계)와 Phase B (풀 보충)가 합집합으로 쌓여 있으므로
@@ -457,26 +510,6 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       overflowCount: state.merged.overflowCount,
       maxTotal: MAX_TOTAL_ASSIGNMENTS,
       maxPerSlot: MAX_GUIDES_PER_SLOT,
-    });
-  }
-
-  // ── Step B Shadow 측정 (2026-04-29) ──
-  // 매칭 결과(state.merged.capped) 를 slot-aware-score 로도 채점해 병행 박제.
-  // 매칭/배정 로직 무영향 — `_slotAwareScores` 영속화만 수행.
-  // Step D 측정 후 통합 정책 결정 시 이 박제 데이터를 비교 분석.
-  if (state.merged.capped.length > 0) {
-    const { runSlotAwareScoreShadow } = await import("../slots/shadow-score-runner");
-    const { buildMaxDifficultyByGradeAsync } = await import("../slots/shadow-run");
-    const maxDifficultyByGrade = await buildMaxDifficultyByGradeAsync(studentId, tenantId);
-    await runSlotAwareScoreShadow({
-      ctx,
-      studentId,
-      tenantId,
-      ranked: state.merged.capped,
-      maxDifficultyByGrade,
-      careerCompatibility: ctx.belief.mainTheme?.careerField
-        ? [ctx.belief.mainTheme.careerField]
-        : [],
     });
   }
 
