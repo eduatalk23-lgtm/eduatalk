@@ -26,7 +26,7 @@ export function HaengteukGuideLinkDropdown({
   const [open, setOpen] = useState(false);
   if (links.length === 0) {
     return (
-      <span className={cn("text-[11px] text-[var(--text-placeholder)]", className)}>
+      <span className={cn("text-2xs text-[var(--text-placeholder)]", className)}>
         근거 가이드 없음
       </span>
     );
@@ -38,7 +38,7 @@ export function HaengteukGuideLinkDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex w-fit items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700 transition-colors hover:bg-indigo-100",
+          "inline-flex w-fit items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-2xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100",
           "dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50",
           open && "bg-indigo-100 dark:bg-indigo-900/50",
         )}
@@ -56,7 +56,7 @@ export function HaengteukGuideLinkDropdown({
               return (
                 <div
                   key={`${link.haengteuk_guide_id}:${link.evaluation_item}:${link.exploration_guide_assignment_id}`}
-                  className="rounded border border-dashed border-gray-300 bg-white/60 p-1.5 text-[11px] text-[var(--text-tertiary)]"
+                  className="rounded border border-dashed border-border bg-white/60 p-1.5 text-2xs text-[var(--text-tertiary)]"
                 >
                   링크된 배정이 조회되지 않음 (assignmentId={link.exploration_guide_assignment_id.slice(0, 8)}…)
                 </div>
@@ -85,19 +85,19 @@ export function HaengteukGuideLinkDropdown({
                 <div className="flex items-center gap-1.5 px-1">
                   <span
                     className={cn(
-                      "shrink-0 rounded px-1 py-0 text-[10px] font-semibold",
+                      "shrink-0 rounded px-1 py-0 text-3xs font-semibold",
                       link.relevance_score >= 0.85
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                         : link.relevance_score >= 0.7
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                          : "bg-bg-tertiary text-text-primary dark:bg-bg-secondary dark:text-text-disabled",
                     )}
                     title="LLM 매칭 relevance (0~1)"
                   >
                     r {link.relevance_score.toFixed(2)}
                   </span>
                   {link.reasoning && (
-                    <span className="line-clamp-2 text-[10px] italic text-[var(--text-tertiary)]">
+                    <span className="line-clamp-2 text-3xs italic text-[var(--text-tertiary)]">
                       {link.reasoning}
                     </span>
                   )}

@@ -403,19 +403,19 @@ function AddReadingForm({
             value={bookTitle}
             onChange={(e) => setBookTitle(e.target.value)}
             placeholder="도서명 *"
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           />
           <input
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
             placeholder="저자"
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           />
           <input
             value={subjectArea}
             onChange={(e) => setSubjectArea(e.target.value)}
             placeholder="관련 과목 *"
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           />
         </div>
         <div className="flex justify-end">

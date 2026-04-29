@@ -15,7 +15,7 @@ import type { ActivitySummarySection, ActivitySummaryStatus } from "@/lib/domain
 import { ReportExportMenu } from "../../ReportExportMenu";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft: { label: "초안", color: "bg-gray-100 text-gray-600" },
+  draft: { label: "초안", color: "bg-bg-tertiary text-text-secondary" },
   confirmed: { label: "확정", color: "bg-blue-100 text-blue-700" },
   published: { label: "공개", color: "bg-emerald-100 text-emerald-700" },
 };
@@ -150,7 +150,7 @@ export function ActivitySummaryPanel({
       )}
 
       {/* 내부 분석용 안내 */}
-      <p className="text-[10px] text-[var(--text-tertiary)]">
+      <p className="text-3xs text-[var(--text-tertiary)]">
         내부 분석용 — 학생/학부모 미공개 · 확정 전까지 초안 상태
       </p>
 
@@ -176,11 +176,11 @@ export function ActivitySummaryPanel({
                       {summary.summary_title}
                     </h4>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusInfo.color}`}
+                      className={`rounded px-1.5 py-0.5 text-3xs font-medium ${statusInfo.color}`}
                     >
                       {statusInfo.label}
                     </span>
-                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                    <span className="text-3xs text-[var(--text-tertiary)]">
                       {summary.target_grades.join(",")}학년 ·{" "}
                       {new Date(summary.created_at).toLocaleDateString("ko-KR")}
                     </span>
@@ -191,7 +191,7 @@ export function ActivitySummaryPanel({
                         type="button"
                         onClick={() => handleStatusChange(summary.id, "confirmed")}
                         disabled={isPending}
-                        className="rounded px-2 py-1 text-[10px] font-medium text-blue-600 hover:bg-blue-50"
+                        className="rounded px-2 py-1 text-3xs font-medium text-blue-600 hover:bg-blue-50"
                       >
                         확정
                       </button>
@@ -201,7 +201,7 @@ export function ActivitySummaryPanel({
                         type="button"
                         onClick={() => handleStatusChange(summary.id, "published")}
                         disabled={isPending}
-                        className="rounded px-2 py-1 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50"
+                        className="rounded px-2 py-1 text-3xs font-medium text-emerald-600 hover:bg-emerald-50"
                       >
                         학생 공개
                       </button>
@@ -216,14 +216,14 @@ export function ActivitySummaryPanel({
                           setEditingId(summary.id);
                         }
                       }}
-                      className="rounded px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      className="rounded px-2 py-1 text-3xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     >
                       {isEditing ? "취소" : "편집"}
                     </button>
                     <Link
                       href={`/admin/students/${studentId}/activity-summary`}
                       target="_blank"
-                      className="rounded px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      className="rounded px-2 py-1 text-3xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     >
                       인쇄
                     </Link>
@@ -242,7 +242,7 @@ export function ActivitySummaryPanel({
                         type="button"
                         onClick={() => handleDelete(summary.id)}
                         disabled={isPending}
-                        className="rounded px-2 py-1 text-[10px] text-red-500 hover:bg-red-50"
+                        className="rounded px-2 py-1 text-3xs text-red-500 hover:bg-red-50"
                       >
                         삭제
                       </button>

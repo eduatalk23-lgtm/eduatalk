@@ -78,9 +78,9 @@ export function GuideSearchSection({
       {/* 필터 바 */}
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-xs font-medium text-gray-500">검색</label>
+          <label className="mb-1 block text-xs font-medium text-text-tertiary">검색</label>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
             <input
               type="text"
               value={searchQuery}
@@ -93,7 +93,7 @@ export function GuideSearchSection({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">유형</label>
+          <label className="mb-1 block text-xs font-medium text-text-tertiary">유형</label>
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value as GuideType | "")}
@@ -109,7 +109,7 @@ export function GuideSearchSection({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">계열</label>
+          <label className="mb-1 block text-xs font-medium text-text-tertiary">계열</label>
           <select
             value={selectedCareerFieldId ?? ""}
             onChange={(e) =>
@@ -170,12 +170,12 @@ export function GuideSearchSection({
 
       {/* 결과 */}
       {isLoading && (
-        <p className="py-8 text-center text-sm text-gray-400">검색 중...</p>
+        <p className="py-8 text-center text-sm text-text-tertiary">검색 중...</p>
       )}
 
       {results && (
         <>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-tertiary">
             {results.count.toLocaleString()}건 중 {results.data.length}건 표시
           </p>
 
@@ -200,13 +200,13 @@ export function GuideSearchSection({
                 className={cn(
                   "rounded px-2 py-1 text-xs",
                   page <= 1
-                    ? "text-gray-300"
-                    : "text-gray-600 hover:bg-gray-100",
+                    ? "text-text-disabled"
+                    : "text-text-secondary hover:bg-bg-tertiary",
                 )}
               >
                 이전
               </button>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-text-tertiary">
                 {page} / {Math.ceil(results.count / 10)}
               </span>
               <button
@@ -216,8 +216,8 @@ export function GuideSearchSection({
                 className={cn(
                   "rounded px-2 py-1 text-xs",
                   page >= Math.ceil(results.count / 10)
-                    ? "text-gray-300"
-                    : "text-gray-600 hover:bg-gray-100",
+                    ? "text-text-disabled"
+                    : "text-text-secondary hover:bg-bg-tertiary",
                 )}
               >
                 다음
@@ -226,7 +226,7 @@ export function GuideSearchSection({
           )}
 
           {results.data.length === 0 && (
-            <p className="py-8 text-center text-sm text-gray-400">
+            <p className="py-8 text-center text-sm text-text-tertiary">
               검색 결과가 없습니다.
             </p>
           )}
@@ -234,7 +234,7 @@ export function GuideSearchSection({
       )}
 
       {!results && !isLoading && (
-        <p className="py-8 text-center text-sm text-gray-400">
+        <p className="py-8 text-center text-sm text-text-tertiary">
           검색 조건을 입력하고 검색 버튼을 눌러주세요.
         </p>
       )}

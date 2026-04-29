@@ -335,7 +335,7 @@ export function ImportDialog({
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-bg-tertiary dark:hover:bg-gray-800"
             >
               취소
             </button>
@@ -359,7 +359,7 @@ export function ImportDialog({
                 setPreview(null);
                 setPhase("idle");
               }}
-              className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-bg-tertiary dark:hover:bg-gray-800"
             >
               다시 선택
             </button>
@@ -400,7 +400,7 @@ function FileDropzone({
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
       onClick={() => fileInputRef.current?.click()}
-      className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-gray-300 p-8 transition-colors hover:border-primary-400 dark:border-gray-600 dark:hover:border-primary-500"
+      className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-8 transition-colors hover:border-primary-400 dark:border-border dark:hover:border-primary-500"
     >
       <input
         ref={fileInputRef}
@@ -424,7 +424,7 @@ function FileDropzone({
         </>
       ) : (
         <>
-          <div className="text-3xl text-gray-400">📁</div>
+          <div className="text-3xl text-text-tertiary">📁</div>
           <p className="text-sm text-[var(--text-secondary)]">
             파일을 드래그하거나 클릭하여 선택
           </p>
@@ -447,7 +447,7 @@ function ProgressBar({ progress, message }: { progress: number; message: string 
   return (
     <div className="space-y-3 py-4">
       <p className="text-center text-sm text-[var(--text-secondary)]">{message}</p>
-      <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      <div className="h-2 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
         <div
           className={`h-full rounded-full bg-primary-500 transition-all duration-1000 ${isParsing ? "animate-pulse" : ""}`}
           style={{ width: `${progress}%` }}
@@ -486,7 +486,7 @@ function PreviewPanel({
   return (
     <div className="space-y-4">
       {/* 학생 정보 */}
-      <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
+      <div className="rounded-lg bg-bg-secondary p-3 dark:bg-bg-secondary/50">
         <p className="text-sm font-medium text-[var(--text-primary)]">
           {preview.parsed.studentInfo.name} · {preview.parsed.studentInfo.schoolName}
         </p>
@@ -549,7 +549,7 @@ function PreviewPanel({
 
 function SummaryBadge({ label, count, warn }: { label: string; count: number; warn?: boolean }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-2 text-center dark:border-gray-700">
+    <div className="rounded-lg border border-border p-2 text-center dark:border-border">
       <p className="text-lg font-semibold text-[var(--text-primary)]">{count}</p>
       <p className={`text-xs ${warn ? "text-amber-500" : "text-[var(--text-tertiary)]"}`}>
         {label}
@@ -579,7 +579,7 @@ function UnmatchedSubjectRow({
       <select
         value={selectedId}
         onChange={(e) => onSelect(e.target.value)}
-        className="w-40 rounded border border-gray-300 px-2 py-1 text-sm text-[var(--text-primary)] dark:border-gray-600 dark:bg-gray-800"
+        className="w-40 rounded border border-border px-2 py-1 text-sm text-[var(--text-primary)] dark:border-border dark:bg-bg-secondary"
       >
         <option value="">과목 선택</option>
         {subjects.map((s) => (

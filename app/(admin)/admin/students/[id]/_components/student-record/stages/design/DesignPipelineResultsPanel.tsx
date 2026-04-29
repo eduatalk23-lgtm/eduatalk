@@ -158,19 +158,19 @@ export function DesignPipelineResultsPanel({
             <p className="text-lg font-bold text-indigo-700 dark:text-indigo-300">
               {completedTasks.length}/{PIPELINE_TASK_KEYS.length}
             </p>
-            <p className="text-[9px] text-indigo-600 dark:text-indigo-400">태스크 완료</p>
+            <p className="text-3xs text-indigo-600 dark:text-indigo-400">태스크 완료</p>
           </div>
           <div className="rounded-lg border border-teal-200 bg-teal-50/50 px-3 py-2 text-center dark:border-teal-800 dark:bg-teal-950/20">
             <p className="text-lg font-bold text-teal-700 dark:text-teal-300">
               {edgeResult?.totalEdges ?? "-"}
             </p>
-            <p className="text-[9px] text-teal-600 dark:text-teal-400">엣지 감지</p>
+            <p className="text-3xs text-teal-600 dark:text-teal-400">엣지 감지</p>
           </div>
           <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-center dark:border-amber-800 dark:bg-amber-950/20">
             <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
               {strategyPreview?.match(/(\d+)건/)?.[1] ?? "-"}
             </p>
-            <p className="text-[9px] text-amber-600 dark:text-amber-400">전략 제안</p>
+            <p className="text-3xs text-amber-600 dark:text-amber-400">전략 제안</p>
           </div>
         </div>
       )}
@@ -178,11 +178,11 @@ export function DesignPipelineResultsPanel({
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-[var(--text-primary)]">AI 초기 분석 결과</h4>
         {pipeline.status === "failed" ? (
-          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+          <span className="text-3xs text-amber-600 dark:text-amber-400">
             사이드바 파이프라인 패널에서 재실행하세요
           </span>
         ) : (
-          <span className="text-[10px] text-[var(--text-tertiary)]">
+          <span className="text-3xs text-[var(--text-tertiary)]">
             내부 분석용 — 확정 전까지 초안 상태
           </span>
         )}
@@ -194,7 +194,7 @@ export function DesignPipelineResultsPanel({
           <span className="text-xs text-amber-700 dark:text-amber-300">
             {pendingTasks.length}개 태스크가 실행되지 않았습니다
           </span>
-          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+          <span className="text-3xs text-amber-600 dark:text-amber-400">
             사이드바에서 재분석을 실행하세요
           </span>
         </div>
@@ -216,7 +216,7 @@ export function DesignPipelineResultsPanel({
                 "flex items-center gap-2 rounded-md px-3 py-2 text-xs",
                 isCompleted && "bg-emerald-50/50 dark:bg-emerald-950/10",
                 isFailed && "bg-red-50/50 dark:bg-red-950/10",
-                isPending && "bg-gray-50/50 dark:bg-gray-950/10",
+                isPending && "bg-bg-secondary/50 dark:bg-gray-950/10",
               )}
             >
               {isCompleted && (
@@ -239,7 +239,7 @@ export function DesignPipelineResultsPanel({
                   <span className="text-[var(--text-tertiary)]"> — {preview}</span>
                 )}
                 {isPending && (
-                  <span className="ml-1.5 rounded bg-gray-100 px-1 py-0.5 text-[9px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  <span className="ml-1.5 rounded bg-bg-tertiary px-1 py-0.5 text-3xs font-medium text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary">
                     미실행
                   </span>
                 )}
@@ -255,7 +255,7 @@ export function DesignPipelineResultsPanel({
                       {codes.map((code) => {
                         const item = COMPETENCY_ITEMS.find((i) => i.code === code);
                         return (
-                          <span key={code} className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                          <span key={code} className="rounded bg-violet-100 px-1 py-0.5 text-3xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
                             {item?.label ?? code}
                           </span>
                         );
@@ -276,7 +276,7 @@ export function DesignPipelineResultsPanel({
                 </button>
               )}
               {isFailed && (
-                <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">
+                <span className="shrink-0 text-3xs text-[var(--text-tertiary)]">
                   사이드바에서 재실행
                 </span>
               )}
@@ -304,7 +304,7 @@ export function DesignPipelineResultsPanel({
             </div>
           )}
           <div className="flex items-center justify-end gap-2">
-            <span className="text-[10px] text-[var(--text-tertiary)]">
+            <span className="text-3xs text-[var(--text-tertiary)]">
               {checkedTasks.size}개 선택됨
             </span>
             <button
@@ -334,7 +334,7 @@ export function DesignPipelineResultsPanel({
             <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
               우회학과 분석도 실행하시겠습니까?
             </p>
-            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+            <p className="text-3xs text-amber-600 dark:text-amber-400">
               목표 전공 대비 교차지원 가능한 학과를 탐색합니다
             </p>
           </div>

@@ -95,7 +95,7 @@ export function CurriculumComparisonView({
             {overlapScore}%
           </span>
         </div>
-        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
           <div
             className={cn(
               "h-full rounded-full transition-all",
@@ -195,12 +195,12 @@ export function CurriculumComparisonView({
 
       {/* 범례 */}
       <div className="flex items-center gap-4 border-t border-[var(--border-secondary)] px-4 py-2">
-        <span className="flex items-center gap-1.5 text-[10px]">
+        <span className="flex items-center gap-1.5 text-3xs">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
           <span className="text-[var(--text-secondary)]">공통 교과목</span>
         </span>
-        <span className="flex items-center gap-1.5 text-[10px]">
-          <span className="inline-block h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+        <span className="flex items-center gap-1.5 text-3xs">
+          <span className="inline-block h-2 w-2 rounded-full bg-gray-300 dark:bg-bg-tertiary" />
           <span className="text-[var(--text-secondary)]">고유 교과목</span>
         </span>
       </div>

@@ -40,11 +40,11 @@ const PRIORITY_CONFIG: Record<StrategyPriority, { label: string; className: stri
   critical: { label: "긴급", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", order: 0 },
   high: { label: "높음", className: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400", order: 1 },
   medium: { label: "보통", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", order: 2 },
-  low: { label: "낮음", className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400", order: 3 },
+  low: { label: "낮음", className: "bg-bg-tertiary text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary", order: 3 },
 };
 
 const STATUS_CONFIG: Record<StrategyStatus, { label: string; className: string; next: StrategyStatus | null }> = {
-  planned: { label: "계획", className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400", next: "in_progress" },
+  planned: { label: "계획", className: "bg-bg-tertiary text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary", next: "in_progress" },
   in_progress: { label: "진행중", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", next: "done" },
   done: { label: "완료", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400", next: null },
 };
@@ -224,7 +224,7 @@ export function StrategyEditor({
 
       {/* ─── 헤더 + 버튼 ──────────────────────── */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-sm text-text-tertiary dark:text-text-tertiary">
           {strategies.length}개 전략 ({strategies.filter((s) => s.status === "done").length}개 완료)
         </div>
         <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export function StrategyEditor({
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               canSuggest
                 ? "bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:hover:bg-violet-900/30"
-                : "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600",
+                : "cursor-not-allowed bg-bg-tertiary text-text-tertiary dark:bg-bg-secondary dark:text-text-secondary",
             )}
           >
             <Sparkles className="h-4 w-4" />
@@ -265,7 +265,7 @@ export function StrategyEditor({
 
       {/* ─── AI 진단 없음 안내 ─────────────────── */}
       {!canSuggest && strategies.length === 0 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
+        <div className="rounded-lg border border-border bg-bg-secondary p-4 text-center text-sm text-text-tertiary dark:border-border dark:bg-bg-secondary/50 dark:text-text-tertiary">
           진단 탭에서 종합 진단을 먼저 실행해주세요. AI가 약점 기반으로 보완전략을 제안합니다.
         </div>
       )}
@@ -367,7 +367,7 @@ function AiSuggestionCard({
   const priorityCfg = PRIORITY_CONFIG[suggestion.priority];
 
   return (
-    <div className="rounded-lg border border-violet-200 bg-white p-3 dark:border-violet-700/50 dark:bg-gray-900">
+    <div className="rounded-lg border border-violet-200 bg-white p-3 dark:border-violet-700/50 dark:bg-bg-primary">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
           <div className="mb-1 flex items-center gap-2">
@@ -378,8 +378,8 @@ function AiSuggestionCard({
               {priorityCfg.label}
             </span>
           </div>
-          <p className="text-sm text-gray-900 dark:text-gray-100">{suggestion.strategyContent}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{suggestion.reasoning}</p>
+          <p className="text-sm text-text-primary dark:text-gray-100">{suggestion.strategyContent}</p>
+          <p className="mt-1 text-xs text-text-tertiary dark:text-text-tertiary">{suggestion.reasoning}</p>
           {suggestion.sourceUrls && suggestion.sourceUrls.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {suggestion.sourceUrls.slice(0, 3).map((url, i) => (
@@ -410,7 +410,7 @@ function AiSuggestionCard({
           <button
             type="button"
             onClick={onDismiss}
-            className="rounded-md bg-gray-50 p-1.5 text-gray-400 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-500 dark:hover:bg-gray-700"
+            className="rounded-md bg-bg-secondary p-1.5 text-text-tertiary hover:bg-bg-tertiary dark:bg-bg-secondary dark:text-text-tertiary dark:hover:bg-gray-700"
             title="거절"
           >
             <X className="h-4 w-4" />
@@ -453,11 +453,11 @@ function StrategyCard({
     return (
       <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-800 dark:bg-indigo-900/10">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-500">{TARGET_AREA_LABELS[area]}</span>
+          <span className="text-xs font-medium text-text-tertiary">{TARGET_AREA_LABELS[area]}</span>
           <select
             value={editPriority}
             onChange={(e) => setEditPriority(e.target.value as StrategyPriority)}
-            className="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
+            className="rounded border border-border bg-white px-2 py-0.5 text-xs dark:border-border dark:bg-bg-secondary"
           >
             {(["critical", "high", "medium", "low"] as StrategyPriority[]).map((p) => (
               <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
@@ -468,7 +468,7 @@ function StrategyCard({
           value={editContent}
           onChange={(e) => setEditContent(e.target.value)}
           rows={3}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-secondary"
         />
         <div className="mt-2 flex items-center gap-2">
           <button
@@ -479,7 +479,7 @@ function StrategyCard({
           >
             저장
           </button>
-          <button type="button" onClick={onCancelEdit} className="text-xs text-gray-500 hover:text-gray-700">
+          <button type="button" onClick={onCancelEdit} className="text-xs text-text-tertiary hover:text-text-primary">
             취소
           </button>
         </div>
@@ -488,11 +488,11 @@ function StrategyCard({
   }
 
   return (
-    <div className="group rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+    <div className="group rounded-lg border border-border bg-white p-3 dark:border-border dark:bg-bg-primary">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
           <div className="mb-1 flex items-center gap-2">
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            <span className="rounded bg-bg-tertiary px-1.5 py-0.5 text-xs font-medium text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary">
               {TARGET_AREA_LABELS[area]}
             </span>
             <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", priorityCfg.className)}>
@@ -512,13 +512,13 @@ function StrategyCard({
               {statusCfg.label}
             </button>
           </div>
-          <p className="text-sm text-gray-900 dark:text-gray-100">{strategy.strategy_content}</p>
+          <p className="text-sm text-text-primary dark:text-gray-100">{strategy.strategy_content}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             type="button"
             onClick={onEdit}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            className="rounded p-1 text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary dark:hover:bg-gray-800 dark:hover:text-text-disabled"
             title="수정"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -529,7 +529,7 @@ function StrategyCard({
             type="button"
             onClick={onDelete}
             disabled={isPending}
-            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+            className="rounded p-1 text-text-tertiary hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
             title="삭제"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -557,24 +557,24 @@ function AddStrategyForm({
 
   return (
     <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800 dark:bg-indigo-900/10">
-      <div className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">보완전략 추가</div>
+      <div className="mb-3 text-sm font-medium text-text-primary dark:text-text-disabled">보완전략 추가</div>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <label className="w-16 shrink-0 text-xs text-gray-500">영역</label>
+          <label className="w-16 shrink-0 text-xs text-text-tertiary">영역</label>
           <select
             value={targetArea}
             onChange={(e) => setTargetArea(e.target.value as StrategyTargetArea)}
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            className="flex-1 rounded-lg border border-border bg-white px-3 py-1.5 text-sm dark:border-border dark:bg-bg-secondary"
           >
             {ALL_TARGET_AREAS.map((area) => (
               <option key={area} value={area}>{TARGET_AREA_LABELS[area]}</option>
             ))}
           </select>
-          <label className="w-16 shrink-0 text-xs text-gray-500">우선순위</label>
+          <label className="w-16 shrink-0 text-xs text-text-tertiary">우선순위</label>
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as StrategyPriority)}
-            className="w-24 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            className="w-24 rounded-lg border border-border bg-white px-3 py-1.5 text-sm dark:border-border dark:bg-bg-secondary"
           >
             {(["critical", "high", "medium", "low"] as StrategyPriority[]).map((p) => (
               <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
@@ -586,7 +586,7 @@ function AddStrategyForm({
           onChange={(e) => setContent(e.target.value)}
           placeholder="구체적인 보완전략을 입력하세요 (예: 2학년 수학 세특에서 CT촬영 원리 탐구 보고서 작성)"
           rows={3}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-secondary"
         />
         <div className="flex items-center gap-2">
           <button
@@ -597,7 +597,7 @@ function AddStrategyForm({
           >
             {isPending ? "추가 중..." : "추가"}
           </button>
-          <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700">
+          <button type="button" onClick={onCancel} className="text-sm text-text-tertiary hover:text-text-primary">
             취소
           </button>
         </div>

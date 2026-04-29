@@ -3,7 +3,7 @@ import type { BypassCandidateStatus } from "@/lib/domains/bypass-major/types";
 // ─── 상태 뱃지 색상 ─────────────────────────────────
 
 export const STATUS_COLORS: Record<BypassCandidateStatus, string> = {
-  candidate: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  candidate: "bg-bg-tertiary text-text-secondary dark:bg-gray-800 dark:text-text-tertiary",
   shortlisted:
     "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   rejected: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",

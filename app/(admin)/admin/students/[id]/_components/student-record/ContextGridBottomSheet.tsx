@@ -356,12 +356,12 @@ export function ContextGridBottomSheet({
       {/* 전체화면 그리드 */}
       <div
         className={cn(
-          "fixed inset-0 z-50 flex flex-col bg-white transition-opacity duration-300 ease-out dark:bg-gray-900",
+          "fixed inset-0 z-50 flex flex-col bg-white transition-opacity duration-300 ease-out dark:bg-bg-primary",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
         {/* 헤더 */}
-        <div className="flex-shrink-0 border-b border-gray-200 px-5 py-2.5 dark:border-gray-700">
+        <div className="flex-shrink-0 border-b border-border px-5 py-2.5 dark:border-border">
           <div className="flex items-center gap-2">
             {/* 비교 열 선택 (GlobalLayerBar와 시각적 구분 — 체크박스 토글) */}
             <div className="flex flex-1 items-center gap-2">
@@ -380,17 +380,17 @@ export function ContextGridBottomSheet({
                       className={cn(
                         "inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium transition-colors",
                         active
-                          ? "border-gray-400 bg-white text-gray-900 dark:border-gray-500 dark:bg-gray-800 dark:text-gray-100"
+                          ? "border-gray-400 bg-white text-text-primary dark:border-gray-500 dark:bg-bg-secondary dark:text-gray-100"
                           : disabled
-                            ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-gray-600"
-                            : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700",
+                            ? "border-border bg-bg-secondary text-text-disabled cursor-not-allowed dark:border-border dark:bg-bg-primary dark:text-text-secondary"
+                            : "border-border bg-bg-secondary text-text-tertiary hover:border-border hover:bg-bg-tertiary dark:border-border dark:bg-bg-secondary dark:hover:bg-gray-700",
                       )}
                     >
                       <span className={cn(
                         "inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border",
                         active
                           ? "border-indigo-500 bg-indigo-500 text-white dark:border-indigo-400 dark:bg-indigo-500"
-                          : "border-gray-300 dark:border-gray-600",
+                          : "border-border dark:border-border",
                       )}>
                         {active && <Check className="h-2.5 w-2.5" />}
                       </span>
@@ -431,7 +431,7 @@ export function ContextGridBottomSheet({
                   학생 컨텍스트
                 </button>
               )}
-              <button type="button" onClick={close} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300">
+              <button type="button" onClick={close} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-bg-tertiary hover:text-text-secondary dark:hover:bg-gray-800 dark:hover:text-text-disabled">
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>

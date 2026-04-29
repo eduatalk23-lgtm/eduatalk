@@ -58,7 +58,7 @@ export function RecordSidebar({
         {/* 전체 진행률 */}
         <div className="mb-2 flex items-center justify-between pb-1.5 border-b border-[var(--border-secondary)]">
           <span className="text-xs font-semibold text-[var(--text-primary)]">전체 진행</span>
-          <span className={`text-xs font-bold ${totalPct >= 80 ? "text-emerald-600" : totalPct >= 50 ? "text-amber-600" : "text-gray-500"}`}>
+          <span className={`text-xs font-bold ${totalPct >= 80 ? "text-emerald-600" : totalPct >= 50 ? "text-amber-600" : "text-text-tertiary"}`}>
             {totalPct}% ({totalFilled}/{totalAll})
           </span>
         </div>
@@ -74,7 +74,7 @@ export function RecordSidebar({
                 <Icon className="h-3 w-3" />
                 {label}
               </span>
-              <div className="flex-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div className="flex-1 h-2 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
                 <div
                   className={`h-full rounded-full ${color} transition-all`}
                   style={{ width: `${total > 0 ? Math.round((filled / total) * 100) : 0}%` }}
@@ -139,7 +139,7 @@ export function RecordSidebar({
                     )}
                   >
                     {item.number && (
-                      <span className="inline-flex size-5 flex-shrink-0 items-center justify-center rounded bg-gray-200 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                      <span className="inline-flex size-5 flex-shrink-0 items-center justify-center rounded bg-bg-tertiary text-xs font-semibold text-text-secondary dark:bg-bg-tertiary dark:text-text-disabled">
                         {item.number}
                       </span>
                     )}

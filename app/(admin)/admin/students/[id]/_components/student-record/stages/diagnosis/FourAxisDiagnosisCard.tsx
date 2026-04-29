@@ -114,13 +114,13 @@ function AxisItem({
           <span className="text-xs font-semibold text-[var(--text-primary)]">{label}</span>
         </div>
         {isWeakest && (
-          <span className="rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
+          <span className="rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-3xs font-semibold text-amber-700 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
             주의
           </span>
         )}
       </div>
       <div className="text-sm font-bold leading-tight">{valueNode}</div>
-      <div className="text-[11px] leading-snug text-[var(--text-secondary)]">{descNode}</div>
+      <div className="text-2xs leading-snug text-[var(--text-secondary)]">{descNode}</div>
     </div>
   );
 }
@@ -140,7 +140,7 @@ export function FourAxisDiagnosisCard({ diagnosis }: FourAxisDiagnosisCardProps)
         <span className={cn("inline-flex items-center gap-1", profileGradeClass(profileMatch.grade))}>
           <span
             className={cn(
-              "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[11px] font-bold",
+              "inline-flex items-center rounded-full border px-1.5 py-0.5 text-2xs font-bold",
               profileGradeBadgeClass(profileMatch.grade),
             )}
           >
@@ -242,7 +242,7 @@ export function FourAxisDiagnosisCard({ diagnosis }: FourAxisDiagnosisCardProps)
       {/* 헤더 */}
       <div className="flex items-center gap-2">
         <span className="text-sm font-bold text-[var(--text-primary)]">4축 합격 진단</span>
-        <span className="rounded-full bg-[var(--surface-secondary,#f3f4f6)] px-2 py-0.5 text-[11px] text-[var(--text-tertiary)]">
+        <span className="rounded-full bg-[var(--surface-secondary,#f3f4f6)] px-2 py-0.5 text-2xs text-[var(--text-tertiary)]">
           파이프라인 결과
         </span>
       </div>

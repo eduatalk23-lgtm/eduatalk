@@ -44,7 +44,7 @@ interface SubjectNavStripProps {
 
 // ─── Pill 버튼 스타일 ──
 
-const PILL_ACTIVE = "bg-white text-[var(--text-primary)] shadow-sm dark:bg-gray-700";
+const PILL_ACTIVE = "bg-white text-[var(--text-primary)] shadow-sm dark:bg-bg-tertiary";
 const PILL_INACTIVE = "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]";
 const PILL_BASE = "rounded-md px-2 py-0.5 text-xs font-medium transition-colors";
 
@@ -100,9 +100,9 @@ export function SubjectNavStrip({
   }, [items]);
 
   return (
-    <div className="flex flex-shrink-0 items-center gap-3 border-b border-gray-100 px-5 py-1.5 dark:border-gray-800">
+    <div className="flex flex-shrink-0 items-center gap-3 border-b border-border px-5 py-1.5 dark:border-border">
       {/* 학년 필터 */}
-      <div className="flex gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+      <div className="flex gap-0.5 rounded-lg bg-bg-tertiary p-0.5 dark:bg-bg-secondary">
         <button
           type="button"
           onClick={() => onGradeChange("all")}
@@ -123,7 +123,7 @@ export function SubjectNavStrip({
       </div>
 
       {/* 교과 분류 필터 */}
-      <div className="flex gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+      <div className="flex gap-0.5 rounded-lg bg-bg-tertiary p-0.5 dark:bg-bg-secondary">
         {availableCategories.map((cat) => (
           <button
             key={cat}
@@ -144,7 +144,7 @@ export function SubjectNavStrip({
           disabled={!canPrev}
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded transition-colors",
-            canPrev ? "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" : "text-gray-300 cursor-not-allowed dark:text-gray-600",
+            canPrev ? "text-text-tertiary hover:bg-bg-tertiary dark:hover:bg-gray-800" : "text-text-disabled cursor-not-allowed dark:text-text-secondary",
           )}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -153,13 +153,13 @@ export function SubjectNavStrip({
         <button
           type="button"
           onClick={() => setDropdownOpen((p) => !p)}
-          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
+          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-tertiary dark:text-gray-100 dark:hover:bg-gray-800"
         >
           <span className="max-w-[120px] truncate">{activeItem?.subjectName ?? "과목"}</span>
           <span className="text-xs text-[var(--text-tertiary)]">
             {currentIndex >= 0 ? `${currentIndex + 1}/${totalCount}` : ""}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+          <ChevronDown className="h-3.5 w-3.5 text-text-tertiary" />
         </button>
 
         <button
@@ -168,7 +168,7 @@ export function SubjectNavStrip({
           disabled={!canNext}
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded transition-colors",
-            canNext ? "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" : "text-gray-300 cursor-not-allowed dark:text-gray-600",
+            canNext ? "text-text-tertiary hover:bg-bg-tertiary dark:hover:bg-gray-800" : "text-text-disabled cursor-not-allowed dark:text-text-secondary",
           )}
         >
           <ChevronRight className="h-4 w-4" />
@@ -176,7 +176,7 @@ export function SubjectNavStrip({
 
         {/* 드롭다운 목록 */}
         {dropdownOpen && (
-          <div className="absolute left-1/2 top-full z-10 mt-1 max-h-[300px] w-64 -translate-x-1/2 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <div className="absolute left-1/2 top-full z-10 mt-1 max-h-[300px] w-64 -translate-x-1/2 overflow-y-auto rounded-lg border border-border bg-white shadow-lg dark:border-border dark:bg-bg-primary">
             {items.length === 0 ? (
               <p className="px-3 py-2 text-sm text-[var(--text-tertiary)]">해당 조건의 과목이 없습니다</p>
             ) : (
@@ -186,12 +186,12 @@ export function SubjectNavStrip({
                   type="button"
                   onClick={() => handleSelect(item)}
                   className={cn(
-                    "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-800",
+                    "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-bg-secondary dark:hover:bg-gray-800",
                     item.subjectId === activeSubjectId && "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
                   )}
                 >
                   {gradeFilter === "all" && (
-                    <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    <span className="shrink-0 rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs font-medium text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary">
                       {item.grade}학년
                     </span>
                   )}

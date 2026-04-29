@@ -138,22 +138,22 @@ export function GuideAssignmentCard({
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass(assignment.status))} />
         <span className="truncate text-xs text-[var(--text-primary)]">{titleText}</span>
         {isQueued && (
-          <span className="shrink-0 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" title="본문 생성 대기 중">
+          <span className="shrink-0 rounded bg-amber-100 px-1 py-0.5 text-3xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" title="본문 생성 대기 중">
             대기
           </span>
         )}
         {isAiFailed && (
-          <span className="shrink-0 rounded bg-red-100 px-1 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300" title="본문 생성 실패 (수동 재시도 필요)">
+          <span className="shrink-0 rounded bg-red-100 px-1 py-0.5 text-3xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300" title="본문 생성 실패 (수동 재시도 필요)">
             실패
           </span>
         )}
         {guideTypeLabel && (
-          <span className="ml-auto shrink-0 rounded bg-indigo-100 px-1 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+          <span className="ml-auto shrink-0 rounded bg-indigo-100 px-1 py-0.5 text-3xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
             {guideTypeLabel}
           </span>
         )}
         {showSimBadge && sim !== null && (
-          <span className={cn("shrink-0 rounded px-1 py-0.5 text-[10px] font-medium", simClass)}>
+          <span className={cn("shrink-0 rounded px-1 py-0.5 text-3xs font-medium", simClass)}>
             {sim.toFixed(2)}
           </span>
         )}
@@ -175,14 +175,14 @@ export function GuideAssignmentCard({
       <div className="flex flex-wrap items-center gap-1">
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass(assignment.status))} />
         {guideTypeLabel && (
-          <span className="inline-flex items-center gap-0.5 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+          <span className="inline-flex items-center gap-0.5 rounded bg-indigo-100 px-1.5 py-0.5 text-3xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
             <BookOpen className="h-2.5 w-2.5" />
             {guideTypeLabel}
           </span>
         )}
         {isQueued && (
           <span
-            className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
             title="AI가 메타 설계만 완료한 상태. 본문은 생성 대기 중"
           >
             본문 대기
@@ -190,7 +190,7 @@ export function GuideAssignmentCard({
         )}
         {isAiFailed && (
           <span
-            className="inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
+            className="inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-3xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
             title="본문 생성 실패 — 상세 페이지에서 수동 재시도"
           >
             본문 실패
@@ -198,7 +198,7 @@ export function GuideAssignmentCard({
         )}
         {isAi ? (
           <span
-            className="inline-flex items-center gap-0.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+            className="inline-flex items-center gap-0.5 rounded bg-violet-100 px-1.5 py-0.5 text-3xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
             title="AI 파이프라인 배정"
           >
             <Sparkles className="h-2.5 w-2.5" />
@@ -206,7 +206,7 @@ export function GuideAssignmentCard({
           </span>
         ) : (
           <span
-            className="inline-flex items-center gap-0.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            className="inline-flex items-center gap-0.5 rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs font-medium text-text-primary dark:bg-bg-secondary dark:text-text-disabled"
             title="컨설턴트 수동 배정"
           >
             <User className="h-2.5 w-2.5" />
@@ -215,7 +215,7 @@ export function GuideAssignmentCard({
         )}
         {showSimBadge && sim !== null && (
           <span
-            className={cn("ml-auto inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-semibold", simClass)}
+            className={cn("ml-auto inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-3xs font-semibold", simClass)}
             title="12계열 연속성 반영 최종 매칭 점수 (baseScore × continuityScore, 범위 0.5~3.0)"
           >
             sim {sim.toFixed(2)}

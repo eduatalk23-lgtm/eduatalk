@@ -57,7 +57,7 @@ export function GuideDetailDialog({
       return <RichTextViewer content={text} className="prose-p:my-2 prose-headings:mt-3 prose-headings:mb-1.5" />;
     }
     return (
-      <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+      <div className="whitespace-pre-wrap text-sm text-text-primary dark:text-text-disabled leading-relaxed">
         {text}
       </div>
     );
@@ -72,7 +72,7 @@ export function GuideDetailDialog({
       showCloseButton
     >
       {isLoading && (
-        <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+        <div className="flex items-center justify-center py-12 text-sm text-text-tertiary">
           불러오는 중...
         </div>
       )}
@@ -81,11 +81,11 @@ export function GuideDetailDialog({
         <div className="flex flex-col gap-4">
           {/* 메타 정보 */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-0.5 font-medium text-gray-600 dark:text-gray-400">
+            <span className="rounded bg-bg-tertiary dark:bg-bg-secondary px-2 py-0.5 font-medium text-text-secondary dark:text-text-tertiary">
               {GUIDE_TYPE_LABELS[guide.guide_type]}
             </span>
             {guide.curriculum_year && (
-              <span className="text-gray-400">{guide.curriculum_year} 교육과정</span>
+              <span className="text-text-tertiary">{guide.curriculum_year} 교육과정</span>
             )}
             {guide.career_fields.map((cf) => (
               <span
@@ -130,12 +130,12 @@ export function GuideDetailDialog({
                     if (!section?.items?.length) return null;
                     return (
                       <div key={def.key}>
-                        <h4 className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        <h4 className="mb-1.5 text-xs font-semibold text-text-tertiary dark:text-text-tertiary">
                           {def.label}
                         </h4>
                         <ul className="space-y-1">
                           {section.items.map((item, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <li key={i} className="flex items-start gap-2 text-sm text-text-primary dark:text-text-disabled">
                               <span className="text-primary-500 mt-0.5 flex-shrink-0">-</span>
                               {item}
                             </li>
@@ -151,7 +151,7 @@ export function GuideDetailDialog({
                     if (multiples.length === 0) return null;
                     return (
                       <div key={def.key}>
-                        <h4 className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        <h4 className="mb-1.5 text-xs font-semibold text-text-tertiary dark:text-text-tertiary">
                           {def.label}
                         </h4>
                         <IntegratedGuideView
@@ -167,7 +167,7 @@ export function GuideDetailDialog({
 
                   return (
                     <div key={def.key}>
-                      <h4 className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      <h4 className="mb-1 text-xs font-semibold text-text-tertiary dark:text-text-tertiary">
                         {def.label}
                       </h4>
                       {renderContent(section.content)}
@@ -180,8 +180,8 @@ export function GuideDetailDialog({
           {/* 관련 논문 */}
           {guide.content && guide.content.related_papers.length > 0 && (
             <div>
-              <h4 className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">관련 논문</h4>
-              <ul className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">
+              <h4 className="mb-1 text-xs font-semibold text-text-tertiary dark:text-text-tertiary">관련 논문</h4>
+              <ul className="flex flex-col gap-1 text-sm text-text-secondary dark:text-text-disabled">
                 {guide.content.related_papers.map((p, i) => (
                   <li key={i}>
                     {p.url ? (
@@ -205,8 +205,8 @@ export function GuideDetailDialog({
           {/* 관련 도서 */}
           {guide.content && guide.content.related_books.length > 0 && (
             <div>
-              <h4 className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">관련 도서</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <h4 className="mb-1 text-xs font-semibold text-text-tertiary dark:text-text-tertiary">관련 도서</h4>
+              <p className="text-sm text-text-secondary dark:text-text-disabled">
                 {guide.content.related_books.join(", ")}
               </p>
             </div>
@@ -216,7 +216,7 @@ export function GuideDetailDialog({
           {onAssign && !isAssigned && (
             <div className="flex items-end gap-2 border-t pt-3">
               <div className="flex-1">
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="mb-1 block text-xs font-medium text-text-secondary dark:text-text-tertiary">
                   배정 메모 (선택)
                 </label>
                 <input
@@ -224,7 +224,7 @@ export function GuideDetailDialog({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="학생에게 전달할 메모..."
-                  className="w-full rounded-md border px-3 py-1.5 text-sm dark:bg-gray-800 dark:border-gray-700"
+                  className="w-full rounded-md border px-3 py-1.5 text-sm dark:bg-bg-secondary dark:border-border"
                 />
               </div>
               <button
@@ -240,7 +240,7 @@ export function GuideDetailDialog({
             </div>
           )}
           {isAssigned && (
-            <p className="border-t pt-3 text-center text-sm text-gray-400">
+            <p className="border-t pt-3 text-center text-sm text-text-tertiary">
               이미 배정된 가이드입니다.
             </p>
           )}

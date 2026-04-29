@@ -86,7 +86,7 @@ export function AlumniSearch() {
       )}
 
       {hasSearched && !isFetching && data && data.total === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
           검색 결과가 없습니다.
         </div>
       )}
@@ -265,8 +265,8 @@ function AdmissionCard({
   const [expanded, setExpanded] = useState(false);
 
   const badgeColor = row.admissionType
-    ? TYPE_BADGE_COLORS[row.admissionType] ?? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-    : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+    ? TYPE_BADGE_COLORS[row.admissionType] ?? "bg-bg-tertiary text-text-primary dark:bg-bg-secondary dark:text-text-disabled"
+    : "bg-bg-tertiary text-text-primary dark:bg-bg-secondary dark:text-text-disabled";
 
   // 공식 이름이 다르면 표시 (별칭 해석 결과)
   const hasAlias = universityInfo && universityInfo.nameKor !== row.universityName;
@@ -290,12 +290,12 @@ function AdmissionCard({
               </span>
             )}
             {row.admissionType && (
-              <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", badgeColor)}>
+              <span className={cn("inline-flex rounded-full px-2 py-0.5 text-3xs font-medium", badgeColor)}>
                 {row.admissionType}
               </span>
             )}
             {universityInfo?.establishmentType && (
-              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-3xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                 {universityInfo.establishmentType}
               </span>
             )}

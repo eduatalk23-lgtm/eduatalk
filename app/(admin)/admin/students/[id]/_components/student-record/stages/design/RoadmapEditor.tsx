@@ -74,12 +74,12 @@ export function RoadmapEditor({
         <div className="flex flex-wrap items-center gap-2">
           {/* 뷰 모드 토글 (AI 항목 있을 때만) */}
           {hasAiItems && (
-            <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700">
+            <div className="inline-flex rounded-md border border-border dark:border-border">
               <button
                 type="button"
                 onClick={() => setViewMode("ai_readonly")}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-l-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "inline-flex items-center gap-1 rounded-l-md px-2.5 py-1 text-2xs font-medium transition-colors",
                   viewMode === "ai_readonly"
                     ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
                     : "text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]",
@@ -92,7 +92,7 @@ export function RoadmapEditor({
                 type="button"
                 onClick={() => setViewMode("edit")}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-r-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "inline-flex items-center gap-1 rounded-r-md px-2.5 py-1 text-2xs font-medium transition-colors",
                   viewMode === "edit"
                     ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
                     : "text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]",
@@ -105,7 +105,7 @@ export function RoadmapEditor({
           )}
           {hasAiItems && (
             <>
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-3xs font-medium text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
                 <Sparkles className="h-3 w-3" />
                 AI 추천 {aiItems.length}건
               </span>
@@ -116,7 +116,7 @@ export function RoadmapEditor({
                 const topKw = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
                 if (topKw.length === 0) return null;
                 return (
-                  <span className="text-[10px] text-[var(--text-tertiary)]">
+                  <span className="text-3xs text-[var(--text-tertiary)]">
                     핵심 키워드: {topKw.map(([kw]) => kw).join(", ")}
                   </span>
                 );
@@ -155,14 +155,14 @@ export function RoadmapEditor({
 
       {/* 학년별 그리드 */}
       {grades.map((g, idx) => (
-        <div key={g} className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-          <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+        <div key={g} className="rounded-lg border border-border bg-white dark:border-border dark:bg-bg-primary">
+          <div className="border-b border-border px-4 py-2 dark:border-border">
             <span className="text-sm font-medium text-[var(--text-primary)]">{g}학년 로드맵</span>
             <span className="ml-2 text-xs text-[var(--text-tertiary)]">({itemsByGrade[idx].length}개)</span>
           </div>
 
           {itemsByGrade[idx].length > 0 ? (
-            <div className="divide-y divide-gray-50 dark:divide-gray-800">
+            <div className="divide-y divide-gray-50 dark:divide-border">
               {itemsByGrade[idx].map((item) =>
                 viewMode === "ai_readonly" ? (
                   <RoadmapReadOnlyRow key={item.id} item={item} storylines={storylines} />
@@ -203,7 +203,7 @@ export function RoadmapEditor({
       ) : viewMode === "edit" ? (
         <button
           onClick={() => setShowAddForm(true)}
-          className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600 dark:hover:border-gray-500"
+          className="rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-border dark:hover:border-gray-500"
         >
           + 로드맵 항목 추가
         </button>

@@ -61,7 +61,7 @@ export function MinScorePanel({
         </h3>
 
         {targets.length === 0 && !showAddForm && (
-          <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
             최저 목표를 추가하면 시뮬레이션을 실행할 수 있습니다.
           </div>
         )}
@@ -97,7 +97,7 @@ export function MinScorePanel({
         ) : (
           <button
             onClick={() => setShowAddForm(true)}
-            className="mt-2 rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600"
+            className="mt-2 rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-border"
           >
             + 최저 목표 추가
           </button>
@@ -134,7 +134,7 @@ export function MinScorePanel({
                 {simulations.slice(0, 5).map((sim) => {
                   const target = targets.find((t) => t.id === sim.target_id);
                   return (
-                    <div key={sim.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-2 text-xs dark:border-gray-800 dark:bg-gray-900">
+                    <div key={sim.id} className="flex items-center justify-between rounded-lg border border-border bg-bg-secondary p-2 text-xs dark:border-border dark:bg-bg-primary">
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "rounded-full px-2 py-0.5 font-medium",
@@ -195,14 +195,14 @@ function TargetCard({
       : `${criteria.subjects.join("+")} 중 ${criteria.count}개 합 ${criteria.maxSum} 이내`;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white p-3 dark:border-border dark:bg-bg-primary">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">{target.university_name}</span>
             <span className="text-xs text-[var(--text-secondary)]">{target.department}</span>
             {target.admission_type && (
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)] dark:bg-gray-800">
+              <span className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)] dark:bg-bg-secondary">
                 {target.admission_type}
               </span>
             )}
@@ -293,21 +293,21 @@ function AddTargetForm({
             placeholder="대학명 검색 *"
             onSchoolSelect={(school) => setUniversityName(school.name)}
           />
-          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="학과 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="학과 *" className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary" />
         </div>
         <div className="grid grid-cols-4 gap-3">
-          <select value={criteriaType} onChange={(e) => setCriteriaType(e.target.value as "grade_sum" | "single_grade" | "none")} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900">
+          <select value={criteriaType} onChange={(e) => setCriteriaType(e.target.value as "grade_sum" | "single_grade" | "none")} className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary">
             <option value="grade_sum">등급합</option>
             <option value="single_grade">단일과목</option>
             <option value="none">없음</option>
           </select>
           {criteriaType !== "none" && (
             <>
-              <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="과목 (쉼표구분)" className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+              <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="과목 (쉼표구분)" className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary" />
               {criteriaType === "grade_sum" && (
-                <input type="number" min={1} value={count} onChange={(e) => setCount(Number(e.target.value))} placeholder="선택 수" className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+                <input type="number" min={1} value={count} onChange={(e) => setCount(Number(e.target.value))} placeholder="선택 수" className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary" />
               )}
-              <input type="number" min={1} value={maxSum} onChange={(e) => setMaxSum(Number(e.target.value))} placeholder={criteriaType === "grade_sum" ? "최대 합" : "최대 등급"} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+              <input type="number" min={1} value={maxSum} onChange={(e) => setMaxSum(Number(e.target.value))} placeholder={criteriaType === "grade_sum" ? "최대 합" : "최대 등급"} className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary" />
             </>
           )}
         </div>
@@ -402,14 +402,14 @@ function SimulationForm({
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          <input value={examTitle} onChange={(e) => setExamTitle(e.target.value)} placeholder="시험명 (예: 6월 모평) *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
-          <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+          <input value={examTitle} onChange={(e) => setExamTitle(e.target.value)} placeholder="시험명 (예: 6월 모평) *" className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary" />
+          <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary" />
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           {SUBJECTS.map((subj) => (
             <div key={subj}>
-              <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">{subj}</label>
+              <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">{subj}</label>
               <input
                 type="number"
                 min={1}
@@ -420,7 +420,7 @@ function SimulationForm({
                   setGrades((prev) => val ? { ...prev, [subj]: val } : (() => { const next = { ...prev }; delete next[subj]; return next; })());
                 }}
                 placeholder="등급"
-                className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-center text-sm dark:border-gray-700 dark:bg-gray-900"
+                className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-center text-sm dark:border-border dark:bg-bg-primary"
               />
             </div>
           ))}
@@ -428,8 +428,8 @@ function SimulationForm({
 
         {/* 즉석 미리보기 */}
         {Object.keys(grades).length > 0 && targets.length > 0 && (
-          <div className="rounded border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
-            <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">미리보기</p>
+          <div className="rounded border border-border bg-white p-2 dark:border-border dark:bg-bg-primary">
+            <p className="mb-1 text-3xs font-medium text-[var(--text-secondary)]">미리보기</p>
             {targets.map((t) => {
               const criteria = t.criteria as unknown as MinScoreCriteria;
               const result = simulateMinScore(criteria, grades);
@@ -482,23 +482,23 @@ function WhatIfPreview({ targets }: { targets: MinScoreTarget[] }) {
   const afterMet = improvedResults.filter((r) => r.isMet).length;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white p-4 dark:border-border dark:bg-bg-primary">
       <h4 className="mb-3 text-sm font-medium text-[var(--text-primary)]">What-If 시나리오</h4>
       <div className="flex items-end gap-3">
         <div>
-          <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">과목</label>
-          <select value={subject} onChange={(e) => setSubject(e.target.value)} className="rounded-md border border-gray-200 bg-[var(--bg-surface)] px-2 py-1.5 text-sm dark:border-gray-700">
+          <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">과목</label>
+          <select value={subject} onChange={(e) => setSubject(e.target.value)} className="rounded-md border border-border bg-[var(--bg-surface)] px-2 py-1.5 text-sm dark:border-border">
             {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">현재 등급</label>
-          <input type="number" min={1} max={9} value={currentGrade} onChange={(e) => setCurrentGrade(Number(e.target.value))} className="w-16 rounded-md border border-gray-200 px-2 py-1.5 text-center text-sm dark:border-gray-700 dark:bg-gray-800" />
+          <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">현재 등급</label>
+          <input type="number" min={1} max={9} value={currentGrade} onChange={(e) => setCurrentGrade(Number(e.target.value))} className="w-16 rounded-md border border-border px-2 py-1.5 text-center text-sm dark:border-border dark:bg-bg-secondary" />
         </div>
         <span className="pb-1 text-sm text-[var(--text-tertiary)]">→</span>
         <div>
-          <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">개선 등급</label>
-          <input type="number" min={1} max={9} value={improvedGrade} onChange={(e) => setImprovedGrade(Number(e.target.value))} className="w-16 rounded-md border border-gray-200 px-2 py-1.5 text-center text-sm dark:border-gray-700 dark:bg-gray-800" />
+          <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">개선 등급</label>
+          <input type="number" min={1} max={9} value={improvedGrade} onChange={(e) => setImprovedGrade(Number(e.target.value))} className="w-16 rounded-md border border-border px-2 py-1.5 text-center text-sm dark:border-border dark:bg-bg-secondary" />
         </div>
         <p className="pb-1 text-sm">
           충족: <span className="text-[var(--text-tertiary)]">{currentMet}</span> → <span className="font-medium text-emerald-600">{afterMet}</span>개

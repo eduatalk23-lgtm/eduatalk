@@ -60,7 +60,7 @@ export function ScoreTrendCharts({ studentId, tenantId }: ScoreTrendChartsProps)
   };
 
   return (
-    <div className="mb-4 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+    <div className="mb-4 flex flex-col gap-4 rounded-lg border border-border bg-white p-4 dark:border-border dark:bg-bg-primary">
       <h4 className="text-sm font-medium text-[var(--text-primary)]">성적 분석</h4>
 
       {/* 내신 등급 추이 + 교과별 오버레이 */}
@@ -76,10 +76,10 @@ export function ScoreTrendCharts({ studentId, tenantId }: ScoreTrendChartsProps)
                     type="button"
                     onClick={() => toggleSubject(subj)}
                     className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                      "rounded-full px-2 py-0.5 text-3xs font-medium transition-colors",
                       showSubjects.has(subj)
                         ? "bg-opacity-100 text-white"
-                        : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+                        : "bg-bg-tertiary text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary",
                     )}
                     style={showSubjects.has(subj) ? { backgroundColor: SUBJECT_COLORS[subj] ?? "#6b7280" } : undefined}
                   >
@@ -129,7 +129,7 @@ export function ScoreTrendCharts({ studentId, tenantId }: ScoreTrendChartsProps)
           <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">학기별 요약</span>
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
+              <tr className="border-b border-border dark:border-border">
                 <th className="px-2 py-1 text-left font-medium text-[var(--text-tertiary)]">학기</th>
                 <th className="px-2 py-1 text-right font-medium text-[var(--text-tertiary)]">과목수</th>
                 <th className="px-2 py-1 text-right font-medium text-[var(--text-tertiary)]">평균등급</th>
@@ -138,7 +138,7 @@ export function ScoreTrendCharts({ studentId, tenantId }: ScoreTrendChartsProps)
             </thead>
             <tbody>
               {data.termSummary.map((t) => (
-                <tr key={t.term} className="border-b border-gray-100 dark:border-gray-800">
+                <tr key={t.term} className="border-b border-border dark:border-border">
                   <td className="px-2 py-1 text-[var(--text-primary)]">{t.grade}학년 {t.semester}학기</td>
                   <td className="px-2 py-1 text-right text-[var(--text-secondary)]">{t.subjectCount}</td>
                   <td className="px-2 py-1 text-right">

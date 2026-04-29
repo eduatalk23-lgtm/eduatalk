@@ -174,7 +174,7 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
       <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
         <div className="mb-2 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-[var(--text-primary)]">역량 프로필 (3영역)</h4>
-          <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-3 text-3xs text-[var(--text-tertiary)]">
             <span className="flex items-center gap-1">
               <span className="inline-block h-[2px] w-3 border-t border-dashed border-current" />
               AI
@@ -202,8 +202,8 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
                   return (
                     <div key={sec.area} className="rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] p-2">
                       <div className="flex items-center justify-between px-1 pb-1">
-                        <span className="text-[11px] font-semibold text-[var(--text-primary)]">{sec.label}</span>
-                        <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: color + "20", color }}>
+                        <span className="text-2xs font-semibold text-[var(--text-primary)]">{sec.label}</span>
+                        <span className="rounded-full px-1.5 py-0.5 text-3xs font-bold" style={{ backgroundColor: color + "20", color }}>
                           {sec.items.some((i) => i.AI > 0 || i.컨설턴트 > 0) ? sec.avgGrade : "-"}
                         </span>
                       </div>
@@ -227,7 +227,7 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
                         </RadarChart>
                       </ResponsiveContainer>
                       {sec.mismatchCount > 0 && (
-                        <p className="pt-0.5 text-center text-[9px] text-amber-600 dark:text-amber-400">
+                        <p className="pt-0.5 text-center text-3xs text-amber-600 dark:text-amber-400">
                           AI↔컨설턴트 불일치 {sec.mismatchCount}건
                         </p>
                       )}
@@ -251,11 +251,11 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-[var(--text-primary)]">학년별 역량 성장 추이</h4>
               {trendInfo && (
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                <span className={`rounded-full px-2 py-0.5 text-3xs font-medium ${
                   trendInfo.overallTrend === "rising" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                   : trendInfo.overallTrend === "falling" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                   : trendInfo.overallTrend === "volatile" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                  : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                  : "bg-bg-secondary text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary"
                 }`}>
                   {trendInfo.overallTrend === "rising" ? "성장세" : trendInfo.overallTrend === "falling" ? "하락세" : trendInfo.overallTrend === "volatile" ? "변동" : "안정"}
                   {trendInfo.anomalies.length > 0 && ` · 이상 ${trendInfo.anomalies.length}`}
@@ -290,7 +290,7 @@ export function CompetencyCharts({ competencyScores, activityTags, records, reco
             {trendInfo && trendInfo.anomalies.length > 0 && (
               <div className="mt-2 space-y-1">
                 {trendInfo.anomalies.map((a, i) => (
-                  <p key={i} className="text-[10px] text-amber-600 dark:text-amber-400">
+                  <p key={i} className="text-3xs text-amber-600 dark:text-amber-400">
                     ⚠ {a.competencyName}: {a.reason}
                   </p>
                 ))}

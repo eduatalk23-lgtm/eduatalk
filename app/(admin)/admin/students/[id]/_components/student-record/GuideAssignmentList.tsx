@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<AssignmentStatus, string> = {
 };
 
 const STATUS_COLORS: Record<AssignmentStatus, string> = {
-  assigned: "bg-gray-100 text-gray-600",
+  assigned: "bg-bg-tertiary text-text-secondary",
   in_progress: "bg-blue-100 text-blue-700",
   submitted: "bg-amber-100 text-amber-700",
   completed: "bg-emerald-100 text-emerald-700",
@@ -80,31 +80,31 @@ export function GuideAssignmentList({
   }
 
   if (isLoading) {
-    return <p className="py-8 text-center text-sm text-gray-400">불러오는 중...</p>;
+    return <p className="py-8 text-center text-sm text-text-tertiary">불러오는 중...</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
       {/* 이행률 요약 */}
       {rate && rate.total > 0 && (
-        <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+        <div className="flex items-center gap-3 rounded-lg bg-bg-secondary p-3">
           <div className="flex-1">
             <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-xs font-medium text-gray-600">
+              <span className="text-xs font-medium text-text-secondary">
                 이행률 (기록 연결)
               </span>
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-text-primary">
                 {rate.rate}%
               </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-1.5 overflow-hidden rounded-full bg-bg-tertiary">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
                 style={{ width: `${Math.min(rate.rate, 100)}%` }}
               />
             </div>
           </div>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-text-tertiary">
             {rate.linked}/{rate.total}건
           </span>
         </div>
@@ -119,7 +119,7 @@ export function GuideAssignmentList({
 
       {/* 배정 목록 */}
       {assignments.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-400">
+        <p className="py-8 text-center text-sm text-text-tertiary">
           배정된 가이드가 없습니다.
         </p>
       ) : (
@@ -139,22 +139,22 @@ export function GuideAssignmentList({
                   onClick={() => onSelectGuide(a.guide_id)}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-gray-900">
+                    <span className="truncate text-sm font-medium text-text-primary">
                       {guide?.title ?? "—"}
                     </span>
                     {guide?.guide_type && (
-                      <span className="shrink-0 text-xs text-gray-400">
+                      <span className="shrink-0 text-xs text-text-tertiary">
                         {GUIDE_TYPE_LABELS[guide.guide_type as GuideType]}
                       </span>
                     )}
                     {a.is_stale && (
-                      <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         갱신 필요
                       </span>
                     )}
                   </div>
                   {a.notes && (
-                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                    <p className="mt-0.5 truncate text-xs text-text-tertiary">
                       {a.notes}
                     </p>
                   )}

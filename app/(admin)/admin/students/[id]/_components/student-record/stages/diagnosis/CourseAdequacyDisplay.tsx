@@ -22,7 +22,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-16 shrink-0 text-xs text-[var(--text-secondary)]">{label}</span>
-      <div className="flex-1 h-3 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+      <div className="flex-1 h-3 rounded-full bg-bg-tertiary dark:bg-bg-tertiary overflow-hidden">
         <div className={cn("h-full rounded-full transition-all duration-300", color)} style={{ width: `${value}%` }} />
       </div>
       <span className="w-10 text-right text-xs font-medium text-[var(--text-primary)]">{value}%</span>
@@ -49,26 +49,26 @@ export function CourseAdequacyDisplay({ initialResult, takenSubjects, offeredSub
         <select
           value={selectedMajor}
           onChange={(e) => setSelectedMajor(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 bg-[var(--background)] px-3 py-1.5 text-sm dark:border-gray-600"
+          className="flex-1 rounded-md border border-border bg-[var(--background)] px-3 py-1.5 text-sm dark:border-border"
         >
           <option value="">전공 계열 선택</option>
           {majorKeys.map((key) => (
             <option key={key} value={key}>{key}</option>
           ))}
         </select>
-        <span className="text-[10px] text-[var(--text-tertiary)]">
+        <span className="text-3xs text-[var(--text-tertiary)]">
           {(curriculumYear ?? 2015) >= 2022 ? "2022 교육과정" : "2015 교육과정"}
         </span>
       </div>
 
       {!selectedMajor && (
-        <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
           목표 전공 계열을 선택하면 교과 이수 적합도를 분석합니다.
         </div>
       )}
 
       {selectedMajor && !result && (
-        <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
           해당 전공 계열의 추천 과목 정보가 없습니다.
         </div>
       )}
@@ -76,7 +76,7 @@ export function CourseAdequacyDisplay({ initialResult, takenSubjects, offeredSub
       {result && (
         <>
           {/* 종합 점수 */}
-          <div className="flex items-center gap-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+          <div className="flex items-center gap-4 rounded-lg border border-border p-4 dark:border-border">
             <div className="flex flex-col items-center">
               <span className={cn(
                 "text-3xl font-bold",
@@ -124,26 +124,26 @@ function SubjectList({ title, items, variant }: {
   const colors = {
     taken: "border-green-200 dark:border-green-800",
     notTaken: "border-amber-200 dark:border-amber-800",
-    notOffered: "border-gray-200 dark:border-gray-700",
+    notOffered: "border-border dark:border-border",
   };
   const badgeColors = {
     taken: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     notTaken: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    notOffered: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
+    notOffered: "bg-bg-tertiary text-text-tertiary dark:bg-bg-tertiary dark:text-text-tertiary",
   };
 
   return (
     <div className={cn("rounded-lg border p-3", colors[variant])}>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium text-[var(--text-primary)]">{title}</span>
-        <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", badgeColors[variant])}>{items.length}</span>
+        <span className={cn("rounded px-1.5 py-0.5 text-3xs font-medium", badgeColors[variant])}>{items.length}</span>
       </div>
       {items.length === 0 ? (
         <span className="text-xs text-[var(--text-tertiary)]">없음</span>
       ) : (
         <div className="flex flex-wrap gap-1">
           {items.map((name) => (
-            <span key={name} className="rounded bg-gray-50 px-1.5 py-0.5 text-xs text-[var(--text-secondary)] dark:bg-gray-800">
+            <span key={name} className="rounded bg-bg-secondary px-1.5 py-0.5 text-xs text-[var(--text-secondary)] dark:bg-bg-secondary">
               {name}
             </span>
           ))}

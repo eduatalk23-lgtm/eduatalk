@@ -72,9 +72,9 @@ export function SameSchoolSetekInfo({ studentId, subjectId, schoolYear }: SameSc
           ) : (
             <div className="flex flex-col gap-2">
               {entries.map((entry, i) => (
-                <div key={i} className="rounded-md bg-gray-50 p-2 dark:bg-gray-800/50">
+                <div key={i} className="rounded-md bg-bg-secondary p-2 dark:bg-bg-secondary/50">
                   <div className="mb-1 flex items-center gap-2">
-                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                    <span className="text-3xs font-medium text-[var(--text-secondary)]">
                       {entry.studentName} ({entry.grade}학년 {entry.semester}학기)
                     </span>
                   </div>

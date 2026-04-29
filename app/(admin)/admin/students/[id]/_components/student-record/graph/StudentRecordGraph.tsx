@@ -321,21 +321,21 @@ export function StudentRecordGraph({
           : undefined
       }
     >
-      <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 px-4 py-2 dark:border-gray-800">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2 dark:border-border">
         {isDedicatedView && (
           <a
             href={`/admin/students/${studentId}/record`}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-tertiary dark:text-text-disabled dark:hover:bg-gray-800"
             title="생기부 편집으로"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             생기부
           </a>
         )}
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-200">
+        <div className="flex items-center gap-2 text-sm font-semibold text-text-primary dark:text-gray-200">
           <Network className="h-4 w-4" />
           {studentName ? `${studentName} · ` : ""}생기부 그래프
-          <span className="text-[11px] font-normal text-gray-500" suppressHydrationWarning>
+          <span className="text-2xs font-normal text-text-tertiary" suppressHydrationWarning>
             edges {edges?.length ?? 0} · hyperedges {hyperedges?.length ?? 0}
             {canvasSize.w > 0 ? ` · canvas ${canvasSize.w}×${canvasSize.h}` : ""}
           </span>
@@ -349,10 +349,10 @@ export function StudentRecordGraph({
                 type="button"
                 onClick={() => toggleEdgeType(t)}
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-[11px] font-medium transition",
+                  "rounded-full border px-2 py-0.5 text-2xs font-medium transition",
                   active
                     ? "border-transparent text-white"
-                    : "border-gray-300 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-900",
+                    : "border-border bg-white text-text-tertiary dark:border-border dark:bg-bg-primary",
                 )}
                 style={active ? { backgroundColor: EDGE_TYPE_COLORS[t] ?? "#9ca3af" } : undefined}
               >
@@ -364,10 +364,10 @@ export function StudentRecordGraph({
             type="button"
             onClick={() => setShowHyperedges((v) => !v)}
             className={cn(
-              "rounded-full border px-2 py-0.5 text-[11px] font-medium transition",
+              "rounded-full border px-2 py-0.5 text-2xs font-medium transition",
               showHyperedges
                 ? "border-transparent bg-pink-500 text-white"
-                : "border-gray-300 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-900",
+                : "border-border bg-white text-text-tertiary dark:border-border dark:bg-bg-primary",
             )}
           >
             통합 테마
@@ -378,18 +378,18 @@ export function StudentRecordGraph({
               onClick={() => setOnlyWeakNarrative((v) => !v)}
               title="서사 단계 ≤3 레코드만 강조"
               className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px] font-medium transition",
+                "rounded-full border px-2 py-0.5 text-2xs font-medium transition",
                 onlyWeakNarrative
                   ? "border-transparent bg-red-500 text-white"
-                  : "border-gray-300 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-900",
+                  : "border-border bg-white text-text-tertiary dark:border-border dark:bg-bg-primary",
               )}
             >
               서사 결여
             </button>
           )}
           {availableGrades.length > 1 && (
-            <div className="ml-1 flex items-center gap-1 text-[11px]">
-              <span className="text-gray-500">학년:</span>
+            <div className="ml-1 flex items-center gap-1 text-2xs">
+              <span className="text-text-tertiary">학년:</span>
               <button
                 type="button"
                 onClick={() => setGradeFilter(null)}
@@ -397,7 +397,7 @@ export function StudentRecordGraph({
                   "rounded-full px-2 py-0.5 font-medium transition",
                   gradeFilter === null
                     ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                    : "text-gray-500",
+                    : "text-text-tertiary",
                 )}
               >
                 전체
@@ -411,7 +411,7 @@ export function StudentRecordGraph({
                     "rounded-full px-2 py-0.5 font-medium transition",
                     gradeFilter === g
                       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                      : "text-gray-500",
+                      : "text-text-tertiary",
                   )}
                 >
                   {g}
@@ -427,7 +427,7 @@ export function StudentRecordGraph({
               target="_blank"
               rel="noopener noreferrer"
               title="전체 화면으로 열기 (새 탭)"
-              className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
+              className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-2xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
             >
               <ExternalLink className="h-3 w-3" />
               전체 화면
@@ -437,7 +437,7 @@ export function StudentRecordGraph({
             type="button"
             onClick={handleRelayout}
             title="재배치"
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-2xs font-medium text-text-primary hover:bg-bg-secondary dark:border-border dark:bg-bg-primary dark:text-text-disabled"
           >
             <RotateCw className="h-3 w-3" />
             재배치
@@ -446,7 +446,7 @@ export function StudentRecordGraph({
             type="button"
             onClick={handleExportPng}
             title="PNG 저장"
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-2xs font-medium text-text-primary hover:bg-bg-secondary dark:border-border dark:bg-bg-primary dark:text-text-disabled"
           >
             <Download className="h-3 w-3" />
             PNG
@@ -463,15 +463,15 @@ export function StudentRecordGraph({
         }
       >
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-text-tertiary">
             그래프 데이터 불러오는 중…
           </div>
         )}
         {isEmpty && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
-            <Network className="h-10 w-10 text-gray-300" />
-            <p className="text-sm text-gray-500">아직 연결 데이터가 없습니다.</p>
-            <p className="text-xs text-gray-400">
+            <Network className="h-10 w-10 text-text-disabled" />
+            <p className="text-sm text-text-tertiary">아직 연결 데이터가 없습니다.</p>
+            <p className="text-xs text-text-tertiary">
               AI 파이프라인 실행 후 그래프가 생성됩니다.
             </p>
           </div>
@@ -487,13 +487,13 @@ export function StudentRecordGraph({
         />
 
         {/* 줌 컨트롤 */}
-        <div className="absolute right-3 bottom-3 flex flex-col gap-1 rounded-md border border-gray-200 bg-white/95 p-1 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
+        <div className="absolute right-3 bottom-3 flex flex-col gap-1 rounded-md border border-border bg-white/95 p-1 shadow-sm backdrop-blur dark:border-border dark:bg-bg-primary/95">
           <button
             type="button"
             onClick={handleZoomIn}
             title="확대"
             aria-label="확대"
-            className="flex h-7 w-7 items-center justify-center rounded text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex h-7 w-7 items-center justify-center rounded text-text-primary hover:bg-bg-tertiary dark:text-text-disabled dark:hover:bg-gray-800"
           >
             <ZoomIn className="h-4 w-4" />
           </button>
@@ -502,7 +502,7 @@ export function StudentRecordGraph({
             onClick={handleZoomOut}
             title="축소"
             aria-label="축소"
-            className="flex h-7 w-7 items-center justify-center rounded text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex h-7 w-7 items-center justify-center rounded text-text-primary hover:bg-bg-tertiary dark:text-text-disabled dark:hover:bg-gray-800"
           >
             <ZoomOut className="h-4 w-4" />
           </button>
@@ -511,7 +511,7 @@ export function StudentRecordGraph({
             onClick={handleZoomReset}
             title="원본 크기"
             aria-label="원본 크기"
-            className="flex h-7 w-7 items-center justify-center rounded text-[10px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex h-7 w-7 items-center justify-center rounded text-3xs font-semibold text-text-primary hover:bg-bg-tertiary dark:text-text-disabled dark:hover:bg-gray-800"
           >
             1:1
           </button>
@@ -520,7 +520,7 @@ export function StudentRecordGraph({
             onClick={handleFit}
             title="전체 보기"
             aria-label="전체 보기"
-            className="flex h-7 w-7 items-center justify-center rounded text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex h-7 w-7 items-center justify-center rounded text-text-primary hover:bg-bg-tertiary dark:text-text-disabled dark:hover:bg-gray-800"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
@@ -531,10 +531,10 @@ export function StudentRecordGraph({
           <HoverTooltipCard info={hover} />
         )}
 
-        <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1 text-[10px]">
-          <div className="rounded-md border border-gray-200 bg-white/90 px-2 py-1 backdrop-blur dark:border-gray-700 dark:bg-gray-900/90">
-            <div className="mb-1 font-semibold text-gray-700 dark:text-gray-300">레코드</div>
-            <div className="flex flex-col gap-0.5 text-gray-600 dark:text-gray-400">
+        <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1 text-3xs">
+          <div className="rounded-md border border-border bg-white/90 px-2 py-1 backdrop-blur dark:border-border dark:bg-bg-primary/90">
+            <div className="mb-1 font-semibold text-text-primary dark:text-text-disabled">레코드</div>
+            <div className="flex flex-col gap-0.5 text-text-secondary dark:text-text-tertiary">
               {Object.entries(RECORD_TYPE_COLORS).map(([k, c]) => (
                 <div key={k} className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c }} />
@@ -544,9 +544,9 @@ export function StudentRecordGraph({
             </div>
           </div>
           {(narrativeArcs?.length ?? 0) > 0 && (
-            <div className="rounded-md border border-gray-200 bg-white/90 px-2 py-1 backdrop-blur dark:border-gray-700 dark:bg-gray-900/90">
-              <div className="mb-1 font-semibold text-gray-700 dark:text-gray-300">서사 8단계</div>
-              <div className="flex flex-col gap-0.5 text-gray-600 dark:text-gray-400">
+            <div className="rounded-md border border-border bg-white/90 px-2 py-1 backdrop-blur dark:border-border dark:bg-bg-primary/90">
+              <div className="mb-1 font-semibold text-text-primary dark:text-text-disabled">서사 8단계</div>
+              <div className="flex flex-col gap-0.5 text-text-secondary dark:text-text-tertiary">
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ border: `2px solid ${NARRATIVE_BORDER_COLOR.critical}` }} />
                   ≤ 3 결여
@@ -565,7 +565,7 @@ export function StudentRecordGraph({
         </div>
 
         {selected && (
-          <div className="pointer-events-auto absolute right-3 top-3 max-w-xs rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <div className="pointer-events-auto absolute right-3 top-3 max-w-xs rounded-lg border border-border bg-white p-3 text-xs shadow-lg dark:border-border dark:bg-bg-primary">
             <SelectedInfoPanel info={selected} onClose={() => setSelected(null)} />
           </div>
         )}
@@ -580,15 +580,15 @@ function HoverTooltipCard({ info }: { info: HoverTooltip }) {
   const offsetY = 14;
   return (
     <div
-      className="pointer-events-none absolute z-20 max-w-[220px] rounded-md border border-gray-200 bg-white/95 px-2 py-1.5 text-[11px] shadow-md backdrop-blur dark:border-gray-700 dark:bg-gray-900/95"
+      className="pointer-events-none absolute z-20 max-w-[220px] rounded-md border border-border bg-white/95 px-2 py-1.5 text-2xs shadow-md backdrop-blur dark:border-border dark:bg-bg-primary/95"
       style={{ left: x + offsetX, top: y + offsetY }}
     >
       {kind === "record" && (
         <>
-          <p className="font-semibold text-gray-900 dark:text-gray-100">
+          <p className="font-semibold text-text-primary dark:text-gray-100">
             {String(data.baseLabel ?? data.label ?? "")}
           </p>
-          <p className="text-[10px] text-gray-500">
+          <p className="text-3xs text-text-tertiary">
             {RECORD_TYPE_LABEL[String(data.recordType)] ?? String(data.recordType)}
             {data.grade ? ` · ${data.grade}학년` : ""}
           </p>
@@ -607,7 +607,7 @@ function HoverTooltipCard({ info }: { info: HoverTooltip }) {
           <p className="font-semibold text-pink-600 dark:text-pink-400">
             {String(data.themeLabel ?? data.label ?? "")}
           </p>
-          <p className="text-[10px] text-gray-500">
+          <p className="text-3xs text-text-tertiary">
             멤버 {String(data.memberCount ?? 0)}개 · 신뢰도{" "}
             {Number(data.confidence ?? 0).toFixed(2)}
           </p>
@@ -615,11 +615,11 @@ function HoverTooltipCard({ info }: { info: HoverTooltip }) {
       )}
       {kind === "edge" && (
         <>
-          <p className="font-semibold text-gray-900 dark:text-gray-100">
+          <p className="font-semibold text-text-primary dark:text-gray-100">
             {EDGE_TYPE_LABEL[String(data.edgeType)] ?? String(data.edgeType)}
           </p>
           {data.reason ? (
-            <p className="text-[10px] leading-snug text-gray-500">
+            <p className="text-3xs leading-snug text-text-tertiary">
               {String(data.reason)}
             </p>
           ) : null}
@@ -640,13 +640,13 @@ function SelectedInfoPanel({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+        <span className="rounded-full bg-bg-tertiary px-2 py-0.5 text-3xs font-semibold text-text-secondary dark:bg-bg-secondary dark:text-text-disabled">
           {kind === "record" ? "레코드" : kind === "hyperedge" ? "통합 테마" : "연결"}
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-text-tertiary hover:text-text-secondary"
           aria-label="닫기"
         >
           ✕
@@ -654,10 +654,10 @@ function SelectedInfoPanel({
       </div>
       {kind === "record" && (
         <>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <p className="text-sm font-semibold text-text-primary dark:text-gray-100">
             {String(data.baseLabel ?? data.label ?? "")}
           </p>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-2xs text-text-tertiary">
             {RECORD_TYPE_LABEL[String(data.recordType)] ?? String(data.recordType)}
             {data.grade ? ` · ${data.grade}학년` : ""}
           </p>
@@ -675,7 +675,7 @@ function SelectedInfoPanel({
           <p className="text-sm font-semibold text-pink-600 dark:text-pink-400">
             {String(data.themeLabel ?? data.label ?? "")}
           </p>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-2xs text-text-tertiary">
             멤버 {String(data.memberCount ?? 0)}개 · 신뢰도 {Number(data.confidence ?? 0).toFixed(2)}
           </p>
           {Array.isArray(data.sharedCompetencies) && data.sharedCompetencies.length > 0 && (
@@ -683,7 +683,7 @@ function SelectedInfoPanel({
               {(data.sharedCompetencies as string[]).map((c) => (
                 <span
                   key={c}
-                  className="rounded-full bg-pink-50 px-1.5 py-0.5 text-[10px] text-pink-700 dark:bg-pink-950/40 dark:text-pink-300"
+                  className="rounded-full bg-pink-50 px-1.5 py-0.5 text-3xs text-pink-700 dark:bg-pink-950/40 dark:text-pink-300"
                 >
                   {c}
                 </span>
@@ -691,7 +691,7 @@ function SelectedInfoPanel({
             </div>
           )}
           {data.evidence && (
-            <p className="text-[11px] leading-snug text-gray-600 dark:text-gray-400">
+            <p className="text-2xs leading-snug text-text-secondary dark:text-text-tertiary">
               {String(data.evidence)}
             </p>
           )}
@@ -699,15 +699,15 @@ function SelectedInfoPanel({
       )}
       {kind === "edge" && (
         <>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <p className="text-sm font-semibold text-text-primary dark:text-gray-100">
             {EDGE_TYPE_LABEL[String(data.edgeType)] ?? String(data.edgeType)}
           </p>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-2xs text-text-tertiary">
             신뢰도 {Number(data.confidence ?? 0).toFixed(2)}
             {data.edgeContext ? ` · ${String(data.edgeContext)}` : ""}
           </p>
           {data.reason && (
-            <p className="text-[11px] leading-snug text-gray-600 dark:text-gray-400">
+            <p className="text-2xs leading-snug text-text-secondary dark:text-text-tertiary">
               {String(data.reason)}
             </p>
           )}
@@ -747,7 +747,7 @@ function NarrativeMiniGrid({
           );
         })}
       </div>
-      <span className="text-[10px] font-semibold" style={{ color: countColor }}>
+      <span className="text-3xs font-semibold" style={{ color: countColor }}>
         {count}/8
       </span>
     </div>
@@ -768,10 +768,10 @@ function NarrativeStageChecklist({
   const countColor =
     count <= 3 ? NARRATIVE_BORDER_COLOR.critical : count <= 5 ? NARRATIVE_BORDER_COLOR.warn : NARRATIVE_BORDER_COLOR.ok;
   return (
-    <div className="mt-1 rounded border border-gray-100 bg-gray-50 p-1.5 dark:border-gray-800 dark:bg-gray-900/40">
+    <div className="mt-1 rounded border border-border bg-bg-secondary p-1.5 dark:border-border dark:bg-bg-primary/40">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400">서사 8단계</span>
-        <span className="text-[11px] font-bold" style={{ color: countColor }}>
+        <span className="text-3xs font-semibold text-text-secondary dark:text-text-tertiary">서사 8단계</span>
+        <span className="text-2xs font-bold" style={{ color: countColor }}>
           {count}/8
         </span>
       </div>
@@ -780,7 +780,7 @@ function NarrativeStageChecklist({
           const present = stages[s.key];
           const detail = details?.[s.key];
           return (
-            <li key={s.key} className="flex items-start gap-1.5 text-[10px] leading-tight">
+            <li key={s.key} className="flex items-start gap-1.5 text-3xs leading-tight">
               <span
                 className="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full"
                 style={{
@@ -788,11 +788,11 @@ function NarrativeStageChecklist({
                   border: `1px solid ${present ? countColor : "#d1d5db"}`,
                 }}
               />
-              <span className={present ? "text-gray-700 dark:text-gray-300" : "text-gray-400"}>
+              <span className={present ? "text-text-primary dark:text-text-disabled" : "text-text-tertiary"}>
                 {s.index}. {s.label}
               </span>
               {present && detail?.evidence && (
-                <span className="flex-1 truncate text-gray-500" title={detail.evidence}>
+                <span className="flex-1 truncate text-text-tertiary" title={detail.evidence}>
                   · {detail.evidence}
                 </span>
               )}

@@ -39,10 +39,10 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
   const areas: CompetencyArea[] = ["academic", "career", "community"];
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="overflow-hidden rounded-lg border border-border dark:border-border">
       <table className="w-full text-xs">
         <thead>
-          <tr className="bg-gray-50 dark:bg-gray-800">
+          <tr className="bg-bg-secondary dark:bg-bg-secondary">
             <th className="px-3 py-1.5 text-left font-medium text-[var(--text-secondary)]">역량 항목</th>
             <th className="w-16 px-2 py-1.5 text-center font-medium text-blue-600 dark:text-blue-400">AI</th>
             <th className="w-16 px-2 py-1.5 text-center font-medium text-[var(--text-secondary)]">컨설턴트</th>
@@ -81,7 +81,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                     aria-expanded={hasDetail ? isExpanded : undefined}
                     aria-label={hasDetail ? `${item.label} 상세 ${isExpanded ? "닫기" : "열기"}` : undefined}
                     className={cn(
-                      "border-t border-gray-100 transition-colors dark:border-gray-800",
+                      "border-t border-border transition-colors dark:border-border",
                       idx === 0 && "border-t-gray-300 dark:border-t-gray-600",
                       hasDetail
                         ? "cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
@@ -90,7 +90,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                   >
                     <td className="px-3 py-1.5">
                       {idx === 0 && (
-                        <span className="mr-1.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
+                        <span className="mr-1.5 text-3xs font-semibold text-[var(--text-tertiary)]">
                           {COMPETENCY_AREA_LABELS[area]}
                         </span>
                       )}
@@ -107,7 +107,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                     </td>
                     <td className="px-2 py-1.5 text-center">
                       {tagCount > 0 && (
-                        <span className="text-[10px] text-[var(--text-tertiary)]">
+                        <span className="text-3xs text-[var(--text-tertiary)]">
                           {tags!.positive.length > 0 && <span className="text-green-600">+{tags!.positive.length}</span>}
                           {tags!.needs_review.length > 0 && <span className="ml-0.5 text-amber-500">?{tags!.needs_review.length}</span>}
                           {tags!.negative.length > 0 && <span className="ml-0.5 text-red-500">-{tags!.negative.length}</span>}
@@ -117,7 +117,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={4} className="bg-gray-50/50 px-3 py-2.5 dark:bg-gray-800/30">
+                      <td colSpan={4} className="bg-bg-secondary/50 px-3 py-2.5 dark:bg-bg-secondary/30">
                         <GradeDetail
                           aiNarrative={aiNarrative ?? null}
                           conNarrative={conNarrative ?? null}
@@ -151,14 +151,14 @@ function GradeDetail({ aiNarrative, conNarrative, tags }: {
         <div className="flex flex-col gap-1.5">
           {aiNarrative && (
             <div className="flex gap-1.5">
-              <span className="shrink-0 text-[10px] font-medium text-blue-600 dark:text-blue-400">AI</span>
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{aiNarrative}</p>
+              <span className="shrink-0 text-3xs font-medium text-blue-600 dark:text-blue-400">AI</span>
+              <p className="text-2xs leading-relaxed text-[var(--text-secondary)]">{aiNarrative}</p>
             </div>
           )}
           {conNarrative && (
             <div className="flex gap-1.5">
-              <span className="shrink-0 text-[10px] font-medium text-[var(--text-secondary)]">컨설턴트</span>
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{conNarrative}</p>
+              <span className="shrink-0 text-3xs font-medium text-[var(--text-secondary)]">컨설턴트</span>
+              <p className="text-2xs leading-relaxed text-[var(--text-secondary)]">{conNarrative}</p>
             </div>
           )}
         </div>
@@ -166,12 +166,12 @@ function GradeDetail({ aiNarrative, conNarrative, tags }: {
 
       {allTags.length > 0 && (
         <div>
-          <span className="text-[10px] font-medium text-[var(--text-tertiary)]">근거 활동 ({allTags.length}건)</span>
+          <span className="text-3xs font-medium text-[var(--text-tertiary)]">근거 활동 ({allTags.length}건)</span>
           <div className="mt-1 flex flex-col gap-0.5">
             {allTags.slice(0, 5).map((tag) => (
-              <div key={tag.id} className="flex items-start gap-1.5 text-[10px]">
+              <div key={tag.id} className="flex items-start gap-1.5 text-3xs">
                 <span className={cn(
-                  "mt-0.5 shrink-0 rounded px-1 py-px text-[8px] font-medium",
+                  "mt-0.5 shrink-0 rounded px-1 py-px text-3xs font-medium",
                   tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
                   tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
                   tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
@@ -184,7 +184,7 @@ function GradeDetail({ aiNarrative, conNarrative, tags }: {
               </div>
             ))}
             {allTags.length > 5 && (
-              <span className="text-[10px] text-[var(--text-tertiary)]">외 {allTags.length - 5}건</span>
+              <span className="text-3xs text-[var(--text-tertiary)]">외 {allTags.length - 5}건</span>
             )}
           </div>
         </div>
@@ -199,7 +199,7 @@ function GradeBadge({ grade, variant }: { grade?: string; variant: "match" | "di
   if (!grade) return <span className="text-[var(--text-tertiary)]">-</span>;
   return (
     <span className={cn(
-      "inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold",
+      "inline-block rounded px-1.5 py-0.5 text-3xs font-semibold",
       variant === "match" && "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400",
       variant === "diff" && "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400",
       variant === "default" && "text-[var(--text-primary)]",
@@ -220,21 +220,21 @@ export function RecommendedCourses({ majors }: { majors: string[] }) {
         const courses = MAJOR_RECOMMENDED_COURSES[major];
         if (!courses) return null;
         return (
-          <div key={major} className="rounded border border-gray-100 bg-gray-50/50 px-2.5 py-2 dark:border-gray-700 dark:bg-gray-800/50">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)]">{major}</span>
+          <div key={major} className="rounded border border-border bg-bg-secondary/50 px-2.5 py-2 dark:border-border dark:bg-bg-secondary/50">
+            <span className="text-3xs font-semibold text-[var(--text-secondary)]">{major}</span>
             {courses.general.length > 0 && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[10px] text-[var(--text-tertiary)]">일반</span>
+                <span className="text-3xs text-[var(--text-tertiary)]">일반</span>
                 {courses.general.map((c) => (
-                  <span key={c} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">{c}</span>
+                  <span key={c} className="rounded bg-blue-50 px-1.5 py-0.5 text-3xs text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">{c}</span>
                 ))}
               </div>
             )}
             {courses.career.length > 0 && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[10px] text-[var(--text-tertiary)]">진로</span>
+                <span className="text-3xs text-[var(--text-tertiary)]">진로</span>
                 {courses.career.map((c) => (
-                  <span key={c} className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">{c}</span>
+                  <span key={c} className="rounded bg-purple-50 px-1.5 py-0.5 text-3xs text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">{c}</span>
                 ))}
               </div>
             )}

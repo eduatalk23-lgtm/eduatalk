@@ -88,7 +88,7 @@ export function MockScoreSection({
       {listLoading ? (
         <SectionSkeleton />
       ) : examGroups.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
           등록된 모의고사 성적이 없습니다.
         </div>
       ) : (
@@ -144,7 +144,7 @@ export function MockScoreSection({
         <button
           type="button"
           onClick={onToggleInput}
-          className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600"
+          className="rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-border"
         >
           + 모의고사 성적 입력
         </button>
@@ -186,7 +186,7 @@ function ExamGroupCard({
     .join(" / ");
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white dark:border-border dark:bg-bg-primary">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -201,9 +201,9 @@ function ExamGroupCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-gray-100 dark:border-gray-800">
+        <div className="border-t border-border dark:border-border">
           <table className="w-full text-left text-xs">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-bg-secondary dark:bg-bg-secondary">
               <tr>
                 <th className="px-3 py-1.5 font-medium text-[var(--text-secondary)]">교과군</th>
                 <th className="px-3 py-1.5 font-medium text-[var(--text-secondary)]">과목</th>
@@ -227,7 +227,7 @@ function ExamGroupCard({
                 ) : (
                   <tr
                     key={s.id}
-                    className="group cursor-pointer border-t border-gray-50 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                    className="group cursor-pointer border-t border-gray-50 hover:bg-bg-secondary dark:border-border dark:hover:bg-gray-800/50"
                     onClick={() => onEdit(s.id)}
                   >
                     <td className="px-3 py-1.5 text-[var(--text-secondary)]">{s.subject_group_name ?? "-"}</td>
@@ -238,8 +238,8 @@ function ExamGroupCard({
                     <td className="px-3 py-1.5 text-right">
                       {s.grade_score != null ? (
                         <span className={cn(
-                          "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                          s.grade_score <= 2 ? "bg-blue-100 text-blue-700" : s.grade_score <= 4 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600",
+                          "inline-flex rounded-full px-1.5 py-0.5 text-3xs font-medium",
+                          s.grade_score <= 2 ? "bg-blue-100 text-blue-700" : s.grade_score <= 4 ? "bg-green-100 text-green-700" : "bg-bg-tertiary text-text-secondary",
                         )}>
                           {s.grade_score}등급
                         </span>
@@ -250,7 +250,7 @@ function ExamGroupCard({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
                         disabled={isDeleting}
-                        className="rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                        className="rounded p-0.5 text-text-tertiary opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -296,7 +296,7 @@ function EditableMockScoreRow({
   const inputCls = "w-full rounded border border-indigo-300 bg-indigo-50/30 px-1 py-0.5 text-right text-xs dark:border-indigo-700 dark:bg-indigo-950/20";
 
   return (
-    <tr className="border-t border-gray-50 bg-indigo-50/50 dark:border-gray-800 dark:bg-indigo-950/10">
+    <tr className="border-t border-gray-50 bg-indigo-50/50 dark:border-border dark:bg-indigo-950/10">
       <td className="px-3 py-1.5 text-[var(--text-secondary)]">{score.subject_group_name ?? "-"}</td>
       <td className="px-3 py-1.5 text-[var(--text-primary)]">{score.subject_name ?? "-"}</td>
       <td className="px-3 py-1.5"><input type="number" value={rawScore} onChange={(e) => setRawScore(e.target.value)} className={inputCls} /></td>
@@ -308,7 +308,7 @@ function EditableMockScoreRow({
           <button type="button" onClick={handleSave} disabled={isPending} className="rounded bg-indigo-600 p-0.5 text-white hover:bg-indigo-700 disabled:opacity-50">
             <Check className="h-3 w-3" />
           </button>
-          <button type="button" onClick={onCancel} className="rounded bg-gray-200 p-0.5 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300">
+          <button type="button" onClick={onCancel} className="rounded bg-bg-tertiary p-0.5 text-text-secondary hover:bg-gray-300 dark:bg-bg-tertiary dark:text-text-disabled">
             <X className="h-3 w-3" />
           </button>
         </div>
@@ -357,7 +357,7 @@ function MockGradeComparisonChart({
   const subjects = ["국어", "수학", "영어", "탐구"];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white p-3 dark:border-border dark:bg-bg-primary">
       <span className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">시험별 주요 교과 등급 비교</span>
       <div className="h-[160px] w-full">
         <ResponsiveContainer width="100%" height="100%">

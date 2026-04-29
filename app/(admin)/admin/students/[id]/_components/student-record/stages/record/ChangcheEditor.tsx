@@ -204,7 +204,7 @@ export function ChangcheEditor({
                   {CHANGCHE_TYPE_LABELS[type]}
                 </td>
                 <td className={`${B} p-2`}>
-                  <div className="flex flex-col gap-0.5 rounded border border-dashed border-gray-300 bg-gray-50/50 px-3 py-2 text-xs text-[var(--text-tertiary)]">
+                  <div className="flex flex-col gap-0.5 rounded border border-dashed border-border bg-bg-secondary/50 px-3 py-2 text-xs text-[var(--text-tertiary)]">
                     <span className="font-medium text-[var(--text-secondary)]">{def.label} 레이어 — 작업 예정</span>
                     <span className="italic">{def.description}</span>
                   </div>
@@ -311,7 +311,7 @@ export function ChangcheEditor({
                             "text-xs transition-colors",
                             ctx.activeSubjectId === `changche:${type}`
                               ? "text-indigo-600 dark:text-indigo-400"
-                              : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
+                              : "text-text-tertiary hover:text-text-secondary dark:hover:text-text-disabled",
                           )}
                           title={ctx.activeSubjectId === `changche:${type}` ? "그리드 닫기" : "컨텍스트 그리드 열기"}
                         >

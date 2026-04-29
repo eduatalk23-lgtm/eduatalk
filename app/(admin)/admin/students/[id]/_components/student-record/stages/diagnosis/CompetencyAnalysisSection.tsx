@@ -462,7 +462,7 @@ export function CompetencyAnalysisSection({
           onClick={() => setShowConfirmModal(false)}
         >
           <div
-            className="mx-4 w-full max-w-sm rounded-xl bg-white p-5 shadow-xl dark:bg-gray-800"
+            className="mx-4 w-full max-w-sm rounded-xl bg-white p-5 shadow-xl dark:bg-bg-secondary"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">AI 역량 종합 분석</h3>
@@ -475,12 +475,12 @@ export function CompetencyAnalysisSection({
                 : "변경된 레코드만 분석하고, 기존 결과는 캐시에서 복원합니다."}
             </p>
             <div className="mb-4">
-              <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] select-none">
+              <label className="flex items-center gap-1.5 text-2xs text-[var(--text-tertiary)] select-none">
                 <input
                   type="checkbox"
                   checked={forceReanalyze}
                   onChange={(e) => setForceReanalyze(e.target.checked)}
-                  className="h-3 w-3 rounded border-gray-300"
+                  className="h-3 w-3 rounded border-border"
                 />
                 캐시 무시 (전체 재분석)
               </label>
@@ -488,7 +488,7 @@ export function CompetencyAnalysisSection({
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-bg-tertiary dark:hover:bg-gray-700"
               >
                 취소
               </button>
@@ -565,10 +565,10 @@ export function CompetencyAnalysisSection({
             <button
               onClick={() => setComparisonMode((v) => !v)}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors",
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-3xs font-medium transition-colors",
                 comparisonMode
                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
-                  : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+                  : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-800",
               )}
             >
               <GitCompare className="h-3 w-3" />
@@ -579,7 +579,7 @@ export function CompetencyAnalysisSection({
 
         {/* 학년 탭 */}
         {availableGrades.length > 1 && (
-          <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+          <div className="mb-3 flex gap-1 rounded-lg bg-bg-tertiary p-1 dark:bg-bg-secondary">
             {availableGrades.map((g) => (
               <button
                 key={g}
@@ -590,7 +590,7 @@ export function CompetencyAnalysisSection({
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                   selectedGrade === g
-                    ? "bg-white text-[var(--text-primary)] shadow-sm dark:bg-gray-700"
+                    ? "bg-white text-[var(--text-primary)] shadow-sm dark:bg-bg-tertiary"
                     : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
                 )}
               >
@@ -616,14 +616,14 @@ export function CompetencyAnalysisSection({
                 key={t.key}
                 onClick={() => setSelectedType(t.key)}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-2xs font-medium transition-colors",
                   selectedType === t.key
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                    : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+                    : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-800",
                 )}
               >
                 {t.label}
-                <span className="ml-1 text-[10px] opacity-60">{t.count}</span>
+                <span className="ml-1 text-3xs opacity-60">{t.count}</span>
               </button>
             ))}
         </div>
@@ -668,14 +668,14 @@ export function CompetencyAnalysisSection({
             return (
               <div
                 key={rec.id}
-                className={cn("rounded-lg border border-gray-200 dark:border-gray-700", isAnalyzing && "animate-pulse")}
+                className={cn("rounded-lg border border-border dark:border-border", isAnalyzing && "animate-pulse")}
               >
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
                     {qualityBadgeNode}
                     {wasCached && batchMutation.isSuccess && (
-                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                      <span className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary">
                         캐시
                       </span>
                     )}
@@ -683,7 +683,7 @@ export function CompetencyAnalysisSection({
                   <button
                     onClick={() => analyzeRecord(rec)}
                     disabled={isAnalyzing || batchMutation.isPending || rec.content.trim().length < 20}
-                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-3xs text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
                   >
                     {isAnalyzing ? (
                       <span className="h-3 w-3 animate-spin rounded-full border border-blue-300 border-t-blue-600" />
@@ -693,7 +693,7 @@ export function CompetencyAnalysisSection({
                     {isAnalyzing ? "분석 중..." : "분석"}
                   </button>
                 </div>
-                <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
+                <div className="border-t border-border px-3 py-2 dark:border-border">
                   <p className="text-xs text-[var(--text-secondary)] line-clamp-2">{rec.content.slice(0, 150)}...</p>
                 </div>
               </div>

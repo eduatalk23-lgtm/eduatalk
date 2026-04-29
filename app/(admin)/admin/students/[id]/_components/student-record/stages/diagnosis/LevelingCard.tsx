@@ -17,7 +17,7 @@ function levelText(level: DifficultyLevel | null): string {
 }
 
 const LEVEL_COLORS: Record<DifficultyLevel, string> = {
-  1: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  1: "bg-bg-tertiary text-text-primary dark:bg-bg-secondary dark:text-text-disabled",
   2: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
   3: "bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300",
   4: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
@@ -27,7 +27,7 @@ const LEVEL_COLORS: Record<DifficultyLevel, string> = {
 function LevelBadge({ level }: { level: DifficultyLevel | null }) {
   if (level === null) {
     return (
-      <span className="rounded px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+      <span className="rounded px-2 py-0.5 text-xs font-medium bg-bg-tertiary text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary">
         미분석
       </span>
     );
@@ -105,8 +105,8 @@ export function LevelingCard({ leveling }: LevelingCardProps) {
               item.label === "적용 레벨" && "ring-2 ring-violet-300 dark:ring-violet-700",
             )}
           >
-            <p className="text-[11px] font-medium text-[var(--text-secondary)]">{item.label}</p>
-            <p className="text-[10px] text-[var(--text-tertiary)]">{item.sublabel}</p>
+            <p className="text-2xs font-medium text-[var(--text-secondary)]">{item.label}</p>
+            <p className="text-3xs text-[var(--text-tertiary)]">{item.sublabel}</p>
             <div className="mt-1.5">
               <LevelBadge level={item.level} />
             </div>

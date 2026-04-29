@@ -239,14 +239,14 @@ export function BypassMajorPanel({
           </div>
           {/* 근거 정보 */}
           {diagnosisContext && discoverySource === "diagnosis_recommended" && (
-            <div className="mt-1.5 flex flex-col gap-1 rounded-md bg-[var(--surface-secondary)] px-3 py-2 text-[11px]">
+            <div className="mt-1.5 flex flex-col gap-1 rounded-md bg-[var(--surface-secondary)] px-3 py-2 text-2xs">
               {diagnosisContext.recordDirection && (
                 <p className="text-[var(--text-secondary)]">
                   <span className="font-medium text-[var(--text-primary)]">기록 방향</span>{" "}
                   {diagnosisContext.recordDirection}
                   {diagnosisContext.directionStrength && (
                     <span className={cn(
-                      "ml-1.5 rounded px-1 py-0.5 text-[10px] font-medium",
+                      "ml-1.5 rounded px-1 py-0.5 text-3xs font-medium",
                       diagnosisContext.directionStrength === "strong" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
                       diagnosisContext.directionStrength === "moderate" && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
                       diagnosisContext.directionStrength === "weak" && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
@@ -301,7 +301,7 @@ export function BypassMajorPanel({
               전체 일괄 분석
             </button>
           </div>
-          <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+          <p className="mt-1 text-3xs text-[var(--text-tertiary)]">
             개별 클릭으로 목표 학과 설정 또는 &quot;전체 일괄 분석&quot;으로 모든 추천 학과를 한번에 분석합니다.
           </p>
         </div>
@@ -313,7 +313,7 @@ export function BypassMajorPanel({
           <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
             자동 추천을 위해 진단 또는 희망 전공 설정이 필요합니다
           </p>
-          <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">
+          <p className="mt-1 text-3xs text-amber-700 dark:text-amber-400">
             AI 초기 분석을 먼저 실행하거나, 학생 프로필에서 희망 전공을 설정하면 목표 학과가 자동으로 추천됩니다.
             아래 검색으로 직접 목표 학과를 선택할 수도 있습니다.
           </p>
@@ -326,7 +326,7 @@ export function BypassMajorPanel({
           <Compass className="h-3.5 w-3.5" />
           목표 학과 (1지망)
           {suggestions.length > 0 && targetDept && (
-            <span className="text-[10px] font-normal text-[var(--text-tertiary)]">
+            <span className="text-3xs font-normal text-[var(--text-tertiary)]">
               — 또는 위 추천 학과를 선택하세요
             </span>
           )}
@@ -335,7 +335,7 @@ export function BypassMajorPanel({
         {/* 선택 후에도 다른 추천 학과로 빠른 전환 */}
         {targetDept && suggestions.length > 0 && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] text-[var(--text-tertiary)]">추천:</span>
+            <span className="text-3xs text-[var(--text-tertiary)]">추천:</span>
             {suggestions
               .filter((s) => s.department.id !== targetDept.id)
               .map((s) => (
@@ -343,7 +343,7 @@ export function BypassMajorPanel({
                   key={s.department.id}
                   type="button"
                   onClick={() => setTargetDept(s.department)}
-                  className="rounded-md border border-[var(--border-secondary)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)] transition-colors hover:border-primary-300 hover:text-primary-600"
+                  className="rounded-md border border-[var(--border-secondary)] px-2 py-0.5 text-3xs text-[var(--text-secondary)] transition-colors hover:border-primary-300 hover:text-primary-600"
                 >
                   {s.department.department_name} · {s.department.university_name}
                 </button>
@@ -352,7 +352,7 @@ export function BypassMajorPanel({
         )}
         {targetDept && (
           <div className="mt-2 flex flex-col gap-2">
-          <p className="text-[10px] text-[var(--text-tertiary)]">
+          <p className="text-3xs text-[var(--text-tertiary)]">
             <strong>추천</strong>: 커리큘럼 유사도만으로 빠른 후보 생성 · <strong>종합 분석</strong>: 커리큘럼+배치+역량 3중 필터 정밀 분석
           </p>
           <div className="flex items-center gap-3">
@@ -422,7 +422,7 @@ export function BypassMajorPanel({
 
       {pairsLoading && targetDept && (
         <div className="flex items-center gap-2 py-2 text-xs text-[var(--text-tertiary)]">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-gray-600" />
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border border-border border-t-gray-600" />
           사전 매핑 데이터 불러오는 중...
         </div>
       )}
@@ -454,7 +454,7 @@ export function BypassMajorPanel({
               "inline-flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-sm font-medium transition-colors",
               tab === t.key
                 ? "border-primary-500 text-primary-600"
-                : "border-transparent text-gray-500 hover:text-gray-700",
+                : "border-transparent text-text-tertiary hover:text-text-primary",
               t.disabled && "cursor-not-allowed opacity-40",
             )}
           >

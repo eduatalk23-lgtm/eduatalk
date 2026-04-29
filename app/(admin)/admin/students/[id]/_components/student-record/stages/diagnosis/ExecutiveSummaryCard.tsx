@@ -56,7 +56,7 @@ export function ExecutiveSummaryCard({ summary }: Props) {
       <div className="grid grid-cols-2 gap-2">
         {summary.topStrengths.length > 0 && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 dark:border-emerald-800 dark:bg-emerald-900/10">
-            <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">강점 역량</p>
+            <p className="text-3xs font-semibold text-emerald-700 dark:text-emerald-400">강점 역량</p>
             <ul className="mt-1 space-y-0.5">
               {summary.topStrengths.map((s) => (
                 <li key={s.competencyId} className="text-xs text-emerald-600 dark:text-emerald-300">
@@ -68,7 +68,7 @@ export function ExecutiveSummaryCard({ summary }: Props) {
         )}
         {summary.topWeaknesses.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 dark:border-amber-800 dark:bg-amber-900/10">
-            <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">보완 역량</p>
+            <p className="text-3xs font-semibold text-amber-700 dark:text-amber-400">보완 역량</p>
             <ul className="mt-1 space-y-0.5">
               {summary.topWeaknesses.map((s) => (
                 <li key={s.competencyId} className="text-xs text-amber-600 dark:text-amber-300">
@@ -84,7 +84,7 @@ export function ExecutiveSummaryCard({ summary }: Props) {
       {summary.topUniversityMatches && summary.topUniversityMatches.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {summary.topUniversityMatches.map((m) => (
-            <span key={m.label} className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-900/10 dark:text-violet-400">
+            <span key={m.label} className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-3xs font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-900/10 dark:text-violet-400">
               {m.label} {m.grade} ({m.score})
             </span>
           ))}
@@ -119,7 +119,7 @@ export function ExecutiveSummaryCard({ summary }: Props) {
 function SectionBox({ title, content }: { title: string; content: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-2">
-      <p className="text-[10px] font-semibold text-[var(--text-tertiary)]">{title}</p>
+      <p className="text-3xs font-semibold text-[var(--text-tertiary)]">{title}</p>
       <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">{content}</p>
     </div>
   );

@@ -46,7 +46,7 @@ export function ThemeConvergencePanel({
         <span className="text-xs font-semibold text-[var(--text-secondary)]">
           통합 테마 {hyperedges.length}건
         </span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">3+ 레코드 수렴</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">3+ 레코드 수렴</span>
       </div>
       <div className="flex flex-col gap-2">
         {hyperedges.map((h) => (
@@ -76,11 +76,11 @@ function HyperedgeCard({ hyperedge }: { hyperedge: PersistedHyperedge }) {
         </p>
         <div className="flex shrink-0 items-center gap-1">
           {isInferred && (
-            <span className="rounded-sm bg-violet-500 px-1 text-[10px] font-bold text-white">추론</span>
+            <span className="rounded-sm bg-violet-500 px-1 text-3xs font-bold text-white">추론</span>
           )}
           <span
             className={cn(
-              "rounded-sm px-1.5 py-0.5 text-[10px] font-semibold",
+              "rounded-sm px-1.5 py-0.5 text-3xs font-semibold",
               confPct >= 85
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                 : confPct >= 70
@@ -92,7 +92,7 @@ function HyperedgeCard({ hyperedge }: { hyperedge: PersistedHyperedge }) {
           </span>
         </div>
       </div>
-      <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+      <p className="mt-1 text-3xs text-[var(--text-tertiary)]">
         {hyperedge.member_count}개 레코드
         {hyperedge.shared_competencies && hyperedge.shared_competencies.length > 0
           ? ` · 공유역량 ${localizeCompetencyList(hyperedge.shared_competencies).join("/")}`
@@ -103,7 +103,7 @@ function HyperedgeCard({ hyperedge }: { hyperedge: PersistedHyperedge }) {
         {(hyperedge.members as HyperedgeMember[]).map((m, i) => (
           <li
             key={`${m.recordType}:${m.recordId}:${i}`}
-            className="truncate text-[11px] text-[var(--text-secondary)]"
+            className="truncate text-2xs text-[var(--text-secondary)]"
           >
             <span className="mr-1 opacity-60">•</span>
             {m.grade ? `${m.grade}학년 · ` : ""}
@@ -113,7 +113,7 @@ function HyperedgeCard({ hyperedge }: { hyperedge: PersistedHyperedge }) {
       </ul>
 
       {hyperedge.evidence && (
-        <p className="mt-1.5 border-t border-dashed border-[var(--border-subtle)] pt-1.5 text-[10px] italic text-[var(--text-tertiary)]">
+        <p className="mt-1.5 border-t border-dashed border-[var(--border-subtle)] pt-1.5 text-3xs italic text-[var(--text-tertiary)]">
           {hyperedge.evidence}
         </p>
       )}

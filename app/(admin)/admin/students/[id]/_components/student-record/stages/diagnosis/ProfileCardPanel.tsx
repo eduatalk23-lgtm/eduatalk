@@ -76,7 +76,7 @@ function GradeCard({ card }: { card: PersistedProfileCard }) {
             {card.recurring_quality_issues.map((issue) => (
               <span
                 key={issue.code}
-                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-3xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
               >
                 {issue.code} ×{issue.count}
               </span>
@@ -135,7 +135,7 @@ function GradeCard({ card }: { card: PersistedProfileCard }) {
         <div className="mt-3 rounded-md border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-800 dark:bg-indigo-900/20">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">AI 일관성 서사</span>
-            <span className="text-[10px] text-indigo-600/70 dark:text-indigo-400/70">
+            <span className="text-3xs text-indigo-600/70 dark:text-indigo-400/70">
               신뢰도 {Math.round(card.interest_consistency.confidence * 100)}%
             </span>
           </div>
@@ -200,12 +200,12 @@ function TrendBox({
       <div className="mb-1 flex items-center gap-1.5">
         <meta.Icon size={12} className={meta.color} />
         <span className="text-xs font-semibold text-[var(--text-primary)]">{label}</span>
-        <span className={cn("text-[10px]", meta.color)}>{meta.label}</span>
-        {detail && <span className="ml-auto text-[10px] text-[var(--text-tertiary)]">{detail}</span>}
+        <span className={cn("text-3xs", meta.color)}>{meta.label}</span>
+        {detail && <span className="ml-auto text-3xs text-[var(--text-tertiary)]">{detail}</span>}
       </div>
       <div className="flex flex-wrap gap-2">
         {points.map((p) => (
-          <span key={p.year} className="text-[10px] text-[var(--text-secondary)]">
+          <span key={p.year} className="text-3xs text-[var(--text-secondary)]">
             {p.year}: <strong>{p.value}</strong>
           </span>
         ))}

@@ -386,7 +386,7 @@ export function SetekEditor({
             <button
               onClick={() => setShowAddForm(true)}
               disabled={availableSubjects.length === 0}
-              className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:border-gray-500"
+              className="rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:hover:border-gray-500"
             >
               + 과목 추가
             </button>
@@ -407,7 +407,7 @@ export function SetekEditor({
             {reflectionSummary.subjects.map((s) => (
               <div key={s.subjectName} className="flex items-center gap-2">
                 <span className="w-20 shrink-0 truncate text-xs text-[var(--text-secondary)]">{s.subjectName}</span>
-                <div className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 6 }}>
+                <div className="flex-1 rounded-full bg-bg-tertiary dark:bg-bg-secondary" style={{ height: 6 }}>
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",

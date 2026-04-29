@@ -289,7 +289,7 @@ function ProposalItemCard({
           return (
             <span
               key={code}
-              className="inline-flex items-center gap-1 rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-1.5 py-0.5 text-[11px]"
+              className="inline-flex items-center gap-1 rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-1.5 py-0.5 text-2xs"
             >
               <span className="text-[var(--text-secondary)]">
                 {CODE_KO[code] ?? code}
@@ -355,7 +355,7 @@ function ProposalItemCard({
             {item.evidenceRefs.map((ref, i) => (
               <span
                 key={i}
-                className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-1.5 py-0.5 text-2xs text-[var(--text-secondary)]"
                 title={ref}
               >
                 {translateEvidenceRef(ref)}
@@ -505,7 +505,7 @@ function TagChip({
         : "border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-secondary)]";
   return (
     <span
-      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] ${toneCls}`}
+      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-3xs ${toneCls}`}
     >
       {children}
     </span>
@@ -574,7 +574,7 @@ function StudentContextHeader({
         </div>
       )}
       {state && (
-        <p className="mt-2 text-[11px] text-[var(--text-tertiary)]">
+        <p className="mt-2 text-2xs text-[var(--text-tertiary)]">
           기준: {state.asOfLabel} · 데이터 완결성{" "}
           {Math.round(state.completenessRatio * 100)}%
         </p>
@@ -594,7 +594,7 @@ function RewardCell({
 }) {
   return (
     <div className="flex flex-col items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1">
-      <span className="text-[10px] text-[var(--text-tertiary)]">{label}</span>
+      <span className="text-3xs text-[var(--text-tertiary)]">{label}</span>
       <span
         className={`font-semibold text-[var(--text-primary)] ${big ? "text-base" : "text-sm"}`}
       >
@@ -647,7 +647,7 @@ function DeltaSummary({
         {chips.map((c, i) => (
           <span
             key={i}
-            className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[11px] text-[var(--text-primary)]"
+            className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-2xs text-[var(--text-primary)]"
           >
             {c}
           </span>
@@ -681,7 +681,7 @@ function BlueprintSection({
         <h4 className="font-semibold text-[var(--text-secondary)]">
           Blueprint — 3단 탐구 계획
         </h4>
-        <div className="flex gap-1 text-[10px] text-[var(--text-tertiary)]">
+        <div className="flex gap-1 text-3xs text-[var(--text-tertiary)]">
           {origin && (
             <span className="rounded bg-[var(--bg-secondary)] px-1.5 py-0.5">
               {origin}
@@ -712,10 +712,10 @@ function TierCell({
 }) {
   return (
     <div className="rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-2">
-      <div className="mb-0.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
+      <div className="mb-0.5 text-3xs font-semibold text-[var(--text-tertiary)]">
         {label}
       </div>
-      <div className="text-[11px] text-[var(--text-primary)]">
+      <div className="text-2xs text-[var(--text-primary)]">
         {theme ?? (
           <span className="italic text-[var(--text-tertiary)]">미설정</span>
         )}
@@ -772,7 +772,7 @@ function BlueprintGapSection({
               <span className="font-medium text-[var(--text-primary)]">
                 {CODE_KO[a.code] ?? a.code}
               </span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">
+              <span className="text-3xs text-[var(--text-tertiary)]">
                 [{PATTERN_KO[a.pattern]}]
               </span>
               <span className="text-[var(--text-secondary)]">
@@ -781,7 +781,7 @@ function BlueprintGapSection({
               <span className="text-[var(--text-tertiary)]">
                 (diff {a.gapSize})
               </span>
-              <span className="w-full text-[10px] text-[var(--text-tertiary)]">
+              <span className="w-full text-3xs text-[var(--text-tertiary)]">
                 {a.rationale}
               </span>
             </li>
@@ -819,15 +819,15 @@ function PastJobsSection({
                 key={j.jobId}
                 className="rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1.5"
               >
-                <div className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
+                <div className="flex flex-wrap items-baseline gap-x-2 text-2xs">
                   <span className="text-[var(--text-tertiary)]">
                     {formatDate(j.triggeredAt)}
                   </span>
-                  <span className="rounded bg-[var(--bg-primary)] px-1 py-0.5 text-[10px]">
+                  <span className="rounded bg-[var(--bg-primary)] px-1 py-0.5 text-3xs">
                     {j.engine}
                   </span>
                   {j.model && (
-                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                    <span className="text-3xs text-[var(--text-tertiary)]">
                       {j.model}
                     </span>
                   )}
@@ -851,7 +851,7 @@ function PastJobsSection({
                   )}
                 </div>
                 {j.topItemNames.length > 0 && (
-                  <div className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+                  <div className="mt-1 text-3xs text-[var(--text-tertiary)]">
                     {j.topItemNames.join(" / ")}
                   </div>
                 )}
@@ -956,7 +956,7 @@ function ExecutionMetadataSection({
           />
         </dl>
         {meta.engineError && (
-          <div className="mt-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="mt-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-2xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             <span className="font-semibold">엔진 에러:</span> {meta.engineError}
           </div>
         )}
@@ -985,7 +985,7 @@ function ConfidenceBadge({ report }: { report: ConfidenceSelfReport }) {
   ].join("\n");
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${color}`}
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-3xs font-semibold ${color}`}
       title={tooltipLines}
     >
       {label}
@@ -1004,12 +1004,12 @@ function MetaCell({
 }) {
   return (
     <div className="flex items-baseline gap-1">
-      <dt className="text-[10px] text-[var(--text-tertiary)]">{label}</dt>
+      <dt className="text-3xs text-[var(--text-tertiary)]">{label}</dt>
       <dd
         className={
           muted
-            ? "text-[11px] text-[var(--text-tertiary)]"
-            : "text-[11px] font-medium text-[var(--text-primary)]"
+            ? "text-2xs text-[var(--text-tertiary)]"
+            : "text-2xs font-medium text-[var(--text-primary)]"
         }
       >
         {value}

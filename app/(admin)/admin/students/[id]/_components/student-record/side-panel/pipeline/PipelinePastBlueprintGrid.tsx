@@ -45,7 +45,7 @@ export function PipelinePastBlueprintGrid({
 
   return (
     <div>
-      <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+      <h4 className="text-2xs font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
         Past / Blueprint Pipeline
       </h4>
 
@@ -54,10 +54,10 @@ export function PipelinePastBlueprintGrid({
         {showPast && (
           <div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-t-md mb-1 bg-blue-50 dark:bg-blue-950/20">
-              <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+              <span className="text-2xs font-semibold text-blue-700 dark:text-blue-300">
                 A층 · 과거 분석
               </span>
-              <span className="text-[10px] text-blue-400 dark:text-blue-500">
+              <span className="text-3xs text-blue-400 dark:text-blue-500">
                 NEIS 기록 기반 (k≥1)
               </span>
             </div>
@@ -68,7 +68,7 @@ export function PipelinePastBlueprintGrid({
               {PAST_ANALYTICS_PHASE_GROUPS.map((pg) => (
                 <div
                   key={pg.label}
-                  className="text-center text-[11px] font-semibold text-[var(--text-tertiary)] pb-0.5"
+                  className="text-center text-2xs font-semibold text-[var(--text-tertiary)] pb-0.5"
                 >
                   {pg.label}
                 </div>
@@ -88,7 +88,7 @@ export function PipelinePastBlueprintGrid({
                 >
                   과거
                 </span>
-                <span className="text-[9px] font-medium px-1 py-px rounded-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                <span className="text-3xs font-medium px-1 py-px rounded-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                   A층
                 </span>
               </div>
@@ -154,10 +154,10 @@ export function PipelinePastBlueprintGrid({
         {showBlueprint && (
           <div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-t-md mb-1 bg-amber-50 dark:bg-amber-950/20">
-              <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+              <span className="text-2xs font-semibold text-amber-700 dark:text-amber-300">
                 B층 · 수렴 설계
               </span>
-              <span className="text-[10px] text-amber-500 dark:text-amber-400">
+              <span className="text-3xs text-amber-500 dark:text-amber-400">
                 진로→3년 Top-Down (k&lt;3)
               </span>
             </div>
@@ -168,7 +168,7 @@ export function PipelinePastBlueprintGrid({
               {BLUEPRINT_PHASE_GROUPS.map((pg) => (
                 <div
                   key={pg.label}
-                  className="text-center text-[11px] font-semibold text-[var(--text-tertiary)] pb-0.5"
+                  className="text-center text-2xs font-semibold text-[var(--text-tertiary)] pb-0.5"
                 >
                   {pg.label}
                 </div>
@@ -188,7 +188,7 @@ export function PipelinePastBlueprintGrid({
                 >
                   설계
                 </span>
-                <span className="text-[9px] font-medium px-1 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                <span className="text-3xs font-medium px-1 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                   B층
                 </span>
               </div>

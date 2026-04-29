@@ -489,7 +489,7 @@ export function StudentRecordClient({
                 <span>{stage.emoji}</span>
                 {stage.label}
               </span>
-              <div className="h-0.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+              <div className="h-0.5 w-full rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
                 <div className="h-full rounded-full bg-indigo-400 transition-all duration-500" style={{ width: `${completion}%` }} />
               </div>
             </button>
@@ -557,7 +557,7 @@ export function StudentRecordClient({
 
         <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
           {/* ─── 문서 헤더 ────────────────────────── */}
-          <div className="mb-6 border-b-2 border-gray-400 pb-3 text-center dark:border-gray-300">
+          <div className="mb-6 border-b-2 border-gray-400 pb-3 text-center dark:border-border">
             <h1 className="text-xl font-bold tracking-wide text-[var(--text-primary)] md:text-2xl">
               학 교 생 활 기 록 부
             </h1>
@@ -602,8 +602,8 @@ export function StudentRecordClient({
               </table>
             </div>
             <div className="hidden shrink-0 sm:block">
-              <div className="flex h-full w-[120px] items-center justify-center border border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800">
-                <User className="size-12 text-gray-300 dark:text-gray-600" />
+              <div className="flex h-full w-[120px] items-center justify-center border border-gray-400 bg-bg-secondary dark:border-gray-500 dark:bg-bg-secondary">
+                <User className="size-12 text-text-disabled dark:text-text-secondary" />
               </div>
             </div>
           </div>

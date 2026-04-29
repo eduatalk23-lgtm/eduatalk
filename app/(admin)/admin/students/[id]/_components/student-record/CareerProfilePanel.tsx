@@ -260,7 +260,7 @@ function EditForm({
           <select
             value={tier1}
             onChange={(e) => setTier1(e.target.value as CareerTier1Code | "")}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            className="w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm dark:border-border dark:bg-bg-secondary"
           >
             <option value="">선택</option>
             {CAREER_FIELD_OPTIONS.map((o) => (
@@ -277,7 +277,7 @@ function EditForm({
             onChange={(e) => setTier2(e.target.value)}
             disabled={!tier1}
             className={cn(
-              "w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800",
+              "w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm dark:border-border dark:bg-bg-secondary",
               !tier1 && "opacity-50",
             )}
           >
@@ -296,7 +296,7 @@ function EditForm({
             onChange={(e) => setTier3(e.target.value ? Number(e.target.value) : "")}
             disabled={!tier2 || isPending}
             className={cn(
-              "w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800",
+              "w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm dark:border-border dark:bg-bg-secondary",
               (!tier2 || isPending) && "opacity-50",
             )}
           >
@@ -314,7 +314,7 @@ function EditForm({
         <div className="flex flex-col gap-2 sm:flex-row">
           {([0, 1, 2] as const).map((idx) => (
             <div key={idx} className="flex-1">
-              <div className="mb-0.5 text-[10px] text-[var(--text-placeholder)]">{idx + 1}순위</div>
+              <div className="mb-0.5 text-3xs text-[var(--text-placeholder)]">{idx + 1}순위</div>
               <SchoolSelect
                 type="대학교"
                 value={univIds[idx]}
@@ -352,7 +352,7 @@ function EditForm({
         <button
           type="button"
           onClick={onCancel}
-          className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
+          className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-bg-tertiary dark:border-border dark:hover:bg-gray-800"
         >
           <X className="h-3.5 w-3.5" />
           취소

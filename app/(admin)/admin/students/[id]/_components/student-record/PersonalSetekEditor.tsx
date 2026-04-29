@@ -97,7 +97,7 @@ export function PersonalSetekEditor({
       ) : (
         <button
           onClick={() => setShowAddForm(true)}
-          className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600 dark:hover:border-gray-500"
+          className="rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-border dark:hover:border-gray-500"
         >
           + 개인 세특 추가
         </button>
@@ -154,7 +154,7 @@ function PersonalSetekCard({
   });
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white p-4 dark:border-border dark:bg-bg-primary">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-medium text-[var(--text-primary)]">{personalSetek.title}</h4>
@@ -171,7 +171,7 @@ function PersonalSetekCard({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={5}
-        className="w-full resize-y rounded-md border border-gray-200 bg-[var(--bg-surface)] p-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700"
+        className="w-full resize-y rounded-md border border-border bg-[var(--bg-surface)] p-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-border"
         placeholder="개인 세특 내용을 입력하세요..."
       />
       <div className="mt-2 flex justify-end">
@@ -240,13 +240,13 @@ function AddPersonalSetekForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목 *"
-          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
         />
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={4}
-          className="w-full resize-y rounded-md border border-gray-200 bg-white p-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
+          className="w-full resize-y rounded-md border border-border bg-white p-3 text-sm placeholder:text-text-tertiary focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-border dark:bg-bg-primary"
           placeholder="개인 세특 내용을 입력하세요..."
         />
         <div className="flex items-center justify-between">

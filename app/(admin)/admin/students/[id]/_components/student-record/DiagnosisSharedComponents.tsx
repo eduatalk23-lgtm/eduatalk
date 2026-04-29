@@ -24,7 +24,7 @@ export function TagList({ label, items, matchItems }: { label: string; items: st
         {items.map((s) => {
           const isMatch = matchItems?.includes(s);
           return (
-            <span key={s} className={cn("rounded-full px-1.5 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
+            <span key={s} className={cn("rounded-full px-1.5 py-0.5 text-3xs", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-bg-tertiary dark:bg-bg-tertiary")}>
               {isMatch && "✓ "}{s}
             </span>
           );
@@ -53,7 +53,7 @@ export function FormRow({ label, children, diff }: { label: string; children: Re
 const PRIORITY_COLORS: Record<string, string> = {
   "높음": "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400",
   "중간": "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
-  "낮음": "text-gray-500 bg-gray-50 dark:bg-gray-800 dark:text-gray-400",
+  "낮음": "text-text-tertiary bg-bg-secondary dark:bg-bg-secondary dark:text-text-tertiary",
 };
 
 export function ImprovementsList({ items }: { items: Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> }) {
@@ -62,15 +62,15 @@ export function ImprovementsList({ items }: { items: Array<{ priority: string; a
       <span className="w-16 shrink-0 text-[var(--text-tertiary)]">개선전략</span>
       <div className="flex flex-1 flex-col gap-1.5">
         {items.map((imp, i) => (
-          <div key={i} className="rounded border border-gray-200 p-1.5 dark:border-gray-700">
+          <div key={i} className="rounded border border-border p-1.5 dark:border-border">
             <div className="flex items-center gap-1.5">
-              <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", PRIORITY_COLORS[imp.priority] ?? PRIORITY_COLORS["중간"])}>
+              <span className={cn("rounded px-1 py-0.5 text-3xs font-medium", PRIORITY_COLORS[imp.priority] ?? PRIORITY_COLORS["중간"])}>
                 {imp.priority}
               </span>
-              <span className="text-[10px] font-medium text-[var(--text-primary)]">{imp.area}</span>
+              <span className="text-3xs font-medium text-[var(--text-primary)]">{imp.area}</span>
             </div>
-            {imp.gap && <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{imp.gap}</p>}
-            <p className="mt-0.5 text-[10px] text-blue-600 dark:text-blue-400">{imp.action}</p>
+            {imp.gap && <p className="mt-0.5 text-3xs text-[var(--text-tertiary)]">{imp.gap}</p>}
+            <p className="mt-0.5 text-3xs text-blue-600 dark:text-blue-400">{imp.action}</p>
           </div>
         ))}
       </div>

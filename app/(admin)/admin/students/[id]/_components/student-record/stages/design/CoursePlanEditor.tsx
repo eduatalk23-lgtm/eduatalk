@@ -184,8 +184,8 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-        <div className="h-20 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+        <div className="h-4 w-1/3 animate-pulse rounded bg-bg-tertiary dark:bg-bg-tertiary" />
+        <div className="h-20 w-full animate-pulse rounded bg-bg-tertiary dark:bg-bg-tertiary" />
       </div>
     );
   }
@@ -288,7 +288,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
               const el = document.querySelector("[data-section-id='sec-roadmap']");
               el?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
-            className="shrink-0 rounded bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-violet-700"
+            className="shrink-0 rounded bg-violet-600 px-2 py-0.5 text-3xs font-medium text-white hover:bg-violet-700"
           >
             로드맵 이동
           </button>
@@ -326,7 +326,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
                   {gradeCount}과목
                 </span>
                 {isPast && (
-                  <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                  <span className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-text-tertiary dark:bg-bg-tertiary dark:text-text-tertiary">
                     과거
                   </span>
                 )}
@@ -351,7 +351,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
                             <button
                               onClick={() => bulkConfirmMutation.mutate({ grade, semester })}
                               disabled={bulkConfirmMutation.isPending}
-                              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-3xs font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
                             >
                               <CheckCheck className="h-3 w-3" />
                               일괄 확정
@@ -362,7 +362,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
                               addingTo?.grade === grade && addingTo?.semester === semester
                                 ? null : { grade, semester },
                             )}
-                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]"
+                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-3xs font-medium text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]"
                           >
                             <Plus className="h-3 w-3" />
                             추가
@@ -548,7 +548,7 @@ function AdequacyBar({
         <span className="text-[var(--text-secondary)]">{label}</span>
         <span className="font-medium text-[var(--text-primary)]">{score}%</span>
       </div>
-      <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      <div className="mt-1 h-2 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
         <div
           className={cn(
             "h-full rounded-full transition-all duration-300",
@@ -586,7 +586,7 @@ function SubjectSearchInput({
   }, [onChange, ctxSubjects]);
 
   return (
-    <div className="mt-2 rounded-md border border-blue-200 bg-white p-2 dark:border-blue-800 dark:bg-gray-900">
+    <div className="mt-2 rounded-md border border-blue-200 bg-white p-2 dark:border-blue-800 dark:bg-bg-primary">
       <input
         type="text"
         value={value}

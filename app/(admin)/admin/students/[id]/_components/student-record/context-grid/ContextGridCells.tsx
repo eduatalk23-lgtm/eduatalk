@@ -189,7 +189,7 @@ export function GridCell({
               {d.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-0.5">
                   {d.keywords.slice(0, 5).map((kw) => (
-                    <span key={kw} className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{kw}</span>
+                    <span key={kw} className="rounded bg-amber-50 px-1.5 py-0.5 text-2xs text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{kw}</span>
                   ))}
                 </div>
               )}
@@ -220,7 +220,7 @@ export function GridCell({
               {d.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-0.5">
                   {d.keywords.slice(0, 5).map((kw) => (
-                    <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+                    <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-2xs text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
                   ))}
                 </div>
               )}
@@ -636,7 +636,7 @@ export function DraftAnalysisGridCell({
   if (draftTags.length === 0 && perspective === "ai") {
     return (
       <div className="flex h-full items-center justify-center">
-        <span className="rounded bg-gray-50 px-2 py-1 text-xs text-[var(--text-tertiary)] dark:bg-gray-800">
+        <span className="rounded bg-bg-secondary px-2 py-1 text-xs text-[var(--text-tertiary)] dark:bg-bg-secondary">
           가안분석 태그 없음 — 파이프라인 P8 실행 필요
         </span>
       </div>
@@ -699,10 +699,10 @@ export function ChatWithGuideRecommendation({
           type="button"
           onClick={() => { setShowDirectionPanel((v) => !v); if (!showDirectionPanel) setShowGuidePanel(false); }}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors",
             showDirectionPanel
               ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-              : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+              : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-800",
           )}
         >
           <Compass className="h-3 w-3" />
@@ -712,10 +712,10 @@ export function ChatWithGuideRecommendation({
           type="button"
           onClick={() => { setShowGuidePanel((v) => !v); if (!showGuidePanel) setShowDirectionPanel(false); }}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors",
             showGuidePanel
               ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-              : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+              : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-800",
           )}
         >
           <BookOpen className="h-3 w-3" />

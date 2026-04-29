@@ -74,7 +74,7 @@ export function GlobalLayerBar({
               onClick={() => onLayerChange(key)}
               title={def.description}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors whitespace-nowrap",
                 active
                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
                   : "text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]",
@@ -89,7 +89,7 @@ export function GlobalLayerBar({
 
       {/* ─── 2단: 관점 버튼 (해당 레이어가 관점 축을 가질 때만, 중앙 정렬) ─── */}
       <div className="flex items-center justify-center gap-0.5">
-        <span className="mr-1 text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
+        <span className="mr-1 text-3xs uppercase tracking-wider text-[var(--text-tertiary)]">
           관점
         </span>
         {hasPerspective ? (
@@ -101,7 +101,7 @@ export function GlobalLayerBar({
                 type="button"
                 onClick={() => onPerspectiveChange(p)}
                 className={cn(
-                  "rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
+                  "rounded px-2 py-0.5 text-3xs font-medium transition-colors",
                   active
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                     : "text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]",
@@ -112,7 +112,7 @@ export function GlobalLayerBar({
             );
           })
         ) : (
-          <span className="text-[10px] italic text-[var(--text-tertiary)]">
+          <span className="text-3xs italic text-[var(--text-tertiary)]">
             단일 뷰 (관점 없음)
           </span>
         )}

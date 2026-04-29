@@ -43,7 +43,7 @@ export function ConfirmStatusBadge({
   const meta = CONFIRM_STATUS_META[resolvedStatus];
   const sizeClasses =
     size === "xs"
-      ? "px-1.5 py-0.5 text-[10px]"
+      ? "px-1.5 py-0.5 text-3xs"
       : "px-2 py-0.5 text-xs";
 
   return (

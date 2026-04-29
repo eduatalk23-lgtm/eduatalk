@@ -81,7 +81,7 @@ export function AddRoadmapForm({
           <select
             value={area}
             onChange={(e) => setArea(e.target.value)}
-            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             {AREA_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -90,7 +90,7 @@ export function AddRoadmapForm({
           <select
             value={targetGrade}
             onChange={(e) => setTargetGrade(Number(e.target.value))}
-            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             <option value={1}>1학년</option>
             <option value={2}>2학년</option>
@@ -99,7 +99,7 @@ export function AddRoadmapForm({
           <select
             value={semester ?? ""}
             onChange={(e) => setSemester(e.target.value ? Number(e.target.value) : null)}
-            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             <option value="">학기 미지정</option>
             <option value={1}>1학기</option>
@@ -108,7 +108,7 @@ export function AddRoadmapForm({
           <select
             value={storylineId}
             onChange={(e) => setStorylineId(e.target.value)}
-            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             <option value="">스토리라인 미연결</option>
             {storylines.map((s) => (
@@ -122,7 +122,7 @@ export function AddRoadmapForm({
           onChange={(e) => setPlanContent(e.target.value)}
           rows={2}
           placeholder="계획 내용을 입력하세요... *"
-          className="w-full resize-y rounded-md border border-gray-200 bg-white p-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
+          className="w-full resize-y rounded-md border border-border bg-white p-3 text-sm placeholder:text-text-tertiary focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-border dark:bg-bg-primary"
         />
 
         <div className="flex justify-end">

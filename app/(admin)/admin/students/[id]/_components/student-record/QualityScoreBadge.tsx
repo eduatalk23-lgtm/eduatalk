@@ -95,7 +95,7 @@ export function QualityScoreBadge({ entry }: QualityBadgeProps) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold",
+          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-3xs font-semibold",
           styles.badge,
         )}
         title={`품질 점수: ${entry.overall_score}점`}
@@ -111,7 +111,7 @@ export function QualityScoreBadge({ entry }: QualityBadgeProps) {
         type="button"
         onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
         className={cn(
-          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-80",
+          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-3xs font-semibold transition-opacity hover:opacity-80",
           styles.badge,
         )}
         title="품질 이슈 보기"
@@ -133,14 +133,14 @@ export function QualityScoreBadge({ entry }: QualityBadgeProps) {
         >
           {hasIssues && (
             <div className="mb-2">
-              <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">
+              <p className="mb-1 text-3xs font-medium text-[var(--text-secondary)]">
                 품질 이슈 ({entry.issues.length}건)
               </p>
               <ul className="flex flex-col gap-0.5">
                 {entry.issues.map((issue) => (
                   <li
                     key={issue}
-                    className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]"
+                    className="flex items-center gap-1 text-2xs text-[var(--text-secondary)]"
                   >
                     <span className="inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--color-warning-500,#f59e0b)]" />
                     {formatIssueLabel(issue)}
@@ -152,7 +152,7 @@ export function QualityScoreBadge({ entry }: QualityBadgeProps) {
           {hasFeedback && (
             <div className="flex gap-1.5 rounded-md bg-[var(--surface-secondary,#f9fafb)] px-2 py-1.5">
               <MessageSquare size={11} className="mt-0.5 shrink-0 text-[var(--text-tertiary)]" />
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{entry.feedback}</p>
+              <p className="text-2xs leading-relaxed text-[var(--text-secondary)]">{entry.feedback}</p>
             </div>
           )}
           {/* 5축 상세 바 차트 */}
@@ -184,7 +184,7 @@ function axisColor(score: number): string {
 function QualityAxisBars({ entry }: { entry: QualityScoreEntry }) {
   return (
     <div className="mt-2 space-y-1">
-      <p className="text-[10px] font-medium text-[var(--text-secondary)]">5축 평가</p>
+      <p className="text-3xs font-medium text-[var(--text-secondary)]">5축 평가</p>
       {QUALITY_AXES.map(({ key, label, weight }) => {
         const score = key === "scientific_validity"
           ? (entry.scientific_validity ?? null)
@@ -192,16 +192,16 @@ function QualityAxisBars({ entry }: { entry: QualityScoreEntry }) {
         if (score === null) return null;
         return (
           <div key={key} className="flex items-center gap-1.5">
-            <span className="w-14 shrink-0 text-[10px] text-[var(--text-tertiary)]">
+            <span className="w-14 shrink-0 text-3xs text-[var(--text-tertiary)]">
               {label} <span className="opacity-60">({weight}%)</span>
             </span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
               <div
                 className={cn("h-full rounded-full transition-all", axisColor(score))}
                 style={{ width: `${(score / 5) * 100}%` }}
               />
             </div>
-            <span className="w-5 shrink-0 text-right text-[10px] font-medium text-[var(--text-secondary)]">
+            <span className="w-5 shrink-0 text-right text-3xs font-medium text-[var(--text-secondary)]">
               {score}
             </span>
           </div>
@@ -261,13 +261,13 @@ export function QualitySummaryCard({ qualityScores, recordLabelMap }: QualitySum
         <span className="text-xs font-semibold text-[var(--text-primary)]">콘텐츠 품질 요약</span>
         <span
           className={cn(
-            "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-bold",
+            "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-2xs font-bold",
             avgStyles.badge,
           )}
         >
           {avgStyles.text} 평균 {avgScore}점
         </span>
-        <span className="text-[11px] text-[var(--text-tertiary)]">{qualityScores.length}건 분석됨</span>
+        <span className="text-2xs text-[var(--text-tertiary)]">{qualityScores.length}건 분석됨</span>
         <span className="ml-auto text-[var(--text-tertiary)]">
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
@@ -278,17 +278,17 @@ export function QualitySummaryCard({ qualityScores, recordLabelMap }: QualitySum
           {/* 반복 패턴 Top 3 */}
           {topIssues.length > 0 && (
             <div>
-              <p className="mb-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+              <p className="mb-1.5 text-2xs font-medium text-[var(--text-secondary)]">
                 반복 패턴 Top {topIssues.length}
               </p>
               <ul className="flex flex-col gap-1">
                 {topIssues.map(([issue, count]) => (
                   <li key={issue} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+                    <span className="flex items-center gap-1 text-2xs text-[var(--text-secondary)]">
                       <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-warning-400,#fbbf24)]" />
                       {formatIssueLabel(issue)}
                     </span>
-                    <span className="shrink-0 rounded bg-[var(--surface-secondary,#f3f4f6)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)]">
+                    <span className="shrink-0 rounded bg-[var(--surface-secondary,#f3f4f6)] px-1.5 py-0.5 text-3xs font-medium text-[var(--text-tertiary)]">
                       {count}건
                     </span>
                   </li>
@@ -300,7 +300,7 @@ export function QualitySummaryCard({ qualityScores, recordLabelMap }: QualitySum
           {/* 주의 레코드 Top 3 */}
           {bottomRecords.length > 0 && (
             <div>
-              <p className="mb-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+              <p className="mb-1.5 text-2xs font-medium text-[var(--text-secondary)]">
                 주의 필요 레코드
               </p>
               <ul className="flex flex-col gap-1">
@@ -311,10 +311,10 @@ export function QualitySummaryCard({ qualityScores, recordLabelMap }: QualitySum
                   const gs = GRADE_STYLES[grade];
                   return (
                     <li key={q.record_id} className="flex items-center justify-between gap-2">
-                      <span className="truncate text-[11px] text-[var(--text-secondary)]">{label}</span>
+                      <span className="truncate text-2xs text-[var(--text-secondary)]">{label}</span>
                       <span
                         className={cn(
-                          "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold",
+                          "shrink-0 rounded-full border px-1.5 py-0.5 text-3xs font-semibold",
                           gs.badge,
                         )}
                       >
@@ -358,18 +358,18 @@ function AverageAxisBars({ qualityScores }: { qualityScores: QualityScoreEntry[]
 
   return (
     <div className="col-span-full mt-1 border-t border-[var(--border-secondary)] pt-2">
-      <p className="mb-1.5 text-[11px] font-medium text-[var(--text-secondary)]">전체 평균 5축</p>
+      <p className="mb-1.5 text-2xs font-medium text-[var(--text-secondary)]">전체 평균 5축</p>
       <div className="space-y-1">
         {axes.map(({ label, score }) => (
           <div key={label} className="flex items-center gap-1.5">
-            <span className="w-16 shrink-0 text-[10px] text-[var(--text-tertiary)]">{label}</span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <span className="w-16 shrink-0 text-3xs text-[var(--text-tertiary)]">{label}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
               <div
                 className={cn("h-full rounded-full transition-all", axisColor(score))}
                 style={{ width: `${(score / 5) * 100}%` }}
               />
             </div>
-            <span className="w-6 shrink-0 text-right text-[10px] font-medium text-[var(--text-secondary)]">
+            <span className="w-6 shrink-0 text-right text-3xs font-medium text-[var(--text-secondary)]">
               {score.toFixed(1)}
             </span>
           </div>

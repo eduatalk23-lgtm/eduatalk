@@ -35,7 +35,7 @@ export function DesiredUniversityChips({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
-      <span className="text-[10px] text-[var(--text-tertiary)]">빠른 선택:</span>
+      <span className="text-3xs text-[var(--text-tertiary)]">빠른 선택:</span>
       {universities.map((u) => (
         <button
           key={u.id}
@@ -45,7 +45,7 @@ export function DesiredUniversityChips({
             "rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
             selectedName === u.name
               ? "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-300 dark:ring-indigo-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+              : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary dark:bg-bg-secondary dark:text-text-disabled dark:hover:bg-gray-700",
           )}
         >
           {u.rank}순위 {u.name}

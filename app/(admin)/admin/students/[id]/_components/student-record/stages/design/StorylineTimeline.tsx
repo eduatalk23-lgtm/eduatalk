@@ -14,7 +14,7 @@ const GRADE_LABELS = ["1학년", "2학년", "3학년"];
 export function StorylineTimeline({ storylines, roadmapItems }: StorylineTimelineProps) {
   if (storylines.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+      <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
         스토리라인을 먼저 추가해주세요. 타임라인이 자동으로 생성됩니다.
       </div>
     );
@@ -42,9 +42,9 @@ export function StorylineTimeline({ storylines, roadmapItems }: StorylineTimelin
         );
 
         return (
-          <div key={storyline.id} className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          <div key={storyline.id} className="rounded-lg border border-border bg-white dark:border-border dark:bg-bg-primary">
             {/* 헤더 */}
-            <div className="flex items-center gap-2 border-b border-gray-100 p-3 dark:border-gray-800">
+            <div className="flex items-center gap-2 border-b border-border p-3 dark:border-border">
               <span className="font-medium text-sm text-[var(--text-primary)]">{storyline.title}</span>
               <StorylineStrengthBadge strength={storyline.strength} />
               {storyline.career_field && (
@@ -53,7 +53,7 @@ export function StorylineTimeline({ storylines, roadmapItems }: StorylineTimelin
             </div>
 
             {/* 학년별 그리드 */}
-            <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+            <div className="grid grid-cols-3 divide-x divide-border dark:divide-border">
               {GRADE_LABELS.map((label, idx) => {
                 const grade = idx + 1;
                 const theme = grade === 1 ? storyline.grade_1_theme
@@ -86,7 +86,7 @@ export function StorylineTimeline({ storylines, roadmapItems }: StorylineTimelin
 
             {/* 키워드 */}
             {storyline.keywords.length > 0 && (
-              <div className="flex gap-1 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+              <div className="flex gap-1 border-t border-border px-3 py-2 dark:border-border">
                 {storyline.keywords.map((kw) => (
                   <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
                     {kw}
@@ -153,7 +153,7 @@ function RoadmapItemChip({
           ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
           : hasExecution
             ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
-            : "bg-gray-100 text-[var(--text-secondary)] dark:bg-gray-800",
+            : "bg-bg-tertiary text-[var(--text-secondary)] dark:bg-bg-secondary",
       )}
     >
       <span className="font-medium">{AREA_LABELS[item.area] ?? item.area}</span>

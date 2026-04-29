@@ -276,7 +276,7 @@ export function DiagnosisComparisonView({
         {aiDiagnosis && (
           <button
             onClick={copyFromAi}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:hover:bg-gray-800"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-border dark:hover:bg-gray-800"
           >
             <Copy size={12} /> AI → 컨설턴트 복사
           </button>
@@ -290,7 +290,7 @@ export function DiagnosisComparisonView({
               "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition",
               showHistory
                 ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400"
-                : "border-gray-300 text-[var(--text-secondary)] hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800",
+                : "border-border text-[var(--text-secondary)] hover:bg-bg-secondary dark:border-border dark:hover:bg-gray-800",
             )}
           >
             <History size={12} /> 이력
@@ -298,7 +298,7 @@ export function DiagnosisComparisonView({
         )}
         {aiGenMutation.isError && <span className="text-xs text-red-500">{aiGenMutation.error.message}</span>}
         {aiWarnings.length > 0 && (
-          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+          <span className="text-3xs text-amber-600 dark:text-amber-400">
             AI 응답 일부가 기본값으로 대체됨: {aiWarnings.join(", ")}
           </span>
         )}
@@ -319,7 +319,7 @@ export function DiagnosisComparisonView({
             type="button"
             onClick={() => aiGenMutation.mutate()}
             disabled={aiGenMutation.isPending}
-            className="rounded px-2 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800"
+            className="rounded px-2 py-0.5 text-3xs font-medium text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800"
           >
             재생성
           </button>
@@ -333,7 +333,7 @@ export function DiagnosisComparisonView({
           <div className="mb-3 flex items-center gap-2">
             <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">AI 분석</span>
             {aiDiagnosis && (
-              <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", STATUS_BADGE[aiDiagnosis.status ?? "suggested"]?.cls)}>
+              <span className={cn("rounded px-1.5 py-0.5 text-3xs font-medium", STATUS_BADGE[aiDiagnosis.status ?? "suggested"]?.cls)}>
                 {STATUS_BADGE[aiDiagnosis.status ?? "suggested"]?.label}
               </span>
             )}
@@ -344,12 +344,12 @@ export function DiagnosisComparisonView({
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex gap-2">
                   <div className="h-4 w-16 shrink-0 rounded bg-blue-100 dark:bg-blue-900/30" />
-                  <div className="h-4 flex-1 rounded bg-gray-100 dark:bg-gray-800" />
+                  <div className="h-4 flex-1 rounded bg-bg-tertiary dark:bg-bg-secondary" />
                 </div>
               ))}
             </div>
           ) : !aiDiagnosis ? (
-            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs text-[var(--text-tertiary)] dark:border-gray-600">
+            <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-[var(--text-tertiary)] dark:border-border">
               상단의 &ldquo;AI 종합 진단 생성&rdquo; 버튼을 눌러 분석을 시작하세요
             </div>
           ) : (
@@ -376,11 +376,11 @@ export function DiagnosisComparisonView({
         </div>
 
         {/* ─── 컨설턴트 진단 (편집) — 모바일에서 위로 ─── */}
-        <div className="order-1 rounded-lg border border-gray-200 p-4 lg:order-2 dark:border-gray-700">
+        <div className="order-1 rounded-lg border border-border p-4 lg:order-2 dark:border-border">
           <div className="mb-3 flex items-center gap-2">
             <span className="text-sm font-semibold text-[var(--text-primary)]">컨설턴트 진단</span>
             {consultantDiagnosis && (
-              <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", STATUS_BADGE[consultantDiagnosis.status ?? "draft"]?.cls)}>
+              <span className={cn("rounded px-1.5 py-0.5 text-3xs font-medium", STATUS_BADGE[consultantDiagnosis.status ?? "draft"]?.cls)}>
                 {STATUS_BADGE[consultantDiagnosis.status ?? "draft"]?.label}
               </span>
             )}
@@ -390,7 +390,7 @@ export function DiagnosisComparisonView({
             {/* 종합등급 */}
             <FormRow label="종합등급" diff={isDiff(aiDiagnosis?.overall_grade, grade)}>
               <select value={grade} onChange={(e) => setGrade(e.target.value as CompetencyGrade)}
-                className="min-h-[32px] w-16 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600">
+                className="min-h-[32px] w-16 rounded border border-border px-2 py-1 text-xs dark:border-border">
                 {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
             </FormRow>
@@ -399,7 +399,7 @@ export function DiagnosisComparisonView({
             <FormRow label="방향" diff={isDiff(aiDiagnosis?.record_direction, direction)}>
               <input type="text" value={direction} onChange={(e) => setDirection(e.target.value)}
                 maxLength={50} placeholder="예: 생명과학 심화 탐구 중심"
-                className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
+                className="flex-1 rounded border border-border px-2 py-1 text-xs dark:border-border" />
             </FormRow>
 
             {/* 강도 */}
@@ -408,7 +408,7 @@ export function DiagnosisComparisonView({
                 {STRENGTHS.map((s) => (
                   <button key={s} onClick={() => setDirStrength(s)}
                     aria-pressed={dirStrength === s}
-                    className={cn("min-h-[32px] rounded px-3 py-1 text-xs font-medium", dirStrength === s ? "bg-indigo-600 text-white" : "border border-gray-300 dark:border-gray-600")}>
+                    className={cn("min-h-[32px] rounded px-3 py-1 text-xs font-medium", dirStrength === s ? "bg-indigo-600 text-white" : "border border-border dark:border-border")}>
                     {STRENGTH_LABELS[s]}
                   </button>
                 ))}
@@ -422,7 +422,7 @@ export function DiagnosisComparisonView({
                   {strengths.map((s) => {
                     const isMatch = strengthsDiff.match.includes(s);
                     return (
-                      <span key={s} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
+                      <span key={s} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-bg-tertiary dark:bg-bg-tertiary")}>
                         {isMatch && <Check size={10} />}{s}
                         <button onClick={() => setStrengths(strengths.filter((v) => v !== s))} className="hover:text-red-500" aria-label={`${s} 강점 삭제`}>×</button>
                       </span>
@@ -431,7 +431,7 @@ export function DiagnosisComparisonView({
                 </div>
                 <input type="text" value={newStrength} onChange={(e) => setNewStrength(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(strengths, setStrengths, newStrength, setNewStrength); } }}
-                  placeholder="강점 입력 후 Enter" className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
+                  placeholder="강점 입력 후 Enter" className="rounded border border-border px-2 py-1 text-xs dark:border-border" />
               </div>
             </FormRow>
 
@@ -442,7 +442,7 @@ export function DiagnosisComparisonView({
                   {weaknesses.map((w) => {
                     const isMatch = weaknessesDiff.match.includes(w);
                     return (
-                      <span key={w} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
+                      <span key={w} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-bg-tertiary dark:bg-bg-tertiary")}>
                         {isMatch && <Check size={10} />}{w}
                         <button onClick={() => setWeaknesses(weaknesses.filter((v) => v !== w))} className="hover:text-red-500" aria-label={`${w} 약점 삭제`}>×</button>
                       </span>
@@ -451,7 +451,7 @@ export function DiagnosisComparisonView({
                 </div>
                 <input type="text" value={newWeakness} onChange={(e) => setNewWeakness(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(weaknesses, setWeaknesses, newWeakness, setNewWeakness); } }}
-                  placeholder="약점 입력 후 Enter" className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
+                  placeholder="약점 입력 후 Enter" className="rounded border border-border px-2 py-1 text-xs dark:border-border" />
               </div>
             </FormRow>
 
@@ -462,20 +462,20 @@ export function DiagnosisComparisonView({
                   <div className="flex flex-wrap gap-1">
                     {majors.map((k) => (
                       <button key={k} onClick={() => setMajors((p) => p.filter((m) => m !== k))}
-                        className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30">
+                        className="rounded-full bg-indigo-100 px-2 py-0.5 text-3xs font-medium text-indigo-700 dark:bg-indigo-900/30">
                         {k} ×
                       </button>
                     ))}
                   </div>
                 )}
-                <details className="text-[10px]">
+                <details className="text-3xs">
                   <summary className="cursor-pointer text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
                     전공 계열 선택 ({MAJOR_KEYS.length}개)
                   </summary>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {MAJOR_KEYS.filter((k) => !majors.includes(k)).map((k) => (
                       <button key={k} onClick={() => setMajors((p) => [...p, k])}
-                        className="rounded-full border border-gray-200 px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-600">
+                        className="rounded-full border border-border px-2 py-0.5 text-3xs text-[var(--text-tertiary)] hover:border-indigo-300 hover:text-indigo-600 dark:border-border">
                         {k}
                       </button>
                     ))}
@@ -491,13 +491,13 @@ export function DiagnosisComparisonView({
             <FormRow label="개선전략">
               <div className="flex flex-1 flex-col gap-1.5">
                 {improvements.map((imp, i) => (
-                  <div key={i} className="flex flex-col gap-1 rounded border border-gray-200 p-1.5 dark:border-gray-700">
+                  <div key={i} className="flex flex-col gap-1 rounded border border-border p-1.5 dark:border-border">
                     <div className="flex items-center gap-1">
                       <select value={imp.priority} onChange={(e) => {
                         const next = [...improvements];
                         next[i] = { ...imp, priority: e.target.value };
                         setImprovements(next);
-                      }} className="min-h-[24px] rounded border border-gray-300 px-1 py-0.5 text-[10px] dark:border-gray-600">
+                      }} className="min-h-[24px] rounded border border-border px-1 py-0.5 text-3xs dark:border-border">
                         <option value="높음">높음</option>
                         <option value="중간">중간</option>
                         <option value="낮음">낮음</option>
@@ -506,19 +506,19 @@ export function DiagnosisComparisonView({
                         const next = [...improvements];
                         next[i] = { ...imp, area: e.target.value };
                         setImprovements(next);
-                      }} className="min-w-0 flex-1 rounded border border-gray-300 px-1 py-0.5 text-[10px] dark:border-gray-600" />
+                      }} className="min-w-0 flex-1 rounded border border-border px-1 py-0.5 text-3xs dark:border-border" />
                       <button onClick={() => setImprovements(improvements.filter((_, j) => j !== i))}
-                        className="text-[10px] text-red-400 hover:text-red-600" aria-label="삭제">×</button>
+                        className="text-3xs text-red-400 hover:text-red-600" aria-label="삭제">×</button>
                     </div>
                     <input type="text" value={imp.action} placeholder="실행 방안" onChange={(e) => {
                       const next = [...improvements];
                       next[i] = { ...imp, action: e.target.value };
                       setImprovements(next);
-                    }} className="rounded border border-gray-300 px-1 py-0.5 text-[10px] dark:border-gray-600" />
+                    }} className="rounded border border-border px-1 py-0.5 text-3xs dark:border-border" />
                   </div>
                 ))}
                 <button onClick={() => setImprovements([...improvements, { priority: "중간", area: "", gap: "", action: "", outcome: "" }])}
-                  className="self-start rounded border border-dashed border-gray-300 px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-600">
+                  className="self-start rounded border border-dashed border-border px-2 py-0.5 text-3xs text-[var(--text-tertiary)] hover:border-indigo-300 hover:text-indigo-600 dark:border-border">
                   + 개선 전략 추가
                 </button>
               </div>
@@ -527,7 +527,7 @@ export function DiagnosisComparisonView({
             {/* 메모 */}
             <FormRow label="메모">
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-                className="flex-1 resize-none rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
+                className="flex-1 resize-none rounded border border-border px-2 py-1 text-xs dark:border-border" />
             </FormRow>
 
             {/* 버튼 + 자동저장 상태 */}

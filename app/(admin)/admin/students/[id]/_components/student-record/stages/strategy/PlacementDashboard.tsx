@@ -207,7 +207,7 @@ function ScoreInputForm({
             <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">국어 *</legend>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">원점수</label>
                 <input type="number" min={0} max={100} value={value.koreanRaw ?? ""}
                   onChange={(e) => update({ koreanRaw: parseNum(e.target.value) })}
                   className={cn("w-full rounded-md border px-2 py-1.5 text-sm bg-[var(--surface-primary)]",
@@ -215,7 +215,7 @@ function ScoreInputForm({
                   placeholder="0~100" />
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">표준점수</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">표준점수</label>
                 <input type="number" value={value.korean ?? ""}
                   onChange={(e) => update({ korean: parseNum(e.target.value) })}
                   className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
@@ -228,7 +228,7 @@ function ScoreInputForm({
           <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
             <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">수학 *</legend>
             <div className="mb-2">
-              <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">선택과목</label>
+              <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">선택과목</label>
               <select value={value.mathType}
                 onChange={(e) => update({ mathType: e.target.value as MockScoreInput["mathType"] })}
                 className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
@@ -239,7 +239,7 @@ function ScoreInputForm({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">원점수</label>
                 <input type="number" min={0} max={100} value={value.mathRaw ?? ""}
                   onChange={(e) => update({ mathRaw: parseNum(e.target.value) })}
                   className={cn("w-full rounded-md border px-2 py-1.5 text-sm bg-[var(--surface-primary)]",
@@ -247,7 +247,7 @@ function ScoreInputForm({
                   placeholder="0~100" />
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">표준점수</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">표준점수</label>
                 <input type="number" value={value.math ?? ""}
                   onChange={(e) => update({ math: parseNum(e.target.value) })}
                   className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
@@ -294,7 +294,7 @@ function ScoreInputForm({
             <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">탐구1</legend>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">과목</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">과목</label>
                 <select value={value.inquiry1Subject}
                   onChange={(e) => {
                     update({ inquiry1Subject: e.target.value });
@@ -308,7 +308,7 @@ function ScoreInputForm({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">원점수</label>
                 <input type="number" min={0} max={50} value={value.inquiry1Raw ?? ""}
                   onChange={(e) => update({ inquiry1Raw: parseNum(e.target.value) })}
                   className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
@@ -321,7 +321,7 @@ function ScoreInputForm({
             <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">탐구2</legend>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">과목</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">과목</label>
                 <select value={value.inquiry2Subject}
                   onChange={(e) => {
                     update({ inquiry2Subject: e.target.value });
@@ -337,7 +337,7 @@ function ScoreInputForm({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <label className="mb-1 block text-3xs text-[var(--text-tertiary)]">원점수</label>
                 <input type="number" min={0} max={50} value={value.inquiry2Raw ?? ""}
                   onChange={(e) => update({ inquiry2Raw: parseNum(e.target.value) })}
                   className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
@@ -425,12 +425,12 @@ function ComparisonView({ changes }: { changes: PlacementChange[] }) {
                     {change.departmentName}
                   </td>
                   <td className="py-1.5 pr-3 text-center">
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", estColors.bg, estColors.text, estColors.darkBg, estColors.darkText)}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-3xs font-medium", estColors.bg, estColors.text, estColors.darkBg, estColors.darkText)}>
                       {PLACEMENT_LABELS[change.estimatedLevel]}
                     </span>
                   </td>
                   <td className="py-1.5 pr-3 text-center">
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", actColors.bg, actColors.text, actColors.darkBg, actColors.darkText)}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-3xs font-medium", actColors.bg, actColors.text, actColors.darkBg, actColors.darkText)}>
                       {PLACEMENT_LABELS[change.actualLevel]}
                     </span>
                   </td>

@@ -64,16 +64,16 @@ export function CompetencyGradesTable({
   const [expandedTagItem, setExpandedTagItem] = useState<string | null>(null);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+    <div className="rounded-lg border border-border dark:border-border">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border dark:border-border">
         <span className="text-sm font-semibold text-[var(--text-primary)]">종합 등급 + 루브릭 상세</span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">항목 클릭 시 루브릭 질문 펼침</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">항목 클릭 시 루브릭 질문 펼침</span>
         <span className="flex-1" />
         {hasHighlightResults && (
           <button
             onClick={onReaggregate}
             disabled={isReaggregating || isBatchPending}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] text-[var(--text-secondary)] transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-3xs text-[var(--text-secondary)] transition hover:bg-bg-secondary disabled:opacity-50 dark:border-border dark:hover:bg-gray-800"
           >
             {isReaggregating ? <Loader2 size={10} className="animate-spin" /> : <ArrowDown size={10} />}
             등급 재집계
@@ -83,7 +83,7 @@ export function CompetencyGradesTable({
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/50">
+            <tr className="border-b border-border bg-bg-secondary/80 dark:border-border dark:bg-bg-secondary/50">
               <th className="whitespace-nowrap px-3 py-2 text-left font-medium text-[var(--text-tertiary)]">영역</th>
               <th className="px-3 py-2 text-left font-medium text-[var(--text-tertiary)]">항목</th>
               <th className="w-12 whitespace-nowrap px-2 py-2 text-center font-medium text-blue-600 dark:text-blue-400">AI</th>
@@ -111,14 +111,14 @@ export function CompetencyGradesTable({
                     {/* 상위 항목 행 */}
                     <tr
                       className={cn(
-                        "border-b border-gray-100 dark:border-gray-700/50",
-                        idx === items.length - 1 && !isExpanded && "border-b-2 border-gray-200 dark:border-gray-600",
+                        "border-b border-border dark:border-border/50",
+                        idx === items.length - 1 && !isExpanded && "border-b-2 border-border dark:border-border",
                         isExpanded && "bg-indigo-50/30 dark:bg-indigo-900/10",
                       )}
                     >
                       <td
                         className={cn(
-                          "px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] border-r border-gray-100 dark:border-gray-700/50",
+                          "px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] border-r border-border dark:border-border/50",
                           idx > 0 && "text-transparent select-none",
                         )}
                       >
@@ -141,7 +141,7 @@ export function CompetencyGradesTable({
                         {aiGrade ? (
                           <span
                             className={cn(
-                              "text-[11px] font-semibold",
+                              "text-2xs font-semibold",
                               aiGrade.startsWith("A") ? "text-blue-600" : aiGrade.startsWith("B") ? "text-green-600" : "text-amber-600",
                             )}
                           >
@@ -158,8 +158,8 @@ export function CompetencyGradesTable({
                             onGradeChange({ area, item: item.code, grade: e.target.value as CompetencyGrade })
                           }
                           className={cn(
-                            "w-14 rounded border px-1 py-0.5 text-center text-[11px]",
-                            "border-gray-300 bg-[var(--background)] dark:border-gray-600",
+                            "w-14 rounded border px-1 py-0.5 text-center text-2xs",
+                            "border-border bg-[var(--background)] dark:border-border",
                             !currentGrade && "text-[var(--text-tertiary)]",
                           )}
                         >
@@ -172,7 +172,7 @@ export function CompetencyGradesTable({
                           <button
                             type="button"
                             onClick={() => setExpandedTagItem(expandedTagItem === item.code ? null : item.code)}
-                            className="cursor-pointer text-[10px] hover:underline"
+                            className="cursor-pointer text-3xs hover:underline"
                           >
                             {stats.positive > 0 && <span className="text-green-600">+{stats.positive}</span>}
                             {stats.negative > 0 && <span className="ml-0.5 text-red-500">-{stats.negative}</span>}
@@ -191,7 +191,7 @@ export function CompetencyGradesTable({
                         <>
                           {aiNarrative && (
                             <tr className="bg-blue-50/30 dark:bg-blue-900/10">
-                              <td colSpan={5} className="px-4 py-1.5 text-[10px] leading-relaxed text-blue-700 dark:text-blue-300">
+                              <td colSpan={5} className="px-4 py-1.5 text-3xs leading-relaxed text-blue-700 dark:text-blue-300">
                                 {aiNarrative}
                               </td>
                             </tr>
@@ -208,29 +208,29 @@ export function CompetencyGradesTable({
                               <Fragment key={`${item.code}-q${qi}`}>
                                 <tr
                                   className={cn(
-                                    "border-b border-gray-50 bg-gray-50/40 dark:border-gray-800 dark:bg-gray-800/20",
-                                    qi === questions.length - 1 && idx === items.length - 1 && !isQExpanded && "border-b-2 border-gray-200 dark:border-gray-600",
+                                    "border-b border-gray-50 bg-bg-secondary/40 dark:border-border dark:bg-bg-secondary/20",
+                                    qi === questions.length - 1 && idx === items.length - 1 && !isQExpanded && "border-b-2 border-border dark:border-border",
                                   )}
                                 >
-                                  <td className="border-r border-gray-100 dark:border-gray-700/50" />
-                                  <td className="py-1.5 pl-8 pr-3 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                                  <td className="border-r border-border dark:border-border/50" />
+                                  <td className="py-1.5 pl-8 pr-3 text-2xs leading-relaxed text-[var(--text-secondary)]">
                                     {q}
                                     {noEvidence && (
-                                      <span className="ml-1.5 rounded bg-gray-100 px-1 py-px text-[8px] text-gray-400 dark:bg-gray-700 dark:text-gray-500">근거없음</span>
+                                      <span className="ml-1.5 rounded bg-bg-tertiary px-1 py-px text-3xs text-text-tertiary dark:bg-bg-tertiary dark:text-text-tertiary">근거없음</span>
                                     )}
                                   </td>
                                   <td className="px-2 py-1.5 text-center">
                                     {aiR ? (
                                       <span
                                         className={cn(
-                                          "text-[10px] font-semibold",
+                                          "text-3xs font-semibold",
                                           aiR.grade.startsWith("A") ? "text-blue-600" : aiR.grade.startsWith("B") ? "text-green-600" : "text-amber-600",
                                         )}
                                       >
                                         {aiR.grade}
                                       </span>
                                     ) : (
-                                      <span className="text-[10px] text-gray-300">-</span>
+                                      <span className="text-3xs text-text-disabled">-</span>
                                     )}
                                   </td>
                                   <td className="px-2 py-1.5 text-center">
@@ -248,8 +248,8 @@ export function CompetencyGradesTable({
                                       }}
                                       disabled={isGradePending}
                                       className={cn(
-                                        "w-14 rounded border px-0.5 py-0.5 text-center text-[10px]",
-                                        "border-gray-200 bg-[var(--background)] dark:border-gray-600",
+                                        "w-14 rounded border px-0.5 py-0.5 text-center text-3xs",
+                                        "border-border bg-[var(--background)] dark:border-border",
                                         !conR?.grade && "text-[var(--text-tertiary)]",
                                         conR && aiR && conR.grade === aiR.grade && "ring-1 ring-green-300",
                                       )}
@@ -263,7 +263,7 @@ export function CompetencyGradesTable({
                                       <button
                                         type="button"
                                         onClick={() => setExpandedRubricQ(isQExpanded ? null : qKey)}
-                                        className="text-[9px] hover:underline"
+                                        className="text-3xs hover:underline"
                                       >
                                         {qStat!.positive > 0 && <span className="text-green-600">+{qStat!.positive}</span>}
                                         {qStat!.negative > 0 && <span className="ml-0.5 text-red-500">-{qStat!.negative}</span>}
@@ -275,11 +275,11 @@ export function CompetencyGradesTable({
                                 {/* 질문별 근거 펼침 */}
                                 {isQExpanded && qStat && qStat.evidences.length > 0 && (
                                   <tr>
-                                    <td className="border-r border-gray-100 dark:border-gray-700/50" />
-                                    <td colSpan={4} className="bg-gray-50/60 py-1.5 pl-10 pr-3 dark:bg-gray-800/30">
+                                    <td className="border-r border-border dark:border-border/50" />
+                                    <td colSpan={4} className="bg-bg-secondary/60 py-1.5 pl-10 pr-3 dark:bg-bg-secondary/30">
                                       <div className="flex flex-col gap-0.5">
                                         {qStat.evidences.map((ev, ei) => (
-                                          <p key={ei} className="text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                                          <p key={ei} className="text-3xs leading-relaxed text-[var(--text-tertiary)]">
                                             · {ev.split("\n")[0].slice(0, 100)}{ev.length > 100 ? "…" : ""}
                                           </p>
                                         ))}
@@ -297,26 +297,26 @@ export function CompetencyGradesTable({
                     {/* 태그 상세 (펼침) */}
                     {expandedTagItem === item.code && stats && (
                       <tr>
-                        <td colSpan={5} className="bg-gray-50/50 px-4 py-2 dark:bg-gray-800/30">
+                        <td colSpan={5} className="bg-bg-secondary/50 px-4 py-2 dark:bg-bg-secondary/30">
                           <div className="flex flex-col gap-1.5">
                             {[...stats.byGrade.entries()]
                               .sort(([a], [b]) => a - b)
                               .map(([grade, recordGroups]) => (
                                 <div key={grade}>
                                   {stats.byGrade.size > 1 && (
-                                    <div className="text-[9px] font-semibold text-[var(--text-tertiary)] mb-0.5">{grade}학년</div>
+                                    <div className="text-3xs font-semibold text-[var(--text-tertiary)] mb-0.5">{grade}학년</div>
                                   )}
                                   {recordGroups.map((rg) => (
                                     <div key={rg.recordId} className="mb-1">
-                                      <div className="text-[9px] text-[var(--text-tertiary)] mb-0.5">📄 {rg.recordLabel}</div>
+                                      <div className="text-3xs text-[var(--text-tertiary)] mb-0.5">📄 {rg.recordLabel}</div>
                                       <div className="ml-4 flex flex-col gap-0.5">
                                         {rg.tags.map((tag) => {
                                           const isSuggested = tag.source === "ai" && tag.status === "suggested";
                                           return (
-                                            <div key={tag.id} className="flex items-center gap-2 text-[10px]">
+                                            <div key={tag.id} className="flex items-center gap-2 text-3xs">
                                               <span
                                                 className={cn(
-                                                  "shrink-0 rounded px-1 py-px text-[8px] font-medium",
+                                                  "shrink-0 rounded px-1 py-px text-3xs font-medium",
                                                   tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30",
                                                   tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30",
                                                   tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30",

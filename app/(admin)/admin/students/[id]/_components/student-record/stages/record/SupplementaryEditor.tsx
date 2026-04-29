@@ -136,13 +136,13 @@ function AwardSection({
       </div>
 
       {showForm ? (
-        <div className="mt-2 flex flex-col gap-2 border border-gray-300 p-2 dark:border-gray-600">
+        <div className="mt-2 flex flex-col gap-2 border border-border p-2 dark:border-border">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="수상명 *" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input value={level} onChange={(e) => setLevel(e.target.value)} placeholder="등급(위)" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input value={awardingBody} onChange={(e) => setAwardingBody(e.target.value)} placeholder="수여기관" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="참가대상(인원)" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="수상명 *" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input value={level} onChange={(e) => setLevel(e.target.value)} placeholder="등급(위)" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input value={awardingBody} onChange={(e) => setAwardingBody(e.target.value)} placeholder="수여기관" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="참가대상(인원)" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
           </div>
           <div className="flex gap-2">
             <button onClick={() => addMutation.mutate()} disabled={addMutation.isPending} className="bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700 disabled:opacity-50">추가</button>
@@ -236,12 +236,12 @@ function VolunteerSection({
       </div>
 
       {showForm ? (
-        <div className="mt-2 flex flex-col gap-2 border border-gray-300 p-2 dark:border-gray-600">
+        <div className="mt-2 flex flex-col gap-2 border border-border p-2 dark:border-border">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="장소" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="활동 내용" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input type="number" step="0.5" min="0" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="시간 *" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
+            <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="장소" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="활동 내용" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input type="number" step="0.5" min="0" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="시간 *" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
           </div>
           <div className="flex gap-2">
             <button onClick={() => addMutation.mutate()} disabled={addMutation.isPending} className="bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700 disabled:opacity-50">추가</button>
@@ -324,11 +324,11 @@ function DisciplinarySection({
       </div>
 
       {showForm ? (
-        <div className="mt-2 flex flex-col gap-2 border border-gray-300 p-2 dark:border-gray-600">
+        <div className="mt-2 flex flex-col gap-2 border border-border p-2 dark:border-border">
           <div className="grid grid-cols-3 gap-2">
-            <input value={actionType} onChange={(e) => setActionType(e.target.value)} placeholder="조치 유형 *" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="비고" className="border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
+            <input value={actionType} onChange={(e) => setActionType(e.target.value)} placeholder="조치 유형 *" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="비고" className="border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
           </div>
           <div className="flex gap-2">
             <button onClick={() => addMutation.mutate()} disabled={addMutation.isPending} className="bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700 disabled:opacity-50">추가</button>

@@ -128,7 +128,7 @@ export function PlacementResults({ data }: { data: PlacementAnalysisResult }) {
                 "rounded-full px-2.5 py-1 text-xs font-medium transition-all",
                 active
                   ? `${colors.bg} ${colors.text} ${colors.darkBg} ${colors.darkText} ring-1 ring-current`
-                  : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+                  : "bg-bg-tertiary text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary",
               )}
             >
               {PLACEMENT_LABELS[level]} ({data.summary.byLevel[level]})

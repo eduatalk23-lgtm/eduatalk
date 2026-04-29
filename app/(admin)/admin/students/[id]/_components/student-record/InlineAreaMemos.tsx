@@ -56,7 +56,7 @@ export function InlineAreaMemos({
     return (
       <div className="flex items-center gap-2 py-2">
         <StickyNote className="h-3 w-3 text-[var(--text-tertiary)]" />
-        <span className="text-[10px] text-[var(--text-tertiary)]">메모 로딩 중...</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">메모 로딩 중...</span>
       </div>
     );
   }
@@ -68,17 +68,17 @@ export function InlineAreaMemos({
       {/* 헤더 */}
       <div className="flex items-center gap-1.5">
         <StickyNote className="h-3 w-3 text-[var(--text-tertiary)]" />
-        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+        <span className="text-3xs font-medium text-[var(--text-secondary)]">
           {areaLabel} 메모
         </span>
         {hasMemos && (
-          <span className="text-[10px] text-[var(--text-tertiary)]">{memos.length}건</span>
+          <span className="text-3xs text-[var(--text-tertiary)]">{memos.length}건</span>
         )}
         {!isAdding && (
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
+            className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-3xs text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
           >
             <Plus className="h-2.5 w-2.5" />
             추가
@@ -95,10 +95,10 @@ export function InlineAreaMemos({
               className="rounded-md border border-[var(--border-secondary)] bg-[var(--background-secondary)] px-2.5 py-1.5"
             >
               {memo.title && (
-                <p className="text-[11px] font-medium text-[var(--text-primary)]">{memo.title}</p>
+                <p className="text-2xs font-medium text-[var(--text-primary)]">{memo.title}</p>
               )}
-              <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">{memo.content}</p>
-              <p className="pt-0.5 text-[9px] text-[var(--text-tertiary)]">
+              <p className="text-2xs text-[var(--text-secondary)] line-clamp-2">{memo.content}</p>
+              <p className="pt-0.5 text-3xs text-[var(--text-tertiary)]">
                 {memo.author_name ?? "작성자"} · {new Date(memo.updated_at).toLocaleDateString("ko-KR")}
               </p>
             </div>
@@ -108,7 +108,7 @@ export function InlineAreaMemos({
 
       {/* 빈 상태 */}
       {!hasMemos && !isAdding && (
-        <p className="py-1 text-[10px] text-[var(--text-tertiary)]">
+        <p className="py-1 text-3xs text-[var(--text-tertiary)]">
           이 영역에 대한 메모가 없습니다
         </p>
       )}
@@ -120,7 +120,7 @@ export function InlineAreaMemos({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={2}
-            className="w-full resize-none rounded border border-[var(--border-secondary)] bg-white p-1.5 text-[11px] text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none dark:bg-gray-900"
+            className="w-full resize-none rounded border border-[var(--border-secondary)] bg-white p-1.5 text-2xs text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none dark:bg-bg-primary"
             placeholder={`${areaLabel}에 대한 메모...`}
             autoFocus
           />
@@ -128,7 +128,7 @@ export function InlineAreaMemos({
             <button
               type="button"
               onClick={() => { setIsAdding(false); setContent(""); }}
-              className="inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              className="inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-3xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             >
               <X className="h-2.5 w-2.5" />
               취소
@@ -137,13 +137,13 @@ export function InlineAreaMemos({
               type="button"
               onClick={() => addMutation.mutate()}
               disabled={!content.trim() || addMutation.isPending}
-              className="rounded bg-indigo-600 px-2.5 py-0.5 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded bg-indigo-600 px-2.5 py-0.5 text-3xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {addMutation.isPending ? "저장 중..." : "저장"}
             </button>
           </div>
           {addMutation.isError && (
-            <p className="pt-1 text-[10px] text-red-600">{addMutation.error.message}</p>
+            <p className="pt-1 text-3xs text-red-600">{addMutation.error.message}</p>
           )}
         </div>
       )}

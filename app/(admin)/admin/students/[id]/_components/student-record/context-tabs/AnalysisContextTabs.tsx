@@ -51,13 +51,13 @@ export function DiagnosisTab({ data }: { data?: DiagnosisTabData | null }) {
       )}
       {strategies.length > 0 && (
         <div>
-          <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">보완 전략 ({strategies.length}건)</p>
+          <p className="mb-1 text-3xs font-medium text-[var(--text-secondary)]">보완 전략 ({strategies.length}건)</p>
           <div className="space-y-1">
             {strategies.slice(0, 5).map((s) => (
               <div key={s.id} className="flex items-center justify-between rounded bg-[var(--surface-hover)] px-2 py-1 text-xs">
                 <span className="truncate text-[var(--text-primary)]">{s.target_area}: {s.strategy_content}</span>
                 <span className={cn(
-                  "shrink-0 rounded px-1 py-0.5 text-[10px]",
+                  "shrink-0 rounded px-1 py-0.5 text-3xs",
                   s.priority === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" :
                   s.priority === "high" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" :
                   "bg-[var(--surface-hover)] text-[var(--text-tertiary)]",
@@ -93,12 +93,12 @@ function DiagnosisCard({ label, source, diagnosis }: {
         <span className="text-xs font-medium text-[var(--text-primary)]">{label}</span>
         <div className="flex items-center gap-1.5">
           {diagnosis.overall_grade && (
-            <span className="rounded bg-[var(--surface-hover)] px-1 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+            <span className="rounded bg-[var(--surface-hover)] px-1 py-0.5 text-3xs font-medium text-[var(--text-secondary)]">
               {diagnosis.overall_grade}
             </span>
           )}
           <span className={cn(
-            "rounded-full px-1.5 py-0.5 text-[10px]",
+            "rounded-full px-1.5 py-0.5 text-3xs",
             source === "ai" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
           )}>
             {source === "ai" ? "🤖 AI" : "👤 수동"}
@@ -111,9 +111,9 @@ function DiagnosisCard({ label, source, diagnosis }: {
         </p>
       )}
       {diagnosis.direction_reasoning && (
-        <p className="mb-1 text-[10px] text-[var(--text-tertiary)]">{diagnosis.direction_reasoning}</p>
+        <p className="mb-1 text-3xs text-[var(--text-tertiary)]">{diagnosis.direction_reasoning}</p>
       )}
-      <div className="flex gap-4 text-[10px]">
+      <div className="flex gap-4 text-3xs">
         {diagnosis.strengths && diagnosis.strengths.length > 0 && (
           <span className="text-emerald-600 dark:text-emerald-400">+ 강점 {diagnosis.strengths.length}</span>
         )}
@@ -164,7 +164,7 @@ export function EdgesTab({ studentId, tenantId }: { studentId: string; tenantId?
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
+      <div className="flex items-center justify-between text-3xs text-[var(--text-tertiary)]">
         <span>총 {edges.length}개 연결, {grouped.size}개 유형</span>
         {staleCount > 0 && <span className="text-amber-600">⚠ {staleCount}건 갱신 필요</span>}
       </div>
@@ -176,7 +176,7 @@ export function EdgesTab({ studentId, tenantId }: { studentId: string; tenantId?
             <div className="flex items-center gap-2 text-xs">
               <span className={cn("h-2 w-2 rounded-full", meta.color)} />
               <span className="text-[var(--text-primary)]">{meta.label}</span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">{items.length}</span>
+              <span className="text-3xs text-[var(--text-tertiary)]">{items.length}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-hover)]">
               <div className={cn("h-full rounded-full", meta.color)} style={{ width: `${maxWidth}%` }} />
@@ -220,15 +220,15 @@ export function GrowthTab({ data }: { data?: DiagnosisTabData | null }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] text-[var(--text-tertiary)]">{byItem.size}개 역량 항목, {byArea.size}개 영역</p>
+      <p className="text-3xs text-[var(--text-tertiary)]">{byItem.size}개 역량 항목, {byArea.size}개 영역</p>
       {[...byArea.entries()].map(([area, items]) => (
         <div key={area}>
-          <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">{area}</p>
+          <p className="mb-1 text-3xs font-medium text-[var(--text-secondary)]">{area}</p>
           <div className="space-y-1">
             {items.map(([item, grades]) => (
               <div key={item} className="flex items-center justify-between rounded px-2 py-1 text-xs">
                 <span className="text-[var(--text-primary)]">{item}</span>
-                <div className="flex gap-2 text-[10px]">
+                <div className="flex gap-2 text-3xs">
                   {grades.ai && (
                     <span className="rounded bg-blue-100 px-1 py-0.5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                       🤖 {grades.ai}
@@ -261,10 +261,10 @@ export function CareerFitTab({ data }: { data?: DiagnosisTabData | null }) {
     <div className="space-y-3">
       {targetMajor && (
         <div className="rounded border border-[var(--border-secondary)] p-2">
-          <p className="text-[10px] text-[var(--text-tertiary)]">진로 목표</p>
+          <p className="text-3xs text-[var(--text-tertiary)]">진로 목표</p>
           <p className="text-sm font-medium text-[var(--text-primary)]">{targetMajor}</p>
           {targetSubClassificationName && (
-            <p className="text-[10px] text-[var(--text-tertiary)]">계열: {targetSubClassificationName}</p>
+            <p className="text-3xs text-[var(--text-tertiary)]">계열: {targetSubClassificationName}</p>
           )}
         </div>
       )}
@@ -289,7 +289,7 @@ export function CareerFitTab({ data }: { data?: DiagnosisTabData | null }) {
               style={{ width: `${courseAdequacy.score}%` }}
             />
           </div>
-          <div className="flex gap-3 text-[10px] text-[var(--text-tertiary)]">
+          <div className="flex gap-3 text-3xs text-[var(--text-tertiary)]">
             <span>일반선택 {Math.round(courseAdequacy.generalRate * 100)}%</span>
             <span>진로선택 {Math.round(courseAdequacy.careerRate * 100)}%</span>
             <span>이수 {courseAdequacy.taken.length}/{courseAdequacy.totalRecommended}</span>
@@ -311,12 +311,12 @@ export function CourseFitTab({ data }: { data?: DiagnosisTabData | null }) {
     <div className="space-y-3">
       {courseAdequacy.taken.length > 0 && (
         <div>
-          <p className="mb-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          <p className="mb-1 text-3xs font-medium text-emerald-600 dark:text-emerald-400">
             ✓ 이수 추천과목 ({courseAdequacy.taken.length})
           </p>
           <div className="flex flex-wrap gap-1">
             {courseAdequacy.taken.map((s) => (
-              <span key={s} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+              <span key={s} className="rounded bg-emerald-50 px-1.5 py-0.5 text-3xs text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                 {s}
               </span>
             ))}
@@ -326,12 +326,12 @@ export function CourseFitTab({ data }: { data?: DiagnosisTabData | null }) {
 
       {courseAdequacy.notTaken.length > 0 && (
         <div>
-          <p className="mb-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+          <p className="mb-1 text-3xs font-medium text-amber-600 dark:text-amber-400">
             ✗ 미이수 ({courseAdequacy.notTaken.length})
           </p>
           <div className="flex flex-wrap gap-1">
             {courseAdequacy.notTaken.map((s) => (
-              <span key={s} className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+              <span key={s} className="rounded bg-amber-50 px-1.5 py-0.5 text-3xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                 {s}
               </span>
             ))}
@@ -341,12 +341,12 @@ export function CourseFitTab({ data }: { data?: DiagnosisTabData | null }) {
 
       {courseAdequacy.notOffered.length > 0 && (
         <div>
-          <p className="mb-1 text-[10px] font-medium text-[var(--text-tertiary)]">
+          <p className="mb-1 text-3xs font-medium text-[var(--text-tertiary)]">
             학교 미개설 ({courseAdequacy.notOffered.length})
           </p>
           <div className="flex flex-wrap gap-1">
             {courseAdequacy.notOffered.map((s) => (
-              <span key={s} className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+              <span key={s} className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)]">
                 {s}
               </span>
             ))}
@@ -356,7 +356,7 @@ export function CourseFitTab({ data }: { data?: DiagnosisTabData | null }) {
 
       {takenSubjects.length > 0 && (
         <div>
-          <p className="mb-1 text-[10px] text-[var(--text-tertiary)]">전체 이수 {takenSubjects.length}과목</p>
+          <p className="mb-1 text-3xs text-[var(--text-tertiary)]">전체 이수 {takenSubjects.length}과목</p>
         </div>
       )}
     </div>

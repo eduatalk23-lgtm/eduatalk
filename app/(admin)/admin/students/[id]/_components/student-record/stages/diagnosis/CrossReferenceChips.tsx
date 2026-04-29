@@ -108,7 +108,7 @@ export function CrossReferenceChips({
         <span className="text-xs font-semibold text-[var(--text-secondary)]">
           연결된 영역
         </span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">{edges.length}건</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">{edges.length}건</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {edges.map((edge, i) => {
@@ -118,7 +118,7 @@ export function CrossReferenceChips({
               type="button"
               key={`${edge.type}-${edge.targetLabel}-${i}`}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-opacity hover:opacity-80",
+                "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-2xs font-medium transition-opacity hover:opacity-80",
                 meta.bgColor,
                 meta.color,
               )}
@@ -129,7 +129,7 @@ export function CrossReferenceChips({
               <ArrowRight className="h-2.5 w-2.5 opacity-50" />
               <span>{edge.targetLabel}</span>
               {edge.sharedCompetencies && edge.sharedCompetencies.length > 1 && (
-                <span className="rounded-full bg-white/50 px-1 text-[9px] dark:bg-black/20">
+                <span className="rounded-full bg-white/50 px-1 text-3xs dark:bg-black/20">
                   {edge.sharedCompetencies.length}
                 </span>
               )}

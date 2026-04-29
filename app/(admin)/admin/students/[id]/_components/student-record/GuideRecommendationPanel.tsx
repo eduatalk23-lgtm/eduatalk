@@ -119,7 +119,7 @@ export function GuideRecommendationPanel({
           {interestKeywords.slice(0, 5).map((kw) => (
             <span
               key={kw}
-              className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400"
+              className="rounded-full bg-indigo-100 px-2 py-0.5 text-3xs font-medium text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400"
             >
               {kw}
             </span>
@@ -160,7 +160,7 @@ export function GuideRecommendationPanel({
                 <BookOpen className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-[var(--color-text-primary)]">{g.title}</p>
-                  <p className="text-[10px] text-[var(--color-text-tertiary)]">
+                  <p className="text-3xs text-[var(--color-text-tertiary)]">
                     {guideTypeLabel[g.guide_type] ?? g.guide_type}
                     {g.book_title ? ` · ${g.book_title}` : ""}
                   </p>
@@ -170,7 +170,7 @@ export function GuideRecommendationPanel({
                   disabled={isAssigned || assignMutation.isPending}
                   onClick={() => assignMutation.mutate(g.guide_id)}
                   className={cn(
-                    "shrink-0 rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
+                    "shrink-0 rounded px-2 py-0.5 text-3xs font-medium transition-colors",
                     isAssigned
                       ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
                       : "bg-indigo-600 text-white hover:bg-indigo-700",

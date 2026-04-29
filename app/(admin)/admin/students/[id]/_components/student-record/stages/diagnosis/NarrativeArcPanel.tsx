@@ -72,10 +72,10 @@ export function NarrativeArcPanel({ studentId, tenantId, recordLabelMap }: Props
                       style={{ height: `${Math.max(4, rate * 100)}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">
+                  <span className="text-3xs text-[var(--text-tertiary)]">
                     {s.index}·{s.label}
                   </span>
-                  <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                  <span className="text-3xs font-medium text-[var(--text-secondary)]">
                     {s.count}
                   </span>
                 </div>
@@ -86,7 +86,7 @@ export function NarrativeArcPanel({ studentId, tenantId, recordLabelMap }: Props
       )}
 
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-[var(--text-tertiary)]">필터:</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">필터:</span>
         {([
           { k: "all", l: "전체" },
           { k: "weak", l: "약한 서사(≤3)" },
@@ -97,7 +97,7 @@ export function NarrativeArcPanel({ studentId, tenantId, recordLabelMap }: Props
             type="button"
             onClick={() => setFilter(btn.k)}
             className={cn(
-              "rounded-full border px-2 py-0.5 text-[10px]",
+              "rounded-full border px-2 py-0.5 text-3xs",
               filter === btn.k
                 ? "border-indigo-500 bg-indigo-500 text-white"
                 : "border-[var(--border-primary)] text-[var(--text-secondary)]",
@@ -106,7 +106,7 @@ export function NarrativeArcPanel({ studentId, tenantId, recordLabelMap }: Props
             {btn.l}
           </button>
         ))}
-        <span className="ml-auto text-[10px] text-[var(--text-tertiary)]">
+        <span className="ml-auto text-3xs text-[var(--text-tertiary)]">
           {filtered.length}/{arcs.length}건
         </span>
       </div>
@@ -135,7 +135,7 @@ function ArcRow({ arc, label }: { arc: PersistedNarrativeArc; label: string }) {
   return (
     <li className="rounded-md border border-[var(--border-primary)] bg-white p-2 dark:bg-secondary-900">
       <div className="flex items-center gap-2">
-        <span className="rounded-sm border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+        <span className="rounded-sm border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)]">
           {RECORD_TYPE_LABEL[arc.record_type] ?? arc.record_type}
         </span>
         <span className="text-xs text-[var(--text-tertiary)]">{arc.grade}학년</span>

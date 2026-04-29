@@ -555,7 +555,7 @@ export function PipelinePanelApp({
               {progressPct}%
             </span>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+          <div className="h-1.5 w-full rounded-full bg-bg-tertiary dark:bg-bg-secondary overflow-hidden">
             <div
               className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
               style={{ width: `${progressPct}%` }}
@@ -563,21 +563,21 @@ export function PipelinePanelApp({
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-tertiary)]">
-            <span className="inline-block px-1.5 py-px rounded-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-medium">
+          <span className="inline-flex items-center gap-1 text-2xs text-[var(--text-tertiary)]">
+            <span className="inline-block px-1.5 py-px rounded-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-3xs font-medium">
               분석
             </span>
             NEIS 기존 기록 분석
           </span>
-          <span className="text-[var(--text-placeholder)] text-[11px]">|</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-tertiary)]">
-            <span className="inline-block px-1.5 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[10px] font-medium">
+          <span className="text-[var(--text-placeholder)] text-2xs">|</span>
+          <span className="inline-flex items-center gap-1 text-2xs text-[var(--text-tertiary)]">
+            <span className="inline-block px-1.5 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-3xs font-medium">
               설계
             </span>
             AI 가안 생성 포함
           </span>
-          <span className="text-[var(--text-placeholder)] text-[11px]">|</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-tertiary)]">
+          <span className="text-[var(--text-placeholder)] text-2xs">|</span>
+          <span className="inline-flex items-center gap-1 text-2xs text-[var(--text-tertiary)]">
             <Info className="h-3 w-3" />
             셀 위에 마우스를 올리면 설명 확인
           </span>
@@ -714,7 +714,7 @@ export function PipelinePanelApp({
                   <div className="font-medium text-[var(--text-primary)]">
                     Phase 2 재실행 (narrative chunk 측정)
                   </div>
-                  <div className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">
+                  <div className="mt-0.5 text-2xs text-[var(--text-tertiary)]">
                     [개발 전용] narrative/hyperedge/edge/guide_matching/haengteuk 초기화 + 파생 DB 클린업
                   </div>
                 </div>
@@ -797,7 +797,7 @@ export function PipelinePanelApp({
             title="로그 패널 펼치기"
           >
             <ChevronLeft className="h-3 w-3" />
-            <span className="text-[10px] [writing-mode:vertical-lr] rotate-180">로그</span>
+            <span className="text-3xs [writing-mode:vertical-lr] rotate-180">로그</span>
           </button>
         )}
       </div>

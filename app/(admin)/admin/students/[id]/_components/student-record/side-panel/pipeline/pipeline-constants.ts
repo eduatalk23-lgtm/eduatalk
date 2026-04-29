@@ -207,11 +207,11 @@ export type CellStatus =
 export const STATUS_STYLES: Record<CellStatus, { bg: string; text: string; border: string }> = {
   completed: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-400", border: "border-emerald-200 dark:border-emerald-800" },
   cached: { bg: "bg-teal-50 dark:bg-teal-900/15", text: "text-teal-700 dark:text-teal-400", border: "border-teal-200 dark:border-teal-800" },
-  skipped: { bg: "bg-gray-50 dark:bg-gray-800/50", text: "text-gray-400 dark:text-gray-500", border: "border-gray-200 dark:border-gray-700" },
+  skipped: { bg: "bg-bg-secondary dark:bg-gray-800/50", text: "text-text-tertiary dark:text-text-tertiary", border: "border-border dark:border-gray-700" },
   running: { bg: "bg-indigo-50 dark:bg-indigo-900/20", text: "text-indigo-700 dark:text-indigo-400", border: "border-indigo-300 dark:border-indigo-700" },
   failed: { bg: "bg-red-50 dark:bg-red-900/20", text: "text-red-700 dark:text-red-400", border: "border-red-200 dark:border-red-800" },
   ready: { bg: "bg-white dark:bg-gray-900", text: "text-indigo-600 dark:text-indigo-400", border: "border-indigo-200 dark:border-indigo-700 hover:border-indigo-400" },
-  locked: { bg: "bg-gray-50 dark:bg-gray-900/50", text: "text-gray-400 dark:text-gray-600", border: "border-gray-200 dark:border-gray-800" },
+  locked: { bg: "bg-bg-secondary dark:bg-gray-900/50", text: "text-text-tertiary dark:text-text-secondary", border: "border-border dark:border-gray-800" },
   cancelled: { bg: "bg-amber-50 dark:bg-amber-900/15", text: "text-amber-700 dark:text-amber-400", border: "border-amber-200 dark:border-amber-800" },
 };
 

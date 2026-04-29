@@ -119,10 +119,10 @@ export function TrajectoryPanel({ studentId }: { studentId: string }) {
                       <span className="truncate max-w-[100px]">
                         {item.cluster?.name ?? "알 수 없음"}
                       </span>
-                      <span className="text-[10px] text-[var(--text-secondary)]">
+                      <span className="text-3xs text-[var(--text-secondary)]">
                         {DIFF_LABELS[diff] ?? diff}
                       </span>
-                      <span className={cn("text-[9px]", sourceColor)}>
+                      <span className={cn("text-3xs", sourceColor)}>
                         {sourceLabel}
                       </span>
                     </span>

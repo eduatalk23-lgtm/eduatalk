@@ -24,7 +24,7 @@ export const AREA_OPTIONS: { value: RoadmapArea; label: string }[] = [
 ];
 
 export const STATUS_CONFIG: Record<RoadmapItemStatus, { label: string; className: string }> = {
-  planning: { label: "계획", className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400" },
+  planning: { label: "계획", className: "bg-bg-tertiary text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary" },
   confirmed: { label: "확정", className: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
   in_progress: { label: "진행중", className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
   completed: { label: "완료", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
@@ -54,9 +54,9 @@ export function AreaCoverageSummary({ items }: { items: RoadmapItem[] }) {
 
   return (
     <div className="rounded-lg border border-violet-200 bg-violet-50/30 p-3 dark:border-violet-800 dark:bg-violet-950/20">
-      <p className="mb-2 text-[11px] font-medium text-violet-700 dark:text-violet-400">영역별 커버리지</p>
+      <p className="mb-2 text-2xs font-medium text-violet-700 dark:text-violet-400">영역별 커버리지</p>
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px]">
+        <table className="w-full text-3xs">
           <thead>
             <tr className="text-[var(--text-tertiary)]">
               <th className="py-1 text-left font-medium">영역</th>
@@ -74,7 +74,7 @@ export function AreaCoverageSummary({ items }: { items: RoadmapItem[] }) {
                   return (
                     <td key={g} className="py-1 text-center">
                       {count > 0 ? (
-                        <span className="inline-block min-w-[1.25rem] rounded-full bg-violet-200 px-1 text-[10px] font-bold text-violet-700 dark:bg-violet-800 dark:text-violet-300">
+                        <span className="inline-block min-w-[1.25rem] rounded-full bg-violet-200 px-1 text-3xs font-bold text-violet-700 dark:bg-violet-800 dark:text-violet-300">
                           {count}
                         </span>
                       ) : (
@@ -139,7 +139,7 @@ export function RoadmapReadOnlyRow({
           {item.plan_keywords.map((kw) => (
             <span
               key={kw}
-              className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
+              className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-3xs font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
             >
               <Tag className="h-2 w-2" />
               {kw}
@@ -269,7 +269,7 @@ export function RoadmapItemRow({
               {item.plan_keywords.map((kw) => (
                 <span
                   key={kw}
-                  className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
+                  className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-3xs font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
                 >
                   <Tag className="h-2 w-2" />
                   {kw}
@@ -306,14 +306,14 @@ export function RoadmapItemRow({
 
       {/* 실행 기록 편집 */}
       {isEditing && (
-        <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+        <div className="mt-3 rounded-lg border border-border bg-bg-secondary p-3 dark:border-border dark:bg-bg-secondary">
           <div className="flex flex-col gap-2">
             <textarea
               value={executionContent}
               onChange={(e) => setExecutionContent(e.target.value)}
               rows={2}
               placeholder="실행 내용을 입력하세요..."
-              className="w-full resize-y rounded-md border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+              className="w-full resize-y rounded-md border border-border bg-white p-2 text-sm dark:border-border dark:bg-bg-primary"
             />
             <div className="flex gap-3">
               <div className="flex items-center gap-2">
@@ -324,7 +324,7 @@ export function RoadmapItemRow({
                   max={100}
                   value={matchRate}
                   onChange={(e) => setMatchRate(Math.min(100, Math.max(0, Number(e.target.value))))}
-                  className="w-16 rounded-md border border-gray-200 px-2 py-1 text-center text-sm dark:border-gray-600 dark:bg-gray-900"
+                  className="w-16 rounded-md border border-border px-2 py-1 text-center text-sm dark:border-border dark:bg-bg-primary"
                 />
                 <span className="text-xs text-[var(--text-tertiary)]">%</span>
               </div>
@@ -333,7 +333,7 @@ export function RoadmapItemRow({
               value={deviationNote}
               onChange={(e) => setDeviationNote(e.target.value)}
               placeholder="편차 사유 (선택)"
-              className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-900"
+              className="rounded-md border border-border bg-white px-2 py-1.5 text-sm dark:border-border dark:bg-bg-primary"
             />
             <div className="flex items-center justify-between">
               <SaveStatusIndicator

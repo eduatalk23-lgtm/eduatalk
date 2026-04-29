@@ -98,7 +98,7 @@ export function ContextGridChangche({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 flex gap-px rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+      <div className="min-h-0 flex-1 flex gap-px rounded-lg overflow-hidden bg-bg-tertiary dark:bg-bg-tertiary">
         {selectedColumns.map((col) => {
           const isSplit = COL_ROW_SPAN[col] === 1;
           const perspLabels = COL_PERSPECTIVE_LABELS[col];
@@ -109,8 +109,8 @@ export function ContextGridChangche({
           return (
             <div key={col} className="flex min-h-0 flex-1 flex-col gap-px">
               {/* 헤더 */}
-              <div className="flex-shrink-0 flex items-center gap-2 bg-gray-50 px-3 py-2 dark:bg-gray-800">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+              <div className="flex-shrink-0 flex items-center gap-2 bg-bg-secondary px-3 py-2 dark:bg-bg-secondary">
+                <span className="text-sm font-semibold text-text-primary dark:text-gray-200">
                   {COL_LABELS[col]}
                 </span>
                 {isSplit && perspLabels && (
@@ -123,9 +123,9 @@ export function ContextGridChangche({
                             type="checkbox"
                             checked={checked}
                             onChange={() => togglePerspective(col, p)}
-                            className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
+                            className="h-3.5 w-3.5 rounded border-border text-indigo-600 focus:ring-indigo-500 dark:border-border"
                           />
-                          <span className={cn("text-xs", checked ? "text-gray-600 dark:text-gray-300" : "text-gray-400 dark:text-gray-600")}>
+                          <span className={cn("text-xs", checked ? "text-text-secondary dark:text-text-disabled" : "text-text-tertiary dark:text-text-secondary")}>
                             {perspLabels[p]}
                           </span>
                         </label>
@@ -138,7 +138,7 @@ export function ContextGridChangche({
               {/* 셀 */}
               {isSplit && checkedPersp ? (
                 checkedPersp.map((perspective) => (
-                  <div key={perspective} className="min-h-0 flex-1 overflow-y-auto hide-scrollbar bg-white p-3 dark:bg-gray-900">
+                  <div key={perspective} className="min-h-0 flex-1 overflow-y-auto hide-scrollbar bg-white p-3 dark:bg-bg-primary">
                     <ChangcheGridCell
                       column={col}
                       perspective={perspective}
@@ -159,7 +159,7 @@ export function ContextGridChangche({
                   </div>
                 ))
               ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto hide-scrollbar bg-white p-3 dark:bg-gray-900">
+                <div className="min-h-0 flex-1 overflow-y-auto hide-scrollbar bg-white p-3 dark:bg-bg-primary">
                   <ChangcheGridCell
                     column={col}
                     perspective="ai"

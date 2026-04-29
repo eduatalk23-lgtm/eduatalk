@@ -185,7 +185,7 @@ export function GapGuidePanel({
             보완 가이드 추천
           </h3>
           {suggestions.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+            <span className="px-1.5 py-0.5 rounded-full text-3xs font-medium bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
               {suggestions.length}
             </span>
           )}
@@ -223,7 +223,7 @@ export function GapGuidePanel({
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span
                     className={cn(
-                      "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                      "px-1.5 py-0.5 rounded text-3xs font-medium",
                       DIFF_COLORS[s.difficultyLevel] ?? "bg-secondary-200",
                     )}
                   >
@@ -239,7 +239,7 @@ export function GapGuidePanel({
                 <div className="flex items-center gap-1 mt-0.5">
                   <span
                     className={cn(
-                      "text-[10px] font-medium",
+                      "text-3xs font-medium",
                       REASON_COLORS[s.reason],
                     )}
                   >
@@ -248,7 +248,7 @@ export function GapGuidePanel({
                   {s.sourceTrajectory && (
                     <>
                       <ArrowRight className="w-3 h-3 text-[var(--text-secondary)]" />
-                      <span className="text-[10px] text-[var(--text-secondary)]">
+                      <span className="text-3xs text-[var(--text-secondary)]">
                         {s.sourceTrajectory.grade}학년{" "}
                         {DIFF_LABELS[s.sourceTrajectory.difficulty]} 기반
                       </span>

@@ -71,7 +71,7 @@ export function CompetencyBadge({ tag }: { tag: HighlightTag }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[9px] font-medium",
+        "inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-3xs font-medium",
         colors.badge, colors.badgeBorder,
       )}
       title={`${areaLabel} > ${itemLabel} (${evalInfo.label}): ${tag.reasoning}`}
@@ -243,7 +243,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
   }, [allTags]);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="rounded-lg border border-border dark:border-border">
       {/* 헤더 */}
       <div
         role="button"
@@ -260,7 +260,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
             </span>
           )}
           {hasNeedsReview && (
-            <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+            <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-3xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
               확인 要
             </span>
           )}
@@ -269,15 +269,15 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
         <div className="flex items-center gap-2">
           {/* 뷰 모드 토글 */}
           {expanded && allTags.length > 0 && (
-            <div className="flex overflow-hidden rounded-md border border-gray-200 dark:border-gray-600" onClick={(e) => e.stopPropagation()}>
+            <div className="flex overflow-hidden rounded-md border border-border dark:border-border" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setViewMode("competency")}
                 className={cn(
-                  "px-2.5 py-1 text-[10px] leading-none transition-colors",
+                  "px-2.5 py-1 text-3xs leading-none transition-colors",
                   viewMode === "competency"
-                    ? "bg-gray-800 text-white font-medium dark:bg-gray-200 dark:text-gray-900"
-                    : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700",
+                    ? "bg-gray-800 text-white font-medium dark:bg-bg-tertiary dark:text-text-primary"
+                    : "bg-white text-text-tertiary hover:bg-bg-secondary hover:text-text-primary dark:bg-bg-secondary dark:text-text-tertiary dark:hover:bg-gray-700",
                 )}
               >
                 역량
@@ -286,10 +286,10 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
                 type="button"
                 onClick={() => setViewMode("original")}
                 className={cn(
-                  "border-l border-gray-200 px-2.5 py-1 text-[10px] leading-none transition-colors dark:border-gray-600",
+                  "border-l border-border px-2.5 py-1 text-3xs leading-none transition-colors dark:border-border",
                   viewMode === "original"
-                    ? "bg-gray-800 text-white font-medium dark:bg-gray-200 dark:text-gray-900"
-                    : "bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700",
+                    ? "bg-gray-800 text-white font-medium dark:bg-bg-tertiary dark:text-text-primary"
+                    : "bg-white text-text-tertiary hover:bg-bg-secondary hover:text-text-primary dark:bg-bg-secondary dark:text-text-tertiary dark:hover:bg-gray-700",
                 )}
               >
                 원문
@@ -302,7 +302,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setShowReanalyzeConfirm(true); }}
                 disabled={isReanalyzing}
-                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:bg-gray-100 hover:text-blue-600 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-blue-400"
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)] hover:bg-bg-tertiary hover:text-blue-600 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-blue-400"
                 title="재분석"
               >
                 {isReanalyzing ? (
@@ -314,7 +314,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
               </button>
               {showReanalyzeConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowReanalyzeConfirm(false)}>
-                  <div className="mx-4 w-full max-w-xs rounded-xl bg-white p-4 shadow-xl dark:bg-gray-800" onClick={(e) => e.stopPropagation()}>
+                  <div className="mx-4 w-full max-w-xs rounded-xl bg-white p-4 shadow-xl dark:bg-bg-secondary" onClick={(e) => e.stopPropagation()}>
                     <h3 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">재분석 확인</h3>
                     <p className="mb-4 text-xs text-[var(--text-secondary)]">
                       <span className="font-medium">{label}</span>의 역량 분석을 다시 실행합니다. 기존 AI 분석 결과가 새로운 결과로 대체됩니다.
@@ -322,7 +322,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setShowReanalyzeConfirm(false)}
-                        className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-bg-tertiary dark:hover:bg-gray-700"
                       >
                         취소
                       </button>
@@ -343,7 +343,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-200 dark:border-gray-700">
+        <div className="border-t border-border dark:border-border">
           {viewMode === "competency" ? (
             <CompetencyView sections={sections} areaCounts={areaCounts} />
           ) : (
@@ -391,7 +391,7 @@ function CompetencyView({ sections, areaCounts }: { sections: AnalyzedSection[];
           <div className="flex flex-col gap-2 ml-1">
             {group.items.map((item) => (
               <div key={item.code}>
-                <div className="text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                <div className="text-2xs font-medium text-[var(--text-secondary)] mb-1">
                   {item.label}
                   <span className="ml-1 text-[var(--text-tertiary)] font-normal">×{item.tags.length}</span>
                 </div>
@@ -405,9 +405,9 @@ function CompetencyView({ sections, areaCounts }: { sections: AnalyzedSection[];
                       : [];
 
                     return (
-                      <div key={j} className="flex items-start gap-1.5 text-[11px] group">
+                      <div key={j} className="flex items-start gap-1.5 text-2xs group">
                         <span className={cn(
-                          "shrink-0 mt-0.5 rounded px-1 py-px text-[8px] font-medium",
+                          "shrink-0 mt-0.5 rounded px-1 py-px text-3xs font-medium",
                           tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30",
                           tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30",
                           tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30",
@@ -417,7 +417,7 @@ function CompetencyView({ sections, areaCounts }: { sections: AnalyzedSection[];
                         <span className="flex-1 text-[var(--text-secondary)] leading-relaxed">
                           &ldquo;{tag.highlight.length > 80 ? tag.highlight.slice(0, 80) + "..." : tag.highlight}&rdquo;
                           {otherItems.length > 0 && (
-                            <span className="ml-1 text-[9px] text-[var(--text-quaternary)]">
+                            <span className="ml-1 text-3xs text-[var(--text-quaternary)]">
                               ↗{otherItems.join("·")}
                             </span>
                           )}
@@ -460,13 +460,13 @@ function OriginalView({ content, allTags, areaCounts }: { content: string; allTa
       </p>
 
       {/* 영역별 카운트 + 커버리지 */}
-      <div className="mt-3 flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
+      <div className="mt-3 flex items-center gap-3 text-3xs text-[var(--text-tertiary)]">
         {areaCounts.academic > 0 && <span className="text-blue-600 dark:text-blue-400">학업 {areaCounts.academic}</span>}
         {areaCounts.career > 0 && <span className="text-purple-600 dark:text-purple-400">진로 {areaCounts.career}</span>}
         {areaCounts.community > 0 && <span className="text-green-600 dark:text-green-400">공동체 {areaCounts.community}</span>}
         <span className="ml-auto flex items-center gap-1.5">
           커버리지 {coverage}%
-          <span className="inline-block h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+          <span className="inline-block h-1.5 w-16 rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
             <span
               className="block h-full rounded-full bg-blue-400 dark:bg-blue-500 transition-all"
               style={{ width: `${Math.min(coverage, 100)}%` }}
@@ -521,7 +521,7 @@ export function MultiTagSpan({ text, tags }: { text: string; tags: HighlightTag[
       </span>
       {showTooltip && tooltipPos && (
         <span
-          className="fixed z-[9999] w-72 max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+          className="fixed z-[9999] w-72 max-h-60 overflow-y-auto rounded-md border border-border bg-white p-2.5 shadow-lg dark:border-border dark:bg-bg-secondary"
           style={{
             top: below ? tooltipPos.y + 12 : undefined,
             bottom: below ? undefined : window.innerHeight - tooltipPos.y + 12,
@@ -534,7 +534,7 @@ export function MultiTagSpan({ text, tags }: { text: string; tags: HighlightTag[
           {tags.map((tag, i) => {
             const evalInfo = EVAL_LABELS[tag.evaluation] ?? EVAL_LABELS.positive;
             return (
-              <span key={i} className={cn("flex flex-col", i > 0 && "mt-2 border-t border-gray-100 pt-2 dark:border-gray-700")}>
+              <span key={i} className={cn("flex flex-col", i > 0 && "mt-2 border-t border-border pt-2 dark:border-border")}>
                 <span className="flex items-center gap-1.5 text-xs font-medium">
                   <CompetencyBadge tag={tag} />
                   <span className="text-[var(--text-tertiary)]">{evalInfo.label}</span>

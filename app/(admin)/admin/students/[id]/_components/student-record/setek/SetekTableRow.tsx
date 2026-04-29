@@ -256,7 +256,7 @@ export function SetekTableRow({
         {bestSim !== null && (
           <span
             className={cn(
-              "mt-0.5 inline-flex items-center rounded px-1 py-0 text-[10px] font-semibold",
+              "mt-0.5 inline-flex items-center rounded px-1 py-0 text-3xs font-semibold",
               bestSimTier === "strong"
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                 : bestSimTier === "medium"
@@ -274,7 +274,7 @@ export function SetekTableRow({
             onClick={toggleContextGrid}
             className={cn(
               "text-xs transition-colors",
-              isGridActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
+              isGridActive ? "text-indigo-600 dark:text-indigo-400" : "text-text-tertiary hover:text-text-secondary dark:hover:text-text-disabled",
             )}
             title={isGridActive ? "그리드 닫기" : "컨텍스트 그리드 열기"}
           >
@@ -288,7 +288,7 @@ export function SetekTableRow({
           >
             {deleteMutation.isPending ? "삭제 중..." : "삭제"}
           </button>
-          {deleteMutation.isError && <span className="text-[11px] text-red-500">{deleteMutation.error.message}</span>}
+          {deleteMutation.isError && <span className="text-2xs text-red-500">{deleteMutation.error.message}</span>}
         </div>
       </div>
     </td>
@@ -302,9 +302,9 @@ export function SetekTableRow({
         <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
         {subjectCell()}
         <td className={`${B} p-2`}>
-          <div className="flex flex-col gap-0.5 rounded border border-dashed border-gray-300 bg-gray-50/50 px-3 py-2 text-xs text-[var(--text-tertiary)]">
+          <div className="flex flex-col gap-0.5 rounded border border-dashed border-border bg-bg-secondary/50 px-3 py-2 text-xs text-[var(--text-tertiary)]">
             <span className="font-medium text-[var(--text-secondary)]">{def.label} 레이어 — 작업 예정</span>
-            <span className="text-[10px] italic">{def.description}</span>
+            <span className="text-3xs italic">{def.description}</span>
           </div>
         </td>
       </tr>

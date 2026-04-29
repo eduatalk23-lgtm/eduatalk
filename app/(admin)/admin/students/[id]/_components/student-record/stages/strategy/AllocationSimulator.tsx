@@ -101,7 +101,7 @@ export function AllocationSimulator({
         </div>
 
         {candidates.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
             후보 대학을 추가하거나 기존 지원현황에서 가져오세요
           </div>
         ) : (
@@ -185,7 +185,7 @@ function CandidateCard({
   const colors = PLACEMENT_COLORS[candidate.placementLevel];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white p-3 dark:border-border dark:bg-bg-primary">
       <div className="flex items-start justify-between">
         <div className="flex-1 overflow-hidden">
           <span className="text-xs text-[var(--text-tertiary)]">
@@ -214,7 +214,7 @@ function CandidateCard({
           면접: {candidate.interviewDate}
         </p>
       )}
-      <div className="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
+      <div className="mt-2 border-t border-border pt-2 dark:border-border">
         <button onClick={onRemove} className="text-xs text-red-500 hover:text-red-700">삭제</button>
       </div>
     </div>
@@ -259,18 +259,18 @@ function AddCandidateForm({
           value={universityName}
           onChange={(e) => setUniversityName(e.target.value)}
           placeholder="대학명 *"
-          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
         />
         <input
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
           placeholder="학과 *"
-          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
         />
         <select
           value={round}
           onChange={(e) => setRound(e.target.value)}
-          className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
         >
           {EARLY_ROUNDS.map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
@@ -279,7 +279,7 @@ function AddCandidateForm({
         <select
           value={level}
           onChange={(e) => setLevel(e.target.value as PlacementLevel)}
-          className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
         >
           {ALL_LEVELS.map((l) => (
             <option key={l} value={l}>{PLACEMENT_LABELS[l]}</option>
@@ -289,7 +289,7 @@ function AddCandidateForm({
           type="date"
           value={interviewDate}
           onChange={(e) => setInterviewDate(e.target.value)}
-          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           placeholder="면접일"
         />
       </div>
@@ -368,7 +368,7 @@ function RecommendationCard({
           };
           return (
             <div key={tier} className={cn("rounded-md border p-2", tierColors[tier])}>
-              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="mb-1.5 block text-3xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
                 {TIER_LABELS[tier]} ({slots.length})
               </span>
               <div className="flex flex-col gap-1">
@@ -376,11 +376,11 @@ function RecommendationCard({
                   const colors = PLACEMENT_COLORS[s.placementLevel];
                   return (
                     <div key={s.id} className="flex items-center gap-1.5">
-                      <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", colors.bg, colors.text, colors.darkBg, colors.darkText)}>
+                      <span className={cn("rounded-full px-1.5 py-0.5 text-3xs font-medium", colors.bg, colors.text, colors.darkBg, colors.darkText)}>
                         {PLACEMENT_LABELS[s.placementLevel]}
                       </span>
                       <span className="text-xs text-[var(--text-primary)]">{s.universityName}</span>
-                      <span className="text-[10px] text-[var(--text-tertiary)]">{s.department}</span>
+                      <span className="text-3xs text-[var(--text-tertiary)]">{s.department}</span>
                     </div>
                   );
                 })}

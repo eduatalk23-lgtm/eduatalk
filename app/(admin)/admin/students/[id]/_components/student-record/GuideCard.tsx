@@ -29,7 +29,7 @@ export function GuideCard({
     <div
       className={cn(
         "flex items-center gap-3 rounded-lg border p-3 transition-colors",
-        "hover:bg-gray-50 cursor-pointer",
+        "hover:bg-bg-secondary cursor-pointer",
         isAssigned && "opacity-60",
       )}
       onClick={() => onSelect(guide.id)}
@@ -44,12 +44,12 @@ export function GuideCard({
           >
             {GUIDE_TYPE_LABELS[guide.guide_type]}
           </span>
-          <span className="truncate text-sm font-medium text-gray-900">
+          <span className="truncate text-sm font-medium text-text-primary">
             {guide.title}
           </span>
         </div>
         {guide.book_title && (
-          <p className="mt-0.5 truncate text-xs text-gray-500">
+          <p className="mt-0.5 truncate text-xs text-text-tertiary">
             {guide.book_title}
             {guide.book_author && ` — ${guide.book_author}`}
           </p>
@@ -68,7 +68,7 @@ export function GuideCard({
         </button>
       )}
       {isAssigned && (
-        <span className="shrink-0 text-xs text-gray-400">배정됨</span>
+        <span className="shrink-0 text-xs text-text-tertiary">배정됨</span>
       )}
     </div>
   );

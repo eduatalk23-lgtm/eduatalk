@@ -57,13 +57,13 @@ export function PipelineSynthesisGrid({
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+        <h4 className="text-2xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
           Synthesis Pipeline
         </h4>
         {aiGuideProgress && aiGuideProgress.total > 0 && (
           <span
             className={cn(
-              "text-[10px] font-medium px-1.5 py-0.5 rounded-sm flex items-center gap-1",
+              "text-3xs font-medium px-1.5 py-0.5 rounded-sm flex items-center gap-1",
               aiGuideProgress.generating > 0 || aiGuideProgress.queued > 0
                 ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
                 : aiGuideProgress.failed > 0
@@ -98,7 +98,7 @@ export function PipelineSynthesisGrid({
             종합
           </span>
           {hasAnalysis && hasDesign && (
-            <span className="text-[9px] font-medium px-1 py-px rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+            <span className="text-3xs font-medium px-1 py-px rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
               혼합
             </span>
           )}
@@ -117,10 +117,10 @@ export function PipelineSynthesisGrid({
                       : "종합 Phase 1~7 일괄 실행"
               }
               className={cn(
-                "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-[9px] font-medium transition-colors",
+                "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-3xs font-medium transition-colors",
                 allGradesCompleted && !isAnyRunning && !isCancelling
                   ? "border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/30 cursor-pointer"
-                  : "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed",
+                  : "border-border text-text-disabled dark:border-border dark:text-text-secondary cursor-not-allowed",
               )}
             >
               <Play className="h-2.5 w-2.5" />
@@ -200,7 +200,7 @@ export function PipelineSynthesisGrid({
             return (
               <span
                 key={s}
-                className="inline-flex items-center gap-1 text-[11px] text-[var(--text-tertiary)]"
+                className="inline-flex items-center gap-1 text-2xs text-[var(--text-tertiary)]"
               >
                 <span
                   className={cn(
@@ -239,7 +239,7 @@ function OrphanGuideFeedback({ previews }: { previews: Record<string, string> })
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+        className="flex w-full items-center gap-1.5 text-2xs font-medium text-amber-700 dark:text-amber-300"
       >
         <AlertTriangle className="h-3 w-3 shrink-0" />
         미배정 가이드 {orphans.count}건 (과목 풀 불일치)
@@ -253,13 +253,13 @@ function OrphanGuideFeedback({ previews }: { previews: Record<string, string> })
               href={`/admin/guides/${g.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="truncate text-[10px] text-amber-600 underline decoration-amber-300 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200"
+              className="truncate text-3xs text-amber-600 underline decoration-amber-300 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200"
             >
               {g.title}
             </a>
           ))}
           {orphans.count > orphans.guides.length && (
-            <span className="text-[10px] text-[var(--text-tertiary)]">외 {orphans.count - orphans.guides.length}건</span>
+            <span className="text-3xs text-[var(--text-tertiary)]">외 {orphans.count - orphans.guides.length}건</span>
           )}
         </div>
       )}
@@ -290,11 +290,11 @@ export function PipelineLogPanel({
     <div className="w-[260px] flex-shrink-0 flex flex-col min-h-0">
       {/* 로그 헤더 + 접기 버튼 */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border-secondary)]">
-        <span className="text-[11px] font-semibold text-[var(--text-secondary)]">태스크 로그</span>
+        <span className="text-2xs font-semibold text-[var(--text-secondary)]">태스크 로그</span>
         <button
           type="button"
           onClick={onCollapse}
-          className="flex items-center gap-0.5 text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          className="flex items-center gap-0.5 text-2xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
           title="로그 패널 접기"
         >
           접기 <ChevronRight className="h-3 w-3" />
@@ -306,7 +306,7 @@ export function PipelineLogPanel({
         {/* 실행 중 */}
         {runningTasks.length > 0 && (
           <div>
-            <h4 className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1.5 flex items-center gap-1">
+            <h4 className="text-2xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1.5 flex items-center gap-1">
               <Loader2 className="h-3 w-3 animate-spin" />
               실행 중
             </h4>
@@ -316,10 +316,10 @@ export function PipelineLogPanel({
                   key={t.label}
                   className="rounded-md bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/50 px-2.5 py-1.5"
                 >
-                  <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">
+                  <span className="text-3xs font-semibold text-indigo-700 dark:text-indigo-300">
                     {t.label}
                   </span>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{t.preview}</p>
+                  <p className="text-3xs text-[var(--text-secondary)] mt-0.5">{t.preview}</p>
                 </div>
               ))}
             </div>
@@ -329,7 +329,7 @@ export function PipelineLogPanel({
         {/* 완료 로그 */}
         {completedTasks.length > 0 && (
           <div>
-            <h4 className="text-[11px] font-semibold text-[var(--text-tertiary)] mb-1.5 flex items-center gap-1">
+            <h4 className="text-2xs font-semibold text-[var(--text-tertiary)] mb-1.5 flex items-center gap-1">
               <Check className="h-3 w-3" />
               완료 ({completedTasks.length})
             </h4>
@@ -338,15 +338,15 @@ export function PipelineLogPanel({
                 <div key={t.label} className="flex items-start gap-1.5 py-1 px-1.5">
                   <Check className="h-3 w-3 shrink-0 text-emerald-500 mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                    <span className="text-3xs font-medium text-[var(--text-secondary)]">
                       {t.label}
                     </span>
                     {t.elapsedMs != null && (
-                      <span className="text-[9px] text-[var(--text-placeholder)] ml-1">
+                      <span className="text-3xs text-[var(--text-placeholder)] ml-1">
                         {formatElapsed(t.elapsedMs)}
                       </span>
                     )}
-                    <p className="text-[9px] text-[var(--text-tertiary)] truncate">{t.preview}</p>
+                    <p className="text-3xs text-[var(--text-tertiary)] truncate">{t.preview}</p>
                   </div>
                 </div>
               ))}
@@ -355,7 +355,7 @@ export function PipelineLogPanel({
         )}
 
         {runningTasks.length === 0 && completedTasks.length === 0 && (
-          <div className="flex items-center justify-center h-32 text-[11px] text-[var(--text-placeholder)]">
+          <div className="flex items-center justify-center h-32 text-2xs text-[var(--text-placeholder)]">
             전체 실행 또는 개별 셀을 클릭하세요
           </div>
         )}

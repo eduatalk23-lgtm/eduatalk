@@ -38,7 +38,7 @@ export function TimeSeriesCard({ analysis }: Props) {
           <span className={cn("text-lg font-bold", growthColor)}>
             {growthSign}{analysis.overallGrowthRate.toFixed(1)}
           </span>
-          <span className="text-[10px] text-[var(--text-tertiary)]">전체 성장률</span>
+          <span className="text-3xs text-[var(--text-tertiary)]">전체 성장률</span>
         </div>
         <p className="flex-1 text-xs text-[var(--text-secondary)]">{analysis.summary}</p>
       </div>
@@ -68,8 +68,8 @@ export function TimeSeriesCard({ analysis }: Props) {
             )}>
               <meta.Icon size={12} className={meta.color} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[10px] font-medium text-[var(--text-primary)]">{t.competencyName}</p>
-                <p className="text-[10px] text-[var(--text-tertiary)]">
+                <p className="truncate text-3xs font-medium text-[var(--text-primary)]">{t.competencyName}</p>
+                <p className="text-3xs text-[var(--text-tertiary)]">
                   {meta.label} ({t.growthRate >= 0 ? "+" : ""}{t.growthRate.toFixed(1)})
                 </p>
               </div>
@@ -108,19 +108,19 @@ function TrendDetail({ trend }: { trend: CompetencyTrend }) {
       <div className="flex items-center gap-2">
         <meta.Icon size={12} className={meta.color} />
         <span className="text-xs font-medium text-[var(--text-primary)]">{trend.competencyName}</span>
-        <span className={cn("text-[10px] font-medium", meta.color)}>{meta.label}</span>
+        <span className={cn("text-3xs font-medium", meta.color)}>{meta.label}</span>
       </div>
       <div className="mt-1 flex items-center gap-2">
         {trend.points.map((p, i) => (
           <span key={p.gradeYear} className="flex items-center gap-1">
-            <span className="text-[10px] text-[var(--text-tertiary)]">{p.gradeYear}학년</span>
+            <span className="text-3xs text-[var(--text-tertiary)]">{p.gradeYear}학년</span>
             <span className="text-xs font-medium text-[var(--text-primary)]">{p.score}</span>
-            {i < trend.points.length - 1 && <span className="text-[10px] text-[var(--text-quaternary)]">→</span>}
+            {i < trend.points.length - 1 && <span className="text-3xs text-[var(--text-quaternary)]">→</span>}
           </span>
         ))}
       </div>
       {trend.isAnomaly && trend.anomalyReason && (
-        <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">{trend.anomalyReason}</p>
+        <p className="mt-1 text-3xs text-amber-600 dark:text-amber-400">{trend.anomalyReason}</p>
       )}
     </div>
   );

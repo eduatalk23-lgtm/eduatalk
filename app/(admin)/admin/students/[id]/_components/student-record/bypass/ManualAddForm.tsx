@@ -163,7 +163,7 @@ export function ManualAddForm({
                     {dept.department_name}
                   </p>
                   {dept.major_classification && (
-                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                    <span className="text-3xs text-[var(--text-tertiary)]">
                       {dept.major_classification}
                     </span>
                   )}

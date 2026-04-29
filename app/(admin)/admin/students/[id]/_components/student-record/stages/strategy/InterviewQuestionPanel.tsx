@@ -107,7 +107,7 @@ export function InterviewQuestionPanel({ records, studentId }: Props) {
         <select
           value={selectedRecordId}
           onChange={(e) => setSelectedRecordId(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 bg-[var(--background)] px-3 py-1.5 text-xs dark:border-gray-600"
+          className="flex-1 rounded-md border border-border bg-[var(--background)] px-3 py-1.5 text-xs dark:border-border"
         >
           <option value="">기록 선택...</option>
           {records.filter((r) => r.content.trim().length >= 30).map((r) => (
@@ -133,7 +133,7 @@ export function InterviewQuestionPanel({ records, studentId }: Props) {
               예상 질문 {displayQuestions.length}개
             </span>
             {questions.length === 0 && savedQuestions && savedQuestions.length > 0 && (
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              <span className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary">
                 파이프라인 생성
               </span>
             )}
@@ -142,7 +142,7 @@ export function InterviewQuestionPanel({ records, studentId }: Props) {
                 const count = displayQuestions.filter((q) => q.questionType === type).length;
                 if (count === 0) return null;
                 return (
-                  <span key={type} className={cn("rounded px-1.5 py-0.5 text-[9px] font-medium", style.color)}>
+                  <span key={type} className={cn("rounded px-1.5 py-0.5 text-3xs font-medium", style.color)}>
                     {style.label} {count}
                   </span>
                 );
@@ -155,17 +155,17 @@ export function InterviewQuestionPanel({ records, studentId }: Props) {
             const isExpanded = expandedIdx === i;
 
             return (
-              <div key={i} className="rounded-md border border-gray-200 dark:border-gray-700">
+              <div key={i} className="rounded-md border border-border dark:border-border">
                 <button
                   onClick={() => setExpandedIdx(isExpanded ? null : i)}
                   className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-[var(--surface-hover)]"
                 >
-                  <span className={cn("mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium", typeStyle.color)}>
+                  <span className={cn("mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-3xs font-medium", typeStyle.color)}>
                     {typeStyle.label}
                   </span>
                   <span className="flex-1 text-xs text-[var(--text-primary)]">{q.question}</span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <span className={cn("text-[9px]", DIFF_STYLE[q.difficulty] ?? "text-gray-500")}>
+                    <span className={cn("text-3xs", DIFF_STYLE[q.difficulty] ?? "text-text-tertiary")}>
                       {q.difficulty === "easy" ? "기본" : q.difficulty === "hard" ? "심화" : "보통"}
                     </span>
                     {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -173,8 +173,8 @@ export function InterviewQuestionPanel({ records, studentId }: Props) {
                 </button>
 
                 {isExpanded && q.suggestedAnswer && (
-                  <div className="border-t border-gray-100 bg-gray-50/50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/30">
-                    <span className="text-[9px] font-medium text-[var(--text-tertiary)]">답변 가이드</span>
+                  <div className="border-t border-border bg-bg-secondary/50 px-3 py-2 dark:border-border dark:bg-bg-secondary/30">
+                    <span className="text-3xs font-medium text-[var(--text-tertiary)]">답변 가이드</span>
                     <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-[var(--text-secondary)]">
                       {q.suggestedAnswer}
                     </p>

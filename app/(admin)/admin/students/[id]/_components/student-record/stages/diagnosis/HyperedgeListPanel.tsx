@@ -41,7 +41,7 @@ export function HyperedgeListPanel({ studentId, tenantId }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] text-[var(--text-tertiary)]">
+      <p className="text-3xs text-[var(--text-tertiary)]">
         총 {hyperedges.length}건 · 여러 레코드가 공통 주제로 수렴하는 N-ary 연결을 보여줍니다.
       </p>
       <ul className="flex flex-col gap-2">
@@ -67,10 +67,10 @@ function HyperedgeRow({ edge }: { edge: PersistedHyperedge }) {
         <span className="text-sm font-semibold text-[var(--text-primary)]">
           {localizeThemeLabel(edge.theme_label)}
         </span>
-        <span className="rounded-sm border border-[var(--border-primary)] bg-white px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)] dark:bg-secondary-900">
+        <span className="rounded-sm border border-[var(--border-primary)] bg-white px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)] dark:bg-secondary-900">
           {CONTEXT_LABEL[edge.edge_context] ?? edge.edge_context}
         </span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">
+        <span className="text-3xs text-[var(--text-tertiary)]">
           멤버 {edge.member_count}
         </span>
         <span className={cn("ml-auto text-xs font-medium", confColor)}>
@@ -84,15 +84,15 @@ function HyperedgeRow({ edge }: { edge: PersistedHyperedge }) {
             key={`${m.recordType}-${m.recordId}-${idx}`}
             className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--border-primary)] bg-white px-2 py-1 text-xs dark:bg-secondary-900"
           >
-            <span className="rounded-sm border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+            <span className="rounded-sm border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)]">
               {RECORD_TYPE_LABEL[m.recordType] ?? m.recordType}
             </span>
             {m.grade != null && (
-              <span className="text-[10px] text-[var(--text-tertiary)]">{m.grade}학년</span>
+              <span className="text-3xs text-[var(--text-tertiary)]">{m.grade}학년</span>
             )}
             <span className="truncate text-[var(--text-primary)]">{m.label}</span>
             {m.role && (
-              <span className="ml-auto text-[10px] text-[var(--text-tertiary)]">{m.role}</span>
+              <span className="ml-auto text-3xs text-[var(--text-tertiary)]">{m.role}</span>
             )}
           </li>
         ))}
@@ -105,7 +105,7 @@ function HyperedgeRow({ edge }: { edge: PersistedHyperedge }) {
               {localizeCompetencyList(edge.shared_competencies).map((c) => (
                 <span
                   key={`comp-${c}`}
-                  className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300"
+                  className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-3xs text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300"
                 >
                   {c}
                 </span>
@@ -117,7 +117,7 @@ function HyperedgeRow({ edge }: { edge: PersistedHyperedge }) {
               {edge.shared_keywords.map((k) => (
                 <span
                   key={`kw-${k}`}
-                  className="rounded-full border border-[var(--border-primary)] bg-white px-2 py-0.5 text-[10px] text-[var(--text-secondary)] dark:bg-secondary-900"
+                  className="rounded-full border border-[var(--border-primary)] bg-white px-2 py-0.5 text-3xs text-[var(--text-secondary)] dark:bg-secondary-900"
                 >
                   #{k}
                 </span>

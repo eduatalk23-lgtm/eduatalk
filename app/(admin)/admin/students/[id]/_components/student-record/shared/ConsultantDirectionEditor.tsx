@@ -83,7 +83,7 @@ export function ConsultantDirectionEditor({
         <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
           {label}
           {guideId === null && (
-            <span className="ml-1 text-[10px] font-normal text-amber-600 dark:text-amber-500">
+            <span className="ml-1 text-3xs font-normal text-amber-600 dark:text-amber-500">
               (신규)
             </span>
           )}
@@ -104,20 +104,20 @@ export function ConsultantDirectionEditor({
         onChange={(e) => setDirection(e.target.value)}
         placeholder={placeholder}
         rows={4}
-        className="w-full resize-y rounded border border-amber-200 bg-white p-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-amber-400 focus:outline-none dark:border-amber-800 dark:bg-gray-900"
+        className="w-full resize-y rounded border border-amber-200 bg-white p-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-amber-400 focus:outline-none dark:border-amber-800 dark:bg-bg-primary"
       />
       <input
         type="text"
         value={keywordsText}
         onChange={(e) => setKeywordsText(e.target.value)}
         placeholder="키워드 (쉼표로 구분)"
-        className="w-full rounded border border-amber-200 bg-white px-2 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-amber-400 focus:outline-none dark:border-amber-800 dark:bg-gray-900"
+        className="w-full rounded border border-amber-200 bg-white px-2 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-amber-400 focus:outline-none dark:border-amber-800 dark:bg-bg-primary"
       />
       <div className="flex items-center justify-between">
         {error ? (
           <span className="text-xs text-red-500">{error}</span>
         ) : (
-          <span className="text-[10px] text-[var(--text-tertiary)]">
+          <span className="text-3xs text-[var(--text-tertiary)]">
             {isDirty ? "저장되지 않은 변경사항" : ""}
           </span>
         )}
@@ -129,7 +129,7 @@ export function ConsultantDirectionEditor({
             "rounded px-3 py-1 text-xs font-medium transition-colors",
             canSave && isDirty
               ? "bg-amber-600 text-white hover:bg-amber-700"
-              : "bg-gray-200 text-gray-400 dark:bg-gray-700",
+              : "bg-bg-tertiary text-text-tertiary dark:bg-bg-tertiary",
           )}
         >
           {saving ? "저장 중..." : guideId ? "수정" : "작성"}

@@ -34,7 +34,7 @@ export function UniversityMatchCard({ analysis }: Props) {
           <span className={cn("text-lg font-bold", topGc.text)}>{top.grade}</span>
           <div>
             <p className="text-sm font-semibold text-[var(--text-primary)]">{top.label}</p>
-            <p className="text-[10px] text-[var(--text-tertiary)]">{top.matchScore}점</p>
+            <p className="text-3xs text-[var(--text-tertiary)]">{top.matchScore}점</p>
           </div>
         </div>
       </div>
@@ -83,7 +83,7 @@ function TrackBar({ match, isTop }: { match: ProfileMatchResult; isTop: boolean 
           style={{ width: `${Math.min(match.matchScore, 100)}%` }}
         />
       </div>
-      <span className={cn("w-8 shrink-0 text-right text-[10px] font-medium", gc.text)}>
+      <span className={cn("w-8 shrink-0 text-right text-3xs font-medium", gc.text)}>
         {match.grade}
       </span>
     </div>
@@ -97,19 +97,19 @@ function TrackDetail({ match }: { match: ProfileMatchResult }) {
       <div className="flex items-center gap-2">
         <span className={cn("text-xs font-semibold", gc.text)}>{match.grade}</span>
         <span className="text-xs font-medium text-[var(--text-primary)]">{match.label}</span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">{match.matchScore}점</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">{match.matchScore}점</span>
       </div>
       {match.strengths.length > 0 && (
-        <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+        <p className="mt-1 text-3xs text-[var(--text-secondary)]">
           강점: {match.strengths.join(", ")}
         </p>
       )}
       {match.gaps.length > 0 && (
-        <p className="text-[10px] text-[var(--text-tertiary)]">
+        <p className="text-3xs text-[var(--text-tertiary)]">
           보완: {match.gaps.join(", ")}
         </p>
       )}
-      <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{match.recommendation}</p>
+      <p className="mt-0.5 text-3xs text-[var(--text-secondary)]">{match.recommendation}</p>
     </div>
   );
 }

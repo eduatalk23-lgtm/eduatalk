@@ -122,9 +122,9 @@ export function SetekGuideRecommendations({
               <p className="truncate text-xs font-medium text-[var(--text-primary)]">{g.title}</p>
               <div className="flex items-center gap-1.5">
                 {g.guide_type && (
-                  <span className="text-[10px] text-[var(--text-tertiary)]">{g.guide_type}</span>
+                  <span className="text-3xs text-[var(--text-tertiary)]">{g.guide_type}</span>
                 )}
-                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-3xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                   {REASON_LABELS[g.match_reason] ?? g.match_reason}
                 </span>
               </div>
@@ -133,9 +133,9 @@ export function SetekGuideRecommendations({
               onClick={() => handleAssign(g)}
               disabled={assigningId === g.id}
               className={cn(
-                "shrink-0 rounded-md px-2 py-1 text-[10px] font-medium",
+                "shrink-0 rounded-md px-2 py-1 text-3xs font-medium",
                 assigningId === g.id
-                  ? "bg-gray-200 text-gray-500"
+                  ? "bg-bg-tertiary text-text-tertiary"
                   : "bg-indigo-500 text-white hover:bg-indigo-600",
               )}
             >

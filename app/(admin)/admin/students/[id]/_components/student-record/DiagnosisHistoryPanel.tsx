@@ -39,7 +39,7 @@ export function DiagnosisHistoryPanel({ studentId, schoolYear }: { studentId: st
 
   return (
     <div className="rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-3">
-      <p className="mb-2 text-[10px] font-semibold text-[var(--text-primary)]">AI 진단 변경 이력 ({snapshots.length}건)</p>
+      <p className="mb-2 text-3xs font-semibold text-[var(--text-primary)]">AI 진단 변경 이력 ({snapshots.length}건)</p>
 
       {/* 타임라인 */}
       <div className="flex flex-wrap gap-1.5">
@@ -52,7 +52,7 @@ export function DiagnosisHistoryPanel({ studentId, schoolYear }: { studentId: st
               type="button"
               onClick={() => setSelected(selected === i ? null : i)}
               className={cn(
-                "rounded-md border px-2 py-1 text-[10px] transition",
+                "rounded-md border px-2 py-1 text-3xs transition",
                 selected === i
                   ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300"
                   : "border-[var(--border-secondary)] text-[var(--text-secondary)] hover:border-gray-400",
@@ -67,7 +67,7 @@ export function DiagnosisHistoryPanel({ studentId, schoolYear }: { studentId: st
 
       {/* 선택된 스냅샷 상세 */}
       {selectedSnap && (
-        <div className="mt-2 space-y-1 rounded border border-gray-200 bg-white p-2 text-[10px] dark:border-gray-700 dark:bg-gray-900">
+        <div className="mt-2 space-y-1 rounded border border-border bg-white p-2 text-3xs dark:border-border dark:bg-bg-primary">
           <Row label="등급" value={String((selectedSnap as Record<string, unknown>).overall_grade ?? "-")} />
           <Row label="방향" value={String((selectedSnap as Record<string, unknown>).record_direction ?? "-")} />
           <Row label="강도" value={STRENGTH_LABELS[String((selectedSnap as Record<string, unknown>).direction_strength ?? "moderate")] ?? "-"} />

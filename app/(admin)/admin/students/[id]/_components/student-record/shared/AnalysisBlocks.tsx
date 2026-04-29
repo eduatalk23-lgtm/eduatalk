@@ -188,7 +188,7 @@ export function CompactCompetencyView({ tags }: { tags: AnalysisTagLike[] }) {
                       return (
                         <div key={j} className="flex items-start gap-1.5 text-sm">
                           <span className={cn(
-                            "shrink-0 mt-0.5 rounded px-1 py-px text-[11px] font-medium",
+                            "shrink-0 mt-0.5 rounded px-1 py-px text-2xs font-medium",
                             tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30",
                             tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30",
                             tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30",
@@ -332,8 +332,8 @@ export function AnalysisBlock({
                   "px-2.5 py-1 text-xs font-medium transition-colors",
                   i > 0 && "border-l border-[var(--border-secondary)]",
                   mode === m.key
-                    ? "bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900"
-                    : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-700",
+                    ? "bg-gray-800 text-white dark:bg-bg-tertiary dark:text-text-primary"
+                    : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-700",
                 )}
               >
                 {m.label}
@@ -390,7 +390,7 @@ export function AnalysisBlock({
                 <p className="text-xs font-medium text-[var(--text-tertiary)] mb-1">태그 목록</p>
                 {tags.map((tag, i) => (
                   <div key={i} className="flex items-center gap-2 rounded border border-[var(--border-secondary)] px-3 py-2">
-                    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium",
+                    <span className={cn("rounded px-1.5 py-0.5 text-2xs font-medium",
                       EVAL_COLORS[tag.evaluation || "needs_review"],
                     )}>
                       {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}

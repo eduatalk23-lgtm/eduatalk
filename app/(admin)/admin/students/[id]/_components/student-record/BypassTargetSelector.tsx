@@ -176,7 +176,7 @@ export function BypassTargetSelector({
                     <div className="flex flex-wrap gap-1.5 text-xs text-[var(--text-tertiary)]">
                       {dept.college_name && <span>{dept.college_name}</span>}
                       {dept.major_classification && (
-                        <span className="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
+                        <span className="rounded bg-bg-tertiary px-1.5 py-0.5 dark:bg-bg-secondary">
                           {dept.major_classification}
                         </span>
                       )}

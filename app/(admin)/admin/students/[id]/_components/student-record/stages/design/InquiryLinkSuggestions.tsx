@@ -222,19 +222,19 @@ export function InquiryLinkSuggestions({ records, storylines, studentId, tenantI
               const typeStyle = LINK_TYPE_LABELS[conn.linkType] ?? LINK_TYPE_LABELS.sequential;
 
               return (
-                <div key={i} className="rounded-md border border-gray-100 bg-white/50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/50">
+                <div key={i} className="rounded-md border border-border bg-white/50 px-3 py-2 dark:border-border dark:bg-bg-secondary/50">
                   <div className="flex items-center gap-2">
-                    <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-medium", typeStyle.color)}>
+                    <span className={cn("rounded px-1.5 py-0.5 text-3xs font-medium", typeStyle.color)}>
                       {typeStyle.label}
                     </span>
                     <span className="text-xs font-medium text-[var(--text-primary)]">{conn.theme}</span>
                   </div>
-                  <div className="mt-1 flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]">
+                  <div className="mt-1 flex items-center gap-1.5 text-3xs text-[var(--text-secondary)]">
                     <span>{from.grade}학년 {from.subject}</span>
                     <span className="text-[var(--text-tertiary)]">→</span>
                     <span>{to.grade}학년 {to.subject}</span>
                   </div>
-                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">{conn.reasoning}</p>
+                  <p className="mt-1 text-3xs text-[var(--text-tertiary)]">{conn.reasoning}</p>
                 </div>
               );
             })}
@@ -248,14 +248,14 @@ export function InquiryLinkSuggestions({ records, storylines, studentId, tenantI
                 {suggested.map((s, i) => {
                   const isAccepted = accepted.has(i);
                   return (
-                    <div key={i} className="rounded-md border border-gray-200 px-3 py-2 dark:border-gray-700">
+                    <div key={i} className="rounded-md border border-border px-3 py-2 dark:border-border">
                       <div className="flex items-center justify-between">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-xs font-medium text-[var(--text-primary)]">{s.title}</span>
                           {s.keywords.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {s.keywords.map((kw) => (
-                                <span key={kw} className="rounded bg-gray-100 px-1 py-0.5 text-[9px] text-[var(--text-tertiary)] dark:bg-gray-800">{kw}</span>
+                                <span key={kw} className="rounded bg-bg-tertiary px-1 py-0.5 text-3xs text-[var(--text-tertiary)] dark:bg-bg-secondary">{kw}</span>
                               ))}
                             </div>
                           )}
@@ -278,13 +278,13 @@ export function InquiryLinkSuggestions({ records, storylines, studentId, tenantI
                       </div>
                       {/* 서사 미리보기 */}
                       {s.narrative && (
-                        <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                        <p className="mt-1.5 text-3xs leading-relaxed text-[var(--text-secondary)]">
                           {s.narrative}
                         </p>
                       )}
                       {/* 학년별 테마 미리보기 */}
                       {(s.grade1Theme || s.grade2Theme || s.grade3Theme) && (
-                        <div className="mt-1 flex flex-wrap gap-2 text-[9px] text-[var(--text-tertiary)]">
+                        <div className="mt-1 flex flex-wrap gap-2 text-3xs text-[var(--text-tertiary)]">
                           {s.grade1Theme && <span>1학년: {s.grade1Theme}</span>}
                           {s.grade2Theme && <span>2학년: {s.grade2Theme}</span>}
                           {s.grade3Theme && <span>3학년: {s.grade3Theme}</span>}

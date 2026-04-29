@@ -372,7 +372,7 @@ export function AreaCompetencyPanel({
               {/* 루브릭 질문별 근거 테이블 */}
               {qStats.length > 0 && (
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse pt-2 text-xs sm:text-[11px]">
+                  <table className="w-full border-collapse pt-2 text-xs sm:text-2xs">
                     <thead>
                       <tr className="border-b border-[var(--border-secondary)] bg-[var(--surface-secondary)]">
                         <th className="px-2 py-1 text-left font-medium text-[var(--text-secondary)]">
@@ -507,7 +507,7 @@ function GradeBadge({ grade }: { grade?: string | null }) {
   return (
     <span className={style?.cls ?? "text-[var(--text-primary)]"}>
       {style && (
-        <span className="mr-0.5 text-[8px] leading-none" aria-hidden="true">
+        <span className="mr-0.5 text-3xs leading-none" aria-hidden="true">
           {style.icon}
         </span>
       )}

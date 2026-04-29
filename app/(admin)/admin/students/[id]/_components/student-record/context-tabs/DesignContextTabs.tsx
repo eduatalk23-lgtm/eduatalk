@@ -68,7 +68,7 @@ export function SummaryTab({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
+      <div className="flex items-center justify-between text-3xs text-[var(--text-tertiary)]">
         <span className="font-medium text-[var(--text-secondary)]">{latest.summary_title}</span>
         <span>{new Date(latest.created_at).toLocaleDateString("ko-KR")} · {latest.status}</span>
       </div>
@@ -78,7 +78,7 @@ export function SummaryTab({ studentId }: { studentId: string }) {
         </p>
       </div>
       {data.length > 1 && (
-        <p className="text-[10px] text-[var(--text-tertiary)]">이전 버전 {data.length - 1}건</p>
+        <p className="text-3xs text-[var(--text-tertiary)]">이전 버전 {data.length - 1}건</p>
       )}
     </div>
   );
@@ -93,13 +93,13 @@ export function StorylineTab({ data }: { data?: StorylineTabData | null }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] text-[var(--text-tertiary)]">{storylines.length}개 스토리라인</p>
+      <p className="text-3xs text-[var(--text-tertiary)]">{storylines.length}개 스토리라인</p>
       {storylines.map((s) => (
         <div key={s.id} className="rounded border border-[var(--border-secondary)] p-2">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--text-primary)]">{s.title}</span>
             {s.career_field && (
-              <span className="rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
+              <span className="rounded-full bg-teal-100 px-1.5 py-0.5 text-3xs text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
                 {s.career_field}
               </span>
             )}
@@ -107,19 +107,19 @@ export function StorylineTab({ data }: { data?: StorylineTabData | null }) {
           {s.keywords.length > 0 && (
             <div className="mb-1 flex flex-wrap gap-1">
               {s.keywords.map((kw) => (
-                <span key={kw} className="rounded bg-[var(--surface-hover)] px-1 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+                <span key={kw} className="rounded bg-[var(--surface-hover)] px-1 py-0.5 text-3xs text-[var(--text-tertiary)]">
                   {kw}
                 </span>
               ))}
             </div>
           )}
-          <div className="flex gap-3 text-[10px] text-[var(--text-tertiary)]">
+          <div className="flex gap-3 text-3xs text-[var(--text-tertiary)]">
             {s.grade_1_theme && <span>1학년: {s.grade_1_theme}</span>}
             {s.grade_2_theme && <span>2학년: {s.grade_2_theme}</span>}
             {s.grade_3_theme && <span>3학년: {s.grade_3_theme}</span>}
           </div>
           {s.strength && (
-            <p className="mt-1 text-[10px] text-[var(--text-secondary)]">{s.strength}</p>
+            <p className="mt-1 text-3xs text-[var(--text-secondary)]">{s.strength}</p>
           )}
         </div>
       ))}
@@ -160,7 +160,7 @@ export function RoadmapTab({ data }: { data?: StorylineTabData | null }) {
       {/* 학년별 아이템 */}
       {[...byGrade.entries()].sort((a, b) => a[0] - b[0]).map(([grade, items]) => (
         <div key={grade}>
-          <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">{grade}학년</p>
+          <p className="mb-1 text-3xs font-medium text-[var(--text-secondary)]">{grade}학년</p>
           <div className="space-y-1">
             {items.map((item) => (
               <div key={item.id} className="flex items-center justify-between rounded border border-[var(--border-secondary)] px-2 py-1">
@@ -169,15 +169,15 @@ export function RoadmapTab({ data }: { data?: StorylineTabData | null }) {
                   {item.plan_keywords && item.plan_keywords.length > 0 && (
                     <div className="mt-0.5 flex gap-1">
                       {item.plan_keywords.slice(0, 3).map((kw) => (
-                        <span key={kw} className="text-[9px] text-[var(--text-tertiary)]">#{kw}</span>
+                        <span key={kw} className="text-3xs text-[var(--text-tertiary)]">#{kw}</span>
                       ))}
                     </div>
                   )}
                 </div>
                 <span className={
                   item.executed_at
-                    ? "ml-2 shrink-0 rounded px-1 py-0.5 text-[10px] bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
-                    : "ml-2 shrink-0 rounded px-1 py-0.5 text-[10px] bg-[var(--surface-hover)] text-[var(--text-tertiary)]"
+                    ? "ml-2 shrink-0 rounded px-1 py-0.5 text-3xs bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                    : "ml-2 shrink-0 rounded px-1 py-0.5 text-3xs bg-[var(--surface-hover)] text-[var(--text-tertiary)]"
                 }>
                   {item.executed_at ? "완료" : "예정"}
                 </span>
@@ -219,20 +219,20 @@ export function InterviewTab({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] text-[var(--text-tertiary)]">{questions.length}개 질문</p>
+      <p className="text-3xs text-[var(--text-tertiary)]">{questions.length}개 질문</p>
       {questions.map((q, i) => (
         <div key={i} className="rounded border border-[var(--border-secondary)] p-2">
           <div className="mb-1 flex items-center gap-2">
-            <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+            <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-3xs text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
               {Q_TYPE_LABELS[q.question_type] ?? q.question_type}
             </span>
             {q.difficulty && (
-              <span className="text-[10px] text-[var(--text-tertiary)]">{q.difficulty}</span>
+              <span className="text-3xs text-[var(--text-tertiary)]">{q.difficulty}</span>
             )}
           </div>
           <p className="text-xs leading-relaxed text-[var(--text-primary)]">{q.question}</p>
           {q.suggested_answer && (
-            <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+            <p className="mt-1 text-3xs leading-relaxed text-[var(--text-tertiary)]">
               A: {q.suggested_answer.length > 150 ? q.suggested_answer.slice(0, 150) + "..." : q.suggested_answer}
             </p>
           )}

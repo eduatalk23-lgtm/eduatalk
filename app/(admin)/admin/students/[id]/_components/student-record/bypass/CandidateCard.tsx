@@ -104,7 +104,7 @@ export function CandidateCard({
             {/* 상태 뱃지 */}
             <span
               className={cn(
-                "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                "inline-flex rounded-full px-2 py-0.5 text-3xs font-medium",
                 STATUS_COLORS[c.status],
               )}
             >
@@ -113,9 +113,9 @@ export function CandidateCard({
             {/* 출처 뱃지 */}
             <span
               className={cn(
-                "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                "inline-flex rounded-full px-2 py-0.5 text-3xs font-medium",
                 SOURCE_COLORS[c.source] ??
-                  "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+                  "bg-bg-tertiary text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary",
               )}
             >
               {BYPASS_CANDIDATE_SOURCE_LABELS[c.source]}
@@ -135,7 +135,7 @@ export function CandidateCard({
               return (
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                    "rounded-full px-1.5 py-0.5 text-3xs font-medium",
                     PLACEMENT_COLORS[pg],
                   )}
                 >
@@ -143,7 +143,7 @@ export function CandidateCard({
                 </span>
               );
             })()}
-            <span className="text-[10px] text-[var(--text-tertiary)]">
+            <span className="text-3xs text-[var(--text-tertiary)]">
               {
                 UNIVERSITY_TIER_LABELS[
                   getUniversityTier(c.candidate_department.university_name)
@@ -153,11 +153,11 @@ export function CandidateCard({
           </div>
           {/* 3축 미니 바 (펼치지 않아도 한눈에) */}
           {(simScore != null || compScore != null || placeScore != null) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-3xs">
               {simScore != null && (
                 <div className="flex items-center gap-1">
                   <span className="w-7 text-[var(--text-tertiary)]">유사</span>
-                  <div className="h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div className="h-1.5 w-16 rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
                     <div
                       className="h-1.5 rounded-full bg-indigo-500"
                       style={{ width: `${Math.min(simScore, 100)}%` }}
@@ -171,7 +171,7 @@ export function CandidateCard({
               {compScore != null && (
                 <div className="flex items-center gap-1">
                   <span className="w-7 text-[var(--text-tertiary)]">역량</span>
-                  <div className="h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div className="h-1.5 w-16 rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
                     <div
                       className="h-1.5 rounded-full bg-emerald-500"
                       style={{ width: `${Math.min(compScore, 100)}%` }}
@@ -185,7 +185,7 @@ export function CandidateCard({
               {placeScore != null && placeSource !== "none" && (
                 <div className="flex items-center gap-1">
                   <span className="w-7 text-[var(--text-tertiary)]">배치</span>
-                  <div className="h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div className="h-1.5 w-16 rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
                     <div
                       className="h-1.5 rounded-full bg-amber-500"
                       style={{ width: `${Math.min(placeScore, 100)}%` }}
@@ -194,7 +194,7 @@ export function CandidateCard({
                   <span className="w-8 text-right font-medium text-[var(--text-secondary)]">
                     {placeScore}점
                   </span>
-                  <span className="text-[9px] text-[var(--text-tertiary)]">
+                  <span className="text-3xs text-[var(--text-tertiary)]">
                     {placeSource ? PLACE_SOURCE_LABEL[placeSource] : ""}
                   </span>
                 </div>
@@ -359,7 +359,7 @@ export function CandidateCard({
                 <button
                   type="button"
                   onClick={() => onStatusChange(c.id, "candidate")}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] dark:border-gray-700"
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] dark:border-border"
                 >
                   <RotateCcw className="h-3 w-3" />
                   복원
@@ -381,7 +381,7 @@ export function CandidateCard({
               <button
                 type="button"
                 onClick={onEditNote}
-                className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] dark:border-gray-700"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] dark:border-border"
               >
                 <MessageSquare className="h-3 w-3" />
                 메모

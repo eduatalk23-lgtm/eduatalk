@@ -14,7 +14,7 @@ import type { SetekGuideItem, ActivitySummaryStatus } from "@/lib/domains/studen
 import { ReportExportMenu } from "../../ReportExportMenu";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft: { label: "초안", color: "bg-gray-100 text-gray-600" },
+  draft: { label: "초안", color: "bg-bg-tertiary text-text-secondary" },
   confirmed: { label: "확정", color: "bg-blue-100 text-blue-700" },
 };
 
@@ -158,11 +158,11 @@ export function SetekGuidePanel({
 
       {/* 내부 분석용 안내 + 모드 표시 */}
       <div className="flex items-center gap-2">
-        <p className="text-[10px] text-[var(--text-tertiary)]">
+        <p className="text-3xs text-[var(--text-tertiary)]">
           내부 분석용 — 학생/학부모 미공개 · 확정 전까지 초안 상태
         </p>
         {guides && guides.some((g) => g.prompt_version === "guide_v1_prospective") && (
-          <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+          <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-3xs font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
             계획 기반
           </span>
         )}
@@ -187,16 +187,16 @@ export function SetekGuidePanel({
                       {guide.subject_name ?? guide.subject_id}
                     </h4>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusInfo.color}`}
+                      className={`rounded px-1.5 py-0.5 text-3xs font-medium ${statusInfo.color}`}
                     >
                       {statusInfo.label}
                     </span>
                     {guide.is_stale && (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         갱신 필요
                       </span>
                     )}
-                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                    <span className="text-3xs text-[var(--text-tertiary)]">
                       {guide.source === "ai" ? "🤖AI" : "👤수동"} ·{" "}
                       {new Date(guide.created_at).toLocaleDateString("ko-KR")}
                     </span>
@@ -207,7 +207,7 @@ export function SetekGuidePanel({
                         type="button"
                         onClick={() => handleStatusChange(guide.id, "confirmed")}
                         disabled={isPending}
-                        className="rounded px-2 py-1 text-[10px] font-medium text-blue-600 hover:bg-blue-50"
+                        className="rounded px-2 py-1 text-3xs font-medium text-blue-600 hover:bg-blue-50"
                       >
                         확정
                       </button>
@@ -222,7 +222,7 @@ export function SetekGuidePanel({
                           setEditingId(guide.id);
                         }
                       }}
-                      className="rounded px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      className="rounded px-2 py-1 text-3xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     >
                       {isEditing ? "취소" : "편집"}
                     </button>
@@ -246,7 +246,7 @@ export function SetekGuidePanel({
                         type="button"
                         onClick={() => handleDelete(guide.id)}
                         disabled={isPending}
-                        className="rounded px-2 py-1 text-[10px] text-red-500 hover:bg-red-50"
+                        className="rounded px-2 py-1 text-3xs text-red-500 hover:bg-red-50"
                       >
                         삭제
                       </button>
@@ -296,7 +296,7 @@ export function SetekGuidePanel({
                           {guide.competency_focus.map((cf: string) => (
                             <span
                               key={cf}
-                              className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                              className="rounded bg-violet-100 px-1.5 py-0.5 text-3xs text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
                             >
                               {COMPETENCY_LABELS[cf] ?? cf}
                             </span>
@@ -308,7 +308,7 @@ export function SetekGuidePanel({
                           {guide.keywords.map((kw: string) => (
                             <span
                               key={kw}
-                              className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                              className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-2xs text-[var(--text-secondary)]"
                             >
                               {kw}
                             </span>
@@ -330,7 +330,7 @@ export function SetekGuidePanel({
                         {/* 교사 전달 포인트 */}
                         {guide.teacher_points.length > 0 && (
                           <div className="mt-2 border-t border-[var(--border-secondary)] pt-2">
-                            <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <p className="text-3xs font-medium text-[var(--text-tertiary)]">
                               교사 전달 포인트
                             </p>
                             <ul className="mt-0.5 space-y-0.5">

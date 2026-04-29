@@ -97,18 +97,18 @@ export function RecordWarningPanel({ warnings, warningDiff }: Props) {
           총 {warnings.length}건
         </span>
         {criticalCount > 0 && (
-          <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+          <span className="rounded bg-red-100 px-1.5 py-0.5 text-3xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
             긴급 {criticalCount}
           </span>
         )}
         {highCount > 0 && (
-          <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+          <span className="rounded bg-orange-100 px-1.5 py-0.5 text-3xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
             높음 {highCount}
           </span>
         )}
         {/* E2: 변화 요약 */}
         {hasDiff && (
-          <span className="text-[10px] text-[var(--text-tertiary)]">
+          <span className="text-3xs text-[var(--text-tertiary)]">
             이전 대비:
             {newCount > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">+{newCount} 신규</span>}
             {resolvedCount > 0 && <span className="ml-1 text-emerald-600 dark:text-emerald-400">-{resolvedCount} 해결</span>}
@@ -130,7 +130,7 @@ export function RecordWarningPanel({ warnings, warningDiff }: Props) {
             <div className="mb-2 flex items-center gap-1.5">
               <meta.Icon size={14} className="shrink-0 text-[var(--text-tertiary)]" />
               <span className="text-xs font-semibold text-[var(--text-secondary)]">{meta.label}</span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">{items.length}건</span>
+              <span className="text-3xs text-[var(--text-tertiary)]">{items.length}건</span>
             </div>
             <div className="flex flex-col gap-1.5">
               {sorted.map((w, i) => {
@@ -140,12 +140,12 @@ export function RecordWarningPanel({ warnings, warningDiff }: Props) {
                 return (
                   <div key={i} className={cn("rounded-md border px-3 py-2", style.bg, style.border)}>
                     <div className="flex items-center gap-2">
-                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", style.text)}>
+                      <span className={cn("rounded px-1.5 py-0.5 text-3xs font-semibold", style.text)}>
                         {SEVERITY_LABEL[w.severity]}
                       </span>
                       {/* E2: 신규 배지 */}
                       {changeStatus === "new" && (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                           신규
                         </span>
                       )}
@@ -153,7 +153,7 @@ export function RecordWarningPanel({ warnings, warningDiff }: Props) {
                       {targetSection && (
                         <button
                           onClick={() => document.getElementById(targetSection)?.scrollIntoView({ behavior: "smooth" })}
-                          className="ml-auto shrink-0 inline-flex items-center gap-0.5 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                          className="ml-auto shrink-0 inline-flex items-center gap-0.5 text-3xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                         >
                           이동 <ExternalLink size={9} />
                         </button>
@@ -161,7 +161,7 @@ export function RecordWarningPanel({ warnings, warningDiff }: Props) {
                     </div>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{w.message}</p>
                     {w.suggestion && (
-                      <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">→ {w.suggestion}</p>
+                      <p className="mt-1 text-3xs text-[var(--text-tertiary)]">→ {w.suggestion}</p>
                     )}
                   </div>
                 );

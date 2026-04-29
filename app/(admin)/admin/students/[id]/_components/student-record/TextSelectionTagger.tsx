@@ -37,15 +37,15 @@ const EVAL_OPTIONS: Array<{ value: Evaluation; label: string; color: string }> =
 const AREA_COLORS: Record<CompetencyArea, { selected: string; idle: string }> = {
   academic: {
     selected: "border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-900/30 dark:text-blue-300",
-    idle: "border-transparent bg-gray-50 text-[var(--text-secondary)] hover:bg-blue-50/50 hover:text-blue-600 dark:bg-gray-800 dark:hover:bg-blue-900/20",
+    idle: "border-transparent bg-bg-secondary text-[var(--text-secondary)] hover:bg-blue-50/50 hover:text-blue-600 dark:bg-bg-secondary dark:hover:bg-blue-900/20",
   },
   career: {
     selected: "border-purple-400 bg-purple-50 text-purple-700 dark:border-purple-600 dark:bg-purple-900/30 dark:text-purple-300",
-    idle: "border-transparent bg-gray-50 text-[var(--text-secondary)] hover:bg-purple-50/50 hover:text-purple-600 dark:bg-gray-800 dark:hover:bg-purple-900/20",
+    idle: "border-transparent bg-bg-secondary text-[var(--text-secondary)] hover:bg-purple-50/50 hover:text-purple-600 dark:bg-bg-secondary dark:hover:bg-purple-900/20",
   },
   community: {
     selected: "border-green-400 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-900/30 dark:text-green-300",
-    idle: "border-transparent bg-gray-50 text-[var(--text-secondary)] hover:bg-green-50/50 hover:text-green-600 dark:bg-gray-800 dark:hover:bg-green-900/20",
+    idle: "border-transparent bg-bg-secondary text-[var(--text-secondary)] hover:bg-green-50/50 hover:text-green-600 dark:bg-bg-secondary dark:hover:bg-green-900/20",
   },
 };
 
@@ -147,7 +147,7 @@ export function TextSelectionTagger({
         {/* 백드롭 */}
         <div className="fixed inset-0 z-[9998]" onClick={closePopover} />
         <div
-          className="fixed z-[9999] w-[320px] rounded-lg border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-600 dark:bg-gray-800"
+          className="fixed z-[9999] w-[320px] rounded-lg border border-border bg-white p-4 shadow-xl dark:border-border dark:bg-bg-secondary"
           style={{ top: popoverPos.top, left: popoverPos.left }}
           onMouseUp={(e) => e.stopPropagation()}
         >
@@ -157,7 +157,7 @@ export function TextSelectionTagger({
               <Tag className="h-4 w-4" />
               역량 태그 지정
             </div>
-            <button onClick={closePopover} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <button onClick={closePopover} className="rounded p-1 hover:bg-bg-tertiary dark:hover:bg-gray-800">
               <X className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
           </div>
@@ -175,7 +175,7 @@ export function TextSelectionTagger({
                 onClick={() => setSelectedEval(opt.value)}
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
-                  selectedEval === opt.value ? opt.color : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+                  selectedEval === opt.value ? opt.color : "bg-bg-tertiary text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary",
                 )}
               >
                 {opt.label}

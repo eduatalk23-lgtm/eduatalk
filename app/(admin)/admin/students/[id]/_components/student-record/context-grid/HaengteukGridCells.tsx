@@ -132,14 +132,14 @@ export function HaengteukGridCell({
           {designGuideItem.keywords.length > 0 && (
             <div className="flex flex-wrap gap-0.5">
               {designGuideItem.keywords.slice(0, 5).map((kw) => (
-                <span key={kw} className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{kw}</span>
+                <span key={kw} className="rounded bg-amber-50 px-1.5 py-0.5 text-2xs text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{kw}</span>
               ))}
             </div>
           )}
           {designGuideItem.competencyFocus && designGuideItem.competencyFocus.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-0.5">
               {designGuideItem.competencyFocus.map((c) => (
-                <span key={c} className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">{c}</span>
+                <span key={c} className="rounded bg-violet-50 px-1.5 py-0.5 text-2xs text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">{c}</span>
               ))}
             </div>
           )}
@@ -168,7 +168,7 @@ export function HaengteukGridCell({
           {improveGuideItem.keywords.length > 0 && (
             <div className="flex flex-wrap gap-0.5">
               {improveGuideItem.keywords.slice(0, 5).map((kw) => (
-                <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+                <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-2xs text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
               ))}
             </div>
           )}
@@ -177,7 +177,7 @@ export function HaengteukGridCell({
               <span className="text-xs font-medium text-[var(--text-secondary)]">평가 항목</span>
               {improveGuideItem.evaluationItems.map((ev, i) => (
                 <div key={i} className="flex items-start gap-1.5">
-                  <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">{ev.score}</span>
+                  <span className="shrink-0 rounded bg-bg-tertiary px-1 py-0.5 text-3xs font-medium text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary">{ev.score}</span>
                   <span className="text-xs text-[var(--text-primary)]">{ev.item}</span>
                 </div>
               ))}
@@ -279,7 +279,7 @@ export function HaengteukGridCell({
       if (aiDraftTags.length === 0) {
         return (
           <div className="flex h-full items-center justify-center">
-            <span className="rounded bg-gray-50 px-2 py-1 text-xs text-[var(--text-tertiary)] dark:bg-gray-800">
+            <span className="rounded bg-bg-secondary px-2 py-1 text-xs text-[var(--text-tertiary)] dark:bg-bg-secondary">
               가안분석 태그 없음
             </span>
           </div>
@@ -593,10 +593,10 @@ export function HaengteukChatCell() {
           type="button"
           onClick={() => { setShowDirectionPanel((v) => !v); if (!showDirectionPanel) setShowGuidePanel(false); }}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors",
             showDirectionPanel
               ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-              : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+              : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-800",
           )}
         >
           <Compass className="h-3 w-3" />
@@ -606,10 +606,10 @@ export function HaengteukChatCell() {
           type="button"
           onClick={() => { setShowGuidePanel((v) => !v); if (!showGuidePanel) setShowDirectionPanel(false); }}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors",
             showGuidePanel
               ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-              : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+              : "text-[var(--text-tertiary)] hover:bg-bg-tertiary dark:hover:bg-gray-800",
           )}
         >
           <BookOpen className="h-3 w-3" />

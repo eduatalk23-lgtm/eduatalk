@@ -207,7 +207,7 @@ function ProposalJobBanner({
           새 제안 {dto.itemCount}건
         </span>
         {dto.engine && (
-          <span className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+          <span className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)]">
             {dto.engine}
           </span>
         )}
@@ -219,7 +219,7 @@ function ProposalJobBanner({
         <span className="ml-auto text-[var(--text-tertiary)]">자세히 →</span>
       </div>
       {dto.topItems.length > 0 && (
-        <ol className="mt-1.5 space-y-0.5 text-[11px] text-[var(--text-primary)]">
+        <ol className="mt-1.5 space-y-0.5 text-2xs text-[var(--text-primary)]">
           {dto.topItems.map((it) => (
             <li key={it.rank} className="flex gap-2">
               <span className="shrink-0 font-medium text-[var(--text-tertiary)]">
@@ -281,7 +281,7 @@ function PerceptionDeltaRow({
         {chips.map((chip, i) => (
           <span
             key={i}
-            className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[11px] text-[var(--text-primary)]"
+            className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-2xs text-[var(--text-primary)]"
           >
             {chip}
           </span>
@@ -300,7 +300,7 @@ function PerceptionSourceNote({
   if (source !== "metric_events") return null;
   return (
     <span
-      className="text-[10px] text-[var(--text-tertiary)] italic"
+      className="text-3xs text-[var(--text-tertiary)] italic"
       title="snapshot 2 건 부족 — metric_events 에서 hakjong delta 만 근사. 학기 경계에서 더 정밀한 판정."
     >
       (fallback)
@@ -314,7 +314,7 @@ function HakjongTotalBadge({ score }: { score: HakjongScore }) {
   if (score.total === null) {
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/20 dark:text-gray-400"
+        className="inline-flex items-center gap-1 rounded-full border border-border bg-bg-secondary px-2.5 py-0.5 text-xs font-semibold text-text-tertiary dark:border-border dark:bg-bg-primary/20 dark:text-text-tertiary"
         title="3 영역 모두 ≥ 2 축 필요"
       >
         Reward —
@@ -356,11 +356,11 @@ function HakjongV2PreDeltaBadge({
   const bgByTone = {
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
     red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
-    gray: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-700",
+    gray: "bg-bg-secondary text-text-primary border-border dark:bg-bg-primary/20 dark:text-text-tertiary dark:border-border",
   }[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${bgByTone}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-semibold ${bgByTone}`}
       title={`α2 v2-pre (aux 연속 기여): total ${pct} (v1 대비 ${delta > 0 ? "+" : ""}${delta})`}
     >
       v2-pre {pct}
@@ -421,20 +421,20 @@ function HakjongAreaCell({
       : null;
   return (
     <div className="rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] px-2 py-1.5">
-      <p className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+      <p className="text-3xs font-semibold uppercase text-[var(--text-tertiary)]">
         {label}
       </p>
       <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
         {value !== null ? Math.round(value) : "—"}
         {value !== null && (
-          <span className="ml-1 text-[10px] font-normal text-[var(--text-tertiary)]">
+          <span className="ml-1 text-3xs font-normal text-[var(--text-tertiary)]">
             / 100 · conf {Math.round(conf * 100)}%
           </span>
         )}
       </p>
       {v2Value !== null && v2Delta !== null && (
         <p
-          className="text-[10px] text-[var(--text-tertiary)] tabular-nums"
+          className="text-3xs text-[var(--text-tertiary)] tabular-nums"
           title="α2 v2-pre: aux 연속 기여 버전 (공동체 영역에만 실효 차이)"
         >
           v2-pre {Math.round(v2Value)}
@@ -458,7 +458,7 @@ function PerceptionBadge({ dto }: { dto: PerceptionBadgeDTO }) {
   if (!dto.triggered) {
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/20 dark:text-gray-400"
+        className="inline-flex items-center gap-1 rounded-full border border-border bg-bg-secondary px-2 py-0.5 text-2xs font-semibold text-text-tertiary dark:border-border dark:bg-bg-primary/20 dark:text-text-tertiary"
         title="이전 snapshot 대비 유의미한 변화 없음"
       >
         Perception —
@@ -476,7 +476,7 @@ function PerceptionBadge({ dto }: { dto: PerceptionBadgeDTO }) {
     dto.severity === "high" ? "HIGH" : dto.severity === "medium" ? "MED" : "LOW";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${bgByTone}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-semibold ${bgByTone}`}
       title={dto.reasons.length > 0 ? dto.reasons.join("\n") : "자율 Agent 재평가 권장"}
     >
       Perception {severityLabel}
@@ -491,7 +491,7 @@ function CompletenessBadge({ pct }: { pct: number }) {
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
     blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
     amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
-    gray: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-700",
+    gray: "bg-bg-secondary text-text-primary border-border dark:bg-bg-primary/20 dark:text-text-tertiary dark:border-border",
   }[tone];
 
   return (
@@ -516,10 +516,10 @@ function LayerFlagsRow({ flags }: { flags: number }) {
             <span
               key={item.key}
               title={item.title}
-              className={`inline-flex min-w-[28px] items-center justify-center rounded px-1.5 py-0.5 text-[11px] font-medium ${
+              className={`inline-flex min-w-[28px] items-center justify-center rounded px-1.5 py-0.5 text-2xs font-medium ${
                 active
                   ? "bg-emerald-500 text-white dark:bg-emerald-600"
-                  : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600"
+                  : "bg-bg-tertiary text-text-tertiary dark:bg-bg-secondary dark:text-text-secondary"
               }`}
             >
               {item.short}
@@ -563,7 +563,7 @@ function AreaBar({
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className="w-10 shrink-0 text-[var(--text-secondary)]">{label}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-secondary">
         <div
           className={`h-full ${ok ? "bg-emerald-500" : "bg-amber-400"}`}
           style={{ width: `${Math.max(2, displayPct)}%` }}
@@ -652,7 +652,7 @@ function AuxCell({
 
   return (
     <div className={`rounded border px-2 py-1.5 ${toneClass}`}>
-      <p className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+      <p className="text-3xs font-semibold uppercase text-[var(--text-tertiary)]">
         {label}
       </p>
       <p className="text-sm font-semibold text-[var(--text-primary)]">
@@ -678,7 +678,7 @@ function BlueprintGapSection({ gap }: { gap: BlueprintGap }) {
             청사진 GAP
           </h4>
           <GapPriorityBadge priority={gap.priority} />
-          <span className="text-[10px] text-[var(--text-tertiary)]">
+          <span className="text-3xs text-[var(--text-tertiary)]">
             잔여 {gap.remainingSemesters}학기 · v1 규칙
           </span>
         </div>
@@ -698,7 +698,7 @@ function BlueprintGapSection({ gap }: { gap: BlueprintGap }) {
             <AxisGapChip key={g.code} gap={g} />
           ))}
           {gap.axisGaps.length > 4 && (
-            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+            <span className="inline-flex items-center rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-text-tertiary dark:bg-bg-secondary dark:text-text-tertiary">
               +{gap.axisGaps.length - 4}
             </span>
           )}
@@ -712,12 +712,12 @@ function GapPriorityBadge({ priority }: { priority: BlueprintGap["priority"] }) 
   const tone = {
     high: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
     medium: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
-    low: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-700",
+    low: "bg-bg-secondary text-text-primary border-border dark:bg-bg-primary/20 dark:text-text-tertiary dark:border-border",
   }[priority];
   const label = { high: "HIGH", medium: "MED", low: "LOW" }[priority];
   return (
     <span
-      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold ${tone}`}
+      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-3xs font-semibold ${tone}`}
       title={`GAP 우선순위: ${priority}`}
     >
       {label}
@@ -747,12 +747,12 @@ function GapAreaCell({ label, area }: { label: string; area: AreaGap }) {
 
   return (
     <div className={`rounded border px-2 py-1 ${toneClass}`}>
-      <p className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+      <p className="text-3xs font-semibold uppercase text-[var(--text-tertiary)]">
         {label}
       </p>
       <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
         {hasGap ? (area.gapSize! > 0 ? `+${area.gapSize}` : `${area.gapSize}`) : "—"}
-        <span className="ml-1 text-[10px] font-normal text-[var(--text-tertiary)]">
+        <span className="ml-1 text-3xs font-normal text-[var(--text-tertiary)]">
           {area.currentScore !== null && area.targetScore !== null
             ? `${Math.round(area.currentScore)} → ${Math.round(area.targetScore)}`
             : "target 없음"}
@@ -792,7 +792,7 @@ function AxisGapChip({ gap }: { gap: AxisGap }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] ${tone}`}
+      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-3xs ${tone}`}
       title={gap.rationale}
     >
       <span className="font-semibold">{GAP_PATTERN_LABEL[gap.pattern]}</span>
@@ -834,11 +834,11 @@ function ScenarioCompareSection({
             시나리오 브랜치 비교
           </h4>
           {multi.dominantScenario && (
-            <span className="text-[10px] text-[var(--text-tertiary)]">
+            <span className="text-3xs text-[var(--text-tertiary)]">
               우선 분기 · <strong className="text-[var(--text-secondary)]">{SCENARIO_LABEL[multi.dominantScenario]}</strong>
             </span>
           )}
-          <span className="text-[10px] text-[var(--text-tertiary)]">v1 규칙</span>
+          <span className="text-3xs text-[var(--text-tertiary)]">v1 규칙</span>
         </div>
       </header>
 
@@ -872,11 +872,11 @@ function ScenarioCell({
   if (!gap) {
     return (
       <div className={`rounded border px-2 py-1.5 ${borderClass} bg-[var(--bg-secondary)]`}>
-        <p className="flex items-center justify-between text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+        <p className="flex items-center justify-between text-3xs font-semibold uppercase text-[var(--text-tertiary)]">
           <span>{SCENARIO_LABEL[scenario]}</span>
         </p>
         <p className="mt-0.5 text-sm font-semibold text-[var(--text-tertiary)]">—</p>
-        <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+        <p className="mt-0.5 text-3xs text-[var(--text-tertiary)]">
           {SCENARIO_DESCRIPTION[scenario]}
         </p>
       </div>
@@ -896,7 +896,7 @@ function ScenarioCell({
       className={`rounded border px-2 py-1.5 ${borderClass} bg-[var(--bg-secondary)]`}
       title={gap.summary}
     >
-      <p className="flex items-center justify-between text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+      <p className="flex items-center justify-between text-3xs font-semibold uppercase text-[var(--text-tertiary)]">
         <span>{SCENARIO_LABEL[scenario]}</span>
         <GapPriorityBadge priority={gap.priority} />
       </p>
@@ -906,11 +906,11 @@ function ScenarioCell({
           : displayGap !== null
             ? `${displayGap}`
             : "—"}
-        <span className="ml-1 text-[10px] font-normal text-[var(--text-tertiary)]">
+        <span className="ml-1 text-3xs font-normal text-[var(--text-tertiary)]">
           max area · {axisCount}축
         </span>
       </p>
-      <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+      <p className="mt-0.5 text-3xs text-[var(--text-tertiary)]">
         {SCENARIO_DESCRIPTION[scenario]}
       </p>
     </div>

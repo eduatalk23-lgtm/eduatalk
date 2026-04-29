@@ -30,16 +30,16 @@ export function PipelineBootstrapGrid({
 }: PipelineBootstrapGridProps) {
   return (
     <div>
-      <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+      <h4 className="text-2xs font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
         Bootstrap Pipeline
       </h4>
 
       <div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-t-md mb-1 bg-emerald-50 dark:bg-emerald-950/20">
-          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+          <span className="text-2xs font-semibold text-emerald-700 dark:text-emerald-300">
             Phase 0 · 자동 셋업
           </span>
-          <span className="text-[10px] text-emerald-500 dark:text-emerald-400">
+          <span className="text-3xs text-emerald-500 dark:text-emerald-400">
             target_major → 메인 탐구 + 수강 계획
           </span>
         </div>
@@ -50,7 +50,7 @@ export function PipelineBootstrapGrid({
           {BOOTSTRAP_PHASE_GROUPS.map((pg) => (
             <div
               key={pg.label}
-              className="text-center text-[11px] font-semibold text-[var(--text-tertiary)] pb-0.5"
+              className="text-center text-2xs font-semibold text-[var(--text-tertiary)] pb-0.5"
             >
               {pg.label}
             </div>
@@ -70,7 +70,7 @@ export function PipelineBootstrapGrid({
             >
               자동
             </span>
-            <span className="text-[9px] font-medium px-1 py-px rounded-sm bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+            <span className="text-3xs font-medium px-1 py-px rounded-sm bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
               P0
             </span>
           </div>

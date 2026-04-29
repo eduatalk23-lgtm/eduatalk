@@ -129,22 +129,22 @@ export function ContextTopSheet({ isOpen, onClose, studentGrade, initialSchoolYe
       {/* 탑시트 */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-50 flex flex-col rounded-b-2xl border-b border-gray-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-out dark:border-gray-700 dark:bg-gray-900",
+          "fixed inset-x-0 top-0 z-50 flex flex-col rounded-b-2xl border-b border-border bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-out dark:border-border dark:bg-bg-primary",
           animateIn ? "translate-y-0" : "-translate-y-full",
         )}
         style={{ height: "80vh" }}
       >
         {/* 헤더 */}
-        <div className="flex-shrink-0 border-b border-gray-100 px-5 pt-4 pb-3 dark:border-gray-800">
+        <div className="flex-shrink-0 border-b border-border px-5 pt-4 pb-3 dark:border-border">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">학생 컨텍스트</h3>
-            <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+            <h3 className="text-sm font-bold text-text-primary dark:text-gray-100">학생 컨텍스트</h3>
+            <span className="rounded bg-violet-50 px-1.5 py-0.5 text-2xs font-medium text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
               전체 맥락
             </span>
             <button
               type="button"
               onClick={onClose}
-              className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+              className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-bg-tertiary hover:text-text-secondary dark:hover:bg-gray-800 dark:hover:text-text-disabled"
             >
               <X className="h-4 w-4" />
             </button>
@@ -154,7 +154,7 @@ export function ContextTopSheet({ isOpen, onClose, studentGrade, initialSchoolYe
           <div className="mt-3 flex items-center gap-0.5 overflow-x-auto">
             {TAB_GROUPS.map((group, gi) => (
               <div key={group.label} className="flex shrink-0 items-center gap-0.5">
-                {gi > 0 && <div className="mx-1.5 h-4 w-px bg-gray-200 dark:bg-gray-700" />}
+                {gi > 0 && <div className="mx-1.5 h-4 w-px bg-bg-tertiary dark:bg-bg-tertiary" />}
                 {group.tabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -164,7 +164,7 @@ export function ContextTopSheet({ isOpen, onClose, studentGrade, initialSchoolYe
                       "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                       activeTab === tab.id
                         ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                        : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800",
+                        : "text-text-tertiary hover:bg-bg-tertiary dark:text-text-tertiary dark:hover:bg-gray-800",
                     )}
                   >
                     {tab.emoji} {tab.label}
@@ -192,7 +192,7 @@ export function ContextTopSheet({ isOpen, onClose, studentGrade, initialSchoolYe
 
         {/* 하단 핸들 */}
         <div className="flex-shrink-0 flex justify-center pb-3 pt-1">
-          <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+          <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-bg-tertiary" />
         </div>
       </div>
     </>

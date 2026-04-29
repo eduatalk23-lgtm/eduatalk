@@ -88,7 +88,7 @@ export function ConnectionsPanelApp({
         </button>
         <div className="px-4 pb-2">
           <p className="text-sm font-semibold text-[var(--text-primary)]">{focusedNode.label}</p>
-          <p className="text-[10px] text-[var(--text-tertiary)]">{focusedNode.edges.length}개 연결</p>
+          <p className="text-3xs text-[var(--text-tertiary)]">{focusedNode.edges.length}개 연결</p>
         </div>
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           <ConnectionNodeCard
@@ -121,7 +121,7 @@ export function ConnectionsPanelApp({
         const hasProjected = persistedEdges?.some((e: PersistedEdge) => e.edge_context === "projected") ?? false;
         if (!hasInferred && !hasProjected) return null;
         return (
-          <div className="flex flex-wrap items-center gap-2 px-4 pb-1 text-[10px] text-[var(--text-tertiary)]">
+          <div className="flex flex-wrap items-center gap-2 px-4 pb-1 text-3xs text-[var(--text-tertiary)]">
             {hasInferred && (
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block rounded-sm bg-violet-500 px-1 font-bold text-white">추론</span>
@@ -146,7 +146,7 @@ export function ConnectionsPanelApp({
             type="button"
             onClick={() => setGroupBy(mode)}
             className={cn(
-              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              "rounded-md px-2.5 py-1 text-2xs font-medium transition-colors",
               groupBy === mode
                 ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
@@ -242,7 +242,7 @@ function EdgeTypeGroupView({
           <div key={edgeType}>
             <div className="flex items-center gap-2 pb-1.5">
               <span className={cn("text-xs font-semibold", meta.color)}>{meta.label}</span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">{items.length}건</span>
+              <span className="text-3xs text-[var(--text-tertiary)]">{items.length}건</span>
             </div>
             <div className="flex flex-col gap-1">
               {items.map((item, i) => (
@@ -251,7 +251,7 @@ function EdgeTypeGroupView({
                   type="button"
                   onClick={() => onDrillDown(item.sourceKey)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors hover:opacity-80",
+                    "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-2xs transition-colors hover:opacity-80",
                     meta.bgColor,
                     meta.color,
                   )}

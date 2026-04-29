@@ -46,9 +46,9 @@ export function HighlightComparisonView({
   return (
     <div className="flex flex-col gap-2">
       {/* 통계 바 */}
-      <div className="flex items-center gap-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2 text-[10px]">
+      <div className="flex items-center gap-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2 text-3xs">
         <span className="font-medium text-[var(--text-primary)]">일치도</span>
-        <div className="flex-1 rounded-full bg-gray-200 dark:bg-gray-700" style={{ height: 6 }}>
+        <div className="flex-1 rounded-full bg-bg-tertiary dark:bg-bg-tertiary" style={{ height: 6 }}>
           <div
             className={cn(
               "h-full rounded-full transition-all",
@@ -74,8 +74,8 @@ export function HighlightComparisonView({
         <div className="rounded-lg border border-blue-200 dark:border-blue-800">
           <div className="flex items-center gap-1.5 border-b border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-950/20">
             <Bot className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-            <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300">AI 분석</span>
-            <span className="text-[10px] text-blue-500">{aiTagCount}건</span>
+            <span className="text-3xs font-semibold text-blue-700 dark:text-blue-300">AI 분석</span>
+            <span className="text-3xs text-blue-500">{aiTagCount}건</span>
           </div>
           <div className="p-2">
             {aiResult ? (
@@ -86,7 +86,7 @@ export function HighlightComparisonView({
                 defaultExpanded
               />
             ) : (
-              <p className="py-3 text-center text-[10px] text-[var(--text-tertiary)]">AI 분석 결과 없음</p>
+              <p className="py-3 text-center text-3xs text-[var(--text-tertiary)]">AI 분석 결과 없음</p>
             )}
           </div>
         </div>
@@ -95,8 +95,8 @@ export function HighlightComparisonView({
         <div className="rounded-lg border border-orange-200 dark:border-orange-800">
           <div className="flex items-center gap-1.5 border-b border-orange-200 bg-orange-50 px-3 py-1.5 dark:border-orange-800 dark:bg-orange-950/20">
             <User className="h-3 w-3 text-orange-600 dark:text-orange-400" />
-            <span className="text-[10px] font-semibold text-orange-700 dark:text-orange-300">컨설턴트 분석</span>
-            <span className="text-[10px] text-orange-500">{consultantTagCount}건</span>
+            <span className="text-3xs font-semibold text-orange-700 dark:text-orange-300">컨설턴트 분석</span>
+            <span className="text-3xs text-orange-500">{consultantTagCount}건</span>
           </div>
           <div className="p-2">
             {consultantResult ? (
@@ -107,7 +107,7 @@ export function HighlightComparisonView({
                 defaultExpanded
               />
             ) : (
-              <p className="py-3 text-center text-[10px] text-[var(--text-tertiary)]">컨설턴트 분석 없음</p>
+              <p className="py-3 text-center text-3xs text-[var(--text-tertiary)]">컨설턴트 분석 없음</p>
             )}
           </div>
         </div>

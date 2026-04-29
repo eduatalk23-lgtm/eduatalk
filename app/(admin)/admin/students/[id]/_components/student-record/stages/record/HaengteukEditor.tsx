@@ -355,7 +355,7 @@ export function HaengteukEditor({
             <tr className="align-top">
               <td className={`${B} px-2 py-1.5 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
               <td className={`${B} p-2`}>
-                <div className="flex flex-col gap-0.5 rounded border border-dashed border-gray-300 bg-gray-50/50 px-3 py-2 text-xs text-[var(--text-tertiary)]">
+                <div className="flex flex-col gap-0.5 rounded border border-dashed border-border bg-bg-secondary/50 px-3 py-2 text-xs text-[var(--text-tertiary)]">
                   <span className="font-medium text-[var(--text-secondary)]">{def.label} 레이어 — 작업 예정</span>
                   <span className="italic">{def.description}</span>
                 </div>
@@ -444,7 +444,7 @@ export function HaengteukEditor({
                       "text-xs transition-colors",
                       ctx.activeSubjectId === "haengteuk"
                         ? "text-indigo-600 dark:text-indigo-400"
-                        : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
+                        : "text-text-tertiary hover:text-text-secondary dark:hover:text-text-disabled",
                     )}
                     title={ctx.activeSubjectId === "haengteuk" ? "그리드 닫기" : "컨텍스트 그리드 열기"}
                   >
@@ -620,10 +620,10 @@ export function HaengteukEditor({
                         </div>
                         {/* 8개 평가항목 테이블 + 근거 가이드 드롭다운 (Wave 5.3) */}
                         {guide.evaluationItems && guide.evaluationItems.length > 0 && (
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="rounded-lg border border-border dark:border-border">
                             <table className="w-full text-xs">
                               <thead>
-                                <tr className="border-b border-gray-200 dark:border-gray-700">
+                                <tr className="border-b border-border dark:border-border">
                                   <th className="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)]">평가 항목</th>
                                   <th className="w-16 px-2 py-1.5 text-center font-medium text-[var(--text-secondary)]">평가</th>
                                   <th className="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)]">근거</th>
@@ -632,7 +632,7 @@ export function HaengteukEditor({
                               </thead>
                               <tbody>
                                 {guide.evaluationItems.map((ei) => (
-                                  <tr key={ei.item} className="border-b border-gray-100 last:border-0 dark:border-gray-800">
+                                  <tr key={ei.item} className="border-b border-border last:border-0 dark:border-border">
                                     <td className="px-2 py-1.5 align-top font-medium text-[var(--text-primary)]">{ei.item}</td>
                                     <td className="px-2 py-1.5 text-center align-top">
                                       <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium",

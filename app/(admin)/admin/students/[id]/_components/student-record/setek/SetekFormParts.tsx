@@ -106,7 +106,7 @@ export function PlannedSubjectRow({
         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
           {planned.subjectName}
         </span>
-        <span className="ml-1.5 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+        <span className="ml-1.5 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-2xs font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
           계획됨
         </span>
       </td>
@@ -200,7 +200,7 @@ export function AddSetekForm({
           <select
             value={selectedSubjectId}
             onChange={(e) => setSelectedSubjectId(e.target.value)}
-            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="flex-1 rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             <option value="">과목 선택...</option>
             {subjects.map((s) => (
@@ -210,7 +210,7 @@ export function AddSetekForm({
           <select
             value={semester}
             onChange={(e) => setSemester(Number(e.target.value))}
-            className="w-28 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="w-28 rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             <option value={1}>1학기</option>
             <option value={2}>2학기</option>
@@ -221,7 +221,7 @@ export function AddSetekForm({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={4}
-          className="w-full resize-y rounded-md border border-gray-200 bg-white p-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
+          className="w-full resize-y rounded-md border border-border bg-white p-3 text-sm placeholder:text-text-tertiary focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-border dark:bg-bg-primary"
           placeholder="세특 내용을 입력하세요..."
         />
         <div className="flex items-center justify-between">

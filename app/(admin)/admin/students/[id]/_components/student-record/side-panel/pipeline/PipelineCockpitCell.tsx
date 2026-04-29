@@ -51,7 +51,7 @@ function CockpitRunningTimer({ startMs }: { startMs: number }) {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="flex items-center gap-0.5 text-[9px] tabular-nums opacity-70">
+    <span className="flex items-center gap-0.5 text-3xs tabular-nums opacity-70">
       <Clock className="h-2.5 w-2.5" />
       {formatElapsed(now - startMs)}
     </span>
@@ -88,7 +88,7 @@ export function CockpitCell({
         s.bg,
         s.text,
         isAnalysisModeSkip
-          ? "border-dashed border-gray-300 dark:border-gray-600"
+          ? "border-dashed border-border dark:border-border"
           : s.border,
         clickable && "cursor-pointer",
       )}
@@ -96,22 +96,22 @@ export function CockpitCell({
       <StatusIcon status={status} />
       <span className="text-xs font-medium leading-tight text-center">{label}</span>
       {isAnalysisModeSkip && (
-        <span className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight text-center">
+        <span className="text-3xs text-text-tertiary dark:text-text-tertiary leading-tight text-center">
           분석 모드
         </span>
       )}
       {status === "cached" && !isAnalysisModeSkip && (
-        <span className="text-[9px] font-semibold text-teal-500 dark:text-teal-400">캐시</span>
+        <span className="text-3xs font-semibold text-teal-500 dark:text-teal-400">캐시</span>
       )}
       {status === "running" && progressText && (
-        <span className="text-[9px] font-semibold">{progressText}</span>
+        <span className="text-3xs font-semibold">{progressText}</span>
       )}
       {status === "running" && runningStartMs != null && (
         <CockpitRunningTimer startMs={runningStartMs} />
       )}
       {elapsedMs != null &&
         (status === "completed" || status === "cached" || status === "failed") && (
-          <span className="flex items-center gap-0.5 text-[9px] opacity-60">
+          <span className="flex items-center gap-0.5 text-3xs opacity-60">
             <Clock className="h-2.5 w-2.5" />
             {formatElapsed(elapsedMs)}
           </span>

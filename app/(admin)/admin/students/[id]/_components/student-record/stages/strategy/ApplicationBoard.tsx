@@ -23,7 +23,7 @@ type ApplicationBoardProps = {
 };
 
 const RESULT_LABELS: Record<ApplicationResult, { label: string; className: string }> = {
-  pending: { label: "대기", className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400" },
+  pending: { label: "대기", className: "bg-bg-tertiary text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary" },
   accepted: { label: "합격", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
   waitlisted: { label: "예비", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
   rejected: { label: "불합격", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
@@ -70,7 +70,7 @@ export function ApplicationBoard({
             {interviewConflicts.map((c, i) => (
               <p key={i} className="text-xs text-red-600 dark:text-red-400">
                 <span className={cn(
-                  "mr-1 rounded px-1 py-0.5 text-[10px] font-bold uppercase",
+                  "mr-1 rounded px-1 py-0.5 text-3xs font-bold uppercase",
                   c.severity === "critical" ? "bg-red-200 text-red-800" : "bg-amber-200 text-amber-800",
                 )}>
                   {c.severity === "critical" ? "동일일" : "연일"}
@@ -118,7 +118,7 @@ export function ApplicationBoard({
           ))}
           {earlyApps.length < MAX_EARLY && earlyApps.length > 0 &&
             Array.from({ length: MAX_EARLY - earlyApps.length }).map((_, i) => (
-              <div key={`empty-${i}`} className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-[var(--text-placeholder)] dark:border-gray-700">
+              <div key={`empty-${i}`} className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-[var(--text-placeholder)] dark:border-border">
                 빈 슬롯
               </div>
             ))
@@ -145,7 +145,7 @@ export function ApplicationBoard({
                 }}
               />
             ) : (
-              <div key={round} className="rounded-lg border border-dashed border-gray-200 p-4 text-center dark:border-gray-700">
+              <div key={round} className="rounded-lg border border-dashed border-border p-4 text-center dark:border-border">
                 <span className="text-xs text-[var(--text-placeholder)]">
                   {APPLICATION_ROUND_LABELS[round]} — 미등록
                 </span>
@@ -189,7 +189,7 @@ export function ApplicationBoard({
       ) : (
         <button
           onClick={() => setShowAddForm(true)}
-          className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600"
+          className="rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-border"
         >
           + 지원 추가
         </button>
@@ -239,7 +239,7 @@ function ApplicationCard({
   const resultConfig = RESULT_LABELS[application.result as ApplicationResult] ?? RESULT_LABELS.pending;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white p-3 dark:border-border dark:bg-bg-primary">
       <div className="flex items-start justify-between">
         <div>
           <span className="text-xs text-[var(--text-tertiary)]">
@@ -255,7 +255,7 @@ function ApplicationCard({
 
       {application.score_type && (
         <span className={cn(
-          "mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+          "mt-1 inline-block rounded-full px-1.5 py-0.5 text-3xs font-medium",
           application.score_type === "estimated"
             ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
             : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -278,12 +278,12 @@ function ApplicationCard({
       )}
 
       {isEditing ? (
-        <div className="mt-2 flex flex-col gap-2 border-t border-gray-100 pt-2 dark:border-gray-800">
+        <div className="mt-2 flex flex-col gap-2 border-t border-border pt-2 dark:border-border">
           <div className="flex gap-2">
             <select
               value={result}
               onChange={(e) => setResult(e.target.value)}
-              className="flex-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-800"
+              className="flex-1 rounded-md border border-border bg-white px-2 py-1 text-xs dark:border-border dark:bg-bg-secondary"
             >
               {(Object.entries(RESULT_LABELS) as [ApplicationResult, { label: string }][]).map(([k, v]) => (
                 <option key={k} value={k}>{v.label}</option>
@@ -293,7 +293,7 @@ function ApplicationCard({
               value={competitionRate}
               onChange={(e) => setCompetitionRate(e.target.value)}
               placeholder="경쟁률"
-              className="w-20 rounded-md border border-gray-200 px-2 py-1 text-center text-xs dark:border-gray-700 dark:bg-gray-800"
+              className="w-20 rounded-md border border-border px-2 py-1 text-center text-xs dark:border-border dark:bg-bg-secondary"
             />
           </div>
           <div className="flex gap-2">
@@ -308,7 +308,7 @@ function ApplicationCard({
           </div>
         </div>
       ) : (
-        <div className="mt-2 flex gap-2 border-t border-gray-100 pt-2 dark:border-gray-800">
+        <div className="mt-2 flex gap-2 border-t border-border pt-2 dark:border-border">
           <button onClick={() => setIsEditing(true)} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">수정</button>
           <button onClick={onDelete} className="text-xs text-red-500 hover:text-red-700">삭제</button>
         </div>
@@ -387,7 +387,7 @@ function AddApplicationForm({
           <select
             value={round}
             onChange={(e) => setRound(e.target.value)}
-            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
           >
             {Object.entries(APPLICATION_ROUND_LABELS).map(([k, v]) => (
               <option key={k} value={k} disabled={k.startsWith("early_") && earlyFull}>
@@ -404,20 +404,20 @@ function AddApplicationForm({
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
             placeholder="학과 *"
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           />
           <input
             type="date"
             value={interviewDate}
             onChange={(e) => setInterviewDate(e.target.value)}
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
             placeholder="면접일"
           />
           {isRegular && (
             <select
               value={scoreType}
               onChange={(e) => setScoreType(e.target.value)}
-              className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+              className="rounded-md border border-border bg-white px-2 py-2 text-sm dark:border-border dark:bg-bg-primary"
             >
               <option value="">점수 유형</option>
               <option value="estimated">가채점</option>

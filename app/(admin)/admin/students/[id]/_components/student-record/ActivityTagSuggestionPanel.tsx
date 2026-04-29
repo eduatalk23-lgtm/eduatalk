@@ -145,7 +145,7 @@ export function ActivityTagSuggestionPanel({
   // 결과
   if (!suggestions || suggestions.length === 0) {
     return (
-      <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-800/30">
+      <div className="flex items-center justify-between rounded-md border border-border bg-bg-secondary/50 px-3 py-2 text-xs dark:border-border dark:bg-bg-secondary/30">
         <span className="text-[var(--text-tertiary)]">{summary || "태그 제안 없음"}</span>
         <button
           onClick={() => setSuggestions(null)}
@@ -192,21 +192,21 @@ export function ActivityTagSuggestionPanel({
           if (isRejected) return null;
 
           return (
-            <div key={idx} className="flex flex-col gap-1 rounded border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800/50">
+            <div key={idx} className="flex flex-col gap-1 rounded border border-border bg-white p-2 dark:border-border dark:bg-bg-secondary/50">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[var(--text-tertiary)]">{getAreaLabel(tag.competencyItem)}</span>
+                <span className="text-3xs text-[var(--text-tertiary)]">{getAreaLabel(tag.competencyItem)}</span>
                 <span className="text-xs font-medium text-[var(--text-primary)]">{getItemLabel(tag.competencyItem)}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${evalStyle.className}`}>
+                <span className={`rounded px-1.5 py-0.5 text-3xs font-medium ${evalStyle.className}`}>
                   {evalStyle.label}
                 </span>
               </div>
 
-              <p className="text-[11px] text-[var(--text-secondary)]">{tag.reasoning}</p>
+              <p className="text-2xs text-[var(--text-secondary)]">{tag.reasoning}</p>
 
               {tag.evidenceKeywords.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {tag.evidenceKeywords.map((kw, ki) => (
-                    <span key={ki} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)] dark:bg-gray-700">
+                    <span key={ki} className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-[var(--text-tertiary)] dark:bg-bg-tertiary">
                       {kw}
                     </span>
                   ))}
@@ -217,17 +217,17 @@ export function ActivityTagSuggestionPanel({
                 <button
                   onClick={() => handleAccept(idx, tag)}
                   disabled={isPending}
-                  className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                  className="rounded bg-blue-600 px-2 py-0.5 text-3xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   수락
                 </button>
                 <button
                   onClick={() => handleReject(idx)}
-                  className="rounded border border-gray-300 px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] transition hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                  className="rounded border border-border px-2 py-0.5 text-3xs text-[var(--text-tertiary)] transition hover:bg-bg-tertiary dark:border-border dark:hover:bg-gray-700"
                 >
                   거절
                 </button>
-                <span className="text-[10px] text-[var(--text-tertiary)] italic">{tag.matchedRubricQuestion}</span>
+                <span className="text-3xs text-[var(--text-tertiary)] italic">{tag.matchedRubricQuestion}</span>
               </div>
             </div>
           );

@@ -16,7 +16,7 @@ const REPLACEMENT_PROB_COLORS: Record<
   high: { bg: "bg-emerald-100", text: "text-emerald-700", darkBg: "dark:bg-emerald-900/30", darkText: "dark:text-emerald-300" },
   moderate: { bg: "bg-amber-100", text: "text-amber-700", darkBg: "dark:bg-amber-900/30", darkText: "dark:text-amber-300" },
   low: { bg: "bg-red-100", text: "text-red-700", darkBg: "dark:bg-red-900/30", darkText: "dark:text-red-300" },
-  none: { bg: "bg-gray-100", text: "text-gray-500", darkBg: "dark:bg-gray-800", darkText: "dark:text-gray-400" },
+  none: { bg: "bg-bg-tertiary", text: "text-text-tertiary", darkBg: "dark:bg-bg-secondary", darkText: "dark:text-text-tertiary" },
 };
 
 const REPLACEMENT_PROB_LABELS: Record<ReplacementInfo["probabilityLevel"], string> = {
@@ -34,23 +34,23 @@ function ReplacementSection({ info }: { info: ReplacementInfo }) {
   return (
     <div className="mt-2 rounded-md border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+        <span className="text-3xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
           충원
         </span>
         <span
           className={cn(
-            "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+            "rounded-full px-1.5 py-0.5 text-3xs font-medium",
             colors.bg, colors.text, colors.darkBg, colors.darkText,
           )}
         >
           {REPLACEMENT_PROB_LABELS[info.probabilityLevel]}
           {info.probabilityLevel !== "none" && ` ${Math.round(info.probability * 100)}%`}
         </span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">{info.message}</span>
+        <span className="text-3xs text-[var(--text-tertiary)]">{info.message}</span>
       </div>
 
       {/* 연도별 충원 인원 */}
-      <div className="mt-1 flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
+      <div className="mt-1 flex items-center gap-3 text-3xs text-[var(--text-secondary)]">
         {info.historicalCounts.map((c) => (
           <span key={c.year}>{c.year}: {c.count}명</span>
         ))}
@@ -182,7 +182,7 @@ export function PlacementCard({ verdict }: { verdict: PlacementVerdict }) {
               {verdict.notes.map((note, i) => (
                 <span
                   key={i}
-                  className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                  className="rounded bg-bg-tertiary px-1.5 py-0.5 text-xs text-text-secondary dark:bg-bg-secondary dark:text-text-tertiary"
                 >
                   {note}
                 </span>

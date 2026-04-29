@@ -55,7 +55,7 @@ export function PipelineGradeGrid({
 }: PipelineGradeGridProps) {
   return (
     <div>
-      <h4 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+      <h4 className="text-2xs font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
         Grade Pipeline
       </h4>
       <div className="space-y-3">
@@ -82,7 +82,7 @@ export function PipelineGradeGrid({
               >
                 <span
                   className={cn(
-                    "text-[11px] font-semibold",
+                    "text-2xs font-semibold",
                     section.designOnly
                       ? "text-amber-700 dark:text-amber-300"
                       : "text-indigo-700 dark:text-indigo-300",
@@ -92,7 +92,7 @@ export function PipelineGradeGrid({
                 </span>
                 <span
                   className={cn(
-                    "text-[10px]",
+                    "text-3xs",
                     section.designOnly
                       ? "text-amber-500 dark:text-amber-400"
                       : "text-indigo-400 dark:text-indigo-500",
@@ -109,7 +109,7 @@ export function PipelineGradeGrid({
                 {section.phases.map((pg) => (
                   <div
                     key={pg.label}
-                    className="text-center text-[11px] font-semibold text-[var(--text-tertiary)] pb-0.5"
+                    className="text-center text-2xs font-semibold text-[var(--text-tertiary)] pb-0.5"
                   >
                     {pg.label}
                   </div>
@@ -151,7 +151,7 @@ export function PipelineGradeGrid({
                         {mode && (
                           <span
                             className={cn(
-                              "text-[9px] font-medium px-1 py-px rounded-sm",
+                              "text-3xs font-medium px-1 py-px rounded-sm",
                               mode === "analysis"
                                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                                 : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
@@ -171,10 +171,10 @@ export function PipelineGradeGrid({
                                 : `${grade}학년 전체 실행`
                             }
                             className={cn(
-                              "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-[9px] font-medium transition-colors",
+                              "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-3xs font-medium transition-colors",
                               canRunGradeSequence
                                 ? "border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/30 cursor-pointer"
-                                : "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed",
+                                : "border-border text-text-disabled dark:border-border dark:text-text-secondary cursor-not-allowed",
                             )}
                           >
                             <Play className="h-2.5 w-2.5" />
@@ -190,7 +190,7 @@ export function PipelineGradeGrid({
                               type="button"
                               onClick={() => onRerunGrade(grade)}
                               title={`${grade}학년 cascade tier 재실행 (P3.6+P4-P9, P1-P3 캐시 보존)`}
-                              className="inline-flex items-center gap-0.5 rounded-sm border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30 px-1 py-px text-[9px] font-medium transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-0.5 rounded-sm border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30 px-1 py-px text-3xs font-medium transition-colors cursor-pointer"
                             >
                               <RefreshCw className="h-2.5 w-2.5" />
                               재실행
@@ -206,9 +206,9 @@ export function PipelineGradeGrid({
                               disabled={recoveringGrade === grade}
                               title={`${grade}학년 누락 과목 재생성 — ${pipeline.errors.setek_guide}`}
                               className={cn(
-                                "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-[9px] font-medium transition-colors",
+                                "inline-flex items-center gap-0.5 rounded-sm border px-1 py-px text-3xs font-medium transition-colors",
                                 recoveringGrade === grade
-                                  ? "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed"
+                                  ? "border-border text-text-disabled dark:border-border dark:text-text-secondary cursor-not-allowed"
                                   : "border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30 cursor-pointer",
                               )}
                             >
@@ -294,10 +294,10 @@ export function PipelineGradeGrid({
               <div>
                 {/* 섹션 헤더 */}
                 <div className="flex items-center gap-1.5 px-2 py-1 rounded-t-md mb-1 bg-violet-50 dark:bg-violet-950/20">
-                  <span className="text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                  <span className="text-2xs font-semibold text-violet-700 dark:text-violet-300">
                     사전 분석
                   </span>
-                  <span className="text-[10px] text-violet-400 dark:text-violet-500">
+                  <span className="text-3xs text-violet-400 dark:text-violet-500">
                     Phase 3.5 · pre-task
                   </span>
                 </div>
@@ -309,7 +309,7 @@ export function PipelineGradeGrid({
                   {PRE_TASK_PHASE_GROUPS.map((ptg) => (
                     <div
                       key={ptg.key}
-                      className="text-center text-[11px] font-semibold text-[var(--text-tertiary)] pb-0.5"
+                      className="text-center text-2xs font-semibold text-[var(--text-tertiary)] pb-0.5"
                     >
                       {ptg.label}
                     </div>
@@ -334,7 +334,7 @@ export function PipelineGradeGrid({
                               type="button"
                               onClick={() => onRunGradePreTask(grade)}
                               title={`${grade}학년 사전 분석 재실행 (phase-4-pre)`}
-                              className="inline-flex items-center gap-0.5 rounded-sm border border-violet-200 text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/30 px-1 py-px text-[9px] font-medium transition-colors cursor-pointer mt-0.5"
+                              className="inline-flex items-center gap-0.5 rounded-sm border border-violet-200 text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/30 px-1 py-px text-3xs font-medium transition-colors cursor-pointer mt-0.5"
                             >
                               <Play className="h-2.5 w-2.5" />
                               재실행

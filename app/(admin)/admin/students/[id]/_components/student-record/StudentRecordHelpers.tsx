@@ -167,8 +167,8 @@ export function EmptyTable({ title, headers }: { title?: string; headers: string
 export function SectionSkeleton() {
   return (
     <div className="space-y-3">
-      <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-      <div className="h-20 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+      <div className="h-4 w-1/3 animate-pulse rounded bg-bg-tertiary dark:bg-bg-tertiary" />
+      <div className="h-20 w-full animate-pulse rounded bg-bg-tertiary dark:bg-bg-tertiary" />
     </div>
   );
 }
@@ -177,7 +177,7 @@ export function SectionSkeleton() {
 
 export function StageDivider({ emoji, label, hint }: { emoji: string; label: string; hint?: string }) {
   return (
-    <div className="sticky top-0 z-10 -mx-4 my-8 border-y border-gray-200 bg-gray-50/90 px-4 py-2.5 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/90 sm:-mx-6 sm:px-6">
+    <div className="sticky top-0 z-10 -mx-4 my-8 border-y border-border bg-bg-secondary/90 px-4 py-2.5 backdrop-blur-sm dark:border-border dark:bg-bg-primary/90 sm:-mx-6 sm:px-6">
       <div className="flex items-center gap-3">
         <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           {emoji} {label}

@@ -30,9 +30,9 @@ export function StrategyMatrix({ strategies }: StrategyMatrixProps) {
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
-            <th className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-800/30 dark:text-gray-400">영역</th>
+            <th className="border border-border bg-bg-secondary px-2 py-1 text-left font-medium text-text-secondary dark:border-border dark:bg-bg-secondary/30 dark:text-text-tertiary">영역</th>
             {PRIORITIES.map((p) => (
-              <th key={p} className="border border-gray-200 bg-gray-50 px-2 py-1 text-center font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-800/30 dark:text-gray-400">
+              <th key={p} className="border border-border bg-bg-secondary px-2 py-1 text-center font-medium text-text-secondary dark:border-border dark:bg-bg-secondary/30 dark:text-text-tertiary">
                 {PRIORITY_LABELS[p]}
               </th>
             ))}
@@ -41,13 +41,13 @@ export function StrategyMatrix({ strategies }: StrategyMatrixProps) {
         <tbody>
           {usedAreas.map((area) => (
             <tr key={area}>
-              <td className="border border-gray-200 px-2 py-1 font-medium text-gray-700 dark:border-gray-700 dark:text-gray-300">
+              <td className="border border-border px-2 py-1 font-medium text-text-primary dark:border-border dark:text-text-disabled">
                 {AREA_LABELS[area] ?? area}
               </td>
               {PRIORITIES.map((p) => {
                 const items = matrix.get(`${area}:${p}`) ?? [];
                 return (
-                  <td key={p} className="border border-gray-200 px-2 py-1.5 text-center dark:border-gray-700">
+                  <td key={p} className="border border-border px-2 py-1.5 text-center dark:border-border">
                     {items.length > 0 ? (
                       <div className="flex justify-center gap-1">
                         {items.map((item, i) => (
@@ -68,7 +68,7 @@ export function StrategyMatrix({ strategies }: StrategyMatrixProps) {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-200 dark:text-gray-700">·</span>
+                      <span className="text-gray-200 dark:text-text-primary">·</span>
                     )}
                   </td>
                 );
@@ -77,7 +77,7 @@ export function StrategyMatrix({ strategies }: StrategyMatrixProps) {
           ))}
         </tbody>
       </table>
-      <div className="mt-1 flex gap-3 text-xs text-gray-500 print:text-xs">
+      <div className="mt-1 flex gap-3 text-xs text-text-tertiary print:text-xs">
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" /> 완료</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> 진행 중</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-gray-300" /> 예정</span>

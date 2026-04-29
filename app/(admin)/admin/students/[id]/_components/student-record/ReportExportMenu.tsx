@@ -52,7 +52,7 @@ export function ReportExportMenu({ data }: ReportExportMenuProps) {
         type="button"
         onClick={() => setOpen((p) => !p)}
         disabled={exporting !== null}
-        className="rounded px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] flex items-center gap-0.5"
+        className="rounded px-2 py-1 text-3xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] flex items-center gap-0.5"
       >
         {exporting ? (
           <Loader2 className="w-3 h-3 animate-spin" />

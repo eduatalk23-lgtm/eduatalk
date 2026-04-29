@@ -144,7 +144,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
     return (
       <div className="space-y-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-8 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+          <div key={i} className="h-8 w-full animate-pulse rounded bg-bg-tertiary dark:bg-bg-tertiary" />
         ))}
       </div>
     );
@@ -329,7 +329,7 @@ function GradesTable({ scores, variant, tenantId, onDelete, editingId, onEdit, o
                 <EditableRow key={s.id} score={s} variant={variant} isSimple={isSimple} isLiberal={isLiberal}
                   onSave={(updates) => onSaveEdit?.(s.id, updates)} onCancel={() => onEdit?.(null)} isPending={isEditPending} />
               ) : (
-                <tr key={s.id} className={tenantId ? "group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" : ""}
+                <tr key={s.id} className={tenantId ? "group cursor-pointer hover:bg-bg-secondary dark:hover:bg-gray-800/50" : ""}
                   onClick={() => tenantId && onEdit?.(s.id)}>
                   <Td center>{s.grade}</Td>
                   <Td center>{s.semester}</Td>
@@ -459,23 +459,23 @@ function AddScoreForm({ tenantId, subjects, curriculumRevisionId, onSubmit, onCa
         <button onClick={onCancel} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">취소</button>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900">
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary">
           <option value="">과목 선택 *</option>
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={semester} onChange={(e) => setSemester(Number(e.target.value))} className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900">
+        <select value={semester} onChange={(e) => setSemester(Number(e.target.value))} className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary">
           <option value={1}>1학기</option>
           <option value={2}>2학기</option>
         </select>
-        <input type="number" value={creditHours} onChange={(e) => setCreditHours(e.target.value)} placeholder="학점 *" min={1} max={10} className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-        <input type="number" value={rawScore} onChange={(e) => setRawScore(e.target.value)} placeholder="원점수" className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-        <input type="number" value={avgScore} onChange={(e) => setAvgScore(e.target.value)} placeholder="과목평균" className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-        <select value={achievementLevel} onChange={(e) => setAchievementLevel(e.target.value)} className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900">
+        <input type="number" value={creditHours} onChange={(e) => setCreditHours(e.target.value)} placeholder="학점 *" min={1} max={10} className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+        <input type="number" value={rawScore} onChange={(e) => setRawScore(e.target.value)} placeholder="원점수" className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+        <input type="number" value={avgScore} onChange={(e) => setAvgScore(e.target.value)} placeholder="과목평균" className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+        <select value={achievementLevel} onChange={(e) => setAchievementLevel(e.target.value)} className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary">
           <option value="">성취도</option>
           {["A", "B", "C", "D", "E", "P"].map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
-        <input type="number" value={rankGrade} onChange={(e) => setRankGrade(e.target.value)} placeholder="석차등급" min={1} max={9} className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
-        <input type="number" value={totalStudents} onChange={(e) => setTotalStudents(e.target.value)} placeholder="수강자수" className="rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-900" />
+        <input type="number" value={rankGrade} onChange={(e) => setRankGrade(e.target.value)} placeholder="석차등급" min={1} max={9} className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
+        <input type="number" value={totalStudents} onChange={(e) => setTotalStudents(e.target.value)} placeholder="수강자수" className="rounded border border-border px-2 py-1.5 text-xs dark:border-border dark:bg-bg-primary" />
       </div>
       <div className="mt-3 flex items-center gap-2">
         <button onClick={handleSubmit} disabled={!subjectId || isPending} className="rounded bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
@@ -564,10 +564,10 @@ function EditableRow({ score, variant, isSimple, isLiberal, onSave, onCancel, is
       )}
       <td className={`${B} px-1 py-0.5 text-center`}>
         <div className="flex items-center justify-center gap-1">
-          <button onClick={handleSave} disabled={isPending} className="rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+          <button onClick={handleSave} disabled={isPending} className="rounded bg-indigo-600 px-1.5 py-0.5 text-3xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
             {isPending ? "..." : "저장"}
           </button>
-          <button onClick={onCancel} className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300">
+          <button onClick={onCancel} className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs text-text-secondary hover:bg-gray-300 dark:bg-bg-tertiary dark:text-text-disabled">
             취소
           </button>
         </div>

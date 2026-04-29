@@ -44,7 +44,7 @@ export function CompetencyTab({ tags, currentArea }: { tags: LayerActivityTag[];
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] text-[var(--text-tertiary)]">전체 {tags.length}개 태그, {sorted.length}개 역량</p>
+      <p className="text-3xs text-[var(--text-tertiary)]">전체 {tags.length}개 태그, {sorted.length}개 역량</p>
       {sorted.map(([item, stat]) => {
         const isHighlighted = currentRecordId && tags.some((t) => t.record_id === currentRecordId && t.competency_item === item);
         return (
@@ -56,7 +56,7 @@ export function CompetencyTab({ tags, currentArea }: { tags: LayerActivityTag[];
             )}
           >
             <span className="text-[var(--text-primary)]">{item}</span>
-            <div className="flex items-center gap-2 text-[10px] text-[var(--text-tertiary)]">
+            <div className="flex items-center gap-2 text-3xs text-[var(--text-tertiary)]">
               <span>🤖{stat.ai}</span>
               <span>👤{stat.manual}</span>
               <span>✅{stat.confirmed}</span>
@@ -102,7 +102,7 @@ export function GuideRateTab({ assignments }: { assignments: LayerGuideAssignmen
       {/* 상태별 카운트 */}
       <div className="flex flex-wrap gap-2">
         {STATUS_LABELS.map(({ key, label, color }) => (
-          <div key={key} className="flex items-center gap-1 text-[10px]">
+          <div key={key} className="flex items-center gap-1 text-3xs">
             <span className={cn("h-2 w-2 rounded-full", color)} />
             <span className="text-[var(--text-tertiary)]">{label}</span>
             <span className="font-medium text-[var(--text-secondary)]">{statusCount[key]}</span>
@@ -118,7 +118,7 @@ export function GuideRateTab({ assignments }: { assignments: LayerGuideAssignmen
               {a.exploration_guides?.title ?? "가이드"}
             </span>
             <span className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
+              "shrink-0 rounded px-1.5 py-0.5 text-3xs font-medium",
               a.confirmed_at ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-[var(--surface-hover)] text-[var(--text-tertiary)]",
             )}>
               {a.confirmed_at ? "확정" : a.status}
@@ -154,7 +154,7 @@ export function TeacherTab({ guides, currentArea }: { guides: LayerSetekGuide[];
             {guide.keywords.length > 0 && (
               <div className="mb-1.5 flex flex-wrap gap-1">
                 {guide.keywords.map((kw) => (
-                  <span key={kw} className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                  <span key={kw} className="rounded-full bg-violet-100 px-1.5 py-0.5 text-3xs text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
                     {kw}
                   </span>
                 ))}
@@ -166,7 +166,7 @@ export function TeacherTab({ guides, currentArea }: { guides: LayerSetekGuide[];
               ))}
             </ul>
             {guide.cautions && (
-              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">⚠ {guide.cautions}</p>
+              <p className="mt-1 text-3xs text-amber-600 dark:text-amber-400">⚠ {guide.cautions}</p>
             )}
           </div>
         );
@@ -209,7 +209,7 @@ export function DiffTab({
 
   return (
     <div className="space-y-1">
-      <p className="text-[10px] text-[var(--text-tertiary)]">{diffs.length}개 영역</p>
+      <p className="text-3xs text-[var(--text-tertiary)]">{diffs.length}개 영역</p>
       {diffs.map((d, i) => (
         <div
           key={i}
@@ -219,7 +219,7 @@ export function DiffTab({
           )}
         >
           <span className="text-[var(--text-primary)]">{d.label}</span>
-          <div className="flex items-center gap-2 text-[10px]">
+          <div className="flex items-center gap-2 text-3xs">
             <span className="text-[var(--text-tertiary)]">가안 {d.confirmed}자</span>
             <span className="text-[var(--text-tertiary)]">임포트 {d.imported}자</span>
             <span className={d.match ? "text-emerald-600" : "text-amber-600"}>

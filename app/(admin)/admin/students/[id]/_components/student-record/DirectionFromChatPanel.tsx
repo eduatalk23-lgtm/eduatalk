@@ -73,7 +73,7 @@ export function DirectionFromChatPanel({
         <div className="flex items-center gap-1.5">
           <Compass className="h-3.5 w-3.5 text-violet-500" />
           <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">방향 설정</span>
-          <span className="text-[10px] text-violet-400">· {subjectName}</span>
+          <span className="text-3xs text-violet-400">· {subjectName}</span>
         </div>
         {onClose && (
           <button type="button" onClick={onClose} className="p-0.5 rounded hover:bg-violet-100 dark:hover:bg-violet-900/30">
@@ -104,7 +104,7 @@ export function DirectionFromChatPanel({
           disabled={!direction.trim() || isSubmitting}
           onClick={handleSubmit}
           className={cn(
-            "inline-flex items-center gap-1 rounded px-3 py-1 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded px-3 py-1 text-2xs font-medium transition-colors",
             direction.trim() && !isSubmitting
               ? "bg-violet-600 text-white hover:bg-violet-700"
               : "bg-violet-200 text-violet-400 cursor-not-allowed",

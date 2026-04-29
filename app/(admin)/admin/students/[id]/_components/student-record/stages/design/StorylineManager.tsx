@@ -41,7 +41,7 @@ export function StorylineManager({
   return (
     <div className="flex flex-col gap-3">
       {storylines.length === 0 && !showAddForm && (
-        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-border">
           등록된 스토리라인이 없습니다. 학생의 3년간 성장 서사를 추가해주세요.
         </div>
       )}
@@ -71,7 +71,7 @@ export function StorylineManager({
       ) : (
         <button
           onClick={() => setShowAddForm(true)}
-          className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-gray-600 dark:hover:border-gray-500"
+          className="rounded-lg border border-dashed border-border p-3 text-sm text-[var(--text-tertiary)] transition hover:border-gray-400 hover:text-[var(--text-secondary)] dark:border-border dark:hover:border-gray-500"
         >
           + 스토리라인 추가
         </button>
@@ -136,7 +136,7 @@ function StorylineCard({
   });
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-lg border border-border bg-white dark:border-border dark:bg-bg-primary">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-3 p-3 text-left"
@@ -154,9 +154,9 @@ function StorylineCard({
       </button>
 
       {!isExpanded && storyline.keywords.length > 0 && (
-        <div className="flex gap-1 border-t border-gray-100 px-3 pb-3 pt-2 dark:border-gray-800">
+        <div className="flex gap-1 border-t border-border px-3 pb-3 pt-2 dark:border-border">
           {storyline.keywords.slice(0, 5).map((kw) => (
-            <span key={kw} className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-[var(--text-secondary)] dark:bg-gray-800">
+            <span key={kw} className="rounded bg-bg-tertiary px-1.5 py-0.5 text-xs text-[var(--text-secondary)] dark:bg-bg-secondary">
               {kw}
             </span>
           ))}
@@ -164,7 +164,7 @@ function StorylineCard({
       )}
 
       {isExpanded && (
-        <div className="border-t border-gray-100 p-4 dark:border-gray-800">
+        <div className="border-t border-border p-4 dark:border-border">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <SaveStatusIndicator status={status} error={error} />
@@ -177,7 +177,7 @@ function StorylineCard({
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-md border border-gray-200 bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-gray-700"
+                  className="w-full rounded-md border border-border bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-border"
                 />
               </div>
               <div>
@@ -186,7 +186,7 @@ function StorylineCard({
                   value={careerField}
                   onChange={(e) => setCareerField(e.target.value)}
                   placeholder="예: 법·행정"
-                  className="w-full rounded-md border border-gray-200 bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-gray-700"
+                  className="w-full rounded-md border border-border bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-border"
                 />
               </div>
             </div>
@@ -197,7 +197,7 @@ function StorylineCard({
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
                 placeholder="예: 사회문제, 법, 정책"
-                className="w-full rounded-md border border-gray-200 bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-gray-700"
+                className="w-full rounded-md border border-border bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-border"
               />
             </div>
 
@@ -206,7 +206,7 @@ function StorylineCard({
               <select
                 value={strength}
                 onChange={(e) => setStrength(e.target.value)}
-                className="rounded-md border border-gray-200 bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-gray-700"
+                className="rounded-md border border-border bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-border"
               >
                 <option value="strong">강함</option>
                 <option value="moderate">보통</option>
@@ -227,7 +227,7 @@ function StorylineCard({
                     value={g.value}
                     onChange={(e) => g.set(e.target.value)}
                     placeholder={g.ph}
-                    className="w-full rounded-md border border-gray-200 bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-gray-700"
+                    className="w-full rounded-md border border-border bg-[var(--bg-surface)] px-3 py-2 text-sm dark:border-border"
                   />
                 </div>
               ))}
@@ -240,7 +240,7 @@ function StorylineCard({
                 onChange={(e) => setNarrative(e.target.value)}
                 rows={4}
                 placeholder="학생의 3년간 성장 과정을 서술하세요..."
-                className="w-full resize-y rounded-md border border-gray-200 bg-[var(--bg-surface)] p-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700"
+                className="w-full resize-y rounded-md border border-border bg-[var(--bg-surface)] p-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-border"
               />
             </div>
           </div>
@@ -300,13 +300,13 @@ function AddStorylineForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="스토리라인 제목 *"
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           />
           <input
             value={careerField}
             onChange={(e) => setCareerField(e.target.value)}
             placeholder="진로 분야 (예: 법·행정)"
-            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm dark:border-border dark:bg-bg-primary"
           />
         </div>
         <div className="flex justify-end">
