@@ -29,14 +29,14 @@ export function PipelineExecutiveSummarySection({ summary }: Props) {
       />
 
       {/* 종합 점수 */}
-      <div className="mb-6 flex items-center gap-4 rounded-lg border border-gray-200 p-4">
+      <div className="mb-6 flex items-center gap-4 rounded-lg border border-border p-4">
         <div className={cn("flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold", gc.bg, gc.text)}>
           {summary.overallGrade}
         </div>
         <div>
-          <p className="text-lg font-bold text-gray-900">{summary.overallScore}점</p>
+          <p className="text-lg font-bold text-text-primary">{summary.overallScore}점</p>
           {summary.growthTrend && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-text-tertiary">
               성장 추세: {summary.growthTrend === "rising" ? "상승" : summary.growthTrend === "falling" ? "하락" : summary.growthTrend === "stable" ? "안정" : "변동"}
             </p>
           )}
@@ -74,7 +74,7 @@ export function PipelineExecutiveSummarySection({ summary }: Props) {
       {/* 대학 매칭 Top3 (있으면) */}
       {summary.topUniversityMatches && summary.topUniversityMatches.length > 0 && (
         <div className="mb-6">
-          <p className="mb-2 text-sm font-medium text-gray-700">계열 적합도 상위</p>
+          <p className="mb-2 text-sm font-medium text-text-primary">계열 적합도 상위</p>
           <div className="flex flex-wrap gap-2">
             {summary.topUniversityMatches.map((m) => (
               <span key={m.label} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
@@ -109,9 +109,9 @@ export function PipelineExecutiveSummarySection({ summary }: Props) {
 
 function Paragraph({ title, content }: { title: string; content: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs font-semibold text-gray-500">{title}</p>
-      <p className="mt-1 text-sm leading-relaxed text-gray-700">{content}</p>
+    <div className="rounded-lg border border-border p-3">
+      <p className="text-xs font-semibold text-text-tertiary">{title}</p>
+      <p className="mt-1 text-sm leading-relaxed text-text-primary">{content}</p>
     </div>
   );
 }

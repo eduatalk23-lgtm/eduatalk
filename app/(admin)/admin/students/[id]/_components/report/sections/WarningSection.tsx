@@ -17,7 +17,7 @@ const SEVERITY_STYLES: Record<string, { label: string; color: string }> = {
   critical: { label: "긴급", color: "text-red-700 bg-red-50" },
   high: { label: "높음", color: "text-amber-700 bg-amber-50" },
   medium: { label: "보통", color: "text-amber-700 bg-amber-50" },
-  low: { label: "낮음", color: "text-gray-600 bg-gray-50" },
+  low: { label: "낮음", color: "text-text-secondary bg-bg-secondary" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -64,7 +64,7 @@ export function WarningSection({
     return (
       <section className="print-break-before">
         <ReportSectionHeader icon={AlertTriangle} title="점검 사항" />
-        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+        <div className="mt-4 rounded-lg border border-dashed border-border p-6 text-center">
           <p className="text-sm text-emerald-600">특이사항 없음 — 모든 항목이 정상입니다</p>
         </div>
       </section>
@@ -87,7 +87,7 @@ export function WarningSection({
       <div className="space-y-4 pt-4">
         {Object.entries(grouped).map(([category, items]) => (
           <div key={category} className="print-avoid-break">
-            <h3 className="text-sm font-semibold text-gray-700">
+            <h3 className="text-sm font-semibold text-text-primary">
               {CATEGORY_LABELS[category] ?? category}
             </h3>
             <div className="space-y-2 pt-2">
@@ -96,7 +96,7 @@ export function WarningSection({
                 return (
                   <div
                     key={i}
-                    className="flex gap-3 rounded border border-gray-200 p-3"
+                    className="flex gap-3 rounded border border-border p-3"
                   >
                     <span
                       className={`shrink-0 self-start rounded px-1.5 py-0.5 text-xs font-medium ${sev?.color ?? ""}`}
@@ -104,10 +104,10 @@ export function WarningSection({
                       {sev?.label ?? w.severity}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-text-primary">
                         {w.title}
                       </p>
-                      <p className="text-sm text-gray-600">{w.message}</p>
+                      <p className="text-sm text-text-secondary">{w.message}</p>
                       {w.suggestion && (
                         <p className="pt-1 text-xs text-blue-600">
                           → {w.suggestion}

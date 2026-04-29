@@ -41,7 +41,7 @@ interface Props {
 }
 
 function getVerdict(gpa: number | null): { label: string; color: string; bg: string } {
-  if (gpa == null) return { label: "산출 불가", color: "text-gray-500", bg: "bg-gray-50" };
+  if (gpa == null) return { label: "산출 불가", color: "text-text-tertiary", bg: "bg-bg-secondary" };
   if (gpa <= 2) return { label: "최상위권", color: "text-emerald-700", bg: "bg-emerald-50" };
   if (gpa <= 3) return { label: "상위권", color: "text-blue-700", bg: "bg-blue-50" };
   if (gpa <= 4.5) return { label: "중상위권", color: "text-indigo-700", bg: "bg-indigo-50" };
@@ -91,13 +91,13 @@ export function ExecutiveSummarySection({
           <span className={`text-2xl font-bold ${verdict.color}`}>
             {verdict.label}
           </span>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-text-secondary">
             {studentName ?? "학생"} · 내신 평균 {primaryGpa?.toFixed(2) ?? "-"}등급
             {targetMajor && ` · 목표 ${targetMajor}`}
           </span>
         </div>
         {diagnosis?.record_direction && (
-          <p className="mt-1 text-sm text-gray-700">{diagnosis.record_direction}</p>
+          <p className="mt-1 text-sm text-text-primary">{diagnosis.record_direction}</p>
         )}
       </div>
 
@@ -144,7 +144,7 @@ export function ExecutiveSummarySection({
               </RadarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-full items-center justify-center rounded border border-dashed border-gray-300 text-xs text-gray-500">
+            <div className="flex h-full items-center justify-center rounded border border-dashed border-border text-xs text-text-tertiary">
               역량 분석 후 표시
             </div>
           )}
@@ -201,13 +201,13 @@ export function ExecutiveSummarySection({
           {strengths.length > 0 && (
             <div className="flex-1">
               <span className="font-semibold text-emerald-700">강점: </span>
-              <span className="text-gray-700">{strengths.slice(0, 3).join(" · ")}</span>
+              <span className="text-text-primary">{strengths.slice(0, 3).join(" · ")}</span>
             </div>
           )}
           {weaknesses.length > 0 && (
             <div className="flex-1">
               <span className="font-semibold text-red-600">약점: </span>
-              <span className="text-gray-700">{weaknesses.slice(0, 3).join(" · ")}</span>
+              <span className="text-text-primary">{weaknesses.slice(0, 3).join(" · ")}</span>
             </div>
           )}
         </div>
@@ -241,17 +241,17 @@ export function ExecutiveSummarySection({
               종합 상위 {100 - cohortPercentile.overallPercentile}%
             </span>
           ) : (
-            <span className="text-gray-400">종합 데이터 부족</span>
+            <span className="text-text-tertiary">종합 데이터 부족</span>
           )}
-          <span className="text-gray-400">|</span>
+          <span className="text-text-tertiary">|</span>
           {cohortPercentile.gpaPercentile != null ? (
             <span className="text-indigo-600 dark:text-indigo-400">
               GPA 상위 {100 - cohortPercentile.gpaPercentile}%
             </span>
           ) : (
-            <span className="text-gray-400">GPA 데이터 부족</span>
+            <span className="text-text-tertiary">GPA 데이터 부족</span>
           )}
-          <span className="text-gray-400">|</span>
+          <span className="text-text-tertiary">|</span>
           {cohortPercentile.academicPercentile != null && cohortPercentile.careerPercentile != null ? (
             <span className="text-indigo-600 dark:text-indigo-400">
               학업 상위 {100 - cohortPercentile.academicPercentile}% · 진로 상위 {100 - cohortPercentile.careerPercentile}%
@@ -261,22 +261,22 @@ export function ExecutiveSummarySection({
               학업 상위 {100 - cohortPercentile.academicPercentile}%
             </span>
           ) : (
-            <span className="text-gray-400">역량 데이터 부족</span>
+            <span className="text-text-tertiary">역량 데이터 부족</span>
           )}
         </div>
       )}
 
       {/* 학년별 진행률 대시보드 */}
       {gradeStages && Object.keys(gradeStages).length > 0 && (
-        <div className="mt-4 rounded-lg border border-gray-200 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">3년 진행 현황</p>
+        <div className="mt-4 rounded-lg border border-border p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">3년 진행 현황</p>
           <table className="w-full border-collapse text-xs">
             <caption className="sr-only">학년별 진행 현황</caption>
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-1.5 pr-4 text-left font-medium text-gray-500">학년</th>
-                <th className="pb-1.5 pr-4 text-left font-medium text-gray-500">상태</th>
-                <th className="pb-1.5 text-left font-medium text-gray-500">완성도</th>
+              <tr className="border-b border-border">
+                <th className="pb-1.5 pr-4 text-left font-medium text-text-tertiary">학년</th>
+                <th className="pb-1.5 pr-4 text-left font-medium text-text-tertiary">상태</th>
+                <th className="pb-1.5 text-left font-medium text-text-tertiary">완성도</th>
               </tr>
             </thead>
             <tbody>
@@ -287,8 +287,8 @@ export function ExecutiveSummarySection({
                   const completion = STAGE_COMPLETION[stage];
                   const stageIdx = STAGE_ORDER.indexOf(stage);
                   return (
-                    <tr key={grade} className="border-b border-gray-100 last:border-0">
-                      <td className="py-1.5 pr-4 font-medium text-gray-800">{grade}학년</td>
+                    <tr key={grade} className="border-b border-border last:border-0">
+                      <td className="py-1.5 pr-4 font-medium text-text-primary">{grade}학년</td>
                       <td className="py-1.5 pr-4">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.bgClass} ${config.textClass}`}>
                           {/* 단계 점 인디케이터 */}
@@ -306,7 +306,7 @@ export function ExecutiveSummarySection({
                       <td className="py-1.5">
                         <div className="flex items-center gap-2">
                           <div
-                            className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-200"
+                            className="h-1.5 w-24 overflow-hidden rounded-full bg-bg-tertiary"
                             role="progressbar"
                             aria-valuenow={completion}
                             aria-valuemin={0}
@@ -318,7 +318,7 @@ export function ExecutiveSummarySection({
                               style={{ width: `${completion}%` }}
                             />
                           </div>
-                          <span className="text-gray-500">{completion}%</span>
+                          <span className="text-text-tertiary">{completion}%</span>
                         </div>
                       </td>
                     </tr>
@@ -334,9 +334,9 @@ export function ExecutiveSummarySection({
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-b border-gray-200 px-2 py-2 text-center">
+    <div className="border-b border-border px-2 py-2 text-center">
       <p className="report-caption">{label}</p>
-      <p className="report-metric mt-0.5 text-sm text-gray-800">{value}</p>
+      <p className="report-metric mt-0.5 text-sm text-text-primary">{value}</p>
     </div>
   );
 }
@@ -360,7 +360,7 @@ function MetricCard({ label, value, sub, color, accent }: {
   return (
     <div className={`border-l-4 ${border} bg-white py-3 pl-4 pr-3`}>
       <p className="report-caption">{label}</p>
-      <p className={`report-metric mt-1 text-2xl ${color ?? "text-gray-900"}`}>{value}</p>
+      <p className={`report-metric mt-1 text-2xl ${color ?? "text-text-primary"}`}>{value}</p>
       {sub && <p className="report-caption mt-1">{sub}</p>}
     </div>
   );

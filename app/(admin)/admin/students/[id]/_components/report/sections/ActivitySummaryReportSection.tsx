@@ -103,7 +103,7 @@ export function ActivitySummaryReportSection({ summaries }: ActivitySummaryRepor
             <div key={idx} className="print-avoid-break">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{meta.icon}</span>
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-text-primary">
                   {sec.title || meta.label}
                 </h3>
               </div>

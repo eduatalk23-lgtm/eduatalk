@@ -653,12 +653,12 @@ export function ReportClient({ studentId }: ReportClientProps) {
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col lg:flex-row print:-mt-16">
       {/* ═══ 좌측 TOC 사이드바 ═══ */}
-      <aside className="hidden lg:flex w-56 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50/80 print:hidden">
+      <aside className="hidden lg:flex w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-bg-secondary/80 print:hidden">
         <div className="px-3 py-4">
           <div className="mb-3">
             <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Report</p>
             {data.pipelineMeta?.hasStaleEdges && (
-              <div className="mt-1.5 flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1.5 text-[10px] text-amber-700 border border-amber-200">
+              <div className="mt-1.5 flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1.5 text-3xs text-amber-700 border border-amber-200">
                 <span className="shrink-0">⚠</span>
                 <span>분석 후 기록이 수정되었습니다. 재분석을 권장합니다.</span>
               </div>
@@ -670,7 +670,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
               if (sec.partHeader) {
                 return (
                   <div key={sec.id} className="mt-3 mb-1 px-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    <p className="text-3xs font-bold uppercase tracking-wider text-text-tertiary">
                       Part {sec.partHeader.partNumber}: {sec.partHeader.label}
                     </p>
                   </div>
@@ -688,7 +688,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
                       "mt-2 rounded-lg px-3 py-1.5 text-left text-sm font-bold transition-colors",
                       isActive
                         ? "bg-indigo-50 text-indigo-700"
-                        : "text-gray-800 hover:bg-gray-100",
+                        : "text-text-primary hover:bg-bg-tertiary",
                     )}
                   >
                     {sec.title}
@@ -709,8 +709,8 @@ export function ReportClient({ studentId }: ReportClientProps) {
                       isActive
                         ? "bg-indigo-50 font-medium text-indigo-700"
                         : parentActive
-                          ? "text-gray-600 hover:bg-gray-100"
-                          : "text-gray-500 hover:bg-gray-100",
+                          ? "text-text-secondary hover:bg-bg-tertiary"
+                          : "text-text-tertiary hover:bg-bg-tertiary",
                     )}
                   >
                     {sec.title}
@@ -728,7 +728,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
                     "w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors",
                     isActive
                       ? "bg-indigo-50 font-medium text-indigo-700"
-                      : "text-gray-600 hover:bg-gray-100",
+                      : "text-text-secondary hover:bg-bg-tertiary",
                   )}
                 >
                   <span className="truncate">{sec.title}</span>
@@ -738,8 +738,8 @@ export function ReportClient({ studentId }: ReportClientProps) {
           </nav>
 
           {/* 표지 디자인 선택 */}
-          <div className="mt-4 border-t border-gray-200 pt-3">
-            <p className="mb-2 text-xs font-medium text-gray-500">표지 스타일</p>
+          <div className="mt-4 border-t border-border pt-3">
+            <p className="mb-2 text-xs font-medium text-text-tertiary">표지 스타일</p>
             <div className="grid grid-cols-5 gap-1">
               {(["A", "B", "C", "D", "E"] as const).map((v) => {
                 const labels = { A: "등고선", B: "플로우", C: "격자", D: "도형", E: "호" };
@@ -748,10 +748,10 @@ export function ReportClient({ studentId }: ReportClientProps) {
                     key={v}
                     type="button"
                     onClick={() => setCoverVariant(v)}
-                    className={`rounded px-1.5 py-1.5 text-[10px] font-medium transition-colors ${
+                    className={`rounded px-1.5 py-1.5 text-3xs font-medium transition-colors ${
                       coverVariant === v
                         ? "bg-indigo-600 text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary"
                     }`}
                   >
                     {labels[v]}
@@ -761,7 +761,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
             </div>
           </div>
 
-          <div className="mt-3 border-t border-gray-200 pt-3 flex flex-col gap-1.5">
+          <div className="mt-3 border-t border-border pt-3 flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => window.print()}
@@ -774,7 +774,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
               type="button"
               onClick={() => handleExport("pdf")}
               disabled={exporting !== null}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-text-primary hover:bg-bg-secondary disabled:opacity-50"
             >
               {exporting === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5 text-red-500" />}
               PDF 다운로드
@@ -783,7 +783,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
               type="button"
               onClick={() => handleExport("docx")}
               disabled={exporting !== null}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-text-primary hover:bg-bg-secondary disabled:opacity-50"
             >
               {exporting === "docx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5 text-blue-500" />}
               Word 다운로드
@@ -793,11 +793,11 @@ export function ReportClient({ studentId }: ReportClientProps) {
       </aside>
 
       {/* ═══ 모바일 TOC (lg 미만) ═══ */}
-      <div className="lg:hidden sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-4 py-2 print:hidden">
+      <div className="lg:hidden sticky top-0 z-10 border-b border-border bg-bg-secondary px-4 py-2 print:hidden">
         <select
           value={activeSection}
           onChange={(e) => scrollToSection(e.target.value)}
-          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary"
           aria-label="섹션으로 이동"
         >
           {sections
@@ -811,7 +811,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
       </div>
 
       {/* ═══ 메인: A4 폭 스크롤 문서 ═══ */}
-      <main role="main" className="flex-1 overflow-y-auto bg-gray-200 print:bg-white print:overflow-visible">
+      <main role="main" className="flex-1 overflow-y-auto bg-bg-tertiary print:bg-white print:overflow-visible">
         <div ref={contentRef} className="report-typography py-6 print:py-0">
           {/* 표지 — A4 페이지 */}
           <div className="report-page report-page--cover" data-section-id="cover">
@@ -838,7 +838,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
 
           {/* 푸터 */}
           <div className="report-page" data-section-id="footer">
-            <div className="pt-4 text-xs text-gray-400">
+            <div className="pt-4 text-xs text-text-tertiary">
               {data.pipelineMeta?.startedAt && (
                 <p>AI 분석: {new Date(data.pipelineMeta.startedAt).toLocaleString("ko-KR")}</p>
               )}

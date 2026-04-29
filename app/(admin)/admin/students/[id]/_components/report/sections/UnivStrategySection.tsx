@@ -137,7 +137,7 @@ function StudentFitOverlay({
             <div key={label} className="grid grid-cols-[5rem_1fr_auto_auto] items-center gap-2">
               <span className={TYPO.caption}>{label}</span>
               <div className="flex items-center gap-1">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-secondary">
                   <div
                     className={`h-full rounded-full ${EVAL_FACTOR_COLORS[label] ?? "bg-gray-400"}`}
                     style={{ width: `${pct}%` }}
@@ -166,7 +166,7 @@ function StudentFitOverlay({
       <div className="mt-3 flex items-center gap-3 border-t border-[var(--border-primary)] pt-2">
         <span className={cn("font-semibold", TYPO.caption)}>종합 Fit</span>
         <div className="flex flex-1 items-center gap-2">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-secondary">
             <div
               className={`h-full rounded-full transition-all ${
                 overallFit >= 80
@@ -204,9 +204,9 @@ function EvalFactorChart({ factors }: { factors: Record<string, number> }) {
       {entries.map(([label, pct]) => (
         <div key={label} className="flex items-center gap-2">
           <span className={cn("w-20 shrink-0", TYPO.caption)}>{label}</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-secondary">
             <div
-              className={`h-full rounded-full ${EVAL_FACTOR_COLORS[label] ?? "bg-gray-400 dark:bg-gray-500"}`}
+              className={`h-full rounded-full ${EVAL_FACTOR_COLORS[label] ?? "bg-gray-400 dark:bg-bg-secondary0"}`}
               style={{ width: `${pct}%` }}
             />
           </div>

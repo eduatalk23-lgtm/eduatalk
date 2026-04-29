@@ -164,13 +164,13 @@ const STATUS_ICON: Record<string, string> = {
   return (
     <section className="print-break-before">
       <ReportSectionHeader icon={ArrowRightLeft} title="약점 → 전략 → 실행 연결" />
-      <p className="mb-3 text-xs text-gray-500">
+      <p className="mb-3 text-xs text-text-tertiary">
         진단 약점이 전략과 실행 계획으로 어떻게 연결되는지 보여줍니다. 왼쪽 색 선: 초록=실행까지 연결, 파란=전략까지, 빨간=약점만.
       </p>
 
       <div className="space-y-2">
         {/* 헤더 — 모바일에서 숨김 */}
-        <div className="hidden items-center gap-1 text-xs font-semibold text-gray-500 md:grid md:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
+        <div className="hidden items-center gap-1 text-xs font-semibold text-text-tertiary md:grid md:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
           <span className="px-2">진단 약점</span>
           <span />
           <span className="px-2">설계 방향</span>
@@ -208,31 +208,31 @@ const STATUS_ICON: Record<string, string> = {
             </div>
 
             {/* 화살표 */}
-            <div className="flex items-center justify-center px-0.5 text-gray-300">
+            <div className="flex items-center justify-center px-0.5 text-text-disabled">
               <span className="md:hidden">↓</span>
               <span className="hidden md:inline">→</span>
             </div>
 
             {/* 설계 */}
-            <div className={`rounded border px-2 py-1.5 ${chain.design ? "border-indigo-200 bg-indigo-50" : "border-dashed border-gray-200 bg-gray-50"}`}>
+            <div className={`rounded border px-2 py-1.5 ${chain.design ? "border-indigo-200 bg-indigo-50" : "border-dashed border-border bg-bg-secondary"}`}>
               {chain.design ? (
                 <>
                   <p className="text-xs font-semibold text-indigo-700">{chain.design.subject}</p>
                   <p className="text-xs leading-tight text-indigo-600">{chain.design.direction}</p>
                 </>
               ) : (
-                <p className="text-xs text-gray-500">가이드 미생성</p>
+                <p className="text-xs text-text-tertiary">가이드 미생성</p>
               )}
             </div>
 
             {/* 화살표 */}
-            <div className="flex items-center justify-center px-0.5 text-gray-300">
+            <div className="flex items-center justify-center px-0.5 text-text-disabled">
               <span className="md:hidden">↓</span>
               <span className="hidden md:inline">→</span>
             </div>
 
             {/* 전략 */}
-            <div className={`rounded border px-2 py-1.5 ${chain.strategy ? PRIORITY_COLORS[chain.strategy.priority] ?? "border-gray-200 bg-gray-50" : "border-dashed border-gray-200 bg-gray-50"}`}>
+            <div className={`rounded border px-2 py-1.5 ${chain.strategy ? PRIORITY_COLORS[chain.strategy.priority] ?? "border-border bg-bg-secondary" : "border-dashed border-border bg-bg-secondary"}`}>
               {chain.strategy ? (
                 <>
                   <span className="text-xs font-semibold">
@@ -243,18 +243,18 @@ const STATUS_ICON: Record<string, string> = {
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-gray-500">전략 미수립</p>
+                <p className="text-xs text-text-tertiary">전략 미수립</p>
               )}
             </div>
 
             {/* 화살표 */}
-            <div className="flex items-center justify-center px-0.5 text-gray-300">
+            <div className="flex items-center justify-center px-0.5 text-text-disabled">
               <span className="md:hidden">↓</span>
               <span className="hidden md:inline">→</span>
             </div>
 
             {/* 실행 계획 */}
-            <div className={`rounded border px-2 py-1.5 ${chain.execution ? "border-emerald-200 bg-emerald-50" : "border-dashed border-gray-200 bg-gray-50"}`}>
+            <div className={`rounded border px-2 py-1.5 ${chain.execution ? "border-emerald-200 bg-emerald-50" : "border-dashed border-border bg-bg-secondary"}`}>
               {chain.execution ? (
                 <div className="flex items-start gap-1">
                   <span className="mt-0.5 shrink-0 text-xs font-bold text-emerald-700">
@@ -265,7 +265,7 @@ const STATUS_ICON: Record<string, string> = {
                   </p>
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">실행 미등록</p>
+                <p className="text-xs text-text-tertiary">실행 미등록</p>
               )}
             </div>
           </div>

@@ -301,7 +301,7 @@ export function CoverSection({
         <div>
           {consultantName && (
             <>
-              <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-indigo-300">
+              <p className="text-2xs font-medium uppercase tracking-[0.15em] text-indigo-300">
                 담당 컨설턴트
               </p>
               <p className="mt-1 text-[14px] font-medium text-white">
@@ -311,7 +311,7 @@ export function CoverSection({
           )}
         </div>
         <div className="text-right">
-          <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-indigo-300">
+          <p className="text-2xs font-medium uppercase tracking-[0.15em] text-indigo-300">
             발행일
           </p>
           <p className="mt-1 text-[14px] font-medium text-white">

@@ -23,7 +23,7 @@ const SLOT_META: Record<SlotState, SlotMeta> = {
   confirmed: { label: "컨설턴트 확정", color: "text-blue-700", bg: "bg-blue-100", dot: "bg-blue-500" },
   writing: { label: "작성 중", color: "text-amber-700", bg: "bg-amber-100", dot: "bg-amber-500" },
   ai_draft: { label: "AI 가안", color: "text-indigo-700", bg: "bg-indigo-100", dot: "bg-indigo-500" },
-  empty: { label: "공백", color: "text-gray-500", bg: "bg-gray-100", dot: "bg-gray-300" },
+  empty: { label: "공백", color: "text-text-tertiary", bg: "bg-bg-tertiary", dot: "bg-gray-300" },
 };
 
 const SLOT_ORDER: SlotState[] = ["neis", "confirmed", "writing", "ai_draft", "empty"];
@@ -138,7 +138,7 @@ export function ProgressStatusSection({
           title="생기부 진행 상태"
           subtitle="기록이 아직 없습니다"
         />
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-text-tertiary">
           세특·창체·행특 기록을 입력하거나 가져오면 진행 상태가 여기에 표시됩니다.
         </p>
       </div>
@@ -174,7 +174,7 @@ export function ProgressStatusSection({
 
       {/* ① 헤더 — 진행 요약 배지 */}
       <div className="mb-4 flex items-center gap-2">
-        <h3 className="text-base font-semibold text-gray-900">확정분 + 작성 중 + 가안 통합 현황</h3>
+        <h3 className="text-base font-semibold text-text-primary">확정분 + 작성 중 + 가안 통합 현황</h3>
         <ProgressBadge filledPct={filledPct} />
       </div>
 
@@ -216,7 +216,7 @@ function ProgressBadge({ filledPct }: { filledPct: number }) {
     filledPct >= 80 ? "positive" : filledPct >= 50 ? "neutral" : "caution";
   const classes: Record<typeof tone, string> = {
     positive: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    neutral: "bg-gray-50 text-gray-700 border-gray-200",
+    neutral: "bg-bg-secondary text-text-primary border-border",
     caution: "bg-amber-50 text-amber-700 border-amber-200",
   };
   const label = filledPct >= 80 ? "작성 양호" : filledPct >= 50 ? "진행 중" : "작성 부족";
@@ -236,37 +236,37 @@ interface MetricTripleCardProps {
 
 function MetricTripleCard({ neisCount, total, filledCount, reviewPendingCount }: MetricTripleCardProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 rounded-lg border border-gray-200 bg-white p-4">
+    <div className="grid grid-cols-3 gap-3 rounded-lg border border-border bg-white p-4">
       <div className="flex flex-col gap-1">
-        <p className="text-xs text-gray-500">NEIS 반영</p>
+        <p className="text-xs text-text-tertiary">NEIS 반영</p>
         <div className="flex items-baseline gap-1.5">
           <span className="text-2xl font-bold text-emerald-700">{neisCount}</span>
-          <span className="text-xs text-gray-500">/ {total}</span>
+          <span className="text-xs text-text-tertiary">/ {total}</span>
         </div>
-        <p className="text-[10px] text-gray-500">확정된 기록 건수</p>
+        <p className="text-3xs text-text-tertiary">확정된 기록 건수</p>
       </div>
 
-      <div className="flex flex-col gap-1 border-l border-gray-100 pl-3">
-        <p className="text-xs text-gray-500">작성 진척</p>
+      <div className="flex flex-col gap-1 border-l border-border pl-3">
+        <p className="text-xs text-text-tertiary">작성 진척</p>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold text-gray-900">{filledCount}</span>
-          <span className="text-xs text-gray-500">/ {total}</span>
+          <span className="text-2xl font-bold text-text-primary">{filledCount}</span>
+          <span className="text-xs text-text-tertiary">/ {total}</span>
         </div>
-        <p className="text-[10px] text-gray-500">NEIS + 확정 + 작성중 + 가안</p>
+        <p className="text-3xs text-text-tertiary">NEIS + 확정 + 작성중 + 가안</p>
       </div>
 
-      <div className="flex flex-col gap-1 border-l border-gray-100 pl-3">
-        <p className="text-xs text-gray-500">검토 대기</p>
+      <div className="flex flex-col gap-1 border-l border-border pl-3">
+        <p className="text-xs text-text-tertiary">검토 대기</p>
         <div className="flex items-baseline gap-1.5">
           <span className={cn(
             "text-2xl font-bold",
-            reviewPendingCount > 0 ? "text-indigo-700" : "text-gray-400",
+            reviewPendingCount > 0 ? "text-indigo-700" : "text-text-tertiary",
           )}>
             {reviewPendingCount}
           </span>
-          <span className="text-xs text-gray-500">건</span>
+          <span className="text-xs text-text-tertiary">건</span>
         </div>
-        <p className="text-[10px] text-gray-500">AI 가안 → 컨설턴트 검토</p>
+        <p className="text-3xs text-text-tertiary">AI 가안 → 컨설턴트 검토</p>
       </div>
     </div>
   );
@@ -285,14 +285,14 @@ function ProgressMatrix({ grades, slots }: ProgressMatrixProps) {
   ];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-lg border border-border bg-white p-4">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100">
-              <th className="py-2 pr-3 text-left text-xs font-medium text-gray-500">기록</th>
+            <tr className="border-b border-border">
+              <th className="py-2 pr-3 text-left text-xs font-medium text-text-tertiary">기록</th>
               {grades.map((g) => (
-                <th key={g} className="py-2 px-2 text-center text-xs font-medium text-gray-500">
+                <th key={g} className="py-2 px-2 text-center text-xs font-medium text-text-tertiary">
                   {g}학년
                 </th>
               ))}
@@ -301,14 +301,14 @@ function ProgressMatrix({ grades, slots }: ProgressMatrixProps) {
           <tbody>
             {categories.map((cat) => (
               <tr key={cat.key} className="border-b border-gray-50">
-                <td className="py-2.5 pr-3 text-sm font-medium text-gray-700">{cat.label}</td>
+                <td className="py-2.5 pr-3 text-sm font-medium text-text-primary">{cat.label}</td>
                 {grades.map((g) => {
                   const cellSlots = slots.filter((s) => s.grade === g && s.category === cat.key);
                   return (
                     <td key={g} className="py-2.5 px-2">
                       <div className="flex flex-wrap justify-center gap-1">
                         {cellSlots.length === 0 ? (
-                          <span className="text-[10px] text-gray-300">—</span>
+                          <span className="text-3xs text-text-disabled">—</span>
                         ) : (
                           cellSlots.map((s, idx) => (
                             <SlotChip key={`${s.recordId ?? idx}`} state={s.state} />
@@ -325,13 +325,13 @@ function ProgressMatrix({ grades, slots }: ProgressMatrixProps) {
       </div>
 
       {/* 범례 */}
-      <div className="mt-3 flex flex-wrap gap-3 border-t border-gray-100 pt-3 text-xs">
+      <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3 text-xs">
         {SLOT_ORDER.map((state) => {
           const meta = SLOT_META[state];
           return (
             <span key={state} className="flex items-center gap-1.5">
               <span className={cn("inline-block size-2.5 rounded-full", meta.dot)} />
-              <span className="text-gray-700">{meta.label}</span>
+              <span className="text-text-primary">{meta.label}</span>
             </span>
           );
         })}
@@ -360,12 +360,12 @@ function EvidenceBlock({ title, slots }: { title: string; slots: SlotEntry[] }) 
       </div>
       <ul className="flex flex-col gap-1.5">
         {slots.map((s, idx) => (
-          <li key={idx} className="flex items-center gap-2 text-xs text-gray-700">
+          <li key={idx} className="flex items-center gap-2 text-xs text-text-primary">
             <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-medium text-indigo-700">
               {s.grade}학년
             </span>
-            <span className="font-medium text-gray-900">{categoryLabel(s.category)}</span>
-            <span className="text-gray-500">· {s.label}</span>
+            <span className="font-medium text-text-primary">{categoryLabel(s.category)}</span>
+            <span className="text-text-tertiary">· {s.label}</span>
           </li>
         ))}
       </ul>
@@ -393,10 +393,10 @@ function ActionChecklist({ aiDraftSlots, writingIssueSlots, emptySlots }: Action
   }
 
   return (
-    <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+    <div className="mt-5 rounded-lg border border-border bg-bg-secondary/50 p-4">
       <div className="mb-3 flex items-center gap-1.5">
-        <AlertCircle className="h-4 w-4 text-gray-600" />
-        <p className="text-xs font-semibold text-gray-700">컨설턴트 다음 액션</p>
+        <AlertCircle className="h-4 w-4 text-text-secondary" />
+        <p className="text-xs font-semibold text-text-primary">컨설턴트 다음 액션</p>
       </div>
       <ul className="flex flex-col gap-3">
         {aiDraftSlots.length > 0 && (
@@ -425,7 +425,7 @@ function ActionChecklist({ aiDraftSlots, writingIssueSlots, emptySlots }: Action
         )}
       </ul>
 
-      <p className="mt-4 border-t border-gray-200 pt-3 text-[11px] text-gray-500">
+      <p className="mt-4 border-t border-border pt-3 text-2xs text-text-tertiary">
         ⚠ 진척 상태는 NEIS 확정 전 참고용이며, 실제 최종 반영은 학년 말 NEIS 입력 시점에 결정됩니다.
       </p>
     </div>
@@ -440,18 +440,18 @@ function ActionItem({ icon, title, items, hint }: {
 }) {
   return (
     <li>
-      <p className="text-sm font-medium text-gray-800">
+      <p className="text-sm font-medium text-text-primary">
         <span className="mr-1.5">{icon}</span>
         {title}
       </p>
       <ul className="mt-1 flex flex-col gap-0.5 pl-6">
         {items.map((item, idx) => (
-          <li key={idx} className="text-xs text-gray-600">
+          <li key={idx} className="text-xs text-text-secondary">
             · {item}
           </li>
         ))}
       </ul>
-      <p className="mt-1 pl-6 text-[11px] text-gray-500">{hint}</p>
+      <p className="mt-1 pl-6 text-2xs text-text-tertiary">{hint}</p>
     </li>
   );
 }

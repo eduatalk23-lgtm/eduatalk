@@ -17,7 +17,7 @@ interface Props {
 const TREND_CONFIG: Record<string, { icon: typeof TrendingUp; color: string; label: string }> = {
   rising: { icon: TrendingUp, color: "text-emerald-600", label: "상승" },
   falling: { icon: TrendingDown, color: "text-red-600", label: "하락" },
-  stable: { icon: Minus, color: "text-gray-500", label: "안정" },
+  stable: { icon: Minus, color: "text-text-tertiary", label: "안정" },
   volatile: { icon: AlertTriangle, color: "text-amber-600", label: "변동" },
 };
 
@@ -55,29 +55,29 @@ export function TimeSeriesSection({ analysis }: Props) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="py-2 text-left font-medium text-gray-600">역량</th>
-              <th className="py-2 text-center font-medium text-gray-600">추세</th>
-              <th className="py-2 text-center font-medium text-gray-600">성장률</th>
-              <th className="py-2 text-left font-medium text-gray-600">점수 변화</th>
+            <tr className="border-b border-border">
+              <th className="py-2 text-left font-medium text-text-secondary">역량</th>
+              <th className="py-2 text-center font-medium text-text-secondary">추세</th>
+              <th className="py-2 text-center font-medium text-text-secondary">성장률</th>
+              <th className="py-2 text-left font-medium text-text-secondary">점수 변화</th>
             </tr>
           </thead>
           <tbody>
             {analysis.trends.map((t) => (
-              <tr key={t.competencyId} className={cn("border-b border-gray-100", t.isAnomaly && "bg-amber-50/50")}>
+              <tr key={t.competencyId} className={cn("border-b border-border", t.isAnomaly && "bg-amber-50/50")}>
                 <td className="py-2">
                   {t.competencyName}
                   {t.isAnomaly && (
-                    <span className="ml-1 text-[10px] text-amber-600" title={t.anomalyReason}>
+                    <span className="ml-1 text-3xs text-amber-600" title={t.anomalyReason}>
                       ⚠ {t.anomalyReason}
                     </span>
                   )}
                 </td>
                 <td className="py-2 text-center"><TrendBadge trend={t} /></td>
-                <td className={cn("py-2 text-center font-medium", t.growthRate > 0 ? "text-emerald-600" : t.growthRate < 0 ? "text-red-600" : "text-gray-500")}>
+                <td className={cn("py-2 text-center font-medium", t.growthRate > 0 ? "text-emerald-600" : t.growthRate < 0 ? "text-red-600" : "text-text-tertiary")}>
                   {t.growthRate > 0 ? "+" : ""}{t.growthRate.toFixed(1)}
                 </td>
-                <td className="py-2 text-gray-500">
+                <td className="py-2 text-text-tertiary">
                   {t.points.map((p) => p.score.toFixed(0)).join(" → ")}
                 </td>
               </tr>
@@ -105,9 +105,9 @@ export function TimeSeriesSection({ analysis }: Props) {
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+    <div className="rounded-lg border border-border p-3">
+      <p className="text-xs text-text-tertiary">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-text-primary">{value}</p>
     </div>
   );
 }

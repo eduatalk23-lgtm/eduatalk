@@ -120,9 +120,9 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
       <ReportSectionHeader icon={Target} title="보완 전략" subtitle="우선순위 매트릭스 + 실행 계획" />
 
       {strategies.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
-          <p className="text-sm text-gray-500">보완 전략이 아직 수립되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-500">종합 진단 후 AI 전략 제안을 활용하여 보완 전략을 등록하세요.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-border p-6 text-center">
+          <p className="text-sm text-text-tertiary">보완 전략이 아직 수립되지 않았습니다.</p>
+          <p className="mt-1 text-xs text-text-tertiary">종합 진단 후 AI 전략 제안을 활용하여 보완 전략을 등록하세요.</p>
         </div>
       ) : (
         <>
@@ -131,23 +131,23 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
 
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-gray-300 bg-gray-50">
-              <th className="px-3 py-2 text-left font-medium text-gray-700">
+            <tr className="border-b border-border bg-bg-secondary">
+              <th className="px-3 py-2 text-left font-medium text-text-primary">
                 우선순위
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-700">
+              <th className="px-3 py-2 text-left font-medium text-text-primary">
                 영역
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-700">
+              <th className="px-3 py-2 text-left font-medium text-text-primary">
                 내용
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-700">
+              <th className="px-3 py-2 text-left font-medium text-text-primary">
                 진단 근거
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-700">
+              <th className="px-3 py-2 text-left font-medium text-text-primary">
                 관련 액션
               </th>
-              <th className="px-3 py-2 text-center font-medium text-gray-700">
+              <th className="px-3 py-2 text-center font-medium text-text-primary">
                 상태
               </th>
             </tr>
@@ -161,7 +161,7 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
                   relatedRoadmapAreas.includes(r.area) && r.status !== "completed",
               );
               return (
-                <tr key={s.id} className="border-b border-gray-200">
+                <tr key={s.id} className="border-b border-border">
                   <td className="px-3 py-2">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -171,7 +171,7 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
                             ? "bg-amber-100 text-amber-700"
                             : s.priority === "medium"
                               ? "bg-amber-100 text-amber-700"
-                              : "bg-gray-100 text-gray-600"
+                              : "bg-bg-tertiary text-text-secondary"
                       }`}
                     >
                       {PRIORITY_LABELS[s.priority ?? ""] ?? "-"}
@@ -188,13 +188,13 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
                           </span>
                         )}
                         {related.text && (
-                          <p className="text-xs leading-tight text-gray-500">
+                          <p className="text-xs leading-tight text-text-tertiary">
                             {related.text.slice(0, 60)}{related.text.length > 60 ? "…" : ""}
                           </p>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-300">-</span>
+                      <span className="text-xs text-text-disabled">-</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -227,7 +227,7 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-300">-</span>
+                      <span className="text-xs text-text-disabled">-</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-center">
@@ -236,7 +236,7 @@ export function StrategySection({ diagnosisData, roadmapItems = [] }: StrategySe
                         ? "font-semibold text-green-600"
                         : s.status === "in_progress"
                           ? "text-blue-600"
-                          : "text-gray-500"
+                          : "text-text-tertiary"
                     }`}>
                       {STATUS_LABELS[s.status] ?? s.status}
                     </span>

@@ -360,7 +360,7 @@ export function StorylineSection({
                               ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
                               : rec.type === "창체"
                                 ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-                                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                                : "bg-bg-tertiary text-text-primary dark:bg-bg-secondary dark:text-text-disabled",
                           )}>
                             {rec.grade}학년 {rec.type}
                           </span>
@@ -369,7 +369,7 @@ export function StorylineSection({
                             {rec.matchedKeywords.map((kw, ki) => (
                               <span
                                 key={ki}
-                                className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                                className="rounded bg-amber-100 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                               >
                                 {kw}
                               </span>

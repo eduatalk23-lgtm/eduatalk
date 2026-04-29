@@ -27,9 +27,9 @@ export function GradeHeaderSection({
     violet: "bg-violet-500",
     blue: "bg-blue-500",
     emerald: "bg-emerald-500",
-    gray: "bg-gray-500",
+    gray: "bg-bg-secondary0",
   };
-  const activeBar = activeBarClass[config.color] ?? "bg-gray-500";
+  const activeBar = activeBarClass[config.color] ?? "bg-bg-secondary0";
 
   const isProspective = stage === "prospective";
   const showToggle = onToggle !== undefined && expanded !== undefined;
@@ -73,7 +73,7 @@ export function GradeHeaderSection({
                 "ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors",
                 isProspective
                   ? "text-violet-600 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/20"
-                  : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800",
+                  : "text-text-tertiary hover:bg-bg-tertiary dark:text-text-tertiary dark:hover:bg-gray-800",
               )}
             >
               {expanded
@@ -91,7 +91,7 @@ export function GradeHeaderSection({
               key={s}
               className={cn(
                 "h-1.5 flex-1 rounded-full transition-colors",
-                i <= stageIndex ? activeBar : "bg-gray-200 dark:bg-gray-700",
+                i <= stageIndex ? activeBar : "bg-bg-tertiary dark:bg-bg-tertiary",
               )}
             />
           ))}

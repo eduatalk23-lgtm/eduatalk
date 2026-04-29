@@ -171,7 +171,7 @@ export function ActionItemsSection({ roadmapItems, studentGrade, strategies = []
         {nextTermItems.length > 0 && (
           <div>
             <h3 className={cn("mb-2 flex items-center gap-2 text-sm font-semibold", "text-[var(--text-secondary)]")}>
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400 dark:bg-gray-500" />
+              <span className="inline-block h-2 w-2 rounded-full bg-gray-400 dark:bg-bg-secondary0" />
               다음 학기 준비 ({nextSemester}학기)
             </h3>
             <div className={SPACING.itemGap}>

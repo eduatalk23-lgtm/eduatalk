@@ -51,7 +51,7 @@ export function PlacementVerdictSection({ result, examDate, examType }: Props) {
           title="정시 합격 예측"
           subtitle="배치 분석 결과 없음"
         />
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-text-tertiary">
           분석 가능한 학과가 없습니다. 모의고사 점수를 입력하면 자동으로 계산됩니다.
         </p>
       </div>
@@ -76,7 +76,7 @@ export function PlacementVerdictSection({ result, examDate, examType }: Props) {
       <ReportSectionHeader icon={Target} title="정시 합격 예측" subtitle={subtitle} />
 
       {/* 요약 헤더 */}
-      <div className="mb-3 flex items-center gap-3 text-sm text-gray-600">
+      <div className="mb-3 flex items-center gap-3 text-sm text-text-secondary">
         <span>총 {result.summary.total}개 학과 분석</span>
         {result.summary.disqualified > 0 && (
           <span className="text-red-600">결격 {result.summary.disqualified}개</span>
@@ -84,7 +84,7 @@ export function PlacementVerdictSection({ result, examDate, examType }: Props) {
       </div>
 
       {/* 5색 게이지 바 */}
-      <div className="mb-2 flex h-4 overflow-hidden rounded-full border border-gray-200">
+      <div className="mb-2 flex h-4 overflow-hidden rounded-full border border-border">
         {ALL_LEVELS.map((level) => {
           const count = result.summary.byLevel[level];
           if (count === 0) return null;
@@ -108,7 +108,7 @@ export function PlacementVerdictSection({ result, examDate, examType }: Props) {
           return (
             <span key={level} className="flex items-center gap-1.5">
               <span className={cn("inline-block size-2.5 rounded-full", LEVEL_BAR_COLORS[level])} />
-              <span className="text-gray-700">
+              <span className="text-text-primary">
                 {PLACEMENT_LABELS[level]}{" "}
                 <span className="font-semibold">{count}</span>
               </span>
@@ -138,7 +138,7 @@ export function PlacementVerdictSection({ result, examDate, examType }: Props) {
                 >
                   {PLACEMENT_LABELS[level]}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-text-tertiary">
                   {verdicts.length}개{hasMore && " (상위 5개)"}
                 </span>
               </div>
@@ -163,10 +163,10 @@ function VerdictCard({ verdict }: VerdictCardProps) {
   const { universityName, departmentName, studentScore, admissionAvg, scoreDiff, region } = verdict;
 
   return (
-    <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
-      <p className="text-xs font-medium text-gray-900">{universityName}</p>
-      <p className="text-xs text-gray-600">{departmentName}</p>
-      <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-500">
+    <div className="rounded-md border border-border bg-white px-3 py-2">
+      <p className="text-xs font-medium text-text-primary">{universityName}</p>
+      <p className="text-xs text-text-secondary">{departmentName}</p>
+      <div className="mt-1 flex items-center gap-2 text-3xs text-text-tertiary">
         {region && <span>{region}</span>}
         <span>
           내 {studentScore.toFixed(1)}

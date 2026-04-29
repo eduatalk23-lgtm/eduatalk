@@ -20,7 +20,10 @@ export async function StudentRecordSection({ studentId, studentName }: StudentRe
 
   if (studentError || !student) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-400">
+      <div
+        role="alert"
+        className="rounded-lg border border-error-200 bg-error-50 p-4 text-sm text-error-700 dark:border-error-800 dark:bg-error-950/20 dark:text-error-400"
+      >
         학생 정보를 불러올 수 없습니다.
       </div>
     );

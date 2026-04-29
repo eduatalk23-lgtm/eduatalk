@@ -194,11 +194,11 @@ export function CompetencySection({ diagnosisData, recordDataByGrade, studentGra
                 <h3 className={cn("mb-1 text-center font-semibold", TYPO.caption)}>
                   학년별 역량 성장 추이
                   {trendInfo && (
-                    <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-[9px] font-normal",
+                    <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-3xs font-normal",
                       trendInfo.overallTrend === "rising" ? "bg-emerald-50 text-emerald-700"
                       : trendInfo.overallTrend === "falling" ? "bg-red-50 text-red-700"
                       : trendInfo.overallTrend === "volatile" ? "bg-amber-50 text-amber-700"
-                      : "bg-gray-50 text-gray-600"
+                      : "bg-bg-secondary text-text-secondary"
                     )}>
                       {trendInfo.overallTrend === "rising" ? "성장세" : trendInfo.overallTrend === "falling" ? "하락세" : trendInfo.overallTrend === "volatile" ? "변동" : "안정"}
                     </span>

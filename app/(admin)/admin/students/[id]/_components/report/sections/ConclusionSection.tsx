@@ -90,7 +90,7 @@ const PRIORITY_BADGE: Record<string, string> = {
   critical: "bg-red-100 text-red-700",
   high: "bg-amber-100 text-amber-700",
   medium: "bg-blue-100 text-blue-700",
-  low: "bg-gray-100 text-gray-600",
+  low: "bg-bg-tertiary text-text-secondary",
 };
 
 // 학년별 진행 현황 점 표시
@@ -122,7 +122,7 @@ function GradeProgressDots({
               "inline-block h-2 w-2 rounded-full",
               i <= stageIndex
                 ? "bg-indigo-500 dark:bg-indigo-400"
-                : "bg-gray-200 dark:bg-gray-700",
+                : "bg-bg-tertiary dark:bg-bg-tertiary",
             )}
           />
         ))}

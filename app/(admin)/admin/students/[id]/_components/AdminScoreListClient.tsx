@@ -780,21 +780,22 @@ function SubjectCombinationTable({
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">교과 조합별 학기 GPA 표</caption>
               <thead>
                 <tr className="border-b border-border text-left">
-                  <th className="whitespace-nowrap px-2 py-2 text-xs font-medium text-text-tertiary">조합</th>
+                  <th scope="col" className="whitespace-nowrap px-2 py-2 text-xs font-medium text-text-tertiary">조합</th>
                   {availableSemesters.map((sem) => (
-                    <th key={sem.label} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-text-tertiary">
+                    <th scope="col" key={sem.label} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-text-tertiary">
                       {sem.label}
                     </th>
                   ))}
-                  <th className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-text-primary">전체</th>
+                  <th scope="col" className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-text-primary">전체</th>
                 </tr>
               </thead>
               <tbody>
                 {combinationData.map((row) => (
                   <tr key={row.label} className="border-b border-border last:border-0">
-                    <td className="whitespace-nowrap px-2 py-1.5 text-xs font-medium text-text-primary">{row.label}</td>
+                    <th scope="row" className="whitespace-nowrap px-2 py-1.5 text-xs font-medium text-text-primary text-left">{row.label}</th>
                     {availableSemesters.map((sem) => (
                       <td key={sem.label} className="whitespace-nowrap px-2 py-1.5 text-center text-xs text-text-secondary">
                         {row.semesterGpas[sem.label]?.toFixed(2) ?? "-"}

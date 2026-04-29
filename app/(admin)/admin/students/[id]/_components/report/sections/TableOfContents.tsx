@@ -58,12 +58,12 @@ export function TableOfContents({ hasDesignGrades = false }: TableOfContentsProp
       <p className="mb-1 text-center text-xs font-medium uppercase tracking-widest text-indigo-500">
         Contents
       </p>
-      <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">섹션 목록</h2>
+      <h2 className="mb-8 text-center text-2xl font-bold text-text-primary">섹션 목록</h2>
 
       <div className="mx-auto max-w-xl space-y-6">
         {visibleParts.map((part, partIdx) => (
           <div key={partIdx}>
-            <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wider text-text-tertiary">
               Part {partIdx + 1}: {part.label}
             </p>
             <div className="space-y-1">
@@ -72,14 +72,14 @@ export function TableOfContents({ hasDesignGrades = false }: TableOfContentsProp
                 return (
                   <div
                     key={globalIdx}
-                    className="flex gap-4 rounded-lg px-3 py-2.5 transition-colors hover:bg-gray-50"
+                    className="flex gap-4 rounded-lg px-3 py-2.5 transition-colors hover:bg-bg-secondary"
                   >
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
                       {globalIdx}
                     </span>
-                    <div className="flex-1 border-b border-dotted border-gray-200 pb-2">
-                      <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-                      <p className="text-xs text-gray-500">{item.desc}</p>
+                    <div className="flex-1 border-b border-dotted border-border pb-2">
+                      <p className="text-sm font-semibold text-text-primary">{item.title}</p>
+                      <p className="text-xs text-text-tertiary">{item.desc}</p>
                     </div>
                   </div>
                 );

@@ -31,7 +31,7 @@ function ProgressBar({
   return (
     <div className="flex items-center gap-3">
       <div
-        className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+        className="h-2 flex-1 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-secondary"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -56,7 +56,7 @@ function getBarColor(stage: GradeStage | undefined, type: "primary" | "secondary
   switch (stage) {
     case "prospective":
     case "ai_draft":
-      return type === "primary" ? "bg-gray-400 dark:bg-gray-500" : "bg-gray-300 dark:bg-gray-600";
+      return type === "primary" ? "bg-gray-400 dark:bg-bg-secondary0" : "bg-gray-300 dark:bg-gray-600";
     case "consultant":
       return type === "primary" ? "bg-blue-500 dark:bg-blue-400" : "bg-blue-300 dark:bg-blue-600";
     case "confirmed":

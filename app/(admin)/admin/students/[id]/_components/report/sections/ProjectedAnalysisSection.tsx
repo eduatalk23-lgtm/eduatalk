@@ -86,13 +86,13 @@ export function ProjectedAnalysisSection({
         const met = projectedScores.filter((s) => MET_GRADES.has(s.grade_value as string)).length;
         const unmet = projectedScores.length - met;
         return (
-          <div className="mt-4 rounded-lg border border-gray-200 p-3 text-sm">
+          <div className="mt-4 rounded-lg border border-border p-3 text-sm">
             <span className="font-semibold">{projectedScores.length}개 역량 항목 중 </span>
             <span className="font-bold text-emerald-600">{met}개 충족</span>
             <span className="mx-1">/</span>
             <span className="font-bold text-amber-600">{unmet}개 미충족</span>
             {unmet > 0 && (
-              <span className="text-gray-500 ml-2">
+              <span className="text-text-tertiary ml-2">
                 ({projectedScores
                   .filter((s) => !MET_GRADES.has(s.grade_value as string))
                   .map((s) => COMPETENCY_ITEMS.find((i) => i.code === s.competency_item)?.label ?? s.competency_item)
@@ -110,10 +110,10 @@ export function ProjectedAnalysisSection({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-2 text-left font-medium text-gray-600">영역</th>
-                  <th className="py-2 text-left font-medium text-gray-600">역량 항목</th>
-                  <th className="py-2 text-center font-medium text-gray-600">예상 등급</th>
+                <tr className="border-b border-border">
+                  <th className="py-2 text-left font-medium text-text-secondary">영역</th>
+                  <th className="py-2 text-left font-medium text-text-secondary">역량 항목</th>
+                  <th className="py-2 text-center font-medium text-text-secondary">예상 등급</th>
                 </tr>
               </thead>
               <tbody>
@@ -121,13 +121,13 @@ export function ProjectedAnalysisSection({
                   const score = projectedScores.find((s) => s.competency_item === item.code);
                   if (!score) return null;
                   return (
-                    <tr key={item.code} className="border-b border-gray-100">
-                      <td className="py-2 text-gray-500">{COMPETENCY_AREA_LABELS[item.area]}</td>
+                    <tr key={item.code} className="border-b border-border">
+                      <td className="py-2 text-text-tertiary">{COMPETENCY_AREA_LABELS[item.area]}</td>
                       <td className="py-2">{item.label}</td>
                       <td className="py-2 text-center">
                         <span className={cn(
                           "inline-block rounded px-2 py-0.5 text-xs font-semibold",
-                          GRADE_COLORS[score.grade_value as string] ?? "text-gray-600 bg-gray-50",
+                          GRADE_COLORS[score.grade_value as string] ?? "text-text-secondary bg-bg-secondary",
                         )}>
                           {score.grade_value}
                         </span>
@@ -145,20 +145,20 @@ export function ProjectedAnalysisSection({
       {projectedEdges.length > 0 && (
         <div className="mt-6">
           <h3 className="report-subsection-title mb-3">예상 활동 연결</h3>
-          <p className="text-sm text-gray-600 mb-2">
+          <p className="text-sm text-text-secondary mb-2">
             설계 모드 가안 기반 예상 연결 {projectedEdges.length}건
           </p>
           <div className="space-y-2">
             {projectedEdges.slice(0, 5).map((e) => (
               <div key={e.id} className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-gray-700">{e.source_label}</span>
-                <span className="text-gray-400">&rarr;</span>
-                <span className="font-medium text-gray-700">{e.target_label}</span>
-                <span className="text-xs text-gray-400">({e.edge_type})</span>
+                <span className="font-medium text-text-primary">{e.source_label}</span>
+                <span className="text-text-tertiary">&rarr;</span>
+                <span className="font-medium text-text-primary">{e.target_label}</span>
+                <span className="text-xs text-text-tertiary">({e.edge_type})</span>
               </div>
             ))}
             {projectedEdges.length > 5 && (
-              <p className="text-xs text-gray-400">... 외 {projectedEdges.length - 5}건</p>
+              <p className="text-xs text-text-tertiary">... 외 {projectedEdges.length - 5}건</p>
             )}
           </div>
         </div>
@@ -177,18 +177,18 @@ export function ProjectedAnalysisSection({
           <div className="mt-6">
             <h3 className="report-subsection-title mb-3">가안 품질</h3>
             <div className="flex items-center gap-4 text-sm">
-              <div className="rounded-lg border border-gray-200 px-4 py-2">
-                <span className="text-gray-500">평균 품질 점수</span>
+              <div className="rounded-lg border border-border px-4 py-2">
+                <span className="text-text-tertiary">평균 품질 점수</span>
                 <span className={cn(
                   "ml-2 font-bold",
                   avgScore >= 70 ? "text-emerald-600" : avgScore >= 50 ? "text-amber-600" : "text-red-600",
                 )}>
                   {avgScore}/100
                 </span>
-                <span className="text-gray-400 ml-1">({contentQuality.length}건)</span>
+                <span className="text-text-tertiary ml-1">({contentQuality.length}건)</span>
               </div>
               {topIssues.length > 0 && (
-                <div className="text-gray-500">
+                <div className="text-text-tertiary">
                   주요 이슈: {topIssues.map(([issue, count]) => `${issue}(${count})`).join(", ")}
                 </div>
               )}
@@ -206,7 +206,7 @@ function GapAnalysis({ leveling }: { leveling: LevelingResult }) {
   const { expectedLevel, adequateFromGpa, adequateLevel, currentLevel, gap, tierLabel, levelLabel, hasGpaData } = leveling;
 
   const GapIcon = gap > 0 ? TrendingUp : gap < 0 ? TrendingDown : Minus;
-  const gapColor = gap > 0 ? "text-amber-600" : gap < 0 ? "text-emerald-600" : "text-gray-600";
+  const gapColor = gap > 0 ? "text-amber-600" : gap < 0 ? "text-emerald-600" : "text-text-secondary";
   const gapText = gap > 0
     ? `목표 대비 ${gap}단계 부족`
     : gap < 0
@@ -218,15 +218,15 @@ function GapAnalysis({ leveling }: { leveling: LevelingResult }) {
       <h3 className="report-subsection-title mb-3">갭 분석</h3>
 
       {/* 요약 */}
-      <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 mb-4">
+      <div className="flex items-center gap-3 rounded-lg border border-border p-4 mb-4">
         <GapIcon className={cn("h-6 w-6", gapColor)} />
         <div>
-          <p className="font-semibold text-gray-900">
+          <p className="font-semibold text-text-primary">
             적정 레벨: {levelLabel} (L{adequateLevel})
           </p>
           <p className={cn("text-sm", gapColor)}>{gapText}</p>
         </div>
-        <div className="ml-auto text-right text-sm text-gray-500">
+        <div className="ml-auto text-right text-sm text-text-tertiary">
           <p>목표: {tierLabel}</p>
           {hasGpaData && <p>내신 기반 레벨: L{adequateFromGpa}</p>}
         </div>
@@ -236,10 +236,10 @@ function GapAnalysis({ leveling }: { leveling: LevelingResult }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="py-2 text-left font-medium text-gray-600">항목</th>
-              <th className="py-2 text-center font-medium text-gray-600">레벨</th>
-              <th className="py-2 text-left font-medium text-gray-600">설명</th>
+            <tr className="border-b border-border">
+              <th className="py-2 text-left font-medium text-text-secondary">항목</th>
+              <th className="py-2 text-center font-medium text-text-secondary">레벨</th>
+              <th className="py-2 text-left font-medium text-text-secondary">설명</th>
             </tr>
           </thead>
           <tbody>
@@ -281,7 +281,7 @@ function GapAnalysis({ leveling }: { leveling: LevelingResult }) {
 const SEVERITY_BADGE: Record<"high" | "medium" | "low", string> = {
   high: "bg-red-100 text-red-700 border-red-200",
   medium: "bg-amber-100 text-amber-700 border-amber-200",
-  low: "bg-gray-100 text-gray-700 border-gray-200",
+  low: "bg-bg-tertiary text-text-primary border-border",
 };
 
 const RECORD_TYPE_LABEL: Record<"setek" | "changche" | "haengteuk", string> = {
@@ -299,13 +299,13 @@ function DesignPriorityPanel({ narrativeContext }: { narrativeContext: Narrative
     <div className="mt-6 rounded-lg border border-indigo-200 bg-indigo-50/40 p-4">
       <div className="flex items-center gap-2 mb-3">
         <Target className="h-5 w-5 text-indigo-600" />
-        <h3 className="font-semibold text-gray-900">설계 우선순위</h3>
-        <span className="text-xs text-gray-500">서사·약점 기반 자동 산출</span>
+        <h3 className="font-semibold text-text-primary">설계 우선순위</h3>
+        <span className="text-xs text-text-tertiary">서사·약점 기반 자동 산출</span>
       </div>
 
       {weaknessTop.length > 0 && (
         <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-600 mb-2">우선 보강 약점</p>
+          <p className="text-xs font-semibold text-text-secondary mb-2">우선 보강 약점</p>
           <div className="flex flex-wrap gap-2">
             {weaknessTop.map((w) => (
               <span
@@ -317,7 +317,7 @@ function DesignPriorityPanel({ narrativeContext }: { narrativeContext: Narrative
                 title={w.rationale}
               >
                 <span className="font-medium">{w.label}</span>
-                <span className="text-[10px] uppercase opacity-70">{w.severity}</span>
+                <span className="text-3xs uppercase opacity-70">{w.severity}</span>
               </span>
             ))}
           </div>
@@ -326,27 +326,27 @@ function DesignPriorityPanel({ narrativeContext }: { narrativeContext: Narrative
 
       {top.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-600 mb-2">레코드 작성 순서 TOP 3</p>
+          <p className="text-xs font-semibold text-text-secondary mb-2">레코드 작성 순서 TOP 3</p>
           <ol className="space-y-2">
             {top.map((rec, idx) => (
               <li
                 key={rec.recordId}
-                className="flex items-start gap-3 rounded-md bg-white border border-gray-200 px-3 py-2"
+                className="flex items-start gap-3 rounded-md bg-white border border-border px-3 py-2"
               >
                 <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
                   {idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                    <span className="rounded bg-bg-tertiary px-1.5 py-0.5 text-3xs font-medium text-text-secondary">
                       {RECORD_TYPE_LABEL[rec.recordType]}
                     </span>
-                    <span className="font-medium text-gray-900 truncate">{rec.label}</span>
-                    <span className="text-xs text-gray-400">{rec.grade}학년</span>
+                    <span className="font-medium text-text-primary truncate">{rec.label}</span>
+                    <span className="text-xs text-text-tertiary">{rec.grade}학년</span>
                     <span className="ml-auto text-xs font-semibold text-indigo-700">{rec.priority}</span>
                   </div>
                   {rec.reasons.length > 0 && (
-                    <p className="mt-0.5 text-xs text-gray-600">{rec.reasons.join(" · ")}</p>
+                    <p className="mt-0.5 text-xs text-text-secondary">{rec.reasons.join(" · ")}</p>
                   )}
                 </div>
               </li>
@@ -365,17 +365,17 @@ function LevelRow({ label, level, desc, highlight }: {
   highlight: boolean;
 }) {
   return (
-    <tr className={cn("border-b border-gray-100", highlight && "bg-indigo-50")}>
+    <tr className={cn("border-b border-border", highlight && "bg-indigo-50")}>
       <td className={cn("py-2", highlight && "font-semibold")}>{label}</td>
       <td className="py-2 text-center">
         <span className={cn(
           "inline-block rounded px-2 py-0.5 text-xs font-bold",
-          highlight ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-700",
+          highlight ? "bg-indigo-100 text-indigo-700" : "bg-bg-tertiary text-text-primary",
         )}>
           L{level} {DIFFICULTY_LABELS[level]}
         </span>
       </td>
-      <td className="py-2 text-gray-500">{desc}</td>
+      <td className="py-2 text-text-tertiary">{desc}</td>
     </tr>
   );
 }

@@ -232,7 +232,7 @@ export function DiagnosisSection({ diagnosisData, plannedSubjects = [] }: Diagno
                 <div className="flex-1">
                   <div className={cn("flex items-center gap-2", TYPO.caption)}>
                     <span>{courseAdequacy.majorCategory}</span>
-                    <span className="flex-1 h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                    <span className="flex-1 h-2.5 overflow-hidden rounded-full bg-bg-tertiary dark:bg-bg-tertiary">
                       <span
                         className={`block h-full rounded-full transition-all ${courseAdequacy.score >= 70 ? "bg-emerald-500 dark:bg-emerald-400" : courseAdequacy.score >= 50 ? "bg-amber-500 dark:bg-amber-400" : "bg-red-500 dark:bg-red-400"}`}
                         style={{ width: `${courseAdequacy.score}%` }}

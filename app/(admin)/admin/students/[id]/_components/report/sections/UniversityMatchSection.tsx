@@ -23,11 +23,11 @@ function MatchCard({ match, rank }: { match: ProfileMatchResult; rank: number })
   return (
     <div className={cn(
       "rounded-lg border p-4",
-      rank === 0 ? "border-indigo-200 bg-indigo-50/30" : "border-gray-200",
+      rank === 0 ? "border-indigo-200 bg-indigo-50/30" : "border-border",
     )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900">{match.label}</span>
+          <span className="text-sm font-semibold text-text-primary">{match.label}</span>
           <span className={cn("rounded-full border px-2 py-0.5 text-xs font-bold", gradeClass)}>
             {match.grade}
           </span>
@@ -39,18 +39,18 @@ function MatchCard({ match, rank }: { match: ProfileMatchResult; rank: number })
         {match.strengths.length > 0 && (
           <div>
             <span className="font-medium text-emerald-600">강점:</span>{" "}
-            <span className="text-gray-600">{match.strengths.join(", ")}</span>
+            <span className="text-text-secondary">{match.strengths.join(", ")}</span>
           </div>
         )}
         {match.gaps.length > 0 && (
           <div>
             <span className="font-medium text-amber-600">보완:</span>{" "}
-            <span className="text-gray-600">{match.gaps.join(", ")}</span>
+            <span className="text-text-secondary">{match.gaps.join(", ")}</span>
           </div>
         )}
       </div>
 
-      <p className="mt-2 text-xs text-gray-500">{match.recommendation}</p>
+      <p className="mt-2 text-xs text-text-tertiary">{match.recommendation}</p>
     </div>
   );
 }

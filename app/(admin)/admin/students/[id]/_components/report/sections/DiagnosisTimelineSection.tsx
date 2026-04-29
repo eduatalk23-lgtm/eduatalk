@@ -85,7 +85,7 @@ export function DiagnosisTimelineSection({ current, history, targetScore = 85 }:
 
       {/* ① 헤더 라벨 (마스터 패턴 ①) */}
       <div className="mb-4 flex items-center gap-2">
-        <h3 className="text-base font-semibold text-gray-900">종합 역량 점수</h3>
+        <h3 className="text-base font-semibold text-text-primary">종합 역량 점수</h3>
         <BadgeLabel label={headerBadge.label} tone={headerBadge.tone} />
       </div>
 
@@ -154,7 +154,7 @@ interface BadgeLabelProps {
 function BadgeLabel({ label, tone }: BadgeLabelProps) {
   const classes: Record<BadgeLabelProps["tone"], string> = {
     positive: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    neutral: "bg-gray-50 text-gray-700 border-gray-200",
+    neutral: "bg-bg-secondary text-text-primary border-border",
     caution: "bg-amber-50 text-amber-700 border-amber-200",
   };
   return (
@@ -176,26 +176,26 @@ function MetricTripleCard({ currentScore, currentGrade, delta, targetScore, targ
   const gradeColor = GRADE_COLORS[currentGrade] ?? GRADE_COLORS.C;
 
   return (
-    <div className="grid grid-cols-3 gap-3 rounded-lg border border-gray-200 bg-white p-4">
+    <div className="grid grid-cols-3 gap-3 rounded-lg border border-border bg-white p-4">
       {/* 현재 */}
       <div className="flex flex-col gap-1">
-        <p className="text-xs text-gray-500">현재</p>
+        <p className="text-xs text-text-tertiary">현재</p>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold text-gray-900">{currentScore}</span>
-          <span className="text-xs text-gray-500">점</span>
+          <span className="text-2xl font-bold text-text-primary">{currentScore}</span>
+          <span className="text-xs text-text-tertiary">점</span>
         </div>
-        <span className={cn("inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-bold", gradeColor.bg, gradeColor.text)}>
+        <span className={cn("inline-block w-fit rounded px-1.5 py-0.5 text-3xs font-bold", gradeColor.bg, gradeColor.text)}>
           {currentGrade}등급
         </span>
       </div>
 
       {/* 추이 */}
-      <div className="flex flex-col gap-1 border-l border-gray-100 pl-3">
-        <p className="text-xs text-gray-500">추이</p>
+      <div className="flex flex-col gap-1 border-l border-border pl-3">
+        <p className="text-xs text-text-tertiary">추이</p>
         {delta === null ? (
           <>
-            <div className="text-2xl font-bold text-gray-400">—</div>
-            <p className="text-[10px] text-gray-400">비교 대상 없음</p>
+            <div className="text-2xl font-bold text-text-tertiary">—</div>
+            <p className="text-3xs text-text-tertiary">비교 대상 없음</p>
           </>
         ) : (
           <>
@@ -205,22 +205,22 @@ function MetricTripleCard({ currentScore, currentGrade, delta, targetScore, targ
                   "text-2xl font-bold",
                   delta > 0 && "text-emerald-600",
                   delta < 0 && "text-red-600",
-                  delta === 0 && "text-gray-600",
+                  delta === 0 && "text-text-secondary",
                 )}
               >
                 {delta > 0 && "+"}
                 {delta}
               </span>
-              <span className="text-xs text-gray-500">점</span>
+              <span className="text-xs text-text-tertiary">점</span>
             </div>
-            <p className="text-[10px] text-gray-500">이전 분석 대비</p>
+            <p className="text-3xs text-text-tertiary">이전 분석 대비</p>
           </>
         )}
       </div>
 
       {/* 목표갭 */}
-      <div className="flex flex-col gap-1 border-l border-gray-100 pl-3">
-        <p className="text-xs text-gray-500">목표갭</p>
+      <div className="flex flex-col gap-1 border-l border-border pl-3">
+        <p className="text-xs text-text-tertiary">목표갭</p>
         <div className="flex items-baseline gap-1.5">
           <span
             className={cn(
@@ -231,9 +231,9 @@ function MetricTripleCard({ currentScore, currentGrade, delta, targetScore, targ
             {targetGap >= 0 ? "+" : ""}
             {targetGap}
           </span>
-          <span className="text-xs text-gray-500">점</span>
+          <span className="text-xs text-text-tertiary">점</span>
         </div>
-        <p className="text-[10px] text-gray-500">목표 {targetScore}점</p>
+        <p className="text-3xs text-text-tertiary">목표 {targetScore}점</p>
       </div>
     </div>
   );
@@ -249,14 +249,14 @@ function ProgressBar({ currentScore, targetScore }: ProgressBarProps) {
   const targetPct = Math.min(100, Math.max(0, targetScore));
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="mb-2 flex justify-between text-xs text-gray-500">
+    <div className="rounded-lg border border-border bg-white p-4">
+      <div className="mb-2 flex justify-between text-xs text-text-tertiary">
         <span>0</span>
         <span className="font-medium">현재 {currentScore}점</span>
         <span className="font-medium text-indigo-600">목표 {targetScore}점</span>
         <span>100</span>
       </div>
-      <div className="relative h-3 overflow-hidden rounded-full bg-gray-100">
+      <div className="relative h-3 overflow-hidden rounded-full bg-bg-tertiary">
         <div
           className="absolute inset-y-0 left-0 bg-indigo-500 transition-all"
           style={{ width: `${pct}%` }}
@@ -307,7 +307,7 @@ function TimelineChart({ points, targetScore }: TimelineChartProps) {
   const targetY = getY(targetScore);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-lg border border-border bg-white p-4">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="역량 점수 시계열">
         {/* 목표선 */}
         <line
@@ -437,15 +437,15 @@ function AiCommentBox({ hasHistory, delta, interpretation, nextAction }: AiComme
         <p className="text-xs font-semibold text-indigo-700">AI 코멘트</p>
       </div>
       {hasHistory && delta !== null && (
-        <p className="text-sm leading-relaxed text-gray-700">
+        <p className="text-sm leading-relaxed text-text-primary">
           {interpretation ??
             `지난 분석 대비 ${delta > 0 ? "+" : ""}${delta}점의 변화가 있었습니다.`}
         </p>
       )}
       {!hasHistory && (
-        <p className="text-sm leading-relaxed text-gray-700">
+        <p className="text-sm leading-relaxed text-text-primary">
           첫 분석 결과입니다. 변화 추이를 확인하려면 재분석이 필요합니다.
-          {interpretation && <span className="mt-2 block text-gray-600">{interpretation}</span>}
+          {interpretation && <span className="mt-2 block text-text-secondary">{interpretation}</span>}
         </p>
       )}
       <p className="mt-2 text-sm font-medium leading-relaxed text-indigo-700">

@@ -36,27 +36,27 @@ export function InterviewSection({ questions }: InterviewSectionProps) {
   return (
     <section className="print-break-before">
       <ReportSectionHeader icon={MessageCircle} title="면접 예상 질문" subtitle="5유형 분류 · 제안 답변" />
-      <p className="mb-3 text-xs text-gray-500">
+      <p className="mb-3 text-xs text-text-tertiary">
         생기부 기록 기반 AI 생성 질문 {questions.length}개 (타입별 분류)
       </p>
 
       <div className="space-y-4">
         {[...grouped.entries()].map(([type, qs]) => (
           <div key={type} className="print-avoid-break">
-            <h3 className="mb-1.5 text-sm font-semibold text-gray-800">
+            <h3 className="mb-1.5 text-sm font-semibold text-text-primary">
               {TYPE_LABELS[type] ?? type}
-              <span className="ml-1 text-xs font-normal text-gray-500">({qs.length})</span>
+              <span className="ml-1 text-xs font-normal text-text-tertiary">({qs.length})</span>
             </h3>
 
             <div className="space-y-2">
               {qs.map((q, idx) => {
                 const diff = DIFFICULTY_BADGE[q.difficulty];
                 return (
-                  <div key={idx} className="rounded border border-gray-200 px-3 py-2">
+                  <div key={idx} className="rounded border border-border px-3 py-2">
                     <div className="flex items-start gap-2">
-                      <span className="mt-0.5 text-xs font-bold text-gray-500">{idx + 1}.</span>
+                      <span className="mt-0.5 text-xs font-bold text-text-tertiary">{idx + 1}.</span>
                       <div className="flex-1">
-                        <p className="text-xs font-medium text-gray-900">{q.question}</p>
+                        <p className="text-xs font-medium text-text-primary">{q.question}</p>
                         {q.suggested_answer && (
                           <div className="mt-1.5 rounded bg-blue-50 px-2 py-1.5">
                             <p className="text-xs font-semibold text-blue-600">답변 가이드</p>
