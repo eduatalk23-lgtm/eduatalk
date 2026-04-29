@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { verifyCronAuth } from "@/lib/auth/cronAuth";
 import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 export const runtime = "nodejs";
@@ -14,12 +15,8 @@ const LOG_CTX = "cron/expire-report-shares";
  * 2) is_active=false 이면서 30일+ 경과 → report_data 비움 (스토리지 절감)
  */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResp = verifyCronAuth(request);
+  if (authResp) return authResp;
 
   const supabase = createSupabaseAdminClient();
 

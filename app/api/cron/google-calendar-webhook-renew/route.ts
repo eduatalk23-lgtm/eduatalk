@@ -6,6 +6,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { verifyCronAuth } from "@/lib/auth/cronAuth";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { getTokensByTenant } from "@/lib/domains/googleCalendar";
 import { renewWebhooksForTenant } from "@/lib/domains/googleCalendar/webhookHandler";
@@ -14,12 +15,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResp = verifyCronAuth(request);
+  if (authResp) return authResp;
 
   const result = { tenantsProcessed: 0, renewed: 0, failed: 0 };
 

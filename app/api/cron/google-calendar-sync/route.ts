@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { NextResponse } from "next/server";
+import { verifyCronAuth } from "@/lib/auth/cronAuth";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { createGoogleEvent, updateGoogleEvent, cancelGoogleEvent } from "@/lib/domains/googleCalendar";
 import { MAX_RETRY_COUNT } from "@/lib/domains/googleCalendar/types";
@@ -35,12 +36,8 @@ function queueTable(client: TypedSupabaseClient) {
 }
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResp = verifyCronAuth(request);
+  if (authResp) return authResp;
 
   const result = { processed: 0, succeeded: 0, failed: 0, skipped: 0 };
 

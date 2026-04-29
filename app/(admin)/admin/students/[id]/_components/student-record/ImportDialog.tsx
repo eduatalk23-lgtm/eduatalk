@@ -16,8 +16,8 @@ import type {
   ManualSubjectMapping,
   SubjectMatch,
 } from "@/lib/domains/student-record/import/types";
-// dynamic import — SSR에서 @google/genai import 방지
-const loadParser = () => import("@/lib/domains/student-record/import/parser");
+// PDF/이미지 파싱은 server route(/api/admin/student-record/parse)로 위임 → 키 노출 차단.
+// HTML 파서는 클라이언트에서 즉시 실행(AI 불필요).
 const loadHtmlParser = () => import("@/lib/domains/student-record/import/html-parser");
 import {
   matchAndPreviewAction,
@@ -143,13 +143,8 @@ export function ImportDialog({
         parsed = parseNeisHtml(htmlContent);
         setProgress(80);
       } else {
-        // ── PDF / 이미지: Gemini AI 호출 ──
-        const geminiApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-        if (!geminiApiKey) {
-          setError("NEXT_PUBLIC_GOOGLE_API_KEY가 설정되지 않았습니다.");
-          return;
-        }
-
+        // ── PDF / 이미지: 클라이언트 추출 → 서버 라우트가 Gemini 호출 ──
+        // (키를 NEXT_PUBLIC_*로 노출하지 않기 위해 파싱을 서버로 이동)
         setPhase("extracting");
         setMessage("파일에서 콘텐츠를 추출하는 중...");
         setProgress(10);
@@ -167,9 +162,18 @@ export function ImportDialog({
         }, 2000);
 
         try {
-          const { parseRecordContent } = await loadParser();
-          parsed = await parseRecordContent(content, geminiApiKey);
+          const res = await fetch("/api/admin/student-record/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+          });
           clearInterval(progressTimer);
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({ error: "파싱 실패" }));
+            throw new Error(errBody.error ?? `파싱 실패 (${res.status})`);
+          }
+          const json = (await res.json()) as { data: typeof parsed };
+          parsed = json.data;
         } catch (innerErr) {
           clearInterval(progressTimer);
           throw innerErr;

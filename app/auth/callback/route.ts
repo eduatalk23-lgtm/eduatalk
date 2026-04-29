@@ -56,7 +56,10 @@ export async function GET(request: Request) {
   let next = searchParams.get("next") ?? "/";
 
   // 상대 경로가 아닌 경우 기본값 사용 (보안)
-  if (!next.startsWith("/")) {
+  // - "/" 외 시작 차단 (절대 URL)
+  // - "//" 시작 차단 (protocol-relative → 외부 도메인 redirect)
+  // - "/\" 시작 차단 (Windows path 우회)
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
     next = "/";
   }
 

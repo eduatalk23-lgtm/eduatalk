@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
 import { cn } from "@/lib/cn";
 import { Dialog } from "@/components/ui/Dialog";
 import {
@@ -250,10 +251,12 @@ function ContentBlock({
       <div
         className={cn("whitespace-pre-wrap text-sm text-[var(--text-primary)] leading-relaxed")}
         dangerouslySetInnerHTML={
-          text.startsWith("<") ? { __html: text } : undefined
+          text.startsWith("<") && typeof window !== "undefined"
+            ? { __html: DOMPurify.sanitize(text) }
+            : undefined
         }
       >
-        {text.startsWith("<") ? undefined : text}
+        {text.startsWith("<") && typeof window !== "undefined" ? undefined : text}
       </div>
     </div>
   );

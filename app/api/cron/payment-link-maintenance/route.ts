@@ -8,6 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { verifyCronAuth } from "@/lib/auth/cronAuth";
 import { sendPaymentLinkExpiryReminder } from "@/lib/domains/payment/paymentLink/delivery";
 import type { DeliveryMethod } from "@/lib/domains/payment/paymentLink/types";
 
@@ -15,12 +16,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResp = verifyCronAuth(request);
+  if (authResp) return authResp;
 
   const adminClient = createSupabaseAdminClient();
   if (!adminClient) {

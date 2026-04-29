@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { verifyCronAuth } from "@/lib/auth/cronAuth";
 import { runAutoBillingForTenant } from "@/lib/domains/payment/actions/billing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  // Vercel Cron 인증
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResp = verifyCronAuth(request);
+  if (authResp) return authResp;
 
   try {
     const adminClient = createSupabaseAdminClient();

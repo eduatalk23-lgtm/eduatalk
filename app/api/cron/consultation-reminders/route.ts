@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyCronAuth } from "@/lib/auth/cronAuth";
 import { processConsultationReminders } from "@/lib/domains/consulting/services/reminderService";
 
 export const runtime = "nodejs";
@@ -12,12 +13,8 @@ export const dynamic = "force-dynamic";
  * 내일 예정된 상담에 대해 학부모에게 알림톡/SMS 발송
  */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResp = verifyCronAuth(request);
+  if (authResp) return authResp;
 
   try {
     const result = await processConsultationReminders();
