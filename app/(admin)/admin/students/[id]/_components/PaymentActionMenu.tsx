@@ -57,7 +57,7 @@ export function PaymentActionMenu({
       {/* 케밥 메뉴 */}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+          className="rounded p-1 text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary dark:hover:bg-gray-700 dark:hover:text-text-disabled"
         >
           <MoreHorizontal className="h-4 w-4" />
         </DropdownMenu.Trigger>

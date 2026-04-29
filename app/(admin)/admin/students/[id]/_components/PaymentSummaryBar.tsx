@@ -21,7 +21,7 @@ export function PaymentSummaryBar({
     <div
       className={cn(
         "mt-4 flex items-center gap-4 rounded-lg px-4 py-3",
-        "bg-gray-50 dark:bg-gray-700/50"
+        "bg-bg-secondary dark:bg-gray-700/50"
       )}
     >
       <SummaryItem label="총 청구" value={formatPrice(total)} />

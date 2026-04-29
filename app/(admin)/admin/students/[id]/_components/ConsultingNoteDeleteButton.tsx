@@ -45,7 +45,7 @@ export function ConsultingNoteDeleteButton({
         <button
           onClick={() => setShowConfirm(false)}
           disabled={isDeleting}
-          className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+          className="rounded px-2 py-1 text-xs text-text-secondary hover:bg-bg-tertiary disabled:opacity-50"
         >
           취소
         </button>
@@ -64,7 +64,7 @@ export function ConsultingNoteDeleteButton({
     <button
       onClick={handleDelete}
       disabled={isDeleting}
-      className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 hover:text-red-600 disabled:opacity-50"
+      className="rounded px-2 py-1 text-xs text-text-tertiary hover:bg-bg-tertiary hover:text-red-600 disabled:opacity-50"
       title="삭제"
     >
       🗑️

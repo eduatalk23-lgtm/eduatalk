@@ -108,7 +108,7 @@ export function PaymentLinkCreateModal({
     >
       <div className="flex flex-col gap-4 p-4">
         {/* 결제 정보 요약 */}
-        <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-700/50">
+        <div className="rounded-lg bg-bg-secondary px-4 py-3 dark:bg-gray-700/50">
           <p className={cn("text-sm", textSecondary)}>
             {payment.program_name}
           </p>
@@ -130,7 +130,7 @@ export function PaymentLinkCreateModal({
                 readOnly
                 className={cn(
                   "flex-1 rounded-lg border px-3 py-2 text-xs",
-                  "border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700",
+                  "border-border bg-bg-secondary dark:border-gray-600 dark:bg-gray-700",
                   textPrimary
                 )}
               />
@@ -145,7 +145,7 @@ export function PaymentLinkCreateModal({
             <button
               type="button"
               onClick={() => handleClose(false)}
-              className="mt-2 w-full rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="mt-2 w-full rounded-lg border border-border py-2 text-sm font-medium text-text-primary hover:bg-bg-secondary dark:border-gray-600 dark:text-text-disabled dark:hover:bg-gray-700"
             >
               닫기
             </button>
@@ -174,7 +174,7 @@ export function PaymentLinkCreateModal({
                       "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                       deliveryMethod === opt.value
                         ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                        : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+                        : "border-border text-text-secondary hover:bg-bg-secondary dark:border-gray-600 dark:text-text-tertiary dark:hover:bg-gray-700"
                     )}
                   >
                     {opt.label}
@@ -196,7 +196,7 @@ export function PaymentLinkCreateModal({
                   placeholder="010-0000-0000"
                   className={cn(
                     "rounded-lg border px-3 py-2 text-sm",
-                    "border-gray-200 dark:border-gray-600",
+                    "border-border dark:border-gray-600",
                     "bg-white dark:bg-gray-700",
                     textPrimary,
                     phone && !isValidPhone(phone) && "border-red-400 dark:border-red-500"
@@ -220,7 +220,7 @@ export function PaymentLinkCreateModal({
                 onChange={(e) => setExpiresInHours(Number(e.target.value))}
                 className={cn(
                   "rounded-lg border px-3 py-2 text-sm",
-                  "border-gray-200 dark:border-gray-600",
+                  "border-border dark:border-gray-600",
                   "bg-white dark:bg-gray-700",
                   textPrimary
                 )}
@@ -238,7 +238,7 @@ export function PaymentLinkCreateModal({
               <button
                 type="button"
                 onClick={() => handleClose(false)}
-                className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-text-primary hover:bg-bg-secondary dark:border-gray-600 dark:text-text-disabled dark:hover:bg-gray-700"
               >
                 취소
               </button>

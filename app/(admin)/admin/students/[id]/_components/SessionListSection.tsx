@@ -37,60 +37,60 @@ export async function SessionListSection({ studentId }: { studentId: string }) {
     const endDate = new Date(dateRange.end);
 
     return (
-      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">학습 기록</h2>
-          <span className="text-xs text-gray-500">
+          <h2 className="text-xl font-semibold text-text-primary">학습 기록</h2>
+          <span className="text-xs text-text-tertiary">
             {startDate.toLocaleDateString("ko-KR")} ~{" "}
             {endDate.toLocaleDateString("ko-KR")}
           </span>
         </div>
         {recentSessions.length === 0 ? (
-          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-bg-secondary p-8 text-center">
+            <p className="text-sm font-medium text-text-primary">
               최근 30일간 학습 기록이 없습니다.
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-text-tertiary">
               학생이 학습을 시작하면 여기에 표시됩니다.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-bg-secondary">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary">
                     시작 시간
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary">
                     종료 시간
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary">
                     학습 시간
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary">
                     콘텐츠 타입
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary">
                     상태
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-border bg-white">
                 {recentSessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
+                  <tr key={session.id} className="hover:bg-bg-secondary">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-text-primary">
                       {new Date(session.started_at).toLocaleString("ko-KR")}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-text-tertiary">
                       {session.ended_at
                         ? new Date(session.ended_at).toLocaleString("ko-KR")
                         : "진행 중"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-text-tertiary">
                       {formatDuration(session.duration_seconds)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-text-tertiary">
                       {session.content_type ?? "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">

@@ -98,7 +98,7 @@ export function ProgramListPanel({
             )}
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-400" />
             이력
-            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+            <span className="rounded-full bg-bg-tertiary px-1.5 py-0.5 text-[10px] font-medium text-text-secondary dark:bg-gray-700 dark:text-text-disabled">
               {historyEnrollments.length}
             </span>
           </button>

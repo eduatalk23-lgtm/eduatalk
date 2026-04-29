@@ -71,10 +71,10 @@ export async function ContentProgressSection({ studentId }: { studentId: string 
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">콘텐츠 진행 요약</h2>
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-text-primary">콘텐츠 진행 요약</h2>
       {progressRows.length === 0 ? (
-        <p className="text-sm text-gray-500">진행 중인 콘텐츠가 없습니다.</p>
+        <p className="text-sm text-text-tertiary">진행 중인 콘텐츠가 없습니다.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {progressRows.map((progress, index) => {
@@ -83,16 +83,16 @@ export async function ContentProgressSection({ studentId }: { studentId: string 
             const contentInfo = contentMap.get(key) ?? { title: "제목 없음", subject: null };
 
             return (
-              <div key={index} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4">
+              <div key={index} className="flex flex-col gap-2 rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-gray-900">{contentInfo.title}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="font-medium text-text-primary">{contentInfo.title}</div>
+                    <div className="text-xs text-text-tertiary">
                       {contentTypeLabels[progress.content_type] ?? progress.content_type}
                       {contentInfo.subject ? ` · ${contentInfo.subject}` : ""}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-gray-900">
+                  <div className="text-sm font-semibold text-text-primary">
                     {progress.progress ?? 0}%
                   </div>
                 </div>

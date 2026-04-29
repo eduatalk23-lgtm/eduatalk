@@ -174,7 +174,7 @@ export function PaymentTablePanel({
           <h2 className={cn("text-base font-semibold", textPrimary)}>
             수납 내역
           </h2>
-          <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-0.5 dark:border-gray-700">
+          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 dark:border-gray-700">
             <button
               type="button"
               onClick={onSelectAll}
@@ -184,7 +184,7 @@ export function PaymentTablePanel({
                   ? "bg-indigo-600 text-white"
                   : cn(
                       textSecondary,
-                      "hover:bg-gray-100 dark:hover:bg-gray-700"
+                      "hover:bg-bg-tertiary dark:hover:bg-gray-700"
                     )
               )}
             >
@@ -249,7 +249,7 @@ export function PaymentTablePanel({
         <div className="mt-4">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
+              <tr className="border-b border-border dark:border-gray-700">
                 <th className={cn(tableHeaderBase, "w-10 text-center")}>
                   No.
                 </th>
@@ -422,14 +422,14 @@ function InstallmentGroupRows({
     <>
       {/* 그룹 헤더 */}
       <tr
-        className="cursor-pointer border-b border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/30 dark:hover:bg-gray-800/50"
+        className="cursor-pointer border-b border-border bg-bg-secondary transition-colors hover:bg-bg-tertiary dark:border-gray-700 dark:bg-gray-800/30 dark:hover:bg-gray-800/50"
         onClick={onToggle}
       >
         <td colSpan={colCount} className="px-3 py-2.5">
           <div className="flex items-center gap-3">
             <ChevronRight
               className={cn(
-                "h-4 w-4 shrink-0 text-gray-400 transition-transform",
+                "h-4 w-4 shrink-0 text-text-tertiary transition-transform",
                 isExpanded && "rotate-90"
               )}
             />
@@ -441,7 +441,7 @@ function InstallmentGroupRows({
             </span>
             <div className="ml-auto flex items-center gap-3">
               {/* 진행 바 */}
-              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-bg-tertiary dark:bg-gray-700">
                 <div
                   className="h-full rounded-full bg-green-500 transition-all"
                   style={{ width: `${progress * 100}%` }}
@@ -523,7 +523,7 @@ function SortableHeader({
           align === "right" && "flex-row-reverse",
           isActive
             ? "text-indigo-600 dark:text-indigo-400"
-            : "hover:text-gray-700 dark:hover:text-gray-300"
+            : "hover:text-text-primary dark:hover:text-text-disabled"
         )}
       >
         <span>{label}</span>

@@ -63,7 +63,7 @@ export function ConsultationScheduleList({
 }: ConsultationScheduleListProps) {
   if (schedules.length === 0) {
     return (
-      <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-gray-600 dark:bg-gray-800/50">
+      <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-bg-secondary p-8 text-center dark:border-gray-600 dark:bg-gray-800/50">
         <p className={cn("text-sm font-medium", textPrimary)}>
           등록된 상담 일정이 없습니다.
         </p>
@@ -165,7 +165,7 @@ function ScheduleCard({
       className={cn(
         "flex flex-col gap-2 rounded-lg border p-4 transition",
         borderDefault,
-        "bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/50 dark:hover:bg-gray-800"
+        "bg-bg-secondary hover:bg-bg-tertiary dark:bg-gray-800/50 dark:hover:bg-gray-800"
       )}
     >
       {/* Header: 유형 + 상태 + 알림 */}
@@ -245,7 +245,7 @@ function ScheduleCard({
               type="button"
               onClick={() => setConfirmCancel(true)}
               disabled={isPending}
-              className="rounded px-2 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+              className="rounded px-2 py-1 text-xs font-medium text-text-secondary transition hover:bg-bg-tertiary dark:text-text-tertiary dark:hover:bg-gray-700"
             >
               취소
             </button>
@@ -277,7 +277,7 @@ function ScheduleCard({
                   type="radio"
                   checked={cancelChannel === ch}
                   onChange={() => setCancelChannel(ch)}
-                  className="h-3.5 w-3.5 border-gray-300 text-amber-600 focus:ring-amber-500"
+                  className="h-3.5 w-3.5 border-border text-amber-600 focus:ring-amber-500"
                 />
                 <span className={cn("text-xs", textSecondary)}>
                   {NOTIFICATION_CHANNEL_LABELS[ch]}
@@ -304,7 +304,7 @@ function ScheduleCard({
               type="button"
               onClick={() => setConfirmCancel(false)}
               disabled={isPending}
-              className="rounded px-3 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200 dark:text-gray-400"
+              className="rounded px-3 py-1 text-xs font-medium text-text-secondary transition hover:bg-bg-tertiary dark:text-text-tertiary"
             >
               돌아가기
             </button>
@@ -330,7 +330,7 @@ function ScheduleCard({
             type="button"
             onClick={() => setConfirmDelete(false)}
             disabled={isPending}
-            className="rounded px-3 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200 dark:text-gray-400"
+            className="rounded px-3 py-1 text-xs font-medium text-text-secondary transition hover:bg-bg-tertiary dark:text-text-tertiary"
           >
             취소
           </button>
@@ -402,7 +402,7 @@ function ScheduleCard({
           </button>
 
           {showLogs && (
-            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50">
+            <div className="flex flex-col gap-1 rounded-lg border border-border bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50">
               {logs.map((log) => (
                 <div key={log.id} className="flex flex-col gap-0.5">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -457,7 +457,7 @@ function ChannelBadge({ channel }: { channel: NotificationLogEntry["channel"] })
 
 function LogStatusBadge({ status }: { status: NotificationLogEntry["status"] }) {
   const config: Record<string, { label: string; style: string }> = {
-    pending: { label: "대기", style: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+    pending: { label: "대기", style: "bg-bg-tertiary text-text-primary dark:bg-gray-800 dark:text-text-disabled" },
     sent: { label: "발송됨", style: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
     delivered: { label: "전달됨", style: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
     failed: { label: "실패", style: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
@@ -613,7 +613,7 @@ export function EditScheduleForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded px-2 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+          className="rounded px-2 py-1 text-xs font-medium text-text-secondary transition hover:bg-bg-tertiary dark:text-text-tertiary dark:hover:bg-gray-700"
         >
           취소
         </button>
@@ -788,7 +788,7 @@ export function EditScheduleForm({
                         : [...prev, target]
                     )
                   }
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                  className="h-4 w-4 rounded border-border text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
                 />
                 <span className={cn("text-xs", textSecondary)}>
                   {NOTIFICATION_TARGET_LABELS[target]}
@@ -800,7 +800,7 @@ export function EditScheduleForm({
             );
           })}
 
-          <span className={cn("ml-2 border-l border-gray-300 pl-4 text-xs font-medium dark:border-gray-600", textSecondary)}>
+          <span className={cn("ml-2 border-l border-border pl-4 text-xs font-medium dark:border-gray-600", textSecondary)}>
             발송 채널
           </span>
           {NOTIFICATION_CHANNELS.map((ch) => (
@@ -811,7 +811,7 @@ export function EditScheduleForm({
                 checked={notificationChannel === ch}
                 onChange={() => setNotificationChannel(ch)}
                 disabled={notificationTargets.length === 0}
-                className="h-3.5 w-3.5 border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                className="h-3.5 w-3.5 border-border text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
               />
               <span className={cn("text-xs", textSecondary)}>
                 {NOTIFICATION_CHANNEL_LABELS[ch]}
@@ -825,7 +825,7 @@ export function EditScheduleForm({
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-bg-tertiary dark:border-gray-600 dark:text-text-disabled dark:hover:bg-gray-700"
           >
             취소
           </button>

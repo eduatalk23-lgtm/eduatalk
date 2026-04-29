@@ -127,8 +127,8 @@ export function ConsultantAssignmentPanel({
     return (
       <div className={cn("rounded-lg border p-6", borderDefault, bgSurface)}>
         <div className="animate-pulse space-y-3">
-          <div className="h-5 w-32 rounded bg-gray-200 dark:bg-gray-700" />
-          <div className="h-10 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="h-5 w-32 rounded bg-bg-tertiary dark:bg-gray-700" />
+          <div className="h-10 rounded bg-bg-tertiary dark:bg-gray-700" />
         </div>
       </div>
     );
@@ -157,7 +157,7 @@ export function ConsultantAssignmentPanel({
           className={cn(
             "mb-4 rounded-lg border p-4",
             borderDefault,
-            "bg-gray-50 dark:bg-gray-800/50"
+            "bg-bg-secondary dark:bg-gray-800/50"
           )}
         >
           <div className="flex flex-col gap-3">
@@ -238,7 +238,7 @@ export function ConsultantAssignmentPanel({
               className={cn(
                 "flex items-center justify-between rounded-lg border px-4 py-3",
                 borderDefault,
-                "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                "hover:bg-bg-secondary dark:hover:bg-gray-800/50"
               )}
             >
               <div className="flex items-center gap-3">

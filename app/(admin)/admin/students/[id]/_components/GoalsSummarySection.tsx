@@ -32,14 +32,14 @@ export async function GoalsSummarySection({ studentId }: { studentId: string }) 
   return (
     <SectionCard title="목표 요약">
       {activeGoals.length === 0 ? (
-        <p className="text-sm text-gray-500">진행 중인 목표가 없습니다.</p>
+        <p className="text-sm text-text-tertiary">진행 중인 목표가 없습니다.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {activeGoals.map(({ goal, progress }) => (
-            <div key={goal.id} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4">
+            <div key={goal.id} className="flex flex-col gap-2 rounded-lg border border-border p-4">
               <div className="flex items-center justify-between">
-                <div className="font-medium text-gray-900">{goal.title}</div>
-                <div className="text-sm font-semibold text-gray-900">
+                <div className="font-medium text-text-primary">{goal.title}</div>
+                <div className="text-sm font-semibold text-text-primary">
                   {progress.progressPercentage}%
                 </div>
               </div>
@@ -50,7 +50,7 @@ export async function GoalsSummarySection({ studentId }: { studentId: string }) 
                 size="sm"
               />
               {progress.daysRemaining !== null && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-text-tertiary">
                   {progress.daysRemaining}일 남음
                 </div>
               )}

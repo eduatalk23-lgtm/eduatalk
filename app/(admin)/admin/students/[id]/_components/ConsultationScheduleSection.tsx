@@ -132,11 +132,11 @@ export function ConsultationScheduleSectionSkeleton() {
   return (
     <div className={cn("rounded-lg border p-6", borderDefault, bgSurface)}>
       <div className="space-y-4">
-        <div className="h-6 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-        <div className="h-32 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+        <div className="h-6 w-24 animate-pulse rounded bg-bg-tertiary dark:bg-gray-700" />
+        <div className="h-32 animate-pulse rounded bg-bg-tertiary dark:bg-gray-800" />
         <div className="space-y-2">
-          <div className="h-16 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-          <div className="h-16 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+          <div className="h-16 animate-pulse rounded bg-bg-tertiary dark:bg-gray-800" />
+          <div className="h-16 animate-pulse rounded bg-bg-tertiary dark:bg-gray-800" />
         </div>
       </div>
     </div>

@@ -133,7 +133,7 @@ export async function ConsultingNotesSection({
 
         {/* 상담노트 목록 */}
         {!error && noteRows.length === 0 ? (
-          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-gray-600 dark:bg-gray-800/50">
+          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-bg-secondary p-8 text-center dark:border-gray-600 dark:bg-gray-800/50">
             <p className={cn("text-sm font-medium", textPrimary)}>
               상담노트가 없습니다.
             </p>
@@ -155,7 +155,7 @@ export async function ConsultingNotesSection({
                   className={cn(
                     "flex flex-col gap-2 rounded-lg border p-4 transition",
                     borderDefault,
-                    "bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/50 dark:hover:bg-gray-800"
+                    "bg-bg-secondary hover:bg-bg-tertiary dark:bg-gray-800/50 dark:hover:bg-gray-800"
                   )}
                 >
                   {/* 헤더: 유형 뱃지 + 날짜 + 시간 + 삭제 */}

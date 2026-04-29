@@ -46,13 +46,13 @@ function PaymentRowComponent({
   return (
     <tr
       className={cn(
-        "border-b border-gray-100 dark:border-gray-800",
+        "border-b border-border dark:border-gray-800",
         tableRowHover,
-        isGroupChild && "bg-gray-50/50 dark:bg-gray-800/20"
+        isGroupChild && "bg-bg-secondary/50 dark:bg-gray-800/20"
       )}
     >
       {/* No. */}
-      <td className={cn("px-3 py-2.5 text-center text-xs text-gray-400", isGroupChild && "pl-6")}>{index}</td>
+      <td className={cn("px-3 py-2.5 text-center text-xs text-text-tertiary", isGroupChild && "pl-6")}>{index}</td>
 
       {/* 청구월 */}
       <td className={cn("px-3 py-2.5 text-xs", textPrimary)}>
@@ -98,7 +98,7 @@ function PaymentRowComponent({
       <td className={cn("px-3 py-2.5 text-xs text-right", textPrimary)}>
         <div className="flex flex-wrap items-center justify-end gap-1">
           {payment.original_amount != null && (
-            <span className="text-gray-400 line-through dark:text-gray-500">
+            <span className="text-text-tertiary line-through dark:text-text-tertiary">
               {formatPrice(payment.original_amount)}
             </span>
           )}

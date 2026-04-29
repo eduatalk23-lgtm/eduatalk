@@ -6,19 +6,21 @@ import type { PaymentLinkStatus, DeliveryStatus } from "@/lib/domains/payment/pa
 const STATUS_CONFIG: Record<PaymentLinkStatus, { label: string; className: string }> = {
   active: {
     label: "활성",
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    className:
+      "bg-info-100 text-info-700 dark:bg-info-900/30 dark:text-info-300",
   },
   completed: {
     label: "결제완료",
-    className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+    className:
+      "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300",
   },
   expired: {
     label: "만료",
-    className: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
+    className: "bg-bg-tertiary text-text-tertiary",
   },
   cancelled: {
     label: "취소",
-    className: "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
+    className: "bg-bg-tertiary text-text-tertiary",
   },
 };
 
@@ -47,13 +49,15 @@ export function PaymentLinkStatusBadge({
     if (deliveryLabel) label = deliveryLabel;
   }
 
+  const isFailed = status === "active" && deliveryStatus === "failed";
+
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-        config.className,
-        status === "active" && deliveryStatus === "failed" &&
-          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+        "inline-flex items-center rounded-full px-1.5 py-0.5 text-3xs font-medium",
+        isFailed
+          ? "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-300"
+          : config.className,
       )}
     >
       {label}

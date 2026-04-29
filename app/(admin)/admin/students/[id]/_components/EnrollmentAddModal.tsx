@@ -119,7 +119,7 @@ export function EnrollmentAddModal({
     <Dialog open={open} onOpenChange={onOpenChange} maxWidth="md">
       <div className="flex flex-col gap-6 p-6">
         <div className="flex flex-col gap-2">
-          <h2 className="text-h2 text-gray-900 dark:text-gray-100">
+          <h2 className="text-h2 text-text-primary dark:text-gray-100">
             수강 등록
           </h2>
           <p className={cn("text-body-2", textSecondary)}>

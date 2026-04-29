@@ -33,30 +33,30 @@ export async function WeeklySummarySection({ studentId }: { studentId: string })
   ]);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900">이번주 요약</h2>
+    <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-xl font-semibold text-text-primary">이번주 요약</h2>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div>
-          <div className="text-sm text-gray-500">학습시간</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="text-sm text-text-tertiary">학습시간</div>
+          <div className="mt-2 text-2xl font-bold text-text-primary">
             {studyTime.totalHours}시간 {studyTime.totalMinutes % 60}분
           </div>
         </div>
         <div>
-          <div className="text-sm text-gray-500">플랜 실행률</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="text-sm text-text-tertiary">플랜 실행률</div>
+          <div className="mt-2 text-2xl font-bold text-text-primary">
             {planSummary.completionRate}%
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-xs text-text-tertiary">
             {planSummary.completedPlans} / {planSummary.totalPlans} 완료
           </div>
         </div>
         <div>
-          <div className="text-sm text-gray-500">목표 달성률</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="text-sm text-text-tertiary">목표 달성률</div>
+          <div className="mt-2 text-2xl font-bold text-text-primary">
             {goalProgress.averageProgress}%
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-xs text-text-tertiary">
             {goalProgress.activeGoals}개 진행 중
           </div>
         </div>

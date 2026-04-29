@@ -136,7 +136,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
     <div className="flex flex-col gap-6">
       {/* 스토리지 사용량 */}
       {quota && (
-        <div className="flex items-center gap-3 text-sm text-gray-600">
+        <div className="flex items-center gap-3 text-sm text-text-secondary">
           <HardDrive className="w-4 h-4" />
           <span>
             사용량: {formatStorageSize(quota.usedBytes)} /{" "}
@@ -146,7 +146,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
       )}
 
       {/* 워크플로우 관리 */}
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold">파일 제출 요청</h3>
           <Button
@@ -172,7 +172,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
         )}
 
         {activeRequests.length === 0 && !showCreateForm ? (
-          <p className="text-sm text-gray-400 py-4 text-center">
+          <p className="text-sm text-text-tertiary py-4 text-center">
             진행 중인 요청이 없습니다.
           </p>
         ) : (
@@ -191,10 +191,10 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
 
         {/* 이력 보기 */}
         {completedRequests.length > 0 && (
-          <div className="mt-4 border-t border-gray-100 pt-3">
+          <div className="mt-4 border-t border-border pt-3">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary"
             >
               {showHistory ? (
                 <ChevronUp className="w-3.5 h-3.5" />
@@ -222,7 +222,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
       </section>
 
       {/* 자료 배포 */}
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold">자료 배포</h3>
           <Button
@@ -247,7 +247,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
         )}
 
         {distributions.length === 0 && !showDistributeForm ? (
-          <p className="text-sm text-gray-400 py-4 text-center">
+          <p className="text-sm text-text-tertiary py-4 text-center">
             배포된 자료가 없습니다.
           </p>
         ) : (
@@ -265,7 +265,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
       </section>
 
       {/* 전체 파일 목록 */}
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold">전체 파일</h3>
           {filteredFiles.length > 0 && (
@@ -284,8 +284,8 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border",
                 downloadProgress
-                  ? "border-gray-200 text-gray-400 cursor-not-allowed"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50",
+                  ? "border-border text-text-tertiary cursor-not-allowed"
+                  : "border-border text-text-secondary hover:bg-bg-secondary",
               )}
             >
               <Download className="w-3.5 h-3.5" />
@@ -305,7 +305,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
                 "px-2.5 py-1 text-xs rounded-full border",
                 filterCategory === "all"
                   ? "bg-indigo-600 text-white border-indigo-600"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                  : "border-border text-text-secondary hover:bg-bg-secondary"
               )}
             >
               전체
@@ -318,7 +318,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
                   "px-2.5 py-1 text-xs rounded-full border",
                   filterCategory === cat.key
                     ? "bg-indigo-600 text-white border-indigo-600"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                    : "border-border text-text-secondary hover:bg-bg-secondary"
                 )}
               >
                 {cat.label}
@@ -326,21 +326,21 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
             ))}
           </div>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-tertiary" />
             <input
               type="text"
               placeholder="파일명 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-gray-300"
+              className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-border"
             />
           </div>
         </div>
 
         {isPending ? (
-          <p className="text-sm text-gray-400 py-4 text-center">로딩 중...</p>
+          <p className="text-sm text-text-tertiary py-4 text-center">로딩 중...</p>
         ) : filteredFiles.length === 0 ? (
-          <p className="text-sm text-gray-400 py-4 text-center">
+          <p className="text-sm text-text-tertiary py-4 text-center">
             파일이 없습니다.
           </p>
         ) : (
@@ -350,12 +350,12 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
               return (
                 <div
                   key={file.id}
-                  className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 hover:bg-gray-50"
+                  className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-bg-secondary"
                 >
-                  <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <FileText className="w-4 h-4 text-text-tertiary flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{file.original_name}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="flex items-center gap-2 text-xs text-text-tertiary">
                       <span>{getCategoryLabel(file.category, customCategories)}</span>
                       <span>·</span>
                       <span>{formatFileSize(file.size_bytes)}</span>
@@ -387,9 +387,9 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
                     <a
                       href={signedUrls[file.id]}
                       download={sanitizeFileName(file.original_name)}
-                      className="p-1.5 rounded hover:bg-gray-200"
+                      className="p-1.5 rounded hover:bg-bg-tertiary"
                     >
-                      <Download className="w-4 h-4 text-gray-500" />
+                      <Download className="w-4 h-4 text-text-tertiary" />
                     </a>
                   )}
                   <button
@@ -403,7 +403,7 @@ export function AdminFilesSection({ studentId }: { studentId: string }) {
                     }}
                     className="p-1.5 rounded hover:bg-red-50"
                   >
-                    <Trash2 className="w-4 h-4 text-gray-400" />
+                    <Trash2 className="w-4 h-4 text-text-tertiary" />
                   </button>
                 </div>
               );
@@ -547,14 +547,14 @@ function CreateRequestForm({
         {/* 템플릿 선택 */}
         {templates.length > 0 && (
           <div>
-            <label className="block text-xs text-gray-600 mb-1.5">템플릿</label>
+            <label className="block text-xs text-text-secondary mb-1.5">템플릿</label>
             <div className="flex flex-wrap gap-1.5">
               {templates.map((tmpl) => (
                 <button
                   key={tmpl.id}
                   type="button"
                   onClick={() => applyTemplate(tmpl)}
-                  className="group flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-300 text-xs text-gray-600 hover:bg-white hover:border-indigo-400 transition-colors"
+                  className="group flex items-center gap-1 px-2.5 py-1 rounded-full border border-border text-xs text-text-secondary hover:bg-white hover:border-indigo-400 transition-colors"
                 >
                   <Bookmark className="w-3 h-3" />
                   {tmpl.name}
@@ -567,7 +567,7 @@ function CreateRequestForm({
                     }}
                     className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                    <X className="w-3 h-3 text-text-tertiary hover:text-red-500" />
                   </button>
                 </button>
               ))}
@@ -580,22 +580,22 @@ function CreateRequestForm({
           placeholder="요청 제목 (예: 생기부 제출)"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm"
         />
         <textarea
           placeholder="설명 (선택)"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm resize-none"
         />
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-xs text-gray-600 mb-1">카테고리</label>
+            <label className="block text-xs text-text-secondary mb-1">카테고리</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
             >
               {allCategories.map((cat) => (
                 <option key={cat.key} value={cat.key}>
@@ -605,32 +605,32 @@ function CreateRequestForm({
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-gray-600 mb-1">
+            <label className="block text-xs text-text-secondary mb-1">
               기한 (선택)
             </label>
             <input
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
             />
           </div>
         </div>
         {/* 캘린더 연동 */}
         {deadline && (
-          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
             <input
               type="checkbox"
               checked={addToCalendar}
               onChange={(e) => setAddToCalendar(e.target.checked)}
-              className="rounded border-gray-300"
+              className="rounded border-border"
             />
             학생 캘린더에 마감일 이벤트 추가
           </label>
         )}
         {/* MIME 타입 제한 */}
         <div>
-          <label className="block text-xs text-gray-600 mb-1.5">
+          <label className="block text-xs text-text-secondary mb-1.5">
             허용 파일 형식 (선택하지 않으면 전체 허용)
           </label>
           <div className="flex flex-wrap gap-2">
@@ -641,7 +641,7 @@ function CreateRequestForm({
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs cursor-pointer transition-colors",
                   selectedMimeGroups.has(key)
                     ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                    : "border-border text-text-secondary hover:bg-bg-secondary"
                 )}
               >
                 <input
@@ -665,20 +665,20 @@ function CreateRequestForm({
                 placeholder="템플릿 이름"
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
-                className="rounded-md border border-gray-300 px-2 py-1 text-xs w-32"
+                className="rounded-md border border-border px-2 py-1 text-xs w-32"
               />
               <Button size="sm" variant="secondary" onClick={handleSaveTemplate} disabled={!templateName.trim() || !title.trim()}>
                 저장
               </Button>
               <button onClick={() => setShowSaveTemplate(false)} className="p-1">
-                <X className="w-3.5 h-3.5 text-gray-400" />
+                <X className="w-3.5 h-3.5 text-text-tertiary" />
               </button>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => setShowSaveTemplate(true)}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 mr-auto"
+              className="flex items-center gap-1 text-xs text-text-tertiary hover:text-indigo-600 mr-auto"
             >
               <Bookmark className="w-3.5 h-3.5" />
               템플릿으로 저장
@@ -758,22 +758,22 @@ function DistributeForm({
           placeholder="배포 제목 (예: 3월 학습자료)"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm"
         />
         <textarea
           placeholder="설명 (선택)"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm resize-none"
         />
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-xs text-gray-600 mb-1">카테고리</label>
+            <label className="block text-xs text-text-secondary mb-1">카테고리</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
             >
               {DEFAULT_FILE_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -783,7 +783,7 @@ function DistributeForm({
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-gray-600 mb-1">파일</label>
+            <label className="block text-xs text-text-secondary mb-1">파일</label>
             <input
               ref={fileInputRef}
               type="file"
@@ -844,14 +844,14 @@ function AdminDistributionCard({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
+    <div className="rounded-lg border border-border p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium">{distribution.title}</h4>
           {distribution.description && (
-            <p className="text-xs text-gray-500 mt-0.5">{distribution.description}</p>
+            <p className="text-xs text-text-tertiary mt-0.5">{distribution.description}</p>
           )}
-          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+          <div className="flex items-center gap-2 text-xs text-text-tertiary mt-1">
             {file && <span>{file.original_name}</span>}
             <span>·</span>
             <span>
@@ -862,10 +862,10 @@ function AdminDistributionCard({
         <div className="flex items-center gap-1">
           <button
             onClick={handleShowTracking}
-            className="p-1.5 rounded hover:bg-gray-100"
+            className="p-1.5 rounded hover:bg-bg-tertiary"
             title="열람 현황"
           >
-            <Eye className="w-3.5 h-3.5 text-gray-400" />
+            <Eye className="w-3.5 h-3.5 text-text-tertiary" />
           </button>
           <button
             onClick={handleRevoke}
@@ -873,21 +873,21 @@ function AdminDistributionCard({
             className="p-1.5 rounded hover:bg-red-50"
             title="배포 취소"
           >
-            <Trash2 className="w-3.5 h-3.5 text-gray-400" />
+            <Trash2 className="w-3.5 h-3.5 text-text-tertiary" />
           </button>
         </div>
       </div>
 
       {showTracking && tracking && (
-        <div className="mt-2 border-t border-gray-100 pt-2">
-          <p className="text-xs font-medium text-gray-500 mb-1">열람 현황</p>
+        <div className="mt-2 border-t border-border pt-2">
+          <p className="text-xs font-medium text-text-tertiary mb-1">열람 현황</p>
           {tracking.map((t) => (
             <div key={t.distribution_id} className="flex items-center gap-2 text-xs py-0.5">
-              <span className="text-gray-700">{t.student_name}</span>
-              <span className={t.viewed_at ? "text-green-600" : "text-gray-400"}>
+              <span className="text-text-primary">{t.student_name}</span>
+              <span className={t.viewed_at ? "text-green-600" : "text-text-tertiary"}>
                 {t.viewed_at ? "열람" : "미열람"}
               </span>
-              <span className={t.downloaded_at ? "text-blue-600" : "text-gray-400"}>
+              <span className={t.downloaded_at ? "text-blue-600" : "text-text-tertiary"}>
                 {t.downloaded_at ? "다운로드" : "-"}
               </span>
             </div>
@@ -960,7 +960,7 @@ function AdminRequestCard({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
+    <div className="rounded-lg border border-border p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -972,13 +972,13 @@ function AdminRequestCard({
             >
               {statusLabels[request.status]}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-tertiary">
               {FILE_CATEGORY_LABELS[request.category]}
             </span>
           </div>
           <h4 className="text-sm font-medium">{request.title}</h4>
           {request.description && (
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-text-tertiary mt-0.5">
               {request.description}
             </p>
           )}
@@ -989,7 +989,7 @@ function AdminRequestCard({
             className="p-1 rounded hover:bg-red-50"
             title="요청 삭제"
           >
-            <Trash2 className="w-3.5 h-3.5 text-gray-400" />
+            <Trash2 className="w-3.5 h-3.5 text-text-tertiary" />
           </button>
         )}
       </div>
@@ -1000,25 +1000,25 @@ function AdminRequestCard({
           {files.map((file) => (
             <div
               key={file.id}
-              className="flex items-center gap-2 bg-gray-50 rounded px-2.5 py-1.5"
+              className="flex items-center gap-2 bg-bg-secondary rounded px-2.5 py-1.5"
             >
-              <FileText className="w-3.5 h-3.5 text-gray-400" />
+              <FileText className="w-3.5 h-3.5 text-text-tertiary" />
               <span className="text-xs truncate flex-1">
                 {file.original_name}
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-text-tertiary">
                 v{file.version_number}
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-text-tertiary">
                 {file.uploaded_by_role === "parent" ? "학부모" : "학생"}
               </span>
               {signedUrls[file.id] && (
                 <a
                   href={signedUrls[file.id]}
                   download={sanitizeFileName(file.original_name)}
-                  className="p-0.5 rounded hover:bg-gray-200"
+                  className="p-0.5 rounded hover:bg-bg-tertiary"
                 >
-                  <Download className="w-3.5 h-3.5 text-gray-500" />
+                  <Download className="w-3.5 h-3.5 text-text-tertiary" />
                 </a>
               )}
               {!readOnly && request.status === "submitted" && (
@@ -1058,7 +1058,7 @@ function AdminRequestCard({
             placeholder="반려 사유를 입력하세요"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+            className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm"
           />
           <Button
             size="sm"
@@ -1070,9 +1070,9 @@ function AdminRequestCard({
           </Button>
           <button
             onClick={() => setShowRejectForm(false)}
-            className="p-1.5 rounded hover:bg-gray-100"
+            className="p-1.5 rounded hover:bg-bg-tertiary"
           >
-            <X className="w-4 h-4 text-gray-400" />
+            <X className="w-4 h-4 text-text-tertiary" />
           </button>
         </div>
       )}

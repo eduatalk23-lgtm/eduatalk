@@ -391,14 +391,14 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
   return (
     <div className="flex flex-col gap-6">
       {/* 학생 계정 연결 상태 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-4">
-          <User size={16} className="text-gray-500" />
+      <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-text-primary flex items-center gap-2 mb-4">
+          <User size={16} className="text-text-tertiary" />
           학생 계정
         </h3>
 
         {isLoadingConnection ? (
-          <div className="animate-pulse h-16 bg-gray-100 rounded-lg" />
+          <div className="animate-pulse h-16 bg-bg-tertiary rounded-lg" />
         ) : connectionStatus?.status === "connected" ? (
           // 연결됨 상태
           <div className="flex items-center justify-between px-4 py-3 bg-green-50 rounded-lg border border-green-100">
@@ -444,7 +444,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                       ? "bg-green-100 text-green-700"
                       : studentPendingInvitation.deliveryStatus === "failed"
                         ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-600"
+                        : "bg-bg-tertiary text-text-secondary"
                   }`}>
                     {deliveryLabel(
                       studentPendingInvitation.deliveryMethod as DeliveryMethod,
@@ -469,14 +469,14 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => handleCopyJoinUrl(studentPendingInvitation.token)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary rounded-lg transition"
                 title="초대 링크 복사"
               >
                 <Copy size={16} />
               </button>
               <button
                 onClick={() => handleShowQR(studentPendingInvitation.token)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary rounded-lg transition"
                 title="QR 코드"
               >
                 <QrCode size={16} />
@@ -484,7 +484,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               {studentPendingInvitation.deliveryMethod === "manual" ? (
                 <button
                   onClick={() => handleOpenSendModal(studentPendingInvitation.id)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  className="p-2 text-text-tertiary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                   title="SMS/이메일 발송"
                 >
                   <Send size={16} />
@@ -492,7 +492,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               ) : (
                 <button
                   onClick={() => handleResend(studentPendingInvitation.id)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  className="p-2 text-text-tertiary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                   title="재발송"
                 >
                   <RefreshCw size={16} />
@@ -500,7 +500,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               )}
               <button
                 onClick={() => handleCancelInvitation(studentPendingInvitation.id)}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                className="p-2 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                 title="초대 취소"
               >
                 <Trash2 size={16} />
@@ -509,14 +509,14 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
           </div>
         ) : (
           // 미연결 상태
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg border border-gray-100">
+          <div className="flex items-center justify-between px-4 py-3 bg-bg-secondary rounded-lg border border-border">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                <Unlink size={14} className="text-gray-400" />
+              <div className="w-8 h-8 rounded-full bg-bg-tertiary flex items-center justify-center">
+                <Unlink size={14} className="text-text-tertiary" />
               </div>
               <div>
-                <span className="text-sm font-medium text-gray-500">미연결</span>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <span className="text-sm font-medium text-text-tertiary">미연결</span>
+                <p className="text-xs text-text-tertiary mt-0.5">
                   초대를 생성하여 학생 계정을 연결하세요
                 </p>
               </div>
@@ -536,10 +536,10 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
       {/* 학부모 + 형제/자매: 2열 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 학부모 카드 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col">
+        <div className="rounded-lg border border-border bg-white p-6 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <Users size={16} className="text-gray-500" />
+            <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <Users size={16} className="text-text-tertiary" />
               학부모
             </h3>
             <button
@@ -554,13 +554,13 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
           {isLoadingParents ? (
             <div className="flex-1 flex items-center justify-center py-6">
               <div className="animate-pulse space-y-3 w-full">
-                <div className="h-12 bg-gray-100 rounded-lg" />
-                <div className="h-12 bg-gray-100 rounded-lg" />
+                <div className="h-12 bg-bg-tertiary rounded-lg" />
+                <div className="h-12 bg-bg-tertiary rounded-lg" />
               </div>
             </div>
           ) : parents.length === 0 ? (
             <div className="flex-1 flex items-center justify-center py-6">
-              <p className="text-sm text-gray-400">연결된 학부모가 없습니다</p>
+              <p className="text-sm text-text-tertiary">연결된 학부모가 없습니다</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -576,7 +576,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
 
           {/* 대기 중인 학부모 초대 inline 표시 */}
           {parentInvitations.length > 0 && (
-            <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-gray-100">
+            <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-border">
               {parentInvitations.map((inv) => {
                 const daysLeft = Math.max(
                   0,
@@ -599,14 +599,14 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                     <div className="flex items-center gap-0.5 shrink-0">
                       <button
                         onClick={() => handleCopyJoinUrl(inv.token)}
-                        className="p-1.5 text-gray-400 hover:text-gray-700 rounded transition"
+                        className="p-1.5 text-text-tertiary hover:text-text-primary rounded transition"
                         title="링크 복사"
                       >
                         <Copy size={14} />
                       </button>
                       <button
                         onClick={() => handleCancelInvitation(inv.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded transition"
+                        className="p-1.5 text-text-tertiary hover:text-red-500 rounded transition"
                         title="취소"
                       >
                         <Trash2 size={14} />
@@ -620,10 +620,10 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
         </div>
 
         {/* 형제/자매 카드 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col">
+        <div className="rounded-lg border border-border bg-white p-6 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <GitBranch size={16} className="text-gray-500" />
+            <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <GitBranch size={16} className="text-text-tertiary" />
               형제/자매
             </h3>
             {siblings.length > 0 && (
@@ -636,13 +636,13 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
           {isLoadingSiblings ? (
             <div className="flex-1 flex items-center justify-center py-6">
               <div className="animate-pulse space-y-3 w-full">
-                <div className="h-12 bg-gray-100 rounded-lg" />
+                <div className="h-12 bg-bg-tertiary rounded-lg" />
               </div>
             </div>
           ) : siblings.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-6 gap-2">
-              <p className="text-sm text-gray-400">감지된 형제/자매가 없습니다</p>
-              <p className="text-xs text-gray-300">
+              <p className="text-sm text-text-tertiary">감지된 형제/자매가 없습니다</p>
+              <p className="text-xs text-text-disabled">
                 학부모 공유를 통해 자동으로 감지됩니다
               </p>
             </div>
@@ -651,12 +651,12 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               {siblings.map((sib) => (
                 <div
                   key={sib.studentId}
-                  className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between px-4 py-3 bg-bg-secondary rounded-lg"
                 >
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-text-primary">
                     {sib.studentName ?? "이름 없음"}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-text-tertiary">
                     {sib.sharedParentName ?? ""}({relationLabel(sib.relation)}) 공유
                   </span>
                 </div>
@@ -667,13 +667,13 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
       </div>
 
       {/* 구분선 */}
-      <hr className="border-gray-200" />
+      <hr className="border-border" />
 
       {/* 초대 관리: 전체 너비 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
+      <div className="rounded-lg border border-border bg-bg-secondary p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <Send size={16} className="text-gray-500" />
+          <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+            <Send size={16} className="text-text-tertiary" />
             초대
           </h3>
           <InviteRoleDropdown
@@ -687,11 +687,11 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
 
         {isLoadingInvitations ? (
           <div className="animate-pulse space-y-2">
-            <div className="h-14 bg-gray-100 rounded-lg" />
-            <div className="h-14 bg-gray-100 rounded-lg" />
+            <div className="h-14 bg-bg-tertiary rounded-lg" />
+            <div className="h-14 bg-bg-tertiary rounded-lg" />
           </div>
         ) : activeInvitations.length === 0 ? (
-          <p className="text-sm text-gray-400 py-4 text-center">
+          <p className="text-sm text-text-tertiary py-4 text-center">
             활성 초대가 없습니다
           </p>
         ) : (
@@ -703,7 +703,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               return (
                 <div
                   key={inv.id}
-                  className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-gray-100"
+                  className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-border"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">
@@ -714,29 +714,29 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                         ? "bg-green-100 text-green-700"
                         : inv.deliveryStatus === "failed"
                           ? "bg-red-100 text-red-700"
-                          : "bg-gray-100 text-gray-600"
+                          : "bg-bg-tertiary text-text-secondary"
                     }`}>
                       {deliveryLabel(inv.deliveryMethod, inv.deliveryStatus)}
                     </span>
                     {inv.phone && (
-                      <span className="text-xs text-gray-500 truncate">{inv.phone}</span>
+                      <span className="text-xs text-text-tertiary truncate">{inv.phone}</span>
                     )}
                     {inv.email && (
-                      <span className="text-xs text-gray-500 truncate">{inv.email}</span>
+                      <span className="text-xs text-text-tertiary truncate">{inv.email}</span>
                     )}
-                    <span className="text-xs text-gray-400 whitespace-nowrap">D-{daysLeft}</span>
+                    <span className="text-xs text-text-tertiary whitespace-nowrap">D-{daysLeft}</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => handleCopyJoinUrl(inv.token)}
-                      className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+                      className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary rounded-lg transition"
                       title="초대 링크 복사"
                     >
                       <Copy size={16} />
                     </button>
                     <button
                       onClick={() => handleShowQR(inv.token)}
-                      className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+                      className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary rounded-lg transition"
                       title="QR 코드"
                     >
                       <QrCode size={16} />
@@ -744,7 +744,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                     {inv.deliveryMethod === "manual" ? (
                       <button
                         onClick={() => handleOpenSendModal(inv.id)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        className="p-2 text-text-tertiary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                         title="SMS/이메일 발송"
                       >
                         <Send size={16} />
@@ -752,7 +752,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                     ) : (
                       <button
                         onClick={() => handleResend(inv.id)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        className="p-2 text-text-tertiary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                         title="재발송"
                       >
                         <RefreshCw size={16} />
@@ -760,7 +760,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                     )}
                     <button
                       onClick={() => handleCancelInvitation(inv.id)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                      className="p-2 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                       title="취소"
                     >
                       <Trash2 size={16} />
@@ -890,7 +890,7 @@ function InviteRoleDropdown({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-border bg-white py-1 shadow-lg">
             {INVITE_ROLE_OPTIONS.map((opt) => {
               const disabled = isDisabled(opt);
               const reason = disabledReason(opt);
@@ -905,13 +905,13 @@ function InviteRoleDropdown({
                   disabled={disabled}
                   className={`w-full px-4 py-2 text-left text-sm transition flex items-center justify-between ${
                     disabled
-                      ? "text-gray-300 cursor-not-allowed"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "text-text-disabled cursor-not-allowed"
+                      : "text-text-primary hover:bg-bg-secondary"
                   }`}
                 >
                   <span>{opt.label}</span>
                   {reason && (
-                    <span className="text-xs text-gray-300">{reason}</span>
+                    <span className="text-xs text-text-disabled">{reason}</span>
                   )}
                 </button>
               );
@@ -946,16 +946,16 @@ function CreateInvitationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-text-primary">
             {roleLabel} 초대 생성
           </h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+          <button onClick={onClose} className="p-1 text-text-tertiary hover:text-text-secondary rounded-lg">
             <X size={20} />
           </button>
         </div>
 
         <div className="space-y-3 mb-6">
-          <p className="text-sm font-medium text-gray-700">발송 방식</p>
+          <p className="text-sm font-medium text-text-primary">발송 방식</p>
           <div className="space-y-2">
             {DELIVERY_OPTIONS.map((opt) => {
               const Icon = opt.icon;
@@ -967,15 +967,15 @@ function CreateInvitationModal({
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition ${
                     isSelected
                       ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
-                      : "border-gray-200 hover:border-gray-300"
+                      : "border-border hover:border-border"
                   }`}
                 >
-                  <Icon size={18} className={isSelected ? "text-indigo-600" : "text-gray-400"} />
+                  <Icon size={18} className={isSelected ? "text-indigo-600" : "text-text-tertiary"} />
                   <div>
-                    <p className={`text-sm font-medium ${isSelected ? "text-indigo-700" : "text-gray-700"}`}>
+                    <p className={`text-sm font-medium ${isSelected ? "text-indigo-700" : "text-text-primary"}`}>
                       {opt.label}
                     </p>
-                    <p className="text-xs text-gray-500">{opt.description}</p>
+                    <p className="text-xs text-text-tertiary">{opt.description}</p>
                   </div>
                 </button>
               );
@@ -985,25 +985,25 @@ function CreateInvitationModal({
 
         {selectedDelivery === "sms" && (
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">전화번호</label>
             <input
               type="tel"
               value={deliveryContact}
               onChange={(e) => onContactChange(e.target.value)}
               placeholder="010-1234-5678"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-border px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         )}
         {selectedDelivery === "email" && (
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">이메일</label>
             <input
               type="email"
               value={deliveryContact}
               onChange={(e) => onContactChange(e.target.value)}
               placeholder="parent@email.com"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-border px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         )}
@@ -1012,7 +1012,7 @@ function CreateInvitationModal({
           <button
             onClick={onClose}
             disabled={isCreating}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-bg-secondary transition disabled:opacity-50"
           >
             취소
           </button>
@@ -1059,23 +1059,23 @@ function DisconnectModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">학생 계정 연결 해제</h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+          <h3 className="text-lg font-semibold text-text-primary">학생 계정 연결 해제</h3>
+          <button onClick={onClose} className="p-1 text-text-tertiary hover:text-text-secondary rounded-lg">
             <X size={20} />
           </button>
         </div>
 
         <div className="mb-6 space-y-3">
-          <div className="px-4 py-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
+          <div className="px-4 py-3 bg-bg-secondary rounded-lg">
+            <p className="text-sm text-text-primary">
               <span className="font-medium">{email}</span>
-              <span className="text-gray-400"> ({PROVIDER_LABEL[provider] ?? provider})</span>
+              <span className="text-text-tertiary"> ({PROVIDER_LABEL[provider] ?? provider})</span>
             </p>
           </div>
 
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-text-secondary space-y-2">
             <p>이 계정의 연결을 해제하면:</p>
-            <ul className="list-disc list-inside space-y-1 text-gray-500">
+            <ul className="list-disc list-inside space-y-1 text-text-tertiary">
               <li>학습 데이터(캘린더, 플랜, 성적)는 모두 유지됩니다</li>
               <li>해당 계정으로는 더 이상 로그인할 수 없습니다</li>
               <li>새 초대를 생성하여 다른 계정을 연결할 수 있습니다</li>
@@ -1087,7 +1087,7 @@ function DisconnectModal({
           <button
             onClick={onClose}
             disabled={isDisconnecting}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-bg-secondary transition disabled:opacity-50"
           >
             취소
           </button>
@@ -1134,8 +1134,8 @@ function QRModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">QR 코드</h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+          <h3 className="text-lg font-semibold text-text-primary">QR 코드</h3>
+          <button onClick={onClose} className="p-1 text-text-tertiary hover:text-text-secondary rounded-lg">
             <X size={20} />
           </button>
         </div>
@@ -1145,12 +1145,12 @@ function QRModal({
           <img src={qrDataUrl} alt="초대 QR 코드" className="w-64 h-64 rounded-lg" />
         </div>
 
-        <p className="text-xs text-gray-500 text-center mb-4 break-all">{joinUrl}</p>
+        <p className="text-xs text-text-tertiary text-center mb-4 break-all">{joinUrl}</p>
 
         <div className="flex gap-2">
           <button
             onClick={onCopyUrl}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition flex items-center justify-center gap-2"
+            className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-bg-secondary transition flex items-center justify-center gap-2"
           >
             <Copy size={14} />
             링크 복사
@@ -1190,21 +1190,21 @@ function SendInvitationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">초대 발송</h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+          <h3 className="text-lg font-semibold text-text-primary">초대 발송</h3>
+          <button onClick={onClose} className="p-1 text-text-tertiary hover:text-text-secondary rounded-lg">
             <X size={20} />
           </button>
         </div>
 
         <div className="space-y-3 mb-6">
-          <p className="text-sm font-medium text-gray-700">발송 방식</p>
+          <p className="text-sm font-medium text-text-primary">발송 방식</p>
           <div className="flex gap-2">
             <button
               onClick={() => onMethodChange("sms")}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition ${
                 sendMethod === "sms"
                   ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
-                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+                  : "border-border text-text-primary hover:border-border"
               }`}
             >
               <MessageSquare size={16} />
@@ -1215,7 +1215,7 @@ function SendInvitationModal({
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition ${
                 sendMethod === "email"
                   ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
-                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+                  : "border-border text-text-primary hover:border-border"
               }`}
             >
               <Mail size={16} />
@@ -1225,7 +1225,7 @@ function SendInvitationModal({
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-text-primary mb-1">
             {sendMethod === "sms" ? "전화번호" : "이메일"}
           </label>
           <input
@@ -1233,7 +1233,7 @@ function SendInvitationModal({
             value={sendContact}
             onChange={(e) => onContactChange(e.target.value)}
             placeholder={sendMethod === "sms" ? "010-1234-5678" : "user@email.com"}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-border px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             autoFocus
           />
         </div>
@@ -1242,7 +1242,7 @@ function SendInvitationModal({
           <button
             onClick={onClose}
             disabled={isSending}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-bg-secondary transition disabled:opacity-50"
           >
             취소
           </button>

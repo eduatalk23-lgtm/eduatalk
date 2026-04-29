@@ -45,9 +45,9 @@ export async function ContentUsageSection({ studentId }: { studentId: string }) 
       .slice(0, 10);
 
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-6">
-          <h2 className="text-xl font-semibold text-gray-900">콘텐츠 사용 현황</h2>
+          <h2 className="text-xl font-semibold text-text-primary">콘텐츠 사용 현황</h2>
 
           {/* 통계 */}
           <div className="grid grid-cols-3 gap-4">
@@ -70,15 +70,15 @@ export async function ContentUsageSection({ studentId }: { studentId: string }) 
 
           {/* 진행 중인 콘텐츠 */}
           <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-gray-700">진행 중인 콘텐츠 (상위 10개)</h3>
+            <h3 className="text-sm font-medium text-text-primary">진행 중인 콘텐츠 (상위 10개)</h3>
             {contentsWithProgress.length === 0 ? (
-              <p className="text-sm text-gray-500">진행 중인 콘텐츠가 없습니다.</p>
+              <p className="text-sm text-text-tertiary">진행 중인 콘텐츠가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {contentsWithProgress.map((content) => (
                   <div
                     key={content.key}
-                    className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                    className="rounded-lg border border-border p-4 transition hover:bg-bg-secondary"
                   >
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between">
@@ -86,12 +86,12 @@ export async function ContentUsageSection({ studentId }: { studentId: string }) 
                           <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                             {contentTypeLabels[content.type] ?? content.type}
                           </span>
-                          <span className="font-medium text-gray-900">{content.title}</span>
+                          <span className="font-medium text-text-primary">{content.title}</span>
                           {content.subject && (
-                            <span className="text-xs text-gray-500">· {content.subject}</span>
+                            <span className="text-xs text-text-tertiary">· {content.subject}</span>
                           )}
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">
+                        <span className="text-sm font-semibold text-text-primary">
                           {content.progress}%
                         </span>
                       </div>
@@ -102,7 +102,7 @@ export async function ContentUsageSection({ studentId }: { studentId: string }) 
                         height="sm"
                       />
                       {content.completedAmount > 0 && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-text-tertiary">
                           완료량: {content.completedAmount}
                         </div>
                       )}
@@ -118,8 +118,8 @@ export async function ContentUsageSection({ studentId }: { studentId: string }) 
   } catch (error) {
     console.error("[ContentUsageSection] 콘텐츠 사용 현황 조회 실패", error);
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">
+      <div className="rounded-lg border border-dashed border-border bg-bg-secondary p-6">
+        <p className="text-sm text-text-tertiary">
           콘텐츠 사용 현황 정보를 불러오는 중 오류가 발생했습니다.
         </p>
       </div>

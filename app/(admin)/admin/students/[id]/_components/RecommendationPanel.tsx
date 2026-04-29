@@ -14,12 +14,12 @@ export async function RecommendationPanel({ studentId }: { studentId: string }) 
   const topRecommendations = allRecommendations.slice(0, 10);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-text-primary mb-4 flex items-center gap-2">
         <span className="text-2xl">💡</span>
         Recommendation Panel
       </h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm text-text-tertiary mb-6">
         학생 데이터 기반 자동 생성 추천 (총 {allRecommendations.length}개)
       </p>
 
@@ -33,7 +33,7 @@ export async function RecommendationPanel({ studentId }: { studentId: string }) 
             </h3>
             <ul className="space-y-2 ml-6">
               {recommendations.subjects.slice(0, 3).map((rec, index) => (
-                <li key={index} className="text-sm text-gray-700 leading-relaxed">
+                <li key={index} className="text-sm text-text-primary leading-relaxed">
                   • {rec}
                 </li>
               ))}
@@ -50,7 +50,7 @@ export async function RecommendationPanel({ studentId }: { studentId: string }) 
             </h3>
             <ul className="space-y-2 ml-6">
               {recommendations.goals.slice(0, 3).map((rec, index) => (
-                <li key={index} className="text-sm text-gray-700 leading-relaxed">
+                <li key={index} className="text-sm text-text-primary leading-relaxed">
                   • {rec}
                 </li>
               ))}
@@ -67,7 +67,7 @@ export async function RecommendationPanel({ studentId }: { studentId: string }) 
             </h3>
             <ul className="space-y-2 ml-6">
               {recommendations.studyPlan.slice(0, 3).map((rec, index) => (
-                <li key={index} className="text-sm text-gray-700 leading-relaxed">
+                <li key={index} className="text-sm text-text-primary leading-relaxed">
                   • {rec}
                 </li>
               ))}
@@ -84,7 +84,7 @@ export async function RecommendationPanel({ studentId }: { studentId: string }) 
             </h3>
             <ul className="space-y-2 ml-6">
               {recommendations.contents.slice(0, 3).map((rec, index) => (
-                <li key={index} className="text-sm text-gray-700 leading-relaxed">
+                <li key={index} className="text-sm text-text-primary leading-relaxed">
                   • {rec}
                 </li>
               ))}

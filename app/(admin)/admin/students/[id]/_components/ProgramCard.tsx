@@ -38,7 +38,7 @@ export function ProgramCard({
         "group flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 text-left transition-colors",
         isSelected
           ? "border-indigo-300 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-900/30"
-          : cn(borderDefault, "hover:bg-gray-50 dark:hover:bg-gray-700/50")
+          : cn(borderDefault, "hover:bg-bg-secondary dark:hover:bg-gray-700/50")
       )}
     >
       <div className="flex flex-col gap-0.5">

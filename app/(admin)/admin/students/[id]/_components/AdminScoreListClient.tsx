@@ -367,12 +367,12 @@ export default function AdminScoreListClient({
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Score Type Toggle */}
-        <div className="flex rounded-lg bg-gray-100 p-1">
+        <div className="flex rounded-lg bg-bg-tertiary p-1">
           <button
             onClick={() => { setScoreType("internal"); setSelectedIds(new Set()); setEditingScore(null); }}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition",
-              scoreType === "internal" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+              scoreType === "internal" ? "bg-white text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
             )}
           >
             내신
@@ -381,7 +381,7 @@ export default function AdminScoreListClient({
             onClick={() => { setScoreType("mock"); setSelectedIds(new Set()); setEditingScore(null); }}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition",
-              scoreType === "mock" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+              scoreType === "mock" ? "bg-white text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
             )}
           >
             모의고사
@@ -392,7 +392,7 @@ export default function AdminScoreListClient({
         <select
           value={gradeFilter}
           onChange={(e) => setGradeFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm"
+          className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm"
         >
           <option value="all">전체 학년</option>
           {availableGrades.map((g) => (
@@ -405,7 +405,7 @@ export default function AdminScoreListClient({
           <select
             value={semesterFilter}
             onChange={(e) => setSemesterFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm"
+            className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm"
           >
             <option value="all">전체 학기</option>
             <option value={1}>1학기</option>
@@ -417,7 +417,7 @@ export default function AdminScoreListClient({
         <select
           value={subjectGroupFilter}
           onChange={(e) => setSubjectGroupFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm"
+          className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm"
         >
           <option value="all">전체 교과군</option>
           {subjectGroups.map((sg) => (
@@ -428,7 +428,7 @@ export default function AdminScoreListClient({
         {/* CSV Download */}
         <button
           onClick={handleCSVDownload}
-          className="ml-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          className="ml-auto rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-text-primary transition hover:bg-bg-secondary"
         >
           CSV 다운로드
         </button>
@@ -438,20 +438,20 @@ export default function AdminScoreListClient({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="총 과목수" value={summary.totalSubjects} />
         {scoreType === "internal" ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs text-gray-500">평균 등급</p>
+          <div className="rounded-lg border border-border bg-white p-4">
+            <p className="text-xs text-text-tertiary">평균 등급</p>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold text-gray-900">
+              <span className="text-lg font-semibold text-text-primary">
                 {summary.avgGrade != null ? summary.avgGrade.toFixed(2) : "-"}
               </span>
-              {gradeSystem === 5 && <span className="text-[10px] text-gray-400">(5등급)</span>}
+              {gradeSystem === 5 && <span className="text-[10px] text-text-tertiary">(5등급)</span>}
             </div>
             {gradeSystem === 5 && summary.avgGrade9 != null && (
               <div className="mt-0.5 flex items-baseline gap-1.5">
                 <span className="text-sm font-medium text-indigo-600">
                   {summary.avgGrade9.toFixed(2)}
                 </span>
-                <span className="text-[10px] text-gray-400">(9등급 환산)</span>
+                <span className="text-[10px] text-text-tertiary">(9등급 환산)</span>
               </div>
             )}
             {summary.avgAdjusted != null && (
@@ -459,7 +459,7 @@ export default function AdminScoreListClient({
                 <span className="text-sm font-medium text-emerald-600">
                   {summary.avgAdjusted.toFixed(2)}
                 </span>
-                <span className="text-[10px] text-gray-400">(조정등급)</span>
+                <span className="text-[10px] text-text-tertiary">(조정등급)</span>
               </div>
             )}
           </div>
@@ -521,10 +521,10 @@ export default function AdminScoreListClient({
       {editingScore && (
         <div className="rounded-lg border border-indigo-200 bg-indigo-50/30 p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900">성적 편집</h3>
+            <h3 className="text-sm font-semibold text-text-primary">성적 편집</h3>
             <button
               onClick={() => setEditingScore(null)}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-text-tertiary hover:text-text-primary"
             >
               닫기
             </button>
@@ -554,8 +554,8 @@ export default function AdminScoreListClient({
 
       {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="sticky bottom-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg">
-          <span className="text-sm text-gray-700">
+        <div className="sticky bottom-4 flex items-center justify-between rounded-lg border border-border bg-white px-4 py-3 shadow-lg">
+          <span className="text-sm text-text-primary">
             <strong>{selectedIds.size}</strong>개 선택됨
           </span>
           <button
@@ -575,9 +575,9 @@ export default function AdminScoreListClient({
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-gray-900">{value}</p>
+    <div className="rounded-lg border border-border bg-white p-4">
+      <p className="text-xs text-text-tertiary">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-text-primary">{value}</p>
     </div>
   );
 }
@@ -627,8 +627,8 @@ function GpaTrendChart({
   const maxVal = Math.ceil(Math.max(...allValues) + 0.5);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-medium text-gray-900">학기별 평균등급 추이</h3>
+    <div className="rounded-lg border border-border bg-white p-4">
+      <h3 className="mb-3 text-sm font-medium text-text-primary">학기별 평균등급 추이</h3>
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -736,14 +736,14 @@ function SubjectCombinationTable({
   }, [scores, availableSemesters, displayMode]);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white">
+    <div className="rounded-lg border border-border bg-white">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-900 hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-secondary"
       >
         <span>교과 조합별 평균등급</span>
         <svg
-          className={cn("h-4 w-4 text-gray-500 transition-transform", isOpen && "rotate-180")}
+          className={cn("h-4 w-4 text-text-tertiary transition-transform", isOpen && "rotate-180")}
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={2}
@@ -754,14 +754,14 @@ function SubjectCombinationTable({
       </button>
 
       {isOpen && (
-        <div className="border-t border-gray-200 px-4 py-3">
+        <div className="border-t border-border px-4 py-3">
           {gradeSystem === 5 && (
-            <div className="mb-3 flex rounded-lg bg-gray-100 p-0.5 w-fit">
+            <div className="mb-3 flex rounded-lg bg-bg-tertiary p-0.5 w-fit">
               <button
                 onClick={() => setDisplayMode("rank_grade")}
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
-                  displayMode === "rank_grade" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                  displayMode === "rank_grade" ? "bg-white text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
                 )}
               >
                 5등급
@@ -770,7 +770,7 @@ function SubjectCombinationTable({
                 onClick={() => setDisplayMode("converted_grade_9")}
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
-                  displayMode === "converted_grade_9" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                  displayMode === "converted_grade_9" ? "bg-white text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
                 )}
               >
                 9등급
@@ -781,26 +781,26 @@ function SubjectCombinationTable({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-left">
-                  <th className="whitespace-nowrap px-2 py-2 text-xs font-medium text-gray-500">조합</th>
+                <tr className="border-b border-border text-left">
+                  <th className="whitespace-nowrap px-2 py-2 text-xs font-medium text-text-tertiary">조합</th>
                   {availableSemesters.map((sem) => (
-                    <th key={sem.label} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-gray-500">
+                    <th key={sem.label} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-text-tertiary">
                       {sem.label}
                     </th>
                   ))}
-                  <th className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-gray-900">전체</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-text-primary">전체</th>
                 </tr>
               </thead>
               <tbody>
                 {combinationData.map((row) => (
-                  <tr key={row.label} className="border-b border-gray-100 last:border-0">
-                    <td className="whitespace-nowrap px-2 py-1.5 text-xs font-medium text-gray-700">{row.label}</td>
+                  <tr key={row.label} className="border-b border-border last:border-0">
+                    <td className="whitespace-nowrap px-2 py-1.5 text-xs font-medium text-text-primary">{row.label}</td>
                     {availableSemesters.map((sem) => (
-                      <td key={sem.label} className="whitespace-nowrap px-2 py-1.5 text-center text-xs text-gray-600">
+                      <td key={sem.label} className="whitespace-nowrap px-2 py-1.5 text-center text-xs text-text-secondary">
                         {row.semesterGpas[sem.label]?.toFixed(2) ?? "-"}
                       </td>
                     ))}
-                    <td className="whitespace-nowrap px-2 py-1.5 text-center text-xs font-semibold text-gray-900">
+                    <td className="whitespace-nowrap px-2 py-1.5 text-center text-xs font-semibold text-text-primary">
                       {row.overallGpa?.toFixed(2) ?? "-"}
                     </td>
                   </tr>
@@ -854,11 +854,11 @@ function InternalEditPanel({
           <EditField label="수강자수" value={score.total_students} onChange={(v) => updateField("total_students", v)} />
           <EditField label="석차" value={score.class_rank} onChange={(v) => updateField("class_rank", v)} />
           <div>
-            <label className="mb-1 block text-xs text-gray-500">성취도</label>
+            <label className="mb-1 block text-xs text-text-tertiary">성취도</label>
             <select
               value={score.achievement_level ?? ""}
               onChange={(e) => onChange({ ...score, achievement_level: e.target.value || null })}
-              className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
             >
               <option value="">-</option>
               {["A", "B", "C", "D", "E"].map((l) => (
@@ -869,7 +869,7 @@ function InternalEditPanel({
         </div>
         {/* 성취도비율 */}
         <div>
-          <p className="mb-1.5 text-xs font-medium text-gray-500">성취도비율 (%)</p>
+          <p className="mb-1.5 text-xs font-medium text-text-tertiary">성취도비율 (%)</p>
           <div className="grid grid-cols-5 gap-2">
             {(["a", "b", "c", "d", "e"] as const).map((level) => {
               const fieldKey = `achievement_ratio_${level}` as keyof InternalScoreWithRelations;
@@ -891,7 +891,7 @@ function InternalEditPanel({
         {computedPreview && (
           <div className="grid grid-cols-2 gap-2 rounded-md bg-white p-3 text-sm">
             <div>
-              <span className="text-xs text-gray-500">{is5Grade ? "추정 백분위" : "백분위"}</span>
+              <span className="text-xs text-text-tertiary">{is5Grade ? "추정 백분위" : "백분위"}</span>
               <p className="font-medium">
                 {computedPreview.estimatedPercentile != null
                   ? `상위 ${(computedPreview.estimatedPercentile * 100).toFixed(1)}%`
@@ -900,7 +900,7 @@ function InternalEditPanel({
             </div>
             {!isStdDevInput && (
               <div>
-                <span className="text-xs text-gray-500">추정 표준편차</span>
+                <span className="text-xs text-text-tertiary">추정 표준편차</span>
                 <p className="font-medium">
                   {computedPreview.estimatedStdDev?.toFixed(2) ?? "-"}
                 </p>
@@ -908,13 +908,13 @@ function InternalEditPanel({
             )}
             {is5Grade && (
               <div>
-                <span className="text-xs text-gray-500">9등급 환산 (추정)</span>
+                <span className="text-xs text-text-tertiary">9등급 환산 (추정)</span>
                 <p className="font-medium">{computedPreview.convertedGrade9 ?? "-"}</p>
               </div>
             )}
             <div>
-              <span className="text-xs text-gray-500">{isCareer ? "변환석차등급" : "조정등급"}</span>
-              <p className="text-[10px] text-gray-400">{isCareer ? "성취도비율 기반" : "MIN(Z등급, 석차등급)"}</p>
+              <span className="text-xs text-text-tertiary">{isCareer ? "변환석차등급" : "조정등급"}</span>
+              <p className="text-[10px] text-text-tertiary">{isCareer ? "성취도비율 기반" : "MIN(Z등급, 석차등급)"}</p>
               <p className="font-medium">{computedPreview.adjustedGrade?.toFixed(2) ?? "-"}</p>
             </div>
           </div>
@@ -1027,12 +1027,12 @@ function EditField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-gray-500">{label}</label>
+      <label className="mb-1 block text-xs text-text-tertiary">{label}</label>
       <input
         type="number"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+        className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
       />
     </div>
   );

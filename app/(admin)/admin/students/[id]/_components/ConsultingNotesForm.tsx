@@ -125,7 +125,7 @@ export function ConsultingNotesForm({
       )}
 
       {expanded && (
-        <div className="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+        <div className="space-y-3 rounded-lg border border-border p-3 dark:border-gray-700">
           <div className="flex flex-col gap-1">
             <label className={labelClass}>후속 조치</label>
             <input
@@ -151,7 +151,7 @@ export function ConsultingNotesForm({
                 <input
                   type="checkbox"
                   name="is_visible_to_parent_check"
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-border text-indigo-600 focus:ring-indigo-500"
                   onChange={(e) => {
                     const hidden = e.target.form?.querySelector(
                       'input[name="is_visible_to_parent"]'

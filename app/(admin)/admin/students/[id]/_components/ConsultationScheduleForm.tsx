@@ -344,7 +344,7 @@ export function ConsultationScheduleForm({
                       : [...prev, target]
                   )
                 }
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                className="h-4 w-4 rounded border-border text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
               />
               <span className={cn("text-xs", textSecondary)}>
                 {NOTIFICATION_TARGET_LABELS[target]}
@@ -367,7 +367,7 @@ export function ConsultationScheduleForm({
               checked={notificationChannel === ch}
               onChange={() => setNotificationChannel(ch)}
               disabled={notificationTargets.length === 0}
-              className="h-3.5 w-3.5 border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+              className="h-3.5 w-3.5 border-border text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
             />
             <span className={cn("text-xs", textSecondary)}>
               {NOTIFICATION_CHANNEL_LABELS[ch]}

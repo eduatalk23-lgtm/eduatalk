@@ -18,6 +18,7 @@ import { AiAccessPanel } from "./_components/AiAccessPanel";
 import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
+import { SectionSkeleton } from "./_components/SectionSkeleton";
 type TabType = "content" | "session" | "analysis" | "attendance" | "risk" | "files";
 
 export default async function AdminStudentDetailPage({
@@ -91,13 +92,7 @@ export default async function AdminStudentDetailPage({
 
             {/* 출석 탭 */}
             {defaultTab === "attendance" && (
-              <Suspense
-                fallback={
-                  <div className="rounded-lg border border-gray-200 bg-white p-6">
-                    <div className="text-sm text-gray-500">로딩 중...</div>
-                  </div>
-                }
-              >
+              <Suspense fallback={<SectionSkeleton rows={3} />}>
                 <AttendanceSection
                   studentId={studentId}
                   studentName={student.name}
@@ -107,37 +102,14 @@ export default async function AdminStudentDetailPage({
 
             {/* 파일 탭 */}
             {defaultTab === "files" && (
-              <Suspense
-                fallback={
-                  <div className="rounded-lg border border-gray-200 bg-white p-6">
-                    <div className="text-sm text-gray-500">로딩 중...</div>
-                  </div>
-                }
-              >
+              <Suspense fallback={<SectionSkeleton rows={3} />}>
                 <AdminFilesSection studentId={studentId} />
               </Suspense>
             )}
 
             {/* 위험도/추천 탭 */}
             {defaultTab === "risk" && (
-              <Suspense
-                fallback={
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="rounded-lg border border-gray-200 bg-white p-6">
-                      <div className="space-y-3">
-                        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-gray-200 bg-white p-6">
-                      <div className="space-y-3">
-                        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
-                      </div>
-                    </div>
-                  </div>
-                }
-              >
+              <Suspense fallback={<SectionSkeleton columns={2} rows={2} />}>
                 <div className="grid gap-6 md:grid-cols-2">
                   <RiskCard studentId={studentId} />
                   <RecommendationPanel studentId={studentId} />

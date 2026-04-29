@@ -26,12 +26,12 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
     const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
 
     return (
-      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-900">학습시간</h2>
+      <div className="flex flex-col gap-6 rounded-lg border border-border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-text-primary">학습시간</h2>
 
         {/* 총 학습시간 */}
         <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 p-4">
-          <div className="text-sm text-gray-600">이번 주 총 학습시간</div>
+          <div className="text-sm text-text-secondary">이번 주 총 학습시간</div>
           <div className="text-3xl font-bold text-indigo-700">
             {studyTime.totalHours}시간 {studyTime.totalMinutes % 60}분
           </div>
@@ -39,24 +39,24 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
 
         {/* 요일별 학습시간 */}
         <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-medium text-gray-700">요일별 학습시간</h3>
+          <h3 className="text-sm font-medium text-text-primary">요일별 학습시간</h3>
           <div className="flex flex-col gap-2">
             {studyTime.byDay.map((day, index) => {
               const date = new Date(day.date);
               const dayOfWeek = weekdayLabels[date.getDay()];
               return (
                 <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-text-secondary">
                     {day.date} ({dayOfWeek})
                   </span>
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="text-sm font-semibold text-text-primary">
                     {day.minutes}분
                   </span>
                 </div>
               );
             })}
             {studyTime.byDay.length === 0 && (
-              <p className="text-sm text-gray-500">학습 시간 데이터가 없습니다.</p>
+              <p className="text-sm text-text-tertiary">학습 시간 데이터가 없습니다.</p>
             )}
           </div>
         </div>
@@ -64,11 +64,11 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
         {/* 과목별 학습시간 */}
         {studyTime.bySubject.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-gray-700">과목별 학습시간</h3>
+            <h3 className="text-sm font-medium text-text-primary">과목별 학습시간</h3>
             <div className="flex flex-col gap-2">
               {studyTime.bySubject.slice(0, 5).map((subject, index) => (
                 <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{subject.subject}</span>
+                  <span className="text-sm text-text-secondary">{subject.subject}</span>
                   <div className="flex items-center gap-2">
                     <ProgressBar
                       value={subject.percentage}
@@ -77,7 +77,7 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
                       size="sm"
                       className="w-24"
                     />
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-text-primary">
                       {subject.minutes}분 ({subject.percentage}%)
                     </span>
                   </div>
@@ -90,7 +90,7 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
         {/* 콘텐츠 타입별 학습시간 */}
         {studyTime.byContentType.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-gray-700">콘텐츠 타입별 학습시간</h3>
+            <h3 className="text-sm font-medium text-text-primary">콘텐츠 타입별 학습시간</h3>
             <div className="flex flex-col gap-2">
               {studyTime.byContentType.map((contentType, index) => {
                 const typeLabels: Record<string, string> = {
@@ -100,7 +100,7 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
                 };
                 return (
                   <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-text-secondary">
                       {typeLabels[contentType.contentType] ?? contentType.contentType}
                     </span>
                     <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
                         size="sm"
                         className="w-24"
                       />
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm font-semibold text-text-primary">
                         {contentType.minutes}분 ({contentType.percentage}%)
                       </span>
                     </div>
@@ -126,8 +126,8 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
   } catch (error) {
     console.error("[StudyTimeSection] 학습시간 조회 실패", error);
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">학습시간 정보를 불러오는 중 오류가 발생했습니다.</p>
+      <div className="rounded-lg border border-dashed border-border bg-bg-secondary p-6">
+        <p className="text-sm text-text-tertiary">학습시간 정보를 불러오는 중 오류가 발생했습니다.</p>
       </div>
     );
   }

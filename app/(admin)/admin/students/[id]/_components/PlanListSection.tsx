@@ -25,11 +25,11 @@ export async function PlanListSection({
     // SectionCard는 PlanListSectionClient에서 처리
     if (recentPlans.length === 0) {
       return (
-        <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <p className="text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-bg-secondary p-8 text-center">
+          <p className="text-sm font-medium text-text-primary">
             등록된 학습 플랜이 없습니다.
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-tertiary">
             학생에게 학습 플랜을 생성하면 여기에 표시됩니다.
           </p>
         </div>
@@ -41,34 +41,34 @@ export async function PlanListSection({
         {recentPlans.map((plan) => (
           <div
             key={plan.id}
-            className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+            className="flex flex-col gap-2 rounded-lg border border-border p-4 transition hover:bg-bg-secondary"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                   {contentTypeLabels[plan.content_type] ?? plan.content_type}
                 </span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-text-secondary">
                   {new Date(plan.plan_date).toLocaleDateString("ko-KR")}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-text-tertiary">
                   블록 #{plan.block_index}
                 </span>
               </div>
               {plan.progress !== null && plan.progress !== undefined ? (
-                <span className="text-sm font-semibold text-gray-900">
+                <span className="text-sm font-semibold text-text-primary">
                   {plan.progress}%
                 </span>
               ) : (
-                <span className="text-xs text-gray-400">진행률 없음</span>
+                <span className="text-xs text-text-tertiary">진행률 없음</span>
               )}
             </div>
             {plan.chapter && (
-              <div className="text-sm text-gray-600">챕터: {plan.chapter}</div>
+              <div className="text-sm text-text-secondary">챕터: {plan.chapter}</div>
             )}
             {(plan.planned_start_page_or_time !== null ||
               plan.planned_end_page_or_time !== null) && (
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-text-tertiary">
                 범위: {plan.planned_start_page_or_time ?? "시작"} →{" "}
                 {plan.planned_end_page_or_time ?? "끝"}
               </div>

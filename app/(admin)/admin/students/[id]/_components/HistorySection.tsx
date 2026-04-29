@@ -48,29 +48,29 @@ export async function HistorySection({ studentId }: { studentId: string }) {
   const historyRows = (history as HistoryRow[] | null) ?? [];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900">최근 히스토리</h2>
+    <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-xl font-semibold text-text-primary">최근 히스토리</h2>
       {historyRows.length === 0 ? (
-        <p className="text-sm text-gray-500">히스토리가 없습니다.</p>
+        <p className="text-sm text-text-tertiary">히스토리가 없습니다.</p>
       ) : (
         <div className="space-y-2">
           {historyRows.map((record) => (
             <div
               key={record.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
+              className="flex items-center justify-between rounded-lg border border-border p-3"
             >
               <div>
-                <div className="text-sm font-medium text-gray-900">
+                <div className="text-sm font-medium text-text-primary">
                   {eventTypeLabels[record.event_type ?? ""] ?? record.event_type ?? "알 수 없음"}
                 </div>
                 {record.detail && typeof record.detail === "object" && (
-                  <div className="mt-1 text-xs text-gray-500">
+                  <div className="mt-1 text-xs text-text-tertiary">
                     {JSON.stringify(record.detail).slice(0, 100)}
                   </div>
                 )}
               </div>
               {record.created_at && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-text-tertiary">
                   {new Date(record.created_at).toLocaleString("ko-KR")}
                 </div>
               )}

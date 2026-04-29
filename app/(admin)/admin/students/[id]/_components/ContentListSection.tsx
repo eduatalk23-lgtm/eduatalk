@@ -60,34 +60,34 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
         )}
 
         {totalCount === 0 && !hasErrors ? (
-          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-bg-secondary p-8 text-center">
+            <p className="text-sm font-medium text-text-primary">
               등록된 콘텐츠가 없습니다.
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-text-tertiary">
               학생이 콘텐츠를 등록하면 여기에 표시됩니다.
             </p>
           </div>
         ) : (
           <>
             {/* 책 */}
-            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-text-primary">
                 📚 책 ({books.length}개)
               </h3>
               {books.length === 0 ? (
-                <p className="text-sm text-gray-500">등록된 책이 없습니다.</p>
+                <p className="text-sm text-text-tertiary">등록된 책이 없습니다.</p>
               ) : (
                 <div className="space-y-2">
                   {books.map((book) => (
                     <div
                       key={book.id}
-                      className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                      className="rounded-lg border border-border p-4 transition hover:bg-bg-secondary"
                     >
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-text-primary">
                         {book.title}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 text-xs text-text-tertiary">
                         {book.subject && <span>과목: {book.subject}</span>}
                         {book.total_pages && (
                           <>
@@ -103,23 +103,23 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
             </div>
 
             {/* 강의 */}
-            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-text-primary">
                 🎧 강의 ({lectures.length}개)
               </h3>
               {lectures.length === 0 ? (
-                <p className="text-sm text-gray-500">등록된 강의가 없습니다.</p>
+                <p className="text-sm text-text-tertiary">등록된 강의가 없습니다.</p>
               ) : (
                 <div className="space-y-2">
                   {lectures.map((lecture) => (
                     <div
                       key={lecture.id}
-                      className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                      className="rounded-lg border border-border p-4 transition hover:bg-bg-secondary"
                     >
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-text-primary">
                         {lecture.title}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 text-xs text-text-tertiary">
                         {lecture.subject && (
                           <span>과목: {lecture.subject}</span>
                         )}
@@ -139,12 +139,12 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
             </div>
 
             {/* 커스텀 콘텐츠 */}
-            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-text-primary">
                 📝 커스텀 콘텐츠 ({customContents.length}개)
               </h3>
               {customContents.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-text-tertiary">
                   등록된 커스텀 콘텐츠가 없습니다.
                 </p>
               ) : (
@@ -152,13 +152,13 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                   {customContents.map((content) => (
                     <div
                       key={content.id}
-                      className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                      className="rounded-lg border border-border p-4 transition hover:bg-bg-secondary"
                     >
                       <div className="flex flex-col gap-1">
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-text-primary">
                           {content.title}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-text-tertiary">
                           {content.subject && (
                             <span>과목: {content.subject}</span>
                           )}

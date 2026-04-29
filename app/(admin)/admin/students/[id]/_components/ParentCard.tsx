@@ -83,12 +83,12 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
   }
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4">
+    <div className="flex items-center justify-between rounded-lg border border-border bg-bg-secondary p-4">
       <div className="flex-1">
-        <div className="text-base font-semibold text-gray-900">
+        <div className="text-base font-semibold text-text-primary">
           {parent.parentName || "이름 없음"}
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-text-tertiary">
           {parent.parentPhone || parent.parentEmail || "-"}
         </div>
       </div>
@@ -100,7 +100,7 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
             handleUpdateRelation(e.target.value as ParentRelation)
           }
           disabled={isPending}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-text-primary transition hover:bg-bg-secondary disabled:bg-bg-tertiary disabled:cursor-not-allowed"
         >
           <option value="father">아버지</option>
           <option value="mother">어머니</option>
@@ -111,7 +111,7 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
         <button
           onClick={handleDeleteLink}
           disabled={isPending}
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-400 transition hover:text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg px-3 py-1.5 text-sm font-medium text-text-tertiary transition hover:text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "처리 중..." : "연결 해제"}
         </button>

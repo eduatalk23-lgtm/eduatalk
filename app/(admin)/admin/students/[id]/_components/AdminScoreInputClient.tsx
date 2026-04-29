@@ -55,8 +55,8 @@ export default function AdminScoreInputClient({
       {/* 교육과정 선택 (2개 이상일 때만 표시) */}
       {curriculumOptions.length > 1 && (
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-gray-700">교육과정</label>
-          <div className="flex rounded-lg bg-gray-100 p-1">
+          <label className="text-sm font-medium text-text-primary">교육과정</label>
+          <div className="flex rounded-lg bg-bg-tertiary p-1">
             {curriculumOptions.map((option) => (
               <button
                 key={option.curriculum.id}
@@ -64,8 +64,8 @@ export default function AdminScoreInputClient({
                 onClick={() => setSelectedCurriculumId(option.curriculum.id)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   selectedCurriculumId === option.curriculum.id
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white text-text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text-primary"
                 }`}
               >
                 {option.curriculum.name}

@@ -9,8 +9,8 @@ export async function AnalysisReportSection({
     const analysis = await getStudentAnalysisForAdmin(studentId);
 
     return (
-      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-900">
+      <div className="flex flex-col gap-6 rounded-lg border border-border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-text-primary">
           분석 리포트
         </h2>
 
@@ -76,7 +76,7 @@ export async function AnalysisReportSection({
         {/* 위험 분석 */}
         {analysis.riskAnalysis.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-text-primary">
               과목별 위험 분석
             </h3>
             <div className="space-y-2">
@@ -121,19 +121,19 @@ export async function AnalysisReportSection({
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
-                          <div className="text-gray-600">최근 성적 추이</div>
+                          <div className="text-text-secondary">최근 성적 추이</div>
                           <div className="font-semibold">
                             {risk.recent_grade_trend ?? 0}
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-600">일관성 점수</div>
+                          <div className="text-text-secondary">일관성 점수</div>
                           <div className="font-semibold">
                             {risk.consistency_score ?? 100}
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-600">숙련도 추정</div>
+                          <div className="text-text-secondary">숙련도 추정</div>
                           <div className="font-semibold">
                             {risk.mastery_estimate ?? 0}%
                           </div>
@@ -150,11 +150,11 @@ export async function AnalysisReportSection({
           !analysis.weeklyStudyTime &&
           !analysis.monthlyReport &&
           analysis.riskAnalysis.length === 0 && (
-            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-              <p className="text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-bg-secondary p-8 text-center">
+              <p className="text-sm font-medium text-text-primary">
                 분석 데이터가 없습니다.
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-text-tertiary">
                 학습 활동 데이터가 쌓이면 분석 리포트가 생성됩니다.
               </p>
             </div>

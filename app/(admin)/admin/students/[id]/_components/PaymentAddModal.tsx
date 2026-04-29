@@ -405,7 +405,7 @@ function PaymentAddForm({
     <div className="flex flex-col gap-5 p-6">
       {/* 헤더 */}
       <div className="flex flex-col gap-1">
-        <h2 className="text-h2 text-gray-900 dark:text-gray-100">수납 추가</h2>
+        <h2 className="text-h2 text-text-primary dark:text-gray-100">수납 추가</h2>
         <p className={cn("text-body-2", textSecondary)}>
           {programName} 수강에 대한 납부 건을 추가합니다.
         </p>
@@ -421,7 +421,7 @@ function PaymentAddForm({
             "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             mode === "single"
               ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+              : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary dark:bg-gray-700 dark:text-text-tertiary dark:hover:bg-gray-600"
           )}
         >
           일반 (1건)
@@ -434,7 +434,7 @@ function PaymentAddForm({
             "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             mode === "installment"
               ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+              : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary dark:bg-gray-700 dark:text-text-tertiary dark:hover:bg-gray-600"
           )}
         >
           분납 (N건)
@@ -513,7 +513,7 @@ function PaymentAddForm({
                 if (!e.target.checked) setDiscountValueStr("");
               }}
               disabled={isPending}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-border text-indigo-600 focus:ring-indigo-500"
             />
             <span className={cn("text-body-2 font-semibold", textPrimary)}>
               할인 적용
@@ -521,7 +521,7 @@ function PaymentAddForm({
           </label>
 
           {discountEnabled && (
-            <div className="flex flex-col gap-3 rounded-lg border border-dashed border-gray-300 p-3 dark:border-gray-600">
+            <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-3 dark:border-gray-600">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -534,7 +534,7 @@ function PaymentAddForm({
                     "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                     discountType === "rate"
                       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+                      : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary dark:bg-gray-700 dark:text-text-tertiary dark:hover:bg-gray-600"
                   )}
                 >
                   비율 (%)
@@ -550,7 +550,7 @@ function PaymentAddForm({
                     "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                     discountType === "fixed"
                       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+                      : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary dark:bg-gray-700 dark:text-text-tertiary dark:hover:bg-gray-600"
                   )}
                 >
                   정액 (원)
@@ -583,7 +583,7 @@ function PaymentAddForm({
 
               {rawAmount > 0 && discountValue > 0 && (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-400 line-through dark:text-gray-500">
+                  <span className="text-text-tertiary line-through dark:text-text-tertiary">
                     {rawAmount.toLocaleString()}원
                   </span>
                   <span className="text-indigo-600 dark:text-indigo-400">
@@ -635,7 +635,7 @@ function PaymentAddForm({
                     "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                     installmentCount === n
                       ? "bg-indigo-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400"
+                      : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary dark:bg-gray-700 dark:text-text-tertiary"
                   )}
                 >
                   {n <= 4 ? `${n}등분` : `${n}개월`}
@@ -696,7 +696,7 @@ function PaymentAddForm({
                   </button>
                 </div>
 
-                <div className="flex max-h-60 flex-col gap-2 overflow-y-auto rounded-lg border border-dashed border-gray-300 p-3 dark:border-gray-600">
+                <div className="flex max-h-60 flex-col gap-2 overflow-y-auto rounded-lg border border-dashed border-border p-3 dark:border-gray-600">
                   {installmentRows.map((row, idx) => (
                     <div key={row.id} className="flex items-center gap-2">
                       <span
@@ -762,7 +762,7 @@ function PaymentAddForm({
                           type="button"
                           onClick={() => removeInstallmentRow(idx)}
                           disabled={isPending}
-                          className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                          className="shrink-0 rounded p-1 text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                           aria-label={`${idx + 1}회차 삭제`}
                         >
                           <X className="h-3 w-3" />
@@ -828,8 +828,8 @@ function PaymentAddForm({
         <div
           className={cn(
             "rounded-xl border p-4",
-            "bg-gray-50 dark:bg-gray-800/50",
-            "border-gray-200 dark:border-gray-700"
+            "bg-bg-secondary dark:bg-gray-800/50",
+            "border-border dark:border-gray-700"
           )}
         >
           <p
@@ -864,7 +864,7 @@ function PaymentAddForm({
             )}
             {hasDiscount && (
               <>
-                <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+                <div className="my-1 border-t border-border dark:border-gray-600" />
                 <div className="flex items-center justify-between">
                   <span className={cn("text-sm font-semibold", textPrimary)}>
                     최종 청구액
@@ -877,7 +877,7 @@ function PaymentAddForm({
             )}
             {mode === "installment" && installmentRows.length > 0 && (
               <>
-                <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+                <div className="my-1 border-t border-border dark:border-gray-600" />
                 <div className="flex items-center justify-between text-sm">
                   <span className={textSecondary}>분할 수</span>
                   <span className={cn("tabular-nums", textPrimary)}>

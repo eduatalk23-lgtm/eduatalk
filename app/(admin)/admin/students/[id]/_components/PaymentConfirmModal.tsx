@@ -132,7 +132,7 @@ export function PaymentConfirmModal({
       <div className="flex flex-col gap-6 p-6">
         {/* 헤더 */}
         <div className="flex flex-col gap-2">
-          <h2 className="text-h2 text-gray-900 dark:text-gray-100">
+          <h2 className="text-h2 text-text-primary dark:text-gray-100">
             수납 처리
           </h2>
           {payment && (
@@ -160,14 +160,14 @@ export function PaymentConfirmModal({
 
         {/* 기납부 / 잔액 요약 (부분납 상태일 때) */}
         {payment && payment.paid_amount > 0 && (
-          <div className="flex items-center gap-4 rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-800/50">
+          <div className="flex items-center gap-4 rounded-lg bg-bg-secondary px-4 py-3 dark:bg-gray-800/50">
             <div className="flex flex-col">
               <span className={cn("text-[11px]", textSecondary)}>기납부</span>
               <span className="text-sm font-semibold text-green-600 dark:text-green-400">
                 {formatPrice(payment.paid_amount)}
               </span>
             </div>
-            <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="h-6 w-px bg-bg-tertiary dark:bg-gray-700" />
             <div className="flex flex-col">
               <span className={cn("text-[11px]", textSecondary)}>잔액</span>
               <span className="text-sm font-semibold text-red-600 dark:text-red-400">

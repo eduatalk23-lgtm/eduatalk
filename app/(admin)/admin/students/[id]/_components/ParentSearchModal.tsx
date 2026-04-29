@@ -131,7 +131,7 @@ export function ParentSearchModal({
           <div className="flex flex-col gap-2">
             <label
               htmlFor="parent-search"
-              className="text-sm font-medium text-gray-700"
+              className="text-sm font-medium text-text-primary"
             >
               이름 또는 이메일로 검색
             </label>
@@ -141,10 +141,10 @@ export function ParentSearchModal({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="최소 2글자 이상 입력하세요..."
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-border px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
             {searchQuery.length > 0 && searchQuery.length < 2 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-text-tertiary">
                 최소 2글자 이상 입력해주세요.
               </p>
             )}
@@ -154,7 +154,7 @@ export function ParentSearchModal({
           <div className="flex flex-col gap-2">
             <label
               htmlFor="relation-select"
-              className="text-sm font-medium text-gray-700"
+              className="text-sm font-medium text-text-primary"
             >
               관계
             </label>
@@ -165,7 +165,7 @@ export function ParentSearchModal({
                 setSelectedRelation(e.target.value as ParentRelation)
               }
               disabled={isPending}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100"
+              className="w-full rounded-lg border border-border px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-bg-tertiary"
             >
               <option value="father">아버지</option>
               <option value="mother">어머니</option>
@@ -177,23 +177,23 @@ export function ParentSearchModal({
           {/* 검색 결과 */}
           {searchResults.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
                 검색 결과 ({searchResults.length}개)
                 {isSearching && (
-                  <span className="text-xs text-gray-400">업데이트 중...</span>
+                  <span className="text-xs text-text-tertiary">업데이트 중...</span>
                 )}
               </div>
               <div className="max-h-64 space-y-2 overflow-y-auto">
                 {searchResults.map((parent) => (
                   <div
                     key={parent.id}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 transition hover:bg-gray-50"
+                    className="flex items-center justify-between rounded-lg border border-border bg-white p-3 transition hover:bg-bg-secondary"
                   >
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-text-primary">
                         {parent.name || "이름 없음"}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-text-tertiary">
                         {parent.email || "-"}
                       </div>
                     </div>
@@ -211,13 +211,13 @@ export function ParentSearchModal({
           )}
 
           {isSearching && searchResults.length === 0 && (
-            <div className="py-8 text-center text-sm text-gray-500">
+            <div className="py-8 text-center text-sm text-text-tertiary">
               검색 중...
             </div>
           )}
 
           {!isSearching && hasQuery && searchResults.length === 0 && (
-            <div className="py-8 text-center text-sm text-gray-500">
+            <div className="py-8 text-center text-sm text-text-tertiary">
               검색 결과가 없습니다.
             </div>
           )}
@@ -227,7 +227,7 @@ export function ParentSearchModal({
         <button
           onClick={onClose}
           disabled={isPending}
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-bg-secondary disabled:opacity-50"
         >
           닫기
         </button>
