@@ -533,7 +533,7 @@ export function PipelinePanelApp({
             type="button"
             onClick={runFullSequence}
             disabled={isAnyRunning || isCancelling}
-            className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 disabled:cursor-not-allowed"
           >
             {isCancelling
               ? "중단 중..."
@@ -597,7 +597,7 @@ export function PipelinePanelApp({
             type="button"
             onClick={handleRerunBlueprintCascade}
             disabled={isAnyRunning}
-            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 disabled:hover:bg-amber-600 disabled:cursor-not-allowed"
           >
             <RefreshCw className="h-3 w-3" />
             Blueprint 재실행
@@ -620,7 +620,7 @@ export function PipelinePanelApp({
             type="button"
             onClick={runFullSequence}
             disabled={isAnyRunning}
-            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50 disabled:hover:bg-amber-600 disabled:cursor-not-allowed"
           >
             <RefreshCw className="h-3 w-3" />
             {stalenessReason === "task_manifest_changed" ? "재분석 (신규 단계 합류)" : "재분석"}
@@ -629,7 +629,13 @@ export function PipelinePanelApp({
       )}
 
       {/* ─── Cancelled 배너 ─────────────────────────────────────────────── */}
-      {hasCancelledPipeline && !isFullRunning && !isCancelling && (
+      {/*
+        2026-04-29: 모순 UX fix — hasCancelledPipeline 만으로는 부족.
+        다른 파이프라인이 running 중이면 "이어서 실행" 클릭 불가 (DB unique 제약 + isAnyRunning).
+        배너는 "이어서 실행 즉시 가능" 케이스에서만 표시.
+        다른 학년/타입 진행 중인 경우 다른 배너로 안내.
+      */}
+      {hasCancelledPipeline && !isFullRunning && !isCancelling && !hasRunningInDb && (
         <div className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-800/50 dark:bg-amber-950/30">
           <div className="flex items-center gap-1.5 min-w-0">
             <X className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -641,11 +647,23 @@ export function PipelinePanelApp({
             type="button"
             onClick={runFullSequence}
             disabled={isAnyRunning}
-            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50 disabled:hover:bg-amber-600 disabled:cursor-not-allowed"
           >
             <RefreshCw className="h-3 w-3" />
             이어서 실행
           </button>
+        </div>
+      )}
+
+      {/* ─── 좀비 의심 배너 — running 인데 5분 idle (heartbeat 정지) ─── */}
+      {hasCancelledPipeline && hasRunningInDb && !isFullRunning && !isCancelling && (
+        <div className="flex items-center justify-between gap-2 border-b border-orange-200 bg-orange-50 px-4 py-2 dark:border-orange-800/50 dark:bg-orange-950/30">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <X className="h-3.5 w-3.5 shrink-0 text-orange-600 dark:text-orange-400" />
+            <span className="text-xs text-orange-700 dark:text-orange-300 truncate">
+              이전 실행이 중단된 흔적이 있고 다른 파이프라인이 실행 중입니다. 진행 중 학년이 끝나거나 좀비 정리(5분 idle) 후 이어서 실행할 수 있습니다.
+            </span>
+          </div>
         </div>
       )}
 

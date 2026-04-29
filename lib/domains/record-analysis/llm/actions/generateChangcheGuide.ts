@@ -238,6 +238,8 @@ export async function generateChangcheGuide(
   narrativeArcSection?: string,
   /** MidPlanner 메타 판정 섹션 텍스트. buildMidPlanGuideSection() 결과. undefined/"" 시 생략. */
   midPlanSection?: string,
+  /** M1-c Sprint 2 (2026-04-27): mainTheme + cascadePlan 가이드 섹션. buildCascadePlanGuideSection() 결과. undefined/"" 시 생략. */
+  cascadePlanSection?: string,
 ): Promise<ActionResponse<ChangcheGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
