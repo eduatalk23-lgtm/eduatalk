@@ -36,6 +36,7 @@ import type {
   UploadingAttachment,
   MentionInfo,
 } from "@/lib/domains/chat/types";
+import type { StorageQuotaInfo } from "@/lib/domains/chat/quota";
 
 import { useChatMessages } from "./useChatMessages";
 import { useChatReadReceipt } from "./useChatReadReceipt";
@@ -105,6 +106,7 @@ export interface UseChatRoomLogicReturn {
     retryUpload: (clientId: string) => void;
     clearFiles: () => void;
     isUploading: boolean;
+    quota: StorageQuotaInfo | null;
   };
   utils: {
     canEditMessage: (createdAt: string) => boolean;
@@ -425,6 +427,7 @@ export function useChatRoomLogic({
       retryUpload: fileUpload.retryUpload,
       clearFiles: fileUpload.clearFiles,
       isUploading: fileUpload.isUploading,
+      quota: fileUpload.quota,
     },
     pinnedMessageIds,
     readCountsMap: readCountsMapRef,

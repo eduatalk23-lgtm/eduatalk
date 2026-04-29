@@ -19,12 +19,46 @@ import {
   getAttachmentType,
   sanitizeFileName,
   isImageType,
+  isVideoType,
 } from "@/lib/domains/chat/fileValidation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   type UploadingAttachment,
   MAX_ATTACHMENTS_PER_MESSAGE,
 } from "@/lib/domains/chat/types";
+import type { StorageQuotaInfo } from "@/lib/domains/chat/quota";
+import { useChatStorageQuota } from "./useChatStorageQuota";
+
+/**
+ * 첨부 파일 타입에 맞는 썸네일 Blob 생성 (이미지/동영상)
+ * 실패 시 null 반환 — 호출 측에서 generic 아이콘으로 fallback
+ */
+async function generateAttachmentThumbnail(
+  originalFile: File,
+  uploadFile: File | Blob
+): Promise<Blob | null> {
+  if (isImageType(originalFile.type)) {
+    try {
+      const { generateThumbnail } = await import("@/lib/domains/chat/imageResize");
+      const thumb = await generateThumbnail(uploadFile);
+      return thumb.blob;
+    } catch {
+      return null;
+    }
+  }
+  if (isVideoType(originalFile.type)) {
+    try {
+      const { generateVideoThumbnail } = await import(
+        "@/lib/domains/chat/videoThumbnail"
+      );
+      const thumb = await generateVideoThumbnail(originalFile);
+      return thumb.blob;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 /**
  * UUID v4 생성 (Secure Context 불필요)
@@ -53,6 +87,8 @@ export interface UseChatFileUploadReturn {
   retryUpload: (clientId: string) => void;
   clearFiles: () => void;
   isUploading: boolean;
+  /** 사용자 스토리지 쿼터 (마운트 시 1회 + 업로드 완료 후 throttle 갱신) */
+  quota: StorageQuotaInfo | null;
 }
 
 export function useChatFileUpload({
@@ -61,6 +97,7 @@ export function useChatFileUpload({
 }: UseChatFileUploadOptions): UseChatFileUploadReturn {
   const { showError } = useToast();
   const [uploadingFiles, setUploadingFiles] = useState<UploadingAttachment[]>([]);
+  const { quota, refresh: refreshQuota } = useChatStorageQuota();
 
   // Preview URL 메모리 누수 방지: ref로 최신 상태 추적 + unmount 시 cleanup
   const uploadingFilesRef = useRef<UploadingAttachment[]>([]);
@@ -143,23 +180,16 @@ export function useChatFileUpload({
 
         if (uploadError) throw uploadError;
 
-        // 이미지인 경우 썸네일 생성 + 업로드 (비치명적)
+        // 이미지/동영상 썸네일 생성 + 업로드 (비치명적)
         let thumbnailPath: string | null = null;
-        if (isImageType(file.type)) {
-          try {
-            const { generateThumbnail } = await import("@/lib/domains/chat/imageResize");
-            const thumb = await generateThumbnail(uploadFile);
-            const thumbPath = `${roomId}/${userId}/${timestamp}_thumb_${safeName}`;
-
-            const { error: thumbError } = await supabase.storage
-              .from("chat-attachments")
-              .upload(thumbPath, thumb.blob, { contentType: "image/webp" });
-
-            if (!thumbError) {
-              thumbnailPath = thumbPath;
-            }
-          } catch {
-            // 썸네일 생성 실패 시 풀 이미지 사용 (비치명적)
+        const thumbBlob = await generateAttachmentThumbnail(file, uploadFile);
+        if (thumbBlob) {
+          const thumbPath = `${roomId}/${userId}/${timestamp}_thumb_${safeName}.webp`;
+          const { error: thumbError } = await supabase.storage
+            .from("chat-attachments")
+            .upload(thumbPath, thumbBlob, { contentType: "image/webp" });
+          if (!thumbError) {
+            thumbnailPath = thumbPath;
           }
         }
 
@@ -186,6 +216,9 @@ export function useChatFileUpload({
               : f
           )
         );
+
+        // 업로드 완료 후 쿼터 갱신 (throttle 내장)
+        void refreshQuota();
       } catch (err) {
         // 사용자가 파일 제거로 취소한 경우 state 업데이트 불필요
         if (err instanceof Error && err.message === "업로드가 취소되었습니다.") return;
@@ -206,7 +239,7 @@ export function useChatFileUpload({
         );
       }
     },
-    [roomId, userId]
+    [roomId, userId, refreshQuota]
   );
 
   const addFiles = useCallback(
@@ -318,5 +351,6 @@ export function useChatFileUpload({
     retryUpload,
     clearFiles,
     isUploading,
+    quota,
   };
 }

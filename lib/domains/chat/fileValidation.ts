@@ -66,6 +66,11 @@ export function isImageType(mimeType: string): boolean {
   return ALLOWED_IMAGE_TYPES.includes(mimeType as (typeof ALLOWED_IMAGE_TYPES)[number]);
 }
 
+/** 동영상 파일 여부 확인 */
+export function isVideoType(mimeType: string): boolean {
+  return mimeType.startsWith("video/");
+}
+
 /** 파일명 안전하게 정리 (특수문자 제거) */
 export function sanitizeFileName(name: string): string {
   return name

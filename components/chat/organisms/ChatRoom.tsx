@@ -1916,6 +1916,7 @@ function ChatRoomComponent({
         uploadingFiles={attachmentState.uploadingFiles}
         onRemoveFile={attachmentState.removeFile}
         onRetryFile={attachmentState.retryUpload}
+        storageQuota={attachmentState.quota}
         autoFocus
         members={data.members}
         currentUserId={userId}

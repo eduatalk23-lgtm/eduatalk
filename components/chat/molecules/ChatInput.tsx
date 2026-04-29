@@ -15,7 +15,9 @@ import { Send, X, Paperclip, FileText, Upload, Plus, Camera, ImageIcon, RotateCw
 import type { ReplyTargetInfo, UploadingAttachment, MentionInfo, ChatRoomMemberWithUser } from "@/lib/domains/chat/types";
 import { ALLOWED_FILE_TYPES, ALLOWED_IMAGE_TYPES, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/domains/chat/types";
 import { formatFileSize, isImageType } from "@/lib/domains/chat/fileValidation";
+import type { StorageQuotaInfo } from "@/lib/domains/chat/quota";
 import { MentionPicker } from "./MentionPicker";
+import { StorageQuotaBar } from "./StorageQuotaBar";
 
 /** textarea 최대 높이 (약 7줄, 업계 표준 150-200px 범위) */
 const TEXTAREA_MAX_HEIGHT = 160;
@@ -55,6 +57,8 @@ interface ChatInputProps {
   currentUserId?: string;
   /** 예약 전송 핸들러 (제공 시 전송 버튼에 드롭다운 추가) */
   onScheduleSend?: (content: string, scheduledAt: Date, mentions?: MentionInfo[]) => void;
+  /** 사용자 스토리지 쿼터 (>=70% 또는 첨부 큐 존재 시 표시) */
+  storageQuota?: StorageQuotaInfo | null;
 }
 
 /** sessionStorage key prefix for chat drafts */
@@ -78,6 +82,7 @@ function ChatInputComponent({
   members = [],
   currentUserId,
   onScheduleSend,
+  storageQuota,
 }: ChatInputProps) {
   const [value, setValue] = useState(() => {
     if (!roomId) return "";
@@ -458,6 +463,15 @@ function ChatInputComponent({
           )}
         </div>
       )}
+
+      {/* 스토리지 쿼터 바 — 첨부 큐 존재 시 또는 사용량 ≥70% */}
+      {storageQuota &&
+        (uploadingFiles.length > 0 || storageQuota.usagePercent >= 70) && (
+          <StorageQuotaBar
+            quota={storageQuota}
+            className="border-b border-border bg-bg-primary"
+          />
+        )}
 
       {/* 첨부파일 미리보기 바 */}
       {uploadingFiles.length > 0 && (
