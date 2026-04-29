@@ -4,7 +4,7 @@
  * 연속된 메시지를 그룹핑하고 날짜 구분선을 처리합니다.
  */
 
-import { isSameDay, differenceInSeconds, format, isValid } from "date-fns";
+import { isSameDay, differenceInSeconds, format, isValid, isToday, isYesterday } from "date-fns";
 import { ko } from "date-fns/locale";
 import type {
   ChatMessageWithSender,
@@ -50,11 +50,16 @@ export function isWithinGroupingThreshold(
 }
 
 /**
- * 날짜 구분선용 포맷 (예: "2024년 1월 15일 월요일")
+ * 날짜 구분선용 포맷 (카카오톡 패턴)
+ * 오늘   → "오늘"
+ * 어제   → "어제"
+ * 그 외  → "yyyy년 M월 d일 EEEE"
  */
 export function formatDateDivider(dateStr: string): string {
   const d = safeParseDate(dateStr);
   if (!d) return "";
+  if (isToday(d)) return "오늘";
+  if (isYesterday(d)) return "어제";
   return format(d, "yyyy년 M월 d일 EEEE", { locale: ko });
 }
 

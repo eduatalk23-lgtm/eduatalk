@@ -25,6 +25,7 @@ import type { MessageDeliveryStatus } from "../atoms/MessageStatusIndicator";
 import { DateDivider } from "../atoms/DateDivider";
 import { TypingIndicator } from "../atoms/TypingIndicator";
 import { OnlineStatus } from "../atoms/OnlineStatus";
+import { Avatar } from "@/components/atoms/Avatar";
 import { ConnectionStatusIndicator } from "../atoms/ConnectionStatusIndicator";
 import { MessageSkeleton } from "../atoms/MessageSkeleton";
 import {
@@ -1551,6 +1552,12 @@ function ChatRoomComponent({
       : room.name ?? `그룹 (${data.members.length}명)`;
   }, [room, data.members, userId]);
 
+  // 1:1 헤더 아바타용 상대방 정보
+  const directOtherUser = useMemo(() => {
+    if (!room || room.type !== "direct") return null;
+    return data.members.find((m) => m.user_id !== userId)?.user ?? null;
+  }, [room, data.members, userId]);
+
   // ============================================
   // 렌더링
   // ============================================
@@ -1586,6 +1593,15 @@ function ChatRoomComponent({
           >
             <ArrowLeft className="w-5 h-5 text-text-primary" />
           </button>
+        )}
+
+        {/* 1:1 채팅 헤더 아바타 (카카오톡 패턴) */}
+        {directOtherUser && (
+          <Avatar
+            src={directOtherUser.profileImageUrl}
+            name={directOtherUser.name}
+            size="sm"
+          />
         )}
 
         <div className="flex-1 min-w-0">

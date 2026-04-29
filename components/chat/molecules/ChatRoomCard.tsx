@@ -188,7 +188,10 @@ function ChatRoomCardComponent({
           </span>
 
           {room.unreadCount > 0 && (
-            <UnreadBadge count={room.unreadCount} size="sm" />
+            // 뮤트 방은 카운트 정보 유지하되 시각적 deemphasize (카카오톡 패턴)
+            <span className={cn(room.isMuted && "opacity-60")}>
+              <UnreadBadge count={room.unreadCount} size="sm" />
+            </span>
           )}
         </div>
       </div>
