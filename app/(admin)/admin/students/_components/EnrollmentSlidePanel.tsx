@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { SlideOverPanel } from "@/components/layouts/SlideOver";
 import { EnrollmentSectionClient } from "../[id]/_components/EnrollmentSectionClient";
 import { fetchEnrollmentData } from "@/lib/domains/enrollment/actions/fetchEnrollmentData";
 import type { EnrollmentWithProgram } from "@/lib/domains/enrollment/types";
 import type { PaymentRecordWithEnrollment } from "@/lib/domains/payment/types";
 import type { Program } from "@/lib/domains/crm/types";
+import { PanelErrorRetry } from "./PanelErrorRetry";
 
 type EnrollmentData = {
   enrollments: EnrollmentWithProgram[];
@@ -30,8 +31,22 @@ export function EnrollmentSlidePanel({
   onClose,
 }: EnrollmentSlidePanelProps) {
   const [data, setData] = useState<EnrollmentData | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const prevKeyRef = useRef("");
+
+  const loadData = useCallback(() => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await fetchEnrollmentData(studentId);
+        setData(result);
+      } catch (err) {
+        console.error("[EnrollmentSlidePanel] fetch failed", err);
+        setError(err instanceof Error ? err.message : "데이터를 불러올 수 없습니다");
+      }
+    });
+  }, [studentId]);
 
   useEffect(() => {
     const key = isOpen ? studentId : "";
@@ -40,23 +55,17 @@ export function EnrollmentSlidePanel({
     prevKeyRef.current = key;
 
     if (!key) {
-      // 패널이 닫혔을 때 — 다음 렌더 사이클에서 초기화
-      const id = requestAnimationFrame(() => setData(null));
+      const id = requestAnimationFrame(() => {
+        setData(null);
+        setError(null);
+      });
       return () => cancelAnimationFrame(id);
     }
 
-    startTransition(async () => {
-      const result = await fetchEnrollmentData(studentId);
-      setData(result);
-    });
-  }, [isOpen, studentId]);
+    loadData();
+  }, [isOpen, studentId, loadData]);
 
-  const handleRefresh = () => {
-    startTransition(async () => {
-      const result = await fetchEnrollmentData(studentId);
-      setData(result);
-    });
-  };
+  const handleRefresh = loadData;
 
   return (
     <SlideOverPanel
@@ -67,7 +76,9 @@ export function EnrollmentSlidePanel({
       size="full"
       className="max-w-[66vw]"
     >
-      {!data ? (
+      {error ? (
+        <PanelErrorRetry message={error} onRetry={loadData} />
+      ) : !data ? (
         <div className="flex flex-col gap-4" aria-busy="true">
           <div className="h-12 animate-pulse rounded-lg bg-bg-tertiary" />
           <div className="h-64 animate-pulse rounded-lg bg-bg-tertiary" />

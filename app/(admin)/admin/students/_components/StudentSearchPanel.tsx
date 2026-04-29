@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
-import { Search, Loader2, Users, Mail } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Search, Loader2, Users, Mail, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Avatar } from "@/components/atoms/Avatar";
 import { WITHDRAWN_REASONS } from "@/lib/constants/students";
@@ -9,6 +9,39 @@ import type {
   StudentSearchItem,
   StudentSearchFilters,
 } from "@/lib/domains/student/actions/search";
+
+/** 화면 어디서나 / 또는 Cmd/Ctrl+K 누르면 검색창 포커스 */
+function useSearchShortcut(inputRef: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      const isTyping =
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target?.isContentEditable;
+
+      // Cmd/Ctrl+K — 입력 중에도 동작
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        return;
+      }
+      // / — 다른 입력에 포커스 중이면 무시
+      if (e.key === "/" && !isTyping) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [inputRef]);
+}
+
+/** 적용된 필터를 chip 으로 시각화 */
+type FilterChip = { key: string; label: string; onRemove: () => void };
 
 type EmailFilter = "" | "connected" | "disconnected";
 type SortBy = "created_at" | "name" | "grade";
@@ -50,6 +83,7 @@ export function StudentSearchPanel({
   const [emailFilter, setEmailFilter] = useState<EmailFilter>("");
   const [sortBy, setSortBy] = useState<SortBy>("created_at");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  useSearchShortcut(searchInputRef);
 
   // 현재 탭 상태 (filters.status에서 파생)
   const currentTab: StatusTab = filters.status ?? "enrolled";
@@ -93,6 +127,58 @@ export function StudentSearchPanel({
 
   const displayedTotal =
     emailFilter ? displayedStudents.length : total;
+
+  // 활성 필터 chip — 디버깅 용이성 + 일괄 해제
+  const activeChips: FilterChip[] = useMemo(() => {
+    const chips: FilterChip[] = [];
+    if (filters.division) {
+      chips.push({
+        key: "division",
+        label: `학부: ${filters.division}`,
+        onRemove: () => {
+          const next = { ...filters };
+          delete next.division;
+          onFiltersChange(next);
+        },
+      });
+    }
+    if (filters.grade) {
+      chips.push({
+        key: "grade",
+        label: `학년: ${filters.grade}`,
+        onRemove: () => {
+          const next = { ...filters };
+          delete next.grade;
+          onFiltersChange(next);
+        },
+      });
+    }
+    if (emailFilter) {
+      chips.push({
+        key: "email",
+        label: `계정: ${emailFilter === "connected" ? "연결됨" : "미연결"}`,
+        onRemove: () => setEmailFilter(""),
+      });
+    }
+    if (filters.withdrawnReason) {
+      const reason = WITHDRAWN_REASONS.find((r) => r.value === filters.withdrawnReason);
+      chips.push({
+        key: "withdrawnReason",
+        label: `사유: ${reason?.label ?? filters.withdrawnReason}`,
+        onRemove: () => {
+          const next = { ...filters };
+          delete next.withdrawnReason;
+          onFiltersChange(next);
+        },
+      });
+    }
+    return chips;
+  }, [filters, emailFilter, onFiltersChange]);
+
+  const clearAllFilters = () => {
+    setEmailFilter("");
+    onFiltersChange({ status: filters.status });
+  };
 
   const updateFilter = (key: keyof StudentSearchFilters, value: string) => {
     const next = { ...filters };
@@ -201,6 +287,35 @@ export function StudentSearchPanel({
           </select>
         )}
       </div>
+
+      {/* 활성 필터 chip — 적용 중인 필터 가시화 + 개별/일괄 해제 */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {activeChips.map((chip) => (
+            <span
+              key={chip.key}
+              className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 text-2xs font-medium text-primary-700 dark:text-primary-300"
+            >
+              {chip.label}
+              <button
+                type="button"
+                onClick={chip.onRemove}
+                className="rounded-full hover:bg-primary-100 dark:hover:bg-primary-800/50 p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label={`${chip.label} 필터 해제`}
+              >
+                <X className="h-2.5 w-2.5" aria-hidden="true" />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="text-2xs text-text-tertiary hover:text-text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+          >
+            모두 해제
+          </button>
+        </div>
+      )}
 
       {/* 검색결과 카운트 + 정렬 */}
       <div className="flex items-center gap-1.5 text-xs text-text-tertiary">

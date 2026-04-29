@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   studentSearchQueryOptions,
@@ -18,30 +19,50 @@ import { TimeManagementSlidePanel } from "./TimeManagementSlidePanel";
 import { SMSSlidePanel } from "./SMSSlidePanel";
 
 type FormMode = "register" | "selected";
+export type StudentPanelKey =
+  | "enrollment"
+  | "family"
+  | "consultation"
+  | "score"
+  | "time"
+  | "sms";
+
+const VALID_PANELS: StudentPanelKey[] = [
+  "enrollment",
+  "family",
+  "consultation",
+  "score",
+  "time",
+  "sms",
+];
 
 type StudentManageClientProps = {
   isAdmin: boolean;
 };
 
 export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URL → 초기 상태
+  const initialStudentId = searchParams.get("studentId");
+  const initialPanelParam = searchParams.get("panel");
+  const initialPanel: StudentPanelKey | null =
+    initialPanelParam && VALID_PANELS.includes(initialPanelParam as StudentPanelKey)
+      ? (initialPanelParam as StudentPanelKey)
+      : null;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<StudentSearchFilters>({ status: "enrolled" });
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
-    null
+    initialStudentId,
   );
-  const [formMode, setFormMode] = useState<FormMode>("register");
-  const [enrollmentPanelStudentId, setEnrollmentPanelStudentId] = useState<string | null>(null);
-  const [isEnrollmentPanelOpen, setIsEnrollmentPanelOpen] = useState(false);
-  const [familyPanelStudentId, setFamilyPanelStudentId] = useState<string | null>(null);
-  const [isFamilyPanelOpen, setIsFamilyPanelOpen] = useState(false);
-  const [consultationPanelStudentId, setConsultationPanelStudentId] = useState<string | null>(null);
-  const [isConsultationPanelOpen, setIsConsultationPanelOpen] = useState(false);
-  const [scorePanelStudentId, setScorePanelStudentId] = useState<string | null>(null);
-  const [isScorePanelOpen, setIsScorePanelOpen] = useState(false);
-  const [timeManagementPanelStudentId, setTimeManagementPanelStudentId] = useState<string | null>(null);
-  const [isTimeManagementPanelOpen, setIsTimeManagementPanelOpen] = useState(false);
-  const [smsPanelStudentId, setSmsPanelStudentId] = useState<string | null>(null);
-  const [isSmsPanelOpen, setIsSmsPanelOpen] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode>(
+    initialStudentId ? "selected" : "register",
+  );
+  const [activePanel, setActivePanel] = useState<StudentPanelKey | null>(
+    initialStudentId ? initialPanel : null,
+  );
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
@@ -52,115 +73,71 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const detailResult = useQuery({
     ...studentDetailQueryOptions(selectedStudentId ?? ""),
     enabled: !!selectedStudentId,
-    placeholderData: undefined, // 학생 전환 시 이전 캐시 데이터 표시 방지
+    placeholderData: undefined,
   });
 
   const students = searchResult.data?.students ?? [];
   const total = searchResult.data?.total ?? 0;
   const studentData = detailResult.data?.data ?? null;
-  const isDetailLoading = detailResult.isFetching; // isLoading 대신 isFetching 사용 (캐시 stale 포함)
+  const isDetailLoading = detailResult.isFetching;
 
-  // 슬라이드 패널 타이틀용 학생 라벨: "고등부 1학년 김지혁 강릉명륜고등학교"
   const studentLabel = studentData
     ? [studentData.division, studentData.grade ? `${studentData.grade}학년` : null, studentData.name, studentData.school_name]
         .filter(Boolean)
         .join(" ")
     : undefined;
 
-  // 학생 선택
+  // URL 동기화 — selectedStudentId · activePanel 변경 시 ?studentId=&panel= 갱신
+  // (router.replace 로 history 오염 없이)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const params = new URLSearchParams();
+    if (selectedStudentId) params.set("studentId", selectedStudentId);
+    if (selectedStudentId && activePanel) params.set("panel", activePanel);
+    const next = params.toString();
+    router.replace(next ? `?${next}` : "?", { scroll: false });
+  }, [selectedStudentId, activePanel, router]);
+
+  // 학생 선택 — 다른 학생 선택 시 열린 패널 닫음
   const handleSelectStudent = useCallback((studentId: string) => {
-    setSelectedStudentId(studentId);
+    setSelectedStudentId((prev) => {
+      if (prev !== studentId) setActivePanel(null);
+      return studentId;
+    });
     setFormMode("selected");
   }, []);
 
-  // 신규등록 모드
   const handleNewStudent = useCallback(() => {
     setSelectedStudentId(null);
+    setActivePanel(null);
     setFormMode("register");
   }, []);
 
-  // 저장 완료 후
   const handleStudentSaved = useCallback((studentId: string) => {
     setSelectedStudentId(studentId);
     setFormMode("selected");
   }, []);
 
-  // 삭제 완료 후
   const handleStudentDeleted = useCallback(() => {
     setSelectedStudentId(null);
+    setActivePanel(null);
     setFormMode("register");
   }, []);
 
-  // 수강/수납 슬라이드 패널 열기/닫기
-  const handleOpenEnrollment = useCallback(() => {
-    if (selectedStudentId) {
-      setEnrollmentPanelStudentId(selectedStudentId);
-      setIsEnrollmentPanelOpen(true);
-    }
-  }, [selectedStudentId]);
+  // 패널 열기 — 단일 활성 강제 (이전 패널 자동 닫힘)
+  const openPanel = useCallback(
+    (key: StudentPanelKey) => {
+      if (selectedStudentId) setActivePanel(key);
+    },
+    [selectedStudentId],
+  );
 
-  const handleCloseEnrollment = useCallback(() => {
-    setIsEnrollmentPanelOpen(false);
-  }, []);
-
-  // 가족 슬라이드 패널 열기/닫기
-  const handleOpenFamily = useCallback(() => {
-    if (selectedStudentId) {
-      setFamilyPanelStudentId(selectedStudentId);
-      setIsFamilyPanelOpen(true);
-    }
-  }, [selectedStudentId]);
-
-  const handleCloseFamily = useCallback(() => {
-    setIsFamilyPanelOpen(false);
-  }, []);
-
-  // 상담 슬라이드 패널 열기/닫기
-  const handleOpenConsultation = useCallback(() => {
-    if (selectedStudentId) {
-      setConsultationPanelStudentId(selectedStudentId);
-      setIsConsultationPanelOpen(true);
-    }
-  }, [selectedStudentId]);
-
-  const handleCloseConsultation = useCallback(() => {
-    setIsConsultationPanelOpen(false);
-  }, []);
-
-  // 성적 슬라이드 패널 열기/닫기
-  const handleOpenScore = useCallback(() => {
-    if (selectedStudentId) {
-      setScorePanelStudentId(selectedStudentId);
-      setIsScorePanelOpen(true);
-    }
-  }, [selectedStudentId]);
-
-  const handleCloseScore = useCallback(() => {
-    setIsScorePanelOpen(false);
-  }, []);
-
-  // 시간관리 슬라이드 패널 열기/닫기
-  const handleOpenTimeManagement = useCallback(() => {
-    if (selectedStudentId) {
-      setTimeManagementPanelStudentId(selectedStudentId);
-      setIsTimeManagementPanelOpen(true);
-    }
-  }, [selectedStudentId]);
-
-  const handleCloseTimeManagement = useCallback(() => {
-    setIsTimeManagementPanelOpen(false);
-  }, []);
-
-  // SMS 슬라이드 패널 열기/닫기
-  const handleOpenSMS = useCallback(() => {
-    if (selectedStudentId) {
-      setSmsPanelStudentId(selectedStudentId);
-      setIsSmsPanelOpen(true);
-    }
-  }, [selectedStudentId]);
-
-  const handleCloseSMS = useCallback(() => {
-    setIsSmsPanelOpen(false);
+  const closePanel = useCallback(() => {
+    setActivePanel(null);
   }, []);
 
   return (
@@ -188,69 +165,57 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
           onNewStudent={handleNewStudent}
           onStudentSaved={handleStudentSaved}
           onStudentDeleted={handleStudentDeleted}
-          onOpenEnrollment={handleOpenEnrollment}
-          onOpenFamily={handleOpenFamily}
-          onOpenConsultation={handleOpenConsultation}
-          onOpenScore={handleOpenScore}
-          onOpenTimeManagement={handleOpenTimeManagement}
-          onOpenSMS={handleOpenSMS}
+          onOpenEnrollment={() => openPanel("enrollment")}
+          onOpenFamily={() => openPanel("family")}
+          onOpenConsultation={() => openPanel("consultation")}
+          onOpenScore={() => openPanel("score")}
+          onOpenTimeManagement={() => openPanel("time")}
+          onOpenSMS={() => openPanel("sms")}
           isAdmin={isAdmin}
         />
       </div>
 
-      {enrollmentPanelStudentId && (
-        <EnrollmentSlidePanel
-          studentId={enrollmentPanelStudentId}
-          studentLabel={studentLabel}
-          isOpen={isEnrollmentPanelOpen}
-          onClose={handleCloseEnrollment}
-        />
-      )}
-
-      {familyPanelStudentId && (
-        <FamilySlidePanel
-          studentId={familyPanelStudentId}
-          studentLabel={studentLabel}
-          isOpen={isFamilyPanelOpen}
-          onClose={handleCloseFamily}
-        />
-      )}
-
-      {consultationPanelStudentId && (
-        <ConsultationSlidePanel
-          studentId={consultationPanelStudentId}
-          studentLabel={studentLabel}
-          isOpen={isConsultationPanelOpen}
-          onClose={handleCloseConsultation}
-        />
-      )}
-
-      {scorePanelStudentId && (
-        <ScoreSlidePanel
-          studentId={scorePanelStudentId}
-          studentLabel={studentLabel}
-          isOpen={isScorePanelOpen}
-          onClose={handleCloseScore}
-        />
-      )}
-
-      {timeManagementPanelStudentId && (
-        <TimeManagementSlidePanel
-          studentId={timeManagementPanelStudentId}
-          studentLabel={studentLabel}
-          isOpen={isTimeManagementPanelOpen}
-          onClose={handleCloseTimeManagement}
-        />
-      )}
-
-      {smsPanelStudentId && (
-        <SMSSlidePanel
-          studentId={smsPanelStudentId}
-          studentName={studentData?.name ?? "학생"}
-          studentLabel={studentLabel}
-          isOpen={isSmsPanelOpen}
-          onClose={handleCloseSMS}
-        />
+      {/* 단일 활성 패널 — selectedStudentId 가 있을 때만 마운트 */}
+      {selectedStudentId && (
+        <>
+          <EnrollmentSlidePanel
+            studentId={selectedStudentId}
+            studentLabel={studentLabel}
+            isOpen={activePanel === "enrollment"}
+            onClose={closePanel}
+          />
+          <FamilySlidePanel
+            studentId={selectedStudentId}
+            studentLabel={studentLabel}
+            isOpen={activePanel === "family"}
+            onClose={closePanel}
+          />
+          <ConsultationSlidePanel
+            studentId={selectedStudentId}
+            studentLabel={studentLabel}
+            isOpen={activePanel === "consultation"}
+            onClose={closePanel}
+          />
+          <ScoreSlidePanel
+            studentId={selectedStudentId}
+            studentLabel={studentLabel}
+            isOpen={activePanel === "score"}
+            onClose={closePanel}
+          />
+          <TimeManagementSlidePanel
+            studentId={selectedStudentId}
+            studentLabel={studentLabel}
+            isOpen={activePanel === "time"}
+            onClose={closePanel}
+          />
+          <SMSSlidePanel
+            studentId={selectedStudentId}
+            studentName={studentData?.name ?? "학생"}
+            studentLabel={studentLabel}
+            isOpen={activePanel === "sms"}
+            onClose={closePanel}
+          />
+        </>
       )}
     </>
   );

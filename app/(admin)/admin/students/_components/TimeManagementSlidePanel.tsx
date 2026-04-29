@@ -9,6 +9,7 @@ import {
 } from "@/lib/domains/admin-plan/actions/timeManagement";
 import type { PlanExclusion } from "@/lib/types/plan/domain";
 import type { AcademyWithSchedules } from "@/lib/domains/admin-plan/actions/timeManagement";
+import { PanelErrorRetry } from "./PanelErrorRetry";
 
 type TimeManagementSlidePanelProps = {
   studentId: string;
@@ -30,21 +31,28 @@ export function TimeManagementSlidePanel({
 }: TimeManagementSlidePanelProps) {
   const [data, setData] = useState<TimeManagementData | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const prevKeyRef = useRef("");
 
   const loadData = useCallback(
     (sid: string) => {
+      setError(null);
       startTransition(async () => {
-        const [exclusionsResult, academiesResult] = await Promise.all([
-          getStudentExclusionsForAdmin(sid),
-          getStudentAcademiesWithSchedulesForAdmin(sid),
-        ]);
-        setData({
-          exclusions: exclusionsResult.data ?? [],
-          academies: academiesResult.data ?? [],
-        });
-        setDataLoaded(true);
+        try {
+          const [exclusionsResult, academiesResult] = await Promise.all([
+            getStudentExclusionsForAdmin(sid),
+            getStudentAcademiesWithSchedulesForAdmin(sid),
+          ]);
+          setData({
+            exclusions: exclusionsResult.data ?? [],
+            academies: academiesResult.data ?? [],
+          });
+          setDataLoaded(true);
+        } catch (err) {
+          console.error("[TimeManagementSlidePanel] fetch failed", err);
+          setError(err instanceof Error ? err.message : "데이터를 불러올 수 없습니다");
+        }
       });
     },
     []
@@ -60,6 +68,7 @@ export function TimeManagementSlidePanel({
       const id = requestAnimationFrame(() => {
         setData(null);
         setDataLoaded(false);
+        setError(null);
       });
       return () => cancelAnimationFrame(id);
     }
@@ -80,12 +89,14 @@ export function TimeManagementSlidePanel({
       size="full"
       className="max-w-[66vw]"
     >
-      {isPending || (!data && !dataLoaded) ? (
-        <div className="flex flex-col gap-4">
-          <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
-          <div className="h-12 animate-pulse rounded-lg bg-gray-100" />
-          <div className="h-64 animate-pulse rounded-lg bg-gray-100" />
-          <div className="h-48 animate-pulse rounded-lg bg-gray-100" />
+      {error ? (
+        <PanelErrorRetry message={error} onRetry={() => loadData(studentId)} />
+      ) : isPending || (!data && !dataLoaded) ? (
+        <div className="flex flex-col gap-4" aria-busy="true">
+          <div className="h-10 animate-pulse rounded-lg bg-bg-tertiary" />
+          <div className="h-12 animate-pulse rounded-lg bg-bg-tertiary" />
+          <div className="h-64 animate-pulse rounded-lg bg-bg-tertiary" />
+          <div className="h-48 animate-pulse rounded-lg bg-bg-tertiary" />
         </div>
       ) : (
         <TimeManagementSectionClient

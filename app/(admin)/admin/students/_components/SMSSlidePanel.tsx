@@ -9,6 +9,7 @@ import {
   listCustomTemplates,
   getStudentSMSHistory,
 } from "@/lib/domains/sms/actions/customTemplates";
+import { PanelErrorRetry } from "./PanelErrorRetry";
 
 type SMSSlidePanelProps = {
   studentId: string;
@@ -26,15 +27,24 @@ export function SMSSlidePanel({
   onClose,
 }: SMSSlidePanelProps) {
   const [data, setData] = useState<SMSPanelData | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const prevKeyRef = useRef("");
 
   const loadData = useCallback(
     (sid: string) => {
+      setError(null);
       startTransition(async () => {
-        const result = await fetchSMSPanelData(sid);
-        if (result.success && result.data) {
-          setData(result.data);
+        try {
+          const result = await fetchSMSPanelData(sid);
+          if (result.success && result.data) {
+            setData(result.data);
+          } else {
+            setError(result.error ?? "데이터를 불러올 수 없습니다");
+          }
+        } catch (err) {
+          console.error("[SMSSlidePanel] fetch failed", err);
+          setError(err instanceof Error ? err.message : "데이터를 불러올 수 없습니다");
         }
       });
     },
@@ -48,7 +58,10 @@ export function SMSSlidePanel({
     prevKeyRef.current = key;
 
     if (!key) {
-      const id = requestAnimationFrame(() => setData(null));
+      const id = requestAnimationFrame(() => {
+        setData(null);
+        setError(null);
+      });
       return () => cancelAnimationFrame(id);
     }
 
@@ -82,11 +95,13 @@ export function SMSSlidePanel({
       size="full"
       className="max-w-[66vw]"
     >
-      {!data ? (
-        <div className="flex flex-col gap-4">
-          <div className="h-12 animate-pulse rounded-lg bg-gray-100" />
-          <div className="h-64 animate-pulse rounded-lg bg-gray-100" />
-          <div className="h-48 animate-pulse rounded-lg bg-gray-100" />
+      {error ? (
+        <PanelErrorRetry message={error} onRetry={() => loadData(studentId)} />
+      ) : !data ? (
+        <div className="flex flex-col gap-4" aria-busy="true">
+          <div className="h-12 animate-pulse rounded-lg bg-bg-tertiary" />
+          <div className="h-64 animate-pulse rounded-lg bg-bg-tertiary" />
+          <div className="h-48 animate-pulse rounded-lg bg-bg-tertiary" />
         </div>
       ) : (
         <SMSPanelContent
