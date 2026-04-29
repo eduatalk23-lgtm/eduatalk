@@ -31,10 +31,8 @@ export {
 } from "./useNotificationRealtime";
 
 // 채팅 실시간 업데이트
-export {
-  useChatRealtime,
-  useChatRoomListRealtime,
-} from "./useChatRealtime";
+export { useChatRealtime } from "./useChatRealtime";
+export { useChatRoomListRealtime } from "./useChatRoomListRealtime";
 
 // 채팅 Presence (타이핑/온라인 상태)
 export { useChatPresence } from "./useChatPresence";
