@@ -8,6 +8,11 @@ type AdminGuardOptions = {
    * 기본값은 false이며, 필요한 경우 호출부에서 별도로 tenantContext를 조회할 수 있습니다.
    */
   requireTenant?: boolean;
+  /**
+   * 접근 대상 리소스의 tenantId. 지정 시 caller.tenantId와 일치 검증.
+   * superadmin은 cross-tenant 허용으로 검증을 건너뜀.
+   */
+  targetTenantId?: string | null;
 };
 
 export type AdminGuardResult = {
@@ -22,7 +27,7 @@ export type AdminGuardResult = {
 export async function requireAdminOrConsultant(
   options: AdminGuardOptions = {}
 ): Promise<AdminGuardResult> {
-  const { requireTenant = false } = options;
+  const { requireTenant = false, targetTenantId } = options;
   const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId) {
@@ -49,6 +54,20 @@ export async function requireAdminOrConsultant(
       "기관 정보를 찾을 수 없습니다.",
       ErrorCode.NOT_FOUND,
       404,
+      true
+    );
+  }
+
+  // tenant 격리: superadmin 외 caller.tenantId ≠ targetTenantId면 거부
+  if (
+    targetTenantId !== undefined &&
+    role !== "superadmin" &&
+    targetTenantId !== tenantId
+  ) {
+    throw new AppError(
+      "해당 리소스에 접근할 권한이 없습니다.",
+      ErrorCode.FORBIDDEN,
+      403,
       true
     );
   }

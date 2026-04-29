@@ -18,6 +18,7 @@ import {
   handleApiError,
 } from "@/lib/api";
 import { confirmTossPayment, mapTossErrorToMessage } from "@/lib/services/tossPayments";
+import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getLinkedStudents } from "@/lib/domains/parent/utils";
@@ -35,7 +36,16 @@ type ConfirmBody = {
   amount: number;
 };
 
+const limiter = createRateLimiter({
+  maxRequests: 20,
+  windowMs: 60_000,
+  prefix: "rl:toss-confirm",
+});
+
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, limiter);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     // 1. 인증 확인 (학부모 or 관리자)
     const { userId, role, tenantId } = await getCachedUserRole();

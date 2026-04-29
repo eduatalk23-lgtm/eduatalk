@@ -182,16 +182,51 @@ export async function GET(
       );
     }
 
-    // tenantId 검증: 요청한 tenantId가 있으면 학생의 tenant_id와 일치하는지 확인
+    // tenant 격리: caller가 admin/consultant인 경우 학생의 tenant_id와 일치해야 접근 허용 (superadmin 제외)
+    if (
+      (currentRole === "admin" || currentRole === "consultant") &&
+      student.tenant_id &&
+      currentUser?.tenantId !== student.tenant_id
+    ) {
+      console.warn("[api/score-dashboard] tenant 격리 위반", {
+        studentId,
+        callerTenantId: currentUser?.tenantId,
+        studentTenantId: student.tenant_id,
+        callerRole: currentRole,
+      });
+      return NextResponse.json(
+        { error: "Forbidden", details: "Cross-tenant access denied" },
+        { status: 403 }
+      );
+    }
+
+    // 학부모: 연결된 자녀만 조회 가능
+    if (currentRole === "parent" && currentUser?.userId) {
+      const { getLinkedStudents } = await import("@/lib/domains/parent/utils");
+      const serverClient = await createSupabaseServerClient();
+      const linked = await getLinkedStudents(serverClient, currentUser.userId);
+      const isLinked = linked.some((s) => s.id === studentId);
+      if (!isLinked) {
+        console.warn("[api/score-dashboard] 학부모 자녀 연결 없음", {
+          parentId: currentUser.userId,
+          studentId,
+        });
+        return NextResponse.json(
+          { error: "Forbidden", details: "Not linked to this student" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 요청 query의 tenantId가 학생 실제 tenant_id와 다르면 경고 (사용은 학생의 실제 tenant_id 우선)
     if (tenantId && student.tenant_id && tenantId !== student.tenant_id) {
       const studentProfile = student.user_profiles as unknown as { name: string | null } | null;
-      console.warn("[api/score-dashboard] tenant_id 불일치", {
+      console.warn("[api/score-dashboard] tenant_id 파라미터 불일치", {
         studentId,
         requestedTenantId: tenantId,
         actualTenantId: student.tenant_id,
         studentName: studentProfile?.name,
       });
-      // 경고만 하고 학생의 실제 tenant_id 사용 (보안상 경고는 남기지만 계속 진행)
     }
 
     // effectiveTenantId 결정: 요청한 tenantId 또는 학생의 실제 tenant_id

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { executeGuideImprovement } from "@/lib/domains/guide/llm/actions/improveGuide";
 
@@ -8,7 +9,16 @@ export const maxDuration = 300;
 
 const LOG_CTX = { domain: "guide", action: "improveGuideRoute" };
 
+const limiter = createRateLimiter({
+  maxRequests: 10,
+  windowMs: 60_000,
+  prefix: "rl:guide-llm",
+});
+
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, limiter);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     await requireAdminOrConsultant();
 

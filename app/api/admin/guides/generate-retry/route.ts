@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { executeGuideGeneration } from "@/lib/domains/guide/llm/actions/executeGuideGeneration";
 import type { GuideGenerationInput } from "@/lib/domains/guide/llm/types";
@@ -8,7 +9,16 @@ export const maxDuration = 300; // 5분 — Vercel Hobby 최대
 
 const LOG_CTX = { domain: "guide", action: "generateGuide.retry" };
 
+const limiter = createRateLimiter({
+  maxRequests: 10,
+  windowMs: 60_000,
+  prefix: "rl:guide-llm",
+});
+
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, limiter);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     // retry route는 generate route에서 서버→서버 호출이므로 auth 체크 생략
     const { guideId, input, modelStartIndex } = (await request.json()) as {
