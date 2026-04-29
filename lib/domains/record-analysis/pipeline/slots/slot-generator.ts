@@ -67,6 +67,13 @@ function buildIntent(args: {
       focusKeywords.push(...tokenizeForSlot(kw));
     }
   }
+  // #3 Scope A (2026-04-29): midPlan 미시드(prospective 학생) fallback —
+  // cascadeNode 의 contentSummary + rationale 에서 토큰 추출. midPlan 보유 시에는
+  // 위 키워드가 우선 (push 순서) 하므로 영향 없음.
+  if (focusKeywords.length === 0) {
+    if (args.cascadeContentSummary) focusKeywords.push(...tokenizeForSlot(args.cascadeContentSummary));
+    if (args.cascadeRationale) focusKeywords.push(...tokenizeForSlot(args.cascadeRationale));
+  }
   return {
     contentSummary: args.cascadeContentSummary,
     rationale: args.cascadeRationale,

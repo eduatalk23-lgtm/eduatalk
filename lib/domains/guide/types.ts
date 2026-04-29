@@ -207,6 +207,10 @@ export interface ExplorationGuide {
   topic_cluster_name?: string | null;
   /** 생성자 이름 (findGuides 조인 결과) */
   creator_name?: string | null;
+  /** #3 (2026-04-29): focusFit 보너스 매칭용 키워드 (title/topic_cluster/unit 추출). */
+  keywords: string[];
+  /** #3 (2026-04-29): weaknessFix 보너스 매칭용 8 표준 역량 코드. */
+  competency_focus: string[];
 }
 
 /** 참고 자료 항목 — AI가 조사한 설명 + 컨설턴트가 추가하는 링크 */

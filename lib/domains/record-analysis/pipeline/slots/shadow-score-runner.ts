@@ -85,25 +85,41 @@ async function fetchGuideSubjectMap(
   return out;
 }
 
+interface GuideMeta {
+  difficulty: SlotDifficulty | null;
+  keywords: string[];
+  competencyFocus: string[];
+}
+
 /**
- * exploration_guides.difficulty_level batch 회수.
- * applyContinuityRanking 의 metadata 도 difficultyByGuide 를 들고 있으나, shadow 모듈에 전달
- * 안 되어 있으므로 가벼운 1 query 로 별도 회수 (재사용은 후속 통합 시).
+ * exploration_guides.difficulty_level + keywords + competency_focus batch 회수.
+ *
+ * #3 Scope A (2026-04-29): per-guide 메타 강화. focusFit/weaknessFix 보너스 활성용.
+ * 빈 배열 = 미백필 가이드 (백필 스크립트 미실행 또는 신규 가이드).
  */
-async function fetchGuideDifficultyMap(
+async function fetchGuideMetaMap(
   supabase: PipelineContext["supabase"],
   guideIds: string[],
-): Promise<Map<string, SlotDifficulty | null>> {
+): Promise<Map<string, GuideMeta>> {
   if (guideIds.length === 0) return new Map();
   const { data } = await supabase
     .from("exploration_guides")
-    .select("id, difficulty_level")
+    .select("id, difficulty_level, keywords, competency_focus")
     .in("id", guideIds);
-  const out = new Map<string, SlotDifficulty | null>();
+  const out = new Map<string, GuideMeta>();
   const valid = new Set<SlotDifficulty>(["basic", "intermediate", "advanced"]);
-  for (const row of (data ?? []) as Array<{ id: string; difficulty_level: string | null }>) {
+  for (const row of (data ?? []) as Array<{
+    id: string;
+    difficulty_level: string | null;
+    keywords: string[] | null;
+    competency_focus: string[] | null;
+  }>) {
     const lv = row.difficulty_level;
-    out.set(row.id, lv && valid.has(lv as SlotDifficulty) ? (lv as SlotDifficulty) : null);
+    out.set(row.id, {
+      difficulty: lv && valid.has(lv as SlotDifficulty) ? (lv as SlotDifficulty) : null,
+      keywords: row.keywords ?? [],
+      competencyFocus: row.competency_focus ?? [],
+    });
   }
   return out;
 }
@@ -121,9 +137,9 @@ export async function runSlotAwareScoreShadow(
     if (slots.length === 0 || input.ranked.length === 0) return;
 
     const guideIds = input.ranked.map((r) => r.id);
-    const [subjectMap, difficultyMap] = await Promise.all([
+    const [subjectMap, metaMap] = await Promise.all([
       fetchGuideSubjectMap(input.ctx.supabase, guideIds),
-      fetchGuideDifficultyMap(input.ctx.supabase, guideIds),
+      fetchGuideMetaMap(input.ctx.supabase, guideIds),
     ]);
 
     const student: ScoreableStudent = {
@@ -132,16 +148,19 @@ export async function runSlotAwareScoreShadow(
       careerCompatibility: input.careerCompatibility ?? [],
     };
 
-    // 각 ranked guide → ScoreableGuide (per-guide 키워드/역량은 미보유 → 빈 배열).
+    // 각 ranked guide → ScoreableGuide.
+    // #3 Scope A (2026-04-29): keywords + competencyFocus 가이드 메타 채움.
+    // milestoneIds 는 카탈로그 차원 매칭 미정 — 별도 PR (semantic 매칭).
     const scoreableGuides: ScoreableGuide[] = input.ranked.map((r) => {
       const subj = subjectMap.get(r.id);
+      const meta = metaMap.get(r.id);
       return {
         id: r.id,
         subjectId: subj?.id ?? null,
         subjectName: subj?.name ?? null,
-        difficultyLevel: difficultyMap.get(r.id) ?? null,
-        keywords: [],
-        competencyFocus: [],
+        difficultyLevel: meta?.difficulty ?? null,
+        keywords: meta?.keywords ?? [],
+        competencyFocus: meta?.competencyFocus ?? [],
         milestoneIds: [],
         careerFields: [],
       };

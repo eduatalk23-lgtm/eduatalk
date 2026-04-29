@@ -85,9 +85,9 @@ async function main() {
         const top = candidates[0];
         if (!top) continue;
         topGuideIds.add(String(top.guideId));
-        const breakdown = top.breakdown as { bonuses?: Array<{ key?: string; weighted?: number }> } | undefined;
+        const breakdown = top.breakdown as { bonuses?: Array<{ name?: string; weighted?: number }> } | undefined;
         const bonuses = breakdown?.bonuses ?? [];
-        const get = (k: string) => Number(bonuses.find(b => b.key === k)?.weighted ?? 0);
+        const get = (k: string) => Number(bonuses.find(b => b.name === k)?.weighted ?? 0);
         tierFitVals.push(get('tierFit'));
         subjectFitVals.push(get('subjectFit'));
         focusFitVals.push(get('focusFit'));
