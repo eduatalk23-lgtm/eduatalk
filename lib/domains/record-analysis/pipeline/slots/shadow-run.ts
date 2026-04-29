@@ -32,6 +32,8 @@ interface ShadowRunCtx {
     mainTheme?: import("../../capability/main-theme").MainTheme;
     midPlanByGrade?: Record<number, MidPlanShape | null | undefined>;
     analysisContext?: import("../pipeline-types").AnalysisContextByGrade;
+    /** G2 fix (2026-04-29): synthesis context 에서 ctx.results._blueprintPhase 부재 시 fallback. */
+    blueprintPhase?: import("../../blueprint/types").BlueprintPhaseOutput;
   };
   coursePlanData?:
     | import("@/lib/domains/student-record/course-plan/types").CoursePlanTabData
@@ -212,10 +214,15 @@ export async function runSlotGeneratorShadow(ctx: ShadowRunCtx): Promise<void> {
     // B1 phase 가 _blueprintPhase 단일 키에 id/tierPlan/본체 4필드를 담아 영속.
     // (이전엔 _blueprint/_blueprintId/_tierPlan 3키를 읽었으나 후 2키는 영속되지 않아
     // shadow run 입력이 항상 null 이었음 — 2026-04-29 fix.)
+    //
+    // G2 fix (2026-04-29): synthesis pipeline 의 ctx.results 는 자기 task_results 라
+    // _blueprintPhase 부재. belief.blueprintPhase (D5 시딩 경로) fallback 으로 회수.
     const blueprintPhase =
       (ctx.results["_blueprintPhase"] as
         | import("../../blueprint/types").BlueprintPhaseOutput
-        | undefined) ?? null;
+        | undefined) ??
+      ctx.belief.blueprintPhase ??
+      null;
     const blueprint = blueprintPhase;
     const blueprintId = blueprintPhase?.id ?? null;
     const tierPlan = blueprintPhase?.tierPlan ?? null;

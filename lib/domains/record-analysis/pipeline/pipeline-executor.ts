@@ -772,6 +772,7 @@ export async function loadPipelineContext(
     midPlanByGrade?: Record<number, import("./orient/mid-pipeline-planner").MidPlan>;
     mainTheme?: import("../capability/main-theme").MainTheme;
     cascadePlan?: import("../capability/cascade-plan").CascadePlan;
+    blueprintPhase?: import("../blueprint/types").BlueprintPhaseOutput;
   } = {};
   if (pipelineType === "synthesis") {
     const { loadSynthesisCumulativeBelief } = await import("./pipeline-synthesis-belief");
@@ -844,6 +845,10 @@ export async function loadPipelineContext(
         : persistedCascadePlan
           ? { cascadePlan: persistedCascadePlan }
           : {}),
+      // G2 fix (D5, 2026-04-29): blueprintPhase 시딩 — shadow-run milestoneFill 보너스 활성용.
+      ...(synthesisCumulativeBelief.blueprintPhase
+        ? { blueprintPhase: synthesisCumulativeBelief.blueprintPhase }
+        : {}),
     },
   };
 }

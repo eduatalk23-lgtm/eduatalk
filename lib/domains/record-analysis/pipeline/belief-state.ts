@@ -132,6 +132,16 @@ export interface BeliefState {
    * undefined = 미생성 / mainTheme 부재 시 생성 불가 (graceful).
    */
   cascadePlan?: import("../capability/cascade-plan").CascadePlan;
+
+  /**
+   * G2 fix (2026-04-29): blueprint phase 산출(milestones / targetConvergences / tierPlan).
+   * Blueprint Pipeline 의 task_results._blueprintPhase 영속화.
+   * Synthesis loadSynthesisCumulativeBelief D5 가 최신 completed blueprint 에서 회수해 시딩.
+   * Grade Pipeline 은 직접 ctx.results["_blueprintPhase"] 에 빌드되므로 별도 시딩 불요
+   * (shadow-run 이 ctx.results / ctx.belief 양방향 fallback).
+   * undefined = blueprint pipeline 미실행 / 시딩 실패 (graceful).
+   */
+  blueprintPhase?: import("../blueprint/types").BlueprintPhaseOutput;
 }
 
 /** 빈 BeliefState 초기값 — `loadPipelineContext` 에서 사용. */

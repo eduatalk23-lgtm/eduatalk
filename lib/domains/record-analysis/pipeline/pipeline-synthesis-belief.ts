@@ -19,6 +19,7 @@ import type { GradeThemesByGrade } from "./synthesis/helpers";
 import type { MidPlan } from "./orient/mid-pipeline-planner";
 import type { MainTheme } from "../capability/main-theme";
 import type { CascadePlan } from "../capability/cascade-plan";
+import type { BlueprintPhaseOutput } from "../blueprint/types";
 
 const LOG_CTX = { domain: "record-analysis", action: "pipeline-synthesis-belief" };
 
@@ -35,6 +36,8 @@ export interface SynthesisCumulativeBelief {
   mainTheme?: MainTheme;
   /** D4 (M1-c, 2026-04-27): 학년별 cascade plan. task_results._cascadePlan 에서 회수. */
   cascadePlan?: CascadePlan;
+  /** D5 (G2 fix, 2026-04-29): 최신 blueprint pipeline 의 task_results._blueprintPhase. */
+  blueprintPhase?: BlueprintPhaseOutput;
 }
 
 /**
@@ -191,6 +194,35 @@ export async function loadSynthesisCumulativeBelief(
     logActionWarn(
       LOG_CTX,
       "D4 mainTheme/cascadePlan 시딩 실패 — graceful 진행",
+      { pipelineId, error: err instanceof Error ? err.message : String(err) },
+    );
+  }
+
+  // ── D5: blueprintPhase (G2 fix, 2026-04-29) ──────────────────────────────
+  // 최신 completed blueprint pipeline 의 task_results._blueprintPhase 회수.
+  // shadow-run 이 ctx.results["_blueprintPhase"] 와 ctx.belief.blueprintPhase 를 양방향 fallback.
+  // synthesis context 에서 ctx.results 는 synthesis 자신의 task_results 라 _blueprintPhase
+  // 부재 → belief 경로로 시딩되어야 milestone 보너스가 점화.
+  try {
+    const { data: bpRows } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("task_results, completed_at")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("pipeline_type", "blueprint")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(1);
+
+    const tr = (bpRows?.[0]?.task_results ?? null) as Record<string, unknown> | null;
+    const bp = tr?._blueprintPhase as BlueprintPhaseOutput | undefined;
+    if (bp && typeof bp === "object" && "milestones" in bp) {
+      result.blueprintPhase = bp;
+    }
+  } catch (err) {
+    logActionWarn(
+      LOG_CTX,
+      "D5 blueprintPhase 시딩 실패 — belief.blueprintPhase undefined 로 진행 (graceful)",
       { pipelineId, error: err instanceof Error ? err.message : String(err) },
     );
   }
