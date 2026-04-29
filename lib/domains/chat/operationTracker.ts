@@ -124,19 +124,30 @@ class OperationTracker {
   /**
    * content와 roomId로 매칭되는 pending 메시지 찾기
    * (전송 완료 전에 Realtime이 먼저 도착하는 경우 대비)
-   * roomId를 함께 비교하여 다른 방의 동일 내용 메시지와 잘못 매칭되는 것을 방지
+   *
+   * **FIFO 보장**: 동일 방·동일 content pending이 다중 존재하면
+   * 가장 먼저 시작된(startedAt 최소) tempId를 반환. Map은 삽입 순서를
+   * 유지하므로 첫 매치가 곧 FIFO지만, 명시적 정렬로 의도를 강제한다.
+   *
+   * **호출 규약**: 호출자는 항상 roomId를 전달해야 한다.
+   * (useChatRealtime.ts:943, useChatMutations.ts:190/617 — 모두 준수)
    */
-  findPendingSendByContent(content: string, roomId?: string): string | undefined {
+  findPendingSendByContent(content: string, roomId: string): string | undefined {
+    let bestTempId: string | undefined;
+    let bestStartedAt = Number.POSITIVE_INFINITY;
+
     for (const [tempId, operation] of this.pending) {
       if (
         operation.type === "send" &&
         operation.content === content &&
-        (!roomId || !operation.roomId || operation.roomId === roomId)
+        operation.roomId === roomId &&
+        operation.startedAt < bestStartedAt
       ) {
-        return tempId;
+        bestTempId = tempId;
+        bestStartedAt = operation.startedAt;
       }
     }
-    return undefined;
+    return bestTempId;
   }
 
   // ============================================

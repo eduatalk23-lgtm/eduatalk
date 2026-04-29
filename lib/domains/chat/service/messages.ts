@@ -3,6 +3,7 @@
  */
 
 import * as repository from "../repository";
+import { MAX_EDIT_TIME_MS } from "../constants";
 import { getUserInfo, rejoinMember, convertReactionsToSummaries, MAX_MESSAGE_LENGTH } from "./_helpers";
 import type {
   ChatMessage,
@@ -251,9 +252,6 @@ export async function markRoomAsRead(
     };
   }
 }
-
-/** 메시지 수정 가능 시간 (5분) */
-const MAX_EDIT_TIME_MS = 5 * 60 * 1000;
 
 /**
  * 메시지 편집

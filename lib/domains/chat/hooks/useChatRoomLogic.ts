@@ -15,6 +15,7 @@ import type { ChatMessagePayload } from "@/lib/realtime/useChatRealtime";
 import { showBrowserNotification } from "@/lib/domains/notification/browserNotification";
 import { playChatFeedback } from "@/lib/audio/chatSound";
 import { isMessageEdited } from "@/lib/domains/chat/types";
+import { MAX_EDIT_TIME_MS } from "../constants";
 import { chatKeys } from "../queryKeys";
 import {
   type InfiniteMessagesCache,
@@ -362,10 +363,9 @@ export function useChatRoomLogic({
     enabled: !!roomData,
   });
 
-  // 편집 가능 여부 확인 (5분 이내)
+  // 편집 가능 여부 확인 (UI 힌트 — 진짜 게이트는 서버)
   const canEditMessage = useCallback((createdAt: string) => {
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    return new Date(createdAt).getTime() > fiveMinutesAgo;
+    return new Date(createdAt).getTime() > Date.now() - MAX_EDIT_TIME_MS;
   }, []);
 
   const canPin = permissionsData?.canPin ?? false;
