@@ -160,20 +160,20 @@ async function buildWeakCompetenciesByGrade(
     const currentSchoolYear = calculateSchoolYear();
     const { data } = await ctx.supabase
       .from("student_record_competency_scores")
-      .select("school_year, item, grade_value")
+      .select("school_year, competency_item, grade_value")
       .eq("student_id", ctx.studentId)
       .eq("source", "ai")
       .in("grade_value", ["B-", "C", "D"]);
     for (const row of (data ?? []) as Array<{
       school_year: number;
-      item: string;
+      competency_item: string;
       grade_value: string;
     }>) {
       // school_year → 학년 변환: schoolYear - (currentSchoolYear - studentGrade)
       const grade = row.school_year - (currentSchoolYear - ctx.studentGrade);
       if (grade < 1 || grade > 3) continue;
       if (!out[grade]) out[grade] = [];
-      if (!out[grade].includes(row.item)) out[grade].push(row.item);
+      if (!out[grade].includes(row.competency_item)) out[grade].push(row.competency_item);
     }
   } catch {
     // graceful — DB 실패 시 빈 객체 유지
