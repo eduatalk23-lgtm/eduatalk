@@ -78,7 +78,7 @@ function adequateLevelToDifficulty(
  * Hard filter (slot-aware-score) 가 strict tier 슬롯에서만 cap 차단을 발동하므로
  * 폴백 advanced 는 안전 기본값(과차단 회피).
  */
-async function buildMaxDifficultyByGradeAsync(
+export async function buildMaxDifficultyByGradeAsync(
   studentId: string,
   tenantId: string,
 ): Promise<Record<number, SlotDifficulty>> {

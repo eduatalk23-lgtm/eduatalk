@@ -459,6 +459,26 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     });
   }
 
+  // ── Step B Shadow 측정 (2026-04-29) ──
+  // 매칭 결과(state.merged.capped) 를 slot-aware-score 로도 채점해 병행 박제.
+  // 매칭/배정 로직 무영향 — `_slotAwareScores` 영속화만 수행.
+  // Step D 측정 후 통합 정책 결정 시 이 박제 데이터를 비교 분석.
+  if (state.merged.capped.length > 0) {
+    const { runSlotAwareScoreShadow } = await import("../slots/shadow-score-runner");
+    const { buildMaxDifficultyByGradeAsync } = await import("../slots/shadow-run");
+    const maxDifficultyByGrade = await buildMaxDifficultyByGradeAsync(studentId, tenantId);
+    await runSlotAwareScoreShadow({
+      ctx,
+      studentId,
+      tenantId,
+      ranked: state.merged.capped,
+      maxDifficultyByGrade,
+      careerCompatibility: ctx.belief.mainTheme?.careerField
+        ? [ctx.belief.mainTheme.careerField]
+        : [],
+    });
+  }
+
   // ── 배정 INSERT ──
   if (state.merged.capped.length > 0) {
     const r = await insertAssignments(ctx, state.merged.capped);
