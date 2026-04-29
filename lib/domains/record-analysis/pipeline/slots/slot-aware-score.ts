@@ -237,15 +237,36 @@ function computeFocusFit(guide: ScoreableGuide, slot: Slot): BonusProvenance {
       rationale: "focusKeywords or guide.keywords empty",
     };
   }
-  const overlap = guide.keywords.filter((k) =>
-    slot.intent.focusKeywords.some((fk) => fk.toLowerCase() === k.toLowerCase()),
-  );
-  const raw = Math.min(1, overlap.length / 3); // 3개 매칭 시 만점
+  // #3 Scope B (2026-04-29): 한국어 정확 일치 너무 엄격 → exact + substring 양방향
+  // 부분 매칭 도입. 가중치: exact 1.0, substring(≥2자) 0.5. 만점 기준: 합 3.0.
+  const slotKeys = slot.intent.focusKeywords.map((k) => k.toLowerCase());
+  let totalScore = 0;
+  const matched: string[] = [];
+  for (const k of guide.keywords) {
+    const kl = k.toLowerCase();
+    if (kl.length < 2) continue;
+    let bestForGuideKey = 0;
+    for (const fk of slotKeys) {
+      if (fk.length < 2) continue;
+      if (fk === kl) {
+        bestForGuideKey = 1.0;
+        break;
+      }
+      if (fk.includes(kl) || kl.includes(fk)) {
+        bestForGuideKey = Math.max(bestForGuideKey, 0.5);
+      }
+    }
+    if (bestForGuideKey > 0) {
+      totalScore += bestForGuideKey;
+      matched.push(k);
+    }
+  }
+  const raw = Math.min(1, totalScore / 3);
   return {
     name: "focusFit",
     rawValue: raw,
     weighted: raw * SLOT_AWARE_BONUS_WEIGHTS.focusFit,
-    rationale: `overlap=${overlap.length} keywords=${overlap.join(",")}`,
+    rationale: `score=${totalScore.toFixed(1)} matched=${matched.slice(0, 5).join(",")}${matched.length > 5 ? "…" : ""}`,
   };
 }
 

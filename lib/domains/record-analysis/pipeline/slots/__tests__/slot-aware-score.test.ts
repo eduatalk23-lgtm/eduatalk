@@ -172,6 +172,40 @@ describe("scoreGuideForSlot", () => {
     expect(r.bonuses.find((b) => b.name === "focusFit")!.rawValue).toBe(1);
   });
 
+  it("focusFit — substring 양방향 매칭 (#3B Scope B, 2026-04-29)", () => {
+    // slot.focusKeywords 가 가이드 키워드 의 부분 문자열 (또는 역방향) 인 경우 0.5 점.
+    // 예: slot 가 "신약" / guide 가 "신약개발" → 0.5; 합=1.0(2건) → raw = 1.0/3 = 0.33
+    const slot = makeSlot({
+      intent: { ...makeSlot().intent, focusKeywords: ["신약", "유전자"] },
+    });
+    const guide = makeGuide({ keywords: ["신약개발", "유전자치료", "기타"] });
+    const r = scoreGuideForSlot(guide, slot, STUDENT);
+    const bonus = r.bonuses.find((b) => b.name === "focusFit")!;
+    // exact 0건 + substring 2건(0.5씩) = 합 1.0 → raw=1/3
+    expect(bonus.rawValue).toBeCloseTo(1 / 3, 3);
+  });
+
+  it("focusFit — exact + substring 혼합 점수", () => {
+    const slot = makeSlot({
+      intent: { ...makeSlot().intent, focusKeywords: ["AI", "신약"] },
+    });
+    const guide = makeGuide({ keywords: ["ai", "신약개발", "기타"] });
+    const r = scoreGuideForSlot(guide, slot, STUDENT);
+    const bonus = r.bonuses.find((b) => b.name === "focusFit")!;
+    // exact 1건(1.0) + substring 1건(0.5) = 합 1.5 → raw=0.5
+    expect(bonus.rawValue).toBeCloseTo(0.5, 3);
+  });
+
+  it("focusFit — 1자 키워드 false-match 차단", () => {
+    const slot = makeSlot({
+      intent: { ...makeSlot().intent, focusKeywords: ["A"] },
+    });
+    const guide = makeGuide({ keywords: ["academic", "AI"] });
+    const r = scoreGuideForSlot(guide, slot, STUDENT);
+    const bonus = r.bonuses.find((b) => b.name === "focusFit")!;
+    expect(bonus.rawValue).toBe(0);
+  });
+
   it("weaknessFix — 역량 2개 매치 시 만점", () => {
     const slot = makeSlot({
       intent: {
