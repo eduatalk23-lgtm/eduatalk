@@ -96,18 +96,26 @@ function deriveKeywords(row: GuideRow): string[] {
   return all.filter((w) => (seen.has(w) ? false : (seen.add(w), true))).slice(0, 12);
 }
 
-/** 8 표준 역량 코드. */
+/**
+ * DB 정렬 10 역량 코드 (student_record_competency_scores.competency_item 제약).
+ * weaknessFix 매칭 (slot.weakCompetencies ∩ guide.competencyFocus) 활성용 정렬.
+ */
 type Competency =
   | "academic_inquiry"
+  | "academic_attitude"
   | "academic_achievement"
-  | "creative_problem_solving"
-  | "collaborative_communication"
-  | "career_passion"
+  | "career_course_effort"
   | "career_course_achievement"
-  | "self_directed_learning"
-  | "community_contribution";
+  | "career_exploration"
+  | "community_caring"
+  | "community_collaboration"
+  | "community_integrity"
+  | "community_leadership";
 
-/** guide row → competency_focus[] (휴리스틱 — LLM 분류 업그레이드 가능). */
+/**
+ * guide row → competency_focus[] (휴리스틱 — LLM 분류 업그레이드 가능).
+ * DB 정렬 10 역량 셋. slot.weakCompetencies (DB 회수) 와 매칭되도록 동일 셋 사용.
+ */
 function deriveCompetencyFocus(row: GuideRow): Competency[] {
   const out = new Set<Competency>();
   // 모든 탐구 가이드 = academic_inquiry baseline
@@ -117,27 +125,37 @@ function deriveCompetencyFocus(row: GuideRow): Competency[] {
   const topic = (row.topic_cluster_name ?? "").toLowerCase();
   const all = `${row.title ?? ""} ${row.topic_cluster_name ?? ""} ${row.unit_major ?? ""} ${row.unit_minor ?? ""}`;
 
-  // guide_type 기반
-  if (row.guide_type === "reading") out.add("self_directed_learning");
-
-  // 키워드 휴리스틱 — 한국어 패턴
+  // 진로 탐색 — 직업/진로 키워드
   if (/진로|직업|의사|약사|간호|교사|연구원|엔지니어|디자이너|변호사|기자/.test(all)) {
-    out.add("career_passion");
+    out.add("career_exploration");
   }
-  if (/실험|설계|제작|발명|창의|문제 해결|문제해결|개선|혁신|시뮬레이션/.test(all)) {
-    out.add("creative_problem_solving");
+  // 진로 교과 노력 — guide_type=reading 또는 자율 학습 키워드
+  if (row.guide_type === "reading" || /자기 주도|자기주도|독립|스스로|자율|자기 학습|자기학습/.test(all)) {
+    out.add("career_course_effort");
   }
-  if (/봉사|기부|공헌|사회|공동체|환경|지속가능|약자|취약/.test(all)) {
-    out.add("community_contribution");
+  // 진로 교과 성취 — 심화/연구/실험 키워드
+  if (/실험|설계|제작|발명|창의|개선|혁신|시뮬레이션|프로젝트/.test(all)) {
+    out.add("career_course_achievement");
   }
-  if (/협력|협동|토론|발표|소통|커뮤니케이션|팀|조별/.test(all)) {
-    out.add("collaborative_communication");
+  // 공동체 협력 — 협력/토론/팀 키워드
+  if (/협력|협동|토론|발표|소통|팀|조별|공동/.test(all)) {
+    out.add("community_collaboration");
   }
+  // 공동체 배려 — 봉사/기부/약자 키워드
+  if (/봉사|기부|배려|공헌|복지|약자|취약|돕기|돕는/.test(all)) {
+    out.add("community_caring");
+  }
+  // 공동체 리더십 — 주도/리더 키워드
+  if (/주도|리더|이끌|회장|대표|관리/.test(all)) {
+    out.add("community_leadership");
+  }
+  // 학업 성취 — 심화/고급/학술
   if (/심화|고급|advanced|연구|논문|학술/.test(titleLower + " " + topic)) {
     out.add("academic_achievement");
   }
-  if (/자기 주도|자기주도|독립|스스로|개인|자율|자기 학습|자기학습/.test(all)) {
-    out.add("self_directed_learning");
+  // 학업 태도 — 꾸준/관심/탐구 키워드 (default 가까운 baseline 보완)
+  if (/꾸준|지속|관심|호기심|탐구|관찰/.test(all)) {
+    out.add("academic_attitude");
   }
 
   return Array.from(out);
