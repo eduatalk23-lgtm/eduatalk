@@ -24,6 +24,9 @@ interface ShadowRunCtx {
   studentId: string;
   tenantId: string;
   studentGrade: number | null;
+  /** G1 fix (2026-04-29): synthesis pipeline 에서 ctx.belief.analysisContext 가 미시드된 경우
+   * weakCompetencies/qualityIssues 를 DB 에서 직접 회수하기 위해 주입. */
+  supabase?: import("../pipeline-types").PipelineContext["supabase"];
   belief: {
     cascadePlan?: import("../../capability/cascade-plan").CascadePlan;
     mainTheme?: import("../../capability/main-theme").MainTheme;
@@ -121,27 +124,59 @@ export async function buildMaxDifficultyByGradeAsync(
 /**
  * 학년별 약점 역량(B- 이하) 추출.
  *
- * 소스: ctx.belief.analysisContext (P1-P3 grade pipeline 산출 → synthesis belief seed).
- * `pipeline-task-runners-shared.ts` 가 이미 B-/C 만 필터해 누적하므로 별도 등급 필터 불필요.
+ * 소스 (2 단계):
+ *   1차: ctx.belief.analysisContext (P1-P3 grade pipeline 산출 → 같은 ctx 내).
+ *        `pipeline-task-runners-shared.ts` 가 이미 B-/C 만 필터해 누적.
+ *   2차 (G1 fix, 2026-04-29): synthesis pipeline 같이 belief 가 reseed 안 된 경우
+ *        DB 직접 조회. competency_scores AI 산출 행에서 학년별 B-/C 추출.
  *
- * 미초기화/빈값 시 빈 객체 반환 — Slot Generator 가 weakCompetencies=[] 슬롯으로 정상 동작
- * (weaknessFix 보너스만 0점 처리, 다른 4개 보너스는 정상).
+ * 둘 다 빈 결과면 빈 객체 반환 — Slot Generator 가 weakCompetencies=[] 슬롯으로 정상 동작.
  */
-function buildWeakCompetenciesByGrade(
+async function buildWeakCompetenciesByGrade(
   ctx: ShadowRunCtx,
-): Record<number, string[]> {
+): Promise<Record<number, string[]>> {
   const out: Record<number, string[]> = {};
+
+  // 1차 — ctx.belief.analysisContext
   const ac = ctx.belief.analysisContext;
-  if (!ac) return out;
-  for (const [gradeKey, gradeCtx] of Object.entries(ac)) {
-    const grade = Number(gradeKey);
-    if (!Number.isFinite(grade)) continue;
-    if (!gradeCtx?.weakCompetencies?.length) continue;
-    const items = new Set<string>();
-    for (const wc of gradeCtx.weakCompetencies) {
-      if (wc.item) items.add(wc.item);
+  if (ac) {
+    for (const [gradeKey, gradeCtx] of Object.entries(ac)) {
+      const grade = Number(gradeKey);
+      if (!Number.isFinite(grade)) continue;
+      if (!gradeCtx?.weakCompetencies?.length) continue;
+      const items = new Set<string>();
+      for (const wc of gradeCtx.weakCompetencies) {
+        if (wc.item) items.add(wc.item);
+      }
+      if (items.size > 0) out[grade] = Array.from(items);
     }
-    if (items.size > 0) out[grade] = Array.from(items);
+  }
+  if (Object.keys(out).length > 0) return out;
+
+  // 2차 — DB fallback (synthesis pipeline 등 belief 미시드 환경)
+  if (!ctx.supabase || !ctx.studentId || ctx.studentGrade == null) return out;
+  try {
+    const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+    const currentSchoolYear = calculateSchoolYear();
+    const { data } = await ctx.supabase
+      .from("student_record_competency_scores")
+      .select("school_year, item, grade_value")
+      .eq("student_id", ctx.studentId)
+      .eq("source", "ai")
+      .in("grade_value", ["B-", "C", "D"]);
+    for (const row of (data ?? []) as Array<{
+      school_year: number;
+      item: string;
+      grade_value: string;
+    }>) {
+      // school_year → 학년 변환: schoolYear - (currentSchoolYear - studentGrade)
+      const grade = row.school_year - (currentSchoolYear - ctx.studentGrade);
+      if (grade < 1 || grade > 3) continue;
+      if (!out[grade]) out[grade] = [];
+      if (!out[grade].includes(row.item)) out[grade].push(row.item);
+    }
+  } catch {
+    // graceful — DB 실패 시 빈 객체 유지
   }
   return out;
 }
@@ -195,9 +230,9 @@ export async function runSlotGeneratorShadow(ctx: ShadowRunCtx): Promise<void> {
       tierPlan,
       midPlanByGrade: ctx.belief.midPlanByGrade ?? {},
       coursePlanByGrade: buildCoursePlanByGrade(ctx.coursePlanData ?? null),
-      // weakCompetenciesByGrade: ctx.belief.analysisContext 에서 학년별 B- 이하 추출 (TODO #1, 2026-04-29).
+      // weakCompetenciesByGrade: ctx.belief.analysisContext 1차 → DB fallback 2차 (G1 fix, 2026-04-29).
       // qualityIssuesByGrade: TODO #1 후속에서 동일 경로로 합류 예정.
-      weakCompetenciesByGrade: buildWeakCompetenciesByGrade(ctx),
+      weakCompetenciesByGrade: await buildWeakCompetenciesByGrade(ctx),
       qualityIssuesByGrade: {},
       maxDifficultyByGrade: await buildMaxDifficultyByGradeAsync(
         ctx.studentId,

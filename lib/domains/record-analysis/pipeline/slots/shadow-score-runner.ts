@@ -151,8 +151,25 @@ export async function runSlotAwareScoreShadow(
     let pairsRejected = 0;
     const topKPerSlot: SlotAwareShadowResult["topKPerSlot"] = [];
 
-    for (const slot of slots) {
-      const candidates: Array<{ guideId: string; title: string; breakdown: ScoreBreakdown }> = [];
+    // G5 fix (2026-04-29): cross-slot 다양성 — 같은 가이드가 여러 슬롯에서 Top-1 차지
+    // 방지. 슬롯 priority 내림차순 처리 + 가이드 사용 횟수에 비례한 페널티.
+    const guideUseCount = new Map<string, number>();
+    const MAX_PER_GUIDE_TOP1 = 2;       // 같은 가이드가 Top-1 가능한 슬롯 수 cap
+    const SOFT_PENALTY_PER_USE = 5;     // 사용 횟수당 점수 감산 (soft)
+    const HARD_PENALTY_FACTOR = 0.5;    // cap 초과 시 점수 50% 감산
+
+    // 슬롯을 priority 내림차순으로 처리 — 중요 슬롯이 먼저 가장 적합한 가이드 선점
+    const slotsSorted = [...slots].sort((a, b) =>
+      (b.state.priority ?? 0) - (a.state.priority ?? 0),
+    );
+
+    for (const slot of slotsSorted) {
+      const candidates: Array<{
+        guideId: string;
+        title: string;
+        breakdown: ScoreBreakdown;
+        adjustedScore: number;
+      }> = [];
       for (let i = 0; i < scoreableGuides.length; i++) {
         const sg = scoreableGuides[i];
         const breakdown = scoreGuideForSlot(sg, slot, student);
@@ -161,19 +178,35 @@ export async function runSlotAwareScoreShadow(
           pairsRejected++;
           continue;
         }
+        // Cross-slot 페널티 — 이미 다른 슬롯의 Top-1 으로 사용된 가이드는 점수 감산
+        const useCount = guideUseCount.get(sg.id) ?? 0;
+        const adjustedScore =
+          useCount >= MAX_PER_GUIDE_TOP1
+            ? breakdown.totalScore * HARD_PENALTY_FACTOR
+            : Math.max(0, breakdown.totalScore - useCount * SOFT_PENALTY_PER_USE);
         candidates.push({
           guideId: sg.id,
           title: input.ranked[i].title,
           breakdown,
+          adjustedScore,
         });
       }
-      candidates.sort((a, b) => b.breakdown.totalScore - a.breakdown.totalScore);
+      candidates.sort((a, b) => b.adjustedScore - a.adjustedScore);
+      // Top-1 사용 횟수 누적
+      if (candidates[0]) {
+        const id = candidates[0].guideId;
+        guideUseCount.set(id, (guideUseCount.get(id) ?? 0) + 1);
+      }
       topKPerSlot.push({
         slotId: slot.id,
         grade: slot.grade,
         area: slot.area,
         tier: slot.tier,
-        candidates: candidates.slice(0, TOP_K_PER_SLOT),
+        candidates: candidates.slice(0, TOP_K_PER_SLOT).map((c) => ({
+          guideId: c.guideId,
+          title: c.title,
+          breakdown: c.breakdown,
+        })),
       });
     }
 

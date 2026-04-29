@@ -128,6 +128,7 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       studentId,
       tenantId,
       studentGrade,
+      supabase: ctx.supabase,
       belief: ctx.belief,
       coursePlanData: ctx.coursePlanData ?? null,
       results: ctx.results,
