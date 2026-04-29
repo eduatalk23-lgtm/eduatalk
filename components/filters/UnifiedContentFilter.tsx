@@ -378,14 +378,14 @@ export function UnifiedContentFilter({
         <div className="flex gap-2">
           <button
             type="submit"
-            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700"
+            className="flex-1 rounded-lg bg-[rgb(var(--color-primary-600))] px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-[rgb(var(--color-primary-700))]"
           >
             검색
           </button>
           <button
             type="button"
             onClick={handleReset}
-            className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] bg-white dark:bg-secondary-900 px-4 py-2 text-body-2 font-semibold text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))]"
+            className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] bg-[var(--background)] px-4 py-2 text-body-2 font-semibold text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))]"
           >
             초기화
           </button>

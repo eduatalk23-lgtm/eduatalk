@@ -60,7 +60,7 @@ function ErrorStateComponent({
                 className={cn(
                   "inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition-base",
                   onRetry
-                    ? "border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                    ? "border border-[rgb(var(--color-secondary-300))] text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]"
                     : "bg-error-600 text-white hover:bg-error-700"
                 )}
               >

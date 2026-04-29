@@ -170,12 +170,12 @@ function getInitials(name: string): string {
  */
 function getColorFromName(name: string): string {
   const colors = [
-    "bg-indigo-500",
-    "bg-blue-500",
-    "bg-emerald-500",
-    "bg-amber-500",
+    "bg-[rgb(var(--color-primary-500))]",
+    "bg-[rgb(var(--color-info-500))]",
+    "bg-[rgb(var(--color-success-500))]",
+    "bg-[rgb(var(--color-warning-500))]",
     "bg-rose-500",
-    "bg-violet-500",
+    "bg-[rgb(var(--color-primary-500))]",
     "bg-cyan-500",
     "bg-pink-500",
     "bg-teal-500",
@@ -228,7 +228,7 @@ function AvatarComponent({
   const hasSrc = !!src && !isError;
 
   const initials = name ? getInitials(name) : "";
-  const bgColor = name ? getColorFromName(name) : "bg-gray-400";
+  const bgColor = name ? getColorFromName(name) : "bg-[rgb(var(--color-secondary-400))]";
   const useNextImage = hasSrc && isOptimizableUrl(src);
   const pixels = sizePixels[size];
 
@@ -298,7 +298,7 @@ function AvatarComponent({
             "absolute bottom-0 right-0 block border-white",
             statusSizeClasses[size],
             variantClasses[variant],
-            isOnline ? "bg-emerald-500" : "bg-gray-400"
+            isOnline ? "bg-[rgb(var(--color-success-500))]" : "bg-[rgb(var(--color-secondary-400))]"
           )}
           aria-label={isOnline ? "온라인" : "오프라인"}
         />

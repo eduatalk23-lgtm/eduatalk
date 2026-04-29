@@ -140,14 +140,14 @@ export default function BirthDateInput({
   }, [year, month, day]);
 
   const fieldClass =
-    "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-center tabular-nums transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50 disabled:bg-gray-50";
+    "w-full rounded-lg border border-[rgb(var(--color-secondary-300))] bg-[var(--background)] px-3 py-2 text-sm text-center tabular-nums transition focus:border-[rgb(var(--color-primary-500))] focus:ring-1 focus:ring-[rgb(var(--color-primary-500))] focus:outline-none disabled:opacity-50 disabled:bg-[rgb(var(--color-secondary-50))]";
 
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-[var(--text-secondary)]">
           {label}
-          {required && <span className="text-red-500 ml-0.5">*</span>}
+          {required && <span className="text-[rgb(var(--color-error-500))] ml-0.5">*</span>}
         </label>
       )}
       <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export default function BirthDateInput({
           className={fieldClass}
           style={{ maxWidth: "5rem" }}
         />
-        <span className="text-gray-400 select-none">-</span>
+        <span className="text-[var(--text-placeholder)] select-none">-</span>
         <input
           ref={monthRef}
           type="text"
@@ -182,7 +182,7 @@ export default function BirthDateInput({
           className={fieldClass}
           style={{ maxWidth: "3.5rem" }}
         />
-        <span className="text-gray-400 select-none">-</span>
+        <span className="text-[var(--text-placeholder)] select-none">-</span>
         <input
           ref={dayRef}
           type="text"
@@ -200,7 +200,7 @@ export default function BirthDateInput({
         />
       </div>
       {(inlineError || error) && (
-        <p className="text-xs text-red-500">{inlineError || error}</p>
+        <p className="text-xs text-[rgb(var(--color-error-500))]">{inlineError || error}</p>
       )}
     </div>
   );

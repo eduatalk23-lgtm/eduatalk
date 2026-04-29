@@ -42,7 +42,7 @@ export function Empty({
     return (
       <div
         className={cn(
-          "flex flex-col items-center gap-2 rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700",
+          "flex flex-col items-center gap-2 rounded-lg border border-dashed border-[rgb(var(--color-secondary-300))] p-6 text-center",
           className,
         )}
       >

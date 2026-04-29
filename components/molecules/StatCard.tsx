@@ -101,10 +101,10 @@ const colorClasses: Record<
     value: "text-pink-700 dark:text-pink-300",
   },
   violet: {
-    bg: "bg-violet-50 dark:bg-violet-900/30",
-    iconBg: "bg-violet-100 dark:bg-violet-900/50",
-    label: "text-violet-600 dark:text-violet-400",
-    value: "text-violet-700 dark:text-violet-300",
+    bg: "bg-[rgb(var(--color-primary-50))]",
+    iconBg: "bg-[rgb(var(--color-primary-100))]",
+    label: "text-[rgb(var(--color-primary-600))]",
+    value: "text-[rgb(var(--color-primary-700))]",
   },
 };
 

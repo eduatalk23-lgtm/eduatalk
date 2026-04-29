@@ -91,7 +91,7 @@ export function Combobox({
     borderInput,
     bgSurface,
     textPrimary,
-    "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800",
+    "focus:border-[rgb(var(--color-primary-500))] focus:ring-[rgb(var(--color-primary-200))]",
     className
   );
 
@@ -128,7 +128,7 @@ export function Combobox({
           className={cn(
             "absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border shadow-lg",
             borderInput,
-            "bg-white dark:bg-gray-900"
+            "bg-[var(--background)]"
           )}
         >
           {visibleOptions.map((opt) => (
@@ -139,8 +139,8 @@ export function Combobox({
                   "w-full px-3 py-2 text-left text-sm transition",
                   textPrimary,
                   opt === value
-                    ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ? "bg-[rgb(var(--color-primary-50))] font-medium text-[rgb(var(--color-primary-700))]"
+                    : "hover:bg-[rgb(var(--color-secondary-100))]"
                 )}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -159,7 +159,7 @@ export function Combobox({
           className={cn(
             "absolute z-20 mt-1 w-full rounded-lg border px-3 py-2 shadow-lg",
             borderInput,
-            "bg-white dark:bg-gray-900"
+            "bg-[var(--background)]"
           )}
         >
           <span className={cn("text-xs", textSecondary)}>

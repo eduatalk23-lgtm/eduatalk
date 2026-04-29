@@ -89,7 +89,7 @@ export default function ProfileImageUploader({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="rounded-full bg-indigo-600 p-1.5 text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-full bg-[rgb(var(--color-primary-600))] p-1.5 text-white shadow-sm transition hover:bg-[rgb(var(--color-primary-700))] disabled:opacity-50"
               title="이미지 변경"
             >
               <Camera className="size-3.5" />
@@ -99,7 +99,7 @@ export default function ProfileImageUploader({
                 type="button"
                 onClick={handleDelete}
                 disabled={isUploading}
-                className="rounded-full bg-red-600 p-1.5 text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
+                className="rounded-full bg-[rgb(var(--color-error-600))] p-1.5 text-white shadow-sm transition hover:bg-[rgb(var(--color-error-700))] disabled:opacity-50"
                 title="이미지 삭제"
               >
                 <Trash2 className="size-3.5" />
@@ -116,7 +116,7 @@ export default function ProfileImageUploader({
         />
       </div>
       {isUploading && (
-        <span className="text-sm text-gray-500">업로드 중...</span>
+        <span className="text-sm text-[var(--text-tertiary)]">업로드 중...</span>
       )}
     </div>
   );

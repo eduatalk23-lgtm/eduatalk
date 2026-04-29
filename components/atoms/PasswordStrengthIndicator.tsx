@@ -47,19 +47,19 @@ export function calculatePasswordStrength(password: string): PasswordStrengthRes
 }
 
 const strengthColors: Record<PasswordStrength, string> = {
-  empty: "bg-neutral-200 dark:bg-neutral-700",
-  weak: "bg-red-500",
+  empty: "bg-[rgb(var(--color-secondary-200))]",
+  weak: "bg-[rgb(var(--color-error-500))]",
   fair: "bg-orange-500",
-  good: "bg-yellow-500",
-  strong: "bg-green-500",
+  good: "bg-[rgb(var(--color-warning-500))]",
+  strong: "bg-[rgb(var(--color-success-500))]",
 };
 
 const strengthTextColors: Record<PasswordStrength, string> = {
-  empty: "text-neutral-400",
-  weak: "text-red-600 dark:text-red-400",
+  empty: "text-[var(--text-placeholder)]",
+  weak: "text-[rgb(var(--color-error-600))]",
   fair: "text-orange-600 dark:text-orange-400",
-  good: "text-yellow-600 dark:text-yellow-400",
-  strong: "text-green-600 dark:text-green-400",
+  good: "text-[rgb(var(--color-warning-600))]",
+  strong: "text-[rgb(var(--color-success-600))]",
 };
 
 export interface PasswordStrengthIndicatorProps {
@@ -91,7 +91,7 @@ const PasswordStrengthIndicator = memo(function PasswordStrengthIndicator({
                 "h-1.5 flex-1 rounded-full transition-colors duration-200",
                 level <= result.score
                   ? strengthColors[result.strength]
-                  : "bg-neutral-200 dark:bg-neutral-700"
+                  : "bg-[rgb(var(--color-secondary-200))]"
               )}
             />
           ))}
@@ -142,8 +142,8 @@ function CheckItem({
       className={cn(
         "flex items-center gap-1.5 transition-colors",
         passed
-          ? "text-green-600 dark:text-green-400"
-          : "text-neutral-400 dark:text-neutral-500"
+          ? "text-[rgb(var(--color-success-600))]"
+          : "text-[var(--text-placeholder)]"
       )}
     >
       {passed ? (

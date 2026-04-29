@@ -17,23 +17,23 @@ const PROVIDER_CONFIG: Record<
 > = {
   email: {
     label: "이메일",
-    bgClass: "bg-gray-100 dark:bg-gray-700",
-    textClass: "text-gray-700 dark:text-gray-300",
+    bgClass: "bg-[rgb(var(--color-secondary-100))]",
+    textClass: "text-[var(--text-secondary)]",
   },
   google: {
     label: "Google",
-    bgClass: "bg-blue-50 dark:bg-blue-900/30",
-    textClass: "text-blue-700 dark:text-blue-300",
+    bgClass: "bg-[rgb(var(--color-info-50))]",
+    textClass: "text-[rgb(var(--color-info-700))]",
   },
   kakao: {
     label: "카카오",
-    bgClass: "bg-yellow-50 dark:bg-yellow-900/30",
-    textClass: "text-yellow-800 dark:text-yellow-300",
+    bgClass: "bg-[rgb(var(--color-warning-50))]",
+    textClass: "text-[rgb(var(--color-warning-800))]",
   },
   phone: {
     label: "전화번호",
-    bgClass: "bg-green-50 dark:bg-green-900/30",
-    textClass: "text-green-700 dark:text-green-300",
+    bgClass: "bg-[rgb(var(--color-success-50))]",
+    textClass: "text-[rgb(var(--color-success-700))]",
   },
 };
 

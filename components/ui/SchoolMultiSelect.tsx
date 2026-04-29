@@ -66,7 +66,7 @@ function SchoolMultiSelectComponent({
       case 1: // 1순위
         return {
           badge: "bg-gradient-to-br from-amber-500 to-amber-600 text-white font-semibold shadow-[var(--elevation-4)]",
-          card: "bg-gradient-to-r from-amber-50 to-indigo-50 border-2 border-amber-300 shadow-[var(--elevation-4)]",
+          card: "bg-gradient-to-r from-amber-50 to-[rgb(var(--color-primary-50))] border-2 border-amber-300 shadow-[var(--elevation-4)]",
           icon: "text-amber-600",
         };
       case 2: // 2순위
@@ -78,14 +78,14 @@ function SchoolMultiSelectComponent({
       case 3: // 3순위
         return {
           badge: "bg-gradient-to-br from-amber-700 to-amber-800 text-white font-semibold shadow-[var(--elevation-1)]",
-          card: "bg-gradient-to-r from-amber-50/50 to-indigo-50 border border-amber-200 shadow-[var(--elevation-1)]",
+          card: "bg-gradient-to-r from-amber-50/50 to-[rgb(var(--color-primary-50))] border border-amber-200 shadow-[var(--elevation-1)]",
           icon: "text-amber-700",
         };
       default:
         return {
-          badge: "bg-indigo-200 text-indigo-800",
-          card: "bg-indigo-50 border border-indigo-200",
-          icon: "text-indigo-600",
+          badge: "bg-[rgb(var(--color-primary-200))] text-[rgb(var(--color-primary-800))]",
+          card: "bg-[rgb(var(--color-primary-50))] border border-[rgb(var(--color-primary-200))]",
+          icon: "text-[rgb(var(--color-primary-600))]",
         };
     }
   };
@@ -234,7 +234,7 @@ function SchoolMultiSelectComponent({
       {/* 검색 드롭다운 메뉴 */}
       {isOpen && !disabled && isSearchMode && canAddMore && (
         <div 
-          className="absolute z-50 top-1 w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-white dark:bg-secondary-900 shadow-[var(--elevation-8)]"
+          className="absolute z-50 top-1 w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[var(--background)] shadow-[var(--elevation-8)]"
           role="listbox"
           id="school-listbox"
         >
@@ -330,7 +330,7 @@ function SchoolMultiSelectComponent({
                     key={school.id || school.name}
                     onClick={() => handleSelect(school)}
                     className={cn(
-                      "cursor-pointer px-4 py-2 text-body-2 hover:bg-indigo-50"
+                      "cursor-pointer px-4 py-2 text-body-2 hover:bg-[rgb(var(--color-primary-50))]"
                     )}
                     role="option"
                     aria-selected={false}
@@ -348,14 +348,14 @@ function SchoolMultiSelectComponent({
                           )}
                           {/* 캠퍼스 정보 표시 */}
                           {school.name.includes("캠퍼스") && (
-                            <span className="text-body-2 font-medium text-blue-600">
+                            <span className="text-body-2 font-medium text-[rgb(var(--color-info-600))]">
                               {school.name.match(/(.+캠퍼스)/)?.[0] || ""}
                             </span>
                           )}
                         </div>
                       </div>
                       {school.type && (
-                        <span className="text-body-2 font-medium text-indigo-600 whitespace-nowrap">
+                        <span className="text-body-2 font-medium text-[rgb(var(--color-primary-600))] whitespace-nowrap">
                           {school.type === "중학교"
                             ? "중등"
                             : school.type === "고등학교"

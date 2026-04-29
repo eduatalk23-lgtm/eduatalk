@@ -63,63 +63,63 @@ const sizeStyles: Record<TooltipSize, { padding: string; text: string; arrow: st
 
 const variantStyles: Record<TooltipVariant, { bg: string; text: string; arrow: Record<TooltipPosition, string> }> = {
   dark: {
-    bg: "bg-gray-900 dark:bg-gray-100",
-    text: "text-white dark:text-gray-900",
+    bg: "bg-[rgb(var(--color-secondary-900))]",
+    text: "text-white",
     arrow: {
-      top: "border-t-gray-900 dark:border-t-gray-100 border-x-transparent border-b-transparent",
-      bottom: "border-b-gray-900 dark:border-b-gray-100 border-x-transparent border-t-transparent",
-      left: "border-l-gray-900 dark:border-l-gray-100 border-y-transparent border-r-transparent",
-      right: "border-r-gray-900 dark:border-r-gray-100 border-y-transparent border-l-transparent",
+      top: "border-t-[rgb(var(--color-secondary-900))] border-x-transparent border-b-transparent",
+      bottom: "border-b-[rgb(var(--color-secondary-900))] border-x-transparent border-t-transparent",
+      left: "border-l-[rgb(var(--color-secondary-900))] border-y-transparent border-r-transparent",
+      right: "border-r-[rgb(var(--color-secondary-900))] border-y-transparent border-l-transparent",
     },
   },
   light: {
-    bg: "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
-    text: "text-gray-900 dark:text-gray-100",
+    bg: "bg-[var(--background)] border border-[rgb(var(--color-secondary-200))]",
+    text: "text-[var(--text-primary)]",
     arrow: {
-      top: "border-t-white dark:border-t-gray-800 border-x-transparent border-b-transparent",
-      bottom: "border-b-white dark:border-b-gray-800 border-x-transparent border-t-transparent",
-      left: "border-l-white dark:border-l-gray-800 border-y-transparent border-r-transparent",
-      right: "border-r-white dark:border-r-gray-800 border-y-transparent border-l-transparent",
+      top: "border-t-[var(--background)] border-x-transparent border-b-transparent",
+      bottom: "border-b-[var(--background)] border-x-transparent border-t-transparent",
+      left: "border-l-[var(--background)] border-y-transparent border-r-transparent",
+      right: "border-r-[var(--background)] border-y-transparent border-l-transparent",
     },
   },
   info: {
-    bg: "bg-blue-600 dark:bg-blue-500",
+    bg: "bg-[rgb(var(--color-info-600))]",
     text: "text-white",
     arrow: {
-      top: "border-t-blue-600 dark:border-t-blue-500 border-x-transparent border-b-transparent",
-      bottom: "border-b-blue-600 dark:border-b-blue-500 border-x-transparent border-t-transparent",
-      left: "border-l-blue-600 dark:border-l-blue-500 border-y-transparent border-r-transparent",
-      right: "border-r-blue-600 dark:border-r-blue-500 border-y-transparent border-l-transparent",
+      top: "border-t-[rgb(var(--color-info-600))] border-x-transparent border-b-transparent",
+      bottom: "border-b-[rgb(var(--color-info-600))] border-x-transparent border-t-transparent",
+      left: "border-l-[rgb(var(--color-info-600))] border-y-transparent border-r-transparent",
+      right: "border-r-[rgb(var(--color-info-600))] border-y-transparent border-l-transparent",
     },
   },
   warning: {
-    bg: "bg-amber-500 dark:bg-amber-400",
-    text: "text-white dark:text-gray-900",
+    bg: "bg-[rgb(var(--color-warning-500))]",
+    text: "text-white",
     arrow: {
-      top: "border-t-amber-500 dark:border-t-amber-400 border-x-transparent border-b-transparent",
-      bottom: "border-b-amber-500 dark:border-b-amber-400 border-x-transparent border-t-transparent",
-      left: "border-l-amber-500 dark:border-l-amber-400 border-y-transparent border-r-transparent",
-      right: "border-r-amber-500 dark:border-r-amber-400 border-y-transparent border-l-transparent",
+      top: "border-t-[rgb(var(--color-warning-500))] border-x-transparent border-b-transparent",
+      bottom: "border-b-[rgb(var(--color-warning-500))] border-x-transparent border-t-transparent",
+      left: "border-l-[rgb(var(--color-warning-500))] border-y-transparent border-r-transparent",
+      right: "border-r-[rgb(var(--color-warning-500))] border-y-transparent border-l-transparent",
     },
   },
   error: {
-    bg: "bg-red-600 dark:bg-red-500",
+    bg: "bg-[rgb(var(--color-error-600))]",
     text: "text-white",
     arrow: {
-      top: "border-t-red-600 dark:border-t-red-500 border-x-transparent border-b-transparent",
-      bottom: "border-b-red-600 dark:border-b-red-500 border-x-transparent border-t-transparent",
-      left: "border-l-red-600 dark:border-l-red-500 border-y-transparent border-r-transparent",
-      right: "border-r-red-600 dark:border-r-red-500 border-y-transparent border-l-transparent",
+      top: "border-t-[rgb(var(--color-error-600))] border-x-transparent border-b-transparent",
+      bottom: "border-b-[rgb(var(--color-error-600))] border-x-transparent border-t-transparent",
+      left: "border-l-[rgb(var(--color-error-600))] border-y-transparent border-r-transparent",
+      right: "border-r-[rgb(var(--color-error-600))] border-y-transparent border-l-transparent",
     },
   },
   success: {
-    bg: "bg-green-600 dark:bg-green-500",
+    bg: "bg-[rgb(var(--color-success-600))]",
     text: "text-white",
     arrow: {
-      top: "border-t-green-600 dark:border-t-green-500 border-x-transparent border-b-transparent",
-      bottom: "border-b-green-600 dark:border-b-green-500 border-x-transparent border-t-transparent",
-      left: "border-l-green-600 dark:border-l-green-500 border-y-transparent border-r-transparent",
-      right: "border-r-green-600 dark:border-r-green-500 border-y-transparent border-l-transparent",
+      top: "border-t-[rgb(var(--color-success-600))] border-x-transparent border-b-transparent",
+      bottom: "border-b-[rgb(var(--color-success-600))] border-x-transparent border-t-transparent",
+      left: "border-l-[rgb(var(--color-success-600))] border-y-transparent border-r-transparent",
+      right: "border-r-[rgb(var(--color-success-600))] border-y-transparent border-l-transparent",
     },
   },
 };
@@ -150,7 +150,7 @@ function KeyboardShortcut({ keys }: { keys: string | string[] }) {
       {keyArray.map((key, index) => (
         <kbd
           key={index}
-          className="inline-flex items-center justify-center rounded border border-gray-600 dark:border-gray-400 bg-gray-800 dark:bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 dark:text-gray-700 min-w-[1.25rem]"
+          className="inline-flex items-center justify-center rounded border border-[rgb(var(--color-secondary-600))] bg-[rgb(var(--color-secondary-800))] px-1.5 py-0.5 text-[10px] font-medium text-[rgb(var(--color-secondary-300))] min-w-[1.25rem]"
         >
           {key}
         </kbd>
@@ -467,7 +467,7 @@ export function InfoTooltip({
 }) {
   return (
     <Tooltip content={content} position={position} size={size} variant="info">
-      <span className="inline-flex cursor-help items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 size-4">
+      <span className="inline-flex cursor-help items-center justify-center rounded-full bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-600))] size-4">
         <svg
           className="size-3"
           fill="none"

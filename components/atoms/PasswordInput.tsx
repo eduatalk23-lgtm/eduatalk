@@ -78,7 +78,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           type="button"
           onClick={togglePasswordVisibility}
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors",
+            "absolute top-1/2 -translate-y-1/2 text-[var(--text-placeholder)] hover:text-[var(--text-secondary)] transition-colors",
             iconSizeClasses[inputSize]
           )}
           aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}

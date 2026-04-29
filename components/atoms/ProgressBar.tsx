@@ -38,7 +38,7 @@ const colorClasses: Record<ProgressBarColor, string> = {
   orange: "bg-warning-600",
   red: "bg-error-600",
   purple: "bg-purple-600", // 의도적인 다채로운 색상 (디자인 시스템에 없음)
-  violet: "bg-violet-600", // 의도적인 다채로운 색상 (디자인 시스템에 없음)
+  violet: "bg-[rgb(var(--color-primary-600))]",
 };
 
 const sizeClasses: Record<ProgressBarSize, string> = {

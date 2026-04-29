@@ -101,11 +101,11 @@ const TextAreaComponent = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             // 플레이스홀더
             `placeholder:${textPlaceholderVar}`,
             // 포커스 스타일
-            "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20",
+            "focus:border-[rgb(var(--color-primary-500))] focus:ring-2 focus:ring-[rgb(var(--color-primary-500))]/20",
             // 에러 스타일
-            hasError && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
+            hasError && "border-[rgb(var(--color-error-500))] focus:border-[rgb(var(--color-error-500))] focus:ring-[rgb(var(--color-error-500))]/20",
             // 비활성화 스타일
-            disabled && "cursor-not-allowed opacity-50 bg-gray-100 dark:bg-gray-800",
+            disabled && "cursor-not-allowed opacity-50 bg-[rgb(var(--color-secondary-100))]",
             // 크기
             sizeClasses[size],
             // 리사이즈
@@ -122,10 +122,10 @@ const TextAreaComponent = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             className={cn(
               "absolute bottom-2 right-3 text-xs",
               currentLength >= maxLength
-                ? "text-red-500"
+                ? "text-[rgb(var(--color-error-500))]"
                 : currentLength >= maxLength * 0.9
                   ? "text-amber-500"
-                  : "text-gray-400"
+                  : "text-[var(--text-placeholder)]"
             )}
             aria-live="polite"
           >

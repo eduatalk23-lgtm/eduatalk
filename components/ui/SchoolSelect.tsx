@@ -274,7 +274,7 @@ export default function SchoolSelect({
 
       {/* 검색 드롭다운 */}
       {isOpen && !disabled && isSearchMode && (
-        <div className="absolute z-50 top-full w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-white dark:bg-secondary-900 shadow-[var(--elevation-8)]">
+        <div className="absolute z-50 top-full w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[var(--background)] shadow-[var(--elevation-8)]">
           {/* 검색 입력 */}
           <div className="border-b border-[rgb(var(--color-secondary-200))] p-3">
             <div className="flex gap-2">
@@ -346,7 +346,7 @@ export default function SchoolSelect({
             {loading ? (
               <div className="flex items-center justify-center px-4 py-6">
                 <svg
-                  className="h-5 w-5 animate-spin text-gray-400"
+                  className="h-5 w-5 animate-spin text-[var(--text-placeholder)]"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
@@ -375,8 +375,8 @@ export default function SchoolSelect({
                     key={school.id || school.name}
                     onClick={() => handleSelect(school)}
                     className={cn(
-                      "cursor-pointer px-4 py-2 text-body-2 hover:bg-indigo-50",
-                      selectedSchool?.id === school.id && "bg-indigo-100"
+                      "cursor-pointer px-4 py-2 text-body-2 hover:bg-[rgb(var(--color-primary-50))]",
+                      selectedSchool?.id === school.id && "bg-[rgb(var(--color-primary-100))]"
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -391,7 +391,7 @@ export default function SchoolSelect({
                         )}
                       </div>
                       {school.type && (
-                        <span className="whitespace-nowrap text-body-2 font-medium text-indigo-600">
+                        <span className="whitespace-nowrap text-body-2 font-medium text-[rgb(var(--color-primary-600))]">
                           {school.type === "중학교"
                             ? "중등"
                             : school.type === "고등학교"
