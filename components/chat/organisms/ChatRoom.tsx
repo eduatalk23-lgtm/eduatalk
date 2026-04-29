@@ -294,6 +294,8 @@ interface ChatMessageItemProps {
   };
   userId: string;
   readCount: number | undefined;
+  /** 그룹 채팅(>2명)·본인 메시지 한정 — 안 읽은 멤버 이름 (tooltip 표시용) */
+  unreadMemberNames?: string[];
   isPinned: boolean;
   canPinMessages: boolean;
   canEditMessage: (createdAt: string) => boolean;
@@ -307,6 +309,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
   message,
   userId,
   readCount,
+  unreadMemberNames,
   isPinned,
   canPinMessages,
   canEditMessage,
@@ -331,6 +334,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
     isDeleted: message.is_deleted,
     isEdited: isMessageEdited(message),
     unreadCount: isOwn ? readCount : undefined,
+    unreadMemberNames: isOwn ? unreadMemberNames : undefined,
     reactions: message.reactions ?? [],
     replyTarget: message.replyTarget,
     isPinned,
@@ -1323,23 +1327,45 @@ function ChatRoomComponent({
     []
   );
 
+  // 그룹 채팅(>2명)에서만 의미 있음 — 1:1은 unread 숫자만으로 충분
+  const isGroupChat = data.members.length > 2;
+
   // readCount를 ref Map에서 조회: READ_RECEIPT 변경이 allMessages/messagesWithGrouping 재계산을 유발하지 않음
   // Inverted: 각 아이템에 scaleY(-1) 적용 (Scroller의 scaleY(-1)과 상쇄 → 올바른 방향)
-  const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => (
-    <div style={{ transform: "scaleY(-1)" }}>
-      <ChatMessageItem
-        message={message}
-        userId={userId}
-        readCount={readCountsMap.current.get(message.id)}
-        isPinned={pinnedMessageIds.has(message.id)}
-        canPinMessages={canPin}
-        canEditMessage={canEditMessage}
-        isMessageEdited={isMessageEdited}
-        createActionHandler={createMessageActionHandler}
-        getRefCallback={getRefCallback}
-      />
-    </div>
-  ), [
+  const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => {
+    const readCount = readCountsMap.current.get(message.id);
+    const isOwnMsg = message.sender_id === userId;
+
+    // 그룹·본인 메시지·미독 인원 존재 시에만 안 읽은 멤버 이름 산출
+    let unreadMemberNames: string[] | undefined;
+    if (isGroupChat && isOwnMsg && readCount && readCount > 0) {
+      const createdAtMs = new Date(message.created_at).getTime();
+      unreadMemberNames = data.members
+        .filter(
+          (m) =>
+            m.user_id !== userId &&
+            new Date(m.last_read_at).getTime() < createdAtMs
+        )
+        .map((m) => m.user?.name ?? "알 수 없음");
+    }
+
+    return (
+      <div style={{ transform: "scaleY(-1)" }}>
+        <ChatMessageItem
+          message={message}
+          userId={userId}
+          readCount={readCount}
+          unreadMemberNames={unreadMemberNames}
+          isPinned={pinnedMessageIds.has(message.id)}
+          canPinMessages={canPin}
+          canEditMessage={canEditMessage}
+          isMessageEdited={isMessageEdited}
+          createActionHandler={createMessageActionHandler}
+          getRefCallback={getRefCallback}
+        />
+      </div>
+    );
+  }, [
     userId,
     pinnedMessageIds,
     canPin,
@@ -1348,6 +1374,8 @@ function ChatRoomComponent({
     getRefCallback,
     createMessageActionHandler,
     readCountsMap,
+    isGroupChat,
+    data.members,
   ]);
 
   const computeItemKey = useCallback((_index: number, message: (typeof messages)[number]) => message.id, []);

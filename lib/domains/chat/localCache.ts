@@ -16,7 +16,11 @@ import type { CacheMessage } from "./cacheTypes";
 // ============================================
 
 const DB_NAME = "timelevelup_chat_cache";
-const DB_VERSION = 1;
+/**
+ * v2: room_state.updatedAt 기반 TTL 정책 도입.
+ * 스키마 자체 변경은 없으나 v1 데이터에 updatedAt 누락 가능성을 고려해 버전 bump.
+ */
+const DB_VERSION = 2;
 const STORE_MESSAGES = "messages";
 const STORE_ROOM_STATE = "room_state";
 
@@ -24,6 +28,8 @@ const STORE_ROOM_STATE = "room_state";
 const MAX_CACHED_PER_ROOM = 200;
 /** 최대 캐시 채팅방 수 (LRU 정리) */
 const MAX_ROOMS = 20;
+/** 캐시 룸 TTL (7일) — 미접속 룸은 다음 evict 호출 시 정리 */
+const ROOM_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ============================================
 // 타입
@@ -56,8 +62,9 @@ function openChatCacheDB(): Promise<IDBDatabase> {
 
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
+      const oldVersion = event.oldVersion;
 
       // messages 스토어: room_id + created_at 복합 인덱스로 범위 조회
       if (!db.objectStoreNames.contains(STORE_MESSAGES)) {
@@ -69,6 +76,16 @@ function openChatCacheDB(): Promise<IDBDatabase> {
       // room_state 스토어: 채팅방별 동기화 상태
       if (!db.objectStoreNames.contains(STORE_ROOM_STATE)) {
         db.createObjectStore(STORE_ROOM_STATE, { keyPath: "roomId" });
+      }
+
+      // v1 → v2: 기존 캐시는 안전하게 폐기 (TTL 도입에 따른 데이터 일관성 확보)
+      // 차후 schema 변경 시 동일 분기에 마이그레이션 로직 추가
+      if (oldVersion > 0 && oldVersion < 2) {
+        const tx = request.transaction;
+        if (tx) {
+          tx.objectStore(STORE_MESSAGES).clear();
+          tx.objectStore(STORE_ROOM_STATE).clear();
+        }
       }
     };
 
@@ -248,7 +265,9 @@ async function evictExcessMessages(roomId: string): Promise<void> {
 }
 
 /**
- * 오래된 채팅방 캐시 정리 (LRU, maxRooms 초과 시)
+ * 오래된 채팅방 캐시 정리
+ * - TTL 만료(updatedAt 기준 ROOM_TTL_MS 초과) 룸 제거
+ * - 그 후에도 maxRooms 초과 시 LRU 정렬로 추가 제거
  */
 export async function evictOldRooms(maxRooms: number = MAX_ROOMS): Promise<void> {
   const db = await openChatCacheDB();
@@ -262,11 +281,19 @@ export async function evictOldRooms(maxRooms: number = MAX_ROOMS): Promise<void>
     req.onerror = () => reject(req.error);
   });
 
-  if (states.length <= maxRooms) return;
+  // 1. TTL 만료 룸 제거
+  const now = Date.now();
+  const expired = states.filter((s) => now - s.updatedAt > ROOM_TTL_MS);
+  for (const state of expired) {
+    await evictRoom(state.roomId);
+  }
 
-  // LRU: updatedAt 기준 오래된 순 정렬 → 초과분 삭제
-  states.sort((a, b) => a.updatedAt - b.updatedAt);
-  const toEvict = states.slice(0, states.length - maxRooms);
+  // 2. 잔여 룸 중 maxRooms 초과 시 LRU
+  const remaining = states.filter((s) => now - s.updatedAt <= ROOM_TTL_MS);
+  if (remaining.length <= maxRooms) return;
+
+  remaining.sort((a, b) => a.updatedAt - b.updatedAt);
+  const toEvict = remaining.slice(0, remaining.length - maxRooms);
 
   for (const state of toEvict) {
     await evictRoom(state.roomId);

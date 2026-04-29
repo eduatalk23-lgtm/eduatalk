@@ -72,6 +72,8 @@ export interface MessageData {
   isDeleted?: boolean;
   isEdited?: boolean;
   unreadCount?: number;
+  /** 그룹 채팅 안 읽은 멤버 이름 — title tooltip 표시용 */
+  unreadMemberNames?: string[];
   reactions?: ReactionSummary[];
   replyTarget?: ReplyTargetInfo | null;
   isPinned?: boolean;
@@ -117,6 +119,27 @@ const LONG_TEXT_LINE_LIMIT = 10;
 /** 읽음 숫자 공통 스타일 */
 const UNREAD_COUNT_CLASS = "text-[11px] text-primary-600 dark:text-primary-400 font-semibold leading-tight";
 
+/** unreadCount span — 그룹 채팅에서 unreadMemberNames 가 있으면 title tooltip 노출 */
+function UnreadCountBadge({
+  count,
+  memberNames,
+  className,
+}: {
+  count: number;
+  memberNames?: string[];
+  className?: string;
+}) {
+  const title =
+    memberNames && memberNames.length > 0
+      ? `안 읽음: ${memberNames.join(", ")}`
+      : undefined;
+  return (
+    <span className={cn(UNREAD_COUNT_CLASS, className)} title={title}>
+      {count}
+    </span>
+  );
+}
+
 /** 인라인 시간/상태 표시 (버블 옆, 카카오톡 스타일) */
 function InlineTimeInfo({
   formattedTime,
@@ -127,6 +150,7 @@ function InlineTimeInfo({
   isSending,
   isEdited,
   unreadCount,
+  unreadMemberNames,
 }: {
   formattedTime: string;
   createdAt: string;
@@ -136,6 +160,7 @@ function InlineTimeInfo({
   isSending: boolean;
   isEdited: boolean;
   unreadCount?: number;
+  unreadMemberNames?: string[];
 }) {
   // 에러/대기 시에는 시간 영역 숨김 (별도 UI로 표시)
   if (hasError || isQueued) return null;
@@ -144,7 +169,7 @@ function InlineTimeInfo({
     <div className="flex flex-col items-end justify-end gap-0.5 flex-shrink-0 self-end pb-1">
       {/* 안 읽은 인원수 (카카오톡: 메시지 옆 숫자) */}
       {isOwn && !isSending && unreadCount !== undefined && unreadCount > 0 && (
-        <span className={UNREAD_COUNT_CLASS}>{unreadCount}</span>
+        <UnreadCountBadge count={unreadCount} memberNames={unreadMemberNames} />
       )}
       {/* 전송 중 표시 */}
       {isOwn && isSending && (
@@ -275,6 +300,7 @@ function MessageBubbleComponent({
     isDeleted = false,
     isEdited = false,
     unreadCount,
+    unreadMemberNames,
     reactions = [],
     replyTarget,
     isPinned: _isPinned = false,
@@ -417,6 +443,7 @@ function MessageBubbleComponent({
     isSending,
     isEdited,
     unreadCount,
+    unreadMemberNames,
   };
 
   return (
@@ -621,7 +648,11 @@ function MessageBubbleComponent({
 
             {/* 읽음 숫자 (시간 숨겨져도 항상 표시) */}
             {!showTime && isOwn && !timeProps.isSending && !timeProps.hasError && !timeProps.isQueued && unreadCount !== undefined && unreadCount > 0 && (
-              <span className={cn(UNREAD_COUNT_CLASS, "flex-shrink-0 self-end pb-1")}>{unreadCount}</span>
+              <UnreadCountBadge
+                count={unreadCount}
+                memberNames={unreadMemberNames}
+                className="flex-shrink-0 self-end pb-1"
+              />
             )}
             {/* 인라인 시간 (버블 옆) */}
             {showTime && <InlineTimeInfo {...timeProps} />}

@@ -7,6 +7,7 @@ import {
   createErrorResponse,
 } from "@/lib/types/actionResponse";
 import type { ActionResponse } from "@/lib/types/actionResponse";
+import type { ChatMessageMetadata } from "@/lib/domains/chat/types";
 import type {
   ExplorationGuide,
   GuideDetail,
@@ -793,7 +794,7 @@ export async function fetchChatInterestTagsAction(
 
     const keywords: string[] = [];
     for (const msg of data) {
-      const meta = msg.metadata as { interestTags?: Array<{ keyword: string }> } | null;
+      const meta = msg.metadata as ChatMessageMetadata | null;
       if (meta?.interestTags) {
         keywords.push(...meta.interestTags.map((t) => t.keyword));
       }
