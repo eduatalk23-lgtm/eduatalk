@@ -122,10 +122,21 @@ function DraggableAdminPlanCardComponent({
   // 시간 포맷 (HH:mm → AM/PM 한국어)
   const timeLabel = plan.start_time ? formatTimeKoAmPm(plan.start_time) : null;
 
+  // 접근성: 버튼 aria-label 조합 (시간 + 제목 + 상태)
+  const planTitle = plan.custom_title || plan.content_title || "플랜";
+  const statusLabel = isCompleted ? "완료" : plan.status === "in_progress" ? "진행중" : "";
+  const ariaLabel = [
+    timeLabel,
+    planTitle,
+    statusLabel,
+  ].filter(Boolean).join(", ");
+
   // dot 변형: Google Calendar 월간 뷰 — 배경 없음, 색 도트 + 시간 + 제목
   const isDotVariant = variant === 'dot';
 
-  const textColor = colors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100';
+  const textColor = colors.textIsWhite
+    ? 'text-white'
+    : 'text-[var(--text-primary)]';
 
   return (
     <button
@@ -145,6 +156,10 @@ function DraggableAdminPlanCardComponent({
           borderBottom: '1px solid white',
         } : {}),
       }}
+      aria-label={ariaLabel}
+      aria-roledescription="드래그 가능한 플랜"
+      aria-pressed={isSelectionMode ? isSelected : undefined}
+      aria-disabled={disabled || undefined}
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -157,7 +172,7 @@ function DraggableAdminPlanCardComponent({
         onClick(e);
       }}
       className={cn(
-        "w-full text-left text-[10px] sm:text-xs rounded-md flex items-center gap-0.5 sm:gap-1 overflow-hidden relative",
+        "w-full text-left text-3xs sm:text-xs rounded-md flex items-center gap-0.5 sm:gap-1 overflow-hidden relative",
         "cursor-grab active:cursor-grabbing",
         "touch-none select-none",
         "transition-[shadow,filter] hover:shadow-sm hover:brightness-[0.92]",
@@ -172,8 +187,8 @@ function DraggableAdminPlanCardComponent({
         isDragging && "opacity-50 shadow-lg z-50",
         disabled && "cursor-default opacity-60",
         isSelectionMode && "cursor-pointer",
-        isSelected && "ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-1 bg-blue-50 dark:bg-blue-900/20",
-        isHighlighted && !isSelected && "ring-2 ring-yellow-400 bg-yellow-50"
+        isSelected && "ring-2 ring-[rgb(var(--color-info-500))] ring-offset-1 bg-[rgb(var(--color-info-50))]",
+        isHighlighted && !isSelected && "ring-2 ring-[rgb(var(--color-warning-400))] bg-[rgb(var(--color-warning-50))]"
       )}
     >
       {/* 색상 도트 */}
@@ -188,20 +203,30 @@ function DraggableAdminPlanCardComponent({
           className={cn(
             "inline-flex items-center justify-center w-3.5 h-3.5 rounded-sm border flex-shrink-0",
             isSelected
-              ? "bg-blue-500 border-blue-500 text-white"
+              ? "bg-[rgb(var(--color-info-500))] border-[rgb(var(--color-info-500))] text-white"
               : "bg-[rgb(var(--color-secondary-50))] border-[rgb(var(--color-secondary-300))]"
           )}
         >
-          {isSelected && <Check className="w-2.5 h-2.5" />}
+          {isSelected && <Check className="w-2.5 h-2.5" aria-hidden="true" />}
         </span>
       )}
       {/* 시간 라벨 — 모바일에서 숨김 */}
       {timeLabel && (
         <span className="hidden sm:inline flex-shrink-0 tabular-nums opacity-70">{timeLabel}</span>
       )}
-      {/* 완료 체크 — 모바일에서 숨김 */}
+      {/* 완료 체크 — 버튼 aria-label에 이미 "완료" 포함되므로 장식 처리 */}
       {isCompleted && (
-        <Check className={cn("w-3 h-3 flex-shrink-0 hidden sm:block", isDotVariant ? "text-green-600 dark:text-green-400" : colors.textIsWhite ? "text-white/80" : "text-green-600 dark:text-green-400")} />
+        <Check
+          className={cn(
+            "w-3 h-3 flex-shrink-0",
+            isDotVariant
+              ? "text-[rgb(var(--color-success-600))]"
+              : colors.textIsWhite
+                ? "text-white/80"
+                : "text-[rgb(var(--color-success-600))]"
+          )}
+          aria-hidden="true"
+        />
       )}
       <span className={cn("truncate", colors.strikethrough && "line-through")}>
         {plan.custom_title || plan.content_title || "플랜"}

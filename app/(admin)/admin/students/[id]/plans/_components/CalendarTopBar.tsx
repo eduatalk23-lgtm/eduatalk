@@ -112,10 +112,12 @@ export const CalendarTopBar = memo(function CalendarTopBar({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMoreRef = useRef<HTMLDivElement>(null);
 
   // 검색 디바운스: 로컬 입력 상태 → 300ms 후 onSearchChange 호출
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -156,7 +158,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
 
   // 드롭다운 외부 클릭 감지
   useEffect(() => {
-    const anyOpen = dropdownOpen || moreMenuOpen;
+    const anyOpen = dropdownOpen || moreMenuOpen || mobileMoreOpen;
     if (!anyOpen) return;
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
@@ -166,10 +168,11 @@ export const CalendarTopBar = memo(function CalendarTopBar({
         if (!isInsideDesktop && !isInsideMobile) setDropdownOpen(false);
       }
       if (moreMenuOpen && !moreMenuRef.current?.contains(target)) setMoreMenuOpen(false);
+      if (mobileMoreOpen && !mobileMoreRef.current?.contains(target)) setMobileMoreOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen, moreMenuOpen]);
+  }, [dropdownOpen, moreMenuOpen, mobileMoreOpen]);
 
   // 검색 열릴 때 포커스
   useEffect(() => {
@@ -601,27 +604,6 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                 })()}
               </h2>
 
-              {/* 메모 (모바일) */}
-              <SidePanelMobileButton />
-
-              {/* 이벤트 검색 (모바일) */}
-              {onSearchChange && (
-                <button
-                  onClick={() => setSearchOpen(true)}
-                  className="p-1.5 shrink-0 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
-                  title="이벤트 검색"
-                >
-                  <Search className="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
-              )}
-
-              {/* 학생 전환기 (모바일) */}
-              {studentSwitcher && (
-                <div className="shrink-0">
-                  {studentSwitcher}
-                </div>
-              )}
-
               {/* 뷰 전환 */}
               <div className="relative shrink-0" ref={mobileDropdownRef}>
                 <button
@@ -686,6 +668,63 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                   </div>
                 )}
               </div>
+
+              {/* ⋮ 모바일 더보기 버튼 — 메모/검색/학생전환이 하나라도 있을 때만 표시 */}
+              {(onSearchChange || studentSwitcher) && (
+                <div className="relative shrink-0" ref={mobileMoreRef}>
+                  <button
+                    onClick={() => setMobileMoreOpen((prev) => !prev)}
+                    aria-label="더보기"
+                    className="p-1.5 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
+                  >
+                    <MoreVertical className="w-4 h-4 text-[var(--text-secondary)]" />
+                  </button>
+
+                  {mobileMoreOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border py-1 bg-[rgb(var(--color-secondary-50))] border-[rgb(var(--color-secondary-200))]"
+                    >
+                      {/* 메모 — SidePanelMobileButton 자체가 button을 렌더링하므로
+                           포인터 이벤트 캡처로 메뉴 닫힘 처리 */}
+                      <div
+                        role="menuitem"
+                        className="flex items-center gap-2 px-1 py-0.5 hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
+                        onPointerDown={() => setMobileMoreOpen(false)}
+                      >
+                        <SidePanelMobileButton />
+                        <span className="text-sm text-[var(--text-secondary)] pr-2">메모</span>
+                      </div>
+
+                      {/* 검색 */}
+                      {onSearchChange && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { setMobileMoreOpen(false); setSearchOpen(true); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
+                        >
+                          <Search className="w-4 h-4 shrink-0" />
+                          <span>이벤트 검색</span>
+                        </button>
+                      )}
+
+                      {/* 학생 전환 */}
+                      {studentSwitcher && (
+                        <>
+                          <div className="border-t border-[rgb(var(--color-secondary-200))] my-1" />
+                          <div
+                            role="menuitem"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
+                            onClick={() => setMobileMoreOpen(false)}
+                          >
+                            {studentSwitcher}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

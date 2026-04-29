@@ -55,7 +55,7 @@ const AdminMonthView = dynamic(() => import("./AdminMonthView"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-96">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(var(--color-info-600))]" />
     </div>
   ),
 });
@@ -464,7 +464,7 @@ export default function AdminCalendarView({
           {/* 로딩 오버레이 */}
           {isPlansLoading && (
             <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/50 flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(var(--color-info-600))]" />
             </div>
           )}
 

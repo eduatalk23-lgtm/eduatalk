@@ -366,9 +366,20 @@ function DroppableAdminDayCellComponent({
     [clearLongPress]
   );
 
+  // 접근성: 날짜 셀 aria-label 조합
+  const dateLabel = format(date, "yyyy년 M월 d일");
+  const planCountLabel = stats.totalPlans > 0
+    ? `플랜 ${stats.totalPlans}개, 완료 ${stats.completedPlans}/${stats.totalPlans}`
+    : "플랜 없음";
+  const holidayLabel = holidayName ? `, ${holidayName}` : "";
+  const exclusionLabel = status.isExclusion ? `, 제외일${status.exclusionReason ? ` (${status.exclusionReason})` : ""}` : "";
+  const cellAriaLabel = `${dateLabel}, ${planCountLabel}${holidayLabel}${exclusionLabel}`;
+
   return (
     <div
       ref={(node) => { setNodeRef(node); cellRef.current = node; }}
+      role="gridcell"
+      aria-label={cellAriaLabel}
       data-date={dateStr}
       onClick={handleCellClick}
       onDoubleClick={handleDoubleClick}
@@ -404,6 +415,8 @@ function DroppableAdminDayCellComponent({
           <button
             type="button"
             data-date-number
+            aria-label={`${dateLabel}${status.isToday ? ", 오늘" : ""}${holidayLabel} 날짜 이동`}
+            aria-current={status.isToday ? "date" : undefined}
             onClick={(e) => { e.stopPropagation(); onDateClick(dateStr); }}
             className={cn(
               "font-medium flex items-center justify-center rounded-full hover:ring-1 hover:ring-[rgb(var(--color-secondary-300))] transition-shadow",
@@ -439,10 +452,16 @@ function DroppableAdminDayCellComponent({
           {/* 출석 체크 표시 — 모바일에서는 작은 도트만 */}
           {checkedIn && (
             <>
-              <span className="hidden sm:inline text-[9px] px-1 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded font-medium">
-                ✓
+              <span
+                className="hidden sm:inline text-[9px] px-1 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded font-medium"
+                aria-label="출석 완료"
+              >
+                <span aria-hidden="true">✓</span>
               </span>
-              <span className="sm:hidden w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+              <span
+                className="sm:hidden w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                aria-label="출석 완료"
+              />
             </>
           )}
         </div>
@@ -453,6 +472,7 @@ function DroppableAdminDayCellComponent({
             <button
               type="button"
               data-quick-create-btn
+              aria-label={`${dateLabel}에 플랜 추가`}
               className="w-4 h-4 sm:w-5 sm:h-5 rounded-full
                 bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] text-[10px] sm:text-xs leading-none
                 flex items-center justify-center
@@ -463,7 +483,7 @@ function DroppableAdminDayCellComponent({
                 onQuickCreate(dateStr, e.currentTarget.getBoundingClientRect());
               }}
             >
-              +
+              <span aria-hidden="true">+</span>
             </button>
           )}
           {status.isExclusion && (
@@ -472,13 +492,15 @@ function DroppableAdminDayCellComponent({
             </span>
           )}
           {stats.totalPlans > 0 && !status.isExclusion && (
-            <span className={cn(
-              "text-[9px] rounded font-medium",
-              "hidden sm:inline px-1 py-0.5",
-              stats.completionRate === 100
-                ? "bg-green-100 text-green-700"
-                : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]"
-            )}>
+            <span
+              className={cn(
+                "text-3xs rounded font-medium px-1 py-0.5",
+                stats.completionRate === 100
+                  ? "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-700))]"
+                  : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]"
+              )}
+              aria-label={`완료 ${stats.completedPlans}/${stats.totalPlans}`}
+            >
               {stats.completedPlans}/{stats.totalPlans}
             </span>
           )}
@@ -536,6 +558,7 @@ function DroppableAdminDayCellComponent({
             <button
               type="button"
               data-overflow-btn
+              aria-label={`${plans.length - maxVisible}개 플랜 더 보기`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (onOverflowClick) {

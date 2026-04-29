@@ -92,14 +92,14 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
       </div>
 
       {/* 요일 헤더 */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7" role="row" aria-hidden="true">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
             className={cn(
-              'text-center text-[10px] font-medium py-0.5',
-              label === '일' && 'text-red-400',
-              label === '토' && 'text-blue-400',
+              'text-center text-3xs font-medium py-0.5',
+              label === '일' && 'text-[rgb(var(--color-error-400))]',
+              label === '토' && 'text-[rgb(var(--color-info-400))]',
               label !== '일' && label !== '토' && 'text-[rgb(var(--color-secondary-400))]'
             )}
           >
@@ -109,7 +109,7 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
       </div>
 
       {/* 날짜 그리드 */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7" role="grid" aria-label={format(displayMonth, 'yyyy년 M월')}>
         {calendarDays.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd');
           const isCurrentMonth = isSameMonth(date, displayMonth);
@@ -122,39 +122,46 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
           const dotCount = Math.min(eventCount, 3);
           const holiday = isCurrentMonth && showHolidays ? getHolidayName(dateStr) : null;
 
+          const miniDateLabel = format(date, 'yyyy년 M월 d일');
+          const miniTodayLabel = isTodayDate ? ', 오늘' : '';
+          const miniHolidayLabel = holiday ? `, ${holiday}` : '';
+          const miniEventLabel = eventCount > 0 ? `, 이벤트 ${eventCount}개` : '';
+          const miniSelectedLabel = isSelected ? ', 선택됨' : '';
+
           return (
             <button
               key={dateStr}
               onClick={() => onDateSelect(dateStr)}
               title={holiday ?? undefined}
+              aria-label={`${miniDateLabel}${miniTodayLabel}${miniHolidayLabel}${miniEventLabel}${miniSelectedLabel}`}
+              aria-current={isTodayDate ? 'date' : undefined}
+              aria-pressed={isSelected}
+              role="gridcell"
               className={cn(
                 'relative flex flex-col items-center justify-center h-8 text-xs rounded-full transition-colors',
-                // 현재 월 외 날짜
                 !isCurrentMonth && 'text-[rgb(var(--color-secondary-300))]',
-                // 현재 월 날짜
                 isCurrentMonth && 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]',
-                // 공휴일 (일요일보다 우선)
-                isCurrentMonth && holiday && 'text-red-500 dark:text-red-400',
-                // 일/토 색상 (공휴일이 아닐 때)
-                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-red-500 dark:text-red-400',
-                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-blue-500 dark:text-blue-400',
-                // 오늘 = 파란 원
-                isTodayDate && !isSelected && 'bg-blue-500 text-white hover:bg-blue-600',
-                // 선택 날짜 = 파란 배경
-                isSelected && !isTodayDate && 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 font-semibold',
-                // 오늘 + 선택
-                isSelected && isTodayDate && 'bg-blue-600 text-white'
+                isCurrentMonth && holiday && 'text-[rgb(var(--color-error-500))]',
+                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-[rgb(var(--color-error-500))]',
+                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-[rgb(var(--color-info-500))]',
+                isTodayDate && !isSelected && 'bg-[rgb(var(--color-info-500))] text-white hover:bg-[rgb(var(--color-info-600))]',
+                isSelected && !isTodayDate && 'bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-700))] font-semibold',
+                isSelected && isTodayDate && 'bg-[rgb(var(--color-info-600))] text-white'
               )}
             >
               <span className={dotCount > 0 ? '-mt-0.5' : ''}>{format(date, 'd')}</span>
               {isCurrentMonth && dotCount > 0 && (
-                <span className="absolute bottom-0.5 flex gap-px">
+                <span className="absolute bottom-0.5 flex gap-px" aria-hidden="true">
                   {Array.from({ length: dotCount }).map((_, i) => (
                     <span
                       key={i}
                       className={cn(
                         'w-1 h-1 rounded-full',
-                        isTodayDate || isSelected ? 'bg-current opacity-70' : 'bg-blue-500',
+                        isTodayDate
+                          ? 'bg-white'
+                          : isSelected
+                            ? 'bg-[rgb(var(--color-info-700))]'
+                            : 'bg-[rgb(var(--color-info-500))]',
                       )}
                     />
                   ))}

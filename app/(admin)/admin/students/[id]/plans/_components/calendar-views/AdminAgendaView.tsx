@@ -95,7 +95,7 @@ export const AdminAgendaView = memo(function AdminAgendaView({
             >
               <div className={cn(
                 'flex flex-col items-center justify-center w-12 h-12 rounded-full shrink-0',
-                header.isToday ? 'bg-blue-500 text-white' : 'bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)]',
+                header.isToday ? 'bg-[rgb(var(--color-info-500))] text-white' : 'bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)]',
               )}>
                 <span className="text-[10px] font-medium leading-none">{header.dayOfWeek}</span>
                 <span className={cn('text-lg font-semibold leading-tight', header.isToday && 'text-white')}>
@@ -104,10 +104,10 @@ export const AdminAgendaView = memo(function AdminAgendaView({
               </div>
               <span className={cn(
                 'text-sm font-medium',
-                header.isToday ? 'text-blue-600 dark:text-blue-400' : isPast ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
+                header.isToday ? 'text-[rgb(var(--color-info-600))]' : isPast ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
               )}>
                 {header.dateText}
-                {header.isToday && <span className="ml-1.5 text-xs text-blue-500 dark:text-blue-400">(오늘)</span>}
+                {header.isToday && <span className="ml-1.5 text-xs text-[rgb(var(--color-info-500))]">(오늘)</span>}
                 {(() => { const h = showHolidays ? getHolidayName(dateStr) : null; return h ? <span className="ml-1.5 text-xs text-red-400">{h}</span> : null; })()}
               </span>
               <span className="ml-auto text-xs text-[var(--text-tertiary)]">{plans.length}개</span>

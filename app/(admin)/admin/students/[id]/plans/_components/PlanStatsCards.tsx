@@ -92,9 +92,12 @@ export function PlanStatsCards({ studentId }: PlanStatsCardsProps) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg border p-4 animate-pulse">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-2" />
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16" />
+          <div
+            key={i}
+            className="bg-[--background] rounded-lg border border-[rgb(var(--color-secondary-200))] p-4 animate-pulse flex flex-col gap-2"
+          >
+            <div className="h-4 bg-[rgb(var(--color-secondary-200))] rounded w-20" />
+            <div className="h-8 bg-[rgb(var(--color-secondary-200))] rounded w-16" />
           </div>
         ))}
       </div>
@@ -104,55 +107,77 @@ export function PlanStatsCards({ studentId }: PlanStatsCardsProps) {
   if (!stats) return null;
 
   return (
-    <div className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">📊 현황</h3>
+    <div className="bg-[--background] rounded-lg border border-[rgb(var(--color-secondary-200))] p-4 flex flex-col gap-3">
+      <h3 className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+        현황
+      </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 미완료 */}
         <div
           className={cn(
             'p-3 rounded-lg',
-            stats.unfinishedCount > 0 ? 'bg-red-50' : 'bg-gray-50 dark:bg-gray-800'
+            stats.unfinishedCount > 0
+              ? 'bg-[rgb(var(--color-error-50))]'
+              : 'bg-[rgb(var(--color-secondary-50))]'
           )}
         >
-          <div className="text-sm text-gray-600 dark:text-gray-400">미완료</div>
-          <div className="flex items-baseline gap-1">
-            <span
-              className={cn(
-                'text-2xl font-bold',
-                stats.unfinishedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'
-              )}
-            >
-              {stats.unfinishedCount}
-            </span>
-            <span className="text-sm text-gray-500 dark:text-gray-400">건</span>
+          <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            미완료
+          </div>
+          <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-1">
+              <span
+                className={cn(
+                  'text-2xl font-bold',
+                  stats.unfinishedCount > 0
+                    ? 'text-[rgb(var(--color-error-600))]'
+                    : 'text-[rgb(var(--color-secondary-900))]'
+                )}
+              >
+                {stats.unfinishedCount}
+              </span>
+              <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                건
+              </span>
+            </div>
             {stats.unfinishedCount > 2 && (
-              <span className="ml-2 text-xs text-red-500 dark:text-red-400">⚠️</span>
+              <span className="text-xs text-[rgb(var(--color-error-500))]">⚠</span>
             )}
           </div>
         </div>
 
         {/* 이번 주 완료율 */}
-        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-          <div className="text-sm text-gray-600 dark:text-gray-400">이번 주 완료율</div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {stats.weeklyCompletionRate}
-            </span>
-            <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
-            <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
+        <div className="p-3 rounded-lg bg-[rgb(var(--color-info-50))]">
+          <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            이번 주 완료율
+          </div>
+          <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-[rgb(var(--color-info-600))]">
+                {stats.weeklyCompletionRate}
+              </span>
+              <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                %
+              </span>
+            </div>
+            <span className="text-xs" style={{ color: 'var(--text-placeholder)' }}>
               ({stats.completedPlansThisWeek}/{stats.totalPlansThisWeek})
             </span>
           </div>
         </div>
 
         {/* 평균 학습 시간 */}
-        <div className="p-3 rounded-lg bg-green-50">
-          <div className="text-sm text-gray-600 dark:text-gray-400">평균 학습</div>
+        <div className="p-3 rounded-lg bg-[rgb(var(--color-success-50))]">
+          <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            평균 학습
+          </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+            <span className="text-2xl font-bold text-[rgb(var(--color-success-600))]">
               {stats.avgDailyStudyHours}
             </span>
-            <span className="text-sm text-gray-500 dark:text-gray-400">h/일</span>
+            <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              h/일
+            </span>
           </div>
         </div>
       </div>
