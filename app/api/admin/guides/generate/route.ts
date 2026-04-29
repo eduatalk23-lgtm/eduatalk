@@ -49,9 +49,14 @@ export async function POST(request: NextRequest) {
           (process.env.VERCEL_URL
             ? `https://${process.env.VERCEL_URL}`
             : "http://localhost:3000");
+        // 인증 쿠키를 forward해야 generate-retry의 admin 가드를 통과
+        const cookieHeader = request.headers.get("cookie") ?? "";
         fetch(`${baseUrl}/api/admin/guides/generate-retry`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            cookie: cookieHeader,
+          },
           body: JSON.stringify({ guideId, input, modelStartIndex: nextIndex }),
         }).catch(() => {});
         return NextResponse.json({ retrying: true, nextModelIndex: nextIndex });

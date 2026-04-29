@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { loadPipelineContext, validatePhasePrerequisites } from "@/lib/domains/record-analysis/pipeline/pipeline-executor";
 import { guardCancelled, guardAlreadyCompleted } from "@/lib/domains/record-analysis/pipeline/pipeline-route-helpers";
@@ -11,6 +12,8 @@ const LOG_CTX = { domain: "student-record", action: "pipeline.grade.phase-9" };
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdminOrConsultant();
+
     const { pipelineId, chunkSize } = (await request.json()) as {
       pipelineId: string;
       chunkSize?: number;

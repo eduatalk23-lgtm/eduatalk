@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -20,7 +21,9 @@ export async function POST(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
-    // retry route는 generate route에서 서버→서버 호출이므로 auth 체크 생략
+    // 서버→서버 호출이지만 외부에서도 호출 가능하므로 admin/consultant 가드 필수
+    await requireAdminOrConsultant();
+
     const { guideId, input, modelStartIndex } = (await request.json()) as {
       guideId: string;
       input: GuideGenerationInput;
