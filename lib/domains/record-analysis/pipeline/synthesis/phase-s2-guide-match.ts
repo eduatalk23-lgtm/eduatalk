@@ -314,21 +314,23 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     const rankedIds = new Set(state.phaseB.ranked.map((r) => r.id));
 
     // (1) classification 매칭
-    const classResult = await autoRecommendGuidesAction({ studentId, classificationId, careerFieldHint, limit: 10 });
+    // Sprint 2-D Option 1 (2026-04-30): limit 10→20 인상. ranked pool 협소(이가은 17건 / 슬롯 45건)
+    // 으로 다양성 가드 hard penalty 비율이 14/17(82%) 도달 → pool 확장으로 정상화 (Phase B DB only).
+    const classResult = await autoRecommendGuidesAction({ studentId, classificationId, careerFieldHint, limit: 20 });
     if (classResult.success && Array.isArray(classResult.data)) {
       for (const g of classResult.data) {
         if (!rankedIds.has(g.id)) guideMap.set(g.id, g);
       }
     }
 
-    // (2) 수강계획 과목 매칭
+    // (2) 수강계획 과목 매칭 (Sprint 2-D: limit 5→10)
     for (const subjectName of plannedNames.slice(0, 8)) {
       const subjectResult = await autoRecommendGuidesAction({
         studentId,
         classificationId,
         subjectName,
         careerFieldHint,
-        limit: 5,
+        limit: 10,
       });
       if (subjectResult.success && Array.isArray(subjectResult.data)) {
         for (const g of subjectResult.data) {
@@ -342,14 +344,14 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
       }
     }
 
-    // (3) activity_type 매칭 (창체용)
+    // (3) activity_type 매칭 (창체용) (Sprint 2-D: limit 5→10)
     for (const activityType of ["autonomy", "club", "career"] as const) {
       const activityResult = await autoRecommendGuidesAction({
         studentId,
         classificationId,
         activityType,
         careerFieldHint,
-        limit: 5,
+        limit: 10,
       });
       if (activityResult.success && Array.isArray(activityResult.data)) {
         for (const g of activityResult.data) {
