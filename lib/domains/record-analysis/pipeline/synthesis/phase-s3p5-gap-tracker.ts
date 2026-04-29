@@ -32,7 +32,7 @@ export async function runGapTracking(
     const { loadBlueprintForStudent } = await import("../../blueprint/loader");
     const loaded = await loadBlueprintForStudent(studentId, tenantId);
     if (loaded) {
-      blueprintOutput = loaded as typeof blueprintOutput;
+      blueprintOutput = loaded;
     }
   }
   if (!blueprintOutput) {

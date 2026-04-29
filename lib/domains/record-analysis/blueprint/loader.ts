@@ -120,10 +120,20 @@ export async function loadBlueprintWithStaleness(
     const results = (bpData?.task_results as Record<string, unknown> | null) ?? null;
     const raw = (results?._blueprintPhase as unknown) ?? null;
 
-    const bp =
-      raw && typeof raw === "object" && (Array.isArray((raw as BlueprintPhaseOutput).targetConvergences) || (raw as BlueprintPhaseOutput).milestones)
-        ? (raw as BlueprintPhaseOutput)
-        : null;
+    const bp = (() => {
+      if (
+        !raw ||
+        typeof raw !== "object" ||
+        !(Array.isArray((raw as BlueprintPhaseOutput).targetConvergences) || (raw as BlueprintPhaseOutput).milestones)
+      ) {
+        return null;
+      }
+      // 옛 row 호환 — id/tierPlan 누락 시 placeholder 보강 (2026-04-29 fix).
+      const r = raw as Partial<BlueprintPhaseOutput> & BlueprintPhaseOutput;
+      if (r.id == null) r.id = "";
+      if (r.tierPlan === undefined) r.tierPlan = null;
+      return r as BlueprintPhaseOutput;
+    })();
 
     const blueprintCompletedAt = (bpData?.completed_at as string | undefined) ?? null;
     const mainUpdatedAt = (meRes.data?.updated_at as string | undefined) ?? null;

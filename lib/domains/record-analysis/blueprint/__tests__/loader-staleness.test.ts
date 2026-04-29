@@ -64,6 +64,8 @@ function makeClient(opts: {
 }
 
 const SAMPLE_BLUEPRINT = {
+  id: "test-bp",
+  tierPlan: null,
   targetConvergences: [
     { id: "conv-1", theme: "과학탐구", competencies: ["academic_inquiry"] },
   ],

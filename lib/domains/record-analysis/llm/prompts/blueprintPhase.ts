@@ -399,6 +399,10 @@ export function parseResponse(content: string): BlueprintPhaseOutput {
   }
 
   return {
+    // id/tierPlan 은 LLM 산출 영역 밖. 호출자(generateBlueprintDesign·phase-b1-blueprint)가
+    // 영속 직전에 채움. 미주입 시에도 소비자가 fallback 으로 동작하도록 placeholder 둠.
+    id: "",
+    tierPlan: null,
     targetConvergences,
     storylineSkeleton,
     competencyGrowthTargets,

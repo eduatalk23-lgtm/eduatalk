@@ -93,8 +93,20 @@ export async function runBlueprintGeneration(
       const meUpdated = new Date(active[0].updated_at).getTime();
       const bpCompleted = new Date(prevBp.completed_at).getTime();
       if (meUpdated <= bpCompleted) {
-        // fresh — 직전 결과 재시딩 + LLM 0회
-        setTaskResult(ctx.results, "_blueprintPhase", prevPhasePayload);
+        // fresh — 직전 결과 재시딩 + LLM 0회.
+        // id/tierPlan 은 cache 시점 기준 — id 는 현재 pipelineId 로 갱신,
+        // tierPlan 은 stale 가능성 없음(staleness=FRESH 보장)이므로 cache 값 유지하되
+        // 누락된 옛 row 는 active main_exploration 의 tier_plan 으로 보강.
+        const reseeded = {
+          ...prevPhasePayload,
+          id: pipelineId,
+          tierPlan:
+            prevPhasePayload.tierPlan ??
+            ((active[0].tier_plan ?? null) as
+              | import("@/lib/domains/student-record/repository/main-exploration-repository").MainExplorationTierPlan
+              | null),
+        } as import("../../blueprint/types").BlueprintPhaseOutput;
+        setTaskResult(ctx.results, "_blueprintPhase", reseeded);
         const convergenceCount = Array.isArray(prevPhasePayload.targetConvergences)
           ? (prevPhasePayload.targetConvergences as unknown[]).length
           : 0;
@@ -137,7 +149,18 @@ export async function runBlueprintGeneration(
       throw new Error(result.error);
     }
 
+    if (!result.data) {
+      throw new Error("Blueprint 생성 응답에 data 가 비어있음");
+    }
+    // id 는 phase-b1 만 알 수 있는 정보 — 진입 pipelineId 로 채움.
+    // tierPlan 은 generateBlueprintDesign 이 이미 주입했으나, 누락 케이스 방어.
     const output = result.data;
+    output.id = pipelineId;
+    if (output.tierPlan == null) {
+      output.tierPlan = (active[0].tier_plan ?? null) as
+        | import("@/lib/domains/student-record/repository/main-exploration-repository").MainExplorationTierPlan
+        | null;
+    }
     setTaskResult(ctx.results, "_blueprintPhase", output);
 
     logActionDebug(LOG_CTX, "Blueprint Phase 완료", {

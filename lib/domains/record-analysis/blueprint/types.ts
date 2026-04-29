@@ -159,6 +159,23 @@ export interface BlueprintExemplarPattern {
  *   - milestones → Journey Model 갱신
  */
 export interface BlueprintPhaseOutput {
+  // ── 식별자 (B1 영속 시 채움) ────────────────────
+  /**
+   * 이 blueprint 를 생성한 analysis_pipelines 행의 id.
+   * 소비자(Slot Generator 등)가 blueprint 출처를 추적할 때 사용.
+   * Step 2.1~2.4 (slot-aware) 에서 SlotProvenance.blueprintId 로 전파.
+   */
+  id: string;
+
+  // ── 메인 탐구 tier_plan 스냅샷 (B1 진입 시점) ───
+  /**
+   * 활성 메인 탐구의 tier_plan 동시 스냅샷. blueprint 와 같은 진입점에서
+   * 회수해 두면 소비자(Slot Generator·matching score) 가 단일 키만 읽고도
+   * tier 정합 판단이 가능. main_exploration 갱신 시 stale 가능성은
+   * staleness 감지 경로(checkBlueprintStaleness) 로 처리.
+   */
+  tierPlan: MainExplorationTierPlan | null;
+
   // ── 학년별 타겟 수렴 (= blueprint 하이퍼엣지) ───
   /**
    * 3~5개/학년. 각각 "이런 활동들이 하나의 탐구 주제로 수렴해야 한다"를 표현.

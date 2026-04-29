@@ -211,6 +211,10 @@ export async function generateBlueprintDesign(
     );
 
     const output = parseResponse(result.content);
+    // 메인 탐구 tier_plan 스냅샷 주입 — Slot Generator·matching score 가 단일 키로 회수.
+    // id 는 phase-b1 진입점에서 pipelineId 로 채움 (action 단독 호출 시는 placeholder 유지).
+    output.tierPlan =
+      (mainExploration.tier_plan ?? null) as BlueprintPhaseOutput["tierPlan"];
 
     // ── 7. Blueprint 하이퍼엣지 DB 영속화 ─────────────
     if (output.targetConvergences.length > 0) {

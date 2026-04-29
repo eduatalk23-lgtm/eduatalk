@@ -187,6 +187,8 @@ describe("generateSlots — 7. priority — 빈 슬롯 + critical → high prior
         3: { tier: "advanced", subjects: ["미적분"] },
       }),
       blueprint: {
+        id: "test-blueprint-id",
+        tierPlan: null,
         targetConvergences: [
           {
             grade: 3,
