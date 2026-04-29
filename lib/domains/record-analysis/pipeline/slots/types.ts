@@ -26,10 +26,28 @@ export type SlotDifficulty = "basic" | "intermediate" | "advanced";
 
 // ── Slot 구성요소 ─────────────────────────────
 
+/**
+ * D-Phase1 (#milestone semantic, 2026-04-29): unfulfilled milestone 객체.
+ * 기존 ID 매칭은 학생/blueprint 별 stable id 라 카탈로그 매칭 불가 → semantic
+ * matching (embedding cosine) 입력으로 활용. activityText + narrativeGoal 결합
+ * 임베딩이 더 정확.
+ */
+export interface UnfulfilledMilestone {
+  /** Stable id (예: g1_milestone_0_생명과학Ⅰ세포...) — 디버그/박제용 */
+  id: string;
+  /** 활동 텍스트 (예: "생명과학Ⅰ 세포 호흡 및 유전 기초 탐구") — semantic 매칭 본 입력 */
+  activityText: string;
+  /** 학년 narrative 목표 — embedding 보강 (짧은 activityText 의미 보강용) */
+  narrativeGoal: string;
+  /** 학년 집중 역량 코드 — weaknessFix 와 별도 차원 */
+  competencyFocus: string[];
+}
+
 export interface SlotIntent {
   contentSummary: string;
   rationale: string;
-  unfulfilledMilestoneIds: string[];
+  /** D-Phase1: 객체 셋. id-only 후방 호환은 unfulfilledMilestoneIds getter 별도 노출. */
+  unfulfilledMilestones: UnfulfilledMilestone[];
   targetConvergenceIds: string[];
   focusHypothesis: string | null;
   focusKeywords: string[];

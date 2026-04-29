@@ -53,7 +53,7 @@ function resolveRegularSubjects(
 function buildIntent(args: {
   cascadeContentSummary: string;
   cascadeRationale: string;
-  unfulfilledMilestoneIds: string[];
+  unfulfilledMilestones: import("./types").UnfulfilledMilestone[];
   targetConvergenceIds: string[];
   midPlan: MidPlanShape | null | undefined;
   weakCompetencies: string[];
@@ -77,7 +77,7 @@ function buildIntent(args: {
   return {
     contentSummary: args.cascadeContentSummary,
     rationale: args.cascadeRationale,
-    unfulfilledMilestoneIds: args.unfulfilledMilestoneIds,
+    unfulfilledMilestones: args.unfulfilledMilestones,
     targetConvergenceIds: args.targetConvergenceIds,
     focusHypothesis,
     focusKeywords: uniq(focusKeywords),
@@ -167,16 +167,24 @@ function getCascadeNode(input: SlotGeneratorInput, grade: number) {
   return map[String(grade)] ?? map[grade as unknown as string] ?? null;
 }
 
-function collectUnfulfilledMilestoneIds(
+function collectUnfulfilledMilestones(
   blueprint: SlotGeneratorInput["blueprint"],
   grade: number,
-): string[] {
+): import("./types").UnfulfilledMilestone[] {
   if (!blueprint?.milestones) return [];
   const m = blueprint.milestones[grade];
   if (!m) return [];
-  // BlueprintMilestone에는 fulfilled 플래그 없음 — keyActivities를 stable id로 사용.
-  // Step 2.1: keyActivities 전체를 unfulfilled 후보로 노출 (Step 2.2에서 매칭 결과 대조 후 filter).
-  return (m.keyActivities ?? []).map((act, idx) => `g${grade}_milestone_${idx}_${act.slice(0, 24)}`);
+  // BlueprintMilestone 에는 fulfilled 플래그 없음 — keyActivities 전체를 unfulfilled 후보로 노출.
+  // D-Phase1 (#milestone semantic, 2026-04-29): id-only → 객체 (id + activityText +
+  // narrativeGoal + competencyFocus). semantic embedding 매칭 입력으로 활용.
+  const narrativeGoal = m.narrativeGoal ?? "";
+  const competencyFocus = m.competencyFocus ?? [];
+  return (m.keyActivities ?? []).map((act, idx) => ({
+    id: `g${grade}_milestone_${idx}_${act.slice(0, 24)}`,
+    activityText: act,
+    narrativeGoal,
+    competencyFocus,
+  }));
 }
 
 function collectTargetConvergenceIds(
@@ -210,13 +218,13 @@ export function generateSlots(input: SlotGeneratorInput): SlotGeneratorOutput {
     const issues = input.qualityIssuesByGrade[grade] ?? [];
     const maxDifficulty = input.maxDifficultyByGrade[grade] ?? "advanced";
 
-    const unfulfilledIds = collectUnfulfilledMilestoneIds(input.blueprint, grade);
+    const unfulfilledMilestones = collectUnfulfilledMilestones(input.blueprint, grade);
     const convergenceIds = collectTargetConvergenceIds(input.blueprint, grade);
 
     const intentBase = buildIntent({
       cascadeContentSummary: cascadeNode.contentSummary ?? "",
       cascadeRationale: cascadeNode.rationale ?? "",
-      unfulfilledMilestoneIds: unfulfilledIds,
+      unfulfilledMilestones,
       targetConvergenceIds: convergenceIds,
       midPlan,
       weakCompetencies: weak,

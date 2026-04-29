@@ -22,7 +22,7 @@ function makeSlot(overrides: Partial<Slot> = {}): Slot {
     intent: {
       contentSummary: "",
       rationale: "",
-      unfulfilledMilestoneIds: [],
+      unfulfilledMilestones: [],
       targetConvergenceIds: [],
       focusHypothesis: null,
       focusKeywords: [],
@@ -155,7 +155,10 @@ describe("scoreGuideForSlot", () => {
     const slot = makeSlot({
       intent: {
         ...makeSlot().intent,
-        unfulfilledMilestoneIds: ["m1", "m2"],
+        unfulfilledMilestones: [
+          { id: "m1", activityText: "활동1", narrativeGoal: "목표", competencyFocus: [] },
+          { id: "m2", activityText: "활동2", narrativeGoal: "목표", competencyFocus: [] },
+        ],
       },
     });
     const guide = makeGuide({ milestoneIds: ["m1"] });

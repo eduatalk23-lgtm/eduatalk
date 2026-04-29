@@ -15,7 +15,7 @@ function makeSlot(overrides: Partial<Slot> = {}): Slot {
     intent: {
       contentSummary: "",
       rationale: "",
-      unfulfilledMilestoneIds: [],
+      unfulfilledMilestones: [],
       targetConvergenceIds: [],
       focusHypothesis: null,
       focusKeywords: [],

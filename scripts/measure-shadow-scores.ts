@@ -66,7 +66,7 @@ async function main() {
       const constraints = s.constraints as Record<string, unknown> | undefined;
       const state = s.state as Record<string, unknown> | undefined;
       const weak = (intent?.weakCompetencies as unknown[]) ?? [];
-      const mile = (intent?.unfulfilledMilestoneIds as unknown[]) ?? [];
+      const mile = (intent?.unfulfilledMilestones as unknown[]) ?? [];
       console.log(
         `    G${s.grade} ${s.area} ${s.tier} cap=${constraints?.maxDifficulty} weak=${weak.length} mile=${mile.length} prio=${state?.priority}`,
       );

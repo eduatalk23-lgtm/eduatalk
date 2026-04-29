@@ -222,7 +222,7 @@ describe("generateSlots — 7. priority — 빈 슬롯 + critical → high prior
     );
     expect(slot).toBeDefined();
     expect(slot!.state.priority).toBeGreaterThan(70);
-    expect(slot!.intent.unfulfilledMilestoneIds.length).toBeGreaterThan(0);
+    expect(slot!.intent.unfulfilledMilestones.length).toBeGreaterThan(0);
     expect(slot!.intent.qualityIssuesToCover).toEqual(["F4", "F16"]);
     expect(slot!.intent.targetConvergenceIds.length).toBeGreaterThan(0);
   });
@@ -237,7 +237,7 @@ describe("generateSlots — 7. priority — 빈 슬롯 + critical → high prior
       intent: {
         contentSummary: "",
         rationale: "",
-        unfulfilledMilestoneIds: Array(50).fill("m"),
+        unfulfilledMilestones: Array(50).fill({ id: "m", activityText: "활동", narrativeGoal: "", competencyFocus: [] }),
         targetConvergenceIds: [],
         focusHypothesis: null,
         focusKeywords: [],

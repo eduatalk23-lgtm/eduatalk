@@ -208,7 +208,11 @@ function computeSubjectFit(guide: ScoreableGuide, slot: Slot): BonusProvenance {
 }
 
 function computeMilestoneFill(guide: ScoreableGuide, slot: Slot): BonusProvenance {
-  if (slot.intent.unfulfilledMilestoneIds.length === 0 || guide.milestoneIds.length === 0) {
+  // D-Phase1 (#milestone semantic, 2026-04-29): 기본 시그니처는 ID 매칭 유지 (legacy
+  // path 호환). semantic 매칭은 별도 computeMilestoneFillSemantic 헬퍼 + shadow-runner
+  // 가 score 결과에 덮어씀 (Phase 2). 본 함수는 score(...) 진입의 placeholder.
+  const slotMilestones = slot.intent.unfulfilledMilestones;
+  if (slotMilestones.length === 0 || guide.milestoneIds.length === 0) {
     return {
       name: "milestoneFill",
       rawValue: 0,
@@ -216,15 +220,14 @@ function computeMilestoneFill(guide: ScoreableGuide, slot: Slot): BonusProvenanc
       rationale: "no unfulfilled milestones or guide.milestoneIds empty",
     };
   }
-  const overlap = guide.milestoneIds.filter((id) =>
-    slot.intent.unfulfilledMilestoneIds.includes(id),
-  );
-  const raw = overlap.length / slot.intent.unfulfilledMilestoneIds.length;
+  const slotIds = slotMilestones.map((m) => m.id);
+  const overlap = guide.milestoneIds.filter((id) => slotIds.includes(id));
+  const raw = overlap.length / slotMilestones.length;
   return {
     name: "milestoneFill",
     rawValue: raw,
     weighted: raw * SLOT_AWARE_BONUS_WEIGHTS.milestoneFill,
-    rationale: `overlap=${overlap.length}/${slot.intent.unfulfilledMilestoneIds.length} ids=${overlap.join(",")}`,
+    rationale: `overlap=${overlap.length}/${slotMilestones.length} ids=${overlap.join(",")}`,
   };
 }
 

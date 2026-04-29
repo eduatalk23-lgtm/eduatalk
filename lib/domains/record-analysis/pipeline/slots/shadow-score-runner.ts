@@ -142,6 +142,30 @@ export async function runSlotAwareScoreShadow(
       fetchGuideMetaMap(input.ctx.supabase, guideIds),
     ]);
 
+    // D-Phase2 (#milestone semantic, 2026-04-29): semantic milestoneFill 입력 사전 준비.
+    // 슬롯들의 unfulfilledMilestones dedup 후 batch embed + 가이드 embedding fetch.
+    // 실패 시 graceful — milestoneFill 은 baseline (0) 유지.
+    const allMilestones = slots.flatMap((s) => s.intent.unfulfilledMilestones ?? []);
+    let milestoneEmbeddings = new Map<string, number[]>();
+    let guideEmbeddings = new Map<string, number[]>();
+    let semanticEnabled = false;
+    if (allMilestones.length > 0) {
+      try {
+        const { embedMilestones, fetchGuideEmbeddings } = await import("./milestone-semantic");
+        const [me, ge] = await Promise.all([
+          embedMilestones(allMilestones),
+          fetchGuideEmbeddings(input.ctx.supabase, guideIds),
+        ]);
+        milestoneEmbeddings = me;
+        guideEmbeddings = ge;
+        semanticEnabled = me.size > 0 && ge.size > 0;
+      } catch (err) {
+        // graceful — semantic 실패해도 baseline 점수 유지
+        const msg = err instanceof Error ? err.message : String(err);
+        input.ctx.previews["slot_milestone_semantic_v2"] = JSON.stringify({ error: msg });
+      }
+    }
+
     const student: ScoreableStudent = {
       studentId: input.studentId,
       maxDifficultyByGrade: input.maxDifficultyByGrade,
@@ -196,6 +220,28 @@ export async function runSlotAwareScoreShadow(
         if (!breakdown.passesConstraints) {
           pairsRejected++;
           continue;
+        }
+        // D-Phase2: semantic milestoneFill 덮어쓰기 — 임베딩 가용 시.
+        if (semanticEnabled) {
+          const { computeMilestoneFillRawSemantic } = await import("./milestone-semantic");
+          const { SLOT_AWARE_BONUS_WEIGHTS } = await import("./slot-aware-score");
+          const semantic = computeMilestoneFillRawSemantic({
+            slotMilestones: slot.intent.unfulfilledMilestones,
+            milestoneEmbeddings,
+            guideEmbedding: guideEmbeddings.get(sg.id),
+          });
+          const idx = breakdown.bonuses.findIndex((b) => b.name === "milestoneFill");
+          if (idx >= 0) {
+            const prev = breakdown.bonuses[idx];
+            const newWeighted = semantic.raw * SLOT_AWARE_BONUS_WEIGHTS.milestoneFill;
+            breakdown.bonuses[idx] = {
+              name: "milestoneFill",
+              rawValue: semantic.raw,
+              weighted: newWeighted,
+              rationale: `semantic matched=${semantic.matchedIds.length}/${slot.intent.unfulfilledMilestones.length} ids=${semantic.matchedIds.slice(0, 3).join(",")}`,
+            };
+            breakdown.totalScore = breakdown.totalScore - prev.weighted + newWeighted;
+          }
         }
         // Cross-slot 페널티 — 이미 다른 슬롯의 Top-1 으로 사용된 가이드는 점수 감산
         const useCount = guideUseCount.get(sg.id) ?? 0;

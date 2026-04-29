@@ -23,7 +23,7 @@ export function computeSlotPriority(slot: Slot): number {
   if (slot.state.currentCount === 0) p += w.zeroFillBonus;
 
   // 2. 미해결 milestone 보강 슬롯
-  p += slot.intent.unfulfilledMilestoneIds.length * w.perUnfulfilledMilestone;
+  p += slot.intent.unfulfilledMilestones.length * w.perUnfulfilledMilestone;
 
   // 3. critical quality issue 보강 슬롯
   p += slot.intent.qualityIssuesToCover.length * w.perQualityIssue;
