@@ -258,8 +258,7 @@ export function useChatMessageSync({ roomId }: UseChatMessageSyncOptions) {
           debugLog(`[ChatRealtime] Adding ${uniqueNewMessages.length} unique messages to cache`);
 
           // 새 메시지를 첫 번째 페이지에 병합 후 시간순 정렬
-          const merged = [...firstPage.messages, ...uniqueNewMessages];
-          sortMessagesByTime(merged);
+          const merged = sortMessagesByTime([...firstPage.messages, ...uniqueNewMessages]);
 
           return {
             ...old,

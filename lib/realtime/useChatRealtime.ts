@@ -86,16 +86,6 @@ export function useChatRealtime({
     findSenderFromExistingMessages,
   } = useChatSender({ roomId, senderCache });
 
-  // 쿼리 무효화 함수
-  const invalidateMessages = useCallback(() => {
-    queryClient.invalidateQueries({
-      predicate: (query) =>
-        Array.isArray(query.queryKey) &&
-        query.queryKey[0] === "chat-messages" &&
-        query.queryKey[1] === roomId,
-    });
-  }, [queryClient, roomId]);
-
   const invalidateRoomDetail = useCallback(() => {
     queryClient.invalidateQueries({
       predicate: (query) =>
@@ -536,9 +526,6 @@ export function useChatRealtime({
 
     return () => clearInterval(cleanupInterval);
   }, [enabled]);
-
-  // invalidateMessages는 현재 외부 노출하지 않지만 향후 확장을 위해 내부 보유
-  void invalidateMessages;
 
   return { broadcastInsert, broadcastReadReceipt };
 }
