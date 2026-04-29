@@ -253,6 +253,8 @@ async function runGradeAllPhases(pipelineId: string, mode: "analysis" | "design"
   await runChunkedGradePhase("P1 competency_setek", pipelineId, 1);
   await runChunkedGradePhase("P2 competency_changche", pipelineId, 2);
   await runChunkedGradePhase("P3 competency_haengteuk", pipelineId, 3);
+  await runPhase("P4-pre (cross_subject + volunteer + awards + derive_main_theme)", () =>
+    postPhase(`/api/admin/pipeline/grade/phase-4-pre`, { pipelineId }));
   await runPhase("P4 setek_guide + slot_generation", () =>
     postPhase(`/api/admin/pipeline/grade/phase-4`, { pipelineId }));
   await runPhase("P5 changche_guide", () =>
@@ -262,6 +264,7 @@ async function runGradeAllPhases(pipelineId: string, mode: "analysis" | "design"
   if (mode === "design") {
     await runChunkedGradePhase("P7 draft_generation", pipelineId, 7);
     await runChunkedGradePhase("P8 draft_analysis", pipelineId, 8);
+    await runChunkedGradePhase("P9 draft_refinement (env-gated, no-op when off)", pipelineId, 9);
   }
 }
 
@@ -396,6 +399,8 @@ async function main() {
     postPhase(`/api/admin/pipeline/synthesis/phase-5`, { pipelineId: synthPipelineId }));
   await runPhase("S6 interview + roadmap", () =>
     postPhase(`/api/admin/pipeline/synthesis/phase-6`, { pipelineId: synthPipelineId }));
+  await runPhase("S7 tier_plan_refinement", () =>
+    postPhase(`/api/admin/pipeline/synthesis/phase-7`, { pipelineId: synthPipelineId }));
 
   const totalElapsed = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(`\n✅ 김세린 풀런 완료 (총 ${totalElapsed}s)\n`);
