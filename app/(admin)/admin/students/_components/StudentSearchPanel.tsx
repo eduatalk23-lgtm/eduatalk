@@ -361,8 +361,24 @@ export function StudentSearchPanel({
           </>
         )}
         {displayedStudents.length === 0 && !isLoading && (
-          <li className="py-8 text-center text-sm text-text-tertiary" role="status">
-            {searchQuery ? "검색 결과가 없습니다" : "등록된 학생이 없습니다"}
+          <li role="status" className="py-2">
+            {searchQuery ? (
+              <div className="rounded-lg border border-dashed border-border bg-bg-secondary p-6 text-center">
+                <p className="text-sm font-medium text-text-primary">검색 결과가 없습니다</p>
+                <p className="mt-1 text-xs text-text-tertiary">
+                  다른 키워드로 검색하거나 필터를 해제해보세요
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border bg-bg-secondary p-6 text-center">
+                <p className="text-sm font-medium text-text-primary">
+                  등록된 학생이 없습니다
+                </p>
+                <p className="mt-1 text-xs text-text-tertiary">
+                  우측 폼에서 첫 학생을 등록해보세요
+                </p>
+              </div>
+            )}
           </li>
         )}
         {displayedStudents.map((student) => {

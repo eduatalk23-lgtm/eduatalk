@@ -11,23 +11,14 @@ import {
 import type { StudentSearchFilters } from "@/lib/domains/student/actions/search";
 import { StudentSearchPanel } from "./StudentSearchPanel";
 import { StudentFormPanel } from "./StudentFormPanel";
-import { EnrollmentSlidePanel } from "./EnrollmentSlidePanel";
-import { FamilySlidePanel } from "./FamilySlidePanel";
-import { ConsultationSlidePanel } from "./ConsultationSlidePanel";
-import { ScoreSlidePanel } from "./ScoreSlidePanel";
-import { TimeManagementSlidePanel } from "./TimeManagementSlidePanel";
-import { SMSSlidePanel } from "./SMSSlidePanel";
+import {
+  StudentDetailPanel,
+  type StudentDetailTabKey,
+} from "./detail-panel/StudentDetailPanel";
 
 type FormMode = "register" | "selected";
-export type StudentPanelKey =
-  | "enrollment"
-  | "family"
-  | "consultation"
-  | "score"
-  | "time"
-  | "sms";
 
-const VALID_PANELS: StudentPanelKey[] = [
+const VALID_TABS: StudentDetailTabKey[] = [
   "enrollment",
   "family",
   "consultation",
@@ -46,10 +37,11 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
 
   // URL → 초기 상태
   const initialStudentId = searchParams.get("studentId");
-  const initialPanelParam = searchParams.get("panel");
-  const initialPanel: StudentPanelKey | null =
-    initialPanelParam && VALID_PANELS.includes(initialPanelParam as StudentPanelKey)
-      ? (initialPanelParam as StudentPanelKey)
+  const initialTabParam = searchParams.get("panel");
+  const initialTab: StudentDetailTabKey | null =
+    initialTabParam &&
+    VALID_TABS.includes(initialTabParam as StudentDetailTabKey)
+      ? (initialTabParam as StudentDetailTabKey)
       : null;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,16 +52,14 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const [formMode, setFormMode] = useState<FormMode>(
     initialStudentId ? "selected" : "register",
   );
-  const [activePanel, setActivePanel] = useState<StudentPanelKey | null>(
-    initialStudentId ? initialPanel : null,
+  const [activeTab, setActiveTab] = useState<StudentDetailTabKey | null>(
+    initialStudentId ? initialTab : null,
   );
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // 검색 쿼리
   const searchResult = useQuery(studentSearchQueryOptions(debouncedQuery, filters));
 
-  // 상세 조회 쿼리
   const detailResult = useQuery({
     ...studentDetailQueryOptions(selectedStudentId ?? ""),
     enabled: !!selectedStudentId,
@@ -87,8 +77,7 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
         .join(" ")
     : undefined;
 
-  // URL 동기화 — selectedStudentId · activePanel 변경 시 ?studentId=&panel= 갱신
-  // (router.replace 로 history 오염 없이)
+  // URL 동기화 — selectedStudentId · activeTab 변경 시 mirror
   const isInitialMount = useRef(true);
   useEffect(() => {
     if (isInitialMount.current) {
@@ -97,15 +86,14 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
     }
     const params = new URLSearchParams();
     if (selectedStudentId) params.set("studentId", selectedStudentId);
-    if (selectedStudentId && activePanel) params.set("panel", activePanel);
+    if (selectedStudentId && activeTab) params.set("panel", activeTab);
     const next = params.toString();
     router.replace(next ? `?${next}` : "?", { scroll: false });
-  }, [selectedStudentId, activePanel, router]);
+  }, [selectedStudentId, activeTab, router]);
 
-  // 학생 선택 — 다른 학생 선택 시 열린 패널 닫음
   const handleSelectStudent = useCallback((studentId: string) => {
     setSelectedStudentId((prev) => {
-      if (prev !== studentId) setActivePanel(null);
+      if (prev !== studentId) setActiveTab(null);
       return studentId;
     });
     setFormMode("selected");
@@ -113,7 +101,7 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
 
   const handleNewStudent = useCallback(() => {
     setSelectedStudentId(null);
-    setActivePanel(null);
+    setActiveTab(null);
     setFormMode("register");
   }, []);
 
@@ -124,26 +112,24 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
 
   const handleStudentDeleted = useCallback(() => {
     setSelectedStudentId(null);
-    setActivePanel(null);
+    setActiveTab(null);
     setFormMode("register");
   }, []);
 
-  // 패널 열기 — 단일 활성 강제 (이전 패널 자동 닫힘)
-  const openPanel = useCallback(
-    (key: StudentPanelKey) => {
-      if (selectedStudentId) setActivePanel(key);
+  const openTab = useCallback(
+    (tab: StudentDetailTabKey) => {
+      if (selectedStudentId) setActiveTab(tab);
     },
     [selectedStudentId],
   );
 
   const closePanel = useCallback(() => {
-    setActivePanel(null);
+    setActiveTab(null);
   }, []);
 
   return (
     <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        {/* 왼쪽: 검색 패널 */}
         <StudentSearchPanel
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -156,7 +142,6 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
           onFiltersChange={setFilters}
         />
 
-        {/* 오른쪽: 폼 패널 */}
         <StudentFormPanel
           selectedStudentId={selectedStudentId}
           studentData={studentData}
@@ -165,57 +150,25 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
           onNewStudent={handleNewStudent}
           onStudentSaved={handleStudentSaved}
           onStudentDeleted={handleStudentDeleted}
-          onOpenEnrollment={() => openPanel("enrollment")}
-          onOpenFamily={() => openPanel("family")}
-          onOpenConsultation={() => openPanel("consultation")}
-          onOpenScore={() => openPanel("score")}
-          onOpenTimeManagement={() => openPanel("time")}
-          onOpenSMS={() => openPanel("sms")}
+          onOpenEnrollment={() => openTab("enrollment")}
+          onOpenFamily={() => openTab("family")}
+          onOpenConsultation={() => openTab("consultation")}
+          onOpenScore={() => openTab("score")}
+          onOpenTimeManagement={() => openTab("time")}
+          onOpenSMS={() => openTab("sms")}
           isAdmin={isAdmin}
         />
       </div>
 
-      {/* 단일 활성 패널 — selectedStudentId 가 있을 때만 마운트 */}
       {selectedStudentId && (
-        <>
-          <EnrollmentSlidePanel
-            studentId={selectedStudentId}
-            studentLabel={studentLabel}
-            isOpen={activePanel === "enrollment"}
-            onClose={closePanel}
-          />
-          <FamilySlidePanel
-            studentId={selectedStudentId}
-            studentLabel={studentLabel}
-            isOpen={activePanel === "family"}
-            onClose={closePanel}
-          />
-          <ConsultationSlidePanel
-            studentId={selectedStudentId}
-            studentLabel={studentLabel}
-            isOpen={activePanel === "consultation"}
-            onClose={closePanel}
-          />
-          <ScoreSlidePanel
-            studentId={selectedStudentId}
-            studentLabel={studentLabel}
-            isOpen={activePanel === "score"}
-            onClose={closePanel}
-          />
-          <TimeManagementSlidePanel
-            studentId={selectedStudentId}
-            studentLabel={studentLabel}
-            isOpen={activePanel === "time"}
-            onClose={closePanel}
-          />
-          <SMSSlidePanel
-            studentId={selectedStudentId}
-            studentName={studentData?.name ?? "학생"}
-            studentLabel={studentLabel}
-            isOpen={activePanel === "sms"}
-            onClose={closePanel}
-          />
-        </>
+        <StudentDetailPanel
+          studentId={selectedStudentId}
+          studentName={studentData?.name ?? "학생"}
+          studentLabel={studentLabel}
+          activeTab={activeTab}
+          onClose={closePanel}
+          onTabChange={setActiveTab}
+        />
       )}
     </>
   );
