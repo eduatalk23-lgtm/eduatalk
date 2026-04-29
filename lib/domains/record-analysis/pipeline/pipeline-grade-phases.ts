@@ -323,16 +323,53 @@ export async function executeGradePhase3(
 // ============================================
 // Grade Phase 4-Pre (M1-c W6, 2026-04-27): pre-task 4개 분리
 //
-// cross_subject_theme_extraction (fast LLM, ~30-60s) +
+// cross_subject_theme_extraction (fast LLM, ~30-60s, worst 226s observed) +
 // competency_volunteer (~20-40s) + competency_awards (~15-30s) +
 // derive_main_theme (~10-30s, hash hit 시 0)
 //
-// 합 80-160s (worst 200s) — phase route maxDuration 300s 내 안전 단독 실행.
-// Phase 4 (setek_guide chunk + slot_generation) 와 분리 → route timeout 압박 해소.
+// 합 80-160s (worst 226s + others ≈ 300s 임박) — #4 (2026-04-29) 에서 cross_subject 를
+// 별도 route phase-4-pre-cross 로 추가 분리. cross_subject 는 단독 280s 안전 실행, 나머지
+// 3 task 는 phase-4-pre 에서 cross 완료 후 idempotent 진입 (runTaskWithState 가 completed
+// task 자동 skip).
+//
 // 모든 task 가 graceful (실패해도 가이드 계속) — 실패 → main 진입 시 prereq skip.
 //
-// UI 가 phase-3 후 phase-4-pre 1회 호출, 그 다음 phase-4 chunk loop 호출.
+// UI 호출 순서:
+//   phase-3 → phase-4-pre-cross → phase-4-pre → phase-4 (chunk loop) → ...
 // ============================================
+
+/**
+ * #4 (2026-04-29) 신규 — cross_subject_theme_extraction 단독 실행 route.
+ * 226s 까지 관찰된 P3.5 가 다른 pre-task 와 같은 300s 윈도우 점유하던 문제 해결.
+ *
+ * setup (orient/blueprint cache) 만 idempotent 로 실행 후 cross_subject 만 진행.
+ * 후속 phase-4-pre 진입 시 cross_subject 는 이미 completed 라 자동 skip.
+ */
+export async function executeGradePhase4PreCross(
+  ctx: PipelineContext,
+): Promise<void> {
+  if (await checkCancelled(ctx)) return;
+
+  if (!ctx.narrativeContext) {
+    const { buildNarrativeContextFromAnalysisContext } = await import("./narrative-context");
+    ctx.narrativeContext = buildNarrativeContextFromAnalysisContext(ctx.belief.analysisContext);
+  }
+  if (!ctx.plannerDirective) {
+    const { runOrientPhase } = await import("./pipeline-orient-phase");
+    ctx.plannerDirective = await runOrientPhase(ctx);
+  }
+  if (ctx.gradeMode === "design" && !ctx.belief.blueprint) {
+    const { loadBlueprintForStudent } = await import("../blueprint/loader");
+    const loaded = await loadBlueprintForStudent(ctx.studentId, ctx.tenantId);
+    if (loaded) ctx.belief.blueprint = loaded;
+  }
+
+  if (!skipIfPrereqFailed(ctx, "cross_subject_theme_extraction")) {
+    await runTaskWithState(ctx, "cross_subject_theme_extraction", () =>
+      runCrossSubjectThemeExtractionForGrade(ctx),
+    );
+  }
+}
 
 export async function executeGradePhase4Pre(
   ctx: PipelineContext,
@@ -354,7 +391,8 @@ export async function executeGradePhase4Pre(
     if (loaded) ctx.belief.blueprint = loaded;
   }
 
-  // P3.5 cross_subject (graceful, prereq 실패 시 skip)
+  // P3.5 cross_subject — 보통 phase-4-pre-cross 에서 이미 완료, idempotent 로 자동 skip.
+  // 미호출 (legacy caller) 경로 호환을 위해 여기서도 시도.
   if (!skipIfPrereqFailed(ctx, "cross_subject_theme_extraction")) {
     await runTaskWithState(ctx, "cross_subject_theme_extraction", () =>
       runCrossSubjectThemeExtractionForGrade(ctx),

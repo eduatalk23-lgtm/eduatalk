@@ -326,7 +326,10 @@ async function main() {
     await runChunkedGradePhase("P1 competency_setek", gradePipelineId, 1);
     await runChunkedGradePhase("P2 competency_changche", gradePipelineId, 2);
     await runChunkedGradePhase("P3 competency_haengteuk", gradePipelineId, 3);
-    await runPhase("P4-pre (cross_subject + volunteer + awards + derive_main_theme)", async () => {
+    await runPhase("P4-pre-cross (cross_subject_theme_extraction 단독)", async () => {
+      await postPhase(`/api/admin/pipeline/grade/phase-4-pre-cross`, { pipelineId: gradePipelineId });
+    });
+    await runPhase("P4-pre (volunteer + awards + derive_main_theme)", async () => {
       await postPhase(`/api/admin/pipeline/grade/phase-4-pre`, { pipelineId: gradePipelineId });
     });
     await runPhase("P4 setek_guide + slot_generation", async () => {

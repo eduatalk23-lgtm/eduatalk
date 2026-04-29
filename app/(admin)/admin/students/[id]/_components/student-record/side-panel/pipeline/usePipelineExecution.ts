@@ -646,29 +646,34 @@ export function usePipelineExecution({
 
       const MAX_RETRIES = 2;
 
-      // M1-c W6 (2026-04-27): phase=4 진입 직전 phase-4-pre 1회 선행 호출.
+      // M1-c W6 (2026-04-27): phase=4 진입 직전 pre-task 분리 호출.
       // pre-task 4종 (cross_subject + volunteer + awards + derive_main_theme) 분리 → route timeout 압박 해소.
+      // #4 (2026-04-29): cross_subject 단독 route phase-4-pre-cross 신설 (226s 관찰값 반영).
+      // 호출 순서: phase-4-pre-cross → phase-4-pre. cross_subject 는 두 route 모두에서
+      // idempotent (runTaskWithState 가 completed task 자동 skip).
       if (phase === 4) {
-        for (let preRetry = 0; preRetry <= MAX_RETRIES; preRetry++) {
-          try {
-            await fetchPhase(
-              `/api/admin/pipeline/grade/phase-4-pre`,
-              { pipelineId },
-              signal,
-            );
-            invalidate();
-            break;
-          } catch (e) {
-            if ((e as Error)?.name === "AbortError") return "aborted";
-            if (preRetry >= MAX_RETRIES) break;
+        for (const preRoute of ["phase-4-pre-cross", "phase-4-pre"] as const) {
+          for (let preRetry = 0; preRetry <= MAX_RETRIES; preRetry++) {
             try {
-              await abortableSleep(3000, signal);
-            } catch {
-              return "aborted";
+              await fetchPhase(
+                `/api/admin/pipeline/grade/${preRoute}`,
+                { pipelineId },
+                signal,
+              );
+              invalidate();
+              break;
+            } catch (e) {
+              if ((e as Error)?.name === "AbortError") return "aborted";
+              if (preRetry >= MAX_RETRIES) break;
+              try {
+                await abortableSleep(3000, signal);
+              } catch {
+                return "aborted";
+              }
             }
           }
+          if (isAborted()) return "aborted";
         }
-        if (isAborted()) return "aborted";
       }
 
       // 청크 지원 phase: P1~P3 (역량 분석 배치) + P4 (M1-c W5 setek_guide chunk, 2026-04-27) + P7 (가안 생성 배치, B6 2026-04-15) + P8 (가안 분석 배치, 트랙 A 2026-04-14) + P9 (재생성 배치, Phase 5)

@@ -253,7 +253,9 @@ async function runGradeAllPhases(pipelineId: string, mode: "analysis" | "design"
   await runChunkedGradePhase("P1 competency_setek", pipelineId, 1);
   await runChunkedGradePhase("P2 competency_changche", pipelineId, 2);
   await runChunkedGradePhase("P3 competency_haengteuk", pipelineId, 3);
-  await runPhase("P4-pre (cross_subject + volunteer + awards + derive_main_theme)", () =>
+  await runPhase("P4-pre-cross (cross_subject_theme_extraction 단독)", () =>
+    postPhase(`/api/admin/pipeline/grade/phase-4-pre-cross`, { pipelineId }));
+  await runPhase("P4-pre (volunteer + awards + derive_main_theme)", () =>
     postPhase(`/api/admin/pipeline/grade/phase-4-pre`, { pipelineId }));
   await runPhase("P4 setek_guide + slot_generation", () =>
     postPhase(`/api/admin/pipeline/grade/phase-4`, { pipelineId }));
