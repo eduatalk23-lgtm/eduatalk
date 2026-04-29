@@ -123,8 +123,13 @@ export async function fetchGuideEmbeddings(
   return out;
 }
 
-/** Threshold default — 측정 후 튜닝. */
-export const MILESTONE_COSINE_THRESHOLD = 0.55;
+/**
+ * Threshold default.
+ * - 0.55 (초기): 이가은 측정 perfect 82% (37/45) — 다소 관대.
+ * - 0.62 (현재 튜닝): 다양성 향상 + 의미 매칭 신호 보강 목표.
+ * 후속 학생 측정으로 perfect 분포 보고 추가 조정.
+ */
+export const MILESTONE_COSINE_THRESHOLD = 0.62;
 
 /**
  * 슬롯 - 가이드 페어의 semantic milestone fill.
