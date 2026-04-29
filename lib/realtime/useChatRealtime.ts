@@ -13,10 +13,10 @@ import { supabase, createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   REACTION_EMOJIS,
+  type ChatUser,
   type ChatUserType,
   type ChatMessageType,
   type ChatMessageMetadata,
-  type ChatUser,
   type ChatAttachment,
   type ChatLinkPreview,
   type ReactionEmoji,
@@ -28,6 +28,15 @@ import {
 import { operationTracker } from "@/lib/domains/chat/operationTracker";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { connectionManager } from "./connectionManager";
+import {
+  type ChatMessagePayload,
+  type ChatReactionPayload,
+  type UseChatRealtimeOptions,
+} from "./chatRealtimeTypes";
+import { useChatSender } from "./useChatSender";
+
+// 소비처 import 경로 호환성 유지 (useChatRoomLogic.ts 등)
+export type { ChatMessagePayload } from "./chatRealtimeTypes";
 
 // 프로덕션에서 로그 비활성화 (console.log/warn → dev only)
 const __DEV__ = process.env.NODE_ENV === "development";
@@ -42,90 +51,6 @@ function sortMessagesByTime<T extends { created_at: string; id: string }>(msgs: 
   });
 }
 
-// Supabase Realtime Payload 타입 (DB 컬럼과 1:1 매핑)
-export interface ChatMessagePayload {
-  id: string;
-  room_id: string;
-  sender_id: string;
-  sender_type: ChatUserType;
-  message_type: ChatMessageType;
-  content: string;
-  is_deleted: boolean;
-  reply_to_id: string | null;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  /** 비정규화된 발신자 이름 스냅샷 */
-  sender_name: string;
-  /** 비정규화된 발신자 프로필 URL 스냅샷 */
-  sender_profile_url: string | null;
-}
-
-// 리액션 Payload 타입
-interface ChatReactionPayload {
-  id: string;
-  message_id: string;
-  user_id: string;
-  user_type: ChatUserType;
-  emoji: string;
-  created_at: string;
-}
-
-// LRU 캐시 클래스 (메모리 누수 방지)
-const SENDER_CACHE_MAX_SIZE = 500;
-
-class LRUCache<K, V> {
-  private cache = new Map<K, V>();
-  private maxSize: number;
-
-  constructor(maxSize: number) {
-    this.maxSize = maxSize;
-  }
-
-  get(key: K): V | undefined {
-    const value = this.cache.get(key);
-    if (value !== undefined) {
-      // 최근 접근으로 이동 (삭제 후 재삽입)
-      this.cache.delete(key);
-      this.cache.set(key, value);
-    }
-    return value;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    } else if (this.cache.size >= this.maxSize) {
-      // 가장 오래된 항목 제거 (Map의 첫 번째 항목)
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) {
-        this.cache.delete(firstKey);
-      }
-    }
-    this.cache.set(key, value);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
-
-type UseChatRealtimeOptions = {
-  /** 채팅방 ID */
-  roomId: string;
-  /** 현재 사용자 ID (본인 메시지 구분용) */
-  userId: string;
-  /** 구독 활성화 여부 */
-  enabled?: boolean;
-  /** 발신자 정보 캐시 (roomData.members에서 구성) */
-  senderCache?: Map<string, ChatUser>;
-  /** 새 메시지 수신 콜백 */
-  onNewMessage?: (message: ChatMessagePayload) => void;
-  /** 메시지 삭제 콜백 */
-  onMessageDeleted?: (messageId: string) => void;
-  /** 읽음 확인 수신 콜백 (상대방이 메시지를 읽었을 때) */
-  onReadReceipt?: (readerId: string, readAt: string) => void;
-};
 
 /**
  * 채팅 메시지 실시간 구독 훅
@@ -172,143 +97,13 @@ export function useChatRealtime({
     callbacksRef.current = { onNewMessage, onMessageDeleted, onReadReceipt };
   }, [onNewMessage, onMessageDeleted, onReadReceipt]);
 
-  // 발신자 정보 캐시 (LRU로 메모리 누수 방지)
-  const senderCacheRef = useRef(new LRUCache<string, ChatUser>(SENDER_CACHE_MAX_SIZE));
-
-  // 배치 수집기 ref (100ms 윈도우로 sender 요청 배치 처리)
-  const batchRef = useRef<{
-    pending: Map<string, {
-      senderId: string;
-      senderType: ChatUserType;
-      resolvers: Array<{ resolve: (v: ChatUser) => void; reject: (e: Error) => void }>;
-    }>;
-    timer: ReturnType<typeof setTimeout> | null;
-  }>({ pending: new Map(), timer: null });
-
-  // 외부 senderCache가 변경되면 ref 업데이트
-  useEffect(() => {
-    if (senderCache) {
-      senderCache.forEach((user, key) => {
-        senderCacheRef.current.set(key, user);
-      });
-    }
-  }, [senderCache]);
-
-  // 기존 메시지에서 발신자 조회 함수
-  const findSenderFromExistingMessages = useCallback(
-    (senderId: string): ChatUser | null => {
-      const cache = queryClient.getQueryData<InfiniteMessagesCache>([
-        "chat-messages",
-        roomId,
-      ]);
-      if (!cache?.pages) return null;
-
-      for (const page of cache.pages) {
-        for (const msg of page.messages) {
-          if (
-            msg.sender_id === senderId &&
-            msg.sender?.name &&
-            msg.sender.name !== "로딩 중..."
-          ) {
-            return msg.sender;
-          }
-        }
-      }
-      return null;
-    },
-    [queryClient, roomId]
-  );
-
-  // 배치 플러시: 100ms 윈도우 내 수집된 요청을 한 번에 처리
-  const flushBatch = useCallback(async () => {
-    const batch = new Map(batchRef.current.pending);
-    batchRef.current.pending.clear();
-    batchRef.current.timer = null;
-
-    if (batch.size === 0) return;
-
-    // Browser RPC — Server Action + getUser() 호출 제거
-    const senderIds = [...new Set([...batch.values()].map(({ senderId }) => senderId))];
-    const rpcClient = createSupabaseBrowserClient();
-
-    try {
-      const { data, error } = await rpcClient.rpc("get_sender_info_batch", {
-        p_sender_ids: senderIds,
-      });
-
-      if (!error && data) {
-        // RPC returns Record<userId, {id, name, profileImageUrl}>
-        const senderMap = data as Record<string, { id: string; name: string; profileImageUrl?: string | null }>;
-        for (const [cacheKey, entry] of batch) {
-          const info = senderMap[entry.senderId];
-          if (info) {
-            const user: ChatUser = {
-              id: info.id,
-              type: entry.senderType,
-              name: info.name,
-              profileImageUrl: info.profileImageUrl,
-            };
-            senderCacheRef.current.set(cacheKey, user);
-            entry.resolvers.forEach((r) => r.resolve(user));
-          } else {
-            const fallback: ChatUser = {
-              id: entry.senderId,
-              type: entry.senderType,
-              name: "탈퇴한 사용자",
-            };
-            senderCacheRef.current.set(cacheKey, fallback);
-            entry.resolvers.forEach((r) => r.resolve(fallback));
-          }
-        }
-      } else {
-        // RPC 실패 → 폴백
-        for (const [cacheKey, { senderId, senderType, resolvers }] of batch) {
-          const fallback: ChatUser = { id: senderId, type: senderType, name: "로딩 실패" };
-          senderCacheRef.current.set(cacheKey, fallback);
-          resolvers.forEach((r) => r.resolve(fallback));
-        }
-      }
-    } catch {
-      // 네트워크 에러 등 → 폴백 + 캐시 저장 (반복 요청 방지)
-      for (const [cacheKey, { senderId, senderType, resolvers }] of batch) {
-        const fallback: ChatUser = { id: senderId, type: senderType, name: "로딩 실패" };
-        senderCacheRef.current.set(cacheKey, fallback);
-        resolvers.forEach((r) => r.resolve(fallback));
-      }
-    }
-  }, []);
-
-  // 발신자 정보 조회 (캐시 우선, 100ms 배치 수집)
-  const fetchSenderInfo = useCallback(
-    (senderId: string, senderType: ChatUserType): Promise<ChatUser> => {
-      const cacheKey = `${senderId}_${senderType}`;
-
-      // 1. 캐시 확인
-      const cached = senderCacheRef.current.get(cacheKey);
-      if (cached) return Promise.resolve(cached);
-
-      // 2. 이미 pending이면 같은 Promise에 리스너 추가
-      return new Promise((resolve, reject) => {
-        const existing = batchRef.current.pending.get(cacheKey);
-        if (existing) {
-          existing.resolvers.push({ resolve, reject });
-          return;
-        }
-
-        // 3. 배치에 추가 + 100ms 타이머
-        batchRef.current.pending.set(cacheKey, {
-          senderId,
-          senderType,
-          resolvers: [{ resolve, reject }],
-        });
-
-        if (!batchRef.current.timer) {
-          batchRef.current.timer = setTimeout(() => flushBatch(), 100);
-        }
-      });
-    },
-    [flushBatch]
-  );
+  // 발신자 정보 조회 (LRU 캐시 + 100ms 배치 RPC) — useChatSender로 분리
+  const {
+    senderCacheRef,
+    batchRef,
+    fetchSenderInfo,
+    findSenderFromExistingMessages,
+  } = useChatSender({ roomId, senderCache });
 
   // 쿼리 무효화 함수
   const invalidateMessages = useCallback(() => {
@@ -1323,6 +1118,8 @@ export function useChatRealtime({
       // 방 나갈 때 해당 방 관련 pending 작업 정리
       operationTracker.clearForRoom(roomId);
     };
+  // batchRef·senderCacheRef는 useRef로 생성된 stable 참조 — 의존성 배열 포함 불필요
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, userId, enabled, queryClient, reconnectTrigger]);
 
   // 주기적 cleanup (5분마다 타임아웃된 작업 + 오래된 pending 요청 정리)
