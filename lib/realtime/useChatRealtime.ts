@@ -28,6 +28,7 @@ import {
 import { useChatSender } from "./useChatSender";
 import { useChatMessageSync } from "./useChatMessageSync";
 import { useChatMessageHandlers } from "./useChatMessageHandlers";
+import { useChatBroadcast } from "./useChatBroadcast";
 
 // 소비처 import 경로 호환성 유지 (useChatRoomLogic.ts 등)
 export type { ChatMessagePayload } from "./chatRealtimeTypes";
@@ -65,13 +66,8 @@ export function useChatRealtime({
   // 재연결 트리거 (수동 재연결 시 증가하여 useEffect 재실행)
   const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
-  // Broadcast-first: 채널 참조 (broadcastInsert에서 사용)
+  // Broadcast-first: 채널 참조 (broadcast 훅에서 사용)
   const channelRef = useRef<RealtimeChannel | null>(null);
-
-  // 채널 미연결 시 broadcast 대기열 (SUBSCRIBED 후 flush)
-  const pendingBroadcastsRef = useRef<Array<{ event: string; payload: Record<string, unknown> }>>(
-    []
-  );
 
   // 채널 SUBSCRIBED 상태 추적 (send() REST fallback 방지)
   const isSubscribedRef = useRef(false);
@@ -140,21 +136,13 @@ export function useChatRealtime({
   // 초기 마운트 추적 (자동 재연결과 구분하기 위해 별도 ref 사용)
   const isInitialMountRef = useRef(true);
 
-  // 채널 연결 후 대기 중인 broadcast를 flush
-  const flushPendingBroadcasts = useCallback(async () => {
-    const pending = pendingBroadcastsRef.current;
-    if (pending.length === 0 || !channelRef.current || !isSubscribedRef.current) return;
-    pendingBroadcastsRef.current = [];
-
-    for (const { event, payload } of pending) {
-      try {
-        await channelRef.current.send({ type: "broadcast", event, payload });
-        debugLog(`[ChatRealtime] Flushed pending ${event}`);
-      } catch (error) {
-        debugWarn(`[ChatRealtime] Failed to flush pending ${event}:`, error);
-      }
-    }
-  }, []);
+  // === Broadcast 전송 (useChatBroadcast로 분리) ===
+  const {
+    flushPendingBroadcasts,
+    clearPendingBroadcasts,
+    broadcastInsert,
+    broadcastReadReceipt,
+  } = useChatBroadcast({ userId, channelRef, isSubscribedRef });
 
   // 핸들러 훅에 주입할 fnRef (orchestrator 함수들 + 콜백 브릿지)
   // → useChatMessageHandlers가 참조하는 콜백을 안정적으로 전달
@@ -205,6 +193,7 @@ export function useChatRealtime({
     fetchSenderInfo,
     findSenderFromExistingMessages,
     flushPendingBroadcasts,
+    clearPendingBroadcasts,
   });
   useEffect(() => {
     fnRef.current = {
@@ -216,6 +205,7 @@ export function useChatRealtime({
       fetchSenderInfo,
       findSenderFromExistingMessages,
       flushPendingBroadcasts,
+      clearPendingBroadcasts,
     };
   });
 
@@ -495,6 +485,8 @@ export function useChatRealtime({
       // Broadcast-first: 채널 참조 초기화
       channelRef.current = null;
       isSubscribedRef.current = false;
+      // 대기 중 broadcast 큐 비우기 (방 전환 시 오래된 큐 제거)
+      fnRef.current.clearPendingBroadcasts();
       // 지연 invalidation 타이머 정리
       if (delayedInvalidationTimer) {
         clearTimeout(delayedInvalidationTimer);
@@ -544,54 +536,6 @@ export function useChatRealtime({
 
     return () => clearInterval(cleanupInterval);
   }, [enabled]);
-
-  // Broadcast-first: 클라이언트에서 직접 broadcast 전송 (DB INSERT 전)
-  const broadcastInsert = useCallback(
-    async (message: ChatMessagePayload) => {
-      if (!channelRef.current || !isSubscribedRef.current) {
-        debugWarn("[ChatRealtime] Channel not subscribed, queuing INSERT broadcast");
-        pendingBroadcastsRef.current.push({ event: "INSERT", payload: message as unknown as Record<string, unknown> });
-        return;
-      }
-      try {
-        const status = await channelRef.current.send({
-          type: "broadcast",
-          event: "INSERT",
-          payload: message,
-        });
-        if (status !== "ok") {
-          debugWarn("[ChatRealtime] Broadcast ack failed:", status);
-        }
-      } catch (error) {
-        debugWarn("[ChatRealtime] Broadcast send error:", error);
-      }
-    },
-    []
-  );
-
-  // 읽음 확인 broadcast (markAsRead 성공 후 호출, 서버 시각 사용)
-  // 채널 미연결 시 pendingBroadcastsRef에 큐잉 → SUBSCRIBED 후 flush
-  const broadcastReadReceipt = useCallback(
-    async (readAt?: string) => {
-      const payload = { reader_id: userId, read_at: readAt ?? new Date().toISOString() };
-
-      if (!channelRef.current || !isSubscribedRef.current) {
-        debugLog("[ChatRealtime] Channel not subscribed, queuing READ_RECEIPT");
-        pendingBroadcastsRef.current.push({ event: "READ_RECEIPT", payload });
-        return;
-      }
-      try {
-        await channelRef.current.send({
-          type: "broadcast",
-          event: "READ_RECEIPT",
-          payload,
-        });
-      } catch (error) {
-        debugWarn("[ChatRealtime] ReadReceipt broadcast error:", error);
-      }
-    },
-    [userId]
-  );
 
   // invalidateMessages는 현재 외부 노출하지 않지만 향후 확장을 위해 내부 보유
   void invalidateMessages;
