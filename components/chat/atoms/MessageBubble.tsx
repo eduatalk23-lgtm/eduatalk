@@ -284,6 +284,9 @@ interface MessageBubbleProps {
   onAction?: (action: MessageAction) => void;
 }
 
+/** 새로 도착한 메시지로 판단할 시간 윈도우 (ms) — Virtuoso 스크롤 재마운트 시 fade-in 방지 */
+const FRESH_MESSAGE_WINDOW_MS = 3000;
+
 function MessageBubbleComponent({
   message,
   displayOptions = {},
@@ -336,6 +339,11 @@ function MessageBubbleComponent({
   const [isExpanded, setIsExpanded] = useState(false);
   // 에러 바텀시트 표시
   const [showErrorSheet, setShowErrorSheet] = useState(false);
+  // 신규 도착 메시지 fade-in (early return 전 호출 — Hook 순서 보장)
+  const [isFreshlyMounted] = useState(() => {
+    const ageMs = Date.now() - new Date(createdAt).getTime();
+    return ageMs >= 0 && ageMs < FRESH_MESSAGE_WINDOW_MS;
+  });
   const isLongText = !isDeleted && !isSystem && (
     content.length > LONG_TEXT_CHAR_LIMIT ||
     (content.match(/\n/g)?.length ?? 0) > LONG_TEXT_LINE_LIMIT
@@ -451,7 +459,8 @@ function MessageBubbleComponent({
       {...longPressHandlers}
       className={cn(
         "group max-w-[80%]",
-        isOwn ? "ml-auto" : "mr-auto"
+        isOwn ? "ml-auto" : "mr-auto",
+        isFreshlyMounted && "animate-in fade-in slide-in-from-bottom-1 duration-200"
       )}
       aria-label={ariaLabel}
     >

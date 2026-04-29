@@ -15,6 +15,7 @@ import type { ChatUserType } from "@/lib/domains/chat/types";
 import { ProfileCardPopup } from "../molecules/ProfileCardPopup";
 import type { ProfileCardData } from "../molecules/ProfileCardPopup";
 import { Avatar } from "@/components/atoms/Avatar";
+import { RoleBadge, type RoleBadgeKind } from "../atoms/RoleBadge";
 import { cn } from "@/lib/cn";
 import { Search, X, Loader2, Users, SearchX } from "lucide-react";
 
@@ -37,24 +38,7 @@ const FILTER_LABELS: Record<string, string> = {
   children: "내 자녀",
 };
 
-const ROLE_BADGE: Record<string, { label: string; className: string }> = {
-  admin: {
-    label: "관리자",
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  },
-  consultant: {
-    label: "상담사",
-    className: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
-  },
-  student: {
-    label: "학생",
-    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  },
-  parent: {
-    label: "학부모",
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  },
-};
+// 역할 배지는 RoleBadge 컴포넌트(@/components/chat/atoms/RoleBadge) 사용
 
 // ============================================
 // Props
@@ -256,8 +240,13 @@ const MemberListItemRow = memo(function MemberListItemRow({
   isMe,
   onClick,
 }: MemberListItemRowProps) {
-  const roleKey = member.userType === "admin" ? (member.adminRole ?? "admin") : member.userType;
-  const badge = ROLE_BADGE[roleKey] ?? ROLE_BADGE[member.userType];
+  // admin 사용자가 consultant 인 경우 별도 분기, 그 외 admin/superadmin 은 admin 으로 통일
+  const roleKey: RoleBadgeKind =
+    member.userType === "admin"
+      ? member.adminRole === "consultant"
+        ? "consultant"
+        : "admin"
+      : (member.userType as "student" | "parent");
   const subInfo = [member.schoolName, member.gradeDisplay].filter(Boolean).join(" · ");
 
   return (
@@ -284,11 +273,7 @@ const MemberListItemRow = memo(function MemberListItemRow({
             {isMe && (
               <span className="text-3xs text-text-tertiary font-medium">(나)</span>
             )}
-            {badge && (
-              <span className={cn("text-3xs font-medium px-1.5 py-0.5 rounded-full", badge.className)}>
-                {badge.label}
-              </span>
-            )}
+            <RoleBadge role={roleKey} className="text-3xs px-1.5" />
           </div>
           {(subInfo || member.relation) && (
             <p className="text-xs text-text-tertiary mt-0.5 truncate">

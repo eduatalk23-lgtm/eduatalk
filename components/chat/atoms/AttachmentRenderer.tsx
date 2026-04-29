@@ -123,7 +123,10 @@ function AttachmentRendererComponent({
   );
 }
 
-/** 이미지 그리드 (1장: 풀, 2장: 2열, 3+: 그리드) */
+/** 카카오톡 패턴: 격자에 표시할 최대 이미지 수 (초과분은 마지막 셀에 +N 오버레이) */
+const MAX_GRID_IMAGES = 4;
+
+/** 이미지 그리드 (1장: 풀, 2장: 2열, 3+: 그리드, 5+: 4장 + +N 오버레이) */
 function ImageGrid({
   images,
   onImageClick,
@@ -131,26 +134,43 @@ function ImageGrid({
   images: ChatAttachment[];
   onImageClick?: (attachment: ChatAttachment, index: number) => void;
 }) {
-  const count = images.length;
+  const totalCount = images.length;
+  const overflowCount = Math.max(0, totalCount - MAX_GRID_IMAGES);
+  const visibleImages = overflowCount > 0 ? images.slice(0, MAX_GRID_IMAGES) : images;
+  const visibleCount = visibleImages.length;
 
   return (
     <div
       className={cn(
         "grid gap-1 rounded-lg overflow-hidden border border-border/30",
-        count === 1 && "grid-cols-1",
-        count === 2 && "grid-cols-2",
-        count >= 3 && "grid-cols-2"
+        visibleCount === 1 && "grid-cols-1",
+        visibleCount === 2 && "grid-cols-2",
+        visibleCount >= 3 && "grid-cols-2"
       )}
     >
-      {images.map((img, idx) => (
-        <ImageItem
-          key={img.id}
-          attachment={img}
-          index={idx}
-          count={count}
-          onImageClick={onImageClick}
-        />
-      ))}
+      {visibleImages.map((img, idx) => {
+        const isLastWithOverflow = overflowCount > 0 && idx === visibleCount - 1;
+        return (
+          <div key={img.id} className="relative">
+            <ImageItem
+              attachment={img}
+              index={idx}
+              count={visibleCount}
+              onImageClick={onImageClick}
+            />
+            {isLastWithOverflow && (
+              <button
+                type="button"
+                onClick={() => onImageClick?.(img, idx)}
+                className="absolute inset-0 flex items-center justify-center bg-bg-overlay text-white font-semibold text-2xl tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label={`이미지 ${overflowCount}개 더 보기`}
+              >
+                +{overflowCount}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { cn } from "@/lib/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scrollLock";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Avatar } from "@/components/atoms/Avatar";
+import { RoleBadge } from "../atoms/RoleBadge";
 import { MessageSquare, X, Loader2, BookOpen, Users } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { ChatUserType } from "@/lib/domains/chat/types";
@@ -41,19 +42,7 @@ export interface ProfileCardData {
   linkedParents?: LinkedParentInfo[];
 }
 
-/** 역할 라벨 */
-const roleLabels: Record<ChatUserType, string> = {
-  student: "학생",
-  admin: "관리자",
-  parent: "학부모",
-};
-
-/** 역할 색상 */
-const roleColors: Record<ChatUserType, string> = {
-  admin: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  student: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  parent: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-};
+// 역할 배지는 RoleBadge 컴포넌트(@/components/chat/atoms/RoleBadge) 사용
 
 /** 관계 라벨 */
 const relationLabels: Record<string, string> = {
@@ -391,12 +380,7 @@ function ProfileCardPopupWithActions(props: ProfileCardPopupProps) {
           )}>
             {profile.name}
           </h3>
-          <span className={cn(
-            "mt-1 text-xs font-medium px-2.5 py-0.5 rounded-full",
-            roleColors[profile.userType]
-          )}>
-            {roleLabels[profile.userType]}
-          </span>
+          <RoleBadge role={profile.userType} className="mt-1 text-xs px-2.5" />
           {studentInfo && (
             <p className="mt-1.5 text-sm text-text-secondary">{studentInfo}</p>
           )}
