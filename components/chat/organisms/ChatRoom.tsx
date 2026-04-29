@@ -1327,9 +1327,7 @@ function ChatRoomComponent({
     []
   );
 
-  // 그룹 채팅(>2명)에서만 의미 있음 — 1:1은 unread 숫자만으로 충분
-  const isGroupChat = data.members.length > 2;
-
+  // (중복 isGroupChat 정의 제거 — 1194:`room?.type === "group"` 와 정합)
   // readCount를 ref Map에서 조회: READ_RECEIPT 변경이 allMessages/messagesWithGrouping 재계산을 유발하지 않음
   // Inverted: 각 아이템에 scaleY(-1) 적용 (Scroller의 scaleY(-1)과 상쇄 → 올바른 방향)
   const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => {
