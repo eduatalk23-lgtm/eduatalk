@@ -43,6 +43,15 @@ const TASK_RUNNER_FILES: Record<ManifestTaskKey, readonly string[]> = {
   competency_setek: ["pipeline/pipeline-task-runners-competency.ts"],
   competency_changche: ["pipeline/pipeline-task-runners-competency.ts"],
   competency_haengteuk: ["pipeline/pipeline-task-runners-competency.ts"],
+  competency_volunteer: [
+    "pipeline/pipeline-task-runners-competency.ts",
+    "llm/actions/analyzeVolunteerBatch.ts",
+  ],
+  competency_awards: [
+    "pipeline/pipeline-task-runners-competency.ts",
+    "llm/actions/analyzeAwardsBatch.ts",
+  ],
+  derive_main_theme: ["pipeline/pipeline-task-runners-main-theme.ts"],
   cross_subject_theme_extraction: [
     "pipeline/pipeline-task-runners-theme-extraction.ts",
   ],

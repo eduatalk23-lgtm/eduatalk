@@ -185,6 +185,7 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       "student_record_seteks",
       "student_record_changche",
       "student_record_analysis_pipelines",
+      "kedi_classifications",
     ],
     readsResults: [
       "competency_setek",
@@ -566,6 +567,7 @@ export const PIPELINE_TASK_MANIFEST: Record<ManifestTaskKey, PipelineTaskManifes
       "student_record_applications",
       "university_evaluation_criteria",
       "student_record_interview_questions",
+      "student_record_strategies",
     ],
     readsResults: ["ai_diagnosis", "ai_strategy"],
     terminal: {
