@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     // timeout 상태로 일괄 업데이트
     const { error: updateError } = await supabase
       .from("student_record_analysis_pipelines")
-      .update({ status: "timeout", completed_at: now })
+      .update({ status: "cancelled", completed_at: now })
       .in("id", allIds);
 
     if (updateError) {
