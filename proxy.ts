@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import { verifySupabaseJwt } from "@/lib/auth/verifyJwt";
 import {
   PUBLIC_PAGE_PATHS,
   PUBLIC_API_PATHS,
@@ -197,10 +198,10 @@ function hasAuthCookies(request: NextRequest): boolean {
  *
  * @returns { needsRefresh, user } — needsRefresh=false이면 getUser() 스킵 가능
  */
-function parseTokenFromCookies(request: NextRequest): {
+async function parseTokenFromCookies(request: NextRequest): Promise<{
   needsRefresh: boolean;
   user: ProxyUser | null;
-} {
+}> {
   try {
     // Supabase 쿠키는 청크 분할됨: sb-{ref}-auth-token.0, .1, ...
     const authCookies = request.cookies
@@ -231,13 +232,14 @@ function parseTokenFromCookies(request: NextRequest): {
       return { needsRefresh: true, user: null };
     }
 
-    // JWT payload 디코딩 (서명 검증 없음 — proxy는 라우팅만 담당)
-    const payloadPart = accessToken.split(".")[1];
-    if (!payloadPart) {
+    // JWT 서명 검증 (필수). 실패 시 needsRefresh=true → Supabase getUser()로 위임.
+    // 검증 인프라(SUPABASE_JWT_SECRET 또는 JWKS) 미설정 시 verifySupabaseJwt가 null 반환 →
+    // fail-secure: 검증 불가능하면 헤더 trust 경로 차단.
+    const payload = await verifySupabaseJwt(accessToken);
+    if (!payload) {
       return { needsRefresh: true, user: null };
     }
 
-    const payload = JSON.parse(atob(payloadPart));
     const exp = payload.exp as number | undefined;
     if (!exp) {
       return { needsRefresh: true, user: null };
@@ -380,7 +382,7 @@ export async function proxy(request: NextRequest) {
     // 토큰 로컬 파싱으로 getUser() 네트워크 호출 최소화
     // - 토큰 유효(만료 60초 이상): 로컬 파싱만으로 통과 (0ms)
     // - 토큰 만료 임박/파싱 실패: getUser() 호출하여 리프레시 (네트워크)
-    const apiParsed = parseTokenFromCookies(request);
+    const apiParsed = await parseTokenFromCookies(request);
 
     if (!apiParsed.needsRefresh && apiParsed.user) {
       // 토큰 유효 → 네트워크 호출 스킵 + 헤더 주입
@@ -427,7 +429,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const saParsed = parseTokenFromCookies(request);
+    const saParsed = await parseTokenFromCookies(request);
 
     if (!saParsed.needsRefresh && saParsed.user) {
       injectAuthHeaders(request, saParsed.user);
@@ -465,7 +467,7 @@ export async function proxy(request: NextRequest) {
   // - 토큰 유효(만료 60초 이상): 로컬 파싱만으로 라우팅 (0ms)
   // - 토큰 만료 임박/파싱 실패: getUser() 호출하여 리프레시 (네트워크)
   const parsed = hasAuthCookies(request)
-    ? parseTokenFromCookies(request)
+    ? await parseTokenFromCookies(request)
     : { needsRefresh: true, user: null };
 
   let user: ProxyUser | null = null;

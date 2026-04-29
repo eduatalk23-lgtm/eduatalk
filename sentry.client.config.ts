@@ -11,6 +11,18 @@ Sentry.init({
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
 
+  // PII 보호: Session Replay에서 모든 input/text 마스킹 + 미디어 차단
+  // 학생 본명, 채팅 메시지, 생기부 본문 등 민감 데이터 노출 방지
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: true,
+      maskAllInputs: true,
+      blockAllMedia: true,
+    }),
+  ],
+  // PII 자동 첨부 비활성 (IP, 헤더 등)
+  sendDefaultPii: false,
+
   // 디버그 (개발 시 true로 변경)
   debug: false,
 

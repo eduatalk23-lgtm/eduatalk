@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { getPaymentByOrderId } from "@/lib/services/tossPayments";
 import type { TossPaymentResponse } from "@/lib/services/tossPayments";
 import type { PaymentStatus } from "@/lib/domains/payment/types";
@@ -23,8 +24,19 @@ const ORDER_ID_PREFIX = "TLU-";
 /** 토스 결제 상태 중 처리 대상 */
 const HANDLED_STATUSES = ["DONE", "CANCELED", "PARTIAL_CANCELED"] as const;
 
+// 위조 webhook 대량 전송 방어 (Toss API 호출 폭증 차단).
+// Toss 합법 이벤트는 동일 IP에서 분당 60 미만으로 충분. 429 시 Toss가 재시도.
+const limiter = createRateLimiter({
+  maxRequests: 60,
+  windowMs: 60_000,
+  prefix: "rl:toss-webhook",
+});
+
 export async function POST(request: NextRequest) {
-  // 토스 웹훅은 항상 200을 즉시 반환해야 함
+  const rateLimitResp = await applyRateLimit(request, limiter);
+  if (rateLimitResp) return rateLimitResp;
+
+  // 토스 웹훅은 항상 200을 즉시 반환해야 함 (rate limit 외)
   try {
     const body = await request.json();
     const { orderId, status } = body as {
