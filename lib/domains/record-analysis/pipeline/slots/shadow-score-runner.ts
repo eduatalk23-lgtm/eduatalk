@@ -56,21 +56,31 @@ interface SlotAwareShadowResult {
 const TOP_K_PER_SLOT = 5;
 
 /**
- * 후보 가이드들의 subject_id 를 정규화 테이블에서 batch 회수.
+ * 후보 가이드들의 subject_id + subject_name 을 정규화 테이블에서 batch 회수.
+ *
+ * G4 fix (2026-04-29): 슬롯의 subareaKey 는 과목명(string)이고 가이드의 subject_id 는 UUID 라
+ * 정확 매칭이 0 이었음. subjectName 도 함께 회수해 양방향 비교가 가능하도록 함.
+ *
  * 가이드 1건이 여러 subject 에 매핑될 수 있으므로 첫번째만 채택 (subjectFit 은 단일 정합 비교).
  */
 async function fetchGuideSubjectMap(
   supabase: PipelineContext["supabase"],
   guideIds: string[],
-): Promise<Map<string, string>> {
+): Promise<Map<string, { id: string; name: string | null }>> {
   if (guideIds.length === 0) return new Map();
   const { data } = await supabase
     .from("exploration_guide_subject_mappings")
-    .select("guide_id, subject_id")
+    .select("guide_id, subject_id, subject:subjects(name)")
     .in("guide_id", guideIds);
-  const out = new Map<string, string>();
-  for (const row of (data ?? []) as Array<{ guide_id: string; subject_id: string }>) {
-    if (!out.has(row.guide_id)) out.set(row.guide_id, row.subject_id);
+  const out = new Map<string, { id: string; name: string | null }>();
+  for (const row of (data ?? []) as Array<{
+    guide_id: string;
+    subject_id: string;
+    subject: { name: string | null } | null;
+  }>) {
+    if (!out.has(row.guide_id)) {
+      out.set(row.guide_id, { id: row.subject_id, name: row.subject?.name ?? null });
+    }
   }
   return out;
 }
@@ -123,16 +133,19 @@ export async function runSlotAwareScoreShadow(
     };
 
     // 각 ranked guide → ScoreableGuide (per-guide 키워드/역량은 미보유 → 빈 배열).
-    const scoreableGuides: ScoreableGuide[] = input.ranked.map((r) => ({
-      id: r.id,
-      subjectId: subjectMap.get(r.id) ?? null,
-      subjectName: null,
-      difficultyLevel: difficultyMap.get(r.id) ?? null,
-      keywords: [],
-      competencyFocus: [],
-      milestoneIds: [],
-      careerFields: [],
-    }));
+    const scoreableGuides: ScoreableGuide[] = input.ranked.map((r) => {
+      const subj = subjectMap.get(r.id);
+      return {
+        id: r.id,
+        subjectId: subj?.id ?? null,
+        subjectName: subj?.name ?? null,
+        difficultyLevel: difficultyMap.get(r.id) ?? null,
+        keywords: [],
+        competencyFocus: [],
+        milestoneIds: [],
+        careerFields: [],
+      };
+    });
 
     let pairsScored = 0;
     let pairsRejected = 0;

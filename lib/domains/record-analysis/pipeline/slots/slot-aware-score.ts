@@ -186,15 +186,24 @@ function computeSubjectFit(guide: ScoreableGuide, slot: Slot): BonusProvenance {
       rationale: `slot.area=${slot.area} — subjectFit neutral`,
     };
   }
-  // subareaKey 는 학년별 subject_id 또는 카테고리. 정합 시 1, 미스매치 0.
-  const matched =
-    !!guide.subjectId && slot.subareaKey === guide.subjectId;
+  // G4 fix (2026-04-29): subareaKey 는 일반적으로 과목명(string), guide.subjectId 는 UUID.
+  // 양방향 비교 — UUID 매칭 우선, 실패 시 과목명 매칭.
+  // subareaKey 가 "통합과학_fnd" 처럼 tier suffix 를 포함할 수 있어 startsWith 도 허용.
+  const subareaKeyLower = slot.subareaKey.toLowerCase();
+  const matchedById = !!guide.subjectId && slot.subareaKey === guide.subjectId;
+  const subjectNameLower = guide.subjectName?.toLowerCase() ?? "";
+  const matchedByName =
+    !!subjectNameLower &&
+    (subareaKeyLower === subjectNameLower ||
+      subareaKeyLower.startsWith(subjectNameLower + "_") ||
+      subareaKeyLower.startsWith(subjectNameLower));
+  const matched = matchedById || matchedByName;
   const raw = matched ? 1 : 0;
   return {
     name: "subjectFit",
     rawValue: raw,
     weighted: raw * SLOT_AWARE_BONUS_WEIGHTS.subjectFit,
-    rationale: `slot.subareaKey=${slot.subareaKey} guide.subjectId=${guide.subjectId ?? "null"} matched=${matched}`,
+    rationale: `slot.subareaKey=${slot.subareaKey} guide.subjectName=${guide.subjectName ?? "null"} matched=${matched}${matchedByName ? "(by-name)" : matchedById ? "(by-id)" : ""}`,
   };
 }
 

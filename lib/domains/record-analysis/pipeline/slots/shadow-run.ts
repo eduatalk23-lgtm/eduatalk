@@ -60,13 +60,25 @@ function buildCoursePlanByGrade(
  *   L1, L2 → basic         (lower / general 권역, 기초 다지기)
  *   L3     → intermediate  (mid 권역, 발전형)
  *   L4, L5 → advanced      (top 권역, 심화)
+ *
+ * G3 fix (2026-04-29): 학년별 점진 차등 보정.
+ * top 권역 학생도 1학년에 advanced 가이드를 곧바로 받는 건 비현실적.
+ * 1학년 = 기초 다지기 / 2학년 = 발전 / 3학년 = 심화 라는 학종 컨설팅 통념을 반영.
+ *   1학년: 산출 cap 한 단계 낮춤 (advanced → intermediate, intermediate → basic)
+ *   2학년: 그대로 유지
+ *   3학년: 입시 임박 → adequateLevel 의 grade=3 보정이 이미 적용됨, 그대로
  */
 function adequateLevelToDifficulty(
   level: import("@/lib/domains/student-record/leveling").DifficultyLevel,
+  grade: number,
 ): SlotDifficulty {
-  if (level <= 2) return "basic";
-  if (level === 3) return "intermediate";
-  return "advanced";
+  const baseDifficulty: SlotDifficulty =
+    level <= 2 ? "basic" : level === 3 ? "intermediate" : "advanced";
+  if (grade === 1) {
+    if (baseDifficulty === "advanced") return "intermediate";
+    if (baseDifficulty === "intermediate") return "basic";
+  }
+  return baseDifficulty;
 }
 
 /**
@@ -97,7 +109,7 @@ export async function buildMaxDifficultyByGradeAsync(
     const out: Record<number, SlotDifficulty> = {};
     for (let i = 0; i < grades.length; i++) {
       const r = results[i];
-      out[grades[i]] = r ? adequateLevelToDifficulty(r.adequateLevel) : "advanced";
+      out[grades[i]] = r ? adequateLevelToDifficulty(r.adequateLevel, grades[i]) : "advanced";
     }
     return out;
   } catch {
