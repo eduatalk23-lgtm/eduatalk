@@ -83,7 +83,7 @@ export function ConsultationPanelContent({
             {tab.count > 0 && (
               <span
                 className={cn(
-                  "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                  "ml-1.5 rounded-full px-1.5 py-0.5 text-3xs font-medium",
                   activeTab === tab.key
                     ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
                     : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"

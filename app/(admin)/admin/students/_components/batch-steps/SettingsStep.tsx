@@ -343,7 +343,7 @@ export function SettingsStep({
             <span className={cn("text-sm font-medium", textPrimaryVar)}>
               웹 검색 활용
             </span>
-            <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-600 rounded dark:bg-blue-900/50 dark:text-blue-400">
+            <span className="px-1.5 py-0.5 text-3xs bg-blue-100 text-blue-600 rounded dark:bg-blue-900/50 dark:text-blue-400">
               Gemini
             </span>
           </div>

@@ -373,7 +373,7 @@ function NoteCard({
             </span>
           )}
           {linkedSchedule && (
-            <span className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+            <span className="rounded bg-indigo-100 px-2 py-0.5 text-3xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
               {formatShortDate(linkedSchedule.scheduled_date)} 일정 연결
             </span>
           )}

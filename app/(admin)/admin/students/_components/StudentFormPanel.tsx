@@ -213,16 +213,16 @@ export function StudentFormPanel({
   // 로딩 상태
   if (isLoading && selectedStudentId) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-gray-200 bg-white p-12 shadow-sm">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-border bg-white p-12 shadow-sm">
+        <Loader2 className="h-8 w-8 animate-spin text-text-tertiary" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-4 shadow-sm sm:p-6">
       {/* 액션 바 */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 pb-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-4">
         {formMode === "selected" && (
           <>
             <button
@@ -341,7 +341,7 @@ export function StudentFormPanel({
                 </Link>
                 <Link
                   href={`/admin/students/${selectedStudentId}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-primary transition hover:bg-bg-secondary"
                 >
                   상세보기
                   <ExternalLink className="h-4 w-4" />
@@ -369,7 +369,7 @@ export function StudentFormPanel({
               type="button"
               onClick={() => reset()}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-primary transition hover:bg-bg-secondary"
             >
               <RotateCcw className="h-4 w-4" />
               초기화
@@ -386,7 +386,7 @@ export function StudentFormPanel({
         }}
         className="flex flex-col gap-6"
       >
-        <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+        <div className="rounded-lg border border-border bg-bg-secondary/50 p-4">
           <BasicInfoSection
             control={control}
             schoolType={schoolType ?? derivedSchoolType}
@@ -394,11 +394,11 @@ export function StudentFormPanel({
           />
         </div>
 
-        <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+        <div className="rounded-lg border border-border bg-bg-secondary/50 p-4">
           <CareerInfoSection control={control} config={{ showSchoolTier: true }} />
         </div>
 
-        <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+        <div className="rounded-lg border border-border bg-bg-secondary/50 p-4">
           <ProfileInfoSection
             control={control}
             studentEmail={studentData?.email ?? null}

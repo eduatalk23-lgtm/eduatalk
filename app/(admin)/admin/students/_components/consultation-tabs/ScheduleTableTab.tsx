@@ -99,7 +99,7 @@ export function ScheduleTableTab({
       <span className="inline-flex items-center gap-1">
         {label}
         {sortKey === field && (
-          <span className="text-[10px]">{sortDir === "asc" ? "▲" : "▼"}</span>
+          <span className="text-3xs">{sortDir === "asc" ? "▲" : "▼"}</span>
         )}
       </span>
     </th>
@@ -310,14 +310,14 @@ function ScheduleRow({
       >
         <td className={cn("px-2 py-2 text-center text-xs", textSecondary)}>{rowIndex}</td>
         <td className="px-3 py-2">
-          <span className={cn("rounded px-2 py-0.5 text-[11px] font-medium", statusColor)}>
+          <span className={cn("rounded px-2 py-0.5 text-2xs font-medium", statusColor)}>
             {statusLabel}
           </span>
         </td>
         <td className={cn("px-3 py-2 text-sm", textPrimary)}>{dateStr}</td>
         <td className={cn("px-3 py-2 text-sm", textPrimary)}>{timeStr}</td>
         <td className="px-3 py-2">
-          <span className={cn("rounded px-2 py-0.5 text-[11px] font-medium", sessionColor)}>
+          <span className={cn("rounded px-2 py-0.5 text-2xs font-medium", sessionColor)}>
             {sessionType}
           </span>
         </td>
@@ -335,7 +335,7 @@ function ScheduleRow({
         </td>
         <td className="px-3 py-2 text-center">
           {logs.length > 0 ? (
-            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
+            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-3xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
               {logs.length}건
             </span>
           ) : (
@@ -344,7 +344,7 @@ function ScheduleRow({
         </td>
         <td className="px-3 py-2 text-center">
           {linkedNotes.length > 0 ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-3xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
               {linkedNotes.length}건
             </span>
           ) : (
@@ -606,7 +606,7 @@ function ChannelBadge({ channel }: { channel: NotificationLogEntry["channel"] })
   const labels: Record<string, string> = { alimtalk: "알림톡", friendtalk: "친구톡", sms: "SMS", lms: "LMS" };
   const key = channel ?? "sms";
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", styles[key] ?? styles.sms)}>
+    <span className={cn("rounded px-1.5 py-0.5 text-2xs font-medium", styles[key] ?? styles.sms)}>
       {labels[key] ?? key}
     </span>
   );
@@ -622,7 +622,7 @@ function LogStatusBadge({ status }: { status: NotificationLogEntry["status"] }) 
   const key = status ?? "pending";
   const c = config[key] ?? config.pending;
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", c.style)}>{c.label}</span>
+    <span className={cn("rounded px-1.5 py-0.5 text-2xs font-medium", c.style)}>{c.label}</span>
   );
 }
 

@@ -68,20 +68,25 @@ export function EnrollmentSlidePanel({
       className="max-w-[66vw]"
     >
       {!data ? (
-        <div className="flex flex-col gap-4">
-          <div className="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
-          <div className="h-64 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+        <div className="flex flex-col gap-4" aria-busy="true">
+          <div className="h-12 animate-pulse rounded-lg bg-bg-tertiary" />
+          <div className="h-64 animate-pulse rounded-lg bg-bg-tertiary" />
         </div>
       ) : (
-        <EnrollmentSectionClient
-          studentId={studentId}
-          enrollments={data.enrollments}
-          programs={data.programs}
-          payments={data.payments}
-          consultants={data.consultants}
-          parentPhone={data.parentPhone}
-          onRefresh={handleRefresh}
-        />
+        <div
+          className={isPending ? "opacity-60 transition-opacity" : "transition-opacity"}
+          aria-busy={isPending}
+        >
+          <EnrollmentSectionClient
+            studentId={studentId}
+            enrollments={data.enrollments}
+            programs={data.programs}
+            payments={data.payments}
+            consultants={data.consultants}
+            parentPhone={data.parentPhone}
+            onRefresh={handleRefresh}
+          />
+        </div>
       )}
     </SlideOverPanel>
   );

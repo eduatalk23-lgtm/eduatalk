@@ -448,7 +448,7 @@ export function SMSPanelContent({
                     </span>
                     <StatusBadge status={log.status} />
                     {log.channel && (
-                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-3xs font-medium text-gray-600">
                         {log.channel.toUpperCase()}
                       </span>
                     )}
@@ -521,7 +521,7 @@ function StatusBadge({ status }: { status: string }) {
   const c = config[status] ?? { bg: "bg-gray-100", text: "text-gray-600", label: status };
 
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${c.bg} ${c.text}`}>
+    <span className={`rounded-full px-2 py-0.5 text-3xs font-medium ${c.bg} ${c.text}`}>
       {c.label}
     </span>
   );

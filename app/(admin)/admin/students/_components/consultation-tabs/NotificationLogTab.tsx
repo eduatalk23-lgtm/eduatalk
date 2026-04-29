@@ -122,7 +122,7 @@ function ChannelBadge({ channel }: { channel: NotificationLogEntry["channel"] })
   const labels: Record<string, string> = { alimtalk: "알림톡", friendtalk: "친구톡", sms: "SMS", lms: "LMS" };
   const key = channel ?? "sms";
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", styles[key] ?? styles.sms)}>
+    <span className={cn("rounded px-1.5 py-0.5 text-2xs font-medium", styles[key] ?? styles.sms)}>
       {labels[key] ?? key}
     </span>
   );
@@ -138,7 +138,7 @@ function LogStatusBadge({ status }: { status: NotificationLogEntry["status"] }) 
   const key = status ?? "pending";
   const c = config[key] ?? config.pending;
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", c.style)}>{c.label}</span>
+    <span className={cn("rounded px-1.5 py-0.5 text-2xs font-medium", c.style)}>{c.label}</span>
   );
 }
 
