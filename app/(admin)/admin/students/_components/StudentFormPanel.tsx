@@ -19,6 +19,18 @@ import { ReEnrollStudentModal } from "./ReEnrollStudentModal";
 
 type FormMode = "register" | "selected";
 
+// ============================================
+// 액션 버튼 색상 토큰 (Linear 스타일 절제)
+// primary: 주 액션 / error: 파괴 / warning: 위험 상태 / success: 회복 / neutral: 그 외
+// ============================================
+const ACTION_BASE =
+  "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1";
+const ACTION_PRIMARY = `${ACTION_BASE} bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50`;
+const ACTION_DANGER = `${ACTION_BASE} border border-error-200 text-error-600 hover:bg-error-50 dark:border-error-800 dark:hover:bg-error-900/20`;
+const ACTION_WARNING = `${ACTION_BASE} border border-warning-200 text-warning-600 hover:bg-warning-50 dark:border-warning-800 dark:hover:bg-warning-900/20`;
+const ACTION_SUCCESS = `${ACTION_BASE} border border-success-200 text-success-600 hover:bg-success-50 dark:border-success-800 dark:hover:bg-success-900/20`;
+const ACTION_NEUTRAL = `${ACTION_BASE} border border-border bg-bg-primary text-text-primary hover:bg-bg-secondary`;
+
 type StudentFormPanelProps = {
   selectedStudentId: string | null;
   studentData: (StudentInfoData & {
@@ -221,25 +233,25 @@ export function StudentFormPanel({
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-white p-4 shadow-sm sm:p-6">
-      {/* 액션 바 */}
+      {/* 액션 바 — 색상 절제: primary(주 액션) / error(파괴) / warning(상태 위험) / success(상태 회복) / neutral(나머지) */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border pb-4">
         {formMode === "selected" && (
           <>
             <button
               type="button"
               onClick={onNewStudent}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+              className={ACTION_PRIMARY}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               신규등록
             </button>
             {isAdmin && studentData?.status === "enrolled" && (
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 px-3 py-2 text-sm font-medium text-orange-600 transition hover:bg-orange-50"
+                className={ACTION_WARNING}
               >
-                <UserX className="h-4 w-4" />
+                <UserX className="h-4 w-4" aria-hidden="true" />
                 비재원 처리
               </button>
             )}
@@ -247,9 +259,9 @@ export function StudentFormPanel({
               <button
                 type="button"
                 onClick={() => setShowReEnrollModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 px-3 py-2 text-sm font-medium text-green-600 transition hover:bg-green-50"
+                className={ACTION_SUCCESS}
               >
-                <UserCheck className="h-4 w-4" />
+                <UserCheck className="h-4 w-4" aria-hidden="true" />
                 재등록
               </button>
             )}
@@ -257,94 +269,70 @@ export function StudentFormPanel({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                className={ACTION_DANGER}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
                 삭제
               </button>
             )}
             {selectedStudentId && (
               <div className="ml-auto flex items-center gap-2">
                 {onOpenEnrollment && (
-                  <button
-                    type="button"
-                    onClick={onOpenEnrollment}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-                  >
-                    <Wallet className="h-4 w-4" />
+                  <button type="button" onClick={onOpenEnrollment} className={ACTION_NEUTRAL}>
+                    <Wallet className="h-4 w-4" aria-hidden="true" />
                     수강/수납
                   </button>
                 )}
                 {onOpenFamily && (
-                  <button
-                    type="button"
-                    onClick={onOpenFamily}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100"
-                  >
-                    <Users className="h-4 w-4" />
+                  <button type="button" onClick={onOpenFamily} className={ACTION_NEUTRAL}>
+                    <Users className="h-4 w-4" aria-hidden="true" />
                     가족
                   </button>
                 )}
                 {onOpenConsultation && (
-                  <button
-                    type="button"
-                    onClick={onOpenConsultation}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
-                  >
-                    <MessageSquare className="h-4 w-4" />
+                  <button type="button" onClick={onOpenConsultation} className={ACTION_NEUTRAL}>
+                    <MessageSquare className="h-4 w-4" aria-hidden="true" />
                     상담
                   </button>
                 )}
                 {onOpenScore && (
-                  <button
-                    type="button"
-                    onClick={onOpenScore}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
-                  >
-                    <BarChart3 className="h-4 w-4" />
+                  <button type="button" onClick={onOpenScore} className={ACTION_NEUTRAL}>
+                    <BarChart3 className="h-4 w-4" aria-hidden="true" />
                     성적
                   </button>
                 )}
                 {onOpenTimeManagement && (
-                  <button
-                    type="button"
-                    onClick={onOpenTimeManagement}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-medium text-teal-700 transition hover:bg-teal-100"
-                  >
-                    <Clock className="h-4 w-4" />
+                  <button type="button" onClick={onOpenTimeManagement} className={ACTION_NEUTRAL}>
+                    <Clock className="h-4 w-4" aria-hidden="true" />
                     시간관리
                   </button>
                 )}
                 {onOpenSMS && (
-                  <button
-                    type="button"
-                    onClick={onOpenSMS}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 transition hover:bg-orange-100"
-                  >
-                    <Send className="h-4 w-4" />
+                  <button type="button" onClick={onOpenSMS} className={ACTION_NEUTRAL}>
+                    <Send className="h-4 w-4" aria-hidden="true" />
                     SMS
                   </button>
                 )}
                 <Link
                   href={`/admin/students/${selectedStudentId}/plans`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
+                  className={ACTION_NEUTRAL}
                 >
-                  <CalendarDays className="h-4 w-4" />
+                  <CalendarDays className="h-4 w-4" aria-hidden="true" />
                   플래너
                 </Link>
                 <Link
                   href={`/admin/students/${selectedStudentId}/record`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                  className={ACTION_NEUTRAL}
                 >
-                  <ClipboardList className="h-4 w-4" />
+                  <ClipboardList className="h-4 w-4" aria-hidden="true" />
                   생기부
                 </Link>
                 <Link
                   href={`/admin/students/${selectedStudentId}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-primary transition hover:bg-bg-secondary"
+                  className={ACTION_NEUTRAL}
                 >
                   상세보기
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
             )}
@@ -352,26 +340,16 @@ export function StudentFormPanel({
         )}
         {formMode === "register" && (
           <>
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
-            >
+            <button type="button" onClick={onSubmit} disabled={isPending} className={ACTION_PRIMARY}>
               {isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <Save className="h-4 w-4" />
+                <Save className="h-4 w-4" aria-hidden="true" />
               )}
               저장
             </button>
-            <button
-              type="button"
-              onClick={() => reset()}
-              disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-primary transition hover:bg-bg-secondary"
-            >
-              <RotateCcw className="h-4 w-4" />
+            <button type="button" onClick={() => reset()} disabled={isPending} className={ACTION_NEUTRAL}>
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
               초기화
             </button>
           </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Search, Loader2, Users, Mail, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Avatar } from "@/components/atoms/Avatar";
@@ -180,6 +180,40 @@ export function StudentSearchPanel({
     onFiltersChange({ status: filters.status });
   };
 
+  // 카드 리스트 키보드 nav (j/k/ArrowDown/ArrowUp/Enter) — Linear 패턴
+  const listRef = useRef<HTMLUListElement>(null);
+  const handleListKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLUListElement>) => {
+      const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>(
+        'button[role="option"]',
+      );
+      if (!buttons || buttons.length === 0) return;
+      const current = document.activeElement as HTMLElement | null;
+      const idx = Array.from(buttons).indexOf(current as HTMLButtonElement);
+
+      const next = (offset: number) => {
+        const target = idx === -1 ? 0 : (idx + offset + buttons.length) % buttons.length;
+        buttons[target]?.focus();
+      };
+
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        next(1);
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        next(-1);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        buttons[0]?.focus();
+      } else if (e.key === "End") {
+        e.preventDefault();
+        buttons[buttons.length - 1]?.focus();
+      }
+      // Enter — button 자체 onClick 이 처리
+    },
+    [],
+  );
+
   const updateFilter = (key: keyof StudentSearchFilters, value: string) => {
     const next = { ...filters };
     if (!value) {
@@ -335,11 +369,13 @@ export function StudentSearchPanel({
         </select>
       </div>
 
-      {/* 학생 리스트 */}
+      {/* 학생 리스트 — Linear 식 j/k/ArrowDown/ArrowUp/Home/End/Enter 키보드 nav */}
       <ul
+        ref={listRef}
+        onKeyDown={handleListKeyDown}
         className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100dvh-340px)]"
         role="listbox"
-        aria-label="학생 목록"
+        aria-label="학생 목록 (j/k 또는 화살표로 이동, Enter 로 선택)"
       >
         {/* 첫 로딩 시 카드 모양 skeleton (P12) */}
         {isLoading && displayedStudents.length === 0 && (
