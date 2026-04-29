@@ -34,11 +34,11 @@ function TypingIndicatorComponent({ users }: TypingIndicatorProps) {
     >
       {isTyping && (
         <div className="flex items-center gap-2 px-4 py-2 text-sm text-text-tertiary">
-          {/* 애니메이션 점 */}
+          {/* 애니메이션 점 — 좌→우 파동 (카카오톡 스타일) */}
           <div className="flex items-center gap-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary animate-bounce [animation-delay:0ms]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary animate-bounce [animation-delay:150ms]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary animate-bounce [animation-delay:300ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary animate-typing-wave [animation-delay:0ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary animate-typing-wave [animation-delay:200ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary animate-typing-wave [animation-delay:400ms]" />
           </div>
           <span>{displayNames}님이 입력 중...</span>
         </div>

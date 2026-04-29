@@ -867,6 +867,39 @@ input[type="number"] {
   animation: bounce-slow 1.5s ease-in-out infinite;
 }
 
+/* Chat typing indicator — 좌→우 파동 (카카오톡 스타일) */
+@keyframes typing-wave {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.animate-typing-wave {
+  animation: typing-wave 1.2s ease-in-out infinite;
+}
+
+/* 검색 결과 / 답장 점프 — 메시지 하이라이트 (페이드 인 + 유지 + 페이드 아웃) */
+@keyframes message-highlight {
+  0% {
+    background-color: transparent;
+  }
+  10%, 80% {
+    background-color: rgb(var(--color-warning-500) / 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-message-highlight {
+  animation: message-highlight 2s ease-in-out;
+}
+
 /* Bounce-in for achievement unlocks */
 @keyframes bounce-in {
   0% {

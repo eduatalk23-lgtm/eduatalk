@@ -554,7 +554,7 @@ function MessageBubbleComponent({
                         isLongText && !isExpanded && "max-h-[240px] overflow-hidden"
                       )}
                     >
-                      {renderContentWithMentions(content, mentions)}
+                      {renderContentWithMentions(content, mentions, isOwn)}
                     </div>
                     {isLongText && !isExpanded && (
                       <div className="absolute bottom-0 left-0 right-0">

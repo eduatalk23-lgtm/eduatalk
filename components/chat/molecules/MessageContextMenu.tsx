@@ -13,6 +13,7 @@ import { memo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { useFocusTrap, useEscapeKey } from "@/lib/accessibility/hooks";
+import { focusFirst } from "@/lib/accessibility";
 import { REACTION_EMOJIS, type ReactionEmoji } from "@/lib/domains/chat/types";
 import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff, Forward, Eye } from "lucide-react";
 
@@ -215,6 +216,8 @@ function MessageContextMenuComponent({
   const isDesktopPopup = !!position;
 
   // 데스크톱 팝업: 렌더 후 뷰포트 안에 맞추기 (callback ref로 DOM 직접 조정)
+  // useFocusTrap 의 useEffect 는 ref 가 채워지기 전에 실행될 수 있어
+  // 데스크탑 팝업 경로에서는 여기서 focusFirst 를 명시적으로 한 번 더 호출.
   const popupCallbackRef = useCallback(
     (el: HTMLDivElement | null) => {
       if (!el || !position) return;
@@ -239,6 +242,9 @@ function MessageContextMenuComponent({
 
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+
+      // useFocusTrap 이 ref null 시점에 focusFirst(null) 을 호출했을 가능성 보강
+      focusFirst(el);
     },
     [position, containerRef]
   );

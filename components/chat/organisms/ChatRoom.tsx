@@ -1068,9 +1068,13 @@ function ChatRoomComponent({
       const pollForElement = () => {
         const element = messageRefs.current.get(messageId);
         if (element) {
-          element.classList.add("bg-warning/20");
+          // animation 재실행을 위해 일단 제거 후 다음 프레임에 추가
+          element.classList.remove("animate-message-highlight");
+          // reflow 강제로 animation restart
+          void element.offsetWidth;
+          element.classList.add("animate-message-highlight");
           const removeTimer = setTimeout(() => {
-            element.classList.remove("bg-warning/20");
+            element.classList.remove("animate-message-highlight");
             highlightTimersRef.current.delete(removeTimer);
           }, 2000);
           highlightTimersRef.current.add(removeTimer);
