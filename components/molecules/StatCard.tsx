@@ -1,9 +1,11 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 
 export type StatCardColor =
+  | "neutral"
   | "blue"
   | "purple"
   | "emerald"
@@ -22,12 +24,22 @@ export type StatCardProps = {
   color?: StatCardColor;
   className?: string;
   icon?: React.ReactNode;
+  /** 보조 메트릭 — 활성률 / % 변화 등 */
+  subValue?: React.ReactNode;
+  /** 클릭 시 이동할 경로 — 제공 시 카드 전체가 Link 로 감싸짐 */
+  href?: string;
 };
 
 const colorClasses: Record<
   StatCardColor,
   { bg: string; iconBg: string; label: string; value: string }
 > = {
+  neutral: {
+    bg: "bg-bg-primary border border-border",
+    iconBg: "bg-bg-secondary",
+    label: "text-text-tertiary",
+    value: "text-text-primary",
+  },
   blue: {
     bg: "bg-info-50 dark:bg-info-900/30",
     iconBg: "bg-info-100 dark:bg-info-900/50",
@@ -102,27 +114,53 @@ function StatCardComponent({
   color = "blue",
   className,
   icon,
+  subValue,
+  href,
 }: StatCardProps) {
   const colors = colorClasses[color];
 
-  return (
-    <div className={cn("rounded-lg p-4", colors.bg, className)}>
-      {icon ? (
-        <div className="flex items-center gap-3">
-          <div className={cn("rounded-lg p-2", colors.iconBg)}>{icon}</div>
-          <div className="flex flex-col gap-1">
-            <div className={cn("text-body-2", colors.label)}>{label}</div>
-            <div className={cn("text-h1", colors.value)}>{value}</div>
+  const content = icon ? (
+    <div className="flex items-center gap-3">
+      <div className={cn("rounded-lg p-2", colors.iconBg)}>{icon}</div>
+      <div className="flex flex-col gap-1">
+        <div className={cn("text-body-2", colors.label)}>{label}</div>
+        <div className={cn("text-h1", colors.value)}>{value}</div>
+        {subValue && (
+          <div className={cn("text-xs font-medium", colors.label)}>
+            {subValue}
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1">
-          <div className={cn("text-body-2", colors.label)}>{label}</div>
-          <div className={cn("text-h1", colors.value)}>{value}</div>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div className="flex flex-col gap-1">
+      <div className={cn("text-body-2", colors.label)}>{label}</div>
+      <div className={cn("text-h1", colors.value)}>{value}</div>
+      {subValue && (
+        <div className={cn("text-xs font-medium", colors.label)}>
+          {subValue}
         </div>
       )}
     </div>
   );
+
+  const baseClass = cn(
+    "rounded-lg p-4 transition-shadow",
+    colors.bg,
+    href &&
+      "block hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+    className,
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={baseClass}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={baseClass}>{content}</div>;
 }
 
 export const StatCard = memo(StatCardComponent);

@@ -13,11 +13,12 @@ import { getCampStatisticsForTenant } from "@/lib/data/campTemplates";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/molecules/StatCard";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { getWeekRange } from "@/lib/date/weekRange";
 import { riskLevelColors, textPrimary, textSecondary, textMuted, bgSurface, borderDefault } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 import { getFileRequestKpiAction } from "@/lib/domains/drive/actions/workflow";
-import { Clock, FileUp, AlertTriangle } from "lucide-react";
+import { Clock, FileUp, AlertTriangle, ArrowRight } from "lucide-react";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/dashboard";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
@@ -162,6 +163,90 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
   }
 }
 
+// ============================================
+// 섹션 헬퍼 컴포넌트
+// ============================================
+
+function SectionHeader({
+  id,
+  title,
+  viewAllHref,
+}: {
+  id: string;
+  title: string;
+  viewAllHref?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h2 id={id} className={cn("text-lg md:text-xl font-semibold", textPrimary)}>
+        {title}
+      </h2>
+      {viewAllHref && (
+        <Link
+          href={viewAllHref}
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+        >
+          전체 보기
+          <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function RankRow({
+  href,
+  rank,
+  rankColor,
+  name,
+  rightLabel,
+  rightStrong,
+}: {
+  href: string;
+  rank: number;
+  rankColor: "indigo" | "green";
+  name: string;
+  rightLabel: string;
+  rightStrong?: boolean;
+}) {
+  const rankClass =
+    rankColor === "green"
+      ? "bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300"
+      : "bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300";
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
+        bgSurface,
+        borderDefault,
+        "hover:bg-bg-secondary",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold",
+            rankClass
+          )}
+        >
+          {rank}
+        </span>
+        <span className={cn("font-medium", textPrimary)}>{name}</span>
+      </div>
+      <span
+        className={cn(
+          rightStrong ? "text-sm font-semibold" : "text-sm",
+          rightStrong ? textPrimary : textSecondary
+        )}
+      >
+        {rightLabel}
+      </span>
+    </Link>
+  );
+}
+
 export default async function AdminDashboardPage() {
   const { userId, role } = await getCachedUserRole();
 
@@ -216,164 +301,184 @@ export default async function AdminDashboardPage() {
           description="전체 학생 현황과 주요 지표를 확인하세요"
         />
 
-        {/* KPI 카드 */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow", bgSurface, borderDefault)}>
-            <div className="flex flex-col gap-1">
-              <div className={cn("text-sm font-medium", textMuted)}>전체 학생 수</div>
-              <div className={cn("text-3xl md:text-4xl font-bold", textPrimary)}>{studentStats.total}</div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-indigo-700 dark:text-indigo-300">이번주 학습한 학생</div>
-              <div className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
-                {studentStats.activeThisWeek}
-              </div>
-              <div className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                {studentStats.total > 0
+        {/* KPI 카드 — Stripe 패턴: 1선 KPI 4개, 색상은 시맨틱 토큰만 사용 */}
+        <section aria-labelledby="kpi-heading" className="flex flex-col gap-4">
+          <h2 id="kpi-heading" className="sr-only">학생 KPI 요약</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="전체 학생 수"
+              value={studentStats.total}
+              color="neutral"
+              href="/admin/students"
+            />
+            <StatCard
+              label="이번주 학습한 학생"
+              value={studentStats.activeThisWeek}
+              color="indigo"
+              subValue={`${
+                studentStats.total > 0
                   ? Math.round((studentStats.activeThisWeek / studentStats.total) * 100)
-                  : 0}
-                % 활성
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-green-700 dark:text-green-300">성적 입력 학생</div>
-              <div className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">{studentStats.withScores}</div>
-              <div className="text-xs font-medium text-green-600 dark:text-green-400">
-                {studentStats.total > 0
+                  : 0
+              }% 활성`}
+              href="/admin/students"
+            />
+            <StatCard
+              label="성적 입력 학생"
+              value={studentStats.withScores}
+              color="green"
+              subValue={`${
+                studentStats.total > 0
                   ? Math.round((studentStats.withScores / studentStats.total) * 100)
-                  : 0}
-                % 입력
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-purple-700 dark:text-purple-300">이번주 플랜 학생</div>
-              <div className="text-3xl md:text-4xl font-bold text-purple-600 dark:text-purple-400">{studentStats.withPlans}</div>
-              <div className="text-xs font-medium text-purple-600 dark:text-purple-400">
-                {studentStats.total > 0
+                  : 0
+              }% 입력`}
+              href="/admin/students"
+            />
+            <StatCard
+              label="이번주 플랜 학생"
+              value={studentStats.withPlans}
+              color="purple"
+              subValue={`${
+                studentStats.total > 0
                   ? Math.round((studentStats.withPlans / studentStats.total) * 100)
-                  : 0}
-                % 계획
-              </div>
-            </div>
+                  : 0
+              }% 계획`}
+              href="/admin/plan-creation"
+            />
           </div>
-        </div>
+        </section>
 
         {/* 이번주 학습시간 Top5 */}
-        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
+        <section
+          aria-labelledby="study-time-heading"
+          className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}
+        >
           <div className="flex flex-col gap-4">
-            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>이번주 학습시간 Top5</h2>
+            <SectionHeader id="study-time-heading" title="이번주 학습시간 Top5" viewAllHref="/admin/students" />
             {topStudyTime.length === 0 ? (
-              <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
+              <EmptyState
+                title="아직 학습 데이터가 없습니다"
+                description="학생을 등록하고 플랜을 발행하면 이번주 학습 현황이 여기에 표시됩니다."
+                actionLabel="학생 관리"
+                actionHref="/admin/students"
+                variant="compact"
+                headingLevel="p"
+              />
             ) : (
               <div className="flex flex-col gap-2 min-h-[200px]">
                 {topStudyTime.map((student, index) => (
-                  <Link
+                  <RankRow
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
-                      bgSurface,
-                      borderDefault,
-                      "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-                        {index + 1}
-                      </span>
-                      <span className={cn("font-medium", textPrimary)}>{student.name}</span>
-                    </div>
-                    <span className={cn("text-sm", textSecondary)}>{student.minutes}분</span>
-                  </Link>
+                    rank={index + 1}
+                    rankColor="indigo"
+                    name={student.name}
+                    rightLabel={`${student.minutes}분`}
+                  />
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 이번주 플랜 실행률 Top5 */}
-        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
+        <section
+          aria-labelledby="plan-completion-heading"
+          className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}
+        >
           <div className="flex flex-col gap-4">
-            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>이번주 플랜 실행률 Top5</h2>
+            <SectionHeader
+              id="plan-completion-heading"
+              title="이번주 플랜 실행률 Top5"
+              viewAllHref="/admin/plan-creation"
+            />
             {topPlanCompletion.length === 0 ? (
-              <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
+              <EmptyState
+                title="플랜 데이터가 없습니다"
+                description="플랜을 발행하면 학생별 실행률이 여기에 표시됩니다."
+                actionLabel="플랜 만들기"
+                actionHref="/admin/plan-creation"
+                variant="compact"
+                headingLevel="p"
+              />
             ) : (
               <div className="flex flex-col gap-2 min-h-[200px]">
                 {topPlanCompletion.map((student, index) => (
-                  <Link
+                  <RankRow
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
-                      bgSurface,
-                      borderDefault,
-                      "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-                        {index + 1}
-                      </span>
-                      <span className={cn("font-medium", textPrimary)}>{student.name}</span>
-                    </div>
-                    <span className={cn("text-sm font-semibold", textPrimary)}>
-                      {student.completionRate}%
-                    </span>
-                  </Link>
+                    rank={index + 1}
+                    rankColor="indigo"
+                    name={student.name}
+                    rightLabel={`${student.completionRate}%`}
+                    rightStrong
+                  />
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 최근 목표 달성 Top3 */}
-        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
+        <section
+          aria-labelledby="goal-achievement-heading"
+          className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}
+        >
           <div className="flex flex-col gap-4">
-            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>최근 목표 달성 Top3</h2>
+            <SectionHeader id="goal-achievement-heading" title="최근 목표 달성 Top3" />
             {topGoalAchievement.length === 0 ? (
-              <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
+              <EmptyState
+                title="달성된 목표가 없습니다"
+                description="학생이 목표를 달성하면 여기에 표시됩니다."
+                variant="compact"
+                headingLevel="p"
+              />
             ) : (
               <div className="flex flex-col gap-2 min-h-[150px]">
                 {topGoalAchievement.map((student, index) => (
-                  <Link
+                  <RankRow
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
-                      bgSurface,
-                      borderDefault,
-                      "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-sm font-semibold text-green-700 dark:text-green-300">
-                        {index + 1}
-                      </span>
-                      <span className={cn("font-medium", textPrimary)}>{student.name}</span>
-                    </div>
-                    <span className={cn("text-sm", textSecondary)}>{student.count}개 달성</span>
-                  </Link>
+                    rank={index + 1}
+                    rankColor="green"
+                    name={student.name}
+                    rightLabel={`${student.count}개 달성`}
+                  />
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 위험 학생 리스트 */}
-        <div className={cn(
-          "rounded-xl border p-5 md:p-6 shadow-sm",
-          "border-red-200 dark:border-red-800",
-          "bg-gradient-to-br from-red-50 to-red-100/50",
-          "dark:from-red-900/30 dark:to-red-800/20"
-        )}>
+        <section
+          aria-labelledby="at-risk-heading"
+          className={cn(
+            "rounded-xl border p-5 md:p-6 shadow-sm",
+            "border-red-200 dark:border-red-800",
+            "bg-gradient-to-br from-red-50 to-red-100/50",
+            "dark:from-red-900/30 dark:to-red-800/20"
+          )}
+        >
           <div className="flex flex-col gap-4">
-            <h2 className={cn("text-lg md:text-xl font-semibold", "text-red-900 dark:text-red-300")}>🚨 위험 학생 리스트</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2
+                id="at-risk-heading"
+                className={cn(
+                  "flex items-center gap-2 text-lg md:text-xl font-semibold",
+                  "text-red-900 dark:text-red-300"
+                )}
+              >
+                <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                위험 학생 리스트
+              </h2>
+              <Link
+                href="/admin/students"
+                className="inline-flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-900 dark:text-red-300 dark:hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+              >
+                전체 보기
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </Link>
+            </div>
             {atRiskStudents.length === 0 ? (
               <p className={cn("text-sm", "text-red-600 dark:text-red-400")}>위험 학생이 없습니다.</p>
             ) : (
@@ -392,7 +497,8 @@ export default async function AdminDashboardPage() {
                         "flex items-center gap-4 rounded-lg border p-3 transition",
                         "border-red-200 dark:border-red-800",
                         bgSurface,
-                        "hover:bg-red-50 dark:hover:bg-red-900/30"
+                        "hover:bg-red-50 dark:hover:bg-red-900/30",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       )}
                     >
                       <div className="flex items-center gap-3">
@@ -417,14 +523,24 @@ export default async function AdminDashboardPage() {
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 최근 상담노트 */}
-        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
+        <section
+          aria-labelledby="recent-notes-heading"
+          className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}
+        >
           <div className="flex flex-col gap-4">
-            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>최근 상담노트</h2>
+            <SectionHeader id="recent-notes-heading" title="최근 상담노트" viewAllHref="/admin/students" />
             {recentNotes.length === 0 ? (
-              <p className={cn("text-sm", textMuted)}>상담노트가 없습니다.</p>
+              <EmptyState
+                title="상담노트가 없습니다"
+                description="학생 상세에서 상담노트를 작성하면 여기에 표시됩니다."
+                actionLabel="학생 보기"
+                actionHref="/admin/students"
+                variant="compact"
+                headingLevel="p"
+              />
             ) : (
               <div className="flex flex-col gap-3 min-h-[200px]">
                 {recentNotes.map((note) => (
@@ -435,7 +551,8 @@ export default async function AdminDashboardPage() {
                       "block rounded-lg border p-4 transition hover:shadow-sm",
                       bgSurface,
                       borderDefault,
-                      "hover:bg-gray-50 dark:hover:bg-gray-700"
+                      "hover:bg-bg-secondary",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -450,87 +567,75 @@ export default async function AdminDashboardPage() {
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 파일 요청 현황 */}
         {(fileRequestKpi.pending > 0 || fileRequestKpi.submitted > 0 || fileRequestKpi.overdue > 0) && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>
-                파일 요청 현황
-              </h2>
-              <Link
-                href="/admin/files"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
-              >
-                자세히 보기 →
-              </Link>
-            </div>
+          <section aria-labelledby="file-request-heading" className="flex flex-col gap-4">
+            <SectionHeader id="file-request-heading" title="파일 요청 현황" viewAllHref="/admin/files" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <StatCard label="대기중" value={fileRequestKpi.pending} color="amber" icon={<Clock className="w-4 h-4" />} />
-              <StatCard label="제출됨" value={fileRequestKpi.submitted} color="blue" icon={<FileUp className="w-4 h-4" />} />
-              <StatCard label="기한초과" value={fileRequestKpi.overdue} color="red" icon={<AlertTriangle className="w-4 h-4" />} />
+              <StatCard
+                label="대기중"
+                value={fileRequestKpi.pending}
+                color="amber"
+                icon={<Clock className="w-4 h-4" aria-hidden="true" />}
+                href="/admin/files"
+              />
+              <StatCard
+                label="제출됨"
+                value={fileRequestKpi.submitted}
+                color="blue"
+                icon={<FileUp className="w-4 h-4" aria-hidden="true" />}
+                href="/admin/files"
+              />
+              <StatCard
+                label="기한초과"
+                value={fileRequestKpi.overdue}
+                color="red"
+                icon={<AlertTriangle className="w-4 h-4" aria-hidden="true" />}
+                href="/admin/files"
+              />
             </div>
-          </div>
+          </section>
         )}
 
         {/* 캠프 통계 섹션 */}
         {campStats && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                캠프 통계
-              </h2>
-              <Link
-                href="/admin/camp-templates"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
-              >
-                캠프 관리 →
-              </Link>
-            </div>
+          <section aria-labelledby="camp-stats-heading" className="flex flex-col gap-4">
+            <SectionHeader id="camp-stats-heading" title="캠프 통계" viewAllHref="/admin/camp-templates" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow", bgSurface, borderDefault)}>
-                <div className="flex flex-col gap-1">
-                  <div className={cn("text-sm font-medium", textMuted)}>활성 템플릿</div>
-                  <div className={cn("text-3xl md:text-4xl font-bold", textPrimary)}>
-                    {campStats.activeTemplates}
-                  </div>
-                </div>
-              </div>
-              <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow", bgSurface, borderDefault)}>
-                <div className="flex flex-col gap-1">
-                  <div className={cn("text-sm font-medium", textMuted)}>전체 초대</div>
-                  <div className={cn("text-3xl md:text-4xl font-bold", textPrimary)}>
-                    {campStats.totalInvitations}
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-col gap-1">
-                  <div className="text-sm font-medium text-green-700 dark:text-green-300">수락</div>
-                  <div className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">
-                    {campStats.acceptedInvitations}
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/30 dark:to-yellow-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-col gap-1">
-                  <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300">대기중</div>
-                  <div className="text-3xl md:text-4xl font-bold text-yellow-600 dark:text-yellow-400">
-                    {campStats.pendingInvitations}
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-col gap-1">
-                  <div className="text-sm font-medium text-indigo-700 dark:text-indigo-300">참여율</div>
-                  <div className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
-                    {campStats.participationRate}%
-                  </div>
-                </div>
-              </div>
+              <StatCard
+                label="활성 템플릿"
+                value={campStats.activeTemplates}
+                color="neutral"
+                href="/admin/camp-templates"
+              />
+              <StatCard
+                label="전체 초대"
+                value={campStats.totalInvitations}
+                color="neutral"
+                href="/admin/camp-templates"
+              />
+              <StatCard
+                label="수락"
+                value={campStats.acceptedInvitations}
+                color="green"
+                href="/admin/camp-templates"
+              />
+              <StatCard
+                label="대기중"
+                value={campStats.pendingInvitations}
+                color="amber"
+                href="/admin/camp-templates"
+              />
+              <StatCard
+                label="참여율"
+                value={`${campStats.participationRate}%`}
+                color="indigo"
+                href="/admin/camp-templates"
+              />
             </div>
-          </div>
+          </section>
         )}
       </div>
     </div>
