@@ -460,9 +460,14 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
     });
 
     if (process.env.ENABLE_SLOT_AWARE_RANKING === "true") {
-      const { computeSlotBoost, extractBestSlotScoreByGuide } = await import(
-        "../slots/slot-aware-boost"
-      );
+      const {
+        computeSlotBoost,
+        extractBestSlotScoreByGuide,
+        extractTop1CountByGuide,
+        applyDiversityPenalty,
+        MAX_PER_GUIDE_TOP1,
+        SOFT_PENALTY_PER_USE,
+      } = await import("../slots/slot-aware-boost");
       const shadow = ctx.results["_slotAwareScores"] as
         | {
             topKPerSlot?: Array<{
@@ -473,23 +478,47 @@ export async function runGuideMatching(ctx: PipelineContext): Promise<TaskRunner
             }>;
           }
         | undefined;
-      const bestByGuide = extractBestSlotScoreByGuide(shadow?.topKPerSlot ?? []);
+      const topK = shadow?.topKPerSlot ?? [];
+      const bestByGuide = extractBestSlotScoreByGuide(topK);
+      const top1ByGuide = extractTop1CountByGuide(topK);
       let appliedCount = 0;
-      const sample: Array<{ id: string; before: number; boost: number; after: number }> = [];
+      let penalizedCount = 0;
+      let hardPenalizedCount = 0;
+      const sample: Array<{
+        id: string;
+        before: number;
+        bestRaw: number;
+        top1Count: number;
+        bestPenalized: number;
+        boost: number;
+        after: number;
+      }> = [];
       for (const r of state.phaseB.ranked) {
-        const best = bestByGuide.get(r.id) ?? 0;
-        const boost = computeSlotBoost(best);
+        const bestRaw = bestByGuide.get(r.id) ?? 0;
+        const top1Count = top1ByGuide.get(r.id) ?? 0;
+        const bestPenalized = applyDiversityPenalty(bestRaw, top1Count);
+        if (top1Count >= MAX_PER_GUIDE_TOP1) hardPenalizedCount++;
+        else if (top1Count > 0 && bestPenalized < bestRaw) penalizedCount++;
+        const boost = computeSlotBoost(bestPenalized);
         if (boost > 1) appliedCount++;
         const before = r.finalScore;
         r.finalScore = before * boost;
-        if (sample.length < 5) sample.push({ id: r.id, before, boost, after: r.finalScore });
+        if (sample.length < 5) {
+          sample.push({ id: r.id, before, bestRaw, top1Count, bestPenalized, boost, after: r.finalScore });
+        }
       }
-      ctx.previews["slot_aware_boost"] = JSON.stringify({
-        version: "wiring-v1",
+      ctx.results["_slotAwareBoost"] = {
+        version: "wiring-v2-diversity",
         appliedCount,
+        penalizedCount,
+        hardPenalizedCount,
         totalGuides: state.phaseB.ranked.length,
+        diversityGuard: {
+          maxPerGuideTop1: MAX_PER_GUIDE_TOP1,
+          softPenaltyPerUse: SOFT_PENALTY_PER_USE,
+        },
         sample,
-      });
+      } as unknown as Record<string, unknown>;
     }
   }
 
