@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { verifyGuideTenantAccess } from "@/lib/auth/verifyTenantAccess";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // 서버→서버 호출이지만 외부에서도 호출 가능하므로 admin/consultant 가드 필수
-    await requireAdminOrConsultant();
+    const caller = await requireAdminOrConsultant();
 
     const { guideId, input, modelStartIndex } = (await request.json()) as {
       guideId: string;
@@ -33,6 +34,8 @@ export async function POST(request: NextRequest) {
     if (!guideId || !input || modelStartIndex == null) {
       return NextResponse.json({ error: "필수 파라미터 누락" }, { status: 400 });
     }
+
+    await verifyGuideTenantAccess(guideId, caller);
 
     try {
       await executeGuideGeneration(guideId, input, { modelStartIndex });

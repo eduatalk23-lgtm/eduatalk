@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { verifyGuideTenantAccess } from "@/lib/auth/verifyTenantAccess";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { createRateLimiter, applyRateLimit } from "@/lib/middleware/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
-    await requireAdminOrConsultant();
+    const caller = await requireAdminOrConsultant();
 
     const { newGuideId, sourceGuideId, instruction, targetSectionKeys, askInput } =
       (await request.json()) as {
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    await Promise.all([
+      verifyGuideTenantAccess(sourceGuideId, caller),
+      verifyGuideTenantAccess(newGuideId, caller),
+    ]);
 
     try {
       await executeAgentEdit(newGuideId, sourceGuideId, instruction, targetSectionKeys, askInput);

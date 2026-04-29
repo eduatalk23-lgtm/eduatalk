@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { verifyGuideTenantAccess } from "@/lib/auth/verifyTenantAccess";
 import { logActionDebug, logActionError, withActionTiming } from "@/lib/logging/actionLogger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { executeGuideGeneration } from "@/lib/domains/guide/llm/actions/executeGuideGeneration";
@@ -25,9 +26,13 @@ const LOG_CTX = { domain: "guide", action: "aiGuideGen" };
  */
 export async function POST(request: NextRequest) {
   try {
-    await requireAdminOrConsultant();
+    const caller = await requireAdminOrConsultant();
 
     const { guideId } = (await request.json()) as { guideId?: string };
+
+    if (guideId) {
+      await verifyGuideTenantAccess(guideId, caller);
+    }
 
     const admin = createSupabaseAdminClient()!;
 

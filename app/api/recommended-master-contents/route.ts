@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
+import { verifyStudentTenantAccess } from "@/lib/auth/verifyTenantAccess";
 import {
   apiSuccess,
   apiUnauthorized,
@@ -28,21 +29,23 @@ export async function GET(request: NextRequest) {
       return apiUnauthorized();
     }
 
-    const { role } = await getCachedUserRole();
-    
+    const { role, tenantId } = await getCachedUserRole();
+
     // 쿼리 파라미터에서 교과와 개수 정보 추출
     const { searchParams } = new URL(request.url);
     const studentIdParam = searchParams.get("student_id");
-    
+
     // 학생 ID 결정: 관리자/컨설턴트인 경우 student_id 파라미터 사용, 학생인 경우 자신의 ID 사용
     let targetStudentId: string;
     const isAdminOrConsultant = role === "admin" || role === "consultant";
-    
+
     if (isAdminOrConsultant) {
       if (!studentIdParam) {
         return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
       }
       targetStudentId = studentIdParam;
+      // tenant 격리: caller tenant ↔ student tenant 매칭 (superadmin 제외)
+      await verifyStudentTenantAccess(targetStudentId, { role: role ?? "", tenantId });
     } else {
       targetStudentId = user.userId;
     }

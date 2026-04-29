@@ -9,6 +9,7 @@ import {
 } from "@/lib/data/contentMasters";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
+import { verifyStudentTenantAccess } from "@/lib/auth/verifyTenantAccess";
 import {
   apiSuccess,
   apiUnauthorized,
@@ -34,7 +35,7 @@ export const revalidate = 300;
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    const { role } = await getCachedUserRole();
+    const { role, tenantId } = await getCachedUserRole();
 
     // 권한 체크 및 상세 로깅
     if (!user) {
@@ -68,6 +69,11 @@ export async function GET(request: NextRequest) {
     // 관리자/컨설턴트의 경우 student_id가 필요
     if ((role === "admin" || role === "consultant") && !studentId) {
       return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
+    }
+
+    // tenant 격리: admin/consultant가 다른 학생 조회 시 caller tenant 매칭 검증
+    if ((role === "admin" || role === "consultant") && studentId) {
+      await verifyStudentTenantAccess(studentId, { role, tenantId });
     }
 
     // 관리자/컨설턴트인 경우 Admin 클라이언트 사용 (RLS 우회)
