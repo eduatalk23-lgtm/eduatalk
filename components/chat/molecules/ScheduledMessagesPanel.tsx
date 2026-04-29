@@ -582,7 +582,7 @@ function ScheduledMessageItem({
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full",
+              "inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full",
               badge.className
             )}
           >
@@ -598,7 +598,7 @@ function ScheduledMessageItem({
             {formatScheduledTime(message.scheduled_at)}
           </span>
           {isFailed && message.last_error && (
-            <span className="text-[10px] text-error-500 truncate max-w-[120px]" title={message.last_error}>
+            <span className="text-3xs text-error-500 truncate max-w-[120px]" title={message.last_error}>
               {message.last_error}
             </span>
           )}
@@ -611,7 +611,7 @@ function ScheduledMessageItem({
 
         {/* 재시도 정보 */}
         {isFailed && (
-          <p className="text-[10px] text-text-tertiary">
+          <p className="text-3xs text-text-tertiary">
             시도 {message.attempts}/{message.max_attempts}회
           </p>
         )}

@@ -494,7 +494,7 @@ function ChatInputComponent({
               ) : (
                 <div className="w-16 h-16 rounded-lg bg-bg-secondary flex flex-col items-center justify-center gap-1">
                   <FileText className="w-5 h-5 text-text-tertiary" />
-                  <span className="text-[9px] text-text-tertiary truncate max-w-[56px]">
+                  <span className="text-3xs text-text-tertiary truncate max-w-[56px]">
                     {file.file.name.split(".").pop()?.toUpperCase()}
                   </span>
                 </div>
@@ -519,14 +519,14 @@ function ChatInputComponent({
                       className="transition-[stroke-dasharray] duration-300"
                     />
                   </svg>
-                  <span className="absolute text-[10px] text-white font-medium" aria-hidden="true">{file.progress}%</span>
+                  <span className="absolute text-3xs text-white font-medium" aria-hidden="true">{file.progress}%</span>
                 </div>
               )}
 
               {/* 에러 표시 + 재시도 */}
               {file.status === "error" && (
                 <div className="absolute inset-0 bg-error/20 rounded-lg flex flex-col items-center justify-center gap-0.5">
-                  <span className="text-[9px] text-error font-medium text-center px-1 line-clamp-1">
+                  <span className="text-3xs text-error font-medium text-center px-1 line-clamp-1">
                     실패
                   </span>
                   {onRetryFile && (
@@ -536,7 +536,7 @@ function ChatInputComponent({
                         e.stopPropagation();
                         onRetryFile(file.clientId);
                       }}
-                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-error/80 text-white text-[9px] font-medium hover:bg-error transition-colors"
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-error/80 text-white text-3xs font-medium hover:bg-error transition-colors"
                       aria-label={`${file.file.name} 재시도`}
                     >
                       <RotateCw className="w-2.5 h-2.5" />
@@ -561,7 +561,7 @@ function ChatInputComponent({
               )}
 
               {/* 파일 크기 */}
-              <span className="absolute bottom-0.5 right-0.5 text-[10px] text-white bg-black/60 rounded px-0.5">
+              <span className="absolute bottom-0.5 right-0.5 text-3xs text-white bg-black/60 rounded px-0.5">
                 {formatFileSize(file.file.size)}
               </span>
             </div>
@@ -721,7 +721,7 @@ function ChatInputComponent({
           {value.length > maxLength * 0.8 && (
             <span
               className={cn(
-                "absolute right-3 bottom-1 text-[10px]",
+                "absolute right-3 bottom-1 text-3xs",
                 value.length >= maxLength ? "text-error" : "text-text-tertiary"
               )}
             >

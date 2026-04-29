@@ -1898,7 +1898,7 @@ function ChatRoomComponent({
 
             {newMessageCount > 0 && (
               <span
-                className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-medium text-white bg-primary-500 rounded-full"
+                className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1 text-3xs font-medium text-white bg-primary-500 rounded-full"
                 role="status"
                 aria-live="polite"
               >

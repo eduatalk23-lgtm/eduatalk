@@ -152,6 +152,25 @@ const eslintConfig = defineConfig([
           message:
             "디자인 시스템 정책: 하드코딩된 색상 클래스를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: --color-*, --text-primary, --text-secondary 등, semantic colors (primary-*, error-*, warning-*, success-*, info-*).",
         },
+        {
+          // arbitrary text 사이즈 (text-[Npx]) 차단 — typography 토큰 강제
+          selector:
+            'JSXAttribute[name.name="className"] > Literal[value=/text-\\[\\d+px\\]/]',
+          message:
+            "Typography 정책: text-[Npx] arbitrary 사이즈를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: text-3xs(10px) / text-2xs(11px) / text-xs(12px) / text-sm(14px) / text-base(16px) 등.",
+        },
+        {
+          selector:
+            'TemplateLiteral[expressions.length=0] > TemplateElement[value.raw=/text-\\[\\d+px\\]/]',
+          message:
+            "Typography 정책: text-[Npx] arbitrary 사이즈를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: text-3xs / text-2xs / text-xs / text-sm / text-base 등.",
+        },
+        {
+          selector:
+            'Literal[value=/text-\\[\\d+px\\]/]',
+          message:
+            "Typography 정책: text-[Npx] arbitrary 사이즈를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: text-3xs / text-2xs / text-xs / text-sm / text-base 등.",
+        },
       ],
     },
   },

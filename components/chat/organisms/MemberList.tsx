@@ -282,10 +282,10 @@ const MemberListItemRow = memo(function MemberListItemRow({
               {member.name}
             </span>
             {isMe && (
-              <span className="text-[10px] text-text-tertiary font-medium">(나)</span>
+              <span className="text-3xs text-text-tertiary font-medium">(나)</span>
             )}
             {badge && (
-              <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", badge.className)}>
+              <span className={cn("text-3xs font-medium px-1.5 py-0.5 rounded-full", badge.className)}>
                 {badge.label}
               </span>
             )}

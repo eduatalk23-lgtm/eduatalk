@@ -117,7 +117,7 @@ const LONG_TEXT_CHAR_LIMIT = 500;
 const LONG_TEXT_LINE_LIMIT = 10;
 
 /** 읽음 숫자 공통 스타일 */
-const UNREAD_COUNT_CLASS = "text-[11px] text-primary-600 dark:text-primary-400 font-semibold leading-tight";
+const UNREAD_COUNT_CLASS = "text-2xs text-primary-600 dark:text-primary-400 font-semibold leading-tight";
 
 /** unreadCount span — 그룹 채팅에서 unreadMemberNames 가 있으면 title tooltip 노출 */
 function UnreadCountBadge({
@@ -175,10 +175,10 @@ function InlineTimeInfo({
       {isOwn && isSending && (
         <MessageStatusIndicator status="sending" className="w-3 h-3" />
       )}
-      <time dateTime={createdAt} className="text-[11px] text-text-secondary leading-tight">
+      <time dateTime={createdAt} className="text-2xs text-text-secondary leading-tight">
         {formattedTime}
       </time>
-      {isEdited && <span className="text-[11px] text-text-secondary leading-tight">(수정됨)</span>}
+      {isEdited && <span className="text-2xs text-text-secondary leading-tight">(수정됨)</span>}
     </div>
   );
 }
@@ -419,7 +419,7 @@ function MessageBubbleComponent({
                 삭제된 메시지입니다
               </div>
               {showTime && deletedTime && (
-                <span className="text-[11px] text-text-secondary self-end pb-1 flex-shrink-0">
+                <span className="text-2xs text-text-secondary self-end pb-1 flex-shrink-0">
                   {deletedTime}
                 </span>
               )}

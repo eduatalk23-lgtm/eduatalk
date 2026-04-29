@@ -85,7 +85,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
           />
           <span
             className={cn(
-              "text-[10px] truncate",
+              "text-3xs truncate",
               isOwn ? "text-white/85" : "text-text-tertiary"
             )}
           >

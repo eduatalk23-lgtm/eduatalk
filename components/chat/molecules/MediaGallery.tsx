@@ -770,7 +770,7 @@ function GalleryImageItem({
 
       {/* 용량 오버레이 (좌하단) */}
       <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/50">
-        <span className="text-white/80 text-[10px]">
+        <span className="text-white/80 text-3xs">
           {formatFileSize(attachment.file_size)}
         </span>
       </div>
