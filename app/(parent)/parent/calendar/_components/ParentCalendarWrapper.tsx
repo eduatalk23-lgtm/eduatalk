@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, Lock, CalendarX } from "lucide-react";
 import { ParentChildSwitcher } from "./ParentChildSwitcher";
 import { AdminPlanManagement } from "@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement";
 import { AdminPlanManagementSkeleton } from "@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementSkeleton";
@@ -33,16 +33,18 @@ export function ParentCalendarWrapper({
   if (emptyReason === "no_children") {
     return (
       <div className="h-[calc(100dvh-4rem)] flex items-center justify-center">
-        <div className="text-center max-w-sm">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-            <Calendar className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+        <div className="text-center max-w-sm flex flex-col items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))]">
+            <Calendar className="w-8 h-8 text-[var(--text-tertiary)]" />
           </div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-            연결된 자녀가 없습니다
-          </h2>
-          <p className="text-sm text-[var(--text-tertiary)]">
-            관리자에게 자녀 연결을 요청해주세요.
-          </p>
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              연결된 자녀가 없습니다
+            </h2>
+            <p className="text-sm text-[var(--text-tertiary)]">
+              관리자에게 자녀 연결을 요청해주세요.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -57,13 +59,18 @@ export function ParentCalendarWrapper({
           selectedStudentId={selectedStudentId ?? ""}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-sm">
-            <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
-              접근 권한이 없습니다
-            </h2>
-            <p className="text-sm text-red-700 dark:text-red-300">
-              이 학생의 캘린더를 조회할 권한이 없습니다.
-            </p>
+          <div className="text-center max-w-sm flex flex-col items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[rgb(var(--color-error-50))] dark:bg-[rgb(var(--color-error-950))]">
+              <Lock className="w-8 h-8 text-[rgb(var(--color-error-500))]" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                접근 권한이 없습니다
+              </h2>
+              <p className="text-sm text-[var(--text-tertiary)]">
+                이 학생의 캘린더를 조회할 권한이 없습니다.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -79,16 +86,18 @@ export function ParentCalendarWrapper({
           selectedStudentId={selectedStudentId ?? ""}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-sm">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))]">
+          <div className="text-center max-w-sm flex flex-col items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))]">
               <Calendar className="w-8 h-8 text-[var(--text-tertiary)]" />
             </div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-              학습 캘린더가 아직 없습니다
-            </h2>
-            <p className="text-sm text-[var(--text-tertiary)]">
-              자녀가 학습 플랜을 시작하면 캘린더가 자동으로 생성됩니다.
-            </p>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                학습 캘린더가 아직 없습니다
+              </h2>
+              <p className="text-sm text-[var(--text-tertiary)]">
+                자녀가 학습 플랜을 시작하면 캘린더가 자동으로 생성됩니다.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -104,13 +113,18 @@ export function ParentCalendarWrapper({
           selectedStudentId={selectedStudentId ?? ""}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-sm">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-              캘린더를 불러올 수 없습니다
-            </h2>
-            <p className="text-sm text-[var(--text-tertiary)]">
-              다른 자녀를 선택하거나 잠시 후 다시 시도해주세요.
-            </p>
+          <div className="text-center max-w-sm flex flex-col items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))]">
+              <CalendarX className="w-8 h-8 text-[var(--text-tertiary)]" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                캘린더를 불러올 수 없습니다
+              </h2>
+              <p className="text-sm text-[var(--text-tertiary)]">
+                다른 자녀를 선택하거나 잠시 후 다시 시도해주세요.
+              </p>
+            </div>
           </div>
         </div>
       </div>

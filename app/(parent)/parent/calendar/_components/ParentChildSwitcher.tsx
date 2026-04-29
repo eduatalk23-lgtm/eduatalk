@@ -65,10 +65,11 @@ export function ParentChildSwitcher({ students, selectedStudentId }: ParentChild
         aria-expanded={open}
         aria-label={`자녀 선택: ${displayName}`}
         className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-colors',
+          'flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-full text-sm cursor-pointer transition-colors',
           'bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))]',
           'hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]',
           'text-[var(--text-primary)]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-info-500))] focus-visible:ring-offset-1',
         )}
       >
         <Users className="w-4 h-4 shrink-0 text-[var(--text-tertiary)]" />
@@ -102,27 +103,30 @@ export function ParentChildSwitcher({ students, selectedStudentId }: ParentChild
                   onClick={() => handleSelect(student.id)}
                   className={cn(
                     'w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-info-500))] focus-visible:ring-offset-1',
                     isSelected
-                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      ? 'bg-[rgb(var(--color-info-50))] dark:bg-[rgb(var(--color-info-950))]'
                       : 'hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]',
                   )}
                 >
                   <span className="w-4 shrink-0">
-                    {isSelected && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-[rgb(var(--color-info-500))]" />
+                    )}
                   </span>
                   <div className="flex-1 text-left min-w-0">
                     <div
                       className={cn(
                         'truncate font-medium',
                         isSelected
-                          ? 'text-blue-600 dark:text-blue-400'
+                          ? 'text-[rgb(var(--color-info-600))] dark:text-[rgb(var(--color-info-400))]'
                           : 'text-[var(--text-primary)]',
                       )}
                     >
                       {student.name ?? '(이름 없음)'}
                     </div>
                     {subtitle && (
-                      <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
+                      <div className="flex flex-col gap-0.5 text-xs text-[var(--text-tertiary)] truncate">
                         {subtitle}
                       </div>
                     )}
